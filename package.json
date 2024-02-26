@@ -1,0 +1,32 @@
+{
+  "name": "vitevue",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"cd Backend && node ExpressBackend.js \"",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "apiai": "^4.0.3",
+    "axios": "^1.5.0",
+    "body-parser": "^1.20.2",
+    "bootstrap": "^5.3.2",
+    "concurrently": "^8.2.2",
+    "flag-icons": "^7.0.2",
+    "openai": "^4.0.1",
+    "simple-keyboard": "^3.7.18",
+    "socket.io": "^4.7.2",
+    "vue": "^3.3.4",
+    "vue-final-modal": "^4.4.5"
+  },
+  "devDependencies": {
+    "@iconify/vue": "^4.1.1",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "sass": "^1.69.0",
+    "typescript": "^5.2.2",
+    "vite": "^4.4.5"
+  }
+}

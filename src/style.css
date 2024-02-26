@@ -1,0 +1,29 @@
+
+:root {
+  color-scheme: light dark;
+  color: rgb(255, 255, 255);
+  background-color: #242424;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h2{
+  margin: 30px;
+}
+ 
+.card {
+  padding: 2em;
+}
+
+#app {
+ 
+  margin: 0 auto;
+  text-align:center;
+  padding: 0 auto;
+}
+
+
