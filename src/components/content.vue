@@ -27,7 +27,7 @@
     <div class="row fixed-bottom" id="ButtonVoice">
         <div class="row justify-content-center">
 
-            <input type="text" id="textInput" value="Ask me something!" />
+            <input type="text" id="textInput" value="" />
             <input type="button" @click="textInputButtonCallback" value="Submit" />
 
             <button class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
@@ -62,7 +62,6 @@
     const busy= ref(false);
     var currentLang = language.value;
     const languages= {
-        DE: 'de-DE',
         GB: 'en-EN'
     }
     onMounted(() => {initiatePrompt()})
@@ -76,9 +75,7 @@
     })
 
     async function textInputButtonCallback() {
-        alert("button clicked")
         const userInput = document.getElementById("textInput").value
-        alert(userInput)
         if (userInput != null) {
             askChatGpt(userInput)
         } else {
@@ -87,7 +84,17 @@
     }
 
     function initiatePrompt(){
-        chatHistory = [{"role": "system", "content": config.translations[language.value].prompt},{"role": "assistant", "content": config.translations[language.value].welcome},];
+        const knownServices = "bookDesk(room: Room); getAirQuality(room: Room): float; getListOfRooms(): List<Room>; showRoute(room: Room)"
+        // TODO get from opaca platform
+        chatHistory = [
+            {
+                "role": "system", 
+                "content": config.translations[language.value].prompt + knownServices
+            },{
+                "role": "assistant", 
+                "content": config.translations[language.value].welcome
+            },
+        ];
         console.log("initiatePrompt")
         console.log(chatHistory)
     };
@@ -112,6 +119,7 @@
     };
 
     async function askChatGpt(userText) {
+        initiatePrompt()
         chatHistory.push({
             "role": "user",
             "content": userText
@@ -150,25 +158,17 @@
     };
 
     function resetChat() {
-        
         document.getElementById("chat-container").innerHTML = '';
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
-        chatHistory = [{
-            "role": "system",
-            "content": config.translations[language.value].prompt
-        }, {
-            "role": "assistant",
-            "content": config.translations[language.value].welcome
-        },];
+        initiatePrompt()
         busy.value = false;
         console.log("resetChat")
     };
 
-
     function createSpeechBubbleAI(text, id) {
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
-        d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><p id="aiText" class="small mb-0">' + text + '</p></div></div>'
+        d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><p id="aiText" class="small mb-0"><pre align="left">' + text + '</pre></p></div></div>'
         if (!id) {
             document.getElementById('waitBubble').remove()
             busy.value = false;

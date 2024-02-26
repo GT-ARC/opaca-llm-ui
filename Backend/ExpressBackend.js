@@ -14,8 +14,6 @@ import OpenAIApi from "openai";
 const openai = new OpenAIApi({apiKey: process.env.OPENAI_API_KEY});
 const model='gpt-3.5-turbo'
     
-let messageHistory = [];
-
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
@@ -27,7 +25,7 @@ app.post("/wapi/reset", async (req, res) => {
 
 app.post("/wapi/chat", async (req, res) => {
   var prompt = req.body.prompt
-  console.log("Prompt from Frontend: "+prompt)
+  console.log("Prompt from Frontend: " + prompt)
 
   try {
     if (prompt == null) {
@@ -38,8 +36,6 @@ app.post("/wapi/chat", async (req, res) => {
     const response = await openai.chat.completions.create({
       model: model,
       messages: prompt,
-//      tools: tools,
-//      tool_choice: "auto",
       temperature: 0.2,
       max_tokens: 150,
     });
