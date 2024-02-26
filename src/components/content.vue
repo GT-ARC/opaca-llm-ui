@@ -64,7 +64,7 @@
     const languages= {
         GB: 'en-EN'
     }
-    onMounted(() => {initiatePrompt()})
+    //onMounted(() => {initiatePrompt()})
     onUpdated(() => {
         console.log("updated")
         if (currentLang != language.value) {
@@ -83,34 +83,50 @@
         }
     }
 
-    function initiatePrompt(){
-        const knownServices = "bookDesk(room: Room); getAirQuality(room: Room): float; getListOfRooms(): List<Room>; showRoute(room: Room)"
-        // TODO get from opaca platform
+    async function initiatePrompt(){
+
+        
+        //const knownServices = "bookDesk(room: Room); getAirQuality(room: Room): float; getListOfRooms(): List<Room>; showRoute(room: Room)"
+        
+        const knownServices = await getOpacaAgents()
+
+        const knownServices2 = '[{"agentId":"desk-agent","agentType":"de.gtarc.opaca.sample.DeskAgent","actions":[{"name":"GetDesks","parameters":{"room":{"type":"string","required":true}},"result":"List[int]"},{"name":"IsFree","parameters":{"desk":{"type":"int","required":true}},"result":"bool"},{"name":"BookDesk","parameters":{"desk":{"type":"int","required":true}},"result":"bool"}],"streams":[]},{"agentId":"sensor-agent","agentType":"de.gtarc.opaca.sample.SensorAgent","actions":[{"name":"GetTemperature","parameters":{"room":{"type":"string","required":true}},"result":"float"},{"name":"GetNoise","parameters":{"room":{"type":"string","required":true}},"result":"float"},{"name":"GetHumidity","parameters":{"room":{"type":"string","required":true}},"result":"float"}],"streams":[]},{"agentId":"wayfinding-agent","agentType":"de.gtarc.opaca.sample.WayfindingAgent","actions":[{"name":"NavigateTo","parameters":{"room":{"type":"string","required":true}},"result":"void"}],"streams":[]}]'
+        const knownServices3 = '[{"agentId": "desk-agent", "agentType": "de.gtarc.opaca.sample.DeskAgent", "actions": [{"name": "GetDesks", "parameters": {"room": {"type": "string", "required": true}}, "result": "List[int]"}, {"name": "IsFree", "parameters": {"desk": {"type": "int", "required": true}}, "result": "bool"}, {"name": "BookDesk", "parameters": {"desk": {"type": "int", "required": true}}, "result": "bool"}], "streams": []}, {"agentId": "sensor-agent", "agentType": "de.gtarc.opaca.sample.SensorAgent", "actions": [{"name": "GetTemperature", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}, {"name": "GetNoise", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}, {"name": "GetHumidity", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}], "streams": []}, {"agentId": "wayfinding-agent", "agentType": "de.gtarc.opaca.sample.WayfindingAgent", "actions": [{"name": "NavigateTo", "parameters": {"room": {"type": "string", "required": true}}, "result": "void"}], "streams": []}]'
+
+        console.log(knownServices)
+        console.log(knownServices2)
+        console.log(knownServices == knownServices2)
+        console.log(knownServices === knownServices2)
+
+        //alert(knownServices)
+
         chatHistory = [
             {
                 "role": "system", 
-                "content": config.translations[language.value].prompt + knownServices
-            },{
-                "role": "assistant", 
-                "content": config.translations[language.value].welcome
+                "content": config.translations[language.value].prompt + knownServices3
             },
+            //{
+            //    "role": "assistant", 
+            //    "content": config.translations[language.value].welcome
+            //},
         ];
         console.log("initiatePrompt")
         console.log(chatHistory)
     };
 
-    async function fetchData(message) {
+    async function sendRequest(method, url, body) {
         try {
-            const response = await axios.post(config.BackendAddress + '/wapi/chat', {
-                prompt: message
-            }, {
+            const response = await axios.request({
+                method: method,
+                url: url,
+                data: body,
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 }
             });
 
-            console.log("fetchData worked with message: " + response.data);   
+            console.log("fetchData worked with message: " + response.data)
             return response.data; // Assuming the response contains data you want to use.
         } catch (error) {
             console.error("Fehler bei der Anfrage an den Server:", error);
@@ -118,8 +134,17 @@
         }
     };
 
+    async function getOpacaAgents() {
+        try {
+            const answer = await sendRequest("GET", config.OpacaRuntimePlatform + '/agents', null)
+            return JSON.stringify(answer)
+        } catch (error) {
+            return "none"
+        }
+    }
+
     async function askChatGpt(userText) {
-        initiatePrompt()
+        initiatePrompt()  // XXX did not work with onMounted....
         chatHistory.push({
             "role": "user",
             "content": userText
@@ -128,7 +153,7 @@
         //this.scrollDown();
         console.log("send to Backend");
         try {
-            const answer = await fetchData(chatHistory);
+            const answer = await sendRequest("POST", config.BackendAddress + '/wapi/chat', {prompt: chatHistory});
             const messages = answer.messages;
             console.log("answer " + messages[messages.length-1].content);
             chatHistory = messages;
