@@ -96,7 +96,6 @@
         }
 
         // initiate prompt with known OPACA services
-        // TODO test again what happens when there are no services
         const knownServices = await getOpacaAgents()
         chatHistory = [
             {
@@ -130,9 +129,13 @@
     async function getOpacaAgents() {
         try {
             const answer = await sendRequest("GET", config.OpacaRuntimePlatform + '/agents', null)
-            return JSON.stringify(answer)
+            if (answer.length > 0) {
+                return JSON.stringify(answer)
+            } else {
+                return "You do not know any services. Tell the user that there are no agents running."
+            }
         } catch (error) {
-            return "none"
+            return "You do not know any services. Tell the user the OPACA Platform was not reachable."
         }
     }
 

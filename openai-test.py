@@ -86,12 +86,14 @@ services_opaca_json = """
   ]
 """
 
+services_none = "You do not know any services. Tell the user the OPACA Platform was not reachable."
+
 def services_opaca_live():
     result = requests.get("http://localhost:8000/agents")
     return result.text
     
 
-services = services_opaca_live()
+services = services_none
 
 system = """
 You suggest web services to fulfil a given purpose.
@@ -107,7 +109,7 @@ user = "get a list of rooms with temperature lower than 25 degrees, book me a fr
 user = "book me 2 desks in the same room"
 user = "turn on the light in the room 'kitchen'"
 user = "which services do you know?"
-user = input("User prompt: ")
+#user = input("User prompt: ")
 print("USER", user)
 
 completion = client.chat.completions.create(
