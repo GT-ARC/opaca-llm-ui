@@ -27,7 +27,7 @@
     <div class="row fixed-bottom" id="ButtonVoice">
         <div class="row justify-content-center">
 
-            <input type="text" id="textInput" value="" />
+            <input type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
             <input type="button" @click="textInputButtonCallback" value="Submit" />
 
             <button class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
@@ -64,7 +64,6 @@
     const languages= {
         GB: 'en-EN'
     }
-    //onMounted(() => {initiatePrompt()})
     onUpdated(() => {
         console.log("updated")
         if (currentLang != language.value) {
@@ -73,6 +72,12 @@
             console.log("initiated on update")
         }
     })
+
+    async function textInputKeypressCallback(event) {
+        if (event.key == "Enter") {
+            textInputButtonCallback()
+        }
+    }
 
     async function textInputButtonCallback() {
         const userInput = document.getElementById("textInput").value
@@ -83,7 +88,12 @@
         }
     }
 
-    async function initiatePrompt(){
+    async function initiatePrompt() {
+        // actually, might make sense to re-initiate prompt if services change...
+        // right now, needs to reset chat in order to fetch new services
+        if (chatHistory.length > 0) {
+            return
+        }
 
         
         //const knownServices = "bookDesk(room: Room); getAirQuality(room: Room): float; getListOfRooms(): List<Room>; showRoute(room: Room)"
@@ -197,8 +207,7 @@
         if (!id) {
             document.getElementById('waitBubble').remove()
             busy.value = false;
-        } else { }
-
+        }
         chat.appendChild(d1)
     };
 
@@ -211,9 +220,9 @@
     };
 
     function scrollDown() {
-        var ChatDiv = document.getElementById('chat-container')
-        var height = ChatDiv[0].scrollHeight;
-        ChatDiv.scrollTop(height);
+        var chatDiv = document.getElementById('chat-container')
+        var height = chatDiv[0].scrollHeight;
+        chatDiv.scrollTop(height);
     };
 
     function speakLastMessage() {

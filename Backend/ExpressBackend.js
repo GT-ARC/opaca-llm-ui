@@ -25,7 +25,7 @@ app.post("/wapi/reset", async (req, res) => {
 
 app.post("/wapi/chat", async (req, res) => {
   var prompt = req.body.prompt
-  console.log("Prompt from Frontend: " + prompt)
+  console.log("Prompt from Frontend: " + JSON.stringify(prompt))
 
   try {
     if (prompt == null) {
