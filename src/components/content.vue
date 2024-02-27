@@ -28,7 +28,9 @@
         <div class="row justify-content-center">
 
             <input type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
+            <!--
             <input type="button" @click="textInputButtonCallback" value="Submit" />
+            -->
 
             <button class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
                 {{ recording ? config.translations[language].recognitionActive : config.translations[language].speechRecognition }}
