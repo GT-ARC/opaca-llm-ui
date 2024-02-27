@@ -95,33 +95,19 @@
             return
         }
 
-        
-        //const knownServices = "bookDesk(room: Room); getAirQuality(room: Room): float; getListOfRooms(): List<Room>; showRoute(room: Room)"
-        
+        // initiate prompt with known OPACA services
+        // TODO test again what happens when there are no services
         const knownServices = await getOpacaAgents()
-
-        const knownServices2 = '[{"agentId":"desk-agent","agentType":"de.gtarc.opaca.sample.DeskAgent","actions":[{"name":"GetDesks","parameters":{"room":{"type":"string","required":true}},"result":"List[int]"},{"name":"IsFree","parameters":{"desk":{"type":"int","required":true}},"result":"bool"},{"name":"BookDesk","parameters":{"desk":{"type":"int","required":true}},"result":"bool"}],"streams":[]},{"agentId":"sensor-agent","agentType":"de.gtarc.opaca.sample.SensorAgent","actions":[{"name":"GetTemperature","parameters":{"room":{"type":"string","required":true}},"result":"float"},{"name":"GetNoise","parameters":{"room":{"type":"string","required":true}},"result":"float"},{"name":"GetHumidity","parameters":{"room":{"type":"string","required":true}},"result":"float"}],"streams":[]},{"agentId":"wayfinding-agent","agentType":"de.gtarc.opaca.sample.WayfindingAgent","actions":[{"name":"NavigateTo","parameters":{"room":{"type":"string","required":true}},"result":"void"}],"streams":[]}]'
-        const knownServices3 = '[{"agentId": "desk-agent", "agentType": "de.gtarc.opaca.sample.DeskAgent", "actions": [{"name": "GetDesks", "parameters": {"room": {"type": "string", "required": true}}, "result": "List[int]"}, {"name": "IsFree", "parameters": {"desk": {"type": "int", "required": true}}, "result": "bool"}, {"name": "BookDesk", "parameters": {"desk": {"type": "int", "required": true}}, "result": "bool"}], "streams": []}, {"agentId": "sensor-agent", "agentType": "de.gtarc.opaca.sample.SensorAgent", "actions": [{"name": "GetTemperature", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}, {"name": "GetNoise", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}, {"name": "GetHumidity", "parameters": {"room": {"type": "string", "required": true}}, "result": "float"}], "streams": []}, {"agentId": "wayfinding-agent", "agentType": "de.gtarc.opaca.sample.WayfindingAgent", "actions": [{"name": "NavigateTo", "parameters": {"room": {"type": "string", "required": true}}, "result": "void"}], "streams": []}]'
-
-        console.log(knownServices)
-        console.log(knownServices2)
-        console.log(knownServices == knownServices2)
-        console.log(knownServices === knownServices2)
-
-        //alert(knownServices)
-
         chatHistory = [
             {
                 "role": "system", 
-                "content": config.translations[language.value].prompt + knownServices3
+                "content": config.translations[language.value].prompt + knownServices
+            }, {
+                "role": "assistant", 
+                "content": config.translations[language.value].welcome
             },
-            //{
-            //    "role": "assistant", 
-            //    "content": config.translations[language.value].welcome
-            //},
         ];
         console.log("initiatePrompt")
-        console.log(chatHistory)
     };
 
     async function sendRequest(method, url, body) {
@@ -135,12 +121,9 @@
                     'Access-Control-Allow-Origin': '*'
                 }
             });
-
-            console.log("fetchData worked with message: " + response.data)
-            return response.data; // Assuming the response contains data you want to use.
+            return response.data;
         } catch (error) {
-            console.error("Fehler bei der Anfrage an den Server:", error);
-            throw error; // You may want to handle the error further up the call stack.
+            throw error;
         }
     };
 
@@ -154,7 +137,7 @@
     }
 
     async function askChatGpt(userText) {
-        initiatePrompt()  // XXX did not work with onMounted....
+        await initiatePrompt()
         chatHistory.push({
             "role": "user",
             "content": userText
@@ -195,7 +178,7 @@
     function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
-        initiatePrompt()
+        chatHistory = []
         busy.value = false;
         console.log("resetChat")
     };
@@ -203,6 +186,8 @@
     function createSpeechBubbleAI(text, id) {
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
+        // TODO because of the code snippets, this currently formats everything as <pre>
+        //  can we use Markdown here? alternatively, alternatingly replace "```" with <pre> and </pre>?
         d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><p id="aiText" class="small mb-0"><pre align="left">' + text + '</pre></p></div></div>'
         if (!id) {
             document.getElementById('waitBubble').remove()
