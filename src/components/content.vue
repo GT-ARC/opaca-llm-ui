@@ -9,7 +9,7 @@
                     <p class="mb-0 fw-bold">AI Chat</p>
                     <i class="fas fa-times"></i>
                 </div>
-                <div class="card-body" style="overflow-y: scroll; height: 50em; flex-direction: column-reverse"
+                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
                     data-mdb-perfect-scrollbar="true" id="chat-container">
                     <div class="d-flex flex-row justify-content-start mb-4">
                         <img src=../assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;">
