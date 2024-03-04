@@ -1,6 +1,29 @@
 <template>
     <div class="row d-flex justify-content-center my-5 w-100">
         <div class="col-md-10 col-lg-8 col-xl-6">
+            <div style="text-align: center;
+                        width: 100%;
+                        float: left;
+                        margin-top: 50px;
+                        margin-bottom: 50px;" class='container'>
+                <button style="display: inline-block; float:left;"
+                        class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
+                    {{ recording ? config.translations[language].recognitionActive : config.translations[language].speechRecognition }}
+                    <div v-if="recording" class="spinner-border text-danger md-2" height=2em role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </button>
+
+                <button style="display: inline-block;"
+                        class="btn btn-secondary btn-lg col-3 m-1" @click="speakLastMessage">
+                    {{ config.translations[language].readLastMessage }}
+                </button>
+
+                <button style="display: inline-block; float: right;"
+                        class="btn btn-secondary btn-lg col-3 m-1" @click="resetChat()">
+                    {{ config.translations[language].resetChat }}
+                </button>
+            </div>
 
             <div class="card" id="chat1" style="border-radius: 15px;">
                 <div class="card-header d-flex justify-content-between align-items-center p-3 bg-info text-white border-bottom-0"
@@ -21,33 +44,14 @@
                     </div>
                 </div>
             </div>
+
+            <div style="text-align: center; margin-top: 10px;" class="container justify-content-center">
+                <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
+                <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" value="Submit" />
+            </div>
         </div>
     </div>
 
-    <div class="row fixed-bottom" id="ButtonVoice">
-        <div class="row justify-content-center">
-
-            <input type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
-            <!--
-            <input type="button" @click="textInputButtonCallback" value="Submit" />
-            -->
-
-            <button class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
-                {{ recording ? config.translations[language].recognitionActive : config.translations[language].speechRecognition }}
-                <div v-if="recording" class="spinner-border text-danger md-2" height=2em role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </button>
-
-            <button class="btn btn-secondary btn-lg col-2 m-1" @click="speakLastMessage">
-                {{ config.translations[language].readLastMessage }}
-            </button>
-
-            <button class="btn btn-secondary col-1 m-1" @click="resetChat()">
-                {{ config.translations[language].resetChat }}
-            </button>
-        </div>
-    </div>
 </template>
 
 <script setup>
