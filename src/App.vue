@@ -14,6 +14,12 @@
 </script>
 
 <template>
+    <header>
+      <div class="site-logo">
+        <img style="width: 300px;" src="./assets/opaca-logo.png" alt="logo">
+      </div>
+    </header>
+
     <div>
         <div class="col background">
             <component :is="Content" class="tab" @reset="resetHistory()" />
@@ -58,5 +64,17 @@
         margin: 0px;
         padding: 0px;
         width: 100%;
+    }
+
+    header {
+      background-color: #fff;
+      width: 100%;
+      height: 100px;
+      display: flex;
+      align-items: center;
+    }
+
+    .site-logo {
+      margin-left: 20px;
     }
 </style>
