@@ -32,8 +32,8 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 * [x] strip down Wayfinding Demo to just the OpenAI input prompt
 * [x] get OPACA services from Runtime Platform
 * [ ] get speech recognition to work (it should already work, but not for me)
-* [ ] get SimpleKeyboard to work
-* [ ] adapt visuals a bit, insert OPACA Logo somewhere, etc.
+* [X] get SimpleKeyboard to work
+* [X] adapt visuals a bit, insert OPACA Logo somewhere, etc.
 * [ ] simplify further, e.g. does it really have to be those 2 packages?
 * [ ] make location of OPACA platform configurable in the UI itself?
 * [ ] re-enable multiple languages (all the code is still there, just translate the new prompt)
