@@ -76,7 +76,8 @@
     const busy= ref(false);
     var currentLang = language.value;
     const languages= {
-        GB: 'en-EN'
+        GB: 'en-EN',
+        DE: 'de-DE'
     }
 
     var opacaRuntimePlatform = config.OpacaRuntimePlatform;
