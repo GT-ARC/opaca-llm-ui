@@ -51,7 +51,7 @@
 
             <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;" class="container justify-content-center">
                 <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputKeypressCallback"/>
-                <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" value="Submit" />
+                <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" v-model="config.translations[language].submit" />
             </div>
 
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" />
@@ -153,10 +153,10 @@
             if (answer.length > 0) {
                 return JSON.stringify(answer)
             } else {
-                return "You do not know any services. Tell the user that there are no agents running."
+                return config.translations[language.value].no_services
             }
         } catch (error) {
-            return "You do not know any services. Tell the user the OPACA Platform was not reachable."
+            return config.translations[language.value].no_platform
         }
     }
 
