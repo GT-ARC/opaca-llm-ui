@@ -46,7 +46,7 @@
             </div>
 
             <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;" class="container justify-content-center">
-                <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
+                <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputKeypressCallback"/>
                 <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" value="Submit" />
             </div>
 

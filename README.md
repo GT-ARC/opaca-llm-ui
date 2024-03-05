@@ -36,4 +36,4 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 * [X] adapt visuals a bit, insert OPACA Logo somewhere, etc.
 * [ ] simplify further, e.g. does it really have to be those 2 packages?
 * [ ] make location of OPACA platform configurable in the UI itself?
-* [ ] re-enable multiple languages (all the code is still there, just translate the new prompt)
+* [X] re-enable multiple languages (all the code is still there, just translate the new prompt)
