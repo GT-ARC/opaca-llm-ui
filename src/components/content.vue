@@ -179,6 +179,7 @@
             //this.scrollDown();
         } catch (error) {
             console.log("Error while fetching data: " + error)
+            createSpeechBubbleAI("Error while fetching data: " + error)
         }
     };
 
