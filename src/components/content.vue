@@ -77,7 +77,8 @@
     const busy= ref(false);
     var currentLang = language.value;
     const languages= {
-        GB: 'en-EN'
+        GB: 'en-EN',
+        DE: 'de-DE'
     }
 
     var opacaRuntimePlatform = config.OpacaRuntimePlatform;
@@ -180,6 +181,7 @@
             //this.scrollDown();
         } catch (error) {
             console.log("Error while fetching data: " + error)
+            createSpeechBubbleAI("Error while fetching data: " + error)
         }
     };
 
