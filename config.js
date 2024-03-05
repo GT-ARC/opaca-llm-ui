@@ -4,6 +4,8 @@ var config = {
 
     OpacaRuntimePlatform: 'http://localhost:8000',
 
+    ShowKeyboard: true,
+
     translations:{
         GB: {
             prompt: 'You suggest web services to fulfil a given purpose. You present the result as pseudo-code, including temporary variables if needed. You know some agents providing different actions that you can use. Do not assume any other services. If those services are not sufficient to solve the problem, just say so. Following is the list of available services described in JSON, which can be called as web services: ',

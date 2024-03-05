@@ -54,7 +54,8 @@
                 <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" v-model="config.translations[language].submit" />
             </div>
 
-            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" />
+            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
+            <br /><br /><br />
         </div>
     </div>
 
