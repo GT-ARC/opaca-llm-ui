@@ -1,6 +1,10 @@
 <template>
     <div class="row d-flex justify-content-center my-5 w-100">
         <div class="col-md-10 col-lg-8 col-xl-6">
+
+            <label for="opacaLocationTextInput">{{ config.translations[language].opacaLocation }}</label>
+            <input style="border-radius: 5px; margin-left: 20px;" class="col-9 p-2"  type="text" id="opacaLocationTextInput" v-model="opacaRuntimePlatform" />
+
             <div style="text-align: center;
                         width: 100%;
                         float: left;
@@ -74,6 +78,9 @@
     const languages= {
         GB: 'en-EN'
     }
+
+    var opacaRuntimePlatform = config.OpacaRuntimePlatform;
+
     onUpdated(() => {
         console.log("updated")
         if (currentLang != language.value) {
@@ -142,7 +149,7 @@
 
     async function getOpacaAgents() {
         try {
-            const answer = await sendRequest("GET", config.OpacaRuntimePlatform + '/agents', null)
+            const answer = await sendRequest("GET", opacaRuntimePlatform + '/agents', null)
             if (answer.length > 0) {
                 return JSON.stringify(answer)
             } else {

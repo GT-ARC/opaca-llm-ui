@@ -14,6 +14,7 @@ var config = {
             readLastMessage: 'Read last message',
             resetChat: 'Reset Chat',    
             recognitionActive: 'Please speak now',
+            opacaLocation: 'OPACA runtime platform location'
         },
 
         DE: {
@@ -25,6 +26,7 @@ var config = {
             readLastMessage: 'Letzte Nachricht vorlesen',
             resetChat: 'neuer Chat',
             recognitionActive: 'Bitte sprechen sie jetzt',
+            opacaLocation: 'Standort der OPACA-Laufzeitplattform'
         },
     },
 }
