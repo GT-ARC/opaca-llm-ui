@@ -37,3 +37,4 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 * [ ] simplify further, e.g. does it really have to be those 2 packages?
 * [X] make location of OPACA platform configurable in the UI itself?
 * [X] re-enable multiple languages (all the code is still there, just translate the new prompt)
+* [ ] some way to use code-format only for the bits in "```" but not the entire output? or insert extra \n in long lines?
