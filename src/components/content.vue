@@ -4,8 +4,8 @@
             <div style="text-align: center;
                         width: 100%;
                         float: left;
-                        margin-top: 50px;
-                        margin-bottom: 50px;" class='container'>
+                        margin-top: 25px;
+                        margin-bottom: 25px;" class='container'>
                 <button style="display: inline-block; float:left;"
                         class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
                     {{ recording ? config.translations[language].recognitionActive : config.translations[language].speechRecognition }}
@@ -45,10 +45,12 @@
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 10px;" class="container justify-content-center">
+            <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;" class="container justify-content-center">
                 <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" value="What services do you know?" @keypress="textInputKeypressCallback"/>
                 <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" value="Submit" />
             </div>
+
+            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" />
         </div>
     </div>
 
@@ -58,6 +60,8 @@
     import axios from "axios"
     import { onMounted, onUpdated, inject, ref } from "vue";
     import config from '../../config'
+
+    import SimpleKeyboard from "./SimpleKeyboard.vue";
 
     const language = inject('language');
     let chatHistory = [];
@@ -78,6 +82,10 @@
             console.log("initiated on update")
         }
     })
+
+    function onChangeSimpleKeyboard(input) {
+      document.getElementById("textInput").value = input;
+    }
 
     async function textInputKeypressCallback(event) {
         if (event.key == "Enter") {
