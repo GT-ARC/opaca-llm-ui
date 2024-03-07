@@ -63,6 +63,7 @@
 
 <script setup>
     import axios from "axios"
+    import { marked } from "marked";
     import { onMounted, onUpdated, inject, ref } from "vue";
     import config from '../../config'
 
@@ -224,13 +225,17 @@
         let d1 = document.createElement("div")
         // TODO because of the code snippets, this currently formats everything as <pre>
         //  can we use Markdown here? alternatively, alternatingly replace "```" with <pre> and </pre>?
-        d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><p id="aiText" class="small mb-0"><pre align="left">' + text + '</pre></p></div></div>'
+        d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><div id="aiText" class="small mb-0">' + formatTextWithCode(text) + '</div></div></div>'
         if (!id) {
             document.getElementById('waitBubble').remove()
             busy.value = false;
         }
         chat.appendChild(d1)
     };
+
+    function formatTextWithCode(text) {
+        return `<div style="text-align: left">${marked.parse(text)}</div>`
+    }
 
     function createSpeechBubbleUser(text) {
         const chat = document.getElementById("chat-container")
