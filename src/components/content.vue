@@ -80,6 +80,7 @@
         GB: 'en-EN',
         DE: 'de-DE'
     }
+    var lastKnownServices = null;
 
     var opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
@@ -112,24 +113,32 @@
     }
 
     async function initiatePrompt() {
-        // actually, might make sense to re-initiate prompt if services change...
-        // right now, needs to reset chat in order to fetch new services
-        if (chatHistory.length > 0) {
-            return
-        }
-
-        // initiate prompt with known OPACA services
         const knownServices = await getOpacaAgents()
-        chatHistory = [
-            {
+
+        if (chatHistory.length == 0) {
+            // initiate prompt with known OPACA services
+            chatHistory = [
+                {
+                    "role": "system", 
+                    "content": config.translations[language.value].prompt + knownServices
+                },
+                {
+                    "role": "assistant", 
+                    "content": config.translations[language.value].welcome
+                },
+            ];
+            console.log("initiated prompt")
+        } else if (knownServices != lastKnownServices) {
+            // replace first entry in chat history with new known services
+            chatHistory[0] = {
                 "role": "system", 
                 "content": config.translations[language.value].prompt + knownServices
-            }, {
-                "role": "assistant", 
-                "content": config.translations[language.value].welcome
-            },
-        ];
-        console.log("initiatePrompt")
+            }
+            console.log("updated prompt with new services")
+        } else {
+            console.log("services seem to be up to date")
+        }
+        lastKnownServices = knownServices
     };
 
     async function sendRequest(method, url, body) {
