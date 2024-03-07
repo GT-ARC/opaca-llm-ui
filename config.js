@@ -4,7 +4,7 @@ var config = {
 
     OpacaRuntimePlatform: 'http://localhost:8000',
 
-    ShowKeyboard: true,
+    ShowKeyboard: false,
 
     translations:{
         GB: {

@@ -37,7 +37,7 @@ app.post("/wapi/chat", async (req, res) => {
       model: model,
       messages: prompt,
       temperature: 0.2,
-      max_tokens: 150,
+      max_tokens: 500,
     });
 
     console.log("Complete response from OpenAI:")
