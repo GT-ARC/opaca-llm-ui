@@ -1,6 +1,6 @@
 var config = {
 
-    BackendAddress: 'http://localhost:3000',
+    BackendAddress: 'http://localhost:3001',
 
     OpacaRuntimePlatform: 'http://localhost:8000',
 
