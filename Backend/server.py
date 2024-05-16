@@ -5,12 +5,24 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from OpenAI import openai_routes
+
+'''
 from Backend.RestGPT import RestGPT
 from Backend.RestGPT import reduce_openapi_spec
 from langchain_community.llms.llamacpp import LlamaCpp
 from langchain_community.utilities import Requests
 from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
+'''
 
+"""
+TODO
+make same sort of interface-class/module for RestGPT
+handle errors (backend not found, internal server error) as proper HTTP errors
+test with javascript frontend (and throw out all the "backend" stuff there)
+move get-opaca-agents and invoke-opaca-action to some common module?
+make OPACA-URL configurable (simply as another route?)
+"""
 
 app = FastAPI()
 
@@ -33,6 +45,31 @@ class Message(BaseModel):
     user_query: str
 
 
+BACKENDS = {
+    # "RestGPT": ???,
+    "openai-test": openai_routes,
+}
+
+
+@app.get("/backends")
+async def get_backends():
+    return list(BACKENDS)
+
+@app.post("/{backend}/query")
+async def query(backend: str, message: Message) -> str:
+    return await BACKENDS[backend].query(message.user_query)
+
+@app.get("/{backend}/history")
+async def history(backend: str) -> list:
+    return await BACKENDS[backend].history()
+
+
+@app.post("/{backend}/reset")
+async def query(backend: str) -> str:
+    await BACKENDS[backend].reset()
+
+
+'''
 @app.post('/chat_test', response_model=Union[str, int, float, Dict, List])
 async def test_call(message: Message):
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
@@ -53,3 +90,9 @@ async def test_call(message: Message):
                        simple_parser=False)
     """
     return {'message': llm.invoke(message.user_query)}
+'''
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
