@@ -8,7 +8,11 @@ client = openai.OpenAI()
 
 
 def get_opaca_services():
-    return requests.get(OPACA_URL + "/agents").text
+    try:
+        return requests.get(OPACA_URL + "/agents").text
+    except Exception as e:
+        print("COULD NOT CONNECT", e)
+        return "(No Services. Failed to connect to OPACA Runtime.)"
 
 def invoke_opaca_action(action, params):
     return requests.post(f"http://localhost:8000/invoke/{action}", json=params).json()
@@ -31,9 +35,14 @@ First, show only the pseudo code. Later, if the user says "do it", and only then
 Following is the list of available services described in JSON, which can be called as webservices:   
 """ + get_opaca_services()
 
-messages = [
-    {"role": "system", "content": system}
-]
+messages = [{"role": "system", "content": system + get_opaca_services()}]
+
+async def connect(url: str):
+    print("CONNECT", repr(url))
+    global OPACA_URL
+    OPACA_URL = url
+    messages[:1] = [{"role": "system", "content": system + get_opaca_services()}]
+    return True
 
 
 async def query(message: str) -> str:
@@ -57,7 +66,5 @@ async def history():
 
 async def reset():
     print("RESET")
-    global messages
-    messages = [
-        {"role": "system", "content": system}
-    ]
+    messages[:] = []
+    await connect(OPACA_URL)

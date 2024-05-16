@@ -73,9 +73,10 @@
 
     import SimpleKeyboard from "./SimpleKeyboard.vue";
 
+    const opacaRuntimePlatform = "http://localhost:8000"; // TODO looks like I messed something up here, not readable from text box any more
+    const backend = "openai-test"; // TODO load from config or dropdown menu
+
     const language = inject('language');
-    let chatHistory = [];
-    let answer = null;
     let recognition= null;
     const speechSynthesis= window.speechSynthesis;
     const recording= ref(false);
@@ -85,9 +86,6 @@
         GB: 'en-EN',
         DE: 'de-DE'
     }
-    var lastKnownServices = null;
-
-    var opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     onUpdated(() => {
         console.log("updated")
@@ -99,7 +97,7 @@
     })
 
     function onChangeSimpleKeyboard(input) {
-      document.getElementById("textInput").value = input;
+        document.getElementById("textInput").value = input;
     }
 
     async function textInputKeypressCallback(event) {
@@ -119,32 +117,7 @@
     }
 
     async function initiatePrompt() {
-        const knownServices = await getOpacaAgents()
-
-        if (chatHistory.length == 0) {
-            // initiate prompt with known OPACA services
-            chatHistory = [
-                {
-                    "role": "system", 
-                    "content": config.translations[language.value].prompt + knownServices
-                },
-                {
-                    "role": "assistant", 
-                    "content": config.translations[language.value].welcome
-                },
-            ];
-            console.log("initiated prompt")
-        } else if (knownServices != lastKnownServices) {
-            // replace first entry in chat history with new known services
-            chatHistory[0] = {
-                "role": "system", 
-                "content": config.translations[language.value].prompt + knownServices
-            }
-            console.log("updated prompt with new services")
-        } else {
-            console.log("services seem to be up to date")
-        }
-        lastKnownServices = knownServices
+        await sendRequest("POST", `${config.BackendAddress}/${backend}/connect`, {url: opacaRuntimePlatform});
     };
 
     async function sendRequest(method, url, body) {
@@ -158,54 +131,21 @@
                     'Access-Control-Allow-Origin': '*'
                 }
             });
-            return response.data;
+            return response;
         } catch (error) {
             throw error;
         }
     };
-
-    async function getOpacaAgents() {
-        try {
-            const answer = await sendRequest("GET", opacaRuntimePlatform + '/agents', null)
-            if (answer.length > 0) {
-                return JSON.stringify(answer)
-            } else {
-                return config.translations[language.value].no_services
-            }
-        } catch (error) {
-            return config.translations[language.value].no_platform
-        }
-    }
-
+    
     async function askChatGpt(userText) {
         await initiatePrompt()
-        chatHistory.push({
-            "role": "user",
-            "content": userText
-        });
         createSpeechBubbleUser(userText);
-        //this.scrollDown();
-        console.log("send to Backend");
         try {
-            const result = await sendRequest("POST", config.BackendAddress + '/wapi/chat', {prompt: chatHistory});
-            chatHistory = result.messages
-            const answer = chatHistory[chatHistory.length-1].content
-            console.log("answer " + answer);
-            //this.scrollDown();
-            try {
-                const d = JSON.parse(answer);
-                const res = await sendRequest("POST", `${opacaRuntimePlatform}/invoke/${d['action']}`, d["params"]);
-                const msg = `The result of this step was: ${JSON.stringify(res)}`;
-                console.log(msg)
-                createSpeechBubbleAI(msg);
-                messages.append({"role": "system", "content": msg})
-            } catch (error) {
-                console.warn("ERROR " + error);
-                createSpeechBubbleAI(answer);
-            }
-
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend}/query`, {user_query: userText});
+            const answer = result.data
+            createSpeechBubbleAI(answer);
+            //this.scrollDown();            
         } catch (error) {
-            console.log("Error while fetching data: " + error)
             createSpeechBubbleAI("Error while fetching data: " + error)
         }
     };
@@ -264,19 +204,17 @@
         recording.value = true;
     };
 
-    function resetChat() {
+    async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
-        chatHistory = []
+        await sendRequest("POST", `${config.BackendAddress}/${backend}/reset`, null);
         busy.value = false;
-        console.log("resetChat")
+        //console.log("resetChat")
     };
 
     function createSpeechBubbleAI(text, id) {
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
-        // TODO because of the code snippets, this currently formats everything as <pre>
-        //  can we use Markdown here? alternatively, alternatingly replace "```" with <pre> and </pre>?
         d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><div id="aiText" class="small mb-0">' + formatTextWithCode(text) + '</div></div></div>'
         if (!id) {
             document.getElementById('waitBubble').remove()

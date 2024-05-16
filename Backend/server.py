@@ -28,6 +28,7 @@ app = FastAPI()
 
 # Configure CORS settings
 origins = [
+    "*",
     "http://localhost",
     "http://localhost:5173",  # Assuming Vue app is running on this port
 ]
@@ -41,6 +42,9 @@ app.add_middleware(
 )
 
 
+class Url(BaseModel):
+    url: str
+
 class Message(BaseModel):
     user_query: str
 
@@ -52,8 +56,12 @@ BACKENDS = {
 
 
 @app.get("/backends")
-async def get_backends():
+async def get_backends() -> list:
     return list(BACKENDS)
+
+@app.post("/{backend}/connect")
+async def query(backend: str, url: Url) -> bool:
+    return await BACKENDS[backend].connect(url.url)
 
 @app.post("/{backend}/query")
 async def query(backend: str, message: Message) -> str:
@@ -95,4 +103,4 @@ async def test_call(message: Message):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    uvicorn.run(app, host="0.0.0.0", port=3001)
