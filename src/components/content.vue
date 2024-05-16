@@ -111,7 +111,8 @@
     async function textInputButtonCallback() {
         const userInput = document.getElementById("textInput").value
         if (userInput != null) {
-            askLlama(userInput)
+            //askLlama(userInput)
+            askChatGpt(userInput)
         } else {
             alert("input was null")
         }
@@ -186,13 +187,23 @@
         //this.scrollDown();
         console.log("send to Backend");
         try {
-            const answer = await sendRequest("POST", config.BackendAddress + '/wapi/chat', {prompt: chatHistory});
-            const messages = answer.messages;
-            console.log("answer " + messages[messages.length-1].content);
-            chatHistory = messages;
-            
-            createSpeechBubbleAI(messages[messages.length-1].content);
+            const result = await sendRequest("POST", config.BackendAddress + '/wapi/chat', {prompt: chatHistory});
+            chatHistory = result.messages
+            const answer = chatHistory[chatHistory.length-1].content
+            console.log("answer " + answer);
             //this.scrollDown();
+            try {
+                const d = JSON.parse(answer);
+                const res = await sendRequest("POST", `${opacaRuntimePlatform}/invoke/${d['action']}`, d["params"]);
+                const msg = `The result of this step was: ${JSON.stringify(res)}`;
+                console.log(msg)
+                createSpeechBubbleAI(msg);
+                messages.append({"role": "system", "content": msg})
+            } catch (error) {
+                console.warn("ERROR " + error);
+                createSpeechBubbleAI(answer);
+            }
+
         } catch (error) {
             console.log("Error while fetching data: " + error)
             createSpeechBubbleAI("Error while fetching data: " + error)

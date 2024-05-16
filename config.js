@@ -8,7 +8,20 @@ var config = {
 
     translations:{
         GB: {
-            prompt: 'You suggest web services to fulfil a given purpose. You present the result as pseudo-code, including temporary variables if needed. You know some agents providing different actions that you can use. Do not assume any other services. If those services are not sufficient to solve the problem, just say so. Following is the list of available services described in JSON, which can be called as web services: ',
+            prompt: `You suggest web services to fulfil a given purpose.
+            You present the result as pseudo-code, including temporary variables if needed.
+            You know some agents providing different actions that you can use.
+            Do not assume any other services. If those services are not sufficient to solve the problem, just say so.
+            First, show only the pseudo code. Later, if the user says "do it", and only then, you repeat the first service call of the previous pseudo code in this specific JSON format and nothing else (not even Markup):
+            {
+              "agentId": <AGENT-ID>,
+              "action": <ACTION-NAME>,
+              "params": {
+                <NAME>: <VALUE>,
+                ...
+              }
+            }
+            Following is the list of available services described in JSON, which can be called as web services: `,
             language: 'Language',
             submit: 'Submit',
             welcome: 'Welcome to the OPACA LLM Prototype! How can I help you?',
