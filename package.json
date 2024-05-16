@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"cd Backend && node ExpressBackend.js \"",
+    "dev2": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
