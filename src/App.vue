@@ -15,25 +15,16 @@
 
 <template>
     <header>
-      <div class="site-logo">
-        <img style="width: 300px;" src="./assets/opaca-logo.png" alt="logo">
-      </div>
-    </header>
-
-    <div>
-        <div class="col background">
-            <component :is="Content" class="tab" @reset="resetHistory()" />
-        </div>
         <div class="col">
-            <nav class="navbar fixed-bottom navbar-expand-lg navbar-light bg-light">
+            <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
                 <div class="container-fluid">
                     <a href="#">
-                        <img src="./assets/ZEKI-Logo.png" height="70"/>
+                        <img src="./assets/opaca-logo.png" height="50"/>
                     </a>
                 </div>
 
                 <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
-                    <li style="margin-right: 70px;" class="nav-item dropup">
+                    <li style="margin-right: 70px;" class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {{ conf.translations[language].language}}
                         </a>
@@ -46,28 +37,20 @@
 
             </nav>
         </div>
+    </header>
+
+    <div class="col background">
+        <component :is="Content" class="tab" @reset="resetHistory()" />
     </div>
 </template>
 
-
 <style scoped>
-    #BigBox {
-        display: flex;
-        flex-direction: column;
-        margin: 0px;
-        padding: 0px;
-        width: 100%;
-    }
 
     header {
       background-color: #fff;
       width: 100%;
-      height: 100px;
+      height: 50px;
       display: flex;
       align-items: center;
-    }
-
-    .site-logo {
-      margin-left: 20px;
     }
 </style>

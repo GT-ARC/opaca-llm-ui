@@ -5,6 +5,36 @@
             <label for="opacaLocationTextInput">{{ config.translations[language].opacaLocation }}</label>
             <input style="border-radius: 5px; margin-left: 20px;" class="col-9 p-2"  type="text" id="opacaLocationTextInput" v-model="opacaRuntimePlatform" />
 
+
+            <div class="card" id="chat1" style="border-radius: 15px;">
+                <!--
+                <div class="card-header d-flex justify-content-between align-items-center p-3 bg-info text-white border-bottom-0"
+                    style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                    <i class="fas fa-angle-left"></i>
+                    <p class="mb-0 fw-bold">AI Chat</p>
+                    <i class="fas fa-times"></i>
+                </div>
+                -->
+                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
+                    data-mdb-perfect-scrollbar="true" id="chat-container">
+                    <div class="d-flex flex-row justify-content-start mb-4">
+                        <img src=../assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;">
+                        <div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;">
+                            <p class="small mb-0">{{
+                                config.translations[language].welcome
+                            }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;" class="container justify-content-center">
+                <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputKeypressCallback"/>
+                <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" v-model="config.translations[language].submit" />
+            </div>
+
+            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
+
             <div style="text-align: center;
                         width: 100%;
                         float: left;
@@ -28,33 +58,7 @@
                     {{ config.translations[language].resetChat }}
                 </button>
             </div>
-
-            <div class="card" id="chat1" style="border-radius: 15px;">
-                <div class="card-header d-flex justify-content-between align-items-center p-3 bg-info text-white border-bottom-0"
-                    style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
-                    <i class="fas fa-angle-left"></i>
-                    <p class="mb-0 fw-bold">AI Chat</p>
-                    <i class="fas fa-times"></i>
-                </div>
-                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
-                    data-mdb-perfect-scrollbar="true" id="chat-container">
-                    <div class="d-flex flex-row justify-content-start mb-4">
-                        <img src=../assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;">
-                        <div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;">
-                            <p class="small mb-0">{{
-                                config.translations[language].welcome
-                            }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;" class="container justify-content-center">
-                <input style="border-radius: 5px;" class="col-9 p-2"  type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputKeypressCallback"/>
-                <input class="btn btn-primary btn-lg col-2 m-1" type="button" @click="textInputButtonCallback" v-model="config.translations[language].submit" />
-            </div>
-
-            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
+            
             <br /><br /><br />
         </div>
     </div>

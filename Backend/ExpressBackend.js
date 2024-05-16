@@ -16,7 +16,7 @@ app.use(function(req, res, next) {
 });
 //openAI configuration
 import OpenAIApi from "openai";
-const openai = new OpenAIApi({apiKey: 'sk-proj-W0P92cfYwDHqFhBSvqbuT3BlbkFJBBwhd09LGW0u1RSwPXVL'});
+const openai = new OpenAIApi({apiKey: process.env.OPENAI_API_KEY});
 const model='gpt-3.5-turbo'
     
 app.listen(port, () => {
