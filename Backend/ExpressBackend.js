@@ -9,9 +9,14 @@ app.use(cors())
 app.use(bp.json())
 app.use(bp.urlencoded({ extended: true }))
 
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  next();
+});
 //openAI configuration
 import OpenAIApi from "openai";
-const openai = new OpenAIApi({apiKey: process.env.OPENAI_API_KEY});
+const openai = new OpenAIApi({apiKey: 'sk-proj-W0P92cfYwDHqFhBSvqbuT3BlbkFJBBwhd09LGW0u1RSwPXVL'});
 const model='gpt-3.5-turbo'
     
 app.listen(port, () => {
@@ -31,7 +36,7 @@ app.post("/wapi/chat", async (req, res) => {
     if (prompt == null) {
       throw new Error("Uh oh, no prompt was provided");
     }
-    
+
     // trigger OpenAI completion
     const response = await openai.chat.completions.create({
       model: model,
