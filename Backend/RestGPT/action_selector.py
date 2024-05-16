@@ -13,6 +13,15 @@ from .utils import ReducedOpenAPISpec, get_matched_endpoint
 logger = logging.getLogger(__name__)
 
 icl_examples = {
+    "opaca": """Example 1:
+    
+    TODO
+    
+""",
+
+
+
+
     "tmdb": """Example 1:
 
 Background: The id of Wong Kar-Wai is 12453
@@ -69,17 +78,17 @@ API response: Yellow is added to the player queue
 
 # Thought: I am finished executing the plan and have the information the user asked for or the data the used asked to create
 # Final Answer: the final output from executing the plan. If the user's query contains filter conditions, you need to filter the results as well. For example, if the user query is "Search for the first person whose name is 'Tom Hanks'", you should filter the results and only output the first person whose name is 'Tom Hanks'.
-API_SELECTOR_PROMPT = """You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API.
-Another API caller will receive your plan call the corresponding APIs and finally give you the result in natural language.
+API_SELECTOR_PROMPT = """You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. These API calls will always follow the schema of: "/invoke/{action_name};{parameters}". You always have to replace the term 'action_name' with an actual action name. You also have to always replace the term 'parameters' with the correct parameters belonging to that specific action.
+Another API caller will receive your plan, call the corresponding APIs and finally give you the result in natural language.
 The API caller also has filtering, sorting functions to post-process the response of APIs. Therefore, if you think the API response should be post-processed, just tell the API caller to do so.
-If you think you have got the final answer, do not make other API calls and just output the answer immediately. For example, the query is search for a person, you should just return the id and name of the person.
+If you think you have got the final answer, do not make other API calls and just output the answer immediately. For example, the query is search for a shelf, you should just return the id of the shelf.
 
 ----
 
-Here are name and description of available APIs.
-Do not use APIs that are not listed here.
+Here are name and description of available agent actions.
+Do not use agent actions that are not listed here.
 
-{endpoints}
+{actions}
 
 ----
 
@@ -105,23 +114,21 @@ User query: {plan}
 API calling 1: {agent_scratchpad}"""
 
 
-class APISelector(Chain):
+class ActionSelector(Chain):
     llm: BaseLLM
-    api_spec: ReducedOpenAPISpec
-    scenario: str
-    api_selector_prompt: BasePromptTemplate
+    action_spec: List
+    action_selector_prompt: BasePromptTemplate
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, scenario: str, api_spec: ReducedOpenAPISpec) -> None:
-        api_name_desc = [f"{endpoint[0]} {endpoint[1].split('.')[0] if endpoint[1] is not None else ''}" for endpoint in
-                         api_spec.endpoints]
-        api_name_desc = '\n'.join(api_name_desc)
-        api_selector_prompt = PromptTemplate(
+    def __init__(self, llm: BaseLLM, action_spec:  List) -> None:
+        action_desc = [f'name: {action.name}, parameters: {action.parameters}, result:{action.result}' for action in action_spec]
+        action_desc = '\n'.join(action_desc)
+        action_selector_prompt = PromptTemplate(
             template=API_SELECTOR_PROMPT,
-            partial_variables={"endpoints": api_name_desc, "icl_examples": icl_examples[scenario]},
+            partial_variables={"actions": action_desc, "icl_examples": icl_examples['opaca']},
             input_variables=["plan", "background", "agent_scratchpad"],
         )
-        super().__init__(llm=llm, api_spec=api_spec, scenario=scenario, api_selector_prompt=api_selector_prompt)
+        super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
     def _chain_type(self) -> str:

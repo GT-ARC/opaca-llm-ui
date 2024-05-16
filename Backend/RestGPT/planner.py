@@ -7,6 +7,11 @@ from langchain.prompts.prompt import PromptTemplate
 from langchain.llms.base import BaseLLM
 
 icl_examples = {
+    "opaca": """
+    
+    TODO
+    
+""",
     "tmdb": """Example 1:
 User query: give me some movies performed by Tony Leung.
 Plan step 1: search person with name "Tony Leung"
@@ -84,12 +89,11 @@ Plan step 1: {agent_scratchpad}"""
 
 class Planner(Chain):
     llm: BaseLLM
-    scenario: str
     planner_prompt: str
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, scenario: str, planner_prompt=PLANNER_PROMPT) -> None:
-        super().__init__(llm=llm, scenario=scenario, planner_prompt=planner_prompt)
+    def __init__(self, llm: BaseLLM, planner_prompt=PLANNER_PROMPT) -> None:
+        super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
     def _chain_type(self) -> str:
@@ -138,7 +142,7 @@ class Planner(Chain):
             template=self.planner_prompt,
             partial_variables={
                 "agent_scratchpad": scratchpad,
-                "icl_examples": icl_examples[self.scenario],
+                "icl_examples": icl_examples['opaca'],
             },
             input_variables=["input"]
         )

@@ -12,7 +12,7 @@ from langchain.llms.base import BaseLLM
 from langchain_community.utilities import RequestsWrapper
 
 from .planner import Planner
-from .api_selector import APISelector
+from .action_selector import ActionSelector
 from .caller import Caller
 from .utils import ReducedOpenAPISpec
 
@@ -23,10 +23,9 @@ class RestGPT(Chain):
     """Consists of an agent using tools."""
 
     llm: BaseLLM
-    api_spec: ReducedOpenAPISpec
+    action_spec: List
     planner: Planner
-    api_selector: APISelector
-    scenario: str = "tmdb"
+    action_selector: ActionSelector
     requests_wrapper: RequestsWrapper
     simple_parser: bool = False
     return_intermediate_steps: bool = False
@@ -37,8 +36,7 @@ class RestGPT(Chain):
     def __init__(
             self,
             llm: BaseLLM,
-            api_spec: ReducedOpenAPISpec,
-            scenario: str,
+            action_spec: List,
             requests_wrapper: RequestsWrapper,
             caller_doc_with_response: bool = False,
             parser_with_example: bool = False,
@@ -46,18 +44,12 @@ class RestGPT(Chain):
             callback_manager: Optional[BaseCallbackManager] = None,
             **kwargs: Any,
     ) -> None:
-        if scenario in ['TMDB', 'Tmdb']:
-            scenario = 'tmdb'
-        if scenario in ['Spotify']:
-            scenario = 'spotify'
-        if scenario not in ['tmdb', 'spotify']:
-            raise ValueError(f"Invalid scenario {scenario}")
 
-        planner = Planner(llm=llm, scenario=scenario)
-        api_selector = APISelector(llm=llm, scenario=scenario, api_spec=api_spec)
+        planner = Planner(llm=llm)
+        action_selector = ActionSelector(llm=llm, action_spec=action_spec)
 
         super().__init__(
-            llm=llm, api_spec=api_spec, planner=planner, api_selector=api_selector, scenario=scenario,
+            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector,
             requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager, **kwargs
         )
 

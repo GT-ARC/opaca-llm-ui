@@ -196,6 +196,19 @@
     };
 
     async function askLlama(userText) {
+      try {
+        const knownServices = await getOpacaAgents()
+        createSpeechBubbleUser(userText)
+        const response = await sendRequest("POST", "http://localhost:3000/chat_test", {user_query: userText, known_services: JSON.parse(knownServices)})
+        createSpeechBubbleAI(response.message)
+      } catch (error) {
+        console.log("Error while fetching data: " + error)
+        createSpeechBubbleAI("Error while fetching data: " + error)
+      }
+
+      return
+
+
       const knownServices = await getOpacaAgents()
 
       chatHistory = [{
