@@ -32,9 +32,8 @@
                             <li @click="setLanguage('DE')"><a class="dropdown-item"><span class="fi fi-de m-3"></span>DE</a></li>
                             <li @click="setLanguage('GB')"><a class="dropdown-item"><span class="fi fi-gb m-3"></span>EN</a></li>
                         </ul>
-                        </li>
-                    </ul>
-
+                    </li>
+                </ul>
             </nav>
         </div>
     </header>
