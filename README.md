@@ -44,6 +44,7 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 * [X] make location of OPACA platform configurable in the UI itself?
 * [X] re-enable multiple languages (all the code is still there, just translate the new prompt)
 * [x] some way to use code-format only for the bits in "```" but not the entire output? or insert extra \n in long lines?
-* [ ] get rid of language selection? or use it only for the UI parts, not for the prompts
+* [x] ~~get rid of~~ language selection? or use it only for the UI parts, not for the prompts
 * [ ] get rid of unused styles etc., simplify code further
-* [ ] check again that virtual keyboard and speech input and output actually work
+* [ ] check again that [x] virtual keyboard and [ ] speech input and [ ] output actually work
+* [ ] fix scroll-down

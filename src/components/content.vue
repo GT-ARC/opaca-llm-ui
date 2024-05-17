@@ -20,15 +20,11 @@
 
             <div style="text-align: center;
                         width: 100%;
-                        float: left;
-                        margin-top: 25px;
                         margin-bottom: 25px;" class='container'>
-                <button style="display: inline-block; float:left;"
+                <button style="display: inline-block"
                         class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
-                    {{ recording ? config.translations[language].recognitionActive : config.translations[language].speechRecognition }}
-                    <div v-if="recording" class="spinner-border text-danger md-2" height=2em role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+                    {{ config.translations[language].speechRecognition }}
+                    <div v-if="recording" class="spinner-border md-2" height=2em role="status" />
                 </button>
 
                 <button style="display: inline-block;"
@@ -36,7 +32,7 @@
                     {{ config.translations[language].readLastMessage }}
                 </button>
 
-                <button style="display: inline-block; float: right;"
+                <button style="display: inline-block"
                         class="btn btn-secondary btn-lg col-3 m-1" @click="resetChat()">
                     {{ config.translations[language].resetChat }}
                 </button>
@@ -53,7 +49,6 @@
     import { marked } from "marked";
     import { onMounted, onUpdated, inject, ref } from "vue";
     import config from '../../config'
-
     import SimpleKeyboard from "./SimpleKeyboard.vue";
 
     const opacaRuntimePlatform = config.OpacaRuntimePlatform;
@@ -61,10 +56,10 @@
 
     const language = inject('language');
     let recognition= null;
+    let lastMessage = null;
     const speechSynthesis= window.speechSynthesis;
     const recording= ref(false);
     const busy= ref(false);
-    var currentLang = language.value;
     const languages= {
         GB: 'en-EN',
         DE: 'de-DE'
@@ -73,15 +68,6 @@
     onMounted(() => {
         console.log("mounted")
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-    })
-
-    onUpdated(() => {
-        console.log("updated")        
-        if (currentLang != language.value) {
-            currentLang = language.value;
-            resetChat();
-            console.log("initiated on update")
-        }
     })
 
     function onChangeSimpleKeyboard(input) {
@@ -100,8 +86,6 @@
         if (userInput != null) {
             //askLlama(userInput)
             askChatGpt(userInput)
-        } else {
-            alert("input was null")
         }
     }
 
@@ -183,7 +167,7 @@
         busy.value = true;
         recognition.onresult = async (event) => {
             const recognizedText = event.results[0][0].transcript;
-            askLlama(recognizedText)
+            askChatGpt(recognizedText)
         };
         recognition.onend = () => {
             recording.value = false;
@@ -198,10 +182,10 @@
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
         await sendRequest("POST", `${config.BackendAddress}/${backend}/reset`, null);
         busy.value = false;
-        //console.log("resetChat")
     };
 
     function createSpeechBubbleAI(text, id) {
+        lastMessage = text;
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
         d1.innerHTML += `
@@ -243,8 +227,8 @@
     };
 
     function speakLastMessage() {
-        if (speechSynthesis && chatHistory.length > 0) {
-            const lastMessage = chatHistory[chatHistory.length - 1].content;
+        if (speechSynthesis) {
+            console.log(lastMessage)
             const utterance = new SpeechSynthesisUtterance(lastMessage);
             speechSynthesis.speak(utterance);
         }

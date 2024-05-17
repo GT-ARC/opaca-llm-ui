@@ -17,7 +17,6 @@ var config = {
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
             resetChat: 'Reset',    
-            recognitionActive: 'Please speak now',
             opacaLocation: 'OPACA URL'
         },
 
@@ -29,7 +28,6 @@ var config = {
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',
             resetChat: 'Zurücksetzen',
-            recognitionActive: 'Bitte sprechen sie jetzt',
             opacaLocation: 'OPACA URL'
         },
     },
