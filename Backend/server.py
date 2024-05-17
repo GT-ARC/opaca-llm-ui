@@ -73,7 +73,7 @@ async def history(backend: str) -> list:
 
 
 @app.post("/{backend}/reset")
-async def query(backend: str) -> str:
+async def query(backend: str):
     await BACKENDS[backend].reset()
 
 

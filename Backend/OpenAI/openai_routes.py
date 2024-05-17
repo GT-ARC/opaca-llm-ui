@@ -53,7 +53,7 @@ async def query(message: str) -> str:
     try:
         d = json.loads(response)
         result = invoke_opaca_action(d["action"], d["params"])
-        response = f"The result of this step was: {repr(result)}"        
+        response = f"I just called {d['action']} with {d['params']}. The result of this step was: {repr(result)}"
     except Exception as e:
         print("ERROR", e)
     messages.append({"role": "assistant", "content": response})

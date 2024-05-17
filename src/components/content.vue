@@ -5,26 +5,9 @@
             <label for="opacaLocationTextInput">{{ config.translations[language].opacaLocation }}</label>
             <input style="border-radius: 5px; margin-left: 20px;" class="col-9 p-2"  type="text" id="opacaLocationTextInput" v-model="opacaRuntimePlatform" />
 
-
             <div class="card" id="chat1" style="border-radius: 15px;">
-                <!--
-                <div class="card-header d-flex justify-content-between align-items-center p-3 bg-info text-white border-bottom-0"
-                    style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
-                    <i class="fas fa-angle-left"></i>
-                    <p class="mb-0 fw-bold">AI Chat</p>
-                    <i class="fas fa-times"></i>
-                </div>
-                -->
                 <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
                     data-mdb-perfect-scrollbar="true" id="chat-container">
-                    <div class="d-flex flex-row justify-content-start mb-4">
-                        <img src=../assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;">
-                        <div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;">
-                            <p class="small mb-0">{{
-                                config.translations[language].welcome
-                            }}</p>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -73,8 +56,8 @@
 
     import SimpleKeyboard from "./SimpleKeyboard.vue";
 
-    const opacaRuntimePlatform = "http://localhost:8000"; // TODO looks like I messed something up here, not readable from text box any more
-    const backend = "openai-test"; // TODO load from config or dropdown menu
+    const opacaRuntimePlatform = config.OpacaRuntimePlatform;
+    const backend = config.Backend;
 
     const language = inject('language');
     let recognition= null;
@@ -87,8 +70,13 @@
         DE: 'de-DE'
     }
 
+    onMounted(() => {
+        console.log("mounted")
+        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
+    })
+
     onUpdated(() => {
-        console.log("updated")
+        console.log("updated")        
         if (currentLang != language.value) {
             currentLang = language.value;
             resetChat();
@@ -108,6 +96,7 @@
 
     async function textInputButtonCallback() {
         const userInput = document.getElementById("textInput").value
+        document.getElementById("textInput").value = ""
         if (userInput != null) {
             //askLlama(userInput)
             askChatGpt(userInput)
@@ -215,7 +204,13 @@
     function createSpeechBubbleAI(text, id) {
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
-        d1.innerHTML += '<div id="' + id + '" class="d-flex flex-row justify-content-start mb-4"><img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;"><div id="aiText" class="small mb-0">' + formatTextWithCode(text) + '</div></div></div>'
+        d1.innerHTML += `
+        <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
+            <img src=/src/assets/Icons/ai.png alt="avatar 1" style="width: 45px; height: 100%;">
+            <div class="p-3 ms-3" style="border-radius: 15px; background-color: #39c0ed33;">
+                <div id="aiText" class="small mb-0">${formatTextWithCode(text)}</div>
+            </div>
+        </div>`
         if (!id) {
             document.getElementById('waitBubble').remove()
             busy.value = false;
@@ -230,7 +225,13 @@
     function createSpeechBubbleUser(text) {
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
-        d1.innerHTML += '<div class="d-flex flex-row justify-content-end mb-4"><div class="p-3 ms-3" style="border-radius: 15px; background-color: #fbfbfb;"><p class="small mb-0">' + text + '</p></div><img src=/src/assets/Icons/nutzer.png alt="avatar 1" style="width: 45px; height: 100%;"></div>'
+        d1.innerHTML += `
+        <div class="d-flex flex-row justify-content-end mb-4">
+            <div class="p-3 ms-3" style="border-radius: 15px; background-color: #fbfbfb;">
+                <p class="small mb-0">${text}</p>
+            </div>
+            <img src=/src/assets/Icons/nutzer.png alt="avatar 1" style="width: 45px; height: 100%;">
+        </div>`
         chat.appendChild(d1)
         createSpeechBubbleAI('. . .', 'waitBubble')
     };
