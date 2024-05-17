@@ -2,9 +2,20 @@
     <div class="row d-flex justify-content-center my-5 w-100">
         <div class="col-md-10 col-lg-8 col-xl-6">
 
-            <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
-            <input class="col-9 p-2" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
-
+            <div class="container">
+                <div>
+                    <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
+                    <input class="col-7 p-1" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
+                    <button class="btn btn-secondary col-2" @click="initiatePrompt">Connect</button>
+                </div>
+                <div>
+                    <label for="opacaUser" class="small">Username</label>
+                    <input class="col-4 small" type="text" id="opacaUser" v-model="opacaUser" />
+                    <label for="opacaPwd" class="small">Password</label>
+                    <input class="col-4 small" type="password" id="opacaPwd" v-model="opacaPwd" />
+                </div>
+            </div>
+            
             <div class="card" id="chat1" style="border-radius: 15px;">
                 <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
                     data-mdb-perfect-scrollbar="true" id="chat-container">
@@ -46,8 +57,10 @@
     import config from '../../config'
     import SimpleKeyboard from "./SimpleKeyboard.vue";
 
-    const opacaRuntimePlatform = config.OpacaRuntimePlatform;
-    const backend = config.Backend;
+    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
+    let opacaUser = "";
+    let opacaPwd = "";
+    let backend = config.Backend;
 
     const language = inject('language');
     let recognition= null;
@@ -63,6 +76,7 @@
     onMounted(() => {
         console.log("mounted")
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
+        initiatePrompt();
     })
 
     function onChangeSimpleKeyboard(input) {
@@ -85,7 +99,13 @@
     }
 
     async function initiatePrompt() {
-        await sendRequest("POST", `${config.BackendAddress}/${backend}/connect`, {url: opacaRuntimePlatform});
+        const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
+        const res = await sendRequest("POST", `${config.BackendAddress}/${backend}/connect`, body);
+        if (res.data) {
+            createSpeechBubbleAI("Connected!", "connect")
+        } else {
+            createSpeechBubbleAI("Failed to connect...", "connect")
+        }
     };
 
     async function sendRequest(method, url, body) {
@@ -106,7 +126,6 @@
     };
     
     async function askChatGpt(userText) {
-        await initiatePrompt()
         createSpeechBubbleUser(userText);
         try {
             const result = await sendRequest("POST", `${config.BackendAddress}/${backend}/query`, {user_query: userText});

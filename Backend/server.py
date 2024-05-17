@@ -44,6 +44,8 @@ app.add_middleware(
 
 class Url(BaseModel):
     url: str
+    user: str | None
+    pwd: str | None
 
 class Message(BaseModel):
     user_query: str
@@ -60,8 +62,8 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/{backend}/connect")
-async def query(backend: str, url: Url) -> bool:
-    return await BACKENDS[backend].connect(url.url)
+async def connect(backend: str, url: Url) -> bool:
+    return await BACKENDS[backend].connect(url.url, url.user, url.pwd)
 
 @app.post("/{backend}/query")
 async def query(backend: str, message: Message) -> str:
@@ -73,7 +75,7 @@ async def history(backend: str) -> list:
 
 
 @app.post("/{backend}/reset")
-async def query(backend: str):
+async def reset(backend: str):
     await BACKENDS[backend].reset()
 
 

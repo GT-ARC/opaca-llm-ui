@@ -17,14 +17,12 @@
     <header>
         <div class="col">
             <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
-                <div class="container-fluid">
-                    <a href="#">
-                        <img src="./assets/opaca-logo.png" height="50"/>
-                    </a>
+                <div class="container-fluid" style="width: 50%;">
+                    <img src="./assets/opaca-logo.png" height="50"/>
                 </div>
 
-                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
-                    <li style="margin-right: 70px;" class="nav-item dropdown">
+                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {{ conf.translations[language].language}}
                         </a>
