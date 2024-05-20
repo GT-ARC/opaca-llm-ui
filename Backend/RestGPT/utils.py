@@ -52,14 +52,14 @@ class MyRotatingFileHandler(BaseRotatingHandler):
         return 0
 
 
-def get_matched_endpoint(api_spec: ReducedOpenAPISpec, plan: str):
+def get_matched_endpoint(action_spec: ReducedOpenAPISpec, plan: str):
     pattern = r"\b(GET|POST|PATCH|DELETE|PUT)\s+(/\S+)*"
     matches = re.findall(pattern, plan)
     plan_endpoints = [
         "{method} {route}".format(method=method, route=route.split("?")[0])
         for method, route in matches
     ]
-    spec_endpoints = [item[0] for item in api_spec.endpoints]
+    spec_endpoints = [item[0] for item in action_spec.endpoints]
 
     matched_endpoints = []
 
@@ -78,6 +78,17 @@ def get_matched_endpoint(api_spec: ReducedOpenAPISpec, plan: str):
         # raise ValueError(f"Endpoint {plan_endpoint} not found in API spec.")
 
     return matched_endpoints
+
+
+def get_matched_action(action_spec: list, action_call: str):
+    actions = [action.name for action in action_spec]
+
+    matched_actions = []
+
+    if action_call.split(';')[0] in actions:
+        matched_actions.append(action_call.split(';')[0])
+
+    return matched_actions
 
 
 def simplify_json(raw_json: dict):

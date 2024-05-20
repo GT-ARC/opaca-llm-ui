@@ -16,7 +16,7 @@ from .action_selector import ActionSelector
 from .caller import Caller
 from .utils import ReducedOpenAPISpec
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class RestGPT(Chain):
@@ -132,41 +132,47 @@ class RestGPT(Chain):
         time_elapsed = 0.0
         start_time = time.time()
 
-        plan = self.planner.run(input=query, history=planner_history)
-        logger.info(f"Planner: {plan}")
+        logger.info(f'RUN PLANNER')
+        plan = self.planner.invoke({"input": query, "history": planner_history})
+        logger.info(f"Planner: {plan['result']}")
+        logger.info(f'RUN ACTION SELECTOR')
+        action_plan = self.action_selector.invoke({"plan": plan,
+                                                   "background": self._get_api_selector_background(planner_history)})
+        logger.info(f'Action plan: {action_plan["result"]}')
 
+        """
         while self._should_continue(iterations, time_elapsed):
             tmp_planner_history = [plan]
-            api_selector_history: List[Tuple[str, str, str]] = []
-            api_selector_background = self._get_api_selector_background(planner_history)
-            api_plan = self.api_selector.run(plan=plan, background=api_selector_background)
+            action_selector_history: List[Tuple[str, str, str]] = []
+            action_selector_background = self._get_api_selector_background(planner_history)
+            action_plan = self.action_selector.run(plan=plan, background=action_selector_background)
 
-            finished = re.match(r"No API call needed.(.*)", api_plan)
+            finished = re.match(r"No API call needed.(.*)", action_plan)
             if not finished:
-                executor = Caller(llm=self.llm, api_spec=self.api_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                execution_res = executor.run(api_plan=api_plan, background=api_selector_background)
+                executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
+                execution_res = executor.run(action_plan=action_plan, background=action_selector_background)
             else:
                 execution_res = finished.group(1)
 
             planner_history.append((plan, execution_res))
-            api_selector_history.append((plan, api_plan, execution_res))
+            action_selector_history.append((plan, action_plan, execution_res))
 
             plan = self.planner.run(input=query, history=planner_history)
             logger.info(f"Planner: {plan}")
 
             while self._should_continue_plan(plan):
-                api_selector_background = self._get_api_selector_background(planner_history)
-                api_plan = self.api_selector.run(plan=tmp_planner_history[0], background=api_selector_background, history=api_selector_history, instruction=plan)
+                action_selector_background = self._get_api_selector_background(planner_history)
+                action_plan = self.action_selector.run(plan=tmp_planner_history[0], background=action_selector_background, history=action_selector_history, instruction=plan)
 
-                finished = re.match(r"No API call needed.(.*)", api_plan)
+                finished = re.match(r"No API call needed.(.*)", action_plan)
                 if not finished:
-                    executor = Caller(llm=self.llm, api_spec=self.api_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                    execution_res = executor.run(api_plan=api_plan, background=api_selector_background)
+                    executor = Caller(llm=self.llm, action_spec=self.action_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
+                    execution_res = executor.run(action_plan=action_plan, background=action_selector_background)
                 else:
                     execution_res = finished.group(1)
 
                 planner_history.append((plan, execution_res))
-                api_selector_history.append((plan, api_plan, execution_res))
+                action_selector_history.append((plan, action_plan, execution_res))
 
                 plan = self.planner.run(input=query, history=planner_history)
                 logger.info(f"Planner: {plan}")
@@ -176,8 +182,9 @@ class RestGPT(Chain):
 
             iterations += 1
             time_elapsed = time.time() - start_time
+        """
 
-        return {"result": plan}
+        return {"result": action_plan}
 
     @staticmethod
     def test():
