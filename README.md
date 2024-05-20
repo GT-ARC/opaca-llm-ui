@@ -7,7 +7,7 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 
 * based on https://gitlab.dai-labor.de/308201/wayfindingzeki-opaca
 * first, run `npm install` in both the root and Backend directories
-* to start, run `npm run dev` in the repo root directory, then go to http://localhost:5173/
+* to start, run `npm run dev_all` in the repo root directory, then go to http://localhost:5173/
 * environment variable `OPENAI_API_KEY` has to be defined
 
 ### What to do and what to expect?
@@ -20,21 +20,31 @@ Simple script for testing how OpenAI API works for finding suitable OPACA action
 * reset the chat again and ask the question again -> now it should list the different available agents and their actions
 * ask for help with developing something that might involve those services (or something completely unrelated)
 
-### What is what?
+### Frontend (JS, Vue, Port 5173)
 
-* SimpleKeyboard does not seem to be used at all --> I added a simple input field for testing
-* App.vue does not have all that much content any more --> remove entirely?
-* content.vue container most of the UI logic and some javascript
-* ExpressBackend provides REST routes for the core functions, which are called by the JS in content.vue, and calls the actual OpenAI API
+* based on the Chat component of ZEKI Wayfinding, but heavily modified since then
+* main interaction is via a Chat prompt; input is sent to the backend, then the response of the AI is shown in the chat box
+* alternative interactions via a virtual keyboard (has to be enabled in config) or speech recognition
 
-### To Do
+### Backend (Python, FastAPI, Port 3001)
+
+* idea: having one uniform backend with different implementations (e.g. different ways of selecting which action to execute), each taking care of their own prompts, history, etc.
+* the backend can be selected in the frontend or configuration (t.b.d.; if in frontend, this should reset the chat)
+* for testing, the backend can also be tested in isolation using the FastAPI web UI at http://localhost:3001/docs
+
+
+## To Do
 
 * [x] strip down Wayfinding Demo to just the OpenAI input prompt
 * [x] get OPACA services from Runtime Platform
 * [X] get speech recognition to work (it should already work, but not for me)
 * [X] get SimpleKeyboard to work
 * [X] adapt visuals a bit, insert OPACA Logo somewhere, etc.
-* [ ] simplify further, e.g. does it really have to be those 2 packages?
+* [x] simplify further, e.g. does it really have to be those 2 packages?
 * [X] make location of OPACA platform configurable in the UI itself?
 * [X] re-enable multiple languages (all the code is still there, just translate the new prompt)
-* [ ] some way to use code-format only for the bits in "```" but not the entire output? or insert extra \n in long lines?
+* [x] some way to use code-format only for the bits in "```" but not the entire output? or insert extra \n in long lines?
+* [x] ~~get rid of~~ language selection? or use it only for the UI parts, not for the prompts
+* [ ] get rid of unused styles etc., simplify code further
+* [ ] check again that [x] virtual keyboard and [ ] speech input and [ ] output actually work
+* [ ] fix scroll-down

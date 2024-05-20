@@ -56,25 +56,25 @@ export default {
 
                   layout: {
                         default: [
-                              "` 1 2 3 4 5 6 7 8 9 0 - = {bksp}",
-                              "{tab} q w e r t y u i o p [ ] \\",
-                              "{lock} a s d f g h j k l ; ' {enter}",
-                              "{shift} z x c v b n m , . / {shift}",
-                              ".com {space} @",
+                              "1 2 3 4 5 6 7 8 9 0 {bksp}",
+                              "q w e r t z u i o p ü",
+                              "a s d f g h j k l ö ä",
+                              "y x c v b n m , . - {shift}",
+                              "{space}",
                         ],
                         shift: [
-                              "~ ! @ # $ % ^ & * ( ) _ + {bksp}",
-                              "{tab} Q W E R T Y U I O P { } |",
-                              '{lock} A S D F G H J K L : " {enter}',
-                              "{shift} Z X C V B N M < > ? {shift}",
-                              ".com @ {space}",
-                        ],
+                              "1 2 3 4 5 6 7 8 9 0 {bksp}",
+                              "Q W E R T Z U I O P Ü",
+                              "A S D F G H J K L Ö Ä",
+                              "Y X C V B N M ; : _ {shift}",
+                              "{space}"
+                        ]
                   },
                   display: {
                         '{bksp}': 'delete',
                   },
                   excludeFromLayout: {
-                        default: [";"],
+                        default: [],
                   },
             });
       },
@@ -85,7 +85,7 @@ export default {
             },
             onKeyPress(button) {
                   this.$emit("onKeyPress", button);
-                  if (button === "{shift}" || button === "{lock}")
+                  if (button === "{shift}")
                         this.handleShift();
             },
             handleShift() {
