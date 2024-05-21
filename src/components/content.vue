@@ -93,8 +93,8 @@
         const userInput = document.getElementById("textInput").value
         document.getElementById("textInput").value = ""
         if (userInput != null) {
-            //askLlama(userInput)
-            askChatGpt(userInput)
+            await askLlama(userInput)
+            // askChatGpt(userInput)
         }
     }
 
@@ -139,9 +139,8 @@
 
     async function askLlama(userText) {
       try {
-        const knownServices = await getOpacaAgents()
         createSpeechBubbleUser(userText)
-        const response = await sendRequest("POST", "http://localhost:3000/chat_test", {prompt: userText, known_services: JSON.parse(knownServices)})
+        const response = await sendRequest("POST", "http://localhost:3000/chat_test", {prompt: userText, llm_url: "http://10.0.64.101"})
         createSpeechBubbleAI(response.message)
       } catch (error) {
         console.log("Error while fetching data: " + error)
@@ -196,7 +195,8 @@
         busy.value = true;
         recognition.onresult = async (event) => {
             const recognizedText = event.results[0][0].transcript;
-            askChatGpt(recognizedText)
+            await askLlama(recognizedText)
+            //askChatGpt(recognizedText)
         };
         recognition.onend = () => {
             recording.value = false;

@@ -35,7 +35,7 @@ def invoke_opaca_action(action, params):
 
 
 
-client = openai.OpenAI()
+client = openai.OpenAI(api_key="Doesnt matter")
 
 system = """
 You suggest web services to fulfil a given purpose.

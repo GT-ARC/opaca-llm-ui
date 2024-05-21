@@ -1,12 +1,12 @@
 import json
 import logging
 
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from RestGPT import RestGPT, reduce_openapi_spec, ColorPrint
+from RestGPT import RestGPT, reduce_openapi_spec, ColorPrint, OpacaLLM
 from OpenAI import openai_routes
 from langchain_community.llms.llamacpp import LlamaCpp
 from langchain_community.utilities import Requests
@@ -55,7 +55,7 @@ class Url(BaseModel):
 
 class Message(BaseModel):
     prompt: str
-    known_services: List
+    llm_url: Optional[str]
 
 
 class Action(BaseModel):
@@ -94,6 +94,8 @@ async def reset(backend: str):
 
 @app.post('/chat_test', response_model=Union[str, int, float, Dict, List])
 async def test_call(message: Message):
+    llm = OpacaLLM(message.llm_url)
+    """
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
     llm = LlamaCpp(
         model_path="C:/Users/robst/PycharmProjects/llama.cpp/models/Meta-Llama-3-8B/ggml-model-f16.gguf",
@@ -104,13 +106,16 @@ async def test_call(message: Message):
         callback_manager=callback_manager,
         verbose=True
     )
+    """
+
+    request_wrapper = Requests()
+    services = openai_routes.get_opaca_services()
 
     action_spec = []
-    for agent in message.known_services:
+    for agent in json.loads(services):
         for action in agent['actions']:
             action_spec.append(Action(name=action['name'], parameters=action['parameters'], result=action['result']))
 
-    request_wrapper = Requests()
     rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
                        simple_parser=False)
 

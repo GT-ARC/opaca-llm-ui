@@ -6,9 +6,8 @@ from langchain.chains.base import Chain
 from langchain.chains.llm import LLMChain
 from langchain.prompts.base import BasePromptTemplate
 from langchain.prompts.prompt import PromptTemplate
-from langchain.llms.base import BaseLLM
 
-from .utils import ReducedOpenAPISpec, get_matched_action
+from .utils import ReducedOpenAPISpec, get_matched_action, OpacaLLM
 
 logger = logging.getLogger()
 
@@ -104,7 +103,7 @@ are no available services at all. If you think there is a fitting action, then y
 call and the required parameters of that call, which will be included in a json style format after the request url. 
 Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
 
-http://localhost:8000/invoke/{{action_name}};{{"parameter_name": "value"}}
+http://localhost:8000/invoke/{{action_name}};{{\"parameter_name\": \"value\"}}
 
 You have to replace {{action_name}} with the exact name of the most fitting action from the following list:
 
@@ -116,12 +115,12 @@ If no such value was given for a specific parameter_name, output "Missing value 
 
 An example would look as follows:
 User query: What is the current noise level in the room with id 1?
-API Call 1: http://localhost:8000/invoke/GetNoise;{{"room": "1"}}
+API Call 1: http://localhost:8000/invoke/GetNoise;{{\"room\": \"1\"}}
 API Response: The noise in the room with id 1 is 60 decibel.
 
 Another example without a fitting parameter in the user request could look like follows:
 User query: What is the current humidity?
-API Call 1: http://localhost:8000/invoke/GetHumidity;{{"room": "0"}}
+API Call 1: http://localhost:8000/invoke/GetHumidity;{{\"room\": \"0\"}}
 API Response: The humidity in the room with id 0 is 40 percent.
 
 Begin!
@@ -161,12 +160,12 @@ Action call 1: {agent_scratchpad}"""
 
 
 class ActionSelector(Chain):
-    llm: BaseLLM
+    llm: OpacaLLM
     action_spec: List
     action_selector_prompt: str
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT_ALT) -> None:
+    def __init__(self, llm: OpacaLLM, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT_ALT) -> None:
         super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
@@ -234,19 +233,19 @@ class ActionSelector(Chain):
 
         action_plan = re.sub(r"API Call \d+: ", "", action_selector_chain_output).strip()
 
-        logger.info(f"API Selector: {action_plan}")
-
         finish = re.match(r"No Action needed.(.*)", action_plan)
         if finish is not None:
             return {"result": action_plan}
 
         while get_matched_action(self.action_spec, action_plan) is None:
             logger.info(
-                "Action Selector: The action you called is not in the list of available action. Please use another action.")
+                "API Selector: The action you called is not in the list of available action. Please use another action.")
             scratchpad += action_selector_chain_output + "\nThe action you called is not in the list of available actions. Please use another action.\n"
             action_selector_chain_output = action_selector_chain.invoke({"plan": inputs['plan'], "background": inputs['background'],
                                                                          "agent_scratchpad": scratchpad})
             action_plan = re.sub(r"API Call \d+: ", "", action_selector_chain_output).strip()
-            logger.info(f"Action Selector: {action_plan}")
+            logger.info(f"API Selector: {action_plan}")
+
+        logger.info(f"API Selector: {action_plan}")
 
         return {"result": action_plan}

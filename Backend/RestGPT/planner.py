@@ -5,9 +5,10 @@ import re
 from langchain.chains.base import Chain
 from langchain.chains import LLMChain
 from langchain.prompts.prompt import PromptTemplate
-from langchain.llms.base import BaseLLM
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import SystemMessagePromptTemplate
+
+from .utils import OpacaLLM
 
 logger = logging.getLogger()
 
@@ -96,20 +97,20 @@ The plan should be straightforward. If you want to search, sort or filter, you c
 
 Starting below, you should always follow this format:
 
-User query: The query a User wants help with related to the agent actions.\n
-Plan step 1: The first step of your plan for how to solve the query.\n
-Action response: The result of executing the first step of your plan, including the specific action call made.\n
-Plan step 2: Based on the action response, the second step of your plan for how to solve the query.\n
-Action response: The result of executing the second step of your plan.\n
-... (this Plan step n and Action response can repeat N times)\n
-Thought: I am finished executing a plan and have the information the user asked for or the data the user asked to create\n
-Final Answer: The final output from executing the plan\n
+User query: The query a User wants help with related to the agent actions.
+Plan step 1: The first step of your plan for how to solve the query.
+Action response: The result of executing the first step of your plan, including the specific action call made.
+Plan step 2: Based on the action response, the second step of your plan for how to solve the query.
+Action response: The result of executing the second step of your plan.
+... (this Plan step n and Action response can repeat N times)
+Thought: I am finished executing a plan and have the information the user asked for or the data the user asked to create
+Final Answer: The final output from executing the plan
 
 {icl_examples}
 
 Begin!
 
-User query: {input}\n
+User query: {input}
 Plan step 1: {agent_scratchpad}"""
 
 PLANNER_PROMPT_ALT = """
@@ -145,11 +146,11 @@ Response:"""
 
 
 class Planner(Chain):
-    llm: BaseLLM
+    llm: OpacaLLM
     planner_prompt: str
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, planner_prompt=PLANNER_PROMPT) -> None:
+    def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -177,7 +178,7 @@ class Planner(Chain):
     @property
     def _stop(self) -> List[str]:
         return [
-            #f"Finished"
+            #f"{self.observation_prefix.rstrip()}",
             f"\n{self.observation_prefix.rstrip()}",
             f"\n\t{self.observation_prefix.rstrip()}",
         ]
@@ -205,11 +206,10 @@ class Planner(Chain):
             input_variables=["input"]
         )
         planner_chain = planner_prompt | self.llm.bind(stop=self._stop)
-        # planner_chain = LLMChain(llm=self.llm, prompt=planner_prompt)
-        logger.info(f'QUERY: {inputs}')
-        planner_chain_output = planner_chain.invoke(input=inputs['input'])#, stop=self._stop)
+        planner_chain_output = planner_chain.invoke(inputs['input'])
+        logger.info(f'Planner: {planner_chain_output}')
 
-        #planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
-        planner_chain_output = re.sub(r"Finished", "", planner_chain_output).strip()
+        planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
+        #planner_chain_output = re.sub(r"Finished", "", planner_chain_output).strip()
 
         return {"result": planner_chain_output}
