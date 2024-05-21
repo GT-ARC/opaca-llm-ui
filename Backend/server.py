@@ -121,4 +121,4 @@ async def test_call(message: Message):
 
     logger.info(f'Query: {message.prompt}')
 
-    return {'message': rest_gpt.invoke({"query": message.prompt})}
+    return rest_gpt.invoke({"query": message.prompt})["result"]

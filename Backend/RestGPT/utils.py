@@ -70,16 +70,17 @@ class OpacaLLM(LLM):
         return OpacaLLM(server_url=self.server_url, stop_words=stop_words)
 
     def _call(self, inputs: str, **kwargs: Any) -> str:
-        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': [{'role': 'System', 'content': inputs}]})
+        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': [{'role': 'User', 'content': inputs}]})
 
-        output = response.text.replace("\\n", "\n")
+        output = response.text.replace("\\n", "\n").replace('\\"', '"')
+        output = output.strip('"')
 
         for stop_word in self.stop_words:
             stop_pos = output.find(stop_word)
             if stop_pos != -1:
                 return output[:stop_pos].strip()
 
-        return response.text
+        return output
 
 
 def get_matched_endpoint(action_spec: ReducedOpenAPISpec, plan: str):
