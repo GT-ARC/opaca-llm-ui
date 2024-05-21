@@ -3,15 +3,23 @@ import logging
 
 from typing import Union, Dict, List
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from RestGPT import RestGPT, reduce_openapi_spec, ColorPrint
-from openai import OpenAI
+from OpenAI import openai_routes
 from langchain_community.llms.llamacpp import LlamaCpp
 from langchain_community.utilities import Requests
 from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 
+"""
+TODO
+make same sort of interface-class/module for RestGPT
+handle errors (backend not found, internal server error) as proper HTTP errors
+test with javascript frontend (and throw out all the "backend" stuff there)
+move get-opaca-agents and invoke-opaca-action to some common module?
+make OPACA-URL configurable (simply as another route?)
+"""
 
 logger = logging.getLogger()
 
@@ -26,6 +34,7 @@ app = FastAPI()
 
 # Configure CORS settings
 origins = [
+    "*",
     "http://localhost",
     "http://localhost:5173",  # Assuming Vue app is running on this port
 ]
@@ -39,6 +48,11 @@ app.add_middleware(
 )
 
 
+class Url(BaseModel):
+    url: str
+    user: str | None
+    pwd: str | None
+
 class Message(BaseModel):
     prompt: str
     known_services: List
@@ -50,35 +64,39 @@ class Action(BaseModel):
     result: Dict
 
 
-@app.post('/wapi/chat')
-async def chat(message: Message):
-    prompt = message.prompt
-    try:
-        if prompt is None:
-            raise HTTPException(status_code=400, detail='Invalid prompt')
+BACKENDS = {
+    # "RestGPT": ???,
+    "openai-test": openai_routes,
+}
 
-        client = OpenAI(api_key='sk-proj-W0P92cfYwDHqFhBSvqbuT3BlbkFJBBwhd09LGW0u1RSwPXVL')
 
-        completion = client.chat.completions.create(
-            model='gpt-3.5-turbo',
-            messages=message.prompt,
-        )
+@app.get("/backends")
+async def get_backends() -> list:
+    return list(BACKENDS)
 
-        print(f'Complete response from OpenAI: {completion}')
-        print(f'Message from OpenAI: {completion.choices[0].message}')
-        prompt.append(completion.choices[0].message)
+@app.post("/{backend}/connect")
+async def connect(backend: str, url: Url) -> bool:
+    return await BACKENDS[backend].connect(url.url, url.user, url.pwd)
 
-        return {'success': True, 'messages': prompt}
-    except Exception as e:
-        return {'success': False, 'messages': str(e)}
+@app.post("/{backend}/query")
+async def query(backend: str, message: Message) -> str:
+    return await BACKENDS[backend].query(message.user_query)
+
+@app.get("/{backend}/history")
+async def history(backend: str) -> list:
+    return await BACKENDS[backend].history()
+
+
+@app.post("/{backend}/reset")
+async def reset(backend: str):
+    await BACKENDS[backend].reset()
 
 
 @app.post('/chat_test', response_model=Union[str, int, float, Dict, List])
 async def test_call(message: Message):
-    print("Got Here")
     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
     llm = LlamaCpp(
-        model_path='C:/Users/robst/Meta-Llama-3-8B/ggml-model-f16.gguf',
+        model_path="C:/Users/robst/PycharmProjects/llama.cpp/models/Meta-Llama-3-8B/ggml-model-f16.gguf",
         temperature=0.75,
         max_tokens=500,
         n_ctx=2048,

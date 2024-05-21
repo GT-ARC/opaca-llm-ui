@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"cd Backend && uvicorn server:app --port=3000\"",
+    "dev_all": "concurrently \"vite\" \"cd Backend && uvicorn server:app --port=3000\"",
+    "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },

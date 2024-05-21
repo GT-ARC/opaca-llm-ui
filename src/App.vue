@@ -15,25 +15,14 @@
 
 <template>
     <header>
-      <div class="site-logo">
-        <img style="width: 300px;" src="./assets/opaca-logo.png" alt="logo">
-      </div>
-    </header>
-
-    <div>
-        <div class="col background">
-            <component :is="Content" class="tab" @reset="resetHistory()" />
-        </div>
         <div class="col">
-            <nav class="navbar fixed-bottom navbar-expand-lg navbar-light bg-light">
-                <div class="container-fluid">
-                    <a href="#">
-                        <img src="./assets/ZEKI-Logo.png" height="70"/>
-                    </a>
+            <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
+                <div class="container-fluid" style="width: 50%;">
+                    <img src="./assets/opaca-logo.png" height="50"/>
                 </div>
 
-                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
-                    <li style="margin-right: 70px;" class="nav-item dropup">
+                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {{ conf.translations[language].language}}
                         </a>
@@ -41,33 +30,24 @@
                             <li @click="setLanguage('DE')"><a class="dropdown-item"><span class="fi fi-de m-3"></span>DE</a></li>
                             <li @click="setLanguage('GB')"><a class="dropdown-item"><span class="fi fi-gb m-3"></span>EN</a></li>
                         </ul>
-                        </li>
-                    </ul>
-
+                    </li>
+                </ul>
             </nav>
         </div>
+    </header>
+
+    <div class="col background">
+        <component :is="Content" class="tab" @reset="resetHistory()" />
     </div>
 </template>
 
-
 <style scoped>
-    #BigBox {
-        display: flex;
-        flex-direction: column;
-        margin: 0px;
-        padding: 0px;
-        width: 100%;
-    }
 
     header {
       background-color: #fff;
       width: 100%;
-      height: 100px;
+      height: 50px;
       display: flex;
       align-items: center;
-    }
-
-    .site-logo {
-      margin-left: 20px;
     }
 </style>
