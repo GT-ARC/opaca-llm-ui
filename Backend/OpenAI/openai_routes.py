@@ -34,10 +34,10 @@ class OpenAIBackend:
         print("RESPONSE:", repr(response))
         try:
             d = json.loads(response)
-            result = await self.opaca_proxy.invoke_opaca_action(d["action"], d["params"])
-            response = f"I just called {d['action']} with {d['params']}. The result of this step was: {repr(result)}"
+            result = await self.opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+            response = f"Original response: `{response}`\n\nCalled `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
         except Exception as e:
-            print("NOT JSON", e)
+            print("NOT JSON", type(e), e)
         self.messages.append({"role": "assistant", "content": response})
         return response
 
