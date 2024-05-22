@@ -100,7 +100,7 @@
 
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
-        const res = await sendRequest("POST", `${config.BackendAddress}/${backend}/connect`, body);
+        const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
         if (res.data) {
             createSpeechBubbleAI("Connected!", "connect")
         } else {
