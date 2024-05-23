@@ -2,7 +2,7 @@ import time
 import re
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains.base import Chain
@@ -194,8 +194,9 @@ class RestGPT(Chain):
             iterations += 1
             time_elapsed = time.time() - start_time
 
-        print(f'final result: {plan}')
-        return {"result": re.sub(r"Final Answer: ", "", plan)}
+        plan = plan.split('Final Answer: ')[-1]
+        logger.info(f'Final Answer: {plan}')
+        return {"result": plan}
 
     @staticmethod
     def test():

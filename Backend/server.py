@@ -6,11 +6,9 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from RestGPT import RestGPT, reduce_openapi_spec, ColorPrint, OpacaLLM
+from RestGPT import RestGPT, ColorPrint, OpacaLLM
 from OpenAI import openai_routes
-from langchain_community.llms.llamacpp import LlamaCpp
 from langchain_community.utilities import Requests
-from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 
 """
 TODO
@@ -95,18 +93,6 @@ async def reset(backend: str):
 @app.post('/chat_test', response_model=Union[str, int, float, Dict, List])
 async def test_call(message: Message):
     llm = OpacaLLM(message.llm_url)
-    """
-    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-    llm = LlamaCpp(
-        model_path="C:/Users/robst/PycharmProjects/llama.cpp/models/Meta-Llama-3-8B/ggml-model-f16.gguf",
-        temperature=0.75,
-        max_tokens=500,
-        n_ctx=2048,
-        top_p=1,
-        callback_manager=callback_manager,
-        verbose=True
-    )
-    """
 
     request_wrapper = Requests()
     services = openai_routes.get_opaca_services()

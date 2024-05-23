@@ -1,12 +1,9 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
-from langchain.chains import LLMChain
 from langchain.prompts.prompt import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import SystemMessagePromptTemplate
 
 from .utils import OpacaLLM
 
@@ -104,7 +101,7 @@ API response: The result of the second step of your plan.
 ... (this Plan step n and API response can repeat N times)
 Final Answer: The final output from executing the plan.
 
-Here are some examples you can orientate yourself with. Do not 
+Here are some examples you can orientate yourself with.
 
 {icl_examples}
 
@@ -199,7 +196,6 @@ class Planner(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs['history'])
-        print(f'Scratchpad: {scratchpad}')
         planner_prompt = PromptTemplate(
             template=self.planner_prompt,
             partial_variables={
@@ -210,10 +206,7 @@ class Planner(Chain):
         )
         planner_chain = planner_prompt | self.llm.bind(stop=self._stop)
         planner_chain_output = planner_chain.invoke({"input": inputs['input'], "actions": inputs["actions"]})
-        logger.info(f'Planner: before output: {planner_chain_output}')
 
         planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
-        logger.info(f'Planner: after output: {planner_chain_output}')
-        #planner_chain_output = re.sub(r"Finished", "", planner_chain_output).strip()
 
         return {"result": planner_chain_output}
