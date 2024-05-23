@@ -13,26 +13,26 @@ from langchain.chains.base import Chain
 from langchain.chains.llm import LLMChain
 from langchain_community.utilities import RequestsWrapper
 from langchain.prompts.prompt import PromptTemplate
-from langchain.llms.base import BaseLLM
 
-from .utils import simplify_json, get_matched_endpoint, ReducedOpenAPISpec, fix_json_error
+from .utils import simplify_json, get_matched_endpoint, ReducedOpenAPISpec, fix_json_error, OpacaLLM
 from .parser import ResponseParser, SimpleResponseParser
 
 logger = logging.getLogger(__name__)
 
 CALLER_PROMPT = """You are an agent that gets a sequence of API calls and given their documentation, should execute them and return the final response.
 If you cannot complete them and run into issues, you should explain the issue. If you're able to resolve an API call, you can retry the API call. When interacting with API objects, you should extract ids for inputs to other API calls but ids and names for outputs returned to the User.
+The API calls will always be of the type POST.
 Your task is to complete the corresponding api calls according to the plan.
 
 
 Here is documentation on the API:
-Base url: {api_url}
+Base url: http://localhost:8000/invoke/
 Endpoints:
 {api_docs}
 
 If the API path contains "{{}}", it means that it is a variable and you should replace it with the appropriate value. For example, if the path is "/users/{{user_id}}/tweets", you should replace "{{user_id}}" with the user id. "{{" and "}}" cannot appear in the url.
 
-You can use http request method, i.e., GET, POST, DELETE, PATCH, PUT, and generate the corresponding parameters according to the API documentation and the plan.
+You can generate the corresponding parameters according to the API documentation and the plan.
 The input should be a JSON string which has 3 base keys: url, description, output_instructions
 The value of "url" should be a string.
 The value of "description" should describe what the API response is about. The description should be specific.
@@ -44,10 +44,7 @@ Remember to add a comma after every value except the last one, ensuring that the
 Example 1:
 Operation: POST
 Input: {{
-    "url": "https://api.twitter.com/2/tweets",
-    "params": {{
-        "tweet.fields": "created_at"
-    }}
+    "url": "http://localhost:8000/invoke/GetTemperature",
     "data": {{
         "text": "Hello world!"
     }},
@@ -103,11 +100,34 @@ Plan: {api_plan}
 Thought: {agent_scratchpad}
 """
 
+CALLER_PROMPT_ALT = """You are an agent that generates answers to API calls.
+You will be provided with an API call, which will include the endpoint that got called, the parameters that were used for that API call, and finally the result that was returned after calling that API.
+Your task will be to generate in a chat-like the response for a user.
+If there was an error or the api call was unsuccessful, then also generate an appropriate output to inform the user about the error.
+
+Take the following as an example:
+API Call: http://localhost:8000/invoke/GetTemperature
+Parameter: {{"room": "1"}}
+Result: 23
+Your response: The temperature for the room 1 is 23 degrees.
+
+Here is another example:
+API Call: http://localhost:8000/invoke/IsFree
+Parameter: {{"desk": 4}}
+Result: False
+Your response: The desk 4 is currently not free.
+
+Begin!
+
+API Call: {api_call}
+Parameter: {params}
+Result: {result}
+Your response:"""
+
 
 class Caller(Chain):
-    llm: BaseLLM
-    api_spec: ReducedOpenAPISpec
-    scenario: str
+    llm: OpacaLLM
+    action_spec: List
     requests_wrapper: RequestsWrapper
     max_iterations: Optional[int] = 15
     max_execution_time: Optional[float] = None
@@ -116,14 +136,14 @@ class Caller(Chain):
     with_response: bool = False
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, api_spec: ReducedOpenAPISpec, scenario: str, requests_wrapper: RequestsWrapper,
+    def __init__(self, llm: OpacaLLM, action_spec: List, requests_wrapper: RequestsWrapper,
                  simple_parser: bool = False, with_response: bool = False) -> None:
-        super().__init__(llm=llm, api_spec=api_spec, scenario=scenario, requests_wrapper=requests_wrapper,
+        super().__init__(llm=llm, action_spec=action_spec, requests_wrapper=requests_wrapper,
                          simple_parser=simple_parser, with_response=with_response)
 
     @property
     def _chain_type(self) -> str:
-        return "RestGPT Caller"
+        return "Opaca LLM Caller"
 
     @property
     def input_keys(self) -> List[str]:
@@ -244,8 +264,26 @@ class Caller(Chain):
         intermediate_steps: List[Tuple[str, str]] = []
 
         api_plan = inputs['api_plan']
-        api_url = self.api_spec.servers[0]['url']
-        matched_endpoints = get_matched_endpoint(self.api_spec, api_plan)
+        api_call, params = api_plan.split(';')
+        logger.info(f'Caller: Attempting to call {api_call} with parameters: {params}')
+
+        response = requests.post(api_call, json=json.loads(params))
+
+        logger.info(f'Caller: Received response: {response.text}')
+
+        caller_prompt = PromptTemplate(
+            template=CALLER_PROMPT_ALT,
+            input_variables=["api_call", "params", "result"]
+        )
+
+        caller_chain = caller_prompt | self.llm.bind(stop=self._stop)
+        caller_chain_output = caller_chain.invoke(input={"api_call": api_call, "params": params, "result": response.text})
+
+        return {'result': caller_chain_output}
+
+        """
+        api_url = self.action_spec.servers[0]['url']
+        matched_endpoints = get_matched_endpoint(self.action_spec, api_plan)
         endpoint_docs_by_name = {name: docs for name, _, docs in self.api_spec.endpoints}
         api_doc_for_caller = ""
         assert len(matched_endpoints) == 1, f"Found {len(matched_endpoints)} matched endpoints, but expected 1."
@@ -332,3 +370,4 @@ class Caller(Chain):
             time_elapsed = time.time() - start_time
 
         return {"result": caller_chain_output}
+        """

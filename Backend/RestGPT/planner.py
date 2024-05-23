@@ -5,9 +5,10 @@ import re
 from langchain.chains.base import Chain
 from langchain.chains import LLMChain
 from langchain.prompts.prompt import PromptTemplate
-from langchain.llms.base import BaseLLM
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import SystemMessagePromptTemplate
+
+from .utils import OpacaLLM
 
 logger = logging.getLogger()
 
@@ -15,30 +16,27 @@ icl_examples = {
     "opaca": """Example 1:
 User query: What is the current temperature in room 1?
 Plan step 1: Get the temperature in room 1.
-Action response: The temperature in room 1 is 23 degrees.
-Thought I am finished executing a plan and have the information the user asked for or the data the user asked to create.
+API response: The temperature in room 1 is 23 degrees.
 Final Answer: The temperature in room 1 is 23 degrees.
 
 Example 2:
 User query: Book me the desk with id 6.
 Plan step 1: Check if the desk with id 6 is currently free.
-Action response: The desk with id 6 is free.
+API response: The desk with id 6 is free.
 Plan step 2: Book the desk with id 6.
-Action response: Successfully booked the desk with id 6.
-Thought: I am finished executing a plan and completed the user's instructions
-Final Answer: The desk with id 6 was successfully booked for you.
+API response: Successfully booked the desk with id 6.
+Final Answer: Successfully booked the desk with id 6.
 
 Example 3:
 User query: Please open the shelf with cups in it.
 Plan step 1: Check if the shelf with id 0 contains cups.
-Action response: The shelf with id 0 does not contain any cups.
+API response: The shelf with id 0 does not contain any cups.
 Plan step 2: Check if the shelf with id 1 contains cups.
-Action response: The shelf with id 1 does contain cups.
+API response: The shelf with id 1 does contain cups.
 Plan step 3: Open the shelf with id 1.
-Action response: Successfully opened the shelf with id 1.
-Thought: I am finished executing a plan and completed the user's instructions'
-Final Answer: The shelf with id 1 containing cups has been opened.
-""",
+API response: Successfully opened the shelf with id 1.
+Final Answer: Successfully opened the shelf with id 1."""
+    ,
     "tmdb": """Example 1:
 User query: give me some movies performed by Tony Leung.
 Plan step 1: search person with name "Tony Leung"
@@ -85,31 +83,38 @@ Final Answer: I have made a new playlist called "Love Coldplay" containing Yello
 """
 }
 
+#In most case, search, filter, and sort should be completed in a single step.
 PLANNER_PROMPT = """You are an agent that plans solution to user queries.
 You should always give your plan in natural language.
-Another model will receive your plan and find the right agent action calls and give you the result in natural language.
-If you assess that the current plan has not been fulfilled, you can output "Continue" to let the action selector select another action to fulfill the plan.
-If you think you have got the final answer or the user query has been fulfilled, just output the answer immediately. If the query has not been fulfilled, you should continue to output your plan.
-In most case, search, filter, and sort should be completed in a single step.
+You will receive a list of available services on which you should base your plan.
+Another model will receive your plan and find the right API calls and give you the result in natural language.
+You need to evaluate the API response and check whether the user query has been fulfilled.
+If you think the user query has been fulfilled, output the final answer immediately without generating another plan step.
+If you assess that the current plan has not been fulfilled correctly, you can output "Continue" to let the API selector select another API to fulfill the plan.
 The plan should be as specific as possible. It is better not to use pronouns in plan, but to use the corresponding results obtained previously. For example, instead of "Get the most popular movie directed by this person", you should output "Get the most popular movie directed by Martin Scorsese (1032)". If you want to iteratively query something about items in a list, then the list and the elements in the list should also appear in your plan.
 The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Open the shelf with the plates", instead of "get the list of items of all shelfs", you should output "get the list of items of the first shelf".
 
-Starting below, you should always follow this format:
+Starting below, you should follow this format:
 
-User query: The query a User wants help with related to the agent actions.\n
-Plan step 1: The first step of your plan for how to solve the query.\n
-Action response: The result of executing the first step of your plan, including the specific action call made.\n
-Plan step 2: Based on the action response, the second step of your plan for how to solve the query.\n
-Action response: The result of executing the second step of your plan.\n
-... (this Plan step n and Action response can repeat N times)\n
-Thought: I am finished executing a plan and have the information the user asked for or the data the user asked to create\n
-Final Answer: The final output from executing the plan\n
+User query: The query a User wants help with related to the agent actions.
+Plan step 1: The first step of your plan for how to solve the query.
+API response: The result of the first step of your plan.
+Plan step 2: If necessary, the second step of your plan for how to solve the query based on the API response.
+API response: The result of the second step of your plan.
+... (this Plan step n and API response can repeat N times)
+Final Answer: The final output from executing the plan.
+
+Here are some examples you can orientate yourself with. Do not 
 
 {icl_examples}
 
+And here are the list of services:
+
+{actions}
+
 Begin!
 
-User query: {input}\n
+User query: {input}
 Plan step 1: {agent_scratchpad}"""
 
 PLANNER_PROMPT_ALT = """
@@ -145,11 +150,11 @@ Response:"""
 
 
 class Planner(Chain):
-    llm: BaseLLM
+    llm: OpacaLLM
     planner_prompt: str
     output_key: str = "result"
 
-    def __init__(self, llm: BaseLLM, planner_prompt=PLANNER_PROMPT) -> None:
+    def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -167,7 +172,7 @@ class Planner(Chain):
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "Action response: "
+        return "API response: "
 
     @property
     def llm_prefix(self) -> str:
@@ -177,7 +182,6 @@ class Planner(Chain):
     @property
     def _stop(self) -> List[str]:
         return [
-            #f"Finished"
             f"\n{self.observation_prefix.rstrip()}",
             f"\n\t{self.observation_prefix.rstrip()}",
         ]
@@ -195,21 +199,21 @@ class Planner(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs['history'])
-        # print("Scrachpad: \n", scratchpad)
+        print(f'Scratchpad: {scratchpad}')
         planner_prompt = PromptTemplate(
             template=self.planner_prompt,
             partial_variables={
                 "agent_scratchpad": scratchpad,
                 "icl_examples": icl_examples['opaca'],
             },
-            input_variables=["input"]
+            input_variables=["input", "actions"]
         )
         planner_chain = planner_prompt | self.llm.bind(stop=self._stop)
-        # planner_chain = LLMChain(llm=self.llm, prompt=planner_prompt)
-        logger.info(f'QUERY: {inputs}')
-        planner_chain_output = planner_chain.invoke(input=inputs['input'])#, stop=self._stop)
+        planner_chain_output = planner_chain.invoke({"input": inputs['input'], "actions": inputs["actions"]})
+        logger.info(f'Planner: before output: {planner_chain_output}')
 
-        #planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
-        planner_chain_output = re.sub(r"Finished", "", planner_chain_output).strip()
+        planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
+        logger.info(f'Planner: after output: {planner_chain_output}')
+        #planner_chain_output = re.sub(r"Finished", "", planner_chain_output).strip()
 
         return {"result": planner_chain_output}

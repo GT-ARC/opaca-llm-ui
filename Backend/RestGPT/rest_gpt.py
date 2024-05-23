@@ -7,14 +7,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
-from langchain.llms.base import BaseLLM
 
 from langchain_community.utilities import RequestsWrapper
 
 from .planner import Planner
 from .action_selector import ActionSelector
 from .caller import Caller
-from .utils import ReducedOpenAPISpec
+from .utils import OpacaLLM
 
 logger = logging.getLogger()
 
@@ -22,7 +21,7 @@ logger = logging.getLogger()
 class RestGPT(Chain):
     """Consists of an agent using tools."""
 
-    llm: BaseLLM
+    llm: OpacaLLM
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
@@ -35,7 +34,7 @@ class RestGPT(Chain):
 
     def __init__(
             self,
-            llm: BaseLLM,
+            llm: OpacaLLM,
             action_spec: List,
             requests_wrapper: RequestsWrapper,
             caller_doc_with_response: bool = False,
@@ -132,59 +131,71 @@ class RestGPT(Chain):
         time_elapsed = 0.0
         start_time = time.time()
 
-        logger.info(f'RUN PLANNER')
-        plan = self.planner.invoke({"input": query, "history": planner_history})
-        logger.info(f"Planner: {plan['result']}")
-        logger.info(f'RUN ACTION SELECTOR')
+        logger.info(f'Planner: Run with query: {query}')
+        plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
+        plan = plan["result"]
+        logger.info(f"Planner: {plan}")
+        """
+        logger.info(f'API Selector: Run')
         action_plan = self.action_selector.invoke({"plan": plan,
                                                    "background": self._get_api_selector_background(planner_history)})
-        logger.info(f'Action plan: {action_plan["result"]}')
-
+        logger.info(f'API Selector: {action_plan["result"]}')
         """
+
         while self._should_continue(iterations, time_elapsed):
             tmp_planner_history = [plan]
             action_selector_history: List[Tuple[str, str, str]] = []
             action_selector_background = self._get_api_selector_background(planner_history)
-            action_plan = self.action_selector.run(plan=plan, background=action_selector_background)
+            api_plan = self.action_selector.invoke({"plan": plan,
+                                                    "actions": self.action_spec,
+                                                    "background": self._get_api_selector_background(planner_history)})
+            api_plan = api_plan["result"]
 
-            finished = re.match(r"No API call needed.(.*)", action_plan)
+            finished = re.match(r"No API call needed.(.*)", api_plan)
             if not finished:
                 executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                execution_res = executor.run(action_plan=action_plan, background=action_selector_background)
+                execution_res = executor.invoke({"api_plan": api_plan, "background": action_selector_background})
+                execution_res = execution_res["result"]
+                logger.info(f'Caller: {execution_res}')
             else:
                 execution_res = finished.group(1)
 
             planner_history.append((plan, execution_res))
-            action_selector_history.append((plan, action_plan, execution_res))
+            action_selector_history.append((plan, api_plan, execution_res))
 
-            plan = self.planner.run(input=query, history=planner_history)
+            # logger.info(f'Planner History: {planner_history}')
+
+            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
+            plan = plan["result"]
             logger.info(f"Planner: {plan}")
-
             while self._should_continue_plan(plan):
                 action_selector_background = self._get_api_selector_background(planner_history)
-                action_plan = self.action_selector.run(plan=tmp_planner_history[0], background=action_selector_background, history=action_selector_history, instruction=plan)
+                api_plan = self.action_selector.invoke({"plan": tmp_planner_history[0], "background": action_selector_background, "history": action_selector_history, "instruction": plan})
+                api_plan = api_plan["result"]
 
-                finished = re.match(r"No API call needed.(.*)", action_plan)
+                finished = re.match(r"No API call needed.(.*)", api_plan)
                 if not finished:
-                    executor = Caller(llm=self.llm, action_spec=self.action_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                    execution_res = executor.run(action_plan=action_plan, background=action_selector_background)
+                    executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
+                    execution_res = executor.invoke({"api_plan": api_plan, "background": action_selector_background})
+                    execution_res = execution_res["result"]
                 else:
                     execution_res = finished.group(1)
 
                 planner_history.append((plan, execution_res))
-                action_selector_history.append((plan, action_plan, execution_res))
+                action_selector_history.append((plan, api_plan, execution_res))
 
-                plan = self.planner.run(input=query, history=planner_history)
+                plan = self.planner.invoke({"input": query, "history": planner_history})
+                plan = plan["result"]
                 logger.info(f"Planner: {plan}")
 
-            if self._should_end(plan):
+            if self._should_end(plan) or iterations == 3:
                 break
 
             iterations += 1
             time_elapsed = time.time() - start_time
-        """
 
-        return {"result": action_plan}
+        print(f'final result: {plan}')
+        return {"result": re.sub(r"Final Answer: ", "", plan)}
 
     @staticmethod
     def test():
