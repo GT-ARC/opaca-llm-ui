@@ -1,21 +1,15 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
-from copy import deepcopy
-import yaml
+from typing import Dict, List, Optional, Tuple
 import time
 import re
 import requests
 
-import tiktoken
-
 from langchain.chains.base import Chain
-from langchain.chains.llm import LLMChain
 from langchain_community.utilities import RequestsWrapper
 from langchain.prompts.prompt import PromptTemplate
 
-from .utils import simplify_json, get_matched_endpoint, ReducedOpenAPISpec, fix_json_error, OpacaLLM
-from .parser import ResponseParser, SimpleResponseParser
+from .utils import fix_json_error, OpacaLLM
 
 logger = logging.getLogger(__name__)
 

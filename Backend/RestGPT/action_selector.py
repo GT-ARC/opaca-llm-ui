@@ -1,13 +1,11 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 import re
 import logging
 
 from langchain.chains.base import Chain
-from langchain.chains.llm import LLMChain
-from langchain.prompts.base import BasePromptTemplate
 from langchain.prompts.prompt import PromptTemplate
 
-from .utils import ReducedOpenAPISpec, get_matched_action, OpacaLLM
+from .utils import get_matched_action, OpacaLLM
 
 logger = logging.getLogger()
 
@@ -28,7 +26,7 @@ Example 3:
 Background: No background.
 User query: Check if the desk with id 3 is free
 Action call 2: IsFree;{{"desk": 3}}
-Action response: The desk with id 0 is free.
+Action response: The desk with id 3 is free.
 
 Example 4:
 Background: No background.
@@ -100,6 +98,9 @@ If an action requires a parameter but there were no suitable parameters in the u
 for the missing required parameter field. For example, if you notice from the action list that the required parameter
 "room" was not given in the user query, try to guess a valid value for this parameter based on its type.
 If an action does not require parameters, just output an empty json array like {{}}.
+Take note of the type of each parameter and output the type accordingly. For example, if the type is string, it should
+include quotation marks around the value. If the type is an integer, it should just be a number without quotation marks.
+If the type is a float, it should be a number without quotation mark and a floating point.
 If you think there were no fitting parameters in the user request, just create imaginary values for them based on their names. 
 Do not use actions or parameters that are not included in the list. If there are no fitting actions in the list, 
 include within your response the absence of such an action. If the list is empty, include in your response that there 
@@ -119,8 +120,8 @@ API Call 1: http://localhost:8000/invoke/GetNoise;{{\"room\": \"1\"}}
 API Response: The noise in the room with id 1 is 60 decibel.
 
 Another example without a fitting parameter in the user request could look like follows:
-User query: What is the current humidity?
-API Call 1: http://localhost:8000/invoke/GetHumidity;{{\"room\": \"0\"}}
+User query: Is the desk free?
+API Call 1: http://localhost:8000/invoke/IsFree;{{\"desk\": 0}}
 API Response: The humidity in the room with id 0 is 40 percent.
 
 Begin!
