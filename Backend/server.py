@@ -61,6 +61,9 @@ class Action(BaseModel):
     parameters: Dict
     result: Dict
 
+    def __str__(self):
+        return f'{self.name}, Parameters: {self.parameters}, Result: {self.result}'
+
 
 BACKENDS = {
     # "RestGPT": ???,
