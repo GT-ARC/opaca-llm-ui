@@ -54,26 +54,26 @@ class MyRotatingFileHandler(BaseRotatingHandler):
         return 0
 
 
-class OpacaLLM(LLM):
+class OpacaLLM:
     server_url: str
     stop_words: Optional[List[str]]
 
     def __init__(self, server_url: str, stop_words: Optional[List[str]] = None):
-        super().__init__(server_url=server_url, stop_words=stop_words)
-
-    @property
-    def _llm_type(self) -> str:
-        return "Custom LLM Wrapper for Opaca"
+        self.server_url = server_url
+        self.stop_words = stop_words
 
     def bind(self, **kwargs):
         stop_words = kwargs.get('stop', self.stop_words)
         return OpacaLLM(server_url=self.server_url, stop_words=stop_words)
 
-    def _call(self, inputs: str, **kwargs: Any) -> str:
-        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': [{'role': 'User', 'content': inputs}]})
+    def call(self, inputs: List[Dict[str, Any]]) -> str:
+        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': inputs})
 
         output = response.text.replace("\\n", "\n").replace('\\"', '"')
         output = output.strip('"')
+
+        if self.stop_words is None:
+            return output
 
         for stop_word in self.stop_words:
             stop_pos = output.find(stop_word)
