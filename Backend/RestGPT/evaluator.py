@@ -12,7 +12,7 @@ User query: What is the current temperature in room 1?
 Plan step 1: Get the temperature in room 1.
 API call 1: http://localhost:8000/invoke/GetTemperature;{"room": "1"}
 API response 1: The temperature for room 1 is 23.0 degrees.""",
-     "output": "FINISHED"},
+     "output": "FINISHED: The current temperature in room 1 is 23.0 degrees."},
     {"input": """
 User query: Open the shelf that contains plates.
 Plan step 1: Get a list of all available shelfs.
@@ -33,28 +33,38 @@ API response 2: The shelf 0 contains plates, cups and glasses.
 Plan step 3: Open shelf 0.
 API call 3: http://localhost:8000/invoke/OpenShelf;{"shelf": 0}
 API response 3: Opened shelf with id 0.""",
-     "output": "FINISHED"},
+     "output": "FINISHED: I have found shelf 0 containing plates and opened it as you requested."},
     {"input": """
 User query: Check if the desk with id 4 is currently free.
 Plan step 1: Check if desk with id 4 is free.
 API call 1: http://localhost:8000/invoke/IsFree;{"desk": 4}
 API response 1: The desk with id 4 is currently not free.""",
-     "output": "FINISHED"},
+     "output": "FINISHED: The desk with id 4 is not currently not free and unavailable to book."},
     {"input": """
 User query: Show me the way to the kitchen.
 Plan step 1: Get the navigation to the kitchen.
 API call 1: http://localhost:8000/invoke/NavigateTo;{"room": "kitchen"}""",
      "output": "CONTINUE"},
+    {"input": """
+User query: Is the humidity in room 2 or 3 greater?
+Plan step 1: Get the humidity of room 2.
+API call 1: http://localhost:8000/invoke/GetHumidity;{"room": "2"}
+API response 1: The humidity in room 2 is 0.36.
+Plan step 2: Get the humidity of room 3.
+API call 2: http://localhost:8000/invoke/GetHumidity;{"room": "3"}
+API response 2: The humidity in room 3 is 0.38.""",
+     "output": "FINISHED: The humidity in room 2 is 0.36 while the humidity in room 3 is 0.38. \
+     Therefore, the humidity in room 3 is greater."}
 ]
 
 
 EVAL_PROMPT = """You are an evaluator.
 Your task will be to analyze a chain of API calls and their responses.
-If you deem that the user query has been fulfilled, which is at the top of each chain, you output "FINISHED".
-If you think that the user query is still unfulfilled, you output "CONTINUE". Every subchain should contain
-a Plan step n, API call n, and API response n, where n is the current step of the chain. If one of those components 
-is missing within such a subchain, you should output "CONTINUE" as well. In other words, if for example there is a 
-Plan step 4 there should also be a API response 4, otherwise output "CONTINUE"."""
+If you deem that the user query has been fulfilled, which is at the top of each chain, you output "FINISHED" and 
+after that a summary of the executed steps for the user.
+If you think that the user query is still unfulfilled, you output "CONTINUE".
+If the query involves comparing results from different API calls and you determine that all necessary calls were made, 
+you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user."""
 
 
 class Evaluator(Chain):

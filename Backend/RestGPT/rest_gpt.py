@@ -30,7 +30,7 @@ class RestGPT(Chain):
     requests_wrapper: RequestsWrapper
     simple_parser: bool = False
     return_intermediate_steps: bool = False
-    max_iterations: Optional[int] = 3
+    max_iterations: Optional[int] = 5
     max_execution_time: Optional[float] = None
     early_stopping_method: str = "force"
 
@@ -64,8 +64,7 @@ class RestGPT(Chain):
         )
 
     def _finished(self, eval_input: str):
-        eval_output = self.evaluator.invoke({"input": eval_input})["result"]
-        return True if re.match(r"FINISHED", eval_output) else False
+        return self.evaluator.invoke({"input": eval_input})["result"]
 
     @property
     def _chain_type(self) -> str:
@@ -129,7 +128,9 @@ class RestGPT(Chain):
         query = inputs['query']
 
         planner_history: List[Tuple[str, str]] = []
+        action_selector_history: List[Tuple[str, str]] = []
         eval_input = f'User query: {query}\n'
+        final_answer = ''
         iterations = 0
         time_elapsed = 0.0
         start_time = time.time()
@@ -142,12 +143,12 @@ class RestGPT(Chain):
             logger.info(f"Planner: {plan}")
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
-            tmp_planner_history = [plan]
-            action_selector_history: List[Tuple[str, str, str]] = []
             api_plan = self.action_selector.invoke({"plan": plan,
-                                                    "actions": self.action_spec})
+                                                    "actions": self.action_spec,
+                                                    "history": action_selector_history})
             api_plan = api_plan["result"]
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
+            action_selector_history.append((plan, api_plan))
 
             executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
             execution_res = executor.invoke({"api_plan": api_plan})
@@ -155,8 +156,9 @@ class RestGPT(Chain):
             logger.info(f'Caller: {execution_res}')
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
             planner_history.append((plan, execution_res))
-            action_selector_history.append((plan, api_plan, execution_res))
-            if self._finished(eval_input):
+            eval_output = self._finished(eval_input)
+            if re.match(r"FINISHED", eval_output):
+                final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
                 break
 
             """
@@ -186,7 +188,8 @@ class RestGPT(Chain):
             iterations += 1
             time_elapsed = time.time() - start_time
 
-        final_answer = eval_input.split('\n')[-2].strip()
-        final_answer = re.sub(r"API response \d+:", "", final_answer)
+        if final_answer == "":
+            final_answer = "I am sorry, but I was unable to fulfill your request."
+
         logger.info(f'Final Answer: {final_answer}')
         return {"result": final_answer}

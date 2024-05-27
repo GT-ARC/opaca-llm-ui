@@ -179,16 +179,12 @@ class Caller(Chain):
 
         api_plan = inputs['api_plan']
         api_call, params = api_plan.split(';')
-        logger.info(f'Caller: Attempting to call {api_call} with parameters: {params}, after loads: {json.loads(params)}')
+        params = params.split('\n')[0]  # Sometimes the api selector adds some unnecessary stuff
+        logger.info(f'Caller: Attempting to call {api_call} with parameters: {params}')
 
         response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params))
 
         logger.info(f'Caller: Received response: {response.text}')
-
-        caller_prompt = PromptTemplate(
-            template=CALLER_PROMPT_ALT,
-            input_variables=["api_call", "params", "result"]
-        )
 
         messages = [{"role": "system", "content": CALLER_PROMPT_ALT}]
         for example in examples:
