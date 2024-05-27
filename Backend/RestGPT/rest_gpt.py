@@ -154,13 +154,12 @@ class RestGPT(Chain):
             execution_res = execution_res["result"]
             logger.info(f'Caller: {execution_res}')
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
+            planner_history.append((plan, execution_res))
+            action_selector_history.append((plan, api_plan, execution_res))
             if self._finished(eval_input):
                 break
 
             """
-            planner_history.append((plan, execution_res))
-            action_selector_history.append((plan, api_plan, execution_res))
-
             plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
             plan = plan["result"]
             logger.info(f"Planner: {plan}")

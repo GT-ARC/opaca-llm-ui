@@ -175,7 +175,7 @@ class Planner(Chain):
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": scratchpad + inputs["input"]})
+        messages.append({"role": "human", "content": inputs["input"] + scratchpad})
         planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
 
         planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
