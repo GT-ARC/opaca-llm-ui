@@ -11,17 +11,17 @@ logger = logging.getLogger()
 
 examples = [
     {"input": "Get the temperature of the room with id 2.", "output": """
-API call: GetTemperature;{"room": "2"}
-API response: The temperature in the room with id 2 is 23 degrees."""},
+API Call: GetTemperature;{"room": "2"}
+API Response: The temperature in the room with id 2 is 23 degrees."""},
     {"input": "Book the desk with id 5.", "output": """
-API call: BookDesk;{"desk": 5}
-API response: Successfully booked the desk with id 5."""},
+API Call: BookDesk;{"desk": 5}
+API Response: Successfully booked the desk with id 5."""},
     {"input": "Check if the desk with id 3 is free.", "output": """
-API call: IsFree;{"desk": 3}
-API response: The desk with id 3 is free."""},
+API Call: IsFree;{"desk": 3}
+API Response: The desk with id 3 is free."""},
     {"input": "Check if the shelf with id 1 contains plates.", "output": """
-API call: GetContents;{"shelf": 1}
-API response: The shelf with id 1 contains plates."""},
+API Call: GetContents;{"shelf": 1}
+API Response: The shelf with id 1 contains plates."""},
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -45,7 +45,7 @@ Your answer should only include the request url and the parameters in a JSON for
 
 {action_name};{\"parameter_name\": \"value\"}
 
-Here is the list you should use to create create the API call
+Here is the list you should use to create create the API Call
 """
 
 class ActionSelector(Chain):
@@ -63,7 +63,7 @@ class ActionSelector(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["plan", "background"]
+        return ["plan"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -115,7 +115,7 @@ class ActionSelector(Chain):
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API call:", "", action_selector_output).strip()
+        action_plan = re.sub(r"API Call:", "", action_selector_output).strip()
 
         """
         finish = re.match(r"No Action needed.(.*)", action_plan)

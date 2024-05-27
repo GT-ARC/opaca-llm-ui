@@ -13,6 +13,7 @@ from langchain_community.utilities import RequestsWrapper
 from .planner import Planner
 from .action_selector import ActionSelector
 from .caller import Caller
+from .evaluator import Evaluator
 from .utils import OpacaLLM
 
 logger = logging.getLogger()
@@ -25,10 +26,11 @@ class RestGPT(Chain):
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
+    evaluator: Evaluator
     requests_wrapper: RequestsWrapper
     simple_parser: bool = False
     return_intermediate_steps: bool = False
-    max_iterations: Optional[int] = 15
+    max_iterations: Optional[int] = 3
     max_execution_time: Optional[float] = None
     early_stopping_method: str = "force"
 
@@ -46,9 +48,10 @@ class RestGPT(Chain):
 
         planner = Planner(llm=llm)
         action_selector = ActionSelector(llm=llm, action_spec=action_spec)
+        evaluator = Evaluator(llm=llm)
 
         super().__init__(
-            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector,
+            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, evaluator=evaluator,
             requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager, **kwargs
         )
 
@@ -59,6 +62,10 @@ class RestGPT(Chain):
             "If you are trying to save the agent, please use the "
             "`.save_agent(...)`"
         )
+
+    def _finished(self, eval_input: str):
+        eval_output = self.evaluator.invoke({"input": eval_input})["result"]
+        return True if re.match(r"FINISHED", eval_output) else False
 
     @property
     def _chain_type(self) -> str:
@@ -104,11 +111,6 @@ class RestGPT(Chain):
             final_output["intermediate_steps"] = intermediate_steps
         return final_output
 
-    def _get_api_selector_background(self, planner_history: List[Tuple[str, str]]) -> str:
-        if len(planner_history) == 0:
-            return "No background"
-        return "\n".join([step[1] for step in planner_history])
-
     def _should_continue_plan(self, plan) -> bool:
         if re.search("Continue", plan):
             return True
@@ -127,56 +129,49 @@ class RestGPT(Chain):
         query = inputs['query']
 
         planner_history: List[Tuple[str, str]] = []
+        eval_input = f'User query: {query}\n'
         iterations = 0
         time_elapsed = 0.0
         start_time = time.time()
 
         logger.info(f'Planner: Run with query: {query}')
-        plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
-        plan = plan["result"]
-        logger.info(f"Planner: {plan}")
-        """
-        logger.info(f'API Selector: Run')
-        action_plan = self.action_selector.invoke({"plan": plan,
-                                                   "background": self._get_api_selector_background(planner_history)})
-        logger.info(f'API Selector: {action_plan["result"]}')
-        """
 
         while self._should_continue(iterations, time_elapsed):
+            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
+            plan = plan["result"]
+            logger.info(f"Planner: {plan}")
+            eval_input += f'Plan step {iterations + 1}: {plan}\n'
+
             tmp_planner_history = [plan]
             action_selector_history: List[Tuple[str, str, str]] = []
-            action_selector_background = self._get_api_selector_background(planner_history)
             api_plan = self.action_selector.invoke({"plan": plan,
-                                                    "actions": self.action_spec,
-                                                    "background": self._get_api_selector_background(planner_history)})
+                                                    "actions": self.action_spec})
             api_plan = api_plan["result"]
+            eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
-            finished = re.match(r"No API call needed.(.*)", api_plan)
-            if not finished:
-                executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                execution_res = executor.invoke({"api_plan": api_plan, "background": action_selector_background})
-                execution_res = execution_res["result"]
-                logger.info(f'Caller: {execution_res}')
-            else:
-                execution_res = finished.group(1)
+            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
+            execution_res = executor.invoke({"api_plan": api_plan})
+            execution_res = execution_res["result"]
+            logger.info(f'Caller: {execution_res}')
+            eval_input += f'API response {iterations + 1}: {execution_res}\n'
+            if self._finished(eval_input):
+                break
 
+            """
             planner_history.append((plan, execution_res))
             action_selector_history.append((plan, api_plan, execution_res))
-
-            # logger.info(f'Planner History: {planner_history}')
 
             plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
             plan = plan["result"]
             logger.info(f"Planner: {plan}")
             while self._should_continue_plan(plan):
-                action_selector_background = self._get_api_selector_background(planner_history)
-                api_plan = self.action_selector.invoke({"plan": tmp_planner_history[0], "background": action_selector_background, "history": action_selector_history, "instruction": plan})
+                api_plan = self.action_selector.invoke({"plan": tmp_planner_history[0], "history": action_selector_history, "instruction": plan})
                 api_plan = api_plan["result"]
 
                 finished = re.match(r"No API call needed.(.*)", api_plan)
                 if not finished:
                     executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                    execution_res = executor.invoke({"api_plan": api_plan, "background": action_selector_background})
+                    execution_res = executor.invoke({"api_plan": api_plan})
                     execution_res = execution_res["result"]
                 else:
                     execution_res = finished.group(1)
@@ -187,17 +182,12 @@ class RestGPT(Chain):
                 plan = self.planner.invoke({"input": query, "history": planner_history})
                 plan = plan["result"]
                 logger.info(f"Planner: {plan}")
-
-            if self._should_end(plan) or iterations == 3:
-                break
+            """
 
             iterations += 1
             time_elapsed = time.time() - start_time
 
-        plan = plan.split('Final Answer: ')[-1]
-        logger.info(f'Final Answer: {plan}')
-        return {"result": plan}
-
-    @staticmethod
-    def test():
-        return "test successful"
+        final_answer = eval_input.split('\n')[-2].strip()
+        final_answer = re.sub(r"API response \d+:", "", final_answer)
+        logger.info(f'Final Answer: {final_answer}')
+        return {"result": final_answer}
