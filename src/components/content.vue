@@ -93,8 +93,7 @@
         const userInput = document.getElementById("textInput").value
         document.getElementById("textInput").value = ""
         if (userInput != null) {
-            await askLlama(userInput)
-            // askChatGpt(userInput)
+            await askChatGpt(userInput)
         }
     }
 
@@ -137,56 +136,6 @@
         }
     };
 
-    async function askLlama(userText) {
-      try {
-        createSpeechBubbleUser(userText)
-        const response = await sendRequest("POST", "http://localhost:3000/chat_test", {prompt: userText, llm_url: "http://10.0.64.101"})
-        createSpeechBubbleAI(response.data)
-      } catch (error) {
-        console.log("Error while fetching data: " + error)
-        createSpeechBubbleAI("Error while fetching data: " + error)
-      }
-
-      return
-
-      // This down here kind of works and is a fallback
-
-      const knownServices = await getOpacaAgents()
-
-      chatHistory = [{
-          "role": "system",
-          "content": "You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. You will receive a list of known services. These services will include actions. Only use the exact action names from this list. Create a valid HTTP request which would succeed when called. Your http requests will always be of the type POST. If an action requires further parameters, use the most fitting parameters from the user request. If you think there were no fitting parameters in the user request, just create imaginary values for them based on their names. Do not use actions or parameters that are not included in the list. If there are no fitting actions in the list, include within your response the absence of such an action. If the list is empty, include in your response that there are no available services at all. If you think there is a fitting action, then your answer should only include the API call and the required parameters of that call, which will be included in a json style format after the request url. Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:\n" +
-              opacaRuntimePlatform + "/invoke/{action_name};{\"parameter_name\": \"value\"}\nYou have to replace {action_name} with the exact name of the most fitting action from the following list: " + knownServices + "\nFurther, replace 'parameter_name' with the actual parameter that the action requires based on the list. The 'value' field should include a value from the user request if such a value was given. If no such value was given, create a fitting imaginary value. An example would look as follows:\n" +
-              "user: 'What is the current noise level in the Living Room?'\nYour response: '" + opacaRuntimePlatform + "/invoke/GetNoise;{\"room\": \"Living Room\"}'\n" +
-              "Another example without a fitting parameter in the user request could look like follows:\n" +
-              "user: 'What is the current humidity?'\nYour response: '" + opacaRuntimePlatform + "/invoke/GetHumidity;{\"room\": \"Office Room\"}'"
-        },
-        {
-          "role": "assistant",
-          "content": config.translations[language.value].welcome
-        }]
-      chatHistory.push({
-        "role": "user",
-        "content": userText
-      });
-      createSpeechBubbleUser(userText);
-      //this.scrollDown();
-      console.log("send to Backend");
-      try {
-        const planned_action = await sendRequest("POST", "http://10.0.64.101/llama-3/chat", {messages: chatHistory})
-        console.log("planned_action: " + planned_action)
-        const planned_url = planned_action.split(";")[0]
-        const planned_params = JSON.parse(planned_action.split(";")[1])
-        console.log("planned_params: " + JSON.stringify(planned_params))
-        const answer = await sendRequest("POST", planned_url, planned_params)
-        console.log("answer: " + answer)
-        createSpeechBubbleAI(answer)
-      } catch (error) {
-        console.log("Error while fetching data: " + error)
-        createSpeechBubbleAI("Error while fetching data: " + error)
-      }
-    };
-
     async function startRecognition() {
         // TODO this does not seem to work for me
         recognition = new (webkitSpeechRecognition || SpeechRecognition)();
@@ -195,8 +144,7 @@
         busy.value = true;
         recognition.onresult = async (event) => {
             const recognizedText = event.results[0][0].transcript;
-            await askLlama(recognizedText)
-            //askChatGpt(recognizedText)
+            await askChatGpt(recognizedText)
         };
         recognition.onend = () => {
             recording.value = false;

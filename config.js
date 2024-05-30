@@ -1,8 +1,8 @@
 var config = {
 
-    BackendAddress: 'http://localhost:3001',
+    BackendAddress: 'http://localhost:3000',
 
-    Backend: 'openai-test',
+    Backend: 'rest-gpt',
 
     OpacaRuntimePlatform: 'http://localhost:8000',
 

@@ -1,14 +1,9 @@
-import json
-import logging
-
-from typing import Union, Dict, List, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from RestGPT import RestGPT, ColorPrint, OpacaLLM
+from RestGPT import restgpt_routes
 from OpenAI import openai_routes
-from langchain_community.utilities import Requests
 
 """
 TODO
@@ -18,14 +13,6 @@ test with javascript frontend (and throw out all the "backend" stuff there)
 move get-opaca-agents and invoke-opaca-action to some common module?
 make OPACA-URL configurable (simply as another route?)
 """
-
-logger = logging.getLogger()
-
-logging.basicConfig(
-    format="%(message)s",
-    handlers=[logging.StreamHandler(ColorPrint())],
-    level=logging.INFO
-)
 
 
 app = FastAPI()
@@ -51,22 +38,13 @@ class Url(BaseModel):
     user: str | None
     pwd: str | None
 
+
 class Message(BaseModel):
-    prompt: str
-    llm_url: Optional[str]
-
-
-class Action(BaseModel):
-    name: str
-    parameters: Dict
-    result: Dict
-
-    def __str__(self):
-        return f'{self.name}, Parameters: {self.parameters}, Result: {self.result}'
+    user_query: str
 
 
 BACKENDS = {
-    # "RestGPT": ???,
+    "rest-gpt": restgpt_routes,
     "openai-test": openai_routes,
 }
 
@@ -91,35 +69,3 @@ async def history(backend: str) -> list:
 @app.post("/{backend}/reset")
 async def reset(backend: str):
     await BACKENDS[backend].reset()
-
-
-@app.post('/chat_test', response_model=Union[str, int, float, Dict, List])
-async def test_call(message: Message):
-    llm = OpacaLLM(message.llm_url)
-    """
-    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-    llm = LlamaCpp(
-        model_path="C:/Users/robst/PycharmProjects/llama.cpp/models/Meta-Llama-3-8B/ggml-model-f16.gguf",
-        temperature=0.75,
-        max_tokens=500,
-        n_ctx=2048,
-        top_p=1,
-        callback_manager=callback_manager,
-        verbose=True
-    )
-    """
-
-    request_wrapper = Requests()
-    services = openai_routes.get_opaca_services()
-
-    action_spec = []
-    for agent in json.loads(services):
-        for action in agent['actions']:
-            action_spec.append(Action(name=action['name'], parameters=action['parameters'], result=action['result']))
-
-    rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
-                       simple_parser=False)
-
-    logger.info(f'Query: {message.prompt}')
-
-    return rest_gpt.invoke({"query": message.prompt})["result"]
