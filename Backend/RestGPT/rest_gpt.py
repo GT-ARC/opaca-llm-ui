@@ -113,6 +113,11 @@ class RestGPT(Chain):
             final_output["intermediate_steps"] = intermediate_steps
         return final_output
 
+    def _should_abort(self, plan):
+        if re.search("No API call needed.", plan):
+            return True
+        return False
+
     def _should_continue_plan(self, plan) -> bool:
         if re.search("Continue", plan):
             return True
@@ -145,6 +150,10 @@ class RestGPT(Chain):
             plan = plan["result"]
             logger.info(f"Planner: {plan}")
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
+
+            if self._should_abort(plan):
+                final_answer = re.sub("No API call needed.", "", plan).strip()
+                break
 
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
