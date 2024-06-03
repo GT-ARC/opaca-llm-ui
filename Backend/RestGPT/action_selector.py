@@ -137,7 +137,7 @@ class ActionSelector(Chain):
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API Call \d+:", "", action_selector_output).strip()
+        action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
 
         # TODO check if generated action actually exist and all required parameters are fulfilled
 

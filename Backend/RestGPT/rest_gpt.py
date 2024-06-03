@@ -138,7 +138,7 @@ class RestGPT(Chain):
         time_elapsed = 0.0
         start_time = time.time()
 
-        logger.info(f'Planner: Run with query: {query}')
+        logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
             plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})

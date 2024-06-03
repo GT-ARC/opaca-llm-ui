@@ -180,8 +180,7 @@ class Caller(Chain):
 
         api_plan = inputs['api_plan']
         api_call, params = api_plan.split(';')
-        params = params.split('\n')[0]  # Sometimes the api selector adds some unnecessary stuff
-        logger.info(f'Caller: Attempting to call {api_call} with parameters: {params}')
+        logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{api_call} with parameters: {params}')
 
         response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
 

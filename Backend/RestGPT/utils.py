@@ -16,7 +16,7 @@ class ColorPrint:
             "Planner": Fore.RED,
             "API Selector": Fore.YELLOW,
             "Caller": Fore.BLUE,
-            "Parser": Fore.GREEN,
+            "Final Answer": Fore.GREEN,
             "Code": Fore.WHITE,
         }
 
