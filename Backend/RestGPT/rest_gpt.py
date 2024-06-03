@@ -33,6 +33,7 @@ class RestGPT(Chain):
     max_iterations: Optional[int] = 5
     max_execution_time: Optional[float] = None
     early_stopping_method: str = "force"
+    request_headers: Dict = None
 
     def __init__(
             self,
@@ -43,6 +44,7 @@ class RestGPT(Chain):
             parser_with_example: bool = False,
             simple_parser: bool = False,
             callback_manager: Optional[BaseCallbackManager] = None,
+            request_headers: Dict = None,
             **kwargs: Any,
     ) -> None:
 
@@ -52,7 +54,8 @@ class RestGPT(Chain):
 
         super().__init__(
             llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, evaluator=evaluator,
-            requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager, **kwargs
+            requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager,
+            request_headers=request_headers, **kwargs
         )
 
     def save(self, file_path: Union[Path, str]) -> None:
@@ -149,7 +152,8 @@ class RestGPT(Chain):
             api_plan = api_plan["result"]
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
-            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
+            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
+                              requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
             execution_res = executor.invoke({"api_plan": api_plan})
             execution_res = execution_res["result"]
             logger.info(f'Caller: {execution_res}')

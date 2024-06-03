@@ -83,7 +83,7 @@ async def query(message: str) -> str:
                                       parameters=action['parameters'], result=action['result']))
 
     rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
-                       simple_parser=False)
+                       simple_parser=False, request_headers=headers())
 
     logger.info(f'Query: {message}')
 

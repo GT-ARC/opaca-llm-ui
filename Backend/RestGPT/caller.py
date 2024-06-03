@@ -49,11 +49,12 @@ class Caller(Chain):
     simple_parser: bool = False
     with_response: bool = False
     output_key: str = "result"
+    request_headers: Dict = None
 
     def __init__(self, llm: OpacaLLM, action_spec: List, requests_wrapper: RequestsWrapper,
-                 simple_parser: bool = False, with_response: bool = False) -> None:
+                 simple_parser: bool = False, with_response: bool = False, request_headers: Dict = None) -> None:
         super().__init__(llm=llm, action_spec=action_spec, requests_wrapper=requests_wrapper,
-                         simple_parser=simple_parser, with_response=with_response)
+                         simple_parser=simple_parser, with_response=with_response, request_headers=request_headers)
 
     @property
     def _chain_type(self) -> str:
@@ -182,7 +183,7 @@ class Caller(Chain):
         params = params.split('\n')[0]  # Sometimes the api selector adds some unnecessary stuff
         logger.info(f'Caller: Attempting to call {api_call} with parameters: {params}')
 
-        response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params))
+        response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
 
         logger.info(f'Caller: Received response: {response.text}')
 
