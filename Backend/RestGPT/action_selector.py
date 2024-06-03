@@ -27,6 +27,7 @@ API Response: The shelf with id 1 contains plates."""},
 ACTION_SELECTOR_PROMPT = """
 You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. 
 You will receive a list of known services. These services will include actions. Only use the exact action names from this list. 
+Also use the description of each service to better understand what the action does, if such a description is available.
 Create a valid HTTP request which would succeed when called. Your http requests will always be of the type POST. 
 If an action requires further parameters, use the most fitting parameters from the user request. 
 If an action requires a parameter but there were no suitable parameters in the user request, generate a fitting value 
@@ -47,6 +48,7 @@ Your answer should only include the request url and the parameters in a JSON for
 
 Here is the list you should use to create create the API Call
 """
+
 
 class ActionSelector(Chain):
     llm: OpacaLLM
@@ -87,20 +89,18 @@ class ActionSelector(Chain):
         ]
 
     def _construct_scratchpad(
-            self, history: List[Tuple[str, str]], instruction: str
+            self, history: List[Tuple[str, str]]
     ) -> str:
         if len(history) == 0:
             return ""
         scratchpad = ""
-        for i, (plan, api_plan, execution_res) in enumerate(history):
-            if i != 0:
-                scratchpad += "Instruction: " + plan + "\n"
-            scratchpad += self.llm_prefix.format(i + 1) + api_plan + "\n"
-            scratchpad += self.observation_prefix + execution_res + "\n"
-        scratchpad += "Instruction: " + instruction + "\n"
+        for i, (plan, api_call) in enumerate(history):
+            scratchpad += "Plan: " + plan + "\n"
+            scratchpad += self.llm_prefix + api_call + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+        # scratchpad = self._construct_scratchpad(inputs["history"])
         action_list = ""
         for action in inputs["actions"]:
             action_list += "{" + action.__str__() + "}"
@@ -117,21 +117,8 @@ class ActionSelector(Chain):
 
         action_plan = re.sub(r"API Call:", "", action_selector_output).strip()
 
-        """
-        finish = re.match(r"No Action needed.(.*)", action_plan)
-        if finish is not None:
-            return {"result": action_plan}
+        # TODO check if generated action actually exist and all required parameters are fulfilled
 
-        while get_matched_action(self.action_spec, action_plan) is None:
-            logger.info(
-                "API Selector: The action you called is not in the list of available action. Please use another action.")
-            scratchpad += action_selector_output + "\nThe action you called is not in the list of available actions. Please use another action.\n"
-            action_selector_chain_output = action_selector_chain.invoke({"plan": inputs['plan'], "background": inputs['background'],
-                                                                         "agent_scratchpad": scratchpad})
-            action_plan = re.sub(r"API Call \d+: ", "", action_selector_chain_output).strip()
-            logger.info(f"API Selector: {action_plan}")
-
-        """
         logger.info(f"API Selector: {action_plan}")
 
         return {"result": action_plan}

@@ -3,8 +3,6 @@ from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
-from langchain.prompts.prompt import PromptTemplate
-from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 
 from .utils import OpacaLLM
 
@@ -44,6 +42,13 @@ API response: Successfully booked the desk with id 4."""},
     {"input": "Show me the way to the kitchen.", "output": """
 Plan step 1: Get the way to the kitchen.
 API response: Turn left, move to the end of the hallway, then enter the door to the right to reach the kitchen."""},
+    {"input": "Get the noise and humidity for room 1 and the temperature for room 2.", "output": """
+Plan step 1: Get the noise for room 1.
+API response: The noise for room 1 is 39.0.
+Plan step 2: Get the humidity for room 1.
+API response: The humidity for room 1 is 45.2.
+Plan step 3: Get the temperature for room 2.
+API response: The temperature for room 2 is 22."""}
 ]
 
 icl_examples = {
@@ -100,6 +105,7 @@ If you assess that the current plan has not been fulfilled, you can output "Cont
 In most case, search, filter, and sort should be completed in a single step.
 The plan should be as specific as possible. It is better not to use pronouns in plan, but to use the corresponding results obtained previously. For example, instead of "Get the most popular movie directed by this person", you should output "Get the most popular movie directed by Martin Scorsese (1032)". If you want to iteratively query something about items in a list, then the list and the elements in the list should also appear in your plan.
 The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Who is the lead actor of In the Mood for Love (id 843)", instead of "get the list of actors of In the Mood for Love", you should output "get the lead actor of In the Mood for Love (843)".
+If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
 
 Starting below, you should follow this format:
 
