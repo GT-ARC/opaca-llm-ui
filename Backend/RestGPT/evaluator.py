@@ -102,6 +102,9 @@ If a query requires searching, filtering, sorting and so on, the query is still 
 of the query has been dealt with. For example, if a user wants to book a free desk, the query is only then fulfilled 
 if a free desk was booked, not when a free desk was found or is available.
 If you think that the user query is still unfulfilled, you output "CONTINUE".
+A query can also be unfulfilled if partial results have been received, but the overall user query is still missing 
+more steps. For example, if a user requested to open an unidentified shelf, after finding that shelf id, the shelf 
+still needs to be open.
 If the query involves comparing results from different API calls and you determine that all necessary calls were made, 
 you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user."""
 

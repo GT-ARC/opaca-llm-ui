@@ -12,6 +12,7 @@ from .rest_gpt import RestGPT
 
 OPACA_URL = "http://localhost:8000"
 LLM_URL = "http://10.0.64.101"
+TOKEN = None
 
 logger = logging.getLogger()
 

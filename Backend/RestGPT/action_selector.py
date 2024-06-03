@@ -10,24 +10,36 @@ from .utils import get_matched_action, OpacaLLM
 logger = logging.getLogger()
 
 examples = [
-    {"input": "Get the temperature of the room with id 2.", "output": """
+    {"input": "Instruction: Get the temperature of the room with id 2.", "output": """
 API Call 1: GetTemperature;{"room": "2"}
 API Response : The temperature in the room with id 2 is 23 degrees."""},
-    {"input": "Book the desk with id 5.", "output": """
+    {"input": "Instruction: Book the desk with id 5.", "output": """
 API Call 1: BookDesk;{"desk": 5}
 API Response 1: Successfully booked the desk with id 5."""},
-    {"input": "Check if the desk with id 3 is free.", "output": """
+    {"input": "Instruction: Check if the desk with id 3 is free.", "output": """
 API Call 1: IsFree;{"desk": 3}
 API Response 1: The desk with id 3 is free."""},
-    {"input": "Check if the shelf with id 1 contains plates.", "output": """
+    {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
 API Call 1: GetContents;{"shelf": 1}
 API Response 1: The shelf with id 1 contains plates."""},
-    {"input": "Continue", "output": """
+    {"input": """
 Instruction: Get a list of all desks ids for the office.
 API Call 1: GetDesks;{}
 API Response 1: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
+Instruction: Continue""", "output": """
 API Call 2: GetDesks;{"room": "office"}
 API Response 2: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
+    {"input": """
+Instruction: Get all available shelf ids.
+API Call 1: GetShelfs;{}
+API Response 1: The available shelves are (0, 1, 2, 3).
+Instruction: Check if the shelf with id 3 has cups in it.
+API Call 2: GetContents;{"shelf": 3}
+API Response 2: The contents of shelf 3 are: plates, cups, and glasses.
+Instruction: Close the shelf with id 3.""",
+     "output": """
+API Call 3: CloseShelf;{"shelf": 3}
+API Response 3: Shelf 3 is now closed."""},
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -121,7 +133,7 @@ class ActionSelector(Chain):
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": inputs["plan"] + scratchpad})
+        messages.append({"role": "human", "content": scratchpad + f'Instruction: {inputs["plan"]}'})
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
