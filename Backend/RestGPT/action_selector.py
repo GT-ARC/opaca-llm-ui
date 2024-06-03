@@ -11,17 +11,23 @@ logger = logging.getLogger()
 
 examples = [
     {"input": "Get the temperature of the room with id 2.", "output": """
-API Call: GetTemperature;{"room": "2"}
-API Response: The temperature in the room with id 2 is 23 degrees."""},
+API Call 1: GetTemperature;{"room": "2"}
+API Response : The temperature in the room with id 2 is 23 degrees."""},
     {"input": "Book the desk with id 5.", "output": """
-API Call: BookDesk;{"desk": 5}
-API Response: Successfully booked the desk with id 5."""},
+API Call 1: BookDesk;{"desk": 5}
+API Response 1: Successfully booked the desk with id 5."""},
     {"input": "Check if the desk with id 3 is free.", "output": """
-API Call: IsFree;{"desk": 3}
-API Response: The desk with id 3 is free."""},
+API Call 1: IsFree;{"desk": 3}
+API Response 1: The desk with id 3 is free."""},
     {"input": "Check if the shelf with id 1 contains plates.", "output": """
-API Call: GetContents;{"shelf": 1}
-API Response: The shelf with id 1 contains plates."""},
+API Call 1: GetContents;{"shelf": 1}
+API Response 1: The shelf with id 1 contains plates."""},
+    {"input": "Continue", "output": """
+Instruction: Get a list of all desks ids for the office.
+API Call 1: GetDesks;{}
+API Response 1: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
+API Call 2: GetDesks;{"room": "office"}
+API Response 2: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -42,6 +48,9 @@ Do not use actions or parameters that are not included in the list. If there are
 include within your response the absence of such an action. If the list is empty, include in your response that there 
 are no available services at all. If you think there is a fitting action, then your answer should only include the API 
 call and the required parameters of that call, which will be included in a json style format after the request url. 
+If you receive "Continue" as an input, that means that your last API call was not successful. In this case you should 
+modify the last call eiter by adding or removing parameters, changing the value for specific parameters, or even try 
+to call a different action.
 Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
 
 {action_name};{\"parameter_name\": \"value\"}
@@ -74,12 +83,12 @@ class ActionSelector(Chain):
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "API Response: "
+        return "API Response {}: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
-        return "API Call: "
+        return "API Call {}: "
 
     @property
     def _stop(self) -> List[str]:
@@ -94,13 +103,14 @@ class ActionSelector(Chain):
         if len(history) == 0:
             return ""
         scratchpad = ""
-        for i, (plan, api_call) in enumerate(history):
-            scratchpad += "Plan: " + plan + "\n"
-            scratchpad += self.llm_prefix + api_call + "\n"
+        for i, (plan, api_call, api_response) in enumerate(history):
+            scratchpad += f'Instruction: {plan}\n'
+            scratchpad += self.llm_prefix.format(i + 1) + api_call + "\n"
+            scratchpad += self.observation_prefix.format(i + 1) + api_response + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
-        # scratchpad = self._construct_scratchpad(inputs["history"])
+        scratchpad = self._construct_scratchpad(inputs["history"])
         action_list = ""
         for action in inputs["actions"]:
             action_list += "{" + action.__str__() + "}"
@@ -111,11 +121,11 @@ class ActionSelector(Chain):
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": inputs["plan"]})
+        messages.append({"role": "human", "content": inputs["plan"] + scratchpad})
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API Call:", "", action_selector_output).strip()
+        action_plan = re.sub(r"API Call \d+:", "", action_selector_output).strip()
 
         # TODO check if generated action actually exist and all required parameters are fulfilled
 

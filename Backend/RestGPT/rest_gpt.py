@@ -128,7 +128,7 @@ class RestGPT(Chain):
         query = inputs['query']
 
         planner_history: List[Tuple[str, str]] = []
-        action_selector_history: List[Tuple[str, str]] = []
+        action_selector_history: List[Tuple[str, str, str]] = []
         eval_input = f'User query: {query}\n'
         final_answer = ''
         iterations = 0
@@ -148,12 +148,12 @@ class RestGPT(Chain):
                                                     "history": action_selector_history})
             api_plan = api_plan["result"]
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
-            action_selector_history.append((plan, api_plan))
 
             executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
             execution_res = executor.invoke({"api_plan": api_plan})
             execution_res = execution_res["result"]
             logger.info(f'Caller: {execution_res}')
+            action_selector_history.append((plan, api_plan, execution_res))
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
             planner_history.append((plan, execution_res))
             eval_output = self._finished(eval_input)

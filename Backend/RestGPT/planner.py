@@ -48,54 +48,11 @@ API response: The noise for room 1 is 39.0.
 Plan step 2: Get the humidity for room 1.
 API response: The humidity for room 1 is 45.2.
 Plan step 3: Get the temperature for room 2.
-API response: The temperature for room 2 is 22."""}
+API response: The temperature for room 2 is 22."""},
+    {"input": "Can you open shelf 1 for me?", "output": """
+Plan step 1: Open the shelf with id 1.
+API response: The shelf with id 1 is now open."""}
 ]
-
-icl_examples = {
-    "opaca": """Example 1:
-User query: What is the current temperature in room 1?
-Plan step 1: Get the temperature in room 1.
-API response: The temperature in room 1 is 23 degrees.
-
-Example 2:
-User query: Book me the desk with id 6.
-Plan step 1: Check if the desk with id 6 is currently free.
-API response: The desk with id 6 is free.
-Plan step 2: Book the desk with id 6.
-API response: Successfully booked the desk with id 6.
-
-Example 3:
-User query: Please open the shelf with cups in it.
-Plan step 1: Get all available shelf ids.
-API response: The available shelf ids are 0, 1, 2, 3.
-Plan step 2: Check if the shelf with id 0 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 3: Check if the shelf with id 1 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 4: Check if the shelf with id 2 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 5: Check if the shelf with id 3 has cups in it.
-API response: The shelf with id 0 does contain cups.
-Plan step 6: Open the shelf with id 3.
-API response: Successfully opened the shelf with id 3.
-
-Example 4:
-User query: Book me any desk that is currently free.
-Plan step 1: Get all desks.
-API response: The ids of the desks are 0, 4, 6.
-Plan step 2: Check if the desk with id 0 is free.
-API response: The desk with id 0 is not free.
-Plan step 3: Check if the desk with id 4 is free.
-API response: The desk with id 4 is free.
-Plan step 4: Book the desk with id 4.
-API response: Successfully booked the desk with id 4.
-
-Example 5:
-User query: Show me the way to the kitchen.
-Plan step 1: Get the way to the kitchen.
-API response: Turn left, move to the end of the hallway, then enter the door to the right to reach the kitchen."""
-
-}
 
 PLANNER_PROMPT = """You are an agent that plans solution to user queries.
 You should always give your plan in natural language.
@@ -106,6 +63,7 @@ In most case, search, filter, and sort should be completed in a single step.
 The plan should be as specific as possible. It is better not to use pronouns in plan, but to use the corresponding results obtained previously. For example, instead of "Get the most popular movie directed by this person", you should output "Get the most popular movie directed by Martin Scorsese (1032)". If you want to iteratively query something about items in a list, then the list and the elements in the list should also appear in your plan.
 The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Who is the lead actor of In the Mood for Love (id 843)", instead of "get the list of actors of In the Mood for Love", you should output "get the lead actor of In the Mood for Love (843)".
 If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
+The other model will only receive your generated plan step, so make sure to include all relevant information and possible parameters.
 
 Starting below, you should follow this format:
 
