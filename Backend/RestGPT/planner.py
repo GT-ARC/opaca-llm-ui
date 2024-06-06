@@ -65,6 +65,7 @@ The plan should be straightforward. If you want to search, sort or filter, you c
 If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
 The other model will only receive your generated plan step, so make sure to include all relevant information and possible parameters.
 If you are unable to fulfill the user query, either by not having enough information or missing services, output "No API call needed." and after that an explanation in natural language why you think you are unable to fulfill the query, for example if the query asks for information where there are no services available for.
+If the user asks about what services you know or about more information to specific services, output "No API call needed." and after that a fitting response in natural language to the user.
 
 Starting below, you should follow this format:
 
