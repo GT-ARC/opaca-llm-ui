@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import requests
 import json
@@ -25,9 +25,9 @@ logging.basicConfig(
 
 class Action(BaseModel):
     name: str
-    description: str
+    description: Optional[str]
     parameters: Dict
-    result: Dict
+    result: Optional[Dict]
 
     def __str__(self):
         return f'{self.name}, Description: {self.description}, Parameters: {self.parameters}, Result: {self.result}'
