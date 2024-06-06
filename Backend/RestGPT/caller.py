@@ -41,6 +41,7 @@ If there was an error or the api call was unsuccessful, then also generate an ap
 
 class Caller(Chain):
     llm: OpacaLLM
+    opaca_proxy: object
     action_spec: List
     requests_wrapper: RequestsWrapper
     max_iterations: Optional[int] = 15
@@ -51,8 +52,9 @@ class Caller(Chain):
     output_key: str = "result"
     request_headers: Dict = None
 
-    def __init__(self, llm: OpacaLLM, action_spec: List, requests_wrapper: RequestsWrapper,
+    def __init__(self, llm: OpacaLLM, opaca_proxy, action_spec: List, requests_wrapper: RequestsWrapper,
                  simple_parser: bool = False, with_response: bool = False, request_headers: Dict = None) -> None:
+        self.opaca_proxy = opaca_proxy
         super().__init__(llm=llm, action_spec=action_spec, requests_wrapper=requests_wrapper,
                          simple_parser=simple_parser, with_response=with_response, request_headers=request_headers)
 
@@ -182,7 +184,9 @@ class Caller(Chain):
         api_call, params = api_plan.split(';')
         logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{api_call} with parameters: {params}')
 
-        response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
+        # response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
+        
+        response = self.opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
 
         logger.info(f'Caller: Received response: {response.text}')
 
