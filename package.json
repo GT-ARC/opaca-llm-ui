@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev_all": "concurrently \"vite --host\" \"python3 Backend/server.py \"",
+    "dev_all": "concurrently \"vite --host\" \"python3 -m Backend.server\"",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

@@ -2,9 +2,9 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from RestGPT.restgpt_routes import RestGptBackend
-from OpenAI.openai_routes import OpenAIBackend
-from opaca_proxy import OpacaProxy
+from .RestGPT.restgpt_routes import RestGptBackend
+from .OpenAI.openai_routes import OpenAIBackend
+from .opaca_proxy import proxy
 
 """
 TODO
@@ -46,11 +46,9 @@ class Message(BaseModel):
     user_query: str
 
 
-proxy = OpacaProxy()
-
 BACKENDS = {
-    "rest-gpt": RestGptBackend(proxy),
-    "openai-test": OpenAIBackend(proxy),
+    "rest-gpt": RestGptBackend(),
+    "openai-test": OpenAIBackend(),
 }
 
 
@@ -75,6 +73,7 @@ async def reset(backend: str):
     await BACKENDS[backend].reset()
 
 
+# run as `python3 -m Backend.server`
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=3001)

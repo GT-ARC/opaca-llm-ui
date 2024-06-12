@@ -47,3 +47,7 @@ class OpacaProxy:
             res = requests.post(f"{self.url}/login", json={"username": user, "password": pwd})
             res.raise_for_status()
             self.token = res.text
+
+
+# pseudo "singleton" instance of the proxy to be used by the other modules by importing from this module
+proxy = OpacaProxy()

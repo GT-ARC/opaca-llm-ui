@@ -23,7 +23,6 @@ class RestGPT(Chain):
     """Consists of an agent using tools."""
 
     llm: OpacaLLM
-    opaca_proxy: object
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
@@ -39,7 +38,6 @@ class RestGPT(Chain):
     def __init__(
             self,
             llm: OpacaLLM,
-            opaca_proxy,
             action_spec: List,
             requests_wrapper: RequestsWrapper,
             caller_doc_with_response: bool = False,
@@ -53,7 +51,6 @@ class RestGPT(Chain):
         planner = Planner(llm=llm)
         action_selector = ActionSelector(llm=llm, action_spec=action_spec)
         evaluator = Evaluator(llm=llm)
-        self.opaca_proxy=opaca_proxy
 
         super().__init__(
             llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, evaluator=evaluator,
@@ -164,7 +161,7 @@ class RestGPT(Chain):
             api_plan = api_plan["result"]
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
-            executor = Caller(llm=self.llm, opaca_proxy=self.opaca_proxy, action_spec=self.action_spec, simple_parser=self.simple_parser,
+            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
                               requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
             execution_res = executor.invoke({"api_plan": api_plan})
             execution_res = execution_res["result"]

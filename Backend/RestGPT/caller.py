@@ -9,6 +9,7 @@ from langchain.chains.base import Chain
 from langchain_community.utilities import RequestsWrapper
 from langchain.prompts.prompt import PromptTemplate
 
+from ..opaca_proxy import proxy as opaca_proxy
 from .utils import fix_json_error, OpacaLLM
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ If there was an error or the api call was unsuccessful, then also generate an ap
 
 class Caller(Chain):
     llm: OpacaLLM
-    opaca_proxy: object
     action_spec: List
     requests_wrapper: RequestsWrapper
     max_iterations: Optional[int] = 15
@@ -52,9 +52,8 @@ class Caller(Chain):
     output_key: str = "result"
     request_headers: Dict = None
 
-    def __init__(self, llm: OpacaLLM, opaca_proxy, action_spec: List, requests_wrapper: RequestsWrapper,
+    def __init__(self, llm: OpacaLLM, action_spec: List, requests_wrapper: RequestsWrapper,
                  simple_parser: bool = False, with_response: bool = False, request_headers: Dict = None) -> None:
-        self.opaca_proxy = opaca_proxy
         super().__init__(llm=llm, action_spec=action_spec, requests_wrapper=requests_wrapper,
                          simple_parser=simple_parser, with_response=with_response, request_headers=request_headers)
 
@@ -186,15 +185,15 @@ class Caller(Chain):
 
         # response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
         
-        response = self.opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
+        response = opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
 
-        logger.info(f'Caller: Received response: {response.text}')
+        logger.info(f'Caller: Received response: {response}')
 
         messages = [{"role": "system", "content": CALLER_PROMPT_ALT}]
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": f"API Call: {api_call}\nParameter: {params}\nResult: {response.text}"})
+        messages.append({"role": "human", "content": f"API Call: {api_call}\nParameter: {params}\nResult: {response}"})
 
         caller_output = self.llm.call(messages)
 

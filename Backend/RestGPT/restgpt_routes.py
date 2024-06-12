@@ -6,6 +6,7 @@ import logging
 from langchain_community.utilities import Requests
 from pydantic import BaseModel
 
+from ..opaca_proxy import proxy as opaca_proxy
 from .utils import OpacaLLM, ColorPrint
 from .rest_gpt import RestGPT
 
@@ -32,14 +33,11 @@ class Action(BaseModel):
 
 class RestGptBackend:
 
-    def __init__(self, opaca_proxy):
-        self.opaca_proxy = opaca_proxy
-
     async def query(self, message: str) -> str:
         llm = OpacaLLM(LLM_URL)
 
         request_wrapper = Requests()
-        services = self.opaca_proxy.actions
+        services = opaca_proxy.actions
         print(services)
         action_spec = []
         for agent in json.loads(services):
@@ -47,7 +45,7 @@ class RestGptBackend:
                 action_spec.append(Action(name=action['name'], description=action['description'],
                                         parameters=action['parameters'], result=action['result']))
 
-        rest_gpt = RestGPT(llm, self.opaca_proxy, action_spec=action_spec, requests_wrapper=request_wrapper,
+        rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
                         simple_parser=False, request_headers={})
 
         return rest_gpt.invoke({"query": message})["result"]
