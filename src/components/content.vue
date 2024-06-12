@@ -60,8 +60,8 @@
     let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
-    let backend = config.Backend;
-
+    
+    const backend = inject('backend');
     const language = inject('language');
     let recognition= null;
     let lastMessage = null;
@@ -127,7 +127,7 @@
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend}/query`, {user_query: userText});
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText});
             const answer = result.data
             createSpeechBubbleAI(answer);
             //this.scrollDown();            
@@ -157,7 +157,7 @@
     async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
-        await sendRequest("POST", `${config.BackendAddress}/${backend}/reset`, null);
+        await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
     };
 

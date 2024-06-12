@@ -2,7 +2,11 @@ var config = {
 
     BackendAddress: 'http://localhost:3001',
 
-    Backend: 'rest-gpt',
+    BackendDefault: "rest-gpt",
+    Backends: {
+        "openai-test": "Simple OpenAI Prompt",
+        "rest-gpt": "LLAMA with RestGPT"
+    },
 
     OpacaRuntimePlatform: 'http://localhost:8000',
 
