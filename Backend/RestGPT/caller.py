@@ -9,6 +9,7 @@ from langchain.chains.base import Chain
 from langchain_community.utilities import RequestsWrapper
 from langchain.prompts.prompt import PromptTemplate
 
+from ..opaca_proxy import proxy as opaca_proxy
 from .utils import fix_json_error, OpacaLLM
 
 logger = logging.getLogger(__name__)
@@ -182,15 +183,17 @@ class Caller(Chain):
         api_call, params = api_plan.split(';')
         logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{api_call} with parameters: {params}')
 
-        response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
+        # response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
+        
+        response = opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
 
-        logger.info(f'Caller: Received response: {response.text}')
+        logger.info(f'Caller: Received response: {response}')
 
         messages = [{"role": "system", "content": CALLER_PROMPT_ALT}]
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": f"API Call: {api_call}\nParameter: {params}\nResult: {response.text}"})
+        messages.append({"role": "human", "content": f"API Call: {api_call}\nParameter: {params}\nResult: {response}"})
 
         caller_output = self.llm.call(messages)
 

@@ -2,8 +2,9 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from RestGPT import restgpt_routes
-from OpenAI import openai_routes
+from .RestGPT.restgpt_routes import RestGptBackend
+from .OpenAI.openai_routes import OpenAIBackend
+from .opaca_proxy import proxy
 
 """
 TODO
@@ -14,8 +15,10 @@ move get-opaca-agents and invoke-opaca-action to some common module?
 make OPACA-URL configurable (simply as another route?)
 """
 
-
-app = FastAPI()
+app = FastAPI(
+    title="OPACA LLM Backend Services",
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly."
+)
 
 # Configure CORS settings
 origins = [
@@ -44,8 +47,8 @@ class Message(BaseModel):
 
 
 BACKENDS = {
-    "rest-gpt": restgpt_routes,
-    "openai-test": openai_routes,
+    "rest-gpt": RestGptBackend(),
+    "openai-test": OpenAIBackend(),
 }
 
 
@@ -53,9 +56,9 @@ BACKENDS = {
 async def get_backends() -> list:
     return list(BACKENDS)
 
-@app.post("/{backend}/connect")
-async def connect(backend: str, url: Url) -> bool:
-    return await BACKENDS[backend].connect(url.url, url.user, url.pwd)
+@app.post("/connect")
+async def connect(url: Url) -> bool:
+    return await proxy.connect(url.url, url.user, url.pwd)
 
 @app.post("/{backend}/query")
 async def query(backend: str, message: Message) -> str:
@@ -65,7 +68,12 @@ async def query(backend: str, message: Message) -> str:
 async def history(backend: str) -> list:
     return await BACKENDS[backend].history()
 
-
 @app.post("/{backend}/reset")
 async def reset(backend: str):
     await BACKENDS[backend].reset()
+
+
+# run as `python3 -m Backend.server`
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3001)
