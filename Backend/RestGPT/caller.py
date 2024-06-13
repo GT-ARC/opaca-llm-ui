@@ -180,12 +180,16 @@ class Caller(Chain):
         intermediate_steps: List[Tuple[str, str]] = []
 
         api_plan = inputs['api_plan']
-        api_call, params = api_plan.split(';')
+        try:
+            api_call, params = api_plan.split(';')
+        except:
+            return {'result': 'ERROR: Received malformed instruction by the action selector'}
         logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{api_call} with parameters: {params}')
 
-        # response = requests.post("http://localhost:8000/invoke/" + api_call, json=json.loads(params), headers=self.request_headers)
-        
-        response = opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
+        try:
+            response = opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
+        except:
+            return {'result': 'ERROR: Unable to call the connected opaca platform'}
 
         logger.info(f'Caller: Received response: {response}')
 
