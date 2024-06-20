@@ -1,5 +1,4 @@
 import openai
-import requests
 import json
 
 from ..opaca_proxy import proxy as opaca_proxy

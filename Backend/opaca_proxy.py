@@ -3,6 +3,7 @@ from typing import Optional
 
 # TODO use aiohttp?
 
+
 class OpacaProxy:
 
     def __init__(self):
@@ -23,7 +24,7 @@ class OpacaProxy:
             print("COULD NOT CONNECT", e)
             return False
     
-    def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
+    async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
         res = requests.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers())
         res.raise_for_status()
