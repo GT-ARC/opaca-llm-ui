@@ -1,18 +1,18 @@
+import json
 from typing import Any, Dict, List, Tuple
 import re
 import logging
 
 from langchain.chains.base import Chain
-from langchain.prompts.prompt import PromptTemplate
 
-from .utils import get_matched_action, OpacaLLM
+from .utils import OpacaLLM
 
 logger = logging.getLogger()
 
 examples = [
-    {"input": "Instruction: Get the temperature of the room with id 2.", "output": """
-API Call 1: GetTemperature;{"room": "2"}
-API Response : The temperature in the room with id 2 is 23 degrees."""},
+    {"input": "Instruction: Get the temperature for the room kitchen.", "output": """
+API Call 1: GetTemperature;{"room": "kitchen"}
+API Response : The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
 API Call 1: BookDesk;{"desk": 5}
 API Response 1: Successfully booked the desk with id 5."""},
@@ -40,6 +40,13 @@ Instruction: Close the shelf with id 3.""",
      "output": """
 API Call 3: CloseShelf;{"shelf": 3}
 API Response 3: Shelf 3 is now closed."""},
+    {"input": """
+Instruction Find the id of the shelf which contains the plates.
+API Call 1: FindShelf;{"item": "plates"}
+API Response 1: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
+     "output": """
+API Call 2: FindInShelf;{"item": "plates"}
+API Response 2: The item "plates" can be found on shelf 3."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -109,6 +116,42 @@ class ActionSelector(Chain):
             f"\n\t{self.observation_prefix.rstrip()}",
         ]
 
+    @staticmethod
+    def _check_valid_action(action_plan: str, actions: List) -> str:
+        err_out = ""
+
+        # Check if exactly one semicolon was generated
+        if not len(action_plan.split(';')) == 2:
+            err_out += "Your generated action call is not properly formatted. It should include exactly one action, a semicolon and a list of parameters in json format.\n"
+            return err_out
+
+        # Check if the action name is contained in the list of available actions and retrieve the action
+        action, parameters = action_plan.split(';')
+        action_from_list = None
+        for a in actions:
+            if a.name == action:
+                action_from_list = a
+                logger.info(f'API Selector: Found action {action_from_list}')
+        if not action_from_list:
+            err_out += "Your selected action does not exist. Please only use actions from the provided list of actions.\n"
+            return err_out
+
+        # Check if all required parameters are present
+        p_json = json.loads(parameters)
+        for parameter in [p for p in action_from_list.parameters.keys() if action_from_list.parameters.get(p).get("required")]:
+            logger.info(f'API Selector: Checking required parameter {parameter}')
+            if parameter not in p_json.keys():
+                logger.info(f'API Selector: Required parameter {parameter} not found!')
+                err_out += f'You have not included the required parameter {parameter} in your generated list of parameters for the action {action}.\n'
+
+        # Check if no parameter is hallucinated
+        for parameter in p_json.keys():
+            logger.info(f'API Selector: Checking for hallucinated parameter {parameter}')
+            if parameter not in [p for p in action_from_list.parameters.keys()]:
+                logger.info(f'API Selector: Hallucinated parameter {parameter} found!')
+                err_out += f'You have included the improper parameter {parameter} in your generated list of parameters. Please only use parameters that are given in the action description.\n'
+        return err_out
+
     def _construct_scratchpad(
             self, history: List[Tuple[str, str]]
     ) -> str:
@@ -139,7 +182,15 @@ class ActionSelector(Chain):
 
         action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
 
-        # TODO check if generated action actually exist and all required parameters are fulfilled
+        correction_limit = 0
+        while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
+            logger.info(f'API Selector: Correction needed for request {action_plan}\nCause: {err_msg}')
+            messages.append({"role": "human", "content": err_msg})
+
+            action_selector_output = self.llm.bind(stop=self._stop).call(messages)
+            action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
+
+            correction_limit += 1
 
         logger.info(f"API Selector: {action_plan}")
 

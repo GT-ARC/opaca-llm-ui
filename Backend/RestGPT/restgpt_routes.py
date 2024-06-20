@@ -38,7 +38,6 @@ class RestGptBackend:
 
         request_wrapper = Requests()
         services = opaca_proxy.actions
-        print(services)
         action_spec = []
         for agent in json.loads(services):
             for action in agent['actions']:

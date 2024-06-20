@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import time
 import re
 import requests
@@ -17,26 +17,30 @@ logger = logging.getLogger(__name__)
 examples = [
     {"input": """
 API Call: http://localhost:8000/invoke/GetTemperature
+Description: Get the current temperature for the room with the given room id.
 Parameter: {"room": "1"}
 Result: 23""", "output": "The temperature for room 1 is 23 degrees."},
     {"input": """
 API Call: http://localhost:8000/invoke/IsFree
+Description: Check if a given desk id is free and available to book.
 Parameter: {"desk": 4}
 Result: False""", "output": """The desk 4 is currently not free."""},
     {"input": """
 API Call: http://localhost:8000/invoke/GetShelfs
+Description: Returns a list of all available shelf ids.
 Parameter: {}
 Result: [0, 1, 2, 3]""", "output": """The available desks are (0, 1, 2, 3)"""},
     {"input": """
 API Call: http://localhost:8000/invoke/NavigateTo
+Description: Returns an instruction to navigate to the given room.
 Parameter: {"room": "Kitchen"}
 Result: Turn left, move to the end of the hallway, then enter the door on your right.""", "output": """
 To navigate to the kitchen, you have to turn left, move to the end of the hallway, then enter the door on your right."""},
 ]
 
-CALLER_PROMPT_ALT = """You are an agent that generates answers to API calls.
-You will be provided with an API call, which will include the endpoint that got called, the parameters that were used for that API call, and finally the result that was returned after calling that API.
-Your task will be to generate in a chat-like the response for a user.
+CALLER_PROMPT_ALT = """You are an agent that summarizes API calls.
+You will be provided with an API call, which will include the endpoint that got called, a description for the API call if one is available, the parameters that were used for that API call, and finally the result that was returned after calling that API.
+Your task will be to generate a response in natural language for a user.
 If there was an error or the api call was unsuccessful, then also generate an appropriate output to inform the user about the error."""
 
 
@@ -173,7 +177,7 @@ class Caller(Chain):
 
         return response_text, params, request_body, desc, query
 
-    def _call(self, inputs: Dict[str, str]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         iterations = 0
         time_elapsed = 0.0
         start_time = time.time()
@@ -191,105 +195,21 @@ class Caller(Chain):
         except:
             return {'result': 'ERROR: Unable to call the connected opaca platform'}
 
+        description = ""
+        # Get description from action list
+        for action in inputs["actions"]:
+            if action.name == api_call:
+                description = action.description
+
         logger.info(f'Caller: Received response: {response}')
 
         messages = [{"role": "system", "content": CALLER_PROMPT_ALT}]
         for example in examples:
             messages.append({"role": "human", "content": example["input"]})
             messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": f"API Call: {api_call}\nParameter: {params}\nResult: {response}"})
+
+        messages.append({"role": "human", "content": f"API Call: {api_call}\nDescription: {description}\nParameter: {params}\nResult: {response}"})
 
         caller_output = self.llm.call(messages)
 
         return {'result': caller_output}
-
-        """
-        api_url = self.action_spec.servers[0]['url']
-        matched_endpoints = get_matched_endpoint(self.action_spec, api_plan)
-        endpoint_docs_by_name = {name: docs for name, _, docs in self.api_spec.endpoints}
-        api_doc_for_caller = ""
-        assert len(matched_endpoints) == 1, f"Found {len(matched_endpoints)} matched endpoints, but expected 1."
-        endpoint_name = matched_endpoints[0]
-        tmp_docs = deepcopy(endpoint_docs_by_name.get(endpoint_name))
-        if 'responses' in tmp_docs and 'content' in tmp_docs['responses']:
-            if 'application/json' in tmp_docs['responses']['content']:
-                tmp_docs['responses'] = tmp_docs['responses']['content']['application/json']['schema']['properties']
-            elif 'application/json; charset=utf-8' in tmp_docs['responses']['content']:
-                tmp_docs['responses'] = tmp_docs['responses']['content']['application/json; charset=utf-8']['schema'][
-                    'properties']
-        if not self.with_response and 'responses' in tmp_docs:
-            tmp_docs.pop("responses")
-        tmp_docs = yaml.dump(tmp_docs)
-        encoder = tiktoken.encoding_for_model('text-davinci-003')
-        encoded_docs = encoder.encode(tmp_docs)
-        if len(encoded_docs) > 1500:
-            tmp_docs = encoder.decode(encoded_docs[:1500])
-        api_doc_for_caller += f"== Docs for {endpoint_name} == \n{tmp_docs}\n"
-
-        caller_prompt = PromptTemplate(
-            template=CALLER_PROMPT,
-            partial_variables={
-                "api_url": api_url,
-                "api_docs": api_doc_for_caller,
-            },
-            input_variables=["api_plan", "background", "agent_scratchpad"],
-        )
-
-        caller_chain = LLMChain(llm=self.llm, prompt=caller_prompt)
-
-        while self._should_continue(iterations, time_elapsed):
-            scratchpad = self._construct_scratchpad(intermediate_steps)
-            caller_chain_output = caller_chain.run(api_plan=api_plan, background=inputs['background'],
-                                                   agent_scratchpad=scratchpad, stop=self._stop)
-            logger.info(f"Caller: {caller_chain_output}")
-
-            action, action_input = self._get_action_and_input(caller_chain_output)
-            if action == "Execution Result":
-                return {"result": action_input}
-            response, params, request_body, desc, query = self._get_response(action, action_input)
-
-            called_endpoint_name = action + ' ' + json.loads(action_input)['url'].replace(api_url, '')
-            called_endpoint_name = get_matched_endpoint(self.api_spec, called_endpoint_name)[0]
-            api_path = api_url + called_endpoint_name.split(' ')[-1]
-            api_doc_for_parser = endpoint_docs_by_name.get(called_endpoint_name)
-            if self.scenario == 'spotify' and endpoint_name == "GET /search":
-                if params is not None and 'type' in params:
-                    search_type = params['type'] + 's'
-                else:
-                    params_in_url = json.loads(action_input)['url'].split('&')
-                    for param in params_in_url:
-                        if 'type=' in param:
-                            search_type = param.split('=')[-1] + 's'
-                            break
-                api_doc_for_parser['responses']['content']['application/json']["schema"]['properties'] = {
-                    search_type: api_doc_for_parser['responses']['content']['application/json']["schema"]['properties'][
-                        search_type]}
-
-            if not self.simple_parser:
-                response_parser = ResponseParser(
-                    llm=self.llm,
-                    api_path=api_path,
-                    api_doc=api_doc_for_parser,
-                )
-            else:
-                response_parser = SimpleResponseParser(
-                    llm=self.llm,
-                    api_path=api_path,
-                    api_doc=api_doc_for_parser,
-                )
-
-            params_or_data = {
-                "params": params if params is not None else "No parameters",
-                "data": request_body if request_body is not None else "No request body",
-            }
-            parsing_res = response_parser.run(query=query, response_description=desc, api_param=params_or_data,
-                                              json=response)
-            logger.info(f"Parser: {parsing_res}")
-
-            intermediate_steps.append((caller_chain_output, parsing_res))
-
-            iterations += 1
-            time_elapsed = time.time() - start_time
-
-        return {"result": caller_chain_output}
-        """

@@ -9,9 +9,9 @@ from .utils import OpacaLLM
 logger = logging.getLogger()
 
 examples = [
-    {"input": "What is the current temperature in room 1?", "output": """
-Plan step 1: Get the temperature in room 1.
-API response: The temperature in room 1 is 23 degrees."""},
+    {"input": "What is the current temperature in the kitchen?", "output": """
+Plan step 1: Get the temperature for the room kitchen.
+API response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Book me the desk with id 6.", "output": """
 Plan step 1: Check if the desk with id 6 is currently free.
 API response: The desk with id 6 is free.

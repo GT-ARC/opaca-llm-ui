@@ -163,7 +163,7 @@ class RestGPT(Chain):
 
             executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
                               requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
-            execution_res = executor.invoke({"api_plan": api_plan})
+            execution_res = executor.invoke({"api_plan": api_plan, "actions": self.action_spec})
             execution_res = execution_res["result"]
             logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
@@ -173,30 +173,6 @@ class RestGPT(Chain):
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
                 break
-
-            """
-            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
-            plan = plan["result"]
-            logger.info(f"Planner: {plan}")
-            while self._should_continue_plan(plan):
-                api_plan = self.action_selector.invoke({"plan": tmp_planner_history[0], "history": action_selector_history, "instruction": plan})
-                api_plan = api_plan["result"]
-
-                finished = re.match(r"No API call needed.(.*)", api_plan)
-                if not finished:
-                    executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                    execution_res = executor.invoke({"api_plan": api_plan})
-                    execution_res = execution_res["result"]
-                else:
-                    execution_res = finished.group(1)
-
-                planner_history.append((plan, execution_res))
-                action_selector_history.append((plan, api_plan, execution_res))
-
-                plan = self.planner.invoke({"input": query, "history": planner_history})
-                plan = plan["result"]
-                logger.info(f"Planner: {plan}")
-            """
 
             iterations += 1
             time_elapsed = time.time() - start_time
