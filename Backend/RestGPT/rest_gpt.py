@@ -2,63 +2,60 @@ import time
 import re
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
-from langchain.llms.base import BaseLLM
 
 from langchain_community.utilities import RequestsWrapper
 
 from .planner import Planner
-from .api_selector import APISelector
+from .action_selector import ActionSelector
 from .caller import Caller
-from .utils import ReducedOpenAPISpec
+from .evaluator import Evaluator
+from .utils import OpacaLLM
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class RestGPT(Chain):
     """Consists of an agent using tools."""
 
-    llm: BaseLLM
-    api_spec: ReducedOpenAPISpec
+    llm: OpacaLLM
+    action_spec: List
     planner: Planner
-    api_selector: APISelector
-    scenario: str = "tmdb"
+    action_selector: ActionSelector
+    evaluator: Evaluator
     requests_wrapper: RequestsWrapper
     simple_parser: bool = False
     return_intermediate_steps: bool = False
-    max_iterations: Optional[int] = 15
+    max_iterations: Optional[int] = 5
     max_execution_time: Optional[float] = None
     early_stopping_method: str = "force"
+    request_headers: Dict = None
 
     def __init__(
             self,
-            llm: BaseLLM,
-            api_spec: ReducedOpenAPISpec,
-            scenario: str,
+            llm: OpacaLLM,
+            action_spec: List,
             requests_wrapper: RequestsWrapper,
             caller_doc_with_response: bool = False,
             parser_with_example: bool = False,
             simple_parser: bool = False,
             callback_manager: Optional[BaseCallbackManager] = None,
+            request_headers: Dict = None,
             **kwargs: Any,
     ) -> None:
-        if scenario in ['TMDB', 'Tmdb']:
-            scenario = 'tmdb'
-        if scenario in ['Spotify']:
-            scenario = 'spotify'
-        if scenario not in ['tmdb', 'spotify']:
-            raise ValueError(f"Invalid scenario {scenario}")
 
-        planner = Planner(llm=llm, scenario=scenario)
-        api_selector = APISelector(llm=llm, scenario=scenario, api_spec=api_spec)
+        planner = Planner(llm=llm)
+        action_selector = ActionSelector(llm=llm, action_spec=action_spec)
+        evaluator = Evaluator(llm=llm)
 
         super().__init__(
-            llm=llm, api_spec=api_spec, planner=planner, api_selector=api_selector, scenario=scenario,
-            requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager, **kwargs
+            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, evaluator=evaluator,
+            requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager,
+            request_headers=request_headers, **kwargs
         )
 
     def save(self, file_path: Union[Path, str]) -> None:
@@ -68,6 +65,9 @@ class RestGPT(Chain):
             "If you are trying to save the agent, please use the "
             "`.save_agent(...)`"
         )
+
+    def _finished(self, eval_input: str):
+        return self.evaluator.invoke({"input": eval_input})["result"]
 
     @property
     def _chain_type(self) -> str:
@@ -113,10 +113,10 @@ class RestGPT(Chain):
             final_output["intermediate_steps"] = intermediate_steps
         return final_output
 
-    def _get_api_selector_background(self, planner_history: List[Tuple[str, str]]) -> str:
-        if len(planner_history) == 0:
-            return "No background"
-        return "\n".join([step[1] for step in planner_history])
+    def _should_abort(self, plan):
+        if re.search("No API call needed.", plan):
+            return True
+        return False
 
     def _should_continue_plan(self, plan) -> bool:
         if re.search("Continue", plan):
@@ -136,57 +136,49 @@ class RestGPT(Chain):
         query = inputs['query']
 
         planner_history: List[Tuple[str, str]] = []
+        action_selector_history: List[Tuple[str, str, str]] = []
+        eval_input = f'User query: {query}\n'
+        final_answer = ''
         iterations = 0
         time_elapsed = 0.0
         start_time = time.time()
 
-        plan = self.planner.run(input=query, history=planner_history)
-        logger.info(f"Planner: {plan}")
+        logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
-            tmp_planner_history = [plan]
-            api_selector_history: List[Tuple[str, str, str]] = []
-            api_selector_background = self._get_api_selector_background(planner_history)
-            api_plan = self.api_selector.run(plan=plan, background=api_selector_background)
-
-            finished = re.match(r"No API call needed.(.*)", api_plan)
-            if not finished:
-                executor = Caller(llm=self.llm, api_spec=self.api_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                execution_res = executor.run(api_plan=api_plan, background=api_selector_background)
-            else:
-                execution_res = finished.group(1)
-
-            planner_history.append((plan, execution_res))
-            api_selector_history.append((plan, api_plan, execution_res))
-
-            plan = self.planner.run(input=query, history=planner_history)
+            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
+            plan = plan["result"]
             logger.info(f"Planner: {plan}")
+            eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
-            while self._should_continue_plan(plan):
-                api_selector_background = self._get_api_selector_background(planner_history)
-                api_plan = self.api_selector.run(plan=tmp_planner_history[0], background=api_selector_background, history=api_selector_history, instruction=plan)
+            if self._should_abort(plan):
+                final_answer = re.sub("No API call needed.", "", plan).strip()
+                break
 
-                finished = re.match(r"No API call needed.(.*)", api_plan)
-                if not finished:
-                    executor = Caller(llm=self.llm, api_spec=self.api_spec, scenario=self.scenario, simple_parser=self.simple_parser, requests_wrapper=self.requests_wrapper)
-                    execution_res = executor.run(api_plan=api_plan, background=api_selector_background)
-                else:
-                    execution_res = finished.group(1)
+            api_plan = self.action_selector.invoke({"plan": plan,
+                                                    "actions": self.action_spec,
+                                                    "history": action_selector_history})
+            api_plan = api_plan["result"]
+            eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
-                planner_history.append((plan, execution_res))
-                api_selector_history.append((plan, api_plan, execution_res))
-
-                plan = self.planner.run(input=query, history=planner_history)
-                logger.info(f"Planner: {plan}")
-
-            if self._should_end(plan):
+            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
+                              requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
+            execution_res = executor.invoke({"api_plan": api_plan, "actions": self.action_spec})
+            execution_res = execution_res["result"]
+            logger.info(f'Caller: {execution_res}')
+            action_selector_history.append((plan, api_plan, execution_res))
+            eval_input += f'API response {iterations + 1}: {execution_res}\n'
+            planner_history.append((plan, execution_res))
+            eval_output = self._finished(eval_input)
+            if re.match(r"FINISHED", eval_output):
+                final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
                 break
 
             iterations += 1
             time_elapsed = time.time() - start_time
 
-        return {"result": plan}
+        if final_answer == "":
+            final_answer = "I am sorry, but I was unable to fulfill your request."
 
-    @staticmethod
-    def test():
-        return "test successful"
+        logger.info(f'Final Answer: {final_answer}')
+        return {"result": final_answer}

@@ -1,11 +1,13 @@
 import os
 import re
 import json
-import logging
+import requests
+from typing import Optional, List, Dict, Any
 from logging.handlers import BaseRotatingHandler
 from colorama import Fore
 
 from langchain.agents.agent_toolkits.openapi.spec import ReducedOpenAPISpec
+from langchain_core.language_models.llms import LLM
 
 
 class ColorPrint:
@@ -14,7 +16,7 @@ class ColorPrint:
             "Planner": Fore.RED,
             "API Selector": Fore.YELLOW,
             "Caller": Fore.BLUE,
-            "Parser": Fore.GREEN,
+            "Final Answer": Fore.GREEN,
             "Code": Fore.WHITE,
         }
 
@@ -52,14 +54,43 @@ class MyRotatingFileHandler(BaseRotatingHandler):
         return 0
 
 
-def get_matched_endpoint(api_spec: ReducedOpenAPISpec, plan: str):
+class OpacaLLM:
+    server_url: str
+    stop_words: Optional[List[str]]
+
+    def __init__(self, server_url: str, stop_words: Optional[List[str]] = None):
+        self.server_url = server_url
+        self.stop_words = stop_words
+
+    def bind(self, **kwargs):
+        stop_words = kwargs.get('stop', self.stop_words)
+        return OpacaLLM(server_url=self.server_url, stop_words=stop_words)
+
+    def call(self, inputs: List[Dict[str, Any]]) -> str:
+        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': inputs})
+
+        output = response.text.replace("\\n", "\n").replace('\\"', '"')
+        output = output.strip('"')
+
+        if self.stop_words is None:
+            return output
+
+        for stop_word in self.stop_words:
+            stop_pos = output.find(stop_word)
+            if stop_pos != -1:
+                return output[:stop_pos].strip()
+
+        return output
+
+
+def get_matched_endpoint(action_spec: ReducedOpenAPISpec, plan: str):
     pattern = r"\b(GET|POST|PATCH|DELETE|PUT)\s+(/\S+)*"
     matches = re.findall(pattern, plan)
     plan_endpoints = [
         "{method} {route}".format(method=method, route=route.split("?")[0])
         for method, route in matches
     ]
-    spec_endpoints = [item[0] for item in api_spec.endpoints]
+    spec_endpoints = [item[0] for item in action_spec.endpoints]
 
     matched_endpoints = []
 
@@ -78,6 +109,17 @@ def get_matched_endpoint(api_spec: ReducedOpenAPISpec, plan: str):
         # raise ValueError(f"Endpoint {plan_endpoint} not found in API spec.")
 
     return matched_endpoints
+
+
+def get_matched_action(action_spec: list, action_call: str):
+    actions = [action.name for action in action_spec]
+
+    matched_actions = []
+
+    if action_call.split(';')[0] in actions:
+        matched_actions.append(action_call.split(';')[0])
+
+    return matched_actions
 
 
 def simplify_json(raw_json: dict):

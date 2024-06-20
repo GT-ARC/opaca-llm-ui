@@ -1,6 +1,8 @@
 import openai
-import requests
 import json
+
+from ..opaca_proxy import proxy as opaca_proxy
+
 
 system_prompt = """
 You suggest web services to fulfil a given purpose.
@@ -20,8 +22,7 @@ Following is the list of available services described in JSON, which can be call
 """
 class OpenAIBackend:
 
-    def __init__(self, opaca_proxy):
-        self.opaca_proxy = opaca_proxy
+    def __init__(self):
         self.client = openai.OpenAI()
         self.messages = []
 
@@ -34,14 +35,14 @@ class OpenAIBackend:
         print("RESPONSE:", repr(response))
         try:
             d = json.loads(response)
-            result = await self.opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+            result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
             response = f"Original response: `{response}`\n\nCalled `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
         except Exception as e:
             print("NOT JSON", type(e), e)
         self.messages.append({"role": "assistant", "content": response})
         return response
 
-    async def history(self):
+    async def history(self) -> list:
         return self.messages
 
     async def reset(self):
@@ -49,5 +50,5 @@ class OpenAIBackend:
         self._update_system_prompt()
 
     def _update_system_prompt(self):
-        self.messages[:1] = [{"role": "system", "content": system_prompt + self.opaca_proxy.actions}]
+        self.messages[:1] = [{"role": "system", "content": system_prompt + opaca_proxy.actions}]
         

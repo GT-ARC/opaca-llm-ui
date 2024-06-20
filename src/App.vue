@@ -4,12 +4,18 @@
     import conf from '../config.js'
 
     const language = ref('GB')
+    const backend = ref(conf.BackendDefault)
 
     provide('language', language)
+    provide('backend', backend)
     provide('config', ref(conf))
 
     function setLanguage(lang){
         language.value = lang;        
+    }
+    function setBackend(val){
+        backend.value = val;
+        console.log("BACKEND IS NOW " + val);
     }
 </script>
 
@@ -29,6 +35,18 @@
                         <ul class="dropdown-menu" aria-labelledby="languageSelector">
                             <li @click="setLanguage('DE')"><a class="dropdown-item"><span class="fi fi-de m-3"></span>DE</a></li>
                             <li @click="setLanguage('GB')"><a class="dropdown-item"><span class="fi fi-gb m-3"></span>EN</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Backend
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="backendSelector">
+                            <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
+                                <a class="dropdown-item"><span class="fi fi-de m-3"></span>
+                                    {{ value }}
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>
