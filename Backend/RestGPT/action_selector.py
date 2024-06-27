@@ -11,42 +11,42 @@ logger = logging.getLogger()
 
 examples = [
     {"input": "Instruction: Get the temperature for the room kitchen.", "output": """
-API Call 1: GetTemperature;{"room": "kitchen"}
-API Response : The temperature in the kitchen is 23 degrees."""},
+API Call: GetTemperature;{"room": "kitchen"}
+API Response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
-API Call 1: BookDesk;{"desk": 5}
-API Response 1: Successfully booked the desk with id 5."""},
+API Call: BookDesk;{"desk": 5}
+API Response: Successfully booked the desk with id 5."""},
     {"input": "Instruction: Check if the desk with id 3 is free.", "output": """
-API Call 1: IsFree;{"desk": 3}
-API Response 1: The desk with id 3 is free."""},
+API Call: IsFree;{"desk": 3}
+API Response: The desk with id 3 is free."""},
     {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
-API Call 1: GetContents;{"shelf": 1}
-API Response 1: The shelf with id 1 contains plates."""},
+API Call: GetContents;{"shelf": 1}
+API Response: The shelf with id 1 contains plates."""},
     {"input": """
 Instruction: Get a list of all desks ids for the office.
-API Call 1: GetDesks;{}
-API Response 1: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
+API Call: GetDesks;{}
+API Response: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
 Instruction: Continue""", "output": """
-API Call 2: GetDesks;{"room": "office"}
-API Response 2: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
+API Call: GetDesks;{"room": "office"}
+API Response: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
     {"input": """
 Instruction: Get all available shelf ids.
-API Call 1: GetShelfs;{}
-API Response 1: The available shelves are (0, 1, 2, 3).
+API Call: GetShelfs;{}
+API Response: The available shelves are (0, 1, 2, 3).
 Instruction: Check if the shelf with id 3 has cups in it.
-API Call 2: GetContents;{"shelf": 3}
-API Response 2: The contents of shelf 3 are: plates, cups, and glasses.
+API Call: GetContents;{"shelf": 3}
+API Response: The contents of shelf 3 are: plates, cups, and glasses.
 Instruction: Close the shelf with id 3.""",
      "output": """
-API Call 3: CloseShelf;{"shelf": 3}
-API Response 3: Shelf 3 is now closed."""},
+API Call: CloseShelf;{"shelf": 3}
+API Response: Shelf 3 is now closed."""},
     {"input": """
 Instruction Find the id of the shelf which contains the plates.
-API Call 1: FindShelf;{"item": "plates"}
-API Response 1: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
+API Call: FindShelf;{"item": "plates"}
+API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
      "output": """
-API Call 2: FindInShelf;{"item": "plates"}
-API Response 2: The item "plates" can be found on shelf 3."""}
+API Call: FindInShelf;{"item": "plates"}
+API Response: The item "plates" can be found on shelf 3."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -72,7 +72,7 @@ modify the last call eiter by adding or removing parameters, changing the value 
 to call a different action.
 Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
 
-{action_name};{\"parameter_name\": \"value\"}
+API Call: {action_name};{\"parameter_name\": \"value\"}
 
 Here is the list you should use to create create the API Call
 """
@@ -131,8 +131,8 @@ class ActionSelector(Chain):
         for a in actions:
             if a.name == action:
                 action_from_list = a
-                logger.info(f'API Selector: Found action {action_from_list}')
         if not action_from_list:
+            logger.info(f'API Selector: Was unable to find action {action}')
             err_out += "Your selected action does not exist. Please only use actions from the provided list of actions.\n"
             return err_out
 
@@ -180,7 +180,7 @@ class ActionSelector(Chain):
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
+        action_plan = re.sub(r"API Call+:", "", action_selector_output).split('\n')[0].strip()
 
         correction_limit = 0
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
@@ -188,7 +188,7 @@ class ActionSelector(Chain):
             messages.append({"role": "human", "content": err_msg})
 
             action_selector_output = self.llm.bind(stop=self._stop).call(messages)
-            action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
+            action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
 
             correction_limit += 1
 
