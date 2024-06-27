@@ -102,12 +102,12 @@ class ActionSelector(Chain):
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "API Response {}: "
+        return "API Response: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
-        return "API Call {}: "
+        return "API Call: "
 
     @property
     def _stop(self) -> List[str]:
@@ -160,8 +160,8 @@ class ActionSelector(Chain):
         scratchpad = ""
         for i, (plan, api_call, api_response) in enumerate(history):
             scratchpad += f'Instruction: {plan}\n'
-            scratchpad += self.llm_prefix.format(i + 1) + api_call + "\n"
-            scratchpad += self.observation_prefix.format(i + 1) + api_response + "\n"
+            scratchpad += self.llm_prefix + api_call + "\n"
+            scratchpad += self.observation_prefix + api_response + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
