@@ -51,7 +51,8 @@ API Response: The item "plates" can be found on shelf 3."""}
 
 ACTION_SELECTOR_PROMPT = """
 You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. 
-You will receive a list of known services. These services will include actions. Only use the exact action names from this list. 
+You will receive a list of known services. These services will include actions. 
+Only use the exact action names from this list. 
 Also use the description of each service to better understand what the action does, if such a description is available.
 Create a valid HTTP request which would succeed when called. Your http requests will always be of the type POST. 
 If an action requires further parameters, use the most fitting parameters from the user request. 
@@ -62,7 +63,8 @@ If an action does not require parameters, just output an empty json array like {
 Take note of the type of each parameter and output the type accordingly. For example, if the type is string, it should
 include quotation marks around the value. If the type is an integer, it should just be a number without quotation marks.
 If the type is a float, it should be a number without quotation mark and a floating point.
-If you think there were no fitting parameters in the user request, just create imaginary values for them based on their names. 
+If you think there were no fitting parameters in the user request, 
+just create imaginary values for them based on their names. 
 Do not use actions or parameters that are not included in the list. If there are no fitting actions in the list, 
 include within your response the absence of such an action. If the list is empty, include in your response that there 
 are no available services at all. If you think there is a fitting action, then your answer should only include the API 
@@ -70,7 +72,8 @@ call and the required parameters of that call, which will be included in a json 
 If you receive "Continue" as an input, that means that your last API call was not successful. In this case you should 
 modify the last call eiter by adding or removing parameters, changing the value for specific parameters, or even try 
 to call a different action.
-Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
+Your answer should only include the request url and the parameters in a JSON format, nothing else. 
+Here is the format in which you should answer:
 
 API Call: {action_name};{\"parameter_name\": \"value\"}
 
@@ -82,14 +85,13 @@ class ActionSelector(Chain):
     llm: OpacaLLM
     action_spec: List
     action_selector_prompt: str
-    output_key: str = "result"
 
     def __init__(self, llm: OpacaLLM, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
         super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
     def _chain_type(self) -> str:
-        return "LLama Action Selector for OPACA"
+        return "Opaca-LLM Action Selector"
 
     @property
     def input_keys(self) -> List[str]:
@@ -97,7 +99,7 @@ class ActionSelector(Chain):
 
     @property
     def output_keys(self) -> List[str]:
-        return [self.output_key]
+        return ["result"]
 
     @property
     def observation_prefix(self) -> str:
@@ -122,7 +124,8 @@ class ActionSelector(Chain):
 
         # Check if exactly one semicolon was generated
         if not len(action_plan.split(';')) == 2:
-            err_out += "Your generated action call is not properly formatted. It should include exactly one action, a semicolon and a list of parameters in json format.\n"
+            err_out += ("Your generated action call is not properly formatted. It should include exactly one action, "
+                        "a semicolon and a list of parameters in json format.\n")
             return err_out
 
         # Check if the action name is contained in the list of available actions and retrieve the action
@@ -132,19 +135,23 @@ class ActionSelector(Chain):
             if a.name == action:
                 action_from_list = a
         if not action_from_list:
-            err_out += "Your selected action does not exist. Please only use actions from the provided list of actions.\n"
+            err_out += ("Your selected action does not exist. "
+                        "Please only use actions from the provided list of actions.\n")
             return err_out
 
         # Check if all required parameters are present
         p_json = json.loads(parameters)
-        for parameter in [p for p in action_from_list.parameters.keys() if action_from_list.parameters.get(p).get("required")]:
+        for parameter in [p for p in action_from_list.parameters.keys()
+                          if action_from_list.parameters.get(p).get("required")]:
             if parameter not in p_json.keys():
-                err_out += f'You have not included the required parameter {parameter} in your generated list of parameters for the action {action}.\n'
+                err_out += (f'You have not included the required parameter {parameter} in '
+                            f'your generated list of parameters for the action {action}.\n')
 
         # Check if no parameter is hallucinated
         for parameter in p_json.keys():
             if parameter not in [p for p in action_from_list.parameters.keys()]:
-                err_out += f'You have included the improper parameter {parameter} in your generated list of parameters. Please only use parameters that are given in the action description.\n'
+                err_out += (f'You have included the improper parameter {parameter} in your generated list of '
+                            f'parameters. Please only use parameters that are given in the action description.\n')
         return err_out
 
     def _construct_scratchpad(

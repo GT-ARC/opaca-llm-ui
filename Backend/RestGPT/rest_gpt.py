@@ -1,14 +1,9 @@
 import time
 import re
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-from langchain.callbacks.base import BaseCallbackManager
+from typing import Any, Dict, List, Optional, Tuple
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
-
-from langchain_community.utilities import RequestsWrapper
 
 from .planner import Planner
 from .action_selector import ActionSelector
@@ -26,45 +21,27 @@ class RestGPT(Chain):
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
+    caller: Caller
     evaluator: Evaluator
-    requests_wrapper: RequestsWrapper
-    simple_parser: bool = False
-    return_intermediate_steps: bool = False
     max_iterations: Optional[int] = 5
     max_execution_time: Optional[float] = None
-    early_stopping_method: str = "force"
-    request_headers: Dict = None
     debug_output: str = ""
 
     def __init__(
             self,
             llm: OpacaLLM,
             action_spec: List,
-            requests_wrapper: RequestsWrapper,
-            caller_doc_with_response: bool = False,
-            parser_with_example: bool = False,
-            simple_parser: bool = False,
-            callback_manager: Optional[BaseCallbackManager] = None,
-            request_headers: Dict = None,
             **kwargs: Any,
     ) -> None:
 
         planner = Planner(llm=llm)
         action_selector = ActionSelector(llm=llm, action_spec=action_spec)
+        caller = Caller(llm=llm, action_spec=action_spec)
         evaluator = Evaluator(llm=llm)
 
         super().__init__(
-            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, evaluator=evaluator,
-            requests_wrapper=requests_wrapper, simple_parser=simple_parser, callback_manager=callback_manager,
-            request_headers=request_headers, **kwargs
-        )
-
-    def save(self, file_path: Union[Path, str]) -> None:
-        """Raise error - saving not supported for Agent Executors."""
-        raise ValueError(
-            "Saving not supported for RestGPT. "
-            "If you are trying to save the agent, please use the "
-            "`.save_agent(...)`"
+            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, caller=caller,
+            evaluator=evaluator, **kwargs
         )
 
     def _finished(self, eval_input: str):
@@ -72,7 +49,7 @@ class RestGPT(Chain):
 
     @property
     def _chain_type(self) -> str:
-        return "RestGPT"
+        return "Opaca-LLM"
 
     @property
     def input_keys(self) -> List[str]:
@@ -80,19 +57,16 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["query"]
+        return ["query", "history"]
 
     @property
     def output_keys(self) -> List[str]:
-        """Return the singular output key.
+        """
+        Return the output keys
 
         :meta private:
         """
-        return self.planner.output_keys
-
-    def debug_input(self) -> str:
-        print("Debug...")
-        return input()
+        return ["result", "debug"]
 
     def _should_continue(self, iterations: int, time_elapsed: float) -> bool:
         if self.max_iterations is not None and iterations >= self.max_iterations:
@@ -105,26 +79,20 @@ class RestGPT(Chain):
 
         return True
 
-    def _return(self, output, intermediate_steps: list) -> Dict[str, Any]:
-        self.callback_manager.on_agent_finish(
-            output, color="green", verbose=self.verbose
-        )
-        final_output = output.return_values
-        if self.return_intermediate_steps:
-            final_output["intermediate_steps"] = intermediate_steps
-        return final_output
-
-    def _should_abort(self, plan):
+    @staticmethod
+    def _should_abort(plan):
         if re.search("No API call needed.", plan):
             return True
         return False
 
-    def _should_continue_plan(self, plan) -> bool:
+    @staticmethod
+    def _should_continue_plan(plan) -> bool:
         if re.search("Continue", plan):
             return True
         return False
 
-    def _should_end(self, plan) -> bool:
+    @staticmethod
+    def _should_end(plan) -> bool:
         if re.search("Final Answer", plan):
             return True
         return False
@@ -166,9 +134,7 @@ class RestGPT(Chain):
             self.debug_output += f'API Selector: {api_plan}'
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
-            executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
-                              requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
-            execution_res = executor.invoke({"api_plan": api_plan, "actions": self.action_spec})
+            execution_res = self.caller.invoke({"api_plan": api_plan, "actions": self.action_spec})
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
             logger.info(f'Caller: {execution_res}')

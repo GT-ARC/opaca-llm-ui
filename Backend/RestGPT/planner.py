@@ -84,14 +84,13 @@ Here are the list of services:
 class Planner(Chain):
     llm: OpacaLLM
     planner_prompt: str
-    output_key: str = "result"
 
     def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
     def _chain_type(self) -> str:
-        return "LLama Planner"
+        return "Opaca-LLM Planner"
 
     @property
     def input_keys(self) -> List[str]:
@@ -99,7 +98,7 @@ class Planner(Chain):
 
     @property
     def output_keys(self) -> List[str]:
-        return [self.output_key]
+        return ["result"]
 
     @property
     def observation_prefix(self) -> str:
@@ -129,17 +128,17 @@ class Planner(Chain):
             scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
-    def _construct_examples(
-            self
-    ) -> str:
+    @staticmethod
+    def _construct_examples() -> str:
         example_str = ("Further you will receive a number of example conversations. You should not include these "
                        "examples as part of the actual message history of a user. Here are the examples:\n")
         for example in examples:
             example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
         return example_str
 
+    @staticmethod
     def _construct_msg_history(
-            self, msg_history: List[Tuple[str, str]]
+            msg_history: List[Tuple[str, str]]
     ) -> List[Dict[str, str]]:
         history = []
         for query, answer in msg_history:

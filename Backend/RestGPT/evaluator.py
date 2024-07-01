@@ -1,4 +1,3 @@
-import re
 from typing import List, Dict, Any, Tuple
 
 from langchain.chains.base import Chain
@@ -15,18 +14,18 @@ API response 1: The temperature for room 1 is 23.0 degrees.""",
      "output": "FINISHED: The current temperature in room 1 is 23.0 degrees."},
     {"input": """
 User query: Open the shelf that contains plates.
-Plan step 1: Get a list of all available shelfs.
-API call 1: http://localhost:8000/invoke/GetShelfs;{}
-API response 1: The ids of all available shelfs are (0, 1, 2, 3)
+Plan step 1: Get a list of all available shelves.
+API call 1: http://localhost:8000/invoke/GetShelves;{}
+API response 1: The ids of all available shelves are (0, 1, 2, 3)
 Plan step 2: Check if shelf 0 contains plates.
 API call 2: http://localhost:8000/invoke/GetContents;{"shelf": "0"}
 API response 2: The shelf 0 contains plates, cups and glasses.""",
      "output": "CONTINUE"},
     {"input": """
 User query: Open the shelf that contains plates.
-Plan step 1: Get a list of all available shelfs.
-API call 1: http://localhost:8000/invoke/GetShelfs;{}
-API response 1: The ids of all available shelfs are (0, 1, 2, 3)
+Plan step 1: Get a list of all available shelves.
+API call 1: http://localhost:8000/invoke/GetShelves;{}
+API response 1: The ids of all available shelves are (0, 1, 2, 3)
 Plan step 2: Check if shelf 0 contains plates.
 API call 2: http://localhost:8000/invoke/GetContents;{"shelf": 0}
 API response 2: The shelf 0 contains plates, cups and glasses.
@@ -58,8 +57,8 @@ API response 2: The humidity in room 3 is 0.38.""",
     {"input": """
 User query: Can you open the shelf with the plates in it for me?
 Plan step 1: Get all available shelf ids.
-API call 1: http://localhost:8000/invoke/GetShelfs;{}
-API response 1: The available shelfs are (0, 1, 2, 3).
+API call 1: http://localhost:8000/invoke/GetShelves;{}
+API response 1: The available shelves are (0, 1, 2, 3).
 Plan step 2: Find the shelf with the plates.
 API call 2: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
 API response 2: The shelf containing the plates is shelf 3.""",
@@ -67,8 +66,8 @@ API response 2: The shelf containing the plates is shelf 3.""",
     {"input": """
 User query: Can you open the shelf with the plates in it for me?
 Plan step 1: Get all available shelf ids.
-API call 1: http://localhost:8000/invoke/GetShelfs;{}
-API response 1: The available shelfs are (0, 1, 2, 3).
+API call 1: http://localhost:8000/invoke/GetShelves;{}
+API response 1: The available shelves are (0, 1, 2, 3).
 Plan step 2: Find the shelf with the plates.
 API call 2: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
 API response 2: The shelf containing the plates is shelf 3.
@@ -88,8 +87,10 @@ API response 2: The desk 0 is currently free.""",
     {"input": """What is the way to the kitchen?
 Plan step 1: Get the way to the kitchen.
 API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
-API response 1: To navigate to the kitchen, you have to turn right, move to the end of the hallway, then enter to door to the left.""",
-     "output": "FINISHED: To navigate to the kitchen, you have to turn right, move to the end of the hallway, then enter to door to the left."},
+API response 1: To navigate to the kitchen, you have to turn right, move to the end of the hallway, 
+then enter to door to the left.""",
+     "output": "FINISHED: To navigate to the kitchen, you have to turn right, "
+               "move to the end of the hallway, then enter to door to the left."},
 ]
 
 
@@ -112,7 +113,6 @@ you should output "FINISHED" as well followed with the result of such a comparis
 class Evaluator(Chain):
     llm: OpacaLLM
     planner_prompt: str
-    output_key: str = "result"
 
     def __init__(self, llm: OpacaLLM, planner_prompt=EVAL_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
@@ -127,7 +127,7 @@ class Evaluator(Chain):
 
     @property
     def output_keys(self) -> List[str]:
-        return [self.output_key]
+        return ["result"]
 
     @property
     def observation_prefix(self) -> str:
