@@ -132,23 +132,18 @@ class ActionSelector(Chain):
             if a.name == action:
                 action_from_list = a
         if not action_from_list:
-            logger.info(f'API Selector: Was unable to find action {action}')
             err_out += "Your selected action does not exist. Please only use actions from the provided list of actions.\n"
             return err_out
 
         # Check if all required parameters are present
         p_json = json.loads(parameters)
         for parameter in [p for p in action_from_list.parameters.keys() if action_from_list.parameters.get(p).get("required")]:
-            logger.info(f'API Selector: Checking required parameter {parameter}')
             if parameter not in p_json.keys():
-                logger.info(f'API Selector: Required parameter {parameter} not found!')
                 err_out += f'You have not included the required parameter {parameter} in your generated list of parameters for the action {action}.\n'
 
         # Check if no parameter is hallucinated
         for parameter in p_json.keys():
-            logger.info(f'API Selector: Checking for hallucinated parameter {parameter}')
             if parameter not in [p for p in action_from_list.parameters.keys()]:
-                logger.info(f'API Selector: Hallucinated parameter {parameter} found!')
                 err_out += f'You have included the improper parameter {parameter} in your generated list of parameters. Please only use parameters that are given in the action description.\n'
         return err_out
 

@@ -157,9 +157,6 @@ class Planner(Chain):
         action_list = re.sub(r"}", "}}", action_list)
 
         messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
-        #for example in examples:
-        #    messages.append({"role": "human", "content": example["input"]})
-        #    messages.append({"role": "ai", "content": example["output"]})
         messages.extend(self._construct_msg_history(inputs['message_history']))
         messages.append({"role": "human", "content": inputs["input"] + scratchpad})
         planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
