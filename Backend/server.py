@@ -1,3 +1,5 @@
+from typing import Dict
+
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,6 +46,7 @@ class Url(BaseModel):
 
 class Message(BaseModel):
     user_query: str
+    debug: bool
 
 
 BACKENDS = {
@@ -61,8 +64,8 @@ async def connect(url: Url) -> bool:
     return await proxy.connect(url.url, url.user, url.pwd)
 
 @app.post("/{backend}/query")
-async def query(backend: str, message: Message) -> str:
-    return await BACKENDS[backend].query(message.user_query)
+async def query(backend: str, message: Message) -> Dict:
+    return await BACKENDS[backend].query(message.user_query, message.debug)
 
 @app.get("/{backend}/history")
 async def history(backend: str) -> list:

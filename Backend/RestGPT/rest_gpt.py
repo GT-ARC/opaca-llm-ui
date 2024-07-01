@@ -34,6 +34,7 @@ class RestGPT(Chain):
     max_execution_time: Optional[float] = None
     early_stopping_method: str = "force"
     request_headers: Dict = None
+    debug_output: str = ""
 
     def __init__(
             self,
@@ -143,11 +144,13 @@ class RestGPT(Chain):
         time_elapsed = 0.0
         start_time = time.time()
 
+        self.debug_output += f'Query: {query}\n'
         logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
             plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
             plan = plan["result"]
+            self.debug_output += f'Planner: {plan}\n'
             logger.info(f"Planner: {plan}")
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
@@ -159,12 +162,14 @@ class RestGPT(Chain):
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history})
             api_plan = api_plan["result"]
+            self.debug_output += f'API Selector: {api_plan}'
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
             executor = Caller(llm=self.llm, action_spec=self.action_spec, simple_parser=self.simple_parser,
                               requests_wrapper=self.requests_wrapper, request_headers=self.request_headers)
             execution_res = executor.invoke({"api_plan": api_plan, "actions": self.action_spec})
             execution_res = execution_res["result"]
+            self.debug_output += f'Caller: {execution_res}\n'
             logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
@@ -180,5 +185,6 @@ class RestGPT(Chain):
         if final_answer == "":
             final_answer = "I am sorry, but I was unable to fulfill your request."
 
+        self.debug_output += f'Final Answer: {final_answer}\n'
         logger.info(f'Final Answer: {final_answer}')
-        return {"result": final_answer}
+        return {"result": final_answer, "debug": self.debug_output}
