@@ -1,3 +1,5 @@
+from typing import Dict
+
 import openai
 import json
 
@@ -26,7 +28,7 @@ class OpenAIBackend:
         self.client = openai.OpenAI()
         self.messages = []
 
-    async def query(self, message: str) -> str:
+    async def query(self, message: str, debug: bool) -> Dict:
         print("QUERY", message)
         self._update_system_prompt()
         self.messages.append({"role": "user", "content": message})
@@ -40,7 +42,7 @@ class OpenAIBackend:
         except Exception as e:
             print("NOT JSON", type(e), e)
         self.messages.append({"role": "assistant", "content": response})
-        return response
+        return {"result": response, "debug": ""}
 
     async def history(self) -> list:
         return self.messages

@@ -1,5 +1,18 @@
 <template>
-    <div class="row d-flex justify-content-center my-5 w-100">
+    <div class="row d-flex justify-content-start my-5 m-1 w-100">
+
+        <div class="col-md-10 col-xl-3 mt-5">
+          <div class='container'>
+                <button class="btn btn-secondary btn-lg col-5 m-1" @click="debug=!debug">
+                    Debug
+                </button>
+          </div>
+            <div class="debug-window-container" v-if="debug" id="chatDebug" style="border-radius: 15px;">
+                <div class="card-body" style="overflow-y: scroll; height: 34em; flex-direction: column-reverse"
+                    data-mdb-perfect-scrollbar="true" id="debug-console">
+                </div>
+            </div>
+        </div>
         <div class="col-md-10 col-lg-8 col-xl-6">
 
             <div class="container">
@@ -68,6 +81,7 @@
     const speechSynthesis= window.speechSynthesis;
     const recording= ref(false);
     const busy= ref(false);
+    const debug = ref(false);
     const languages= {
         GB: 'en-EN',
         DE: 'de-DE'
@@ -127,9 +141,14 @@
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText});
-            const answer = result.data
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value});
+            const answer = result.data.result
+            const debugText = result.data.debug
+            console.log("debug" + debugText)
             createSpeechBubbleAI(answer);
+            if (debug.value) {
+                processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
+            }
             //this.scrollDown();            
         } catch (error) {
             createSpeechBubbleAI("Error while fetching data: " + error)
@@ -140,7 +159,7 @@
         // TODO this does not seem to work for me
         recognition = new (webkitSpeechRecognition || SpeechRecognition)();
         recognition.lang = languages[language.value];
-        console.log("language: " + languages[language.value]);;
+        console.log("language: " + languages[language.value]);
         busy.value = true;
         recognition.onresult = async (event) => {
             const recognizedText = event.results[0][0].transcript;
@@ -207,6 +226,38 @@
             speechSynthesis.speak(utterance);
         }
     }
+
+    function processDebugInput(input) {
+        const keywordColors = {
+            "Query:": "#fff",
+            "Planner:": "#f00",
+            "API Selector:": "#ff0",
+            "Caller:": "#00f",
+            "Final Answer:": "#0f0"
+        }
+        const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
+
+        const parts = input.split(regex).filter(Boolean)
+        const result = []
+        for (let i = 0; i < parts.length; i += 2) {
+            const keyword = parts[i]
+            const text = parts[i + 1] || ""
+            const color = keywordColors[keyword] || "#fff";
+            result.push({text: keyword + text, color: color})
+        }
+
+        return result
+    }
+
+    function addDebug(text, color) {
+        console.log("text color" + color)
+        const debugChat = document.getElementById("debug-console")
+        let d1 = document.createElement("div")
+        d1.className = "debug-text"
+        d1.textContent = text
+        d1.style.color = color
+        debugChat.append(d1)
+    }
     
     function beforeDestroy() {
         if (recognition) {
@@ -231,6 +282,20 @@
     .chaticon {
         width: 45px;
         height: 100%;
+    }
+
+    .debug-window-container {
+        background-color: #000; /* Black background */
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .debug-text {
+        display: block;
+        text-align: left;
+        margin-left: 3px;
+        font-family: "Courier New", monospace;
+        font-size: small;
     }
 
    /* NONE of those styles seem to have ANY effect...

@@ -34,7 +34,7 @@ class Action(BaseModel):
 class RestGptBackend:
     messages: List[Tuple[str, str]] = []
 
-    async def query(self, message: str) -> str:
+    async def query(self, message: str, debug: bool) -> Dict:
         llm = OpacaLLM(LLM_URL)
 
         request_wrapper = Requests()
@@ -48,10 +48,12 @@ class RestGptBackend:
         rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
                            simple_parser=False, request_headers={})
 
-        result = rest_gpt.invoke({"query": message, "history": self.messages})["result"]
-        self.messages.append((message, result))
+        result = rest_gpt.invoke({"query": message, "history": self.messages})
+        self.messages.append((message, result["result"]))
 
-        return result
+        # "result" contains the answer intended for a normal user
+        # while "debug" contains all messages from the llm chain
+        return {"result": result, "debug": result["debug"] if debug else ""}
 
     async def history(self) -> list:
         return self.messages
