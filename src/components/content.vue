@@ -144,7 +144,6 @@
             const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value});
             const answer = result.data.result
             const debugText = result.data.debug
-            console.log("debug" + debugText)
             createSpeechBubbleAI(answer);
             if (debug.value) {
                 processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
@@ -250,7 +249,6 @@
     }
 
     function addDebug(text, color) {
-        console.log("text color" + color)
         const debugChat = document.getElementById("debug-console")
         let d1 = document.createElement("div")
         d1.className = "debug-text"
