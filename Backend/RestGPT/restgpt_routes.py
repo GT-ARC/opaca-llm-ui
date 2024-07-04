@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
 
 import json
 import logging
@@ -32,6 +32,7 @@ class Action(BaseModel):
 
 
 class RestGptBackend:
+    messages: List[Tuple[str, str]] = []
 
     async def query(self, message: str, debug: bool) -> Dict:
         llm = OpacaLLM(LLM_URL)
@@ -45,18 +46,17 @@ class RestGptBackend:
                                         parameters=action['parameters'], result=action['result']))
 
         rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
-                        simple_parser=False, request_headers={})
+                           simple_parser=False, request_headers={})
 
-        result = rest_gpt.invoke({"query": message})
+        result = rest_gpt.invoke({"query": message, "history": self.messages})
+        self.messages.append((message, result["result"]))
 
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
-        return {"result": result["result"], "debug": result["debug"] if debug else ""}
+        return {"result": result, "debug": result["debug"] if debug else ""}
 
     async def history(self) -> list:
-        # TODO not yet implemented
-        return []
+        return self.messages
 
     async def reset(self):
-        # TODO not yet implemented
-        pass
+        self.messages = []

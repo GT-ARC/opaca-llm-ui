@@ -148,7 +148,8 @@ class RestGPT(Chain):
         logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
-            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "history": planner_history})
+            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "planner_history": planner_history,
+                                        "message_history": inputs['history']})
             plan = plan["result"]
             self.debug_output += f'Planner: {plan}\n'
             logger.info(f"Planner: {plan}")
