@@ -53,7 +53,7 @@ class RestGptBackend:
 
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
-        return {"result": result, "debug": result["debug"] if debug else ""}
+        return {"result": result["result"], "debug": result["debug"] if debug else ""}
 
     async def history(self) -> list:
         return self.messages
