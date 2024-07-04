@@ -11,54 +11,54 @@ logger = logging.getLogger()
 
 examples = [
     {"input": "Instruction: Get the temperature for the room kitchen.", "output": """
-API Call 1: GetTemperature;{"room": "kitchen"}
-API Response : The temperature in the kitchen is 23 degrees."""},
+API Call: GetTemperature;{"room": "kitchen"}
+API Response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
-API Call 1: BookDesk;{"desk": 5}
-API Response 1: Successfully booked the desk with id 5."""},
+API Call: BookDesk;{"desk": 5}
+API Response: Successfully booked the desk with id 5."""},
     {"input": "Instruction: Check if the desk with id 3 is free.", "output": """
-API Call 1: IsFree;{"desk": 3}
-API Response 1: The desk with id 3 is free."""},
+API Call: IsFree;{"desk": 3}
+API Response: The desk with id 3 is free."""},
     {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
-API Call 1: GetContents;{"shelf": 1}
-API Response 1: The shelf with id 1 contains plates."""},
+API Call: GetContents;{"shelf": 1}
+API Response: The shelf with id 1 contains plates."""},
     {"input": """
 Instruction: Get a list of all desks ids for the office.
-API Call 1: GetDesks;{}
-API Response 1: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
+API Call: GetDesks;{}
+API Response: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
 Instruction: Continue""", "output": """
-API Call 2: GetDesks;{"room": "office"}
-API Response 2: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
+API Call: GetDesks;{"room": "office"}
+API Response: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
     {"input": """
 Instruction: Get all available shelf ids.
-API Call 1: GetShelfs;{}
-API Response 1: The available shelves are (0, 1, 2, 3).
+API Call: GetShelfs;{}
+API Response: The available shelves are (0, 1, 2, 3).
 Instruction: Check if the shelf with id 3 has cups in it.
-API Call 2: GetContents;{"shelf": 3}
-API Response 2: The contents of shelf 3 are: plates, cups, and glasses.
+API Call: GetContents;{"shelf": 3}
+API Response: The contents of shelf 3 are: plates, cups, and glasses.
 Instruction: Close the shelf with id 3.""",
      "output": """
-API Call 3: CloseShelf;{"shelf": 3}
-API Response 3: Shelf 3 is now closed."""},
+API Call: CloseShelf;{"shelf": 3}
+API Response: Shelf 3 is now closed."""},
     {"input": """
 Instruction Find the id of the shelf which contains the plates.
-API Call 1: FindShelf;{"item": "plates"}
-API Response 1: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
+API Call: FindShelf;{"item": "plates"}
+API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
      "output": """
-API Call 2: FindInShelf;{"item": "plates"}
-API Response 2: The item "plates" can be found on shelf 3."""}
+API Call: FindInShelf;{"item": "plates"}
+API Response: The item "plates" can be found on shelf 3."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
 You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. 
 You will receive a list of known services. These services will include actions. Only use the exact action names from this list. 
 Also use the description of each service to better understand what the action does, if such a description is available.
-Create a valid HTTP request which would succeed when called. Your http requests will always be of the type POST. 
+Create a valid HTTP request which would succeed when called. Your http requests will always be of the type of POST. 
 If an action requires further parameters, use the most fitting parameters from the user request. 
 If an action requires a parameter but there were no suitable parameters in the user request, generate a fitting value 
 for the missing required parameter field. For example, if you notice from the action list that the required parameter
 "room" was not given in the user query, try to guess a valid value for this parameter based on its type.
-If an action does not require parameters, just output an empty json array like {}.
+If an action does not require parameters, just output an empty Json array like {}.
 Take note of the type of each parameter and output the type accordingly. For example, if the type is string, it should
 include quotation marks around the value. If the type is an integer, it should just be a number without quotation marks.
 If the type is a float, it should be a number without quotation mark and a floating point.
@@ -66,15 +66,15 @@ If you think there were no fitting parameters in the user request, just create i
 Do not use actions or parameters that are not included in the list. If there are no fitting actions in the list, 
 include within your response the absence of such an action. If the list is empty, include in your response that there 
 are no available services at all. If you think there is a fitting action, then your answer should only include the API 
-call and the required parameters of that call, which will be included in a json style format after the request url. 
+call and the required parameters of that call, which will be included in a Json style format after the request URL. 
 If you receive "Continue" as an input, that means that your last API call was not successful. In this case you should 
-modify the last call eiter by adding or removing parameters, changing the value for specific parameters, or even try 
+modify the last call either by adding or removing parameters, changing the value for specific parameters, or even try 
 to call a different action.
-Your answer should only include the request url and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
+Your answer should only include the request URL and the parameters in a JSON format, nothing else. Here is the format in which you should answer:
 
-{action_name};{\"parameter_name\": \"value\"}
+API Call: {action_name};{\"parameter_name\": \"value\"}
 
-Here is the list you should use to create create the API Call
+Here is the list you should use to create the API Call
 """
 
 
@@ -102,12 +102,12 @@ class ActionSelector(Chain):
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "API Response {}: "
+        return "API Response: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
-        return "API Call {}: "
+        return "API Call: "
 
     @property
     def _stop(self) -> List[str]:
@@ -131,7 +131,6 @@ class ActionSelector(Chain):
         for a in actions:
             if a.name == action:
                 action_from_list = a
-                logger.info(f'API Selector: Found action {action_from_list}')
         if not action_from_list:
             err_out += "Your selected action does not exist. Please only use actions from the provided list of actions.\n"
             return err_out
@@ -139,16 +138,12 @@ class ActionSelector(Chain):
         # Check if all required parameters are present
         p_json = json.loads(parameters)
         for parameter in [p for p in action_from_list.parameters.keys() if action_from_list.parameters.get(p).get("required")]:
-            logger.info(f'API Selector: Checking required parameter {parameter}')
             if parameter not in p_json.keys():
-                logger.info(f'API Selector: Required parameter {parameter} not found!')
                 err_out += f'You have not included the required parameter {parameter} in your generated list of parameters for the action {action}.\n'
 
         # Check if no parameter is hallucinated
         for parameter in p_json.keys():
-            logger.info(f'API Selector: Checking for hallucinated parameter {parameter}')
             if parameter not in [p for p in action_from_list.parameters.keys()]:
-                logger.info(f'API Selector: Hallucinated parameter {parameter} found!')
                 err_out += f'You have included the improper parameter {parameter} in your generated list of parameters. Please only use parameters that are given in the action description.\n'
         return err_out
 
@@ -160,8 +155,8 @@ class ActionSelector(Chain):
         scratchpad = ""
         for i, (plan, api_call, api_response) in enumerate(history):
             scratchpad += f'Instruction: {plan}\n'
-            scratchpad += self.llm_prefix.format(i + 1) + api_call + "\n"
-            scratchpad += self.observation_prefix.format(i + 1) + api_response + "\n"
+            scratchpad += self.llm_prefix + api_call + "\n"
+            scratchpad += self.observation_prefix + api_response + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
@@ -180,7 +175,7 @@ class ActionSelector(Chain):
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
+        action_plan = re.sub(r"API Call+:", "", action_selector_output).split('\n')[0].strip()
 
         correction_limit = 0
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
@@ -188,7 +183,7 @@ class ActionSelector(Chain):
             messages.append({"role": "human", "content": err_msg})
 
             action_selector_output = self.llm.bind(stop=self._stop).call(messages)
-            action_plan = re.sub(r"API Call \d+:", "", action_selector_output).split('\n')[0].strip()
+            action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
 
             correction_limit += 1
 

@@ -65,7 +65,8 @@ The plan should be straightforward. If you want to search, sort or filter, you c
 If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
 The other model will only receive your generated plan step, so make sure to include all relevant information and possible parameters.
 If you are unable to fulfill the user query, either by not having enough information or missing services, output "No API call needed." and after that an explanation in natural language why you think you are unable to fulfill the query, for example if the query asks for information where there are no services available for.
-If the user asks about what services you know or about more information to specific services, output "No API call needed." and after that a fitting response in natural language to the user.
+If the user asks about what services you know or about more information to specific services or previous messages, output "No API call needed." and after that a fitting response in natural language to the user.
+If you deem that the user has not provided you with enough information to fulfill a query, either in the current query or in past queries that are still related to the current query, output "No API call needed." and after that ask the user to provide the missing required parameters. If the user then provides you with the required parameters, check if the original query can now be fulfilled and if so, start outputting the steps.
 
 Starting below, you should follow this format:
 
@@ -128,8 +129,26 @@ class Planner(Chain):
             scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
+    def _construct_examples(
+            self
+    ) -> str:
+        example_str = ("Further you will receive a number of example conversations. You should not include these "
+                       "examples as part of the actual message history of a user. Here are the examples:\n")
+        for example in examples:
+            example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
+        return example_str
+
+    def _construct_msg_history(
+            self, msg_history: List[Tuple[str, str]]
+    ) -> List[Dict[str, str]]:
+        history = []
+        for query, answer in msg_history:
+            history.extend([{"role": "human", "content": query}, {"role": "ai", "content": answer}])
+        return history
+
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
-        scratchpad = self._construct_scratchpad(inputs['history'])
+        scratchpad = self._construct_scratchpad(inputs['planner_history'])
+        example_list = self._construct_examples()
         action_list = ""
 
         for action in inputs["actions"]:
@@ -137,10 +156,8 @@ class Planner(Chain):
         action_list = re.sub(r"\{", "{{", action_list)
         action_list = re.sub(r"}", "}}", action_list)
 
-        messages = [{"role": "system", "content": PLANNER_PROMPT + action_list}]
-        for example in examples:
-            messages.append({"role": "human", "content": example["input"]})
-            messages.append({"role": "ai", "content": example["output"]})
+        messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
+        messages.extend(self._construct_msg_history(inputs['message_history']))
         messages.append({"role": "human", "content": inputs["input"] + scratchpad})
         planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
 
