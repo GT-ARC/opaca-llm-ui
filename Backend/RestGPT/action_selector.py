@@ -132,7 +132,7 @@ class ActionSelector(Chain):
         action, parameters = action_plan.split(';')
         action_from_list = None
         for a in actions:
-            if a.name == action:
+            if a.action_name == action:
                 action_from_list = a
         if not action_from_list:
             err_out += ("Your selected action does not exist. "
@@ -141,15 +141,15 @@ class ActionSelector(Chain):
 
         # Check if all required parameters are present
         p_json = json.loads(parameters)
-        for parameter in [p for p in action_from_list.parameters.keys()
-                          if action_from_list.parameters.get(p).get("required")]:
+        for parameter in [p for p in action_from_list.params_in.keys()
+                          if action_from_list.params_in[p].required]:
             if parameter not in p_json.keys():
                 err_out += (f'You have not included the required parameter {parameter} in '
                             f'your generated list of parameters for the action {action}.\n')
 
         # Check if no parameter is hallucinated
         for parameter in p_json.keys():
-            if parameter not in [p for p in action_from_list.parameters.keys()]:
+            if parameter not in [p for p in action_from_list.params_in.keys()]:
                 err_out += (f'You have included the improper parameter {parameter} in your generated list of '
                             f'parameters. Please only use parameters that are given in the action description.\n')
         return err_out

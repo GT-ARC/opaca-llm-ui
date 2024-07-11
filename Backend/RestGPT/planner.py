@@ -51,26 +51,33 @@ Plan step 3: Get the temperature for room 2.
 API response: The temperature for room 2 is 22."""},
     {"input": "Can you open shelf 1 for me?", "output": """
 Plan step 1: Open the shelf with id 1.
-API response: The shelf with id 1 is now open."""}
+API response: The shelf with id 1 is now open."""},
+    {"input": "Please add 4 apples to my grocery list with an expiration date of 29th of July 2024", "output": """
+Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to the category fruits.
+API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024"""},
+    {"input": "Can you give me a list of all sensor ids?", "output": """
+Plan step 1: Get a list of all sensor ids.
+API response: Here is a list of all sensor ids: [100, 101, 104, 116, 205, 206]"""}
 ]
 
 PLANNER_PROMPT = """You are an agent that plans solution to user queries.
 You should always give your plan in natural language.
-Another model will receive your plan and find the right API calls and give you the result in natural language.
+Other models will receive your plan and actually execute the right API calls and give you the results in natural language. Therefore never say that you have executed a plan or used the function of a service without analyzing the previous API responses.
 You will receive a list of services on which you can base your plan.
 If you assess that the current plan has not been fulfilled, you can output "Continue" to let the API selector select another API to fulfill the plan.
 In most case, search, filter, and sort should be completed in a single step.
-The plan should be as specific as possible. It is better not to use pronouns in plan, but to use the corresponding results obtained previously. For example, instead of "Get the most popular movie directed by this person", you should output "Get the most popular movie directed by Martin Scorsese (1032)". If you want to iteratively query something about items in a list, then the list and the elements in the list should also appear in your plan.
-The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Who is the lead actor of In the Mood for Love (id 843)", instead of "get the list of actors of In the Mood for Love", you should output "get the lead actor of In the Mood for Love (843)".
+The plan should be as specific as possible. It is better not to use pronouns in your plan, but to use the corresponding results obtained previously. It should also include all necessary information and parameters to successfully call the service. Remember that your plan is used by another agent who does not have access to the user query.
+The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Book me the desk with id 5.", instead of "Book a desk", you should output "Book the desk with id 5".
 If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
 The other model will only receive your generated plan step, so make sure to include all relevant information and possible parameters.
-If you are unable to fulfill the user query, either by not having enough information or missing services, output "No API call needed." and after that an explanation in natural language why you think you are unable to fulfill the query, for example if the query asks for information where there are no services available for.
-If the user asks about what services you know or about more information to specific services or previous messages, output "No API call needed." and after that a fitting response in natural language to the user.
-If you deem that the user has not provided you with enough information to fulfill a query, either in the current query or in past queries that are still related to the current query, output "No API call needed." and after that ask the user to provide the missing required parameters. If the user then provides you with the required parameters, check if the original query can now be fulfilled and if so, start outputting the steps.
+If you are unable to fulfill the user query, either by not having enough information or missing services, output the keyphrase "No API call needed." and after that an explanation in natural language why you think you are unable to fulfill the query, for example if the query asks for information where there are no services available for, you should tell the user that no such service is available.
+If the user asks about what services you know or about more information to specific services or previous messages, output the keyphrase "No API call needed." as well and after that a fitting and nicely formatted response in natural language to the user.
+If you deem that the user has not provided you with enough information to fulfill a query, either in the current query or in past queries that are still related to the current query, output the keyphrase "No API call needed." and after that ask the user to provide the missing required parameters. If the user then provides you with the required parameters, check if the original query can now be fulfilled and if so, start outputting the plan steps.
+Remember that your primary function is not to answer user queries directly but to output a plan without the keyphrase. You should only output the keyphrase for the just described situations.
 
 Starting below, you should follow this format:
 
-User query: The query a User wants help with related to the agent actions.
+User query: The query a user wants help with related to the agent actions.
 Plan step 1: The first step of your plan for how to solve the query.
 API response: The result of the first step of your plan.
 Plan step 2: If necessary, the second step of your plan for how to solve the query based on the API response.
@@ -151,9 +158,7 @@ class Planner(Chain):
         action_list = ""
 
         for action in inputs["actions"]:
-            action_list += "{" + action.__str__() + "}"
-        action_list = re.sub(r"\{", "{{", action_list)
-        action_list = re.sub(r"}", "}}", action_list)
+            action_list += "{" + action.planner_str() + "}\n"
 
         messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
         messages.extend(self._construct_msg_history(inputs['message_history']))

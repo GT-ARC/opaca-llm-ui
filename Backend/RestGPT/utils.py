@@ -65,6 +65,9 @@ class Action:
         return (f'[{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
                 f'{self.container_id};{self.custom_params}]')
 
+    def planner_str(self):
+        return f'Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}'
+
 
 def get_reduced_action_spec(action_spec: Dict) -> List:
     """
@@ -99,7 +102,6 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         res_schema = content["post"]["responses"]["200"]["content"]["*/*"]["schema"]
         action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
         action_list.append(action)
-    print(f'Action List: {action_list}')
     return action_list
 
 

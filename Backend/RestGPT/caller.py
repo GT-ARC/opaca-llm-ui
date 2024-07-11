@@ -78,7 +78,7 @@ class Caller(Chain):
         description = ""
         # Get description from action list
         for action in inputs["actions"]:
-            if action.name == api_call:
+            if action.action_name == api_call:
                 description = action.description
 
         logger.info(f'Caller: Received response: {response}')
