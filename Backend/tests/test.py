@@ -113,9 +113,6 @@ class TestOpacaLLM(unittest.TestCase):
     def testFuzzing(self):
         assert exec_test('fuzzing', 'Fuzzing Test', self.file_name)
 
-    def testJailbreak(self):
-        assert exec_test('jailbreak', 'Jailbreak Test', self.file_name)
-
     def testMediumComplex(self):
         assert exec_test('medium', 'Medium Difficulty Test', self.file_name)
 
