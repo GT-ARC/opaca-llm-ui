@@ -179,7 +179,7 @@ class Planner(Chain):
         for action in inputs["actions"]:
             action_list += action.planner_str()
 
-        messages = [{"role": "system", "content": PLANNER_PROMPT_ALT + action_list + example_list}]
+        messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
         messages.extend(self._construct_msg_history(inputs['message_history']))
         messages.append({"role": "human", "content": inputs["input"] + scratchpad})
         planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
