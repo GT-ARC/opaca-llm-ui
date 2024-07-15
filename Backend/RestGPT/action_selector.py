@@ -26,12 +26,12 @@ API Response: The shelf with id 1 contains plates."""},
 Instruction: Get a list of all desks ids for the office.
 API Call: GetDesks;{}
 API Response: Error: The action 'GetDesks' is not found. Please check the action name or the parameters used.
-Instruction: Continue""", "output": """
+Instruction: CONTINUE""", "output": """
 API Call: GetDesks;{"room": "office"}
 API Response: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5)."""},
     {"input": """
 Instruction: Get all available shelf ids.
-API Call: GetShelfs;{}
+API Call: GetShelves;{}
 API Response: The available shelves are (0, 1, 2, 3).
 Instruction: Check if the shelf with id 3 has cups in it.
 API Call: GetContents;{"shelf": 3}
@@ -46,38 +46,51 @@ API Call: FindShelf;{"item": "plates"}
 API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
      "output": """
 API Call: FindInShelf;{"item": "plates"}
-API Response: The item "plates" can be found on shelf 3."""}
+API Response: The item "plates" can be found on shelf 3."""},
+    {"input": """Instruction: Add an item to the grocery list.""", "output": """
+MISSING The action to add an item to the grocery list "AddGroceries" requires the following parameters:
+name: the name of the item
+amount: the amount of those item
+expirationDate: the expiration date of that item
+category: The category of that item
+However, these parameters were not found in the instruction."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
-You are a planner that plans a sequence of RESTful API calls to assist with user queries against an API. 
+You are an agent that outputs RESTful API calls to assist with instructions against an API. 
 You will receive a list of known services. These services will include actions. 
-Only use the exact action names from this list. 
-Also use the description of each service to better understand what the action does, if such a description is available.
-Create a valid HTTP request which would succeed when called. Your http requests will always be of the type of POST. 
-If an action requires further parameters, use the most fitting parameters from the user request. 
-If an action requires a parameter but there were no suitable parameters in the user request, generate a fitting value 
-for the missing required parameter field. For example, if you notice from the action list that the required parameter
-"room" was not given in the user query, try to guess a valid value for this parameter based on its type.
-If an action does not require parameters, just output an empty Json array like {}.
-Take note of the type of each parameter and output the type accordingly. For example, if the type is string, it should
-include quotation marks around the value. If the type is an integer, it should just be a number without quotation marks.
-If the type is a float, it should be a number without quotation mark and a floating point.
-If you think there were no fitting parameters in the user request, 
-just create imaginary values for them based on their names. 
+Sometimes these actions will also have descriptions to better explain what each action does. 
+Your task will be to output a fitting API call consisting of an action name and the parameters belonging to that action. 
+You can get an overview of the parameters to each action from the list. Parameters can also be required. If this is the 
+case, you should always check if the given instructions include values to these parameters. If they do, use the values 
+from the instruction as values to the parameters to the action. If not, you output the keyword "MISSING" and after 
+that an overview of all the required parameters that are missing values in the instructions to 
+successfully call that action. If values for non-required parameters are missing, you can ignore 
+them in your API call, but if they are present in the instruction, always include them. 
+You are forbidden to generate values for all parameters on your own. Only use values that have been given in 
+the instruction. 
+If an action does not require parameters, just output an empty Json array like {}. 
+Take note of the type of each parameter and output the value type accordingly. For example, if the type is string, 
+the parameter you output needs to include quotation marks around the value. If the type is an integer, the value should 
+just be a number without any quotation marks. You can follow the known OpenAPI schema for most of the types. 
+If the type of the action is a custom type, the action should include the schema of the custom type. In that case, 
+check if the instruction includes enough information to create the custom type and if it does, use it in your API call.
+If it does not, output "MISSING" and after that a short summary of all the parameters for the custom type that are 
+missing.
 Do not use actions or parameters that are not included in the list. If there are no fitting actions in the list, 
-include within your response the absence of such an action. If the list is empty, include in your response that there 
-are no available services at all. If you think there is a fitting action, then your answer should only include the API 
+output the keyword "MISSING" and after that a short summary explaining that there are no fitting actions available. 
+If you think there is a fitting action, then your answer should only include the API 
 call and the required parameters of that call, which will be included in a Json style format after the request URL. 
-If you receive "Continue" as an input, that means that your last API call was not successful. In this case you should 
-modify the last call either by adding or removing parameters, changing the value for specific parameters, or even try 
+If you receive "CONTINUE" as an input, that means that your last API call was not successful. In this case you should 
+modify the last call either by adding or removing parameters, correcting the type for specific parameters, or even try 
 to call a different action.
-Your answer should only include the request url and the parameters in a JSON format, nothing else. 
-Here is the format in which you should answer:
+Here is the format in which you should answer normally:
 
 API Call: {action_name};{\"parameter_name\": \"value\"}
 
-Here is the list you should use to create the API Call
+You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
+
+Here is the list you should use to create the API Call:
 """
 
 
@@ -119,6 +132,12 @@ class ActionSelector(Chain):
         ]
 
     @staticmethod
+    def _check_missing(output: str):
+        if re.search("MISSING", output):
+            return True
+        return False
+
+    @staticmethod
     def _check_valid_action(action_plan: str, actions: List) -> str:
         err_out = ""
 
@@ -154,6 +173,15 @@ class ActionSelector(Chain):
                             f'parameters. Please only use parameters that are given in the action description.\n')
         return err_out
 
+    @staticmethod
+    def _construct_examples() -> str:
+        example_str = ("Further you will receive a number of example conversations. You should not include these "
+                       "examples as part of the actual message history of a user. Here are the examples:\n")
+        for example in examples:
+            example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
+        example_str += "These were all the examples, now the conversation with a real user begins.\n"
+        return example_str
+
     def _construct_scratchpad(
             self, history: List[Tuple[str, str]]
     ) -> str:
@@ -168,21 +196,22 @@ class ActionSelector(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs["history"])
+        example_list = self._construct_examples()
         action_list = ""
         for action in inputs["actions"]:
-            action_list += "{" + action.__str__() + "}"
-        action_list = re.sub(r"\{", "{{", action_list)
-        action_list = re.sub(r"}", "}}", action_list)
+            action_list += action.selector_str()
 
-        messages = [{"role": "system", "content": self.action_selector_prompt + action_list}]
-        for example in examples:
-            messages.append({"role": "human", "content": example["input"]})
-            messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": scratchpad + f'Instruction: {inputs["plan"]}'})
+        messages = [{"role": "system", "content": self.action_selector_prompt + action_list + example_list},
+                    {"role": "human", "content": scratchpad + f'Instruction: {inputs["plan"]}'}]
 
         action_selector_output = self.llm.bind(stop=self._stop).call(messages)
 
-        action_plan = re.sub(r"API Call+:", "", action_selector_output).split('\n')[0].strip()
+        action_plan = re.sub(r"API Call+:", "", action_selector_output)
+
+        if self._check_missing(action_plan):
+            return {"result": action_plan}
+        else:
+            action_plan = action_plan.split('\n')[0].strip()
 
         correction_limit = 0
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
@@ -193,7 +222,5 @@ class ActionSelector(Chain):
             action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
 
             correction_limit += 1
-
-        logger.info(f"API Selector: {action_plan}")
 
         return {"result": action_plan}
