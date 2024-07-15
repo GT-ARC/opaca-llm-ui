@@ -62,11 +62,15 @@ class Action:
         return self.__str__()
 
     def __str__(self):
-        return (f'[{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
-                f'{self.container_id};{self.custom_params}]')
+        return (f'{{{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
+                f'{self.container_id};{self.custom_params}}}')
 
     def planner_str(self):
-        return f'Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}'
+        return f'{{Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}}}'
+
+    def selector_str(self):
+        return (f'{{Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}, '
+                f'Custom Types: {self.custom_params}}}')
 
 
 def get_reduced_action_spec(action_spec: Dict) -> List:
