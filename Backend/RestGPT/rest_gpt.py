@@ -137,11 +137,12 @@ class RestGPT(Chain):
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history})
             api_plan = api_plan["result"]
-            self.debug_output += f'API Selector: {api_plan}'
+            self.debug_output += f'API Selector: {api_plan}\n'
             logger.info(f'API Selector: {api_plan}')
 
             if self._is_missing(api_plan):
                 planner_history.append((plan, api_plan))
+                iterations += 1
                 continue
 
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'

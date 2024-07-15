@@ -17,18 +17,13 @@ Plan step 1: Check if the desk with id 6 is currently free.
 API response: The desk with id 6 is free.
 Plan step 2: Book the desk with id 6.
 API response: Successfully booked the desk with id 6."""},
+    {"input": "Can you open shelf 1 for me?", "output": """
+Plan step 1: Open the shelf with id 1.
+API response: The shelf with id 1 is now open."""},
     {"input": "Please open the shelf with cups in it.", "output": """
-Plan step 1: Get all available shelf ids.
-API response: The available shelf ids are 0, 1, 2, 3.
-Plan step 2: Check if the shelf with id 0 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 3: Check if the shelf with id 1 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 4: Check if the shelf with id 2 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 5: Check if the shelf with id 3 has cups in it.
-API response: The shelf with id 0 does contain cups.
-Plan step 6: Open the shelf with id 3.
+Plan step 1: Find the shelf with the cups in it.
+API response: The shelf containing the cups is the shelf with id 3.
+Plan step 2: Open the shelf with id 3.
 API response: Successfully opened the shelf with id 3."""},
     {"input": "Book me any desk that is currently free.", "output": """
 Plan step 1: Get all desks.
@@ -49,27 +44,37 @@ Plan step 2: Get the humidity for room 1.
 API response: The humidity for room 1 is 45.2.
 Plan step 3: Get the temperature for room 2.
 API response: The temperature for room 2 is 22."""},
-    {"input": "Can you open shelf 1 for me?", "output": """
-Plan step 1: Open the shelf with id 1.
-API response: The shelf with id 1 is now open."""},
     {"input": "Please add 4 apples to my grocery list with an expiration date of 29th of July 2024", "output": """
 Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to the category fruits.
 API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024"""},
     {"input": "Can you give me a list of all sensor ids?", "output": """
 Plan step 1: Get a list of all sensor ids.
-API response: Here is a list of all sensor ids: [100, 101, 104, 116, 205, 206]"""}
+API response: Here is a list of all sensor ids: [100, 101, 104, 116, 205, 206]"""},
+    {"input": "For all of the desks in the office, can you check each desk if it is free and if so, return me its id?",
+     "output": """
+Plan step 1: Get all the desks in the office.
+API response: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+Plan step 2: Check if the desk 0 is free.
+API response: Desk 0 is not free.
+Plan step 3: Check if desk 1 is free.
+API response: Desk 1 is not free.
+Plan step 4: Check if desk 2 is free.
+API response: Desk 2 is free."""}
 ]
 
 
 PLANNER_PROMPT = """You are an agent that plans solution to user queries.
 Your task will be to transform a user query into a concrete plan step or even multiple plan steps if necessary, 
-which can be solved by calling the services from the list you will be provided with. The division into multiple 
+which can be solved by calling the services from the list you will be provided with. Each plan step will be used 
+to call exactly one service. The division into multiple 
 steps is only necessary if the query requires it. For example, if a user asks for multiple information which can 
 only be gathered by calling multiple services, you should create a concrete plan step for each information. Each step 
-you create will result in exactly one service call. The steps should be as precise and clear as possible, and should 
-also include all necessary parameters to call that service. For example, if a service requires a parameter to call, 
-your plan step should include the parameter the user has provided you with in their query. Be aware that users might 
-not provide you with the exact name of a parameter. For example, if a service a user wants information from 
+you create will result in exactly one service call. The steps need to be as precise and clear as possible, and should 
+always include all required parameters to call that service. You can get the list of required parameters for each 
+action in the list of actions you will be provided. For example, if a user wants to get all desks in the office and the 
+action to retrieve all desks requires the parameter room, you need to include "office" in your plan step. 
+Be aware that users might not provide you with the exact name of a parameter or even include spelling mistakes. 
+For example, if the service a user wants you to call 
 requires an id and the user provides a number in its query, you should assume that the number is meant to represent 
 the id parameters. Do not make up any 
 parameters. As long as a parameter given by a user matches the type of the parameter, you can assume that the given 
@@ -96,8 +101,8 @@ API response: This the the result of your second plan step.
 If an API response returns an error or unrelated information despite you giving clear instructions, you output the 
 keyword "CONTINUE" to let the other agents know that they have made an error. 
 
-In summary, your output starts either with the keyword "Plan step n" where n is the current iteration of steps, 
-the keyword "STOP" or the keyword "CONTINUE". You are forbidden to put any other phrase except for those three at 
+In summary, your output starts either with "Plan", 
+the keyword "STOP" or the keyword "CONTINUE". You are forbidden to put any other words except for those three at 
 the beginning of your output.
 
 Here is the list of services. The services include their name, a description if one is available, and an overview
@@ -177,7 +182,7 @@ class Planner(Chain):
         action_list = ""
 
         for action in inputs["actions"]:
-            action_list += action.planner_str()
+            action_list += action.planner_str() + '\n'
 
         messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
         messages.extend(self._construct_msg_history(inputs['message_history']))

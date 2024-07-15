@@ -63,12 +63,16 @@ Sometimes these actions will also have descriptions to better explain what each 
 Your task will be to output a fitting API call consisting of an action name and the parameters belonging to that action. 
 You can get an overview of the parameters to each action from the list. Parameters can also be required. If this is the 
 case, you should always check if the given instructions include values to these parameters. If they do, use the values 
-from the instruction as values to the parameters to the action. If not, you output the keyword "MISSING" and after 
+from the instruction as values to the parameters to the action. If not, you output the keyword "MISSING" as the first 
+word of your output and after 
 that an overview of all the required parameters that are missing values in the instructions to 
 successfully call that action. If values for non-required parameters are missing, you can ignore 
 them in your API call, but if they are present in the instruction, always include them. 
 You are forbidden to generate values for all parameters on your own. Only use values that have been given in 
 the instruction. 
+If the parameter for an action is of type string, check if the instruction indicates what part of it should be used as 
+string. For example, if the instruction tells you to set the title to title, you should use "title" as the value for
+the title.
 If an action does not require parameters, just output an empty Json array like {}. 
 Take note of the type of each parameter and output the value type accordingly. For example, if the type is string, 
 the parameter you output needs to include quotation marks around the value. If the type is an integer, the value should 
@@ -199,7 +203,7 @@ class ActionSelector(Chain):
         example_list = self._construct_examples()
         action_list = ""
         for action in inputs["actions"]:
-            action_list += action.selector_str()
+            action_list += action.selector_str() + '\n'
 
         messages = [{"role": "system", "content": self.action_selector_prompt + action_list + example_list},
                     {"role": "human", "content": scratchpad + f'Instruction: {inputs["plan"]}'}]
