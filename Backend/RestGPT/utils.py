@@ -86,7 +86,7 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
     for _, content in action_paths.items():
         action = Action()
         action.container_id, action.agent_name, action.action_name = content["post"]["operationId"].split(';')
-        action.description = content["post"]["description"]
+        action.description = content["post"]["description"] if "description" in content["post"] else ""
 
         param_schema = content["post"]["requestBody"]["content"]["application/json"]["schema"]
         required = param_schema["required"] if "required" in param_schema.keys() else []
