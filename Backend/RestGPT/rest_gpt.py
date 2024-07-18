@@ -81,19 +81,25 @@ class RestGPT(Chain):
 
     @staticmethod
     def _should_abort(plan):
-        if re.search("No API call needed.", plan):
+        if re.search("STOP", plan):
             return True
         return False
 
     @staticmethod
     def _should_continue_plan(plan) -> bool:
-        if re.search("Continue", plan):
+        if re.search("CONTINUE", plan):
             return True
         return False
 
     @staticmethod
     def _should_end(plan) -> bool:
         if re.search("Final Answer", plan):
+            return True
+        return False
+
+    @staticmethod
+    def _is_missing(plan) -> bool:
+        if re.search("MISSING", plan):
             return True
         return False
 
@@ -124,14 +130,21 @@ class RestGPT(Chain):
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
             if self._should_abort(plan):
-                final_answer = re.sub("No API call needed.", "", plan).strip()
+                final_answer = re.sub("STOP", "", plan).strip()
                 break
 
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history})
             api_plan = api_plan["result"]
-            self.debug_output += f'API Selector: {api_plan}'
+            self.debug_output += f'API Selector: {api_plan}\n'
+            logger.info(f'API Selector: {api_plan}')
+
+            if self._is_missing(api_plan):
+                planner_history.append((plan, api_plan))
+                iterations += 1
+                continue
+
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
             execution_res = self.caller.invoke({"api_plan": api_plan, "actions": self.action_spec})

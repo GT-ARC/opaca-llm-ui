@@ -13,37 +13,11 @@ API call 1: http://localhost:8000/invoke/GetTemperature;{"room": "1"}
 API response 1: The temperature for room 1 is 23.0 degrees.""",
      "output": "FINISHED: The current temperature in room 1 is 23.0 degrees."},
     {"input": """
-User query: Open the shelf that contains plates.
-Plan step 1: Get a list of all available shelves.
-API call 1: http://localhost:8000/invoke/GetShelves;{}
-API response 1: The ids of all available shelves are (0, 1, 2, 3)
-Plan step 2: Check if shelf 0 contains plates.
-API call 2: http://localhost:8000/invoke/GetContents;{"shelf": "0"}
-API response 2: The shelf 0 contains plates, cups and glasses.""",
-     "output": "CONTINUE"},
-    {"input": """
-User query: Open the shelf that contains plates.
-Plan step 1: Get a list of all available shelves.
-API call 1: http://localhost:8000/invoke/GetShelves;{}
-API response 1: The ids of all available shelves are (0, 1, 2, 3)
-Plan step 2: Check if shelf 0 contains plates.
-API call 2: http://localhost:8000/invoke/GetContents;{"shelf": 0}
-API response 2: The shelf 0 contains plates, cups and glasses.
-Plan step 3: Open shelf 0.
-API call 3: http://localhost:8000/invoke/OpenShelf;{"shelf": 0}
-API response 3: Opened shelf with id 0.""",
-     "output": "FINISHED: I have found shelf 0 containing plates and opened it as you requested."},
-    {"input": """
 User query: Check if the desk with id 4 is currently free.
 Plan step 1: Check if desk with id 4 is free.
 API call 1: http://localhost:8000/invoke/IsFree;{"desk": 4}
 API response 1: The desk with id 4 is currently not free.""",
      "output": "FINISHED: The desk with id 4 is not currently not free and unavailable to book."},
-    {"input": """
-User query: Show me the way to the kitchen.
-Plan step 1: Get the navigation to the kitchen.
-API call 1: http://localhost:8000/invoke/NavigateTo;{"room": "kitchen"}""",
-     "output": "CONTINUE"},
     {"input": """
 User query: Is the humidity in room 2 or 3 greater?
 Plan step 1: Get the humidity of room 2.
@@ -52,28 +26,22 @@ API response 1: The humidity in room 2 is 0.36.
 Plan step 2: Get the humidity of room 3.
 API call 2: http://localhost:8000/invoke/GetHumidity;{"room": "3"}
 API response 2: The humidity in room 3 is 0.38.""",
-     "output": "FINISHED: The humidity in room 2 is 0.36 while the humidity in room 3 is 0.38. \
-     Therefore, the humidity in room 3 is greater."},
+     "output": "FINISHED: The humidity in room 2 is 0.36 while the humidity in room 3 is 0.38. "
+               "Therefore, the humidity in room 3 is greater."},
     {"input": """
 User query: Can you open the shelf with the plates in it for me?
-Plan step 1: Get all available shelf ids.
-API call 1: http://localhost:8000/invoke/GetShelves;{}
-API response 1: The available shelves are (0, 1, 2, 3).
-Plan step 2: Find the shelf with the plates.
-API call 2: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
-API response 2: The shelf containing the plates is shelf 3.""",
+Plan step 1: Find the shelf with the plates.
+API call 1: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
+API response 1: The shelf containing the plates is shelf 3.""",
      "output": "CONTINUE"},
     {"input": """
 User query: Can you open the shelf with the plates in it for me?
-Plan step 1: Get all available shelf ids.
-API call 1: http://localhost:8000/invoke/GetShelves;{}
-API response 1: The available shelves are (0, 1, 2, 3).
-Plan step 2: Find the shelf with the plates.
-API call 2: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
-API response 2: The shelf containing the plates is shelf 3.
-Plan step 3: Open shelf 3.
-API call 3: http://localhost:8000/invoke/OpenShelf;{"shelf": 3}
-API response 3: The shelf with id 3 is now opened.""",
+Plan step 1: Find the shelf with the plates.
+API call 1: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
+API response 1: The shelf containing the plates is shelf 3.
+Plan step 2: Open shelf 3.
+API call 2: http://localhost:8000/invoke/OpenShelf;{"shelf": 3}
+API response 2: The shelf with id 3 is now opened.""",
      "output": "FINISHED: I have located the plates in shelf 3 and opened this shelf as you have instructed me."},
     {"input": """
 User query: Book me a free desk in the office?
@@ -84,6 +52,20 @@ Plan step 2: Check if the desk with id 0 is free.
 API call 2: http://localhost:8000/invoke/IsFree;{"desk": 0}
 API response 2: The desk 0 is currently free.""",
      "output": "CONTINUE"},
+    {"input": """
+User query: Book me a free desk in the office?
+Plan step 1: Get all desks in the office room.
+API call 1: http://localhost:8000/invoke/GetDesks;{"room": "office"}
+API response 1: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+Plan step 2: Check if the desk with id 0 is free.
+API call 2: http://localhost:8000/invoke/IsFree;{"desk": 0}
+API response 2: The desk 0 is currently free.
+Plan step 3: Book the desk with id 0.
+API call 3: http://localhost:8000/invoke/BookDesk;{"desk": 0}
+API response 3: The desk 0 has been successfully booked.
+""",
+     "output": "FINISHED: I have checked the office for free desks and found that desk 0 was free. I have then"
+               "booked desk 0 for you."},
     {"input": """What is the way to the kitchen?
 Plan step 1: Get the way to the kitchen.
 API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
@@ -102,7 +84,13 @@ receive, so always include relevant information to the user query in your respon
 If a query requires searching, filtering, sorting and so on, the query is still only then fulfilled if the core intent 
 of the query has been dealt with. For example, if a user wants to book a free desk, the query is only then fulfilled 
 if a free desk was booked, not when a free desk was found or is available.
-If you think that the user query is still unfulfilled, you output "CONTINUE".
+Further, if the user asks about multiple information or has multiple tasks to fulfill, the query is only then 
+fulfilled if all information to all requested data has been tried to retrieve or if every single subtask has been 
+successfully executed. For example, if a user requests the temperature from 6 different rooms, the chain needs to 
+include calls to all of those 6 different rooms. Otherwise the query is still unfulfilled.
+If a user query is still unfulfilled, you output "CONTINUE". Be aware that some user queries require a lot of API calls.
+In that case you should still check if the whole query was fulfilled. Do not worry if you think the query is running 
+indefinitely. Sometimes a query needs to call the same API call with different parameters multiple times. 
 A query can also be unfulfilled if partial results have been received, but the overall user query is still missing 
 more steps. For example, if a user requested to open an unidentified shelf, after finding that shelf id, the shelf 
 still needs to be open.

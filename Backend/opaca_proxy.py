@@ -30,6 +30,16 @@ class OpacaProxy:
         res.raise_for_status()
         return res.json()
 
+    def get_actions_openapi(self):
+        try:
+            # Will return actions as JSON
+            res = requests.get(f'{self.url}/v3/api-docs/actions', headers=self._headers())
+            res.raise_for_status()
+            return res.json()
+        except Exception as e:
+            print("COULD NOT GET ACTIONS", e)
+            return {}
+
     def _update_opaca_actions(self):
         try:
             res = requests.get(f"{self.url}/agents", headers=self._headers())

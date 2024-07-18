@@ -7,7 +7,7 @@ from langchain_community.utilities import Requests
 from pydantic import BaseModel
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
 from .rest_gpt import RestGPT
 
 LLM_URL = "http://10.0.64.101"
@@ -38,12 +38,13 @@ class RestGptBackend:
         llm = OpacaLLM(LLM_URL)
 
         request_wrapper = Requests()
-        services = opaca_proxy.actions
-        action_spec = []
-        for agent in json.loads(services):
-            for action in agent['actions']:
-                action_spec.append(Action(name=action['name'], description=action['description'],
-                                        parameters=action['parameters'], result=action['result']))
+
+        try:
+            action_spec = get_reduced_action_spec(opaca_proxy.get_actions_openapi())
+        except Exception as e:
+            print(str(e))
+            return {"result": "I am sorry, but there occurred an error during the action retrieval. "
+                              "Please make sure the opaca platform is running and you are connected.", "debug": str(e)}
 
         rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
                            simple_parser=False, request_headers={})
