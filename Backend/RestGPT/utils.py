@@ -24,9 +24,8 @@ class ColorPrint:
 class Parameter:
     type: str
     required: bool
-    items: Optional[Dict]
 
-    def __init__(self, type_in: str, required: bool, items: Optional[Dict] = None):
+    def __init__(self, type_in: str, required: bool, items: Optional = None):
         self.type = type_in
         self.required = required
         self.items = items
@@ -37,6 +36,19 @@ class Parameter:
     def __str__(self):
         return (f'{{type: {self.type}, required: {self.required}'
                 f'{", " + str(self.items) + "}" if self.items is not None else "}"}')
+
+    class ArrayItems:
+        type: str
+
+        def __init__(self, type_in: str, items: Optional = None):
+            self.type = type_in
+            self.items = items
+
+        def __repr__(self):
+            return self.__str__()
+
+        def __str__(self):
+            return f'{{type: {self.type}{", " + str(self.items) + "}" if self.items is not None else "}"}'
 
 
 class Action:
@@ -102,6 +114,8 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
                 is_type = p_type["type"] if "type" in p_type else p_type["$ref"].split("/")[-1]
                 is_required = True if p_name in required else False
                 action.params_in[p_name] = Parameter(is_type, is_required)
+                if "type" in p_type and p_type["type"] == "array":
+                    action.params_in[p_name].items = resolve_array_items(p_type)
 
         res_schema = content["post"]["responses"]["200"]["content"]["*/*"]["schema"]
         action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
@@ -109,9 +123,13 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
     return action_list
 
 
-def resolve_parameter() -> Parameter:
-    # TODO resolve parameters for array types
-    pass
+def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
+    if p_type["items"]["type"] == "array":
+        array_item = Parameter.ArrayItems("array")
+        array_item.items = resolve_array_items(p_type["items"])
+        return array_item
+    else:
+        return Parameter.ArrayItems(p_type["items"]["type"])
 
 
 def resolve_reference(action_spec: Dict, ref: str) -> Dict:
