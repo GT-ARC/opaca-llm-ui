@@ -33,7 +33,7 @@ class OpacaProxy:
     def get_actions_openapi(self):
         try:
             # Will return actions as JSON
-            res = requests.get(f'{self.url}/actions', headers=self._headers())
+            res = requests.get(f'{self.url}/v3/api-docs/actions', headers=self._headers())
             res.raise_for_status()
             return res.json()
         except Exception as e:
