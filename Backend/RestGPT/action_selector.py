@@ -162,8 +162,14 @@ class ActionSelector(Chain):
                         "Please only use actions from the provided list of actions.\n")
             return err_out
 
+        # Check if the parameters are in a valid json format
+        try:
+            p_json = json.loads(parameters)
+        except ValueError as e:
+            err_out += "Your generated parameters are not in a valid JSON format.\n"
+            return err_out
+
         # Check if all required parameters are present
-        p_json = json.loads(parameters)
         for parameter in [p for p in action_from_list.params_in.keys()
                           if action_from_list.params_in[p].required]:
             if parameter not in p_json.keys():
