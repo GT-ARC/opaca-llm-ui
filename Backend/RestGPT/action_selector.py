@@ -49,10 +49,10 @@ API Call: FindInShelf;{"item": "plates"}
 API Response: The item "plates" can be found on shelf 3."""},
     {"input": """Instruction: Add an item to the grocery list.""", "output": """
 MISSING The action to add an item to the grocery list "AddGroceries" requires the following parameters:
-name: the name of the item
-amount: the amount of those item
-expirationDate: the expiration date of that item
-category: The category of that item
+- name: the name of the item
+- amount: the amount of those item
+- expirationDate: the expiration date of that item
+- category: The category of that item
 However, these parameters were not found in the instruction."""}
 ]
 
@@ -229,7 +229,11 @@ class ActionSelector(Chain):
             messages.append({"role": "human", "content": err_msg})
 
             action_selector_output = self.llm.bind(stop=self._stop).call(messages)
-            action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
+
+            if self._check_missing(action_selector_output):
+                return {"result": action_plan}
+            else:
+                action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
 
             correction_limit += 1
 
