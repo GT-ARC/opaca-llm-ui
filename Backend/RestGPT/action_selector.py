@@ -4,8 +4,11 @@ import re
 import logging
 
 from langchain.chains.base import Chain
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
-from .utils import OpacaLLM, build_prompt, fix_parentheses
+from .utils import build_prompt, fix_parentheses
 
 logger = logging.getLogger()
 
@@ -99,11 +102,11 @@ Here is the list you should use to create the API Call:
 
 
 class ActionSelector(Chain):
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     action_spec: List
     action_selector_prompt: str
 
-    def __init__(self, llm: OpacaLLM, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
         super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
@@ -221,6 +224,9 @@ class ActionSelector(Chain):
 
         output = chain.invoke({"input": inputs["plan"]})
 
+        if isinstance(output, AIMessage):
+            output = output.content
+
         action_plan = re.sub(r"API Call+:", "", output)
 
         if self._check_missing(action_plan):
@@ -233,6 +239,9 @@ class ActionSelector(Chain):
             logger.info(f'API Selector: Correction needed for request {action_plan}\nCause: {err_msg}')
 
             output = chain.invoke({"input": inputs["plan"] + err_msg})
+
+            if isinstance(output, AIMessage):
+                output = output.content
 
             if self._check_missing(output):
                 return {"result": action_plan}

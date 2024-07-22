@@ -3,9 +3,11 @@ from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
-from langchain_openai import OpenAI
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
-from .utils import OpacaLLM, build_prompt, fix_parentheses
+from .utils import build_prompt, fix_parentheses
 
 logger = logging.getLogger()
 
@@ -113,10 +115,10 @@ services:
 
 
 class Planner(Chain):
-    llm: OpacaLLM | OpenAI
+    llm: BaseLLM | ChatOpenAI
     planner_prompt: str
 
-    def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=PLANNER_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -194,6 +196,9 @@ class Planner(Chain):
         chain = prompt | self.llm.bind(stop=self._stop)
 
         output = chain.invoke({"input": inputs["input"], "history": inputs["message_history"]})
+
+        if isinstance(output, AIMessage):
+            output = output.content
 
         output = re.sub(r"Plan step \d+: ", "", output).strip()
 

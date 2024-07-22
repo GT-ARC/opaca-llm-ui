@@ -3,9 +3,12 @@ import logging
 from typing import Dict, List, Any
 
 from langchain.chains.base import Chain
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, build_prompt
+from .utils import build_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +47,10 @@ about the error."""
 
 
 class Caller(Chain):
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     action_spec: List
 
-    def __init__(self, llm: OpacaLLM, action_spec: List) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List) -> None:
         super().__init__(llm=llm, action_spec=action_spec)
 
     @property
@@ -95,5 +98,8 @@ class Caller(Chain):
 
         output = chain.invoke({"api_call": api_call, "description": description,
                                "params": params, "response": response})
+
+        if isinstance(output, AIMessage):
+            output = output.content
 
         return {'result': output}

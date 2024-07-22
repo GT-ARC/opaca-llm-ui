@@ -1,8 +1,11 @@
 from typing import List, Dict, Any, Tuple
 
 from langchain.chains.base import Chain
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
-from .utils import OpacaLLM, build_prompt
+from .utils import build_prompt
 
 
 examples = [
@@ -99,10 +102,10 @@ you should output "FINISHED" as well followed with the result of such a comparis
 
 
 class Evaluator(Chain):
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     planner_prompt: str
 
-    def __init__(self, llm: OpacaLLM, planner_prompt=EVAL_PROMPT) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=EVAL_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -157,5 +160,8 @@ class Evaluator(Chain):
         chain = prompt | self.llm.bind(stop=self._stop)
 
         output = chain.invoke({"input": inputs["input"]})
+
+        if isinstance(output, AIMessage):
+            output = output.content
 
         return {"result": output}
