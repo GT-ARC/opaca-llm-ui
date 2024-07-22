@@ -17,18 +17,13 @@ Plan step 1: Check if the desk with id 6 is currently free.
 API response: The desk with id 6 is free.
 Plan step 2: Book the desk with id 6.
 API response: Successfully booked the desk with id 6."""},
+    {"input": "Can you open shelf 1 for me?", "output": """
+Plan step 1: Open the shelf with id 1.
+API response: The shelf with id 1 is now open."""},
     {"input": "Please open the shelf with cups in it.", "output": """
-Plan step 1: Get all available shelf ids.
-API response: The available shelf ids are 0, 1, 2, 3.
-Plan step 2: Check if the shelf with id 0 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 3: Check if the shelf with id 1 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 4: Check if the shelf with id 2 has cups in it.
-API response: The shelf with id 0 does not contain cups.
-Plan step 5: Check if the shelf with id 3 has cups in it.
-API response: The shelf with id 0 does contain cups.
-Plan step 6: Open the shelf with id 3.
+Plan step 1: Find the shelf with the cups in it.
+API response: The shelf containing the cups is the shelf with id 3.
+Plan step 2: Open the shelf with id 3.
 API response: Successfully opened the shelf with id 3."""},
     {"input": "Book me any desk that is currently free.", "output": """
 Plan step 1: Get all desks.
@@ -49,35 +44,70 @@ Plan step 2: Get the humidity for room 1.
 API response: The humidity for room 1 is 45.2.
 Plan step 3: Get the temperature for room 2.
 API response: The temperature for room 2 is 22."""},
-    {"input": "Can you open shelf 1 for me?", "output": """
-Plan step 1: Open the shelf with id 1.
-API response: The shelf with id 1 is now open."""}
+    {"input": "Please add 4 apples to my grocery list with an expiration date of 29th of July 2024", "output": """
+Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to the category fruits.
+API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024"""},
+    {"input": "Can you give me a list of all sensor ids?", "output": """
+Plan step 1: Get a list of all sensor ids.
+API response: Here is a list of all sensor ids: [100, 101, 104, 116, 205, 206]"""},
+    {"input": "For all of the desks in the office, can you check each desk if it is free and if so, return me its id?",
+     "output": """
+Plan step 1: Get all the desks in the office.
+API response: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+Plan step 2: Check if the desk 0 is free.
+API response: Desk 0 is not free.
+Plan step 3: Check if desk 1 is free.
+API response: Desk 1 is not free.
+Plan step 4: Check if desk 2 is free.
+API response: Desk 2 is free."""}
 ]
 
+
 PLANNER_PROMPT = """You are an agent that plans solution to user queries.
-You should always give your plan in natural language.
-Another model will receive your plan and find the right API calls and give you the result in natural language.
-You will receive a list of services on which you can base your plan.
-If you assess that the current plan has not been fulfilled, you can output "Continue" to let the API selector select another API to fulfill the plan.
-In most case, search, filter, and sort should be completed in a single step.
-The plan should be as specific as possible. It is better not to use pronouns in plan, but to use the corresponding results obtained previously. For example, instead of "Get the most popular movie directed by this person", you should output "Get the most popular movie directed by Martin Scorsese (1032)". If you want to iteratively query something about items in a list, then the list and the elements in the list should also appear in your plan.
-The plan should be straightforward. If you want to search, sort or filter, you can put the condition in your plan. For example, if the query is "Who is the lead actor of In the Mood for Love (id 843)", instead of "get the list of actors of In the Mood for Love", you should output "get the lead actor of In the Mood for Love (843)".
-If a query can only be solved in multiple steps, you should split your plan in multiple steps as well. For example, if a user request multiple data which can only be retrieved in multiple steps, you should only try and retrieve one information at once and then wait for the next step to retrieve the next information and so on.
-The other model will only receive your generated plan step, so make sure to include all relevant information and possible parameters.
-If you are unable to fulfill the user query, either by not having enough information or missing services, output "No API call needed." and after that an explanation in natural language why you think you are unable to fulfill the query, for example if the query asks for information where there are no services available for.
-If the user asks about what services you know or about more information to specific services or previous messages, output "No API call needed." and after that a fitting response in natural language to the user.
-If you deem that the user has not provided you with enough information to fulfill a query, either in the current query or in past queries that are still related to the current query, output "No API call needed." and after that ask the user to provide the missing required parameters. If the user then provides you with the required parameters, check if the original query can now be fulfilled and if so, start outputting the steps.
+Your task will be to transform a user query into a concrete plan step or even multiple plan steps if necessary, 
+which can be solved by calling the services from the list you will be provided with. Each plan step will be used 
+to call exactly one service. The division into multiple 
+steps is only necessary if the query requires it. For example, if a user asks for multiple information which can 
+only be gathered by calling multiple services, you should create a concrete plan step for each information. Each step 
+you create will result in exactly one service call. The steps need to be as precise and clear as possible, and should 
+always include all required parameters to call that service. You can get the list of required parameters for each 
+action in the list of actions you will be provided. For example, if a user wants to get all desks in the office and the 
+action to retrieve all desks requires the parameter room, you need to include "office" in your plan step. 
+Be aware that users might not provide you with the exact name of a parameter or even include spelling mistakes. 
+For example, if the service a user wants you to call 
+requires an id and the user provides a number in its query, you should assume that the number is meant to represent 
+the id parameters. Do not make up any 
+parameters. As long as a parameter given by a user matches the type of the parameter, you can assume that the given 
+parameter is valid. For example, if a service requires a number and the user has provided you with a number, you should 
+assume that parameter as valid. 
+Aside from you normal task to generate plan steps, you can also answer the user directly if the user 
+query involves questions regarding the list of services. For example, if the user asks what services are available 
+or asks about more information to specific services, you should then output the keyword "STOP" and after that keyword 
+give an answer in natural language that will be directly returned to the user. Anytime you think that the user query 
+is not executable, you should also output the keyword "STOP" and after that an explanation why you think the user query 
+is not executable. If a user query might be executable but the user has not provided you with enough information about 
+required parameters from the most fitting service, you also output the keyword "STOP" and after that ask the user 
+to provide these missing parameters. Keep in mind that the user provides you the parameters in natural language.
 
-Starting below, you should follow this format:
+You always follow this format:
 
-User query: The query a User wants help with related to the agent actions.
-Plan step 1: The first step of your plan for how to solve the query.
-API response: The result of the first step of your plan.
-Plan step 2: If necessary, the second step of your plan for how to solve the query based on the API response.
-API response: The result of the second step of your plan.
-... (this Plan step n and API response can repeat N times)
+User query: This is the query you have received from the user.
+Plan step 1: This is the first step of your plan to fulfill the user query.
+API response: This is the result of your first plan step.
+Plan step 2: This is the second step of your plan.
+API response: This the the result of your second plan step.
+... (This schema can continue as long as necessary)
 
-Here are the list of services:
+If an API response returns an error or unrelated information despite you giving clear instructions, you output the 
+keyword "CONTINUE" to let the other agents know that they have made an error. 
+
+In summary, your output starts either with "Plan", 
+the keyword "STOP" or the keyword "CONTINUE". You are forbidden to put any other words except for those three at 
+the beginning of your output.
+
+Here is the list of services. The services include their name, a description if one is available, and an overview
+of the parameters needed to call the service. Remember that your plan steps should be generated based on these 
+services:
 """
 
 
@@ -134,6 +164,7 @@ class Planner(Chain):
                        "examples as part of the actual message history of a user. Here are the examples:\n")
         for example in examples:
             example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
+        example_str += "These were all the examples, now the conversation with a real user begins.\n"
         return example_str
 
     @staticmethod
@@ -151,9 +182,7 @@ class Planner(Chain):
         action_list = ""
 
         for action in inputs["actions"]:
-            action_list += "{" + action.__str__() + "}"
-        action_list = re.sub(r"\{", "{{", action_list)
-        action_list = re.sub(r"}", "}}", action_list)
+            action_list += action.planner_str() + '\n'
 
         messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
         messages.extend(self._construct_msg_history(inputs['message_history']))

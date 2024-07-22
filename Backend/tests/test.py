@@ -48,14 +48,14 @@ calls = {
     ],
     "medium": [
         "Open the shelf with the plates.",
-        "Get me the temperature, humidity, and Co2 level for room 1.",
+        "Get me the temperature, humidity, and noise level for room 2.",
         "Book me a free desk in the office."
     ],
     "hard": [
-        "Can you tell me the current temperature, then open the shelf with the plates, close it and finally add one \
-        Banana to my Grocery list with the expiration date 2024-07-01 with the category \"fruit\"?",
-        "Can you check for all desks in the office whether their are free or occupied?",
-        "Tell me the average Co2 levels of all available rooms."
+        "Can you tell me the current temperature in the kitchen, then open the shelf with the plates, close it and "
+        "finally add one Banana to my Grocery list with the expiration date 2024-07-01 with the category \"fruit\"?",
+        "Can you check for all desks in the office whether they are free or occupied?",
+        "Tell me the average Co2 levels of all available sensor ids."
     ],
     "missing_params": [
         "Add bananas to my grocery list.",
