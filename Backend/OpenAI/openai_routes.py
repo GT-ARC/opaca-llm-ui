@@ -25,13 +25,16 @@ Following is the list of available services described in JSON, which can be call
 class OpenAIBackend:
 
     def __init__(self):
-        self.client = openai.OpenAI()
+        self.client = openai.OpenAI(api_key="")
         self.messages = []
 
-    async def query(self, message: str, debug: bool) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+        if api_key is None:
+            return {"result": "Please provide a valid api key before using this model.", "debug": ""}
         print("QUERY", message)
         self._update_system_prompt()
         self.messages.append({"role": "user", "content": message})
+        self.client.api_key = api_key
         completion = self.client.chat.completions.create(model="gpt-3.5-turbo", messages=self.messages)
         response = completion.choices[0].message.content
         print("RESPONSE:", repr(response))
