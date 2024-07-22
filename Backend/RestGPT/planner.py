@@ -161,24 +161,6 @@ class Planner(Chain):
             scratchpad += self.observation_prefix + fix_parentheses(execution_res) + "\n"
         return scratchpad
 
-    @staticmethod
-    def _construct_examples() -> str:
-        example_str = ("Further you will receive a number of example conversations. You should not include these "
-                       "examples as part of the actual message history of a user. Here are the examples:\n")
-        for example in examples:
-            example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
-        example_str += "These were all the examples, now the conversation with a real user begins.\n"
-        return example_str
-
-    @staticmethod
-    def _construct_msg_history(
-            msg_history: List[Tuple[str, str]]
-    ) -> List[Dict[str, str]]:
-        history = []
-        for query, answer in msg_history:
-            history.extend([{"role": "human", "content": query}, {"role": "ai", "content": answer}])
-        return history
-
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs['planner_history'])
         action_list = ""

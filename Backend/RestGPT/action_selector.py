@@ -186,15 +186,6 @@ class ActionSelector(Chain):
                             f'parameters. Please only use parameters that are given in the action description.\n')
         return err_out
 
-    @staticmethod
-    def _construct_examples() -> str:
-        example_str = ("Further you will receive a number of example conversations. You should not include these "
-                       "examples as part of the actual message history of a user. Here are the examples:\n")
-        for example in examples:
-            example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
-        example_str += "These were all the examples, now the conversation with a real user begins.\n"
-        return example_str
-
     def _construct_scratchpad(
             self, history: List[Tuple[str, str]]
     ) -> str:
