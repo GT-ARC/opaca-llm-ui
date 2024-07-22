@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Tuple
 
 from langchain.chains.base import Chain
 
-from .utils import OpacaLLM
+from .utils import OpacaLLM, build_prompt
 
 
 examples = [
@@ -147,11 +147,15 @@ class Evaluator(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
 
-        messages = [{"role": "system", "content": EVAL_PROMPT}]
-        for example in examples:
-            messages.append({"role": "human", "content": example["input"]})
-            messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": inputs["input"]})
-        eval_output = self.llm.call(messages)
+        prompt = build_prompt(
+            system_prompt=EVAL_PROMPT,
+            examples=examples,
+            input_variables=["input"],
+            message_template="{input}"
+        )
 
-        return {"result": eval_output}
+        chain = prompt | self.llm.bind(stop=self._stop)
+
+        output = chain.invoke({"input": inputs["input"]})
+
+        return {"result": output}

@@ -5,7 +5,7 @@ from typing import Dict, List, Any
 from langchain.chains.base import Chain
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM
+from .utils import OpacaLLM, build_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ To navigate to the kitchen, you have to turn left, move to the end of the hallwa
 """},
 ]
 
-CALLER_PROMPT_ALT = """You are an agent that summarizes API calls.
+CALLER_PROMPT = """You are an agent that summarizes API calls.
 You will be provided with an API call, which will include the endpoint that got called, a description for the API call 
 if one is available, the parameters that were used for that API call, and finally the result that was returned after 
 calling that API.
@@ -75,22 +75,25 @@ class Caller(Chain):
         except Exception as e:
             return {'result': f'ERROR: Unable to call the connected opaca platform\nCause: {e}'}
 
+        logger.info(f'Caller: Received response: {response}')
+
         description = ""
         # Get description from action list
         for action in inputs["actions"]:
             if action.action_name == api_call:
                 description = action.description
 
-        logger.info(f'Caller: Received response: {response}')
+        prompt = build_prompt(
+            system_prompt=CALLER_PROMPT,
+            examples=examples,
+            input_variables=["api_call", "description", "params", "response"],
+            message_template="API Call: {api_call}\nDescription: {description}\n"
+                             "Parameter: {params}\nResult: {response}"
+        )
 
-        messages = [{"role": "system", "content": CALLER_PROMPT_ALT}]
-        for example in examples:
-            messages.append({"role": "human", "content": example["input"]})
-            messages.append({"role": "ai", "content": example["output"]})
+        chain = prompt | self.llm
 
-        messages.append({"role": "human", "content": f"API Call: {api_call}\nDescription: {description}\n"
-                                                     f"Parameter: {params}\nResult: {response}"})
+        output = chain.invoke({"api_call": api_call, "description": description,
+                               "params": params, "response": response})
 
-        caller_output = self.llm.call(messages)
-
-        return {'result': caller_output}
+        return {'result': output}

@@ -5,7 +5,7 @@ import logging
 
 from langchain.chains.base import Chain
 
-from .utils import OpacaLLM
+from .utils import OpacaLLM, build_prompt, fix_parentheses
 
 logger = logging.getLogger()
 
@@ -73,7 +73,7 @@ the instruction.
 If the parameter for an action is of type string, check if the instruction indicates what part of it should be used as 
 string. For example, if the instruction tells you to set the title to title, you should use "title" as the value for
 the title.
-If an action does not require parameters, just output an empty Json array like {}. 
+If an action does not require parameters, just output an empty Json array like {{}}. 
 Take note of the type of each parameter and output the value type accordingly. For example, if the type is string, 
 the parameter you output needs to include quotation marks around the value. If the type is an integer, the value should 
 just be a number without any quotation marks. You can follow the known OpenAPI schema for most of the types. 
@@ -90,7 +90,7 @@ modify the last call either by adding or removing parameters, correcting the typ
 to call a different action.
 Here is the format in which you should answer normally:
 
-API Call: {action_name};{\"parameter_name\": \"value\"}
+API Call: {{action_name}};{{\"parameter_name\": \"value\"}}
 
 You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
 
@@ -199,41 +199,45 @@ class ActionSelector(Chain):
             return ""
         scratchpad = ""
         for i, (plan, api_call, api_response) in enumerate(history):
-            scratchpad += f'Instruction: {plan}\n'
-            scratchpad += self.llm_prefix + api_call + "\n"
-            scratchpad += self.observation_prefix + api_response + "\n"
+            scratchpad += f'Instruction: {fix_parentheses(plan)}\n'
+            scratchpad += self.llm_prefix + fix_parentheses(api_call) + "\n"
+            scratchpad += self.observation_prefix + fix_parentheses(api_response) + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs["history"])
-        example_list = self._construct_examples()
         action_list = ""
         for action in inputs["actions"]:
             action_list += action.selector_str() + '\n'
 
-        messages = [{"role": "system", "content": self.action_selector_prompt + action_list + example_list},
-                    {"role": "human", "content": scratchpad + f'Instruction: {inputs["plan"]}'}]
+        prompt = build_prompt(
+            system_prompt=ACTION_SELECTOR_PROMPT + fix_parentheses(action_list),
+            examples=examples,
+            input_variables=["input"],
+            message_template=scratchpad + "{input}"
+        )
 
-        action_selector_output = self.llm.bind(stop=self._stop).call(messages)
+        chain = prompt | self.llm.bind(stop=self._stop)
 
-        action_plan = re.sub(r"API Call+:", "", action_selector_output)
+        output = chain.invoke({"input": inputs["plan"]})
+
+        action_plan = re.sub(r"API Call+:", "", output)
 
         if self._check_missing(action_plan):
             return {"result": action_plan}
         else:
             action_plan = action_plan.split('\n')[0].strip()
 
-        correction_limit = 0
+        correction_limit = 1
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request {action_plan}\nCause: {err_msg}')
-            messages.append({"role": "human", "content": err_msg})
 
-            action_selector_output = self.llm.bind(stop=self._stop).call(messages)
+            output = chain.invoke({"input": inputs["plan"] + err_msg})
 
-            if self._check_missing(action_selector_output):
+            if self._check_missing(output):
                 return {"result": action_plan}
             else:
-                action_plan = re.sub(r"API Call:", "", action_selector_output).split('\n')[0].strip()
+                action_plan = re.sub(r"API Call+:", "", output).split('\n')[0].strip()
 
             correction_limit += 1
 

@@ -3,8 +3,9 @@ from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
+from langchain_openai import OpenAI
 
-from .utils import OpacaLLM
+from .utils import OpacaLLM, build_prompt, fix_parentheses
 
 logger = logging.getLogger()
 
@@ -112,7 +113,7 @@ services:
 
 
 class Planner(Chain):
-    llm: OpacaLLM
+    llm: OpacaLLM | OpenAI
     planner_prompt: str
 
     def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
@@ -155,7 +156,7 @@ class Planner(Chain):
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
             scratchpad += self.llm_prefix.format(i + 1) + plan + "\n"
-            scratchpad += self.observation_prefix + execution_res + "\n"
+            scratchpad += self.observation_prefix + fix_parentheses(execution_res) + "\n"
         return scratchpad
 
     @staticmethod
@@ -178,17 +179,22 @@ class Planner(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs['planner_history'])
-        example_list = self._construct_examples()
         action_list = ""
 
         for action in inputs["actions"]:
             action_list += action.planner_str() + '\n'
 
-        messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
-        messages.extend(self._construct_msg_history(inputs['message_history']))
-        messages.append({"role": "human", "content": inputs["input"] + scratchpad})
-        planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
+        prompt = build_prompt(
+            system_prompt=PLANNER_PROMPT + fix_parentheses(action_list),
+            examples=examples,
+            input_variables=["input"],
+            message_template=scratchpad + "{input}"
+        )
 
-        planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
+        chain = prompt | self.llm.bind(stop=self._stop)
 
-        return {"result": planner_chain_output}
+        output = chain.invoke({"input": inputs["input"], "history": inputs["message_history"]})
+
+        output = re.sub(r"Plan step \d+: ", "", output).strip()
+
+        return {"result": output}
