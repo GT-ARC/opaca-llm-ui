@@ -2,8 +2,10 @@ from typing import Dict, Optional, List
 
 import logging
 
-from langchain_community.utilities import Requests
+import openai
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..opaca_proxy import proxy as opaca_proxy
@@ -31,11 +33,20 @@ class Action(BaseModel):
 
 class RestGptBackend:
     messages: List = []
+    llm_type: str
+    llm: BaseChatModel | ChatOpenAI
 
-    async def query(self, message: str, debug: bool) -> Dict:
-        llm = OpacaLLM()
+    def __init__(self, llm_type: str):
+        self.llm_type = llm_type
 
-        request_wrapper = Requests()
+    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+
+        # Model initialization here since openai requires api key in constructor
+        try:
+            self.init_model(api_key)
+        except ValueError as e:
+            return {"result": "You are trying to use a model which uses an api key but provided none. Please "
+                              "enter a valid api key and try again.", "debug": str(e)}
 
         try:
             action_spec = get_reduced_action_spec(opaca_proxy.get_actions_openapi())
@@ -44,10 +55,13 @@ class RestGptBackend:
             return {"result": "I am sorry, but there occurred an error during the action retrieval. "
                               "Please make sure the opaca platform is running and connected.", "debug": str(e)}
 
-        rest_gpt = RestGPT(llm, action_spec=action_spec, requests_wrapper=request_wrapper,
-                           simple_parser=False, request_headers={})
+        rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
-        result = rest_gpt.invoke({"query": message, "history": self.messages})
+        try:
+            result = rest_gpt.invoke({"query": message, "history": self.messages})
+        except openai.AuthenticationError as e:
+            return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
+                              "api key and try again.", "debug": str(e)}
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result["result"]))
 
@@ -60,3 +74,18 @@ class RestGptBackend:
 
     async def reset(self):
         self.messages = []
+
+    def init_model(self, api_key: str):
+        if self.llm_type == "llama3":
+            self.llm = OpacaLLM()
+        elif self.llm_type == "gpt-4o":
+            self.check_for_key(api_key)
+            self.llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
+        elif self.llm_type == "gpt-3.5-turbo":
+            self.check_for_key(api_key)
+            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=api_key)
+
+    @staticmethod
+    def check_for_key(api_key: str):
+        if not api_key:
+            raise ValueError("No api key provided")
