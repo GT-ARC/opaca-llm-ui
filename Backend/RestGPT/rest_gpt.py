@@ -125,6 +125,8 @@ class RestGPT(Chain):
         logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
+
+            # PLANNER
             plan = self.planner.invoke({"input": query, "actions": self.action_spec, "planner_history": planner_history,
                                         "message_history": inputs['history']})
             plan = plan["result"]
@@ -136,6 +138,7 @@ class RestGPT(Chain):
                 final_answer = re.sub("STOP", "", plan).strip()
                 break
 
+            # ACTION SELECTOR
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history})
@@ -150,6 +153,7 @@ class RestGPT(Chain):
 
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
+            # CALLER
             execution_res = self.caller.invoke({"api_plan": api_plan, "actions": self.action_spec})
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
@@ -157,6 +161,8 @@ class RestGPT(Chain):
             action_selector_history.append((plan, api_plan, execution_res))
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
             planner_history.append((plan, execution_res))
+
+            # EVALUATOR
             eval_output = self._finished(eval_input)
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()

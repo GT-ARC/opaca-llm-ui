@@ -41,7 +41,7 @@ CALLER_PROMPT = """You are an agent that summarizes API calls.
 You will be provided with an API call, which will include the endpoint that got called, a description for the API call 
 if one is available, the parameters that were used for that API call, and finally the result that was returned after 
 calling that API.
-Your task will be to generate a response in natural language for a user.
+Your task will be to generate a response in natural language for a user including all relevant information.
 If there was an error or the api call was unsuccessful, then also generate an appropriate output to inform the user 
 about the error."""
 

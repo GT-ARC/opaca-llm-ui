@@ -78,6 +78,39 @@ then enter to door to the left.""",
                "move to the end of the hallway, then enter to door to the left."},
 ]
 
+examples_alt = [
+    {"input": """What is the way to the kitchen?
+Plan step 1: Get the way to the kitchen.
+API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
+API response 1: To navigate to the kitchen, you have to turn right, move to the end of the hallway, 
+then enter to door to the left.""",
+     "output": "FINISHED: To navigate to the kitchen, you have to turn right, "
+               "move to the end of the hallway, then enter to door to the left."},
+    {"input": """
+User query: Book me a free desk in the office?
+Plan step 1: Get all desks in the office room.
+API call 1: http://localhost:8000/invoke/GetDesks;{"room": "office"}
+API response 1: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+Plan step 2: Check if the desk with id 0 is free.
+API call 2: http://localhost:8000/invoke/IsFree;{"desk": 0}
+API response 2: The desk 0 is currently free.
+Plan step 3: Book the desk with id 0.
+API call 3: http://localhost:8000/invoke/BookDesk;{"desk": 0}
+API response 3: The desk 0 has been successfully booked.
+    """,
+     "output": "FINISHED: I have checked the office for free desks and found that desk 0 was free. I have then"
+               "booked desk 0 for you."},
+    {"input": """
+User query: Can you open the shelf with the plates in it for me?
+Plan step 1: Find the shelf with the plates.
+API call 1: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
+API response 1: The shelf containing the plates is shelf 3.
+Plan step 2: Open shelf 3.
+API call 2: http://localhost:8000/invoke/OpenShelf;{"shelf": 3}
+API response 2: The shelf with id 3 is now opened.""",
+     "output": "FINISHED: I have located the plates in shelf 3 and opened this shelf as you have instructed me."},
+]
+
 
 EVAL_PROMPT = """You are an evaluator.
 Your task will be to analyze a chain of API calls and their responses.
@@ -99,6 +132,14 @@ more steps. For example, if a user requested to open an unidentified shelf, afte
 still needs to be open.
 If the query involves comparing results from different API calls and you determine that all necessary calls were made, 
 you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user."""
+
+EVAL_PROMPT_ALT = """
+You are evaluating user queries against an API call hierarchy. Your task is to determine if the user query has been 
+fulfilled completely in the call hierarchy. If it has been fulfilled, you output "FINISHED" and after that a summary 
+of the executed steps and achieved result to the user. If it has not been fulfilled, you output "CONTINUE".
+If the query involves comparing results from different API calls and you determine that all necessary calls were made,
+you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user.
+"""
 
 
 class Evaluator(Chain):
@@ -151,8 +192,8 @@ class Evaluator(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
 
         prompt = build_prompt(
-            system_prompt=EVAL_PROMPT,
-            examples=examples,
+            system_prompt=EVAL_PROMPT_ALT,
+            examples=examples_alt,
             input_variables=["input"],
             message_template="{input}"
         )
