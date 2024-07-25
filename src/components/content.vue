@@ -59,6 +59,16 @@
 
             <br /><br /><br />
         </div>
+        <div class="col-md-10 col-xl-3 mt-4" v-if="isOpenAI()">
+            <div class="container">
+                <div>
+                    <label for="apiKey">OpenAI API-Key</label>
+                </div>
+                <div>
+                    <input class="col-10" type="password" id="apiKey" v-model="apiKey">
+                </div>
+            </div>
+        </div>
     </div>
 
 </template>
@@ -73,6 +83,7 @@
     let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
+    let apiKey = "";
     
     const backend = inject('backend');
     const language = inject('language');
@@ -141,7 +152,7 @@
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value});
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value, api_key: apiKey});
             const answer = result.data.result
             const debugText = result.data.debug
             createSpeechBubbleAI(answer);
@@ -255,6 +266,10 @@
         d1.textContent = text
         d1.style.color = color
         debugChat.append(d1)
+    }
+
+    function isOpenAI() {
+        return backend.value !== "llama3-rest-gpt"
     }
     
     function beforeDestroy() {

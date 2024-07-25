@@ -47,10 +47,13 @@ class Url(BaseModel):
 class Message(BaseModel):
     user_query: str
     debug: bool
+    api_key: str
 
 
 BACKENDS = {
-    "rest-gpt": RestGptBackend(),
+    "llama3-rest-gpt": RestGptBackend("llama3"),
+    "gpt-4o-rest-gpt": RestGptBackend("gpt-4o"),
+    "gpt-3.5-turbo-rest-gpt": RestGptBackend("gpt-3.5-turbo"),
     "openai-test": OpenAIBackend(),
 }
 
@@ -65,7 +68,7 @@ async def connect(url: Url) -> bool:
 
 @app.post("/{backend}/query")
 async def query(backend: str, message: Message) -> Dict:
-    return await BACKENDS[backend].query(message.user_query, message.debug)
+    return await BACKENDS[backend].query(message.user_query, message.debug, message.api_key)
 
 @app.get("/{backend}/history")
 async def history(backend: str) -> list:

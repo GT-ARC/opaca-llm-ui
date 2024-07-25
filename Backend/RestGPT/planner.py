@@ -3,8 +3,11 @@ from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
-from .utils import OpacaLLM
+from .utils import build_prompt, fix_parentheses
 
 logger = logging.getLogger()
 
@@ -112,10 +115,10 @@ services:
 
 
 class Planner(Chain):
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     planner_prompt: str
 
-    def __init__(self, llm: OpacaLLM, planner_prompt=PLANNER_PROMPT) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=PLANNER_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -155,40 +158,30 @@ class Planner(Chain):
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
             scratchpad += self.llm_prefix.format(i + 1) + plan + "\n"
-            scratchpad += self.observation_prefix + execution_res + "\n"
+            scratchpad += self.observation_prefix + fix_parentheses(execution_res) + "\n"
         return scratchpad
-
-    @staticmethod
-    def _construct_examples() -> str:
-        example_str = ("Further you will receive a number of example conversations. You should not include these "
-                       "examples as part of the actual message history of a user. Here are the examples:\n")
-        for example in examples:
-            example_str += f'Human: {example["input"]}\nAI: {example["output"]}\n'
-        example_str += "These were all the examples, now the conversation with a real user begins.\n"
-        return example_str
-
-    @staticmethod
-    def _construct_msg_history(
-            msg_history: List[Tuple[str, str]]
-    ) -> List[Dict[str, str]]:
-        history = []
-        for query, answer in msg_history:
-            history.extend([{"role": "human", "content": query}, {"role": "ai", "content": answer}])
-        return history
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         scratchpad = self._construct_scratchpad(inputs['planner_history'])
-        example_list = self._construct_examples()
         action_list = ""
 
         for action in inputs["actions"]:
             action_list += action.planner_str() + '\n'
 
-        messages = [{"role": "system", "content": PLANNER_PROMPT + action_list + example_list}]
-        messages.extend(self._construct_msg_history(inputs['message_history']))
-        messages.append({"role": "human", "content": inputs["input"] + scratchpad})
-        planner_chain_output = self.llm.bind(stop=self._stop).call(messages)
+        prompt = build_prompt(
+            system_prompt=PLANNER_PROMPT + fix_parentheses(action_list),
+            examples=examples,
+            input_variables=["input"],
+            message_template=scratchpad + "{input}"
+        )
 
-        planner_chain_output = re.sub(r"Plan step \d+: ", "", planner_chain_output).strip()
+        chain = prompt | self.llm.bind(stop=self._stop)
 
-        return {"result": planner_chain_output}
+        output = chain.invoke({"input": inputs["input"], "history": inputs["message_history"]})
+
+        if isinstance(output, AIMessage):
+            output = output.content
+
+        output = re.sub(r"Plan step \d+: ", "", output).strip()
+
+        return {"result": output}

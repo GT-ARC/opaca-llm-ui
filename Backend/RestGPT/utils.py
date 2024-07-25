@@ -1,6 +1,16 @@
 import requests
-from typing import Optional, List, Dict, Any
+import re
+
+from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.language_models import LLM
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
+from langchain_core.prompt_values import PromptValue
+from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableConfig
+
+LLAMA_URL = "http://10.0.64.101"
 
 
 class ColorPrint:
@@ -141,30 +151,94 @@ def resolve_reference(action_spec: Dict, ref: str) -> Dict:
     return out
 
 
-class OpacaLLM:
-    server_url: str
-    stop_words: Optional[List[str]]
+class OpacaLLM(LLM):
 
-    def __init__(self, server_url: str, stop_words: Optional[List[str]] = None):
-        self.server_url = server_url
-        self.stop_words = stop_words
+    @property
+    def _llm_type(self) -> str:
+        return "Llama-3 Proxy"
 
-    def bind(self, **kwargs):
-        stop_words = kwargs.get('stop', self.stop_words)
-        return OpacaLLM(server_url=self.server_url, stop_words=stop_words)
+    def invoke(
+            self,
+            input: Union[PromptValue, str, Sequence[Union[BaseMessage, List[str], Tuple[str, str], str, Dict[str, Any]]]],
+            config: Optional[RunnableConfig] = None,
+            *,
+            stop: Optional[List[str]] = None,
+            **kwargs: Any
+    ) -> str:
+        return self._call(format_llama3(input), stop)
 
-    def call(self, inputs: List[Dict[str, Any]]) -> str:
-        response = requests.post(f'{self.server_url}/llama-3/chat', json={'messages': inputs})
+    def _call(
+            self,
+            prompt: Any,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any
+    ) -> str:
+        response = requests.post(f'{LLAMA_URL}/llama-3/chat', json={'messages': prompt})
 
         output = response.text.replace("\\n", "\n").replace('\\"', '"')
         output = output.strip('"')
 
-        if self.stop_words is None:
+        if stop is None:
             return output
 
-        for stop_word in self.stop_words:
-            stop_pos = output.find(stop_word)
+        for word in stop:
+            stop_pos = output.find(word)
             if stop_pos != -1:
                 return output[:stop_pos].strip()
 
         return output
+
+
+def build_prompt(
+        system_prompt: str,
+        examples: List[Dict[str, str]],
+        input_variables: List[str],
+        message_template: str
+    ) -> ChatPromptTemplate:
+
+    example_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("human", "{input}"),
+            ("ai", "{output}")
+        ]
+    )
+
+    few_shot_prompt = FewShotChatMessagePromptTemplate(
+        input_variables=input_variables,
+        example_prompt=example_prompt,
+        examples=examples
+    )
+
+    final_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            few_shot_prompt,
+            MessagesPlaceholder(variable_name="history", optional=True),
+            ("human", message_template),
+        ]
+    )
+
+    return final_prompt
+
+
+def format_llama3(prompt_values: PromptValue):
+    messages = []
+
+    for message in prompt_values.messages:
+        if isinstance(message, SystemMessage):
+            role = "system"
+        elif isinstance(message, HumanMessage):
+            role = "human"
+        elif isinstance(message, AIMessage):
+            role = "ai"
+        else:
+            raise ValueError(f'Unknown message type: {type(messages)}')
+
+        messages.append({"role": role, "content": message.content})
+    return messages
+
+
+def fix_parentheses(x: str) -> str:
+    # Prevents langchain from thinking there are parameters expected in the string
+    return re.sub(r"\{", "{{", re.sub(r"}", "}}", x))

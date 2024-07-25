@@ -1,8 +1,11 @@
 from typing import List, Dict, Any, Tuple
 
 from langchain.chains.base import Chain
+from langchain_core.language_models import BaseLLM
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 
-from .utils import OpacaLLM
+from .utils import build_prompt
 
 
 examples = [
@@ -99,10 +102,10 @@ you should output "FINISHED" as well followed with the result of such a comparis
 
 
 class Evaluator(Chain):
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     planner_prompt: str
 
-    def __init__(self, llm: OpacaLLM, planner_prompt=EVAL_PROMPT) -> None:
+    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=EVAL_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
@@ -147,11 +150,18 @@ class Evaluator(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
 
-        messages = [{"role": "system", "content": EVAL_PROMPT}]
-        for example in examples:
-            messages.append({"role": "human", "content": example["input"]})
-            messages.append({"role": "ai", "content": example["output"]})
-        messages.append({"role": "human", "content": inputs["input"]})
-        eval_output = self.llm.call(messages)
+        prompt = build_prompt(
+            system_prompt=EVAL_PROMPT,
+            examples=examples,
+            input_variables=["input"],
+            message_template="{input}"
+        )
 
-        return {"result": eval_output}
+        chain = prompt | self.llm.bind(stop=self._stop)
+
+        output = chain.invoke({"input": inputs["input"]})
+
+        if isinstance(output, AIMessage):
+            output = output.content
+
+        return {"result": output}

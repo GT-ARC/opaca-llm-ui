@@ -4,12 +4,13 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
+from langchain_core.language_models import BaseLLM
+from langchain_openai import ChatOpenAI
 
 from .planner import Planner
 from .action_selector import ActionSelector
 from .caller import Caller
 from .evaluator import Evaluator
-from .utils import OpacaLLM
 
 logger = logging.getLogger()
 
@@ -17,7 +18,7 @@ logger = logging.getLogger()
 class RestGPT(Chain):
     """Consists of an agent using tools."""
 
-    llm: OpacaLLM
+    llm: BaseLLM | ChatOpenAI
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
@@ -29,10 +30,12 @@ class RestGPT(Chain):
 
     def __init__(
             self,
-            llm: OpacaLLM,
+            llm: BaseLLM | ChatOpenAI,
             action_spec: List,
             **kwargs: Any,
     ) -> None:
+
+        print(f'Initialized RestGPT with model type {type(llm)}')
 
         planner = Planner(llm=llm)
         action_selector = ActionSelector(llm=llm, action_spec=action_spec)
