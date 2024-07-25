@@ -6,9 +6,13 @@ import time
 import unittest
 import requests
 
+# All available models: [llama3-rest-gpt, gpt-4o-rest-gpt, gpt-3.5-turbo-rest-gpt]
+MODEL = "llama3-rest-gpt"
+api_key = ""    # has to be set when an OpenAI model ist used
+
 opaca_url = "http://localhost:8000"
 llm_url = "http://localhost:3001"
-query_url = "http://localhost:3001/rest-gpt/query"
+query_url = f"http://localhost:3001/{MODEL}/query"
 
 calls = {
     "single": [
@@ -72,7 +76,7 @@ def exec_test(test_key: str, test_name: str, file_name: str) -> bool:
         f.write(f'-------------- {test_name} --------------\n')
         try:
             for call in calls[test_key]:
-                result = requests.post(query_url, json={'user_query': call, 'debug': True}).content
+                result = requests.post(query_url, json={'user_query': call, 'debug': True, 'api_key': api_key}).content
                 result = json.loads(result)
                 f.write(f'{result["debug"]}\n')
             f.write('\n\n')
