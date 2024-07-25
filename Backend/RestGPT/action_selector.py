@@ -13,15 +13,15 @@ from .utils import build_prompt, fix_parentheses
 logger = logging.getLogger()
 
 examples = [
-    {"input": "Instruction: Get the temperature for the room kitchen.", "output": """
-API Call: GetTemperature;{"room": "kitchen"}
-API Response: The temperature in the kitchen is 23 degrees."""},
+    #{"input": "Instruction: Get the temperature for the room kitchen.", "output": """
+#API Call: GetTemperature;{"room": "kitchen"}
+#API Response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
 API Call: BookDesk;{"desk": 5}
 API Response: Successfully booked the desk with id 5."""},
-    {"input": "Instruction: Check if the desk with id 3 is free.", "output": """
-API Call: IsFree;{"desk": 3}
-API Response: The desk with id 3 is free."""},
+    #{"input": "Instruction: Check if the desk with id 3 is free.", "output": """
+#API Call: IsFree;{"desk": 3}
+#API Response: The desk with id 3 is free."""},
     {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
 API Call: GetContents;{"shelf": 1}
 API Response: The shelf with id 1 contains plates."""},
@@ -43,20 +43,15 @@ Instruction: Close the shelf with id 3.""",
      "output": """
 API Call: CloseShelf;{"shelf": 3}
 API Response: Shelf 3 is now closed."""},
-    {"input": """
-Instruction Find the id of the shelf which contains the plates.
-API Call: FindShelf;{"item": "plates"}
-API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
-     "output": """
-API Call: FindInShelf;{"item": "plates"}
-API Response: The item "plates" can be found on shelf 3."""},
+#    {"input": """
+#Instruction Find the id of the shelf which contains the plates.
+#API Call: FindShelf;{"item": "plates"}
+#API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
+#     "output": """
+#API Call: FindInShelf;{"item": "plates"}
+#API Response: The item "plates" can be found on shelf 3."""},
     {"input": """Instruction: Add an item to the grocery list.""", "output": """
-MISSING The action to add an item to the grocery list "AddGroceries" requires the following parameters:
-- name: the name of the item
-- amount: the amount of those item
-- expirationDate: the expiration date of that item
-- category: The category of that item
-However, these parameters were not found in the instruction."""}
+MISSING No value found for \"name\", \"amount\", \"expirationDate\", \"category\"."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -98,6 +93,26 @@ API Call: {{action_name}};{{\"parameter_name\": \"value\"}}
 You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
 
 Here is the list you should use to create the API Call:
+"""
+
+ACTION_SELECTOR_PROMPT_ALT = """
+You output API calls. The format in which you should answer is as follows:
+
+API Call: action_name;{{\"parameter_name\": \"value\"}}
+
+You will replace action_name with the exact name of the most fitting action given in the user input.
+After that, you output a semicolon and then you output the parameters for that action in a JSON format.
+As values for the parameters you use the most fitting value from the user input. For example, if an action requires 
+the parameter \"room\" as a string and the user input specified the room as \"kitchen\", you use \"kitchen\" as the 
+value for the parameter \"room\". Make sure to use the correct data type for the parameters.
+If you think a required parameter for the most fitting action is missing, then you output the keyword "MISSING" and 
+after that a brief explanation of what parameter is missing. For example, if the action requires the parameter 
+\"room\" but there is no value in the user query for that parameter, output \"MISSING No value found for parameter
+ \"room\"\".
+All of your answers either start with \"API Call: \" or \"MISSING\".
+
+Here is the list of actions. It includes the name of the action, a short description if one is available,
+an overview of the parameters to call that action, and the definition of custom parameters, if used.
 """
 
 
@@ -205,7 +220,7 @@ class ActionSelector(Chain):
             action_list += action.selector_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=ACTION_SELECTOR_PROMPT + fix_parentheses(action_list),
+            system_prompt=ACTION_SELECTOR_PROMPT_ALT + fix_parentheses(action_list),
             examples=examples,
             input_variables=["input"],
             message_template=scratchpad + "{input}"
@@ -218,16 +233,14 @@ class ActionSelector(Chain):
         if isinstance(output, AIMessage):
             output = output.content
 
-        action_plan = re.sub(r"API Call+:", "", output)
+        action_plan = re.sub(r"API Call:", "", output).strip()
 
         if self._check_missing(action_plan):
             return {"result": action_plan}
-        else:
-            action_plan = action_plan.split('\n')[0].strip()
 
         correction_limit = 1
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
-            logger.info(f'API Selector: Correction needed for request {action_plan}\nCause: {err_msg}')
+            logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
             output = chain.invoke({"input": inputs["plan"] + err_msg})
 
