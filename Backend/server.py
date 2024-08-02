@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .RestGPT.restgpt_routes import RestGptBackend
-from .Simple.simple_routes import SimpleOpenAIBackend
+from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
 
 """
@@ -55,6 +55,7 @@ BACKENDS = {
     "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
     "rest-gpt-gpt-3.5-turbo": RestGptBackend("gpt-3.5-turbo"),
     "simple-openai": SimpleOpenAIBackend(),
+    "simple-llama": SimpleLlamaBackend(),
 }
 
 

@@ -2,6 +2,7 @@ from typing import Dict
 
 import openai
 import json
+import requests
 
 from ..opaca_proxy import proxy as opaca_proxy
 
@@ -60,6 +61,19 @@ class SimpleBackend:
 class SimpleOpenAIBackend(SimpleBackend):
 
     def _query_internal(self, debug: bool, api_key: str) -> str:
+        print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
         completion = self.client.chat.completions.create(model="gpt-3.5-turbo", messages=self.messages)
         return completion.choices[0].message.content
+
+
+LLAMA_URL = "http://10.0.64.101"
+
+class SimpleLlamaBackend(SimpleBackend):
+
+    def _query_internal(self, debug: bool, api_key: str) -> str:
+        print("Calling LLAMA...")
+        result = requests.post(f'{LLAMA_URL}/llama-3/chat', json={'messages': self.messages})
+        print(result.status_code)
+        response = result.text.strip('"')
+        return response

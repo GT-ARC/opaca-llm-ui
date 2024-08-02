@@ -5,6 +5,7 @@ var config = {
     BackendDefault: "rest-gpt-llama3",
     Backends: {
         "simple-openai": "Simple Prompt with GPT",
+        "simple-llama": "Simple Prompt with LLAMA",
         "rest-gpt-llama3": "RestGPT with LLAMA",
         "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
         "rest-gpt-gpt-3.5-turbo": "RestGPT with GPT-3.5 Turbo"
