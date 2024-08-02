@@ -75,6 +75,12 @@ class RestGptBackend:
     async def reset(self):
         self.messages = []
 
+    async def get_config(self) -> dict:
+        return {}
+
+    async def set_config(self, conf: dict):
+        pass
+
     def init_model(self, api_key: str):
         if self.llm_type == "llama3":
             self.llm = OpacaLLM()

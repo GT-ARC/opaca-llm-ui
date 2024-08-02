@@ -79,6 +79,15 @@ async def history(backend: str) -> list:
 async def reset(backend: str):
     await BACKENDS[backend].reset()
 
+@app.get("/{backend}/config")
+async def get_config(backend: str) -> dict:
+    return await BACKENDS[backend].get_config()
+
+@app.put("/{backend}/config")
+async def set_config(backend: str, conf: dict) -> dict:
+    await BACKENDS[backend].set_config(conf)
+    return await BACKENDS[backend].get_config()
+
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":

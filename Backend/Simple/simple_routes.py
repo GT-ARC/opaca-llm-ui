@@ -28,6 +28,11 @@ class SimpleBackend:
 
     def __init__(self):
         self.messages = []
+        self.config = {
+            "llama-url": "http://10.0.64.101",
+            "gpt-model": "gpt-3.5-turbo",
+            "gpt-temp": None,
+        }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
         print("QUERY", message)
@@ -54,6 +59,12 @@ class SimpleBackend:
         self.messages = []
         self._update_system_prompt()
 
+    async def get_config(self) -> dict:
+        return self.config
+
+    async def set_config(self, conf: dict):
+        self.config = {k: conf.get(k, v) for k, v in self.config.items()}
+
     def _update_system_prompt(self):
         self.messages[:1] = [{"role": "system", "content": system_prompt + opaca_proxy.actions}]
 
@@ -63,17 +74,16 @@ class SimpleOpenAIBackend(SimpleBackend):
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
-        completion = self.client.chat.completions.create(model="gpt-3.5-turbo", messages=self.messages)
+
+        completion = self.client.chat.completions.create(model=self.config["gpt-model"], temperature=self.config["gpt-temp"], messages=self.messages)
         return completion.choices[0].message.content
 
-
-LLAMA_URL = "http://10.0.64.101"
 
 class SimpleLlamaBackend(SimpleBackend):
 
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling LLAMA...")
-        result = requests.post(f'{LLAMA_URL}/llama-3/chat', json={'messages': self.messages})
+        result = requests.post(f'{self.config["llama-url"]}/llama-3/chat', json={'messages': self.messages})
         print(result.status_code)
         response = result.text.strip('"')
         return response
