@@ -22,21 +22,19 @@ First, show only the pseudo code. Later, if the user says "do it", and only then
 }
 Following is the list of available services described in JSON, which can be called as webservices:   
 """
-class OpenAIBackend:
+
+class SimpleBackend:
 
     def __init__(self):
-        self.client = openai.OpenAI(api_key="")
         self.messages = []
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
-        if api_key is None:
-            return {"result": "Please provide a valid api key before using this model.", "debug": ""}
         print("QUERY", message)
         self._update_system_prompt()
         self.messages.append({"role": "user", "content": message})
-        self.client.api_key = api_key
-        completion = self.client.chat.completions.create(model="gpt-3.5-turbo", messages=self.messages)
-        response = completion.choices[0].message.content
+
+        response = self._query_internal(debug, api_key)
+
         print("RESPONSE:", repr(response))
         try:
             d = json.loads(response)
@@ -44,9 +42,10 @@ class OpenAIBackend:
             response = f"Original response: `{response}`\n\nCalled `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
         except Exception as e:
             print("NOT JSON", type(e), e)
+
         self.messages.append({"role": "assistant", "content": response})
         return {"result": response, "debug": ""}
-
+    
     async def history(self) -> list:
         return self.messages
 
@@ -56,4 +55,11 @@ class OpenAIBackend:
 
     def _update_system_prompt(self):
         self.messages[:1] = [{"role": "system", "content": system_prompt + opaca_proxy.actions}]
-        
+
+
+class SimpleOpenAIBackend(SimpleBackend):
+
+    def _query_internal(self, debug: bool, api_key: str) -> str:
+        self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
+        completion = self.client.chat.completions.create(model="gpt-3.5-turbo", messages=self.messages)
+        return completion.choices[0].message.content

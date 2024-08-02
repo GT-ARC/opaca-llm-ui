@@ -4,10 +4,10 @@ var config = {
 
     BackendDefault: "llama3-rest-gpt",
     Backends: {
-        "openai-test": "Simple OpenAI Prompt",
-        "llama3-rest-gpt": "LLAMA with RestGPT",
-        "gpt-4o-rest-gpt": "GPT-4o with RestGPT",
-        "gpt-3.5-turbo-rest-gpt": "GPT-3.5 Turbo with RestGPT"
+        "simple-openai": "Simple Prompt with GPT",
+        "rest-gpt-llama3": "RestGPT with LLAMA",
+        "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
+        "rest-gpt-gpt-3.5-turbo": "RestGPT with GPT-3.5 Turbo"
     },
 
     OpacaRuntimePlatform: 'http://localhost:8000',

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .RestGPT.restgpt_routes import RestGptBackend
-from .OpenAI.openai_routes import OpenAIBackend
+from .Simple.simple_routes import SimpleOpenAIBackend
 from .opaca_proxy import proxy
 
 """
@@ -51,10 +51,10 @@ class Message(BaseModel):
 
 
 BACKENDS = {
-    "llama3-rest-gpt": RestGptBackend("llama3"),
-    "gpt-4o-rest-gpt": RestGptBackend("gpt-4o"),
-    "gpt-3.5-turbo-rest-gpt": RestGptBackend("gpt-3.5-turbo"),
-    "openai-test": OpenAIBackend(),
+    "rest-gpt-llama3": RestGptBackend("llama3"),
+    "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
+    "rest-gpt-gpt-3.5-turbo": RestGptBackend("gpt-3.5-turbo"),
+    "simple-openai": SimpleOpenAIBackend(),
 }
 
 
