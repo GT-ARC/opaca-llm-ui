@@ -33,8 +33,13 @@
                             {{ conf.translations[language].language}}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                            <li @click="setLanguage('DE')"><a class="dropdown-item"><span class="fi fi-de m-3"></span>DE</a></li>
-                            <li @click="setLanguage('GB')"><a class="dropdown-item"><span class="fi fi-gb m-3"></span>EN</a></li>
+                            <li v-for="(value, key) in conf.translations" @click="setLanguage(key)">
+                                <a class="dropdown-item">
+                                    <p v-bind:style= "[language == key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                        {{ value.name }}
+                                    </p>
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -43,8 +48,10 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="backendSelector">
                             <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
-                                <a class="dropdown-item"><span class="fi fi-de m-3"></span>
-                                    {{ value }}
+                                <a class="dropdown-item">
+                                    <p v-bind:style= "[backend == key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                        {{ value }}
+                                    </p>
                                 </a>
                             </li>
                         </ul>

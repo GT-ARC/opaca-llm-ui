@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: 'http://localhost:3001',
 
-    BackendDefault: "llama3-rest-gpt",
+    BackendDefault: "rest-gpt-llama3",
     Backends: {
         "simple-openai": "Simple Prompt with GPT",
         "rest-gpt-llama3": "RestGPT with LLAMA",
@@ -16,6 +16,7 @@ var config = {
 
     translations:{
         GB: {
+            name: "English",
             language: 'Language',
             submit: 'Submit',
             welcome: 'Welcome to the OPACA LLM Prototype! How can I help you?',
@@ -27,6 +28,7 @@ var config = {
         },
 
         DE: {
+            name: "Deutsch",
             language: 'Sprache',
             submit: 'Senden',
             welcome: 'Willkommen beim OPACA LLM-Prototyp! Wie kann ich Ihnen helfen?',
