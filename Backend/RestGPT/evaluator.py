@@ -133,7 +133,7 @@ still needs to be open.
 If the query involves comparing results from different API calls and you determine that all necessary calls were made, 
 you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user."""
 
-EVAL_PROMPT_ALT = """
+EVAL_PROMPT_SLIM = """
 You are evaluating user queries against an API call hierarchy. Your task is to determine if the user query has been 
 fulfilled completely in the call hierarchy. If it has been fulfilled, you output "FINISHED" and after that a summary 
 of the executed steps and achieved result to the user. If it has not been fulfilled, you output "CONTINUE".
@@ -192,7 +192,7 @@ class Evaluator(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
 
         prompt = build_prompt(
-            system_prompt=EVAL_PROMPT_ALT,
+            system_prompt=EVAL_PROMPT,
             examples=examples_alt,
             input_variables=["input"],
             message_template="{input}"

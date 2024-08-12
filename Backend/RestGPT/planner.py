@@ -82,7 +82,8 @@ to provide these missing parameters. Keep in mind that the user provides you the
 
 You always follow this format:
 
-User query: This is the query you have received from the user.
+Human: This is the query you have received from the user.
+AI:
 Plan step 1: This is the first step of your plan to fulfill the user query.
 API response: This is the result of your first plan step.
 Plan step 2: This is the second step of your plan.
@@ -101,16 +102,20 @@ of the parameters needed to call the service. Remember that your plan steps shou
 services:
 """
 
-PLANNER_PROMPT_ALT = """
+PLANNER_PROMPT_SLIM = """
 You plan solutions to user queries. A user will give you a question or instruction and you will output the next 
 concrete step to solve this question or instruction. You will receive a list of available actions, some of which will 
 include descriptions. You use these actions to formulate the steps. Some user queries can only be fulfilled with 
 multiple steps. Sometimes to fulfill a query you need additional information, which can be retrieved by available 
 actions. For example, if a query requires you to book a free desk, you first need to output a step to check if a given 
 desk is free. Some actions will require parameters to be called. Always use the most fitting value from the user query 
-as parameters in your steps.
+as parameters in your steps. Once you receive a useful response for your step, continue with the next step.
+If the user asks about more information about specific services or action, you put the 
+keyword "STOP" in front of your reply. Never put the keyword "STOP" in your reply when your reply indicates that 
+a service should be called.
 
-User query: The input from the user
+Human: The input from the user
+AI:
 Plan step 1: The first step of your plan.
 API response: This is the result of your first plan step.
 Plan step 2: The second step of your plan.
@@ -177,8 +182,8 @@ class Planner(Chain):
             action_list += action.planner_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=PLANNER_PROMPT_ALT + fix_parentheses(action_list),
-            examples=examples,
+            system_prompt=PLANNER_PROMPT_SLIM + fix_parentheses(action_list),
+            examples=[],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
@@ -189,6 +194,8 @@ class Planner(Chain):
 
         if isinstance(output, AIMessage):
             output = output.content
+
+        print("Planner output complete: " + output)
 
         output = re.sub(r"Plan step \d+: ", "", output).strip()
 
