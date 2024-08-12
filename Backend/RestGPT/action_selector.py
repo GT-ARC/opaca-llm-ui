@@ -171,40 +171,47 @@ class ActionSelector(Chain):
 
         # Check if exactly one semicolon was generated
         if not len(action_plan.split(';')) == 2:
-            err_out += ("Your generated action call is not properly formatted. It should include exactly one action, "
-                        "a semicolon and a list of parameters in json format.\n")
-            return err_out
+            return ("Your generated action call is not properly formatted. It should include exactly one action, "
+                    "a semicolon and a list of parameters in json format.\n")
 
         # Check if the action name is contained in the list of available actions and retrieve the action
         action, parameters = action_plan.split(';')
-        action_from_list = None
-        for a in actions:
-            if a.action_name == action:
-                action_from_list = a
-        if not action_from_list:
-            err_out += ("Your selected action does not exist. "
-                        "Please only use actions from the provided list of actions.\n")
-            return err_out
 
         # Check if the parameters are in a valid json format
         try:
             p_json = json.loads(parameters)
         except ValueError as e:
-            err_out += "Your generated parameters are not in a valid JSON format.\n"
-            return err_out
+            return "Your generated parameters are not in a valid JSON format.\n"
 
-        # Check if all required parameters are present
-        for parameter in [p for p in action_from_list.params_in.keys()
-                          if action_from_list.params_in[p].required]:
-            if parameter not in p_json.keys():
-                err_out += (f'You have not included the required parameter {parameter} in '
-                            f'your generated list of parameters for the action {action}.\n')
+        action_from_list = None
+        for a in actions:
+            if a.action_name == action:
 
-        # Check if no parameter is hallucinated
-        for parameter in p_json.keys():
-            if parameter not in [p for p in action_from_list.params_in.keys()]:
-                err_out += (f'You have included the improper parameter {parameter} in your generated list of '
-                            f'parameters. Please only use parameters that are given in the action description.\n')
+                # Check if another action was already found by that name, if it was -> delete err msgs
+                if action_from_list is not None:
+                    err_out = ""
+
+                action_from_list = a
+
+                # Check if all required parameters are present
+                for parameter in [p for p in action_from_list.params_in.keys()
+                                  if action_from_list.params_in[p].required]:
+                    if parameter not in p_json.keys():
+                        err_out += (f'You have not included the required parameter {parameter} in '
+                                    f'your generated list of parameters for the action {action}.\n')
+
+                # Check if no parameter is hallucinated
+                for parameter in p_json.keys():
+                    if parameter not in [p for p in action_from_list.params_in.keys()]:
+                        err_out += (f'You have included the improper parameter {parameter} in your generated list of '
+                                    f'parameters. Please only use parameters that are given in the action description.\n')
+
+                if err_out == "":
+                    return ""
+
+        if not action_from_list:
+            err_out += ("Your selected action does not exist. "
+                        "Please only use actions from the provided list of actions.\n")
         return err_out
 
     def _construct_scratchpad(
