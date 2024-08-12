@@ -47,8 +47,8 @@ class RestGPT(Chain):
             evaluator=evaluator, **kwargs
         )
 
-    def _finished(self, eval_input: str):
-        return self.evaluator.invoke({"input": eval_input})["result"]
+    def _finished(self, eval_input: str, history: List[Tuple[str, str]]):
+        return self.evaluator.invoke({"input": eval_input, "history": history})["result"]
 
     @property
     def _chain_type(self) -> str:
@@ -163,7 +163,7 @@ class RestGPT(Chain):
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
-            eval_output = self._finished(eval_input)
+            eval_output = self._finished(eval_input, inputs['history'])
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
                 break

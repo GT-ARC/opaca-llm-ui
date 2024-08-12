@@ -200,7 +200,7 @@ class Evaluator(Chain):
 
         chain = prompt | self.llm.bind(stop=self._stop)
 
-        output = chain.invoke({"input": inputs["input"]})
+        output = chain.invoke({"input": inputs["input"], "history": inputs["history"]})
 
         if isinstance(output, AIMessage):
             output = output.content
