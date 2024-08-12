@@ -7,7 +7,7 @@ var config = {
         "openai-test": "Simple OpenAI Prompt",
         "llama3-rest-gpt": "LLAMA with RestGPT",
         "gpt-4o-rest-gpt": "GPT-4o with RestGPT",
-        "gpt-3.5-turbo-rest-gpt": "GPT-3.5 Turbo with RestGPT"
+        "gpt-4o-mini-rest-gpt": "GPT-4o-Mini with RestGPT"
     },
 
     OpacaRuntimePlatform: 'http://localhost:8000',

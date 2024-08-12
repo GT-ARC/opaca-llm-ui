@@ -81,9 +81,9 @@ class RestGptBackend:
         elif self.llm_type == "gpt-4o":
             self.check_for_key(api_key)
             self.llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
-        elif self.llm_type == "gpt-3.5-turbo":
+        elif self.llm_type == "gpt-4o-mini":
             self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=api_key)
+            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=api_key)
 
     @staticmethod
     def check_for_key(api_key: str):
