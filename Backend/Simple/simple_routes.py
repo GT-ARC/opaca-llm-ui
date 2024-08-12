@@ -30,7 +30,7 @@ class SimpleBackend:
         self.messages = []
         self.config = {
             "llama-url": "http://10.0.64.101",
-            "gpt-model": "gpt-3.5-turbo",
+            "gpt-model": "gpt-4o",
             "gpt-temp": None,
         }
 
