@@ -40,16 +40,18 @@ class SimpleBackend:
         self.messages.append({"role": "user", "content": message})
 
         response = self._query_internal(debug, api_key)
+        self.messages.append({"role": "assistant", "content": response})
 
         print("RESPONSE:", repr(response))
         try:
-            d = json.loads(response)
+            d = json.loads(response.strip("`json\n")) # strip markdown, if included
+            print("Successfully parsed as JSON, calling service...")
             result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
-            response = f"Original response: `{response}`\n\nCalled `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
+            response = f"Called `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
+            self.messages.append({"role": "system", "content": response})
         except Exception as e:
-            print("NOT JSON", type(e), e)
+            print("Not JSON", type(e), e)
 
-        self.messages.append({"role": "assistant", "content": response})
         return {"result": response, "debug": ""}
     
     async def history(self) -> list:
