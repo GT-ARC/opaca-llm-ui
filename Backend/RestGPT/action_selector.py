@@ -68,14 +68,14 @@ successfully call that action. If values for non-required parameters are missing
 them in your API call, but if they are present in the instruction, always include them. 
 You are forbidden to generate values for all parameters on your own. Only use values that have been given in 
 the instruction.
-Remember that the values for parameters are not always obvious, since the query is produce by a human. For example, 
+Remember that the values for parameters are not always obvious, since the query is produced by a human. For example, 
 if you think the query calls for an action which requires the parameter "item", see if any part of the human query 
 would fit the general description of an item in that context. If a user would want to add bananas to its grocer list, 
 you should assume that the value for the item parameter should be set to banana.
 If the parameter for an action is of type string, check if the instruction indicates what part of it should be used as 
 string. For example, if the instruction tells you to set the title to title, you should use "title" as the value for
 the title.
-If an action does not require parameters, just output an empty Json array like {{}}. 
+If an action does not require parameters, just output an empty Json array like {}. 
 Take note of the type of each parameter and output the value type accordingly. For example, if the type is string, 
 the parameter you output needs to include quotation marks around the value. If the type is an integer, the value should 
 just be a number without any quotation marks. You can follow the known OpenAPI schema for most of the types. 
@@ -92,7 +92,7 @@ modify the last call either by adding or removing parameters, correcting the typ
 to call a different action.
 Here is the format in which you should answer normally:
 
-API Call: {{action_name}};{{\"parameter_name\": \"value\"}}
+API Call: {action_name};{"parameter_name": "value"}
 
 You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
 
@@ -102,20 +102,20 @@ Here is the list you should use to create the API Call:
 ACTION_SELECTOR_PROMPT_SLIM = """
 You output API calls. The format in which you should answer is as follows:
 
-API Call: action_name;{{\"parameter_name\": \"value\"}}
+API Call: action_name;{"parameter_name": "value"}
 
 You will replace action_name with the exact name of the most fitting action given in the user input.
 After that, you output a semicolon and then you output the parameters for that action in a JSON format.
 As values for the parameters you use the most fitting value from the user input. For example, if an action requires 
-the parameter \"room\" as a string and the user input specified the room as \"kitchen\", you use \"kitchen\" as the 
-value for the parameter \"room\". Make sure to use the correct data type for the parameters. Sometimes parameter values 
+the parameter "room" as a string and the user input specified the room as "kitchen", you use "kitchen" as the 
+value for the parameter "room". Make sure to use the correct data type for the parameters. Sometimes parameter values 
 are not clearly specified in the request. Try to evaluate what the user might want you to use as a value in the context 
-of the most fitting action.
-If you think a value for a required parameter for the most fitting action is missing, then you output the keyword "MISSING" and 
+of the most fitting action. If you think a value for a required parameter for the most fitting action is missing, 
+then you output the keyword "MISSING" and 
 after that a brief explanation of what parameter is missing. For example, if the action requires the parameter 
-\"room\" but there is no value in the user query for that parameter, output \"MISSING No value found for parameter
- \"room\"\". Do not evaluate whether the value for the parameter is valid or not.
-All of your answers either start with \"API Call: \" or \"MISSING\".
+"room" but there is no value in the user query for that parameter, output "MISSING" No value found for parameter
+ "room". Do not evaluate whether the value for the parameter is valid or not.
+All of your answers either start with "API Call: " or "MISSING".
 
 Here is the list of actions. It includes the name of the action, a short description if one is available,
 an overview of the parameters to call that action, and the definition of custom parameters, if used.
