@@ -7,7 +7,8 @@ from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import LLM
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.prompt_values import PromptValue
-from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder, \
+    HumanMessagePromptTemplate, AIMessagePromptTemplate
 from langchain_core.runnables import RunnableConfig
 
 LLAMA_URL = "http://10.0.64.101"
@@ -199,8 +200,8 @@ def build_prompt(
 
     example_prompt = ChatPromptTemplate.from_messages(
         [
-            ("human", "{input}"),
-            ("ai", "{output}")
+            HumanMessagePromptTemplate.from_template("{input}"),
+            AIMessagePromptTemplate.from_template("{output}")
         ]
     )
 
@@ -212,7 +213,7 @@ def build_prompt(
 
     final_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system_prompt),
+            SystemMessage(content=system_prompt),
             few_shot_prompt,
             MessagesPlaceholder(variable_name="history", optional=True),
             ("human", message_template),

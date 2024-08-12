@@ -195,8 +195,6 @@ class Planner(Chain):
         if isinstance(output, AIMessage):
             output = output.content
 
-        print("Planner output complete: " + output)
-
         output = re.sub(r"Plan step \d+: ", "", output).strip()
 
         return {"result": output}
