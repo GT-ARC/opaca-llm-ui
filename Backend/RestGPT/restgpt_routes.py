@@ -1,6 +1,7 @@
 from typing import Dict, Optional, List
 
 import logging
+import os
 
 import openai
 from langchain_core.language_models import BaseChatModel
@@ -82,6 +83,7 @@ class RestGptBackend:
         pass
 
     def init_model(self, api_key: str):
+        api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.llm_type == "llama3":
             self.llm = OpacaLLM()
         elif self.llm_type == "gpt-4o":
