@@ -34,7 +34,7 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main class="col-xl-8">
-            <div class="card flex-grow-1" id="chat1" style="border-radius: 15px;">
+            <div class="container card" id="chat1" style="border-radius: 15px;">
                 <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
                     data-mdb-perfect-scrollbar="true" id="chat-container">
                 </div>
@@ -190,7 +190,7 @@
         d1.innerHTML += `
         <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
             <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
-            <div class="p-2 ms-3 small mb-0 chatbubble" style="background-color: #39c0ed33;">
+            <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                 ${marked.parse(text)}
             </div>
         </div>`
@@ -206,7 +206,7 @@
         let d1 = document.createElement("div")
         d1.innerHTML += `
         <div class="d-flex flex-row justify-content-end mb-4">
-            <div class="p-2 ms-3 small mb-0 chatbubble" style="background-color: #fbfbfb;">
+            <div class="p-2 me-3 small mb-0 chatbubble chat-user">
                 ${text}
             </div>
             <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
@@ -274,6 +274,16 @@
 </script>
 
 <style>
+    @media (prefers-color-scheme: dark) {
+        body {
+            color: #fff;
+            background-color: #222;
+        }
+        #chat1 {
+            color: #fff;
+            background-color: #444;
+        }
+    }
 
     input {
         border-radius: 5px;
@@ -285,9 +295,18 @@
         text-align: left
     }
 
+    .chat-user {
+        background-color: #eee3;
+    }
+    .chat-ai {
+        background-color: #4ce3;
+    }
+
     .chaticon {
         width: 45px;
         height: 100%;
+        background-color: #fff;
+        border-radius: 5px;
     }
 
     .debug-window-container {
