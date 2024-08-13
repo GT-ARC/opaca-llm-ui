@@ -269,7 +269,7 @@
     }
 
     function isOpenAI() {
-        return backend.value !== "llama3-rest-gpt"
+        return ! backend.value.includes("llama")
     }
     
     function beforeDestroy() {
