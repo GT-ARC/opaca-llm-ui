@@ -22,7 +22,7 @@
 <template>
     <header>
         <div class="col">
-            <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
                 <div class="container-fluid" style="width: 50%;">
                     <img src="./assets/opaca-logo.png" height="50"/>
                 </div>

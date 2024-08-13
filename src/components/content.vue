@@ -1,43 +1,48 @@
 <template>
-    <div class="row d-flex justify-content-start my-5 m-1 w-100">
+    <div class="row d-flex justify-content-start my-4 w-100">
 
-        <div class="col-md-10 col-xl-3 mt-5">
-          <div class='container'>
-                <button class="btn btn-secondary btn-lg col-5 m-1" @click="debug=!debug">
-                    Debug
-                </button>
-          </div>
-            <div class="debug-window-container" v-if="debug" id="chatDebug" style="border-radius: 15px;">
-                <div class="card-body" style="overflow-y: scroll; height: 34em; flex-direction: column-reverse"
-                    data-mdb-perfect-scrollbar="true" id="debug-console">
-                </div>
-            </div>
-        </div>
-        <div class="col-md-10 col-lg-8 col-xl-6">
-
+        <!-- Left Container: Configuration, Debug-Output -->
+        <aside class="col-xl-4">
             <div class="container">
                 <div>
                     <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
-                    <input class="col-7 p-1" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
-                    <button class="btn btn-secondary col-2" @click="initiatePrompt">Connect</button>
+                    <input class="col-5" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
+                    <button class="btn btn-primary btn-sm" @click="initiatePrompt">Connect</button>
                 </div>
-                <div>
-                    <label for="opacaUser" class="small">Username</label>
-                    <input class="col-4 small" type="text" id="opacaUser" v-model="opacaUser" />
-                    <label for="opacaPwd" class="small">Password</label>
-                    <input class="col-4 small" type="password" id="opacaPwd" v-model="opacaPwd" />
+                <div class="small">
+                    <label for="opacaUser">Username</label>
+                    <input class="col-3" type="text" id="opacaUser" v-model="opacaUser" />
+                    <label for="opacaPwd">Password</label>
+                    <input class="col-3" type="password" id="opacaPwd" v-model="opacaPwd" />
                 </div>
             </div>
-            
-            <div class="card" id="chat1" style="border-radius: 15px;">
+            <div class="container small" v-if="isOpenAI()">
+                <label for="apiKey">OpenAI API-Key</label>
+                <input class="col-7" type="password" id="apiKey" v-model="apiKey">
+            </div>
+            <div class='container'>
+                <button class="btn btn-secondary btn-sm col-5 m-1" @click="debug=!debug">
+                    {{ debug ? "Hide Debug Output" : "Show Debug Output"}}
+                </button>
+            </div>
+            <div class="container mx-2 debug-window-container" v-if="debug" id="chatDebug" style="border-radius: 15px;">
+                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
+                    data-mdb-perfect-scrollbar="true" id="debug-console">
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Container: Chat Window, Text Input -->
+        <main class="col-xl-8">
+            <div class="card flex-grow-1" id="chat1" style="border-radius: 15px;">
                 <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
                     data-mdb-perfect-scrollbar="true" id="chat-container">
                 </div>
             </div>
 
-            <div class="container justify-content-center">
-                <input class="col-9 p-2" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
-                <button class="btn btn-primary btn-lg col-2 m-1" @click="submitText">
+            <div class="container">
+                <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
+                <button class="btn btn-primary" @click="submitText">
                     {{ config.translations[language].submit }}
                 </button>
             </div>
@@ -45,30 +50,18 @@
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
 
             <div class='container'>
-                <button class="btn btn-primary btn-lg col-3 m-1" :disabled="busy" @click="startRecognition">
+                <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
                     {{ config.translations[language].speechRecognition }}
                     <div v-if="recording" class="spinner-border md-2" height=2em role="status" />
                 </button>
-                <button class="btn btn-secondary btn-lg col-3 m-1" @click="speakLastMessage">
+                <button class="btn btn-secondary col-2 m-1" @click="speakLastMessage">
                     {{ config.translations[language].readLastMessage }}
                 </button>
-                <button class="btn btn-secondary btn-lg col-3 m-1" @click="resetChat">
+                <button class="btn btn-secondary col-2 m-1" @click="resetChat">
                     {{ config.translations[language].resetChat }}
                 </button>
             </div>
-
-            <br /><br /><br />
-        </div>
-        <div class="col-md-10 col-xl-3 mt-4" v-if="isOpenAI()">
-            <div class="container">
-                <div>
-                    <label for="apiKey">OpenAI API-Key</label>
-                </div>
-                <div>
-                    <input class="col-10" type="password" id="apiKey" v-model="apiKey">
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
 
 </template>
