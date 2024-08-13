@@ -29,7 +29,8 @@ class SimpleBackend:
     def __init__(self):
         self.messages = []
         self.config = {
-            "llama-url": "http://10.0.64.101",
+            "llama-url": "http://10.0.64.101:11000",
+            "llama-model": "llama3.1:70b",
             "gpt-model": "gpt-4o",
             "gpt-temp": None,
         }
@@ -85,7 +86,9 @@ class SimpleLlamaBackend(SimpleBackend):
 
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling LLAMA...")
-        result = requests.post(f'{self.config["llama-url"]}/llama-3/chat', json={'messages': self.messages})
-        print(result.status_code)
-        response = result.text.strip('"')
-        return response
+        result = requests.post(f'{self.config["llama-url"]}/api/chat', json={
+            "messages": self.messages,
+            "model": self.config["llama-model"],
+            "stream": False,
+            })
+        return result.json()["message"]["content"]
