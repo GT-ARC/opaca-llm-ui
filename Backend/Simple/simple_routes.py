@@ -31,7 +31,7 @@ class SimpleBackend:
         self.config = {
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
-            "gpt-model": "gpt-4o",
+            "gpt-model": "gpt-4o-mini",
             "gpt-temp": None,
         }
 
