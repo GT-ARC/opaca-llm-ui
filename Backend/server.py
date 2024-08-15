@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .RestGPT.restgpt_routes import RestGptBackend
-from .OpenAI.openai_routes import OpenAIBackend
+from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
 
 """
@@ -51,10 +51,11 @@ class Message(BaseModel):
 
 
 BACKENDS = {
-    "llama3-rest-gpt": RestGptBackend("llama3"),
-    "gpt-4o-rest-gpt": RestGptBackend("gpt-4o"),
-    "gpt-3.5-turbo-rest-gpt": RestGptBackend("gpt-3.5-turbo"),
-    "openai-test": OpenAIBackend(),
+    "rest-gpt-llama3": RestGptBackend("llama3"),
+    "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
+    "rest-gpt-gpt-3.5-turbo": RestGptBackend("gpt-3.5-turbo"),
+    "simple-openai": SimpleOpenAIBackend(),
+    "simple-llama": SimpleLlamaBackend(),
 }
 
 
@@ -77,6 +78,15 @@ async def history(backend: str) -> list:
 @app.post("/{backend}/reset")
 async def reset(backend: str):
     await BACKENDS[backend].reset()
+
+@app.get("/{backend}/config")
+async def get_config(backend: str) -> dict:
+    return await BACKENDS[backend].get_config()
+
+@app.put("/{backend}/config")
+async def set_config(backend: str, conf: dict) -> dict:
+    await BACKENDS[backend].set_config(conf)
+    return await BACKENDS[backend].get_config()
 
 
 # run as `python3 -m Backend.server`
