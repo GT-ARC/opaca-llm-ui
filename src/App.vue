@@ -24,7 +24,7 @@
         <div class="col">
             <nav class="navbar navbar-expand-lg" type="light">
                 <div class="container-fluid" style="width: 50%;">
-                    <img src="./assets/opaca-logo.png" alt="Opaca Logo" height="50"/>
+                    <img src="./assets/opaca-logo.png" id="logo" alt="Opaca Logo" height="50"/>
                 </div>
 
                 <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
@@ -81,6 +81,11 @@
     }
 
     @media (prefers-color-scheme: dark) {
+
+        #logo {
+            filter: invert(100%)
+        }
+
       .navbar {
         background-color: #333;
         color: white;
