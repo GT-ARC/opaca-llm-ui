@@ -112,7 +112,7 @@
     async function submitText() {
         const userInput = document.getElementById("textInput").value
         document.getElementById("textInput").value = ""
-        if (userInput != null) {
+        if (userInput != null && userInput !== "") {
             await askChatGpt(userInput)
         }
     }
