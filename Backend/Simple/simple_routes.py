@@ -50,8 +50,12 @@ class SimpleBackend:
             result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
             response = f"Called `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
             self.messages.append({"role": "system", "content": response})
-        except Exception as e:
+        except json.JSONDecodeError as e:
             print("Not JSON", type(e), e)
+        except Exception as e:
+            print("ERROR", type(e), e)
+            response = f"Called `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`, but there was an error: {e}"
+            self.messages.append({"role": "system", "content": response})
 
         return {"result": response, "debug": ""}
     
