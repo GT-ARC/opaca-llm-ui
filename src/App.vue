@@ -1,6 +1,6 @@
 <script setup>
     import Content from './components/content.vue'
-    import { ref, provide, onMounted } from 'vue'
+    import { ref, provide } from 'vue'
     import conf from '../config.js'
 
     const language = ref('GB')
@@ -22,9 +22,9 @@
 <template>
     <header>
         <div class="col">
-            <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
+            <nav class="navbar navbar-expand-lg" type="light">
                 <div class="container-fluid" style="width: 50%;">
-                    <img src="./assets/opaca-logo.png" height="50"/>
+                    <img src="./assets/opaca-logo.png" alt="Opaca Logo" height="50"/>
                 </div>
 
                 <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
@@ -35,7 +35,7 @@
                         <ul class="dropdown-menu" aria-labelledby="languageSelector">
                             <li v-for="(value, key) in conf.translations" @click="setLanguage(key)">
                                 <a class="dropdown-item">
-                                    <p v-bind:style= "[language == key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                    <p v-bind:style= "[language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
                                         {{ value.name }}
                                     </p>
                                 </a>
@@ -49,7 +49,7 @@
                         <ul class="dropdown-menu" aria-labelledby="backendSelector">
                             <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
                                 <a class="dropdown-item">
-                                    <p v-bind:style= "[backend == key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                    <p v-bind:style= "[backend === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
                                         {{ value }}
                                     </p>
                                 </a>
@@ -74,5 +74,19 @@
       height: 50px;
       display: flex;
       align-items: center;
+    }
+
+    .dropdown-item {
+      cursor: pointer;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .navbar {
+        background-color: #333;
+        color: white;
+      }
+      .navbar-nav .nav-link {
+        color: white;
+      }
     }
 </style>
