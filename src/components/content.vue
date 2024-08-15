@@ -153,11 +153,12 @@
             createSpeechBubbleAI(answer);
             if (debug.value) {
                 processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
+                scrollDown(true)
             }
-            scrollDown();
+            scrollDown(false);
         } catch (error) {
             createSpeechBubbleAI("Error while fetching data: " + error)
-            scrollDown();
+            scrollDown(false);
         }
     }
 
@@ -216,7 +217,7 @@
         </div>`
         chat.appendChild(d1)
         createSpeechBubbleAI('. . .', 'waitBubble')
-        scrollDown()
+        scrollDown(false)
     }
 
     function scrollDown(debug) {
