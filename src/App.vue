@@ -1,6 +1,6 @@
 <script setup>
     import Content from './components/content.vue'
-    import { ref, provide, onMounted } from 'vue'
+    import { ref, provide } from 'vue'
     import conf from '../config.js'
 
     const language = ref('GB')
