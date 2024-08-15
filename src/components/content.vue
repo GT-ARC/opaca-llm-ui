@@ -2,7 +2,7 @@
     <div class="row d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4">
+        <aside class="col-xl-4 d-flex flex-column" style="height:calc(100vh - 85px)">
             <div class="container">
                 <div>
                     <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
@@ -16,7 +16,7 @@
                     <input class="col-3" type="password" id="opacaPwd" v-model="opacaPwd" />
                 </div>
             </div>
-            <div class="container small" v-if="isOpenAI()">
+            <div class="container small">
                 <label for="apiKey">OpenAI API-Key</label>
                 <input class="col-7" type="password" id="apiKey" v-model="apiKey">
             </div>
@@ -25,21 +25,21 @@
                     {{ debug ? "Hide Debug Output" : "Show Debug Output"}}
                 </button>
             </div>
-            <div class="container mx-2 debug-window-container" v-if="debug" id="chatDebug" style="border-radius: 15px;">
-                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
-                    data-mdb-perfect-scrollbar="true" id="debug-console">
-                </div>
+            <div class="container debug-window-container flex-grow-1" v-if="debug" id="chatDebug"
+                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
+                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
             </div>
         </aside>
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8">
-            <div class="container card" id="chat1" style="border-radius: 15px;">
-                <div class="card-body" style="overflow-y: scroll; height: 30em; flex-direction: column-reverse"
-                    data-mdb-perfect-scrollbar="true" id="chat-container">
-                </div>
+        <main class="col-xl-8 d-flex flex-column position-relative" style="height:calc(100vh - 85px)">
+
+            <!-- Chat Window -->
+            <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
+                <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
             </div>
 
+            <!-- Input and Submit Button -->
             <div class="container">
                 <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
                 <button class="btn btn-primary" @click="submitText">
@@ -47,8 +47,10 @@
                 </button>
             </div>
 
+            <!-- Simple Keyboard -->
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
 
+            <!-- Button Group Container -->
             <div class='container'>
                 <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
                     {{ config.translations[language].speechRecognition }}
@@ -69,7 +71,7 @@
 <script setup>
     import axios from "axios"
     import { marked } from "marked";
-    import { onMounted, onUpdated, inject, ref } from "vue";
+    import { onMounted, inject, ref } from "vue";
     import config from '../../config'
     import SimpleKeyboard from "./SimpleKeyboard.vue";
 
@@ -102,8 +104,8 @@
     }
 
     async function textInputCallback(event) {
-        if (event.key == "Enter") {
-            submitText()
+        if (event.key === "Enter") {
+            await submitText()
         }
     }
 
@@ -123,7 +125,7 @@
         } else {
             createSpeechBubbleAI("Failed to connect...", "connect")
         }
-    };
+    }
 
     async function sendRequest(method, url, body) {
         try {
@@ -140,7 +142,7 @@
         } catch (error) {
             throw error;
         }
-    };
+    }
     
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
@@ -152,11 +154,12 @@
             if (debug.value) {
                 processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
             }
-            //this.scrollDown();            
+            scrollDown();
         } catch (error) {
             createSpeechBubbleAI("Error while fetching data: " + error)
+            scrollDown();
         }
-    };
+    }
 
     async function startRecognition() {
         // TODO this does not seem to work for me
@@ -174,14 +177,14 @@
         };
         recognition.start();
         recording.value = true;
-    };
+    }
 
     async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
         await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
-    };
+    }
 
     function createSpeechBubbleAI(text, id) {
         lastMessage = text;
@@ -199,7 +202,7 @@
             busy.value = false;
         }
         chat.appendChild(d1)
-    };
+    }
 
     function createSpeechBubbleUser(text) {
         const chat = document.getElementById("chat-container")
@@ -213,13 +216,14 @@
         </div>`
         chat.appendChild(d1)
         createSpeechBubbleAI('. . .', 'waitBubble')
-    };
+        scrollDown()
+    }
 
-    function scrollDown() {
-        var chatDiv = document.getElementById('chat-container')
-        var height = chatDiv[0].scrollHeight;
-        chatDiv.scrollTop(height);
-    };
+    function scrollDown(debug) {
+        const chatDiv = debug ? document.getElementById('chatDebug') : document.getElementById('chat1');
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+        console.log("adjusted scroll view to: " + chatDiv.scrollTop);
+    }
 
     function speakLastMessage() {
         if (speechSynthesis) {
@@ -259,10 +263,6 @@
         d1.textContent = text
         d1.style.color = color
         debugChat.append(d1)
-    }
-
-    function isOpenAI() {
-        return backend.value !== "llama3-rest-gpt"
     }
     
     function beforeDestroy() {
@@ -311,7 +311,6 @@
 
     .debug-window-container {
         background-color: #000; /* Black background */
-        border-radius: 15px;
         overflow: hidden;
     }
 
