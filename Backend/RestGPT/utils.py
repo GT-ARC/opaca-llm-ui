@@ -154,6 +154,14 @@ def resolve_reference(action_spec: Dict, ref: str) -> Dict:
 
 class OpacaLLM(LLM):
 
+    url: str
+    model: str
+
+    def __init__(self, url, model, **data: Any):
+        super().__init__(**data)
+        self.url = url
+        self.model = model
+
     @property
     def _llm_type(self) -> str:
         return "Llama-3 Proxy"
@@ -175,7 +183,14 @@ class OpacaLLM(LLM):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any
     ) -> str:
-        response = requests.post(f'{LLAMA_URL}/llama-3/chat', json={'messages': prompt})
+        response = requests.post(
+            f'{self.url}/api/chat',
+            json={
+                'messages': prompt,
+                'model': self.model,
+                'stream': False
+            }
+        )
 
         output = response.text.replace("\\n", "\n").replace('\\"', '"')
         output = output.strip('"')

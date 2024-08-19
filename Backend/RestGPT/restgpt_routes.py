@@ -46,13 +46,15 @@ class RestGptBackend:
                 "action_selector": True,
                 "evaluator": False
             },
-            "examples": {                       # How many examples are used per agent
+            "examples": {                           # How many examples are used per agent
                 "planner": False,
                 "action_selector": True,
                 "caller": True,
                 "evaluator": True
             },
-            "temperature": 0                    # Temperature for models
+            "temperature": 0,                       # Temperature for models
+            "llama-url": "http://10.0.64.101:11000",
+            "llama-model": "llama3.1:70b",
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -100,7 +102,7 @@ class RestGptBackend:
     def init_model(self, api_key: str):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.llm_type == "llama3":
-            self.llm = OpacaLLM()
+            self.llm = OpacaLLM(self.config['llama-url'], self.config['llama-model'])
         elif self.llm_type == "gpt-4o":
             self.check_for_key(api_key)
             self.llm = ChatOpenAI(model="gpt-4o", temperature=self.config["temperature"], openai_api_key=api_key)
