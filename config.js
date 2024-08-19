@@ -2,12 +2,13 @@ var config = {
 
     BackendAddress: 'http://localhost:3001',
 
-    BackendDefault: "llama3-rest-gpt",
+    BackendDefault: "rest-gpt-llama3",
     Backends: {
-        "openai-test": "Simple OpenAI Prompt",
-        "llama3-rest-gpt": "LLAMA with RestGPT",
-        "gpt-4o-rest-gpt": "GPT-4o with RestGPT",
-        "gpt-4o-mini-rest-gpt": "GPT-4o-Mini with RestGPT"
+        "simple-openai": "Simple Prompt with GPT",
+        "simple-llama": "Simple Prompt with LLAMA",
+        "rest-gpt-llama3": "RestGPT with LLAMA",
+        "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
+        "rest-gpt-gpt-3.5-turbo": "RestGPT with GPT-3.5 Turbo"
     },
 
     OpacaRuntimePlatform: 'http://localhost:8000',
@@ -16,6 +17,7 @@ var config = {
 
     translations:{
         GB: {
+            name: "English",
             language: 'Language',
             submit: 'Submit',
             welcome: 'Welcome to the OPACA LLM Prototype! How can I help you?',
@@ -27,6 +29,7 @@ var config = {
         },
 
         DE: {
+            name: "Deutsch",
             language: 'Sprache',
             submit: 'Senden',
             welcome: 'Willkommen beim OPACA LLM-Prototyp! Wie kann ich Ihnen helfen?',
