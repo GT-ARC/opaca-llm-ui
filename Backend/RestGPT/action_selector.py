@@ -13,15 +13,9 @@ from .utils import build_prompt, fix_parentheses
 logger = logging.getLogger()
 
 examples = [
-    #{"input": "Instruction: Get the temperature for the room kitchen.", "output": """
-#API Call: GetTemperature;{"room": "kitchen"}
-#API Response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
 API Call: BookDesk;{"desk": 5}
 API Response: Successfully booked the desk with id 5."""},
-    #{"input": "Instruction: Check if the desk with id 3 is free.", "output": """
-#API Call: IsFree;{"desk": 3}
-#API Response: The desk with id 3 is free."""},
     {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
 API Call: GetContents;{"shelf": 1}
 API Response: The shelf with id 1 contains plates."""},
@@ -42,16 +36,7 @@ API Response: The contents of shelf 3 are: plates, cups, and glasses.
 Instruction: Close the shelf with id 3.""",
      "output": """
 API Call: CloseShelf;{"shelf": 3}
-API Response: Shelf 3 is now closed."""},
-#    {"input": """
-#Instruction Find the id of the shelf which contains the plates.
-#API Call: FindShelf;{"item": "plates"}
-#API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
-#     "output": """
-#API Call: FindInShelf;{"item": "plates"}
-#API Response: The item "plates" can be found on shelf 3."""},
-#    {"input": """Instruction: Add an item to the grocery list.""", "output": """
-#MISSING No value found for \"name\", \"amount\", \"expirationDate\", \"category\"."""}
+API Response: Shelf 3 is now closed."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -233,7 +218,7 @@ class ActionSelector(Chain):
             action_list += action.selector_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + fix_parentheses(action_list),
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + action_list,
             examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"

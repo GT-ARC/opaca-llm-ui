@@ -144,7 +144,7 @@ class RestGPT(Chain):
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
             if self._should_abort(plan):
-                final_answer = re.sub("STOP", "", plan).strip()
+                final_answer = re.sub("STOP[^a-zA-Z0-9]*", "", plan).strip()
                 break
 
             # ACTION SELECTOR
@@ -181,7 +181,7 @@ class RestGPT(Chain):
                                          config['slim_prompts']['planner'],
                                          config['examples']['planner'])
             if re.match(r"FINISHED", eval_output):
-                final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
+                final_answer = re.sub(r"FINISHED", "", eval_output).strip()
                 break
 
             iterations += 1

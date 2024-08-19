@@ -14,7 +14,7 @@ Plan step 1: Get the way to the kitchen.
 API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
 API response 1: To navigate to the kitchen, you have to turn right, move to the end of the hallway, 
 then enter to door to the left.""",
-     "output": "FINISHED: To navigate to the kitchen, you have to turn right, "
+     "output": "FINISHED To navigate to the kitchen, you have to turn right, "
                "move to the end of the hallway, then enter to door to the left."},
     {"input": """
 User query: Book me a free desk in the office?
@@ -28,7 +28,7 @@ Plan step 3: Book the desk with id 0.
 API call 3: http://localhost:8000/invoke/BookDesk;{"desk": 0}
 API response 3: The desk 0 has been successfully booked.
     """,
-     "output": "FINISHED: I have checked the office for free desks and found that desk 0 was free. I have then"
+     "output": "FINISHED I have checked the office for free desks and found that desk 0 was free. I have then"
                "booked desk 0 for you."},
     {"input": """
 User query: Can you open the shelf with the plates in it for me?
@@ -38,7 +38,7 @@ API response 1: The shelf containing the plates is shelf 3.
 Plan step 2: Open shelf 3.
 API call 2: http://localhost:8000/invoke/OpenShelf;{"shelf": 3}
 API response 2: The shelf with id 3 is now opened.""",
-     "output": "FINISHED: I have located the plates in shelf 3 and opened this shelf as you have instructed me."},
+     "output": "FINISHED I have located the plates in shelf 3 and opened this shelf as you have instructed me."},
 ]
 
 
@@ -69,6 +69,7 @@ fulfilled completely in the call hierarchy. If it has been fulfilled, you output
 of the executed steps and achieved result to the user. If it has not been fulfilled, you output "CONTINUE".
 If the query involves comparing results from different API calls and you determine that all necessary calls were made,
 you should output "FINISHED" as well followed with the result of such a comparison in natural language for the user.
+The user will not receive any information except yours, so make sure to include all relevant information.
 """
 
 

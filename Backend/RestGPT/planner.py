@@ -12,9 +12,6 @@ from .utils import build_prompt, fix_parentheses
 logger = logging.getLogger()
 
 examples = [
-#    {"input": "What is the current temperature in the kitchen?", "output": """
-#Plan step 1: Get the temperature for the room kitchen.
-#API response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Book me the desk with id 6.", "output": """
 Plan step 1: Check if the desk with id 6 is currently free.
 API response: The desk with id 6 is free.
@@ -109,7 +106,10 @@ include descriptions. You use these actions to formulate the steps. Some user qu
 multiple steps. Sometimes to fulfill a query you need additional information, which can be retrieved by available 
 actions. For example, if a query requires you to book a free desk, you first need to output a step to check if a given 
 desk is free. Some actions will require parameters to be called. Always use the most fitting value from the user query 
-as parameters in your steps. Once you receive a useful response for your step, continue with the next step.
+as parameters in your steps. Make the value you want to use for a parameter very clear.
+If you are certain the user has not provided you with all required parameters for service you want to call and you are 
+unable to retrieve those parameters with actions, output the keyword "STOP" and ask the user for the remaining required parameters.
+Once you receive a useful response for your step, continue with the next step.
 If the user asks about more information about specific services or action, you put the 
 keyword "STOP" in front of your reply. Never put the keyword "STOP" in your reply when your reply indicates that 
 a service should be called.
@@ -182,7 +182,7 @@ class Planner(Chain):
 
         prompt = build_prompt(
             # TODO fix_parentheses
-            system_prompt=(PLANNER_PROMPT_SLIM if inputs['slim_prompt'] else PLANNER_PROMPT) + fix_parentheses(action_list),
+            system_prompt=(PLANNER_PROMPT_SLIM if inputs['slim_prompt'] else PLANNER_PROMPT) + action_list,
             examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
