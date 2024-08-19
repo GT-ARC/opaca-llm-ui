@@ -28,12 +28,7 @@ class SimpleBackend:
 
     def __init__(self):
         self.messages = []
-        self.config = {
-            "llama-url": "http://10.0.64.101:11000",
-            "llama-model": "llama3.1:70b",
-            "gpt-model": "gpt-4o-mini",
-            "gpt-temp": None,
-        }
+        self.config = self._init_config()
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
         print("QUERY", message)
@@ -78,21 +73,33 @@ class SimpleBackend:
 
 class SimpleOpenAIBackend(SimpleBackend):
 
+    def _init_config(self):
+        return {
+            "model": "gpt-4o-mini",
+            "temperature": None,
+        }
+
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
-        completion = self.client.chat.completions.create(model=self.config["gpt-model"], temperature=self.config["gpt-temp"], messages=self.messages)
+        completion = self.client.chat.completions.create(model=self.config["model"], temperature=self.config["temperature"], messages=self.messages)
         return completion.choices[0].message.content
 
 
 class SimpleLlamaBackend(SimpleBackend):
 
+    def _init_config(self):
+        return {
+            "api-url": "http://10.0.64.101:11000",
+            "model": "llama3.1:70b",
+        }
+
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling LLAMA...")
-        result = requests.post(f'{self.config["llama-url"]}/api/chat', json={
+        result = requests.post(f'{self.config["api-url"]}/api/chat', json={
             "messages": self.messages,
-            "model": self.config["llama-model"],
+            "model": self.config["model"],
             "stream": False,
             })
         return result.json()["message"]["content"]
