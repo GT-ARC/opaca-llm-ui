@@ -9,76 +9,6 @@ from .utils import build_prompt
 
 
 examples = [
-    {"input": """
-User query: What is the current temperature in room 1?
-Plan step 1: Get the temperature in room 1.
-API call 1: http://localhost:8000/invoke/GetTemperature;{"room": "1"}
-API response 1: The temperature for room 1 is 23.0 degrees.""",
-     "output": "FINISHED: The current temperature in room 1 is 23.0 degrees."},
-    {"input": """
-User query: Check if the desk with id 4 is currently free.
-Plan step 1: Check if desk with id 4 is free.
-API call 1: http://localhost:8000/invoke/IsFree;{"desk": 4}
-API response 1: The desk with id 4 is currently not free.""",
-     "output": "FINISHED: The desk with id 4 is not currently not free and unavailable to book."},
-    {"input": """
-User query: Is the humidity in room 2 or 3 greater?
-Plan step 1: Get the humidity of room 2.
-API call 1: http://localhost:8000/invoke/GetHumidity;{"room": "2"}
-API response 1: The humidity in room 2 is 0.36.
-Plan step 2: Get the humidity of room 3.
-API call 2: http://localhost:8000/invoke/GetHumidity;{"room": "3"}
-API response 2: The humidity in room 3 is 0.38.""",
-     "output": "FINISHED: The humidity in room 2 is 0.36 while the humidity in room 3 is 0.38. "
-               "Therefore, the humidity in room 3 is greater."},
-    {"input": """
-User query: Can you open the shelf with the plates in it for me?
-Plan step 1: Find the shelf with the plates.
-API call 1: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
-API response 1: The shelf containing the plates is shelf 3.""",
-     "output": "CONTINUE"},
-    {"input": """
-User query: Can you open the shelf with the plates in it for me?
-Plan step 1: Find the shelf with the plates.
-API call 1: http://localhost:8000/invoke/FindInShelf;{"item": "plates"}
-API response 1: The shelf containing the plates is shelf 3.
-Plan step 2: Open shelf 3.
-API call 2: http://localhost:8000/invoke/OpenShelf;{"shelf": 3}
-API response 2: The shelf with id 3 is now opened.""",
-     "output": "FINISHED: I have located the plates in shelf 3 and opened this shelf as you have instructed me."},
-    {"input": """
-User query: Book me a free desk in the office?
-Plan step 1: Get all desks in the office room.
-API call 1: http://localhost:8000/invoke/GetDesks;{"room": "office"}
-API response 1: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
-Plan step 2: Check if the desk with id 0 is free.
-API call 2: http://localhost:8000/invoke/IsFree;{"desk": 0}
-API response 2: The desk 0 is currently free.""",
-     "output": "CONTINUE"},
-    {"input": """
-User query: Book me a free desk in the office?
-Plan step 1: Get all desks in the office room.
-API call 1: http://localhost:8000/invoke/GetDesks;{"room": "office"}
-API response 1: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
-Plan step 2: Check if the desk with id 0 is free.
-API call 2: http://localhost:8000/invoke/IsFree;{"desk": 0}
-API response 2: The desk 0 is currently free.
-Plan step 3: Book the desk with id 0.
-API call 3: http://localhost:8000/invoke/BookDesk;{"desk": 0}
-API response 3: The desk 0 has been successfully booked.
-""",
-     "output": "FINISHED: I have checked the office for free desks and found that desk 0 was free. I have then"
-               "booked desk 0 for you."},
-    {"input": """What is the way to the kitchen?
-Plan step 1: Get the way to the kitchen.
-API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
-API response 1: To navigate to the kitchen, you have to turn right, move to the end of the hallway, 
-then enter to door to the left.""",
-     "output": "FINISHED: To navigate to the kitchen, you have to turn right, "
-               "move to the end of the hallway, then enter to door to the left."},
-]
-
-examples_alt = [
     {"input": """What is the way to the kitchen?
 Plan step 1: Get the way to the kitchen.
 API call 1: http://localhost:8000/NavigateTo;{"room": "kitchen"}
@@ -192,8 +122,8 @@ class Evaluator(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
 
         prompt = build_prompt(
-            system_prompt=EVAL_PROMPT,
-            examples=examples_alt,
+            system_prompt=EVAL_PROMPT_SLIM if inputs['slim_prompt'] else EVAL_PROMPT,
+            examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template="{input}"
         )

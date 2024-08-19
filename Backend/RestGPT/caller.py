@@ -88,7 +88,7 @@ class Caller(Chain):
 
         prompt = build_prompt(
             system_prompt=CALLER_PROMPT,
-            examples=examples,
+            examples=examples if inputs['examples'] else [],
             input_variables=["api_call", "description", "params", "response"],
             message_template="API Call: {api_call}\nDescription: {description}\n"
                              "Parameter: {params}\nResult: {response}"

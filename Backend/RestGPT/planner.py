@@ -129,10 +129,9 @@ available, and the parameters required to call that action.
 
 class Planner(Chain):
     llm: BaseLLM | ChatOpenAI
-    planner_prompt: str
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=PLANNER_PROMPT) -> None:
-        super().__init__(llm=llm, planner_prompt=planner_prompt)
+    def __init__(self, llm: BaseLLM | ChatOpenAI) -> None:
+        super().__init__(llm=llm)
 
     @property
     def _chain_type(self) -> str:
@@ -182,8 +181,9 @@ class Planner(Chain):
             action_list += action.planner_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=PLANNER_PROMPT_SLIM + fix_parentheses(action_list),
-            examples=[],
+            # TODO fix_parentheses
+            system_prompt=(PLANNER_PROMPT_SLIM if inputs['slim_prompt'] else PLANNER_PROMPT) + fix_parentheses(action_list),
+            examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )

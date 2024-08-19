@@ -47,8 +47,12 @@ class RestGPT(Chain):
             evaluator=evaluator, **kwargs
         )
 
-    def _finished(self, eval_input: str, history: List[Tuple[str, str]]):
-        return self.evaluator.invoke({"input": eval_input, "history": history})["result"]
+    def _finished(self, eval_input: str, history: List[Tuple[str, str]], slim_prompt: bool, examples: bool):
+        return self.evaluator.invoke({"input": eval_input,
+                                      "history": history,
+                                      "slim_prompt": slim_prompt,
+                                      "examples": examples
+                                      })["result"]
 
     @property
     def _chain_type(self) -> str:
@@ -60,7 +64,7 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["query", "history"]
+        return ["query", "history", "config"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -112,6 +116,7 @@ class RestGPT(Chain):
             run_manager: Optional[CallbackManagerForChainRun] = None,
     ) -> Dict[str, Any]:
         query = inputs['query']
+        config = inputs['config']
 
         planner_history: List[Tuple[str, str]] = []
         action_selector_history: List[Tuple[str, str, str]] = []
@@ -127,8 +132,12 @@ class RestGPT(Chain):
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
-            plan = self.planner.invoke({"input": query, "actions": self.action_spec, "planner_history": planner_history,
-                                        "message_history": inputs['history']})
+            plan = self.planner.invoke({"input": query,
+                                        "actions": self.action_spec,
+                                        "planner_history": planner_history,
+                                        "message_history": inputs['history'],
+                                        "slim_prompt": config['slim_prompts']['planner'],
+                                        "examples": config['examples']['planner']})
             plan = plan["result"]
             self.debug_output += f'Planner: {plan}\n'
             logger.info(f"Planner: {plan}")
@@ -141,7 +150,9 @@ class RestGPT(Chain):
             # ACTION SELECTOR
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
-                                                    "history": action_selector_history})
+                                                    "history": action_selector_history,
+                                                    "slim_prompt": config['slim_prompts']['action_selector'],
+                                                    "examples": config['examples']['action_selector']})
             api_plan = api_plan["result"]
             self.debug_output += f'API Selector: {api_plan}\n'
             logger.info(f'API Selector: {api_plan}')
@@ -154,7 +165,9 @@ class RestGPT(Chain):
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
             # CALLER
-            execution_res = self.caller.invoke({"api_plan": api_plan, "actions": self.action_spec})
+            execution_res = self.caller.invoke({"api_plan": api_plan,
+                                                "actions": self.action_spec,
+                                                "examples": config['examples']['action_selector']})
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
             logger.info(f'Caller: {execution_res}')
@@ -163,7 +176,10 @@ class RestGPT(Chain):
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
-            eval_output = self._finished(eval_input, inputs['history'])
+            eval_output = self._finished(eval_input,
+                                         inputs['history'],
+                                         config['slim_prompts']['planner'],
+                                         config['examples']['planner'])
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED: ", "", eval_output).strip()
                 break

@@ -233,8 +233,8 @@ class ActionSelector(Chain):
             action_list += action.selector_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=ACTION_SELECTOR_PROMPT_SLIM + fix_parentheses(action_list),
-            examples=examples,
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + fix_parentheses(action_list),
+            examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
