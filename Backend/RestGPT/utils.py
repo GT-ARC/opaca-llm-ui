@@ -154,8 +154,8 @@ def resolve_reference(action_spec: Dict, ref: str) -> Dict:
 
 class OpacaLLM(LLM):
 
-    url: str
-    model: str
+    url: str = ""
+    model: str = ""
 
     def __init__(self, url, model, **data: Any):
         super().__init__(**data)

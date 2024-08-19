@@ -223,7 +223,6 @@
     function scrollDown(debug) {
         const chatDiv = debug ? document.getElementById('chatDebug') : document.getElementById('chat1');
         chatDiv.scrollTop = chatDiv.scrollHeight;
-        console.log("adjusted scroll view to: " + chatDiv.scrollTop);
     }
 
     function speakLastMessage() {

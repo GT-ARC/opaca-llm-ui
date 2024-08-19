@@ -102,7 +102,7 @@ class RestGptBackend:
     def init_model(self, api_key: str):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.llm_type == "llama3":
-            self.llm = OpacaLLM(self.config['llama-url'], self.config['llama-model'])
+            self.llm = OpacaLLM(url=self.config['llama-url'], model=self.config['llama-model'])
         elif self.llm_type == "gpt-4o":
             self.check_for_key(api_key)
             self.llm = ChatOpenAI(model="gpt-4o", temperature=self.config["temperature"], openai_api_key=api_key)
