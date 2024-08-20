@@ -8,11 +8,14 @@ from ..opaca_proxy import proxy as opaca_proxy
 
 
 system_prompt = """
-You suggest web services to fulfil a given purpose.
-You present the result as pseudo-code, including temporary variables if needed.
-You know some agents providing different actions that you can use. Do not assume any other services.
+You are an assistant, called the 'OPACA-LLM'.
+
+You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
+You are given the list of actions at the end of this prompt.
+Do not assume any other services.
 If those services are not sufficient to solve the problem, just say so.
-First, show only the pseudo code. Later, if the user says "do it", and only then, you repeat the first service call of the previous pseudo code in this specific JSON format and nothing else (not even Markup):
+
+In order to invoke an action with parameters, output the following JSON format and NOTHING else:
 {
     "agentId": <AGENT-ID>,
     "action": <ACTION-NAME>,
@@ -21,7 +24,30 @@ First, show only the pseudo code. Later, if the user says "do it", and only then
         ...
     }
 }
-Following is the list of available services described in JSON, which can be called as webservices:   
+
+It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
+So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..."!
+Again, in order to call a service, your response must ONLY contain the JSON and nothing else.
+
+The result of the action invocation is then fed back into the prompt as a system message.
+If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
+Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
+
+If multiple actions will be needed to fulfill the request, first show which actions you are about to call (as a list), and only start calling the services (using the above format) once the user confirmed the plan with "okay", "do it", or similar. But if just a single action is needed, then you execute it directly without asking for confirmation first.
+
+Again, please follow this exact process:
+- if multiple actions have to be called:
+  1. show a list of the actions to be called and ask the user to confirm this.
+  2. wait for the user's input
+  3. print the JSON for invoking the first action, and nothing else
+  4. evaluate the result of the action (given as a system message)
+  5. either respond to the user's original question, giving them the result, or continue with the next action (going back to 3.)
+- if a only single action has to be called:
+  1. print the JSON for invoking the action, and nothing else
+  2. evaluate the result of the action (given as a system message)
+  3. respond to the user's original question, giving them the result
+
+Following is the list of available agents and actions described in JSON:
 """
 
 class SimpleBackend:
@@ -35,22 +61,25 @@ class SimpleBackend:
         self._update_system_prompt()
         self.messages.append({"role": "user", "content": message})
 
-        response = self._query_internal(debug, api_key)
-        self.messages.append({"role": "assistant", "content": response})
+        while True:
+            response = self._query_internal(debug, api_key)
+            self.messages.append({"role": "assistant", "content": response})
 
-        print("RESPONSE:", repr(response))
-        try:
-            d = json.loads(response.strip("`json\n")) # strip markdown, if included
-            print("Successfully parsed as JSON, calling service...")
-            result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
-            response = f"Called `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`.\n\nThe result of this step was: {repr(result)}"
-            self.messages.append({"role": "system", "content": response})
-        except json.JSONDecodeError as e:
-            print("Not JSON", type(e), e)
-        except Exception as e:
-            print("ERROR", type(e), e)
-            response = f"Called `/invoke/{d['action']}/{d['agentId']}` with params `{d['params']}`, but there was an error: {e}"
-            self.messages.append({"role": "system", "content": response})
+            print("RESPONSE:", repr(response))
+            try:
+                d = json.loads(response.strip("`json\n")) # strip markdown, if included
+                print("Successfully parsed as JSON, calling service...")
+                result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                response = f"The result of this step was: {repr(result)}"
+                self.messages.append({"role": "system", "content": response})
+            except json.JSONDecodeError as e:
+                print("Not JSON", type(e), e)
+                break
+            except Exception as e:
+                print("ERROR", type(e), e)
+                response = f"There was an error: {e}"
+                self.messages.append({"role": "system", "content": response})
+                break
 
         return {"result": response, "debug": ""}
     
