@@ -59,6 +59,7 @@ class SimpleBackend:
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
         print("QUERY", message)
         self._update_system_prompt()
+        last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
 
         while True:
@@ -81,6 +82,7 @@ class SimpleBackend:
                 self.messages.append({"role": "system", "content": response})
                 break
 
+        debug_msg = "\n ".join(f'{msg["role"]}: {msg["content"]}' for msg in self.messages[last_msg:]) if debug else ""
         return {"result": response, "debug": ""}
     
     async def history(self) -> list:
