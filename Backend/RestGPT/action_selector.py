@@ -13,15 +13,9 @@ from .utils import build_prompt, fix_parentheses
 logger = logging.getLogger()
 
 examples = [
-    {"input": "Instruction: Get the temperature for the room kitchen.", "output": """
-API Call: GetTemperature;{"room": "kitchen"}
-API Response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Instruction: Book the desk with id 5.", "output": """
 API Call: BookDesk;{"desk": 5}
 API Response: Successfully booked the desk with id 5."""},
-    {"input": "Instruction: Check if the desk with id 3 is free.", "output": """
-API Call: IsFree;{"desk": 3}
-API Response: The desk with id 3 is free."""},
     {"input": "Instruction: Check if the shelf with id 1 contains plates.", "output": """
 API Call: GetContents;{"shelf": 1}
 API Response: The shelf with id 1 contains plates."""},
@@ -42,21 +36,7 @@ API Response: The contents of shelf 3 are: plates, cups, and glasses.
 Instruction: Close the shelf with id 3.""",
      "output": """
 API Call: CloseShelf;{"shelf": 3}
-API Response: Shelf 3 is now closed."""},
-    {"input": """
-Instruction Find the id of the shelf which contains the plates.
-API Call: FindShelf;{"item": "plates"}
-API Response: Your selected action does not exist. Pleas only use actions from the provided list of actions.""",
-     "output": """
-API Call: FindInShelf;{"item": "plates"}
-API Response: The item "plates" can be found on shelf 3."""},
-    {"input": """Instruction: Add an item to the grocery list.""", "output": """
-MISSING The action to add an item to the grocery list "AddGroceries" requires the following parameters:
-- name: the name of the item
-- amount: the amount of those item
-- expirationDate: the expiration date of that item
-- category: The category of that item
-However, these parameters were not found in the instruction."""}
+API Response: Shelf 3 is now closed."""}
 ]
 
 ACTION_SELECTOR_PROMPT = """
@@ -72,11 +52,15 @@ that an overview of all the required parameters that are missing values in the i
 successfully call that action. If values for non-required parameters are missing, you can ignore 
 them in your API call, but if they are present in the instruction, always include them. 
 You are forbidden to generate values for all parameters on your own. Only use values that have been given in 
-the instruction. 
+the instruction.
+Remember that the values for parameters are not always obvious, since the query is produced by a human. For example, 
+if you think the query calls for an action which requires the parameter "item", see if any part of the human query 
+would fit the general description of an item in that context. If a user would want to add bananas to its grocer list, 
+you should assume that the value for the item parameter should be set to banana.
 If the parameter for an action is of type string, check if the instruction indicates what part of it should be used as 
 string. For example, if the instruction tells you to set the title to title, you should use "title" as the value for
 the title.
-If an action does not require parameters, just output an empty Json array like {{}}. 
+If an action does not require parameters, just output an empty Json array like {}. 
 Take note of the type of each parameter and output the value type accordingly. For example, if the type is string, 
 the parameter you output needs to include quotation marks around the value. If the type is an integer, the value should 
 just be a number without any quotation marks. You can follow the known OpenAPI schema for most of the types. 
@@ -93,11 +77,33 @@ modify the last call either by adding or removing parameters, correcting the typ
 to call a different action.
 Here is the format in which you should answer normally:
 
-API Call: {{action_name}};{{\"parameter_name\": \"value\"}}
+API Call: {action_name};{"parameter_name": "value"}
 
 You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
 
 Here is the list you should use to create the API Call:
+"""
+
+ACTION_SELECTOR_PROMPT_SLIM = """
+You output API calls. The format in which you should answer is as follows:
+
+API Call: action_name;{"parameter_name": "value"}
+
+You will replace action_name with the exact name of the most fitting action given in the user input.
+After that, you output a semicolon and then you output the parameters for that action in a JSON format.
+As values for the parameters you use the most fitting value from the user input. For example, if an action requires 
+the parameter "room" as a string and the user input specified the room as "kitchen", you use "kitchen" as the 
+value for the parameter "room". Make sure to use the correct data type for the parameters. Sometimes parameter values 
+are not clearly specified in the request. Try to evaluate what the user might want you to use as a value in the context 
+of the most fitting action. If you think a value for a required parameter for the most fitting action is missing, 
+then you output the keyword "MISSING" and 
+after that a brief explanation of what parameter is missing. For example, if the action requires the parameter 
+"room" but there is no value in the user query for that parameter, output "MISSING" No value found for parameter
+ "room". Do not evaluate whether the value for the parameter is valid or not.
+All of your answers either start with "API Call: " or "MISSING".
+
+Here is the list of actions. It includes the name of the action, a short description if one is available,
+an overview of the parameters to call that action, and the definition of custom parameters, if used.
 """
 
 
@@ -150,40 +156,47 @@ class ActionSelector(Chain):
 
         # Check if exactly one semicolon was generated
         if not len(action_plan.split(';')) == 2:
-            err_out += ("Your generated action call is not properly formatted. It should include exactly one action, "
-                        "a semicolon and a list of parameters in json format.\n")
-            return err_out
+            return ("Your generated action call is not properly formatted. It should include exactly one action, "
+                    "a semicolon and a list of parameters in json format.\n")
 
         # Check if the action name is contained in the list of available actions and retrieve the action
         action, parameters = action_plan.split(';')
-        action_from_list = None
-        for a in actions:
-            if a.action_name == action:
-                action_from_list = a
-        if not action_from_list:
-            err_out += ("Your selected action does not exist. "
-                        "Please only use actions from the provided list of actions.\n")
-            return err_out
 
         # Check if the parameters are in a valid json format
         try:
             p_json = json.loads(parameters)
         except ValueError as e:
-            err_out += "Your generated parameters are not in a valid JSON format.\n"
-            return err_out
+            return "Your generated parameters are not in a valid JSON format.\n"
 
-        # Check if all required parameters are present
-        for parameter in [p for p in action_from_list.params_in.keys()
-                          if action_from_list.params_in[p].required]:
-            if parameter not in p_json.keys():
-                err_out += (f'You have not included the required parameter {parameter} in '
-                            f'your generated list of parameters for the action {action}.\n')
+        action_from_list = None
+        for a in actions:
+            if a.action_name == action:
 
-        # Check if no parameter is hallucinated
-        for parameter in p_json.keys():
-            if parameter not in [p for p in action_from_list.params_in.keys()]:
-                err_out += (f'You have included the improper parameter {parameter} in your generated list of '
-                            f'parameters. Please only use parameters that are given in the action description.\n')
+                # Check if another action was already found by that name, if it was -> delete err msgs
+                if action_from_list is not None:
+                    err_out = ""
+
+                action_from_list = a
+
+                # Check if all required parameters are present
+                for parameter in [p for p in action_from_list.params_in.keys()
+                                  if action_from_list.params_in[p].required]:
+                    if parameter not in p_json.keys():
+                        err_out += (f'You have not included the required parameter {parameter} in '
+                                    f'your generated list of parameters for the action {action}.\n')
+
+                # Check if no parameter is hallucinated
+                for parameter in p_json.keys():
+                    if parameter not in [p for p in action_from_list.params_in.keys()]:
+                        err_out += (f'You have included the improper parameter {parameter} in your generated list of '
+                                    f'parameters. Please only use parameters that are given in the action description.\n')
+
+                if err_out == "":
+                    return ""
+
+        if not action_from_list:
+            err_out += ("Your selected action does not exist. "
+                        "Please only use actions from the provided list of actions.\n")
         return err_out
 
     def _construct_scratchpad(
@@ -205,8 +218,8 @@ class ActionSelector(Chain):
             action_list += action.selector_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=ACTION_SELECTOR_PROMPT + fix_parentheses(action_list),
-            examples=examples,
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + action_list,
+            examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
@@ -218,16 +231,14 @@ class ActionSelector(Chain):
         if isinstance(output, AIMessage):
             output = output.content
 
-        action_plan = re.sub(r"API Call+:", "", output)
+        action_plan = re.sub(r"API Call:", "", output).strip()
 
         if self._check_missing(action_plan):
             return {"result": action_plan}
-        else:
-            action_plan = action_plan.split('\n')[0].strip()
 
         correction_limit = 1
         while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
-            logger.info(f'API Selector: Correction needed for request {action_plan}\nCause: {err_msg}')
+            logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
             output = chain.invoke({"input": inputs["plan"] + err_msg})
 

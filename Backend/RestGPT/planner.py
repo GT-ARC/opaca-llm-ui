@@ -12,9 +12,6 @@ from .utils import build_prompt, fix_parentheses
 logger = logging.getLogger()
 
 examples = [
-    {"input": "What is the current temperature in the kitchen?", "output": """
-Plan step 1: Get the temperature for the room kitchen.
-API response: The temperature in the kitchen is 23 degrees."""},
     {"input": "Book me the desk with id 6.", "output": """
 Plan step 1: Check if the desk with id 6 is currently free.
 API response: The desk with id 6 is free.
@@ -28,8 +25,8 @@ Plan step 1: Find the shelf with the cups in it.
 API response: The shelf containing the cups is the shelf with id 3.
 Plan step 2: Open the shelf with id 3.
 API response: Successfully opened the shelf with id 3."""},
-    {"input": "Book me any desk that is currently free.", "output": """
-Plan step 1: Get all desks.
+    {"input": "Book me any desk in the office that is currently free.", "output": """
+Plan step 1: Get all desks in the office.
 API response: The ids of the desks are 0, 4, 6.
 Plan step 2: Check if the desk with id 0 is free.
 API response: The desk with id 0 is not free.
@@ -40,29 +37,17 @@ API response: Successfully booked the desk with id 4."""},
     {"input": "Show me the way to the kitchen.", "output": """
 Plan step 1: Get the way to the kitchen.
 API response: Turn left, move to the end of the hallway, then enter the door to the right to reach the kitchen."""},
-    {"input": "Get the noise and humidity for room 1 and the temperature for room 2.", "output": """
-Plan step 1: Get the noise for room 1.
-API response: The noise for room 1 is 39.0.
-Plan step 2: Get the humidity for room 1.
-API response: The humidity for room 1 is 45.2.
-Plan step 3: Get the temperature for room 2.
-API response: The temperature for room 2 is 22."""},
+    {"input": "Get the Co2 level for sensor 111 and the temperature for sensor 103.", "output": """
+Plan step 1: Get the Co2 level for sensor 111.
+API response: The Co2 level for sensor 111 is 39.0.
+Plan step 2: Get the temperature for sensor 103.
+API response: The humidity for room 1 is 45.2."""},
     {"input": "Please add 4 apples to my grocery list with an expiration date of 29th of July 2024", "output": """
 Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to the category fruits.
 API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024"""},
     {"input": "Can you give me a list of all sensor ids?", "output": """
 Plan step 1: Get a list of all sensor ids.
 API response: Here is a list of all sensor ids: [100, 101, 104, 116, 205, 206]"""},
-    {"input": "For all of the desks in the office, can you check each desk if it is free and if so, return me its id?",
-     "output": """
-Plan step 1: Get all the desks in the office.
-API response: The available desks in the office are (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
-Plan step 2: Check if the desk 0 is free.
-API response: Desk 0 is not free.
-Plan step 3: Check if desk 1 is free.
-API response: Desk 1 is not free.
-Plan step 4: Check if desk 2 is free.
-API response: Desk 2 is free."""}
 ]
 
 
@@ -94,7 +79,8 @@ to provide these missing parameters. Keep in mind that the user provides you the
 
 You always follow this format:
 
-User query: This is the query you have received from the user.
+Human: This is the query you have received from the user.
+AI:
 Plan step 1: This is the first step of your plan to fulfill the user query.
 API response: This is the result of your first plan step.
 Plan step 2: This is the second step of your plan.
@@ -113,13 +99,39 @@ of the parameters needed to call the service. Remember that your plan steps shou
 services:
 """
 
+PLANNER_PROMPT_SLIM = """
+You plan solutions to user queries. A user will give you a question or instruction and you will output the next 
+concrete step to solve this question or instruction. You will receive a list of available actions, some of which will 
+include descriptions. You use these actions to formulate the steps. Some user queries can only be fulfilled with 
+multiple steps. Sometimes to fulfill a query you need additional information, which can be retrieved by available 
+actions. For example, if a query requires you to book a free desk, you first need to output a step to check if a given 
+desk is free. Some actions will require parameters to be called. Always use the most fitting value from the user query 
+as parameters in your steps. Make the value you want to use for a parameter very clear.
+If you are certain the user has not provided you with all required parameters for service you want to call and you are 
+unable to retrieve those parameters with actions, output the keyword "STOP" and ask the user for the remaining required parameters.
+Once you receive a useful response for your step, continue with the next step.
+If the user asks about more information about specific services or action, you put the 
+keyword "STOP" in front of your reply. Never put the keyword "STOP" in your reply when your reply indicates that 
+a service should be called.
+
+Human: The input from the user
+AI:
+Plan step 1: The first step of your plan.
+API response: This is the result of your first plan step.
+Plan step 2: The second step of your plan.
+API response: This the the result of your second plan step.
+... (This schema can continue as long as necessary)
+
+Following is the list of available actions. It will include the name of each action, a description if one is 
+available, and the parameters required to call that action.
+"""
+
 
 class Planner(Chain):
     llm: BaseLLM | ChatOpenAI
-    planner_prompt: str
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=PLANNER_PROMPT) -> None:
-        super().__init__(llm=llm, planner_prompt=planner_prompt)
+    def __init__(self, llm: BaseLLM | ChatOpenAI) -> None:
+        super().__init__(llm=llm)
 
     @property
     def _chain_type(self) -> str:
@@ -169,8 +181,9 @@ class Planner(Chain):
             action_list += action.planner_str() + '\n'
 
         prompt = build_prompt(
-            system_prompt=PLANNER_PROMPT + fix_parentheses(action_list),
-            examples=examples,
+            # TODO fix_parentheses
+            system_prompt=(PLANNER_PROMPT_SLIM if inputs['slim_prompt'] else PLANNER_PROMPT) + action_list,
+            examples=examples if inputs['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )

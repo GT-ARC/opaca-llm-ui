@@ -53,7 +53,7 @@ class Message(BaseModel):
 BACKENDS = {
     "rest-gpt-llama3": RestGptBackend("llama3"),
     "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
-    "rest-gpt-gpt-3.5-turbo": RestGptBackend("gpt-3.5-turbo"),
+    "rest-gpt-gpt-4o-mini": RestGptBackend("gpt-4o-mini"),
     "simple-openai": SimpleOpenAIBackend(),
     "simple-llama": SimpleLlamaBackend(),
 }

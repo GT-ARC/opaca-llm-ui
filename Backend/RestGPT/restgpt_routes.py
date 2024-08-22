@@ -39,6 +39,23 @@ class RestGptBackend:
 
     def __init__(self, llm_type: str):
         self.llm_type = llm_type
+        # This is the DEFAULT config
+        self.config = {
+            "slim_prompts": {                       # Use slim prompts -> cheaper
+                "planner": True,
+                "action_selector": True,
+                "evaluator": False
+            },
+            "examples": {                           # How many examples are used per agent
+                "planner": False,
+                "action_selector": True,
+                "caller": True,
+                "evaluator": True
+            },
+            "temperature": 0,                       # Temperature for models
+            "llama-url": "http://10.0.64.101:11000",
+            "llama-model": "llama3.1:70b",
+        }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
 
@@ -59,7 +76,7 @@ class RestGptBackend:
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
         try:
-            result = rest_gpt.invoke({"query": message, "history": self.messages})
+            result = rest_gpt.invoke({"query": message, "history": self.messages, "config": self.config})
         except openai.AuthenticationError as e:
             return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                               "api key and try again.", "debug": str(e)}
@@ -77,21 +94,21 @@ class RestGptBackend:
         self.messages = []
 
     async def get_config(self) -> dict:
-        return {}
+        return self.config
 
     async def set_config(self, conf: dict):
-        pass
+        self.config = conf
 
     def init_model(self, api_key: str):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.llm_type == "llama3":
-            self.llm = OpacaLLM()
+            self.llm = OpacaLLM(url=self.config['llama-url'], model=self.config['llama-model'])
         elif self.llm_type == "gpt-4o":
             self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
-        elif self.llm_type == "gpt-3.5-turbo":
+            self.llm = ChatOpenAI(model="gpt-4o", temperature=self.config["temperature"], openai_api_key=api_key)
+        elif self.llm_type == "gpt-4o-mini":
             self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=api_key)
+            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=self.config["temperature"], openai_api_key=api_key)
 
     @staticmethod
     def check_for_key(api_key: str):
