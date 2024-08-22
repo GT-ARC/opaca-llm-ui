@@ -8,7 +8,9 @@ var config = {
         "simple-llama": "Simple Prompt with LLAMA",
         "rest-gpt-llama3": "RestGPT with LLAMA",
         "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
-        "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini"
+        "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
+        "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
+        "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
     },
 
     OpacaRuntimePlatform: 'http://localhost:8000',
