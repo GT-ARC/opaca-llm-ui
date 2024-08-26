@@ -240,7 +240,9 @@
             "Planner:": "#f00",
             "API Selector:": "#ff0",
             "Caller:": "#00f",
-            "Final Answer:": "#0f0"
+            "Final Answer:": "#0f0",
+            "Tools:": "#f00",
+            "AI Answer:": "#0f0",
         }
         const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
 

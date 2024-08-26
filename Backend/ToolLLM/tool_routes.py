@@ -20,7 +20,7 @@ class ColorPrint:
         self.color_mapping = {
             "Tools": Fore.RED,
             "AI Answer": Fore.GREEN,
-            "User Query": Fore.WHITE,
+            "Query": Fore.WHITE,
         }
 
     def write(self, data):
@@ -56,7 +56,7 @@ class ToolLLMBackend:
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
 
-        self.debug_output += f'User Query: {message}\n'
+        self.debug_output = f'Query: {message}\n'
         # Execute generated tools
         tool_names = []
         tool_params = []
