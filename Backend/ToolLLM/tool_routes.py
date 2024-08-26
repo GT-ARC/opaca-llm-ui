@@ -1,16 +1,33 @@
-from typing import Dict, Optional, List
+from typing import Dict, List
 
 import logging
 import os
 
+from colorama import Fore
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
 
-from ..RestGPT import ColorPrint, get_reduced_action_spec, build_prompt
+from ..RestGPT import get_reduced_action_spec, build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import transform_to_openai_tools
+
+
+class ColorPrint:
+    def __init__(self):
+        self.color_mapping = {
+            "Tools": Fore.RED,
+            "AI Answer": Fore.GREEN,
+            "User Query": Fore.WHITE,
+        }
+
+    def write(self, data):
+        module = data.split(':')[0]
+        if module not in self.color_mapping:
+            print(data, end="")
+        else:
+            print(self.color_mapping[module] + data + Fore.RESET, end="")
 
 logger = logging.getLogger()
 
@@ -25,6 +42,7 @@ class ToolLLMBackend:
     messages: List = []
     llm_type: str
     llm: BaseChatModel | ChatOpenAI
+    debug_output: str = ""
 
     def __init__(self, llm_type: str):
         self.llm_type = llm_type
@@ -35,6 +53,8 @@ class ToolLLMBackend:
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
 
+        self.debug_output += f'User Query: {message}\n'
+
         # Model initialization here since openai requires api key in constructor
         try:
             self.init_model(api_key)
@@ -42,7 +62,6 @@ class ToolLLMBackend:
             return {"result": "You are trying to use a model which uses an api key but provided none. Please "
                               "enter a valid api key and try again.", "debug": str(e)}
 
-        # TODO get "tools" from opaca-proxy and bind to llm
         tools = transform_to_openai_tools(get_reduced_action_spec(opaca_proxy.get_actions_openapi()))
 
         # INITIAL QUERY
@@ -52,13 +71,13 @@ class ToolLLMBackend:
                           "Some queries require sequential calls with those tools."
                           "If you are unable to fulfill the user queries with the given tools, let the user know."
                           "You are only allowed to use those given tools. If a user asks about tools directly, answer "
-                          "them with the required information. Tools can also be described as services. You ",
+                          "them with the required information. Tools can also be described as services.",
             examples=[],
             input_variables=['input'],
             message_template="{input}"
         )
         chain = prompt | self.llm.bind_tools(tools=tools)
-        result = chain.invoke({'input': message})
+        result = chain.invoke({'input': message, "history": self.messages})
 
         # Execute generated tools
         tool_names = []
@@ -67,9 +86,11 @@ class ToolLLMBackend:
         for call in result.tool_calls:
             tool_names.append(call['name'])
             tool_params.append(call['args'])
+            print(f'tool name: {call["name"]}\nparams: {call["args"]}')
             tool_results.append(opaca_proxy.invoke_opaca_action(call['name'], None, call['args']))
 
         if len(tool_names) > 0:
+            self.debug_output += f'Tools: {tool_names}, {tool_params}, {tool_results}\n'
             prompt_template = PromptTemplate(
                 template="You just used the tools {tool_names} with the following parameters: {parameters}."
                          "The results were {results}."
@@ -83,18 +104,13 @@ class ToolLLMBackend:
                 'results': tool_results
             })
 
-        """
-        try:
-            result = rest_gpt.invoke({"query": message, "history": self.messages, "config": self.config})
-        except openai.AuthenticationError as e:
-            return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
-                              "api key and try again.", "debug": str(e)}
+        self.debug_output += f'AI Answer: {result.content}\n'
         self.messages.append(HumanMessage(message))
-        self.messages.append(AIMessage(result["result"]))
-        """
+        self.messages.append(AIMessage(result.content))
+
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
-        return {"result": result.content, "debug": "" if debug else ""}
+        return {"result": result.content, "debug": self.debug_output if debug else ""}
 
     async def history(self) -> list:
         return self.messages
