@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
+from .ITDZ.itdz_backends import KnowledgeBackend
 
 """
 TODO
@@ -56,6 +57,7 @@ BACKENDS = {
     "rest-gpt-gpt-4o-mini": RestGptBackend("gpt-4o-mini"),
     "simple-openai": SimpleOpenAIBackend(),
     "simple-llama": SimpleLlamaBackend(),
+    "itdz-knowledge": KnowledgeBackend(),
 }
 
 
