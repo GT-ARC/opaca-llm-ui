@@ -9,7 +9,8 @@ var config = {
         "rest-gpt-llama3": "RestGPT with LLAMA",
         "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
         "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
-        "itdz-knowledge": "Berlin Knowledge Admin 'Bobbi'"
+        "itdz-knowledge": "Berlin Knowledge Admin 'Bobbi'",
+        "itdz-data": "Data Analysis and Forecasting",
     },
 
     OpacaRuntimePlatform: 'http://localhost:8000',

@@ -48,3 +48,13 @@ class KnowledgeBackend(ProxyBackend):
         print("RESULT", result)
         self.config["msg_id"] = int(result["msg_id"])
         return {"result": result["content"], "debug": ""}
+
+
+class DataAnalysisBackend(ProxyBackend):
+
+    def _init_config(self):
+        return {
+        }
+
+    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+        return {"result": "not yet implemented", "debug": ""}
