@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from Backend.ToolLLM import ToolLLMBackend
+from .ToolLLM import ToolLLMBackend
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy

@@ -74,8 +74,13 @@ class ToolLLMBackend:
             return {"result": "You are trying to use a model which uses an api key but provided none. Please "
                               "enter a valid api key and try again.", "debug": str(e)}
 
-        # Convert openapi schema to openai tools schema
-        tools = transform_to_openai_tools(get_reduced_action_spec(opaca_proxy.get_actions_openapi()))
+        try:
+            # Convert openapi schema to openai tools schema
+            tools = transform_to_openai_tools(get_reduced_action_spec(opaca_proxy.get_actions_openapi()))
+        except Exception as e:
+            return {"result": "It appears no actions were returned by the Opaca Platform. Make sure you are "
+                              "connected to the Opaca Runtime Platform and the platform contains at least one "
+                              "action.", "debug": str(e)}
 
         # Run until request is finished or maximum number of iterations is reached
         while self.should_continue and c_it < self.max_iter:
@@ -105,7 +110,10 @@ class ToolLLMBackend:
             for call in result.tool_calls:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
-                tool_results.append(opaca_proxy.invoke_opaca_action(call['name'], None, call['args']))
+                try:
+                    tool_results.append(opaca_proxy.invoke_opaca_action(call['name'], None, call['args']))
+                except Exception as e:
+                    tool_results.append(str(e))
                 self.debug_output += (f'Tool {len(tool_names)}: '
                                       f'{call["name"]}, {call["args"]}, {tool_results[-1]}\n')
 
