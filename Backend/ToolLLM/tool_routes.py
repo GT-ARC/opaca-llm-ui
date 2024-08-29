@@ -30,6 +30,7 @@ class ColorPrint:
         else:
             print(self.color_mapping[module] + data + Fore.RESET, end="")
 
+
 logger = logging.getLogger()
 
 logging.basicConfig(
@@ -101,11 +102,11 @@ class ToolLLMBackend:
             for call in result.tool_calls:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
-                print(f'tool name: {call["name"]}\nparams: {call["args"]}')
                 tool_results.append(opaca_proxy.invoke_opaca_action(call['name'], None, call['args']))
+                self.debug_output += (f'Tool {len(tool_names)}: '
+                                      f'{call["name"]}, {call["args"]}, {tool_results[-1]}\n')
 
-            if len(tool_names) > 0:
-                self.debug_output += f'Tools: {tool_names}, {tool_params}, {tool_results}\n'
+            if len(result.tool_calls) > 0:
                 prompt_template = PromptTemplate(
                     template="A user had the following request: {query}\n"
                              "You just used the tools {tool_names} with the following parameters: {parameters}\n"
