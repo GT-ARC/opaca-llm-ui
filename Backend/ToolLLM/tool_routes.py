@@ -57,8 +57,8 @@ class ToolLLMBackend:
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
 
+        # Initialize parameters
         self.debug_output = f'Query: {message}\n'
-        # Execute generated tools
         tool_names = []
         tool_params = []
         tool_results = []
@@ -74,11 +74,13 @@ class ToolLLMBackend:
             return {"result": "You are trying to use a model which uses an api key but provided none. Please "
                               "enter a valid api key and try again.", "debug": str(e)}
 
+        # Convert openapi schema to openai tools schema
         tools = transform_to_openai_tools(get_reduced_action_spec(opaca_proxy.get_actions_openapi()))
 
+        # Run until request is finished or maximum number of iterations is reached
         while self.should_continue and c_it < self.max_iter:
 
-            # INITIAL QUERY
+            # Build first llm agent
             prompt = build_prompt(
                 system_prompt="You are a helpful ai assistant that plans solution to user queries with the help of "
                               "tools. You can find those tools in the tool section. "
@@ -95,10 +97,11 @@ class ToolLLMBackend:
             chain = prompt | self.llm.bind_tools(tools=tools)
             result = chain.invoke({
                 'input': message,
-                'scratchpad': self.build_scratchpad(tool_responses),
+                'scratchpad': self.build_scratchpad(tool_responses),    # scratchpad contains ai responses
                 'history': self.messages
             })
 
+            # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for call in result.tool_calls:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
@@ -106,7 +109,10 @@ class ToolLLMBackend:
                 self.debug_output += (f'Tool {len(tool_names)}: '
                                       f'{call["name"]}, {call["args"]}, {tool_results[-1]}\n')
 
+            # If tools were created, summarize their result in natural language
+            # either for the user or for the first model for better understanding
             if len(result.tool_calls) > 0:
+                # Build second llm agent
                 prompt_template = PromptTemplate(
                     template="A user had the following request: {query}\n"
                              "You just used the tools {tool_names} with the following parameters: {parameters}\n"
@@ -118,14 +124,19 @@ class ToolLLMBackend:
                 )
                 response_chain = prompt_template | self.llm.bind_tools(tools=tools)
                 result = response_chain.invoke({
-                    'query': message,
-                    'tool_names': tool_names,
-                    'parameters': tool_params,
-                    'results': tool_results
+                    'query': message,               # Original user query
+                    'tool_names': tool_names,       # ALL the tools used so far
+                    'parameters': tool_params,      # ALL the parameters used for the tools
+                    'results': tool_results         # ALL the results from the opaca action calls
                 })
 
+                # Check if llm agent thinks user query has not been fulfilled yet
                 self.should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
+
+                # Remove the keywords from the generated response
                 result.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result.content).strip()
+
+                # Add generated response to internal history to give result to first llm agent
                 tool_responses.append(AIMessage(result.content))
             else:
                 self.should_continue = False
@@ -133,10 +144,12 @@ class ToolLLMBackend:
             self.debug_output += f'AI Answer: {result.content}\n'
             c_it += 1
 
+        # Add query and final response to global message history
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result.content))
+
         # "result" contains the answer intended for a normal user
-        # while "debug" contains all messages from the llm chain
+        # "debug" contains all internal messages
         return {"result": result.content, "debug": self.debug_output if debug else ""}
 
     async def history(self) -> list:
