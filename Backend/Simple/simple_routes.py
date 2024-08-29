@@ -83,7 +83,7 @@ class SimpleBackend:
                 break
 
         debug_msg = "\n ".join(f'{msg["role"]}: {msg["content"]}' for msg in self.messages[last_msg:]) if debug else ""
-        return {"result": response, "debug": ""}
+        return {"result": response, "debug": debug_msg}
     
     async def history(self) -> list:
         return self.messages

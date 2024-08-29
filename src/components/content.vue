@@ -244,9 +244,9 @@
             "Caller:": "#00f",
             "Final Answer:": "#0f0",
             // Simple
-            "user": "#fff",
-            "assistant": "#88f",
-            "system": "#ff8",
+            "user:": "#fff",
+            "assistant:": "#88f",
+            "system:": "#ff8",
         }
         const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
 
