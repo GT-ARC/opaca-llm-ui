@@ -32,16 +32,13 @@ def transform_to_openai_tools(action_list: List) -> List:
     return actions_out
 
 
-def get_param_format(param: Parameter) -> Dict:
+def get_param_format(param: Parameter | Parameter.ArrayItems) -> Dict:
     # Check if the parameter is of type array
     if param.type == "array":
         # Handle the array type by specifying its items
         return {
             'type': 'array',
-            'items': {
-                'type': param.items.type,  # Use the type from ArrayItems
-                'description': ''
-            },
+            'items': get_param_format(param.items),
             'description': ''
         }
     else:
