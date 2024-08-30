@@ -54,7 +54,7 @@ class DataAnalysisBackend(ProxyBackend):
 
     def _init_config(self):
         return {
-            "url": "http://10.42.6.107:3002/ask_gpt",
+            "url": "http://10.42.6.107:3002/ask_llama",
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -63,4 +63,4 @@ class DataAnalysisBackend(ProxyBackend):
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
-        return {"result": result["answer"], "debug": ""}
+        return {"result": str(result["answer"]), "debug": ""}
