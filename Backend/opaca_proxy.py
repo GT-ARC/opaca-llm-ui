@@ -1,3 +1,7 @@
+import decimal
+import functools
+
+import jsonref
 import requests
 from typing import Optional
 
@@ -36,6 +40,15 @@ class OpacaProxy:
             res = requests.get(f'{self.url}/v3/api-docs/actions', headers=self._headers())
             res.raise_for_status()
             return res.json()
+        except Exception as e:
+            print("COULD NOT GET ACTIONS", e)
+            return {}
+
+    def get_actions_with_refs(self):
+        try:
+            # Returns the action lists with already replaced references for openai function usage
+            loader = functools.partial(jsonref.jsonloader, parse_float=decimal.Decimal)
+            return jsonref.load_uri(f'{self.url}/v3/api-docs/actions', loader=loader)
         except Exception as e:
             print("COULD NOT GET ACTIONS", e)
             return {}

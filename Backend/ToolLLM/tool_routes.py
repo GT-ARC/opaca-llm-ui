@@ -1,5 +1,6 @@
 import re
 from typing import Dict, List
+import jsonref
 
 import logging
 import os
@@ -12,7 +13,7 @@ from langchain_openai import ChatOpenAI
 
 from ..RestGPT import get_reduced_action_spec, build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import transform_to_openai_tools
+from .utils import transform_to_openai_tools, openapi_to_functions
 
 
 class ColorPrint:
@@ -75,8 +76,8 @@ class ToolLLMBackend:
                               "enter a valid api key and try again.", "debug": str(e)}
 
         try:
-            # Convert openapi schema to openai tools schema
-            tools = transform_to_openai_tools(get_reduced_action_spec(opaca_proxy.get_actions_openapi()))
+            # Convert openapi schema to openai function schema
+            tools = openapi_to_functions(opaca_proxy.get_actions_with_refs())
         except Exception as e:
             return {"result": "It appears no actions were returned by the Opaca Platform. Make sure you are "
                               "connected to the Opaca Runtime Platform and the platform contains at least one "
@@ -111,11 +112,18 @@ class ToolLLMBackend:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
                 try:
-                    tool_results.append(opaca_proxy.invoke_opaca_action(call['name'], None, call['args']))
+                    tool_results.append(
+                        opaca_proxy.invoke_opaca_action(
+                            call['name'],
+                            None,
+                            call['args']['requestBody'] if 'requestBody' in call['args'] else {}
+                        ))
                 except Exception as e:
                     tool_results.append(str(e))
                 self.debug_output += (f'Tool {len(tool_names)}: '
-                                      f'{call["name"]}, {call["args"]}, {tool_results[-1]}\n')
+                                      f'{call["name"]}, '
+                                      f'{call["args"]["requestBody"] if "requestBody" in call["args"] else {}}, '
+                                      f'{tool_results[-1]}\n')
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
