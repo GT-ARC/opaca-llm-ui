@@ -54,13 +54,20 @@ class DataAnalysisBackend(ProxyBackend):
 
     def _init_config(self):
         return {
-            "url": "http://10.42.6.107:3002/ask_llama",
+            "url": "http://localhost:3002/ask_llama",
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
         print("QUERY", message)
-        response = requests.post(self.config["url"], json={"question": message})
+        url = self.config["url"]
+        response = requests.post(url, json={"question": message})
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
-        return {"result": str(result["answer"]), "debug": ""}
+        if result["type"] == "answer":
+            return {"result": f"{result['content']}", "debug": ""}
+        elif result["type"] == "plot":
+            img_url = f"{url[:url.rfind('/')]}/get_image/{result['content']}"
+            return {"result": f'<img src="{img_url}" width="100%">', "debug": ""}
+        else:
+            return {"result": str(result), "debug": ""}
