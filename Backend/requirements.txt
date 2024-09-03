@@ -1,3 +1,7 @@
 openai
 langchain
+langchain.openai
+langchain.community
 fastapi
+uvicorn
+colorama
