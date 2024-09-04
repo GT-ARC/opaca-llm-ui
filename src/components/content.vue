@@ -2,37 +2,47 @@
     <div class="row d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column" style="height:calc(100vh - 85px)">
-            <div class="container">
-                <div>
-                    <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
-                    <input class="col-5" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
-                    <button class="btn btn-primary btn-sm" @click="initiatePrompt">Connect</button>
+        <aside class="col-xl-4 d-flex flex-column mb-3" style="height:calc(100vh - 85px)">
+            <div class="container text-start p-2">
+
+                <div class="p-2">
+                    <div>{{ config.translations[language].opacaLocation }}</div>
+                    <input class="form-control m-0" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
                 </div>
-                <div class="small">
-                    <label for="opacaUser">Username</label>
-                    <input class="col-3" type="text" id="opacaUser" v-model="opacaUser" />
-                    <label for="opacaPwd">Password</label>
-                    <input class="col-3" type="password" id="opacaPwd" v-model="opacaPwd" />
+
+                <div class="p-2">
+                    <div>Username</div>
+                    <input class="form-control m-0" type="text" id="opacaUser" v-model="opacaUser" />
+                </div>
+
+                <div class="p-2">
+                    <div>Password</div>
+                    <input class="form-control m-0" type="password" id="opacaPwd" v-model="opacaPwd" />
+                </div>
+
+                <div class="p-2">
+                    <div>OpenAI API Key</div>
+                    <input class="form-control m-0" type="password" id="apiKey" v-model="apiKey">
+                </div>
+
+                <div class="text-center p-2">
+                    <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
+                </div>
+
+                <div class="form-check p-2">
+                    <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
+                    <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
+                </div>
+
+                <div v-show="debug" id="chatDebug" class="debug-window-container p-2 rounded rounded-4">
+                    <div id="debug-console" style="flex-direction: column-reverse" />
                 </div>
             </div>
-            <div class="container small">
-                <label for="apiKey">OpenAI API-Key</label>
-                <input class="col-7" type="password" id="apiKey" v-model="apiKey">
-            </div>
-            <div class='container'>
-                <button class="btn btn-secondary btn-sm col-5 m-1" @click="debug=!debug">
-                    {{ debug ? "Hide Debug Output" : "Show Debug Output"}}
-                </button>
-            </div>
-            <div class="container debug-window-container flex-grow-1" v-if="debug" id="chatDebug"
-                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
-                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
-            </div>
+
         </aside>
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column position-relative" style="height:calc(100vh - 85px)">
+        <main class="col-xl-8 d-flex flex-column" style="height:calc(100vh - 85px)">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
@@ -40,17 +50,52 @@
             </div>
 
             <!-- Input and Submit Button -->
+            <!--
             <div class="container">
                 <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
                 <button class="btn btn-primary" @click="submitText">
                     {{ config.translations[language].submit }}
                 </button>
             </div>
+            -->
+
+            <div class="container p-0">
+                <div class="input-group mt-2 mb-4">
+                    <input class="form-control p-2 rounded-start-2" id="textInput" placeholder="Type here ..."
+                           :value="config.translations[language].defaultQuestion"
+                           @keypress="textInputCallback"/>
+                    <button type="button"
+                            class="btn btn-primary rounded-end-2"
+                            @click="submitText">
+                        <i class="fa fa-send mx-2"/>
+                    </button>
+
+                    <button type="button" :disabled="busy" v-show="isSpeechRecognitionSupported()"
+                            class="btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="startRecognition">
+                        <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
+                        <i v-else class="fa fa-microphone mx-2"/>
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="speakLastMessage">
+                        <i class="fa fa-volume-up mx-2"/>
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline-danger ms-2 rounded rounded-1"
+                            @click="resetChat">
+                        <i class="fa fa-remove mx-2"/>
+                    </button>
+                </div>
+            </div>
 
             <!-- Simple Keyboard -->
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
 
             <!-- Button Group Container -->
+            <!--
             <div class='container'>
                 <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
                     {{ config.translations[language].speechRecognition }}
@@ -63,6 +108,8 @@
                     {{ config.translations[language].resetChat }}
                 </button>
             </div>
+            -->
+
         </main>
     </div>
 
@@ -74,6 +121,7 @@
     import { onMounted, inject, ref } from "vue";
     import config from '../../config'
     import SimpleKeyboard from "./SimpleKeyboard.vue";
+    import {Speech} from "openai/resources/audio/index";
 
     let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
@@ -86,7 +134,7 @@
     let lastMessage = null;
     const speechSynthesis= window.speechSynthesis;
     const recording= ref(false);
-    const busy= ref(false);
+    const busy = ref(false);
     const debug = ref(false);
     const languages= {
         GB: 'en-EN',
@@ -162,22 +210,44 @@
         }
     }
 
+    function isSpeechRecognitionSupported() {
+        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+    }
+
     async function startRecognition() {
-        // TODO this does not seem to work for me
-        recognition = new (webkitSpeechRecognition || SpeechRecognition)();
-        recognition.lang = languages[language.value];
+        if (!isSpeechRecognitionSupported()) {
+            console.error("Speech recognition API is not supported by your browser.");
+            return;
+        }
         console.log("language: " + languages[language.value]);
-        busy.value = true;
+        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
+        recognition.lang = languages[language.value];
         recognition.onresult = async (event) => {
-            const recognizedText = event.results[0][0].transcript;
-            await askChatGpt(recognizedText)
+            console.log(event);
+            if (event.results && event.results.length > 0) {
+                const recognizedText = event.results[0][0].transcript;
+                console.log("Recognized text: " + recognizedText)
+                await askChatGpt(recognizedText);
+            }
+        };
+        recognition.onspeechend = () => {
+            recording.value = false;
+        };
+        recognition.onnomatch = () => {
+            console.error("Failed to recognize spoken text.");
+        };
+        recognition.onerror = (error) => {
+            console.error("Speech recognition error:", error.message);
+            console.error(error);
         };
         recognition.onend = () => {
-            recording.value = false;
             console.log("Recognition ended.");
+            recording.value = false;
+            busy.value = false;
         };
         recognition.start();
         recording.value = true;
+        busy.value = true;
     }
 
     async function resetChat() {
@@ -290,11 +360,6 @@
         }
     }
 
-    input {
-        border-radius: 5px;
-        margin: 10px;
-    }
-
     .chatbubble {
         border-radius: 10px;
         text-align: left
@@ -317,6 +382,7 @@
     .debug-window-container {
         background-color: #000; /* Black background */
         overflow: hidden;
+        overflow-y: auto;
     }
 
     .debug-text {
