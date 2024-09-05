@@ -1,6 +1,5 @@
 import re
 from typing import Dict, List
-import jsonref
 
 import logging
 import os
@@ -11,9 +10,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..RestGPT import get_reduced_action_spec, build_prompt
+from ..RestGPT import build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import transform_to_openai_tools, openapi_to_functions
+from .utils import openapi_to_functions
 
 
 class ColorPrint:
@@ -89,7 +88,8 @@ class ToolLLMBackend:
             # Build first llm agent
             prompt = build_prompt(
                 system_prompt="You are a helpful ai assistant that plans solution to user queries with the help of "
-                              "tools. You can find those tools in the tool section. "
+                              "tools. You can find those tools in the tool section. Do not generate optional "
+                              "parameters for those tools if the user has not explicitly told you to."
                               "Some queries require sequential calls with those tools. If other tool calls have been "
                               "made already, you will receive the generated AI response of these tool calls. In that "
                               "case you should continue to fulfill the user query with the additional knowledge. "
