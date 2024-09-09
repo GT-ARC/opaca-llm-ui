@@ -3,7 +3,8 @@
 
         <!-- Left Container: Configuration, Debug-Output -->
         <!-- style="height:calc(100vh - 85px)" -->
-        <aside class="col-xl-4 d-flex flex-column mb-3">
+        <aside class="col-xl-4 d-flex flex-column mb-3"
+               style="max-height:calc(100vh - 85px)">
             <div class="container text-start p-2">
 
                 <div class="p-2">
@@ -85,14 +86,14 @@
                         <i class="fa fa-send mx-2"/>
                     </button>
 
-                    <button type="button" :disabled="busy" v-show="isSpeechRecognitionSupported()"
+                    <button type="button" :disabled="busy" v-if="isSpeechRecognitionSupported()"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="startRecognition">
                         <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
                         <i v-else class="fa fa-microphone mx-2"/>
                     </button>
 
-                    <button type="button"
+                    <button type="button" :disabled="busy" v-if="!!speechSynthesis"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="speakLastMessage">
                         <i class="fa fa-volume-up mx-2"/>
@@ -108,23 +109,6 @@
 
             <!-- Simple Keyboard -->
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
-
-            <!-- Button Group Container -->
-            <!--
-            <div class='container'>
-                <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
-                    {{ config.translations[language].speechRecognition }}
-                    <div v-if="recording" class="spinner-border md-2" height=2em role="status" />
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="speakLastMessage">
-                    {{ config.translations[language].readLastMessage }}
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="resetChat">
-                    {{ config.translations[language].resetChat }}
-                </button>
-            </div>
-            -->
-
         </main>
     </div>
 
@@ -225,7 +209,7 @@
             createSpeechBubbleAI("Error while fetching data: " + error)
             scrollDown(false);
         }
-        if (autoSpeakNextMessage) {
+        if (autoSpeakNextMessage.value) {
             speakLastMessage();
             autoSpeakNextMessage.value = false;
         }
@@ -240,6 +224,7 @@
             console.error("Speech recognition API is not supported by your browser.");
             return;
         }
+        abortSpeaking();
         console.log("Recognized language: " + languages[language.value]);
         const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
         recognition.lang = languages[language.value];
@@ -316,9 +301,11 @@
     }
 
     function speakLastMessage() {
-        if (speechSynthesis && !speechSynthesis.speaking) {
+        if (speechSynthesis) {
+            abortSpeaking();
             console.log("Speaking message: " + lastMessage)
             const utterance = new SpeechSynthesisUtterance(lastMessage);
+            utterance.lang = languages[language.value];
             utterance.onstart = () => {
                 console.log("Started speaking.")
             }

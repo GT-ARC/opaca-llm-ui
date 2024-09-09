@@ -27,7 +27,6 @@ origins = [
     "*",
     "http://localhost",
     "http://localhost:5173",  # Assuming Vue app is running on this port
-    "http://localhost:3001"
 ]
 
 app.add_middleware(
