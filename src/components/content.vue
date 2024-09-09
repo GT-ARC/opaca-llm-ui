@@ -2,27 +2,40 @@
     <div class="row d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column mb-3" style="height:calc(100vh - 85px)">
+        <!-- style="height:calc(100vh - 85px)" -->
+        <aside class="col-xl-4 d-flex flex-column mb-3">
             <div class="container text-start p-2">
 
                 <div class="p-2">
-                    <div>{{ config.translations[language].opacaLocation }}</div>
-                    <input class="form-control m-0" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
+                    <input id="opacaUrlInput" type="text"
+                           class="form-control m-0"
+                           v-model="opacaRuntimePlatform"
+                           :placeholder="config.translations[language].opacaLocation" />
                 </div>
 
                 <div class="p-2">
-                    <div>Username</div>
-                    <input class="form-control m-0" type="text" id="opacaUser" v-model="opacaUser" />
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <input id="opacaUser" type="text"
+                                   class="form-control m-0"
+                                   v-model="opacaUser"
+                                   placeholder="Username" />
+                        </div>
+                        <div class="col-lg-6">
+                            <input id="opacaPwd" type="password"
+                                   class="form-control m-0"
+                                   v-model="opacaPwd"
+                                   placeholder="Password" />
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="p-2">
-                    <div>Password</div>
-                    <input class="form-control m-0" type="password" id="opacaPwd" v-model="opacaPwd" />
-                </div>
-
-                <div class="p-2">
-                    <div>OpenAI API Key</div>
-                    <input class="form-control m-0" type="password" id="apiKey" v-model="apiKey">
+                    <input id="apiKey" type="password"
+                           class="form-control m-0"
+                           v-model="apiKey"
+                           placeholder="OpenAI API Key" />
                 </div>
 
                 <div class="text-center p-2">
@@ -34,8 +47,10 @@
                     <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
                 </div>
 
-                <div v-show="debug" id="chatDebug" class="debug-window-container p-2 rounded rounded-4">
-                    <div id="debug-console" style="flex-direction: column-reverse" />
+                <div v-show="debug" id="chatDebug"
+                     class="debug-window-container p-2 m-2 rounded rounded-4">
+                    <div id="debug-console"
+                         style="flex-direction: column-reverse; min-height: 400px" />
                 </div>
             </div>
 
@@ -63,29 +78,29 @@
                 <div class="input-group mt-2 mb-4">
                     <input class="form-control p-2 rounded-start-2" id="textInput" placeholder="Type here ..."
                            :value="config.translations[language].defaultQuestion"
-                           @keypress="textInputCallback"/>
+                           @keypress="textInputCallback()"/>
                     <button type="button"
                             class="btn btn-primary rounded-end-2"
-                            @click="submitText">
+                            @click="submitText()">
                         <i class="fa fa-send mx-2"/>
                     </button>
 
                     <button type="button" :disabled="busy" v-show="isSpeechRecognitionSupported()"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
-                            @click="startRecognition">
+                            @click="startRecognition()">
                         <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
                         <i v-else class="fa fa-microphone mx-2"/>
                     </button>
 
                     <button type="button"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
-                            @click="speakLastMessage">
+                            @click="speakLastMessage()">
                         <i class="fa fa-volume-up mx-2"/>
                     </button>
 
                     <button type="button"
                             class="btn btn-outline-danger ms-2 rounded rounded-1"
-                            @click="resetChat">
+                            @click="resetChat()">
                         <i class="fa fa-remove mx-2"/>
                     </button>
                 </div>
@@ -122,6 +137,7 @@
     import config from '../../config'
     import SimpleKeyboard from "./SimpleKeyboard.vue";
     import {Speech} from "openai/resources/audio/index";
+    import * as inspector from "node:inspector";
 
     let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
@@ -132,11 +148,12 @@
     const language = inject('language');
     let recognition= null;
     let lastMessage = null;
-    const speechSynthesis= window.speechSynthesis;
-    const recording= ref(false);
+    const speechSynthesis = window.speechSynthesis;
+    const recording = ref(false);
     const busy = ref(false);
     const debug = ref(false);
-    const languages= {
+    const autoSpeakNextMessage = ref(false);
+    const languages = {
         GB: 'en-EN',
         DE: 'de-DE'
     }
@@ -208,6 +225,10 @@
             createSpeechBubbleAI("Error while fetching data: " + error)
             scrollDown(false);
         }
+        if (autoSpeakNextMessage) {
+            speakLastMessage();
+            autoSpeakNextMessage.value = false;
+        }
     }
 
     function isSpeechRecognitionSupported() {
@@ -219,16 +240,15 @@
             console.error("Speech recognition API is not supported by your browser.");
             return;
         }
-        console.log("language: " + languages[language.value]);
+        console.log("Recognized language: " + languages[language.value]);
         const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
         recognition.lang = languages[language.value];
         recognition.onresult = async (event) => {
-            console.log(event);
-            if (event.results && event.results.length > 0) {
-                const recognizedText = event.results[0][0].transcript;
-                console.log("Recognized text: " + recognizedText)
-                await askChatGpt(recognizedText);
-            }
+            if (!event.results || event.results.length <= 0) return;
+            const recognizedText = event.results[0][0].transcript;
+            console.log("Recognized text: " + recognizedText);
+            autoSpeakNextMessage.value = true
+            await askChatGpt(recognizedText);
         };
         recognition.onspeechend = () => {
             recording.value = false;
@@ -237,7 +257,6 @@
             console.error("Failed to recognize spoken text.");
         };
         recognition.onerror = (error) => {
-            console.error("Speech recognition error:", error.message);
             console.error(error);
         };
         recognition.onend = () => {
@@ -297,10 +316,24 @@
 
     function speakLastMessage() {
         if (speechSynthesis) {
-            console.log(lastMessage)
-            // TODO this does not seem to work for me
+            console.log("Speaking message: " + lastMessage)
             const utterance = new SpeechSynthesisUtterance(lastMessage);
+            utterance.onstart = () => {
+                console.log("Started speaking.")
+            }
+            utterance.onend = () => {
+                console.log("Speaking ended.")
+            }
+            utterance.onerror = (error) => {
+                console.error(error);
+            }
             speechSynthesis.speak(utterance);
+        }
+    }
+
+    function abortSpeaking() {
+        if (speechSynthesis && speechSynthesis.speaking) {
+            speechSynthesis.cancel();
         }
     }
 
