@@ -2,19 +2,18 @@
     <div class="row d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <!-- style="height:calc(100vh - 85px)" -->
-        <aside class="col-xl-4 d-flex flex-column mb-3"
-               style="max-height:calc(100vh - 85px)">
-            <div class="container text-start p-2">
+        <aside class="col-xl-4 d-flex flex-column"
+               style="height:calc(100vh - 85px)">
 
-                <div class="p-2">
+            <div class="container">
+                <div class="p-2 text-start">
                     <input id="opacaUrlInput" type="text"
                            class="form-control m-0"
                            v-model="opacaRuntimePlatform"
                            :placeholder="config.translations[language].opacaLocation" />
                 </div>
 
-                <div class="p-2">
+                <div class="p-2 text-start">
                     <div class="row">
                         <div class="col-lg-6">
                             <input id="opacaUser" type="text"
@@ -32,7 +31,7 @@
 
                 </div>
 
-                <div class="p-2">
+                <div class="p-2 text-start">
                     <input id="apiKey" type="password"
                            class="form-control m-0"
                            v-model="apiKey"
@@ -43,17 +42,21 @@
                     <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
                 </div>
 
-                <div class="form-check p-2">
+                <div class="form-check p-2 text-start">
                     <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
                     <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
                 </div>
-
-                <div v-show="debug" id="chatDebug"
-                     class="debug-window-container p-2 m-2 rounded rounded-4">
-                    <div id="debug-console"
-                         style="flex-direction: column-reverse; min-height: 400px" />
-                </div>
             </div>
+
+            <div v-show="debug" id="chatDebug"
+                 class="container debug-window-container flex-grow-1 m-2 mb-4 p-2 rounded rounded-4">
+                <div id="debug-console" style="flex-direction: column-reverse;" />
+            </div>
+
+            <!-- div class="container debug-window-container flex-grow-1 p-2" v-show="debug" id="chatDebug"
+                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
+                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
+            </div -->
 
         </aside>
 
@@ -64,16 +67,6 @@
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
             </div>
-
-            <!-- Input and Submit Button -->
-            <!--
-            <div class="container">
-                <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
-                <button class="btn btn-primary" @click="submitText">
-                    {{ config.translations[language].submit }}
-                </button>
-            </div>
-            -->
 
             <div class="container p-0">
                 <div class="input-group mt-2 mb-4">
@@ -303,14 +296,14 @@
     function speakLastMessage() {
         if (speechSynthesis) {
             abortSpeaking();
-            console.log("Speaking message: " + lastMessage)
+            console.log("Speaking message: " + lastMessage);
             const utterance = new SpeechSynthesisUtterance(lastMessage);
             utterance.lang = languages[language.value];
             utterance.onstart = () => {
-                console.log("Started speaking.")
+                console.log("Speaking started.");
             }
             utterance.onend = () => {
-                console.log("Speaking ended.")
+                console.log("Speaking ended.");
             }
             utterance.onerror = (error) => {
                 console.error(error);
