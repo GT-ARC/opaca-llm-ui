@@ -121,7 +121,17 @@
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
         if (res.data) {
-            createSpeechBubbleAI("Connected!", "connect")
+            const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
+            const actions = res2.data;
+            var text = "Connected! Known agents and actions:"
+            if (Object.keys(actions).length > 0) {
+                for (const agent in actions) {
+                    text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                }
+            } else {
+                text += "None."
+            }
+            createSpeechBubbleAI(text, "connect")
         } else {
             createSpeechBubbleAI("Failed to connect...", "connect")
         }

@@ -14,6 +14,7 @@ class OpacaProxy:
         self.url = None
         self.token = None
         self.actions = "(No services, not connected yet.)"
+        self.actions_dict = {}
         
     async def connect(self, url: str, user: str, pwd: str):
         print("CONNECT", repr(url), user, pwd)
@@ -27,6 +28,12 @@ class OpacaProxy:
         except Exception as e:
             print("COULD NOT CONNECT", e)
             return False
+        
+    async def get_actions(self) -> dict[str, list[str]]:
+        return {
+            agent["agentId"]: [action["name"] for action in agent["actions"]]
+            for agent in self.actions_dict
+        }
     
     def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
@@ -58,6 +65,7 @@ class OpacaProxy:
             res = requests.get(f"{self.url}/agents", headers=self._headers())
             res.raise_for_status()
             self.actions = res.text
+            self.actions_dict = res.json()
         except Exception as e:
             print("COULD NOT CONNECT", e)
             self.actions = "(No Services. Failed to connect to OPACA Runtime.)"
