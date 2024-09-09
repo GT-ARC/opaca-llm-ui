@@ -78,29 +78,29 @@
                 <div class="input-group mt-2 mb-4">
                     <input class="form-control p-2 rounded-start-2" id="textInput" placeholder="Type here ..."
                            :value="config.translations[language].defaultQuestion"
-                           @keypress="textInputCallback()"/>
+                           @keypress="textInputCallback"/>
                     <button type="button"
                             class="btn btn-primary rounded-end-2"
-                            @click="submitText()">
+                            @click="submitText">
                         <i class="fa fa-send mx-2"/>
                     </button>
 
                     <button type="button" :disabled="busy" v-show="isSpeechRecognitionSupported()"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
-                            @click="startRecognition()">
+                            @click="startRecognition">
                         <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
                         <i v-else class="fa fa-microphone mx-2"/>
                     </button>
 
                     <button type="button"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
-                            @click="speakLastMessage()">
+                            @click="speakLastMessage">
                         <i class="fa fa-volume-up mx-2"/>
                     </button>
 
                     <button type="button"
                             class="btn btn-outline-danger ms-2 rounded rounded-1"
-                            @click="resetChat()">
+                            @click="resetChat">
                         <i class="fa fa-remove mx-2"/>
                     </button>
                 </div>
@@ -271,7 +271,8 @@
 
     async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
+        abortSpeaking();
+        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
     }
@@ -315,7 +316,7 @@
     }
 
     function speakLastMessage() {
-        if (speechSynthesis) {
+        if (speechSynthesis && !speechSynthesis.speaking) {
             console.log("Speaking message: " + lastMessage)
             const utterance = new SpeechSynthesisUtterance(lastMessage);
             utterance.onstart = () => {
