@@ -1,9 +1,8 @@
-from typing import Dict
-
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .ToolLLM import ToolLLMBackend
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
@@ -56,6 +55,8 @@ BACKENDS = {
     "rest-gpt-gpt-4o-mini": RestGptBackend("gpt-4o-mini"),
     "simple-openai": SimpleOpenAIBackend(),
     "simple-llama": SimpleLlamaBackend(),
+    "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
+    "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
 }
 
 
@@ -67,8 +68,12 @@ async def get_backends() -> list:
 async def connect(url: Url) -> bool:
     return await proxy.connect(url.url, url.user, url.pwd)
 
+@app.get("/actions")
+async def actions() -> dict[str, list[str]]:
+    return await proxy.get_actions()
+
 @app.post("/{backend}/query")
-async def query(backend: str, message: Message) -> Dict:
+async def query(backend: str, message: Message) -> dict:
     return await BACKENDS[backend].query(message.user_query, message.debug, message.api_key)
 
 @app.get("/{backend}/history")

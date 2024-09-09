@@ -52,12 +52,6 @@
                  class="container debug-window-container flex-grow-1 m-2 mb-4 p-2 rounded rounded-4">
                 <div id="debug-console" style="flex-direction: column-reverse;" />
             </div>
-
-            <!-- div class="container debug-window-container flex-grow-1 p-2" v-show="debug" id="chatDebug"
-                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
-                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
-            </div -->
-
         </aside>
 
         <!-- Main Container: Chat Window, Text Input -->
@@ -108,15 +102,13 @@
 </template>
 
 <script setup>
-    import axios from "axios"
-    import { marked } from "marked";
-    import { onMounted, inject, ref } from "vue";
-    import config from '../../config'
-    import SimpleKeyboard from "./SimpleKeyboard.vue";
-    import {Speech} from "openai/resources/audio/index";
-    import * as inspector from "node:inspector";
+import axios from "axios"
+import {marked} from "marked";
+import {inject, onMounted, ref} from "vue";
+import config from '../../config'
+import SimpleKeyboard from "./SimpleKeyboard.vue";
 
-    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
+let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
@@ -134,12 +126,21 @@
         GB: 'en-EN',
         DE: 'de-DE'
     }
+    const darkScheme = ref(false);
 
     onMounted(() => {
         console.log("mounted")
+        updateTheme()
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         initiatePrompt();
     })
+
+    function updateTheme() {
+        // Check if dark color scheme is preferred
+        darkScheme.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        updateDebugColors()
+    }
 
     function onChangeSimpleKeyboard(input) {
         document.getElementById("textInput").value = input;
@@ -163,7 +164,17 @@
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
         if (res.data) {
-            createSpeechBubbleAI("Connected!", "connect")
+            const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
+            const actions = res2.data;
+            var text = "Connected! Known agents and actions:"
+            if (Object.keys(actions).length > 0) {
+                for (const agent in actions) {
+                    text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                }
+            } else {
+                text += "None."
+            }
+            createSpeechBubbleAI(text, "connect")
         } else {
             createSpeechBubbleAI("Failed to connect...", "connect")
         }
@@ -319,17 +330,21 @@
     }
 
     function processDebugInput(input) {
+        // color schemes for modes [dark, light]
         const keywordColors = {
             // RestGPT
-            "Query:": "#fff",
-            "Planner:": "#f00",
-            "API Selector:": "#ff0",
-            "Caller:": "#00f",
-            "Final Answer:": "#0f0",
+            "Query:": ["#fff", "#000"],
+            "Planner:": ["#f00", "#9c0000"],
+            "API Selector:": ["#ff0", "#bf6e00"],
+            "Caller:": ["#00f", "#0000b1"],
+            "Final Answer:": ["#0f0", "#007300"],
+            // Tools
+            "Tool": ["#f00", "#9c0000"],
+            "AI Answer:": ["#0f0", "#007300"],
             // Simple
-            "user:": "#fff",
-            "assistant:": "#88f",
-            "system:": "#ff8",
+            "user:": ["#fff", "#000"],
+            "assistant:": ["#88f", "#434373"],
+            "system:": ["#ff8", "#71713d"],
         }
         const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
 
@@ -338,11 +353,19 @@
         for (let i = 0; i < parts.length; i += 2) {
             const keyword = parts[i]
             const text = parts[i + 1] || ""
-            const color = keywordColors[keyword] || "#fff";
+            const color = keywordColors[keyword][darkScheme.value ? 0 : 1] || (darkScheme.value ? "#fff" : "#000");
             result.push({text: keyword + text, color: color})
         }
 
         return result
+    }
+
+    function updateDebugColors() {
+        const debugElements = document.querySelectorAll('.debug-text');
+        debugElements.forEach((element) => {
+            const text = element.innerText || element.textContent;
+            element.style.color = processDebugInput(text)[0]["color"];
+        });
     }
 
     function addDebug(text, color) {
@@ -371,6 +394,14 @@
         #chat1 {
             color: #fff;
             background-color: #444;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        #chatDebug {
+            background-color: #fff; /* Gray background */
+            overflow: hidden;
+            border: 1px solid #ccc; /* border only needed in light mode */
         }
     }
 

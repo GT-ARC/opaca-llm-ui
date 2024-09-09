@@ -4,3 +4,4 @@ openai
 langchain_openai
 colorama
 uvicorn
+jsonref
