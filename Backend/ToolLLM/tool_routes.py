@@ -53,6 +53,7 @@ class ToolLLMBackend:
         # This is the DEFAULT config
         self.config = {
             "temperature": 0,
+            "use_agent_names": True,
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -76,7 +77,7 @@ class ToolLLMBackend:
 
         try:
             # Convert openapi schema to openai function schema
-            tools = openapi_to_functions(opaca_proxy.get_actions_with_refs())
+            tools = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
         except Exception as e:
             return {"result": "It appears no actions were returned by the Opaca Platform. Make sure you are "
                               "connected to the Opaca Runtime Platform and the platform contains at least one "
@@ -112,10 +113,15 @@ class ToolLLMBackend:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
                 try:
+                    if self.config['use_agent_names']:
+                        agent_name, action_name = call['name'].split('_')
+                    else:
+                        agent_name = None
+                        action_name = call['name']
                     tool_results.append(
                         opaca_proxy.invoke_opaca_action(
-                            call['name'],
-                            None,
+                            action_name,
+                            agent_name,
                             call['args']['requestBody'] if 'requestBody' in call['args'] else {}
                         ))
                 except Exception as e:

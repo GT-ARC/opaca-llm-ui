@@ -1,7 +1,7 @@
 import jsonref
 
 
-def openapi_to_functions(openapi_spec):
+def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     functions = []
 
     for path, methods in openapi_spec["paths"].items():
@@ -10,8 +10,8 @@ def openapi_to_functions(openapi_spec):
             spec = jsonref.replace_refs(spec_with_ref)
 
             # 2. Extract a name for the functions
-            # The operation id is formatted as 'containerId-agentName-actionName', only takes the action name
-            function_name = spec.get("operationId").split(';')[2]
+            # The operation id is formatted as 'containerId-agentName-actionName'
+            container_id, agent_name, function_name = spec.get("operationId").split(';')
 
             # 3. Extract a description and parameters.
             desc = spec.get("description") or spec.get("summary", "")
@@ -40,7 +40,14 @@ def openapi_to_functions(openapi_spec):
                 }
 
             functions.append(
-                {"type": "function", "function": {"name": function_name, "description": desc, "parameters": schema}}
+                {
+                    "type": "function",
+                    "function": {
+                        "name": agent_name + '_' + function_name if use_agent_names else function_name,
+                        "description": desc,
+                        "parameters": schema
+                    }
+                }
             )
 
     return functions
