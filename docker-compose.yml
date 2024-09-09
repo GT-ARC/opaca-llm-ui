@@ -7,6 +7,8 @@ services:
       context: ./Backend
     ports:
       - "3001:3001"
+    environment:
+      OPENAI_API_KEY:
 
   llm-fontend:
     build:
@@ -15,3 +17,7 @@ services:
       - "5173:5173"
     depends_on:
       - llm-backend
+    environment:
+      VITE_PLATFORM_BASE_URL:
+      VITE_BACKEND_BASE_URL:
+      VITE_BACKEND_DEFAULT:

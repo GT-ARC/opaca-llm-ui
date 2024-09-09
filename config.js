@@ -1,8 +1,8 @@
 var config = {
 
-    BackendAddress: 'http://localhost:3001',
+    BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: "rest-gpt-llama3",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "rest-gpt-llama3",
     Backends: {
         "simple-openai": "Simple Prompt with GPT",
         "simple-llama": "Simple Prompt with LLAMA",
@@ -11,7 +11,7 @@ var config = {
         "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini"
     },
 
-    OpacaRuntimePlatform: 'http://localhost:8000',
+    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
     ShowKeyboard: false,
 
