@@ -110,9 +110,11 @@ as parameters in your steps. Make the value you want to use for a parameter very
 If you are certain the user has not provided you with all required parameters for service you want to call and you are 
 unable to retrieve those parameters with actions, output the keyword "STOP" and ask the user for the remaining required parameters.
 Once you receive a useful response for your step, continue with the next step.
-If the user asks about more information about specific services or action, you put the 
-keyword "STOP" in front of your reply. Never put the keyword "STOP" in your reply when your reply indicates that 
-a service should be called.
+If the user asks about more information about specific services or actions, you put the 
+keyword "STOP" in front of your reply and answer the user directly. 
+Never put the keyword "STOP" in your reply when your reply indicates that a service should be called.
+
+A typical conversation where a user wants you to call services will look like this:
 
 Human: The input from the user
 AI:
@@ -178,12 +180,11 @@ class Planner(Chain):
         action_list = ""
 
         for action in inputs["actions"]:
-            action_list += action.planner_str() + '\n'
+            action_list += action.planner_str(inputs['config']['use_agent_names']) + '\n'
 
         prompt = build_prompt(
-            # TODO fix_parentheses
-            system_prompt=(PLANNER_PROMPT_SLIM if inputs['slim_prompt'] else PLANNER_PROMPT) + action_list,
-            examples=examples if inputs['examples'] else [],
+            system_prompt=(PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts'] else PLANNER_PROMPT) + action_list,
+            examples=examples if inputs['config']['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )

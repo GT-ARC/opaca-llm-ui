@@ -151,16 +151,19 @@ class ActionSelector(Chain):
         return False
 
     @staticmethod
-    def _check_valid_action(action_plan: str, actions: List) -> str:
+    def _check_valid_action(action_plan: str, actions: List, use_agent_names: bool) -> str:
         err_out = ""
 
         # Check if exactly one semicolon was generated
-        if not len(action_plan.split(';')) == 2:
+        if use_agent_names and len(action_plan.split(';')) != 3\
+                or not use_agent_names and not len(action_plan.split(';')) != 2:
             return ("Your generated action call is not properly formatted. It should include exactly one action, "
                     "a semicolon and a list of parameters in json format.\n")
 
-        # Check if the action name is contained in the list of available actions and retrieve the action
-        action, parameters = action_plan.split(';')
+        if use_agent_names:
+            _, action, parameters = action_plan.split(';')
+        else:
+            action, parameters = action_plan.split(';')
 
         # Check if the parameters are in a valid json format
         try:
@@ -215,11 +218,12 @@ class ActionSelector(Chain):
         scratchpad = self._construct_scratchpad(inputs["history"])
         action_list = ""
         for action in inputs["actions"]:
-            action_list += action.selector_str() + '\n'
+            action_list += action.selector_str(inputs['config']['use_agent_names']) + '\n'
 
         prompt = build_prompt(
-            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + action_list,
-            examples=examples if inputs['examples'] else [],
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
+                           else ACTION_SELECTOR_PROMPT) + action_list,
+            examples=examples if inputs['config']['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
@@ -237,7 +241,8 @@ class ActionSelector(Chain):
             return {"result": action_plan}
 
         correction_limit = 1
-        while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
+        while (err_msg := self._check_valid_action(
+                action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
             output = chain.invoke({"input": inputs["plan"] + err_msg})
