@@ -242,6 +242,9 @@
             "API Selector:": "#ff0",
             "Caller:": "#00f",
             "Final Answer:": "#0f0",
+            // Tools
+            "Tool": "#f00",
+            "AI Answer:": "#0f0",
             // Simple
             "user:": "#fff",
             "assistant:": "#88f",
