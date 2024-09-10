@@ -3,7 +3,7 @@ version: '3'
 services:
 
   # Vite/Vue-based frontend for the OPACA LLM Integration
-  opaca-llm-fontend:
+  opaca-llm-frontend:
     build:
       context: .
     ports:
