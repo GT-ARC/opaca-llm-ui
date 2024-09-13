@@ -64,7 +64,8 @@
 
             <div class="container p-0">
                 <div class="input-group mt-2 mb-4">
-                    <input class="form-control p-2 rounded-start-2" id="textInput" placeholder="Type here ..."
+                    <input id="textInput" placeholder="Type here ..."
+                           class="form-control p-2 rounded-start-2"
                            :value="config.translations[language].defaultQuestion"
                            @keypress="textInputCallback"/>
                     <button type="button"
@@ -81,7 +82,7 @@
                     </button>
 
                     <button type="button" :disabled="busy" v-if="!!speechSynthesis"
-                            class="btn btn-outline-primary ms-2 rounded rounded-1"
+                            class="d-none btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="speakLastMessage">
                         <i class="fa fa-volume-up mx-2"/>
                     </button>
@@ -123,7 +124,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const debug = ref(false);
     const autoSpeakNextMessage = ref(false);
     const languages = {
-        GB: 'en-EN',
+        GB: 'en-GB',
         DE: 'de-DE'
     }
     const darkScheme = ref(false);
@@ -220,7 +221,18 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     }
 
     function isSpeechRecognitionSupported() {
-        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+        // very hacky check if the user is using the (full) google chrome browser
+        const isGoogleChrome = window.chrome !== undefined
+                && window.navigator.userAgentData !== undefined
+                && window.navigator.userAgentData.brands.length >= 3
+                && window.navigator.userAgentData.brands[2].brand === "Google Chrome"
+                && window.navigator.vendor === "Google Inc."
+                && Array.from(window.navigator.plugins).some((plugin) => {
+                    return plugin.name === "Chrome PDF Viewer";
+                });
+        return ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+                && (location.protocol === 'https' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                && isGoogleChrome;
     }
 
     async function startRecognition() {
@@ -235,7 +247,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         recognition.onresult = async (event) => {
             if (!event.results || event.results.length <= 0) return;
             const recognizedText = event.results[0][0].transcript;
-            console.log("Recognized text: " + recognizedText);
+            addDebug('Recognized text: ' + recognizedText);
             autoSpeakNextMessage.value = true
             await askChatGpt(recognizedText);
         };
@@ -243,13 +255,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             recording.value = false;
         };
         recognition.onnomatch = () => {
-            console.error("Failed to recognize spoken text.");
+            console.error('Failed to recognize spoken text.');
         };
         recognition.onerror = (error) => {
             console.error(error);
+            addDebug('Recognition Error: ' + error.message || error.error, 'red');
+            createSpeechBubbleAI('The speech recognition failed to understand your request.');
         };
         recognition.onend = () => {
-            console.log("Recognition ended.");
+            console.log('Recognition ended.');
             recording.value = false;
             busy.value = false;
         };
@@ -278,7 +292,8 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             </div>
         </div>`
         if (!id) {
-            document.getElementById('waitBubble').remove()
+            const waitBubble = document.getElementById('waitBubble');
+            if (waitBubble) waitBubble.remove();
             busy.value = false;
         }
         chat.appendChild(d1)
@@ -373,7 +388,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         let d1 = document.createElement("div")
         d1.className = "debug-text"
         d1.textContent = text
-        d1.style.color = color
+        if (color) {
+            d1.style.color = color
+        }
         debugChat.append(d1)
     }
     
@@ -394,6 +411,18 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         #chat1 {
             color: #fff;
             background-color: #444;
+        }
+
+        .form-check-input:valid, .form-control:valid {
+            background-color: #212529!important;
+            color: white;
+        }
+        .form-check-input:checked {
+            background-color: #0d6efd!important;
+        }
+        .form-control::placeholder {
+            color: #6c757d;
+            opacity: 1;
         }
     }
 
