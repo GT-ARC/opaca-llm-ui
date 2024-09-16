@@ -55,6 +55,7 @@ class RestGptBackend:
             "temperature": 0,                       # Temperature for models
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
+            "use_agent_names": True,
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -67,7 +68,7 @@ class RestGptBackend:
                               "enter a valid api key and try again.", "debug": str(e)}
 
         try:
-            action_spec = get_reduced_action_spec(opaca_proxy.get_actions_openapi())
+            action_spec = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
         except Exception as e:
             print(str(e))
             return {"result": "I am sorry, but there occurred an error during the action retrieval. "
