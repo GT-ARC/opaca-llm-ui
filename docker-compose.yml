@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+
+  # Vite/Vue-based frontend for the OPACA LLM Integration
+  opaca-llm-frontend:
+    build:
+      context: .
+    ports:
+      - "5173:5173"
+    depends_on:
+      - opaca-llm-backend
+    environment:
+      VITE_PLATFORM_BASE_URL:
+      VITE_BACKEND_BASE_URL:
+      VITE_BACKEND_DEFAULT:
+
+  # FastAPI-based backend for the OPACA LLM Integration
+  opaca-llm-backend:
+    build:
+      context: ./Backend
+    ports:
+      - "3001:3001"
+    environment:
+      OPENAI_API_KEY:
