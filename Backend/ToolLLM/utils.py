@@ -14,7 +14,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
             container_id, agent_name, function_name = spec.get("operationId").split(';')
 
             # 3. Extract a description and parameters.
-            desc = spec.get("description") or spec.get("summary", "")
+            desc = spec.get("description")[:1024] or spec.get("summary", "")[:1024]
 
             schema = {"type": "object", "properties": {}}
 
