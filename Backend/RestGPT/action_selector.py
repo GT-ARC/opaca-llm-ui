@@ -222,7 +222,7 @@ class ActionSelector(Chain):
         prompt = build_prompt(
             system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
                            else ACTION_SELECTOR_PROMPT) + action_list,
-            examples=examples if inputs['config']['examples'] else [],
+            examples=examples if inputs['config']['examples']['action_selector'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
