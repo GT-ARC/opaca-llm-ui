@@ -194,18 +194,12 @@ class OpacaLLM(BaseChatModel):
                 'model': self.model,
                 'stream': False
             }
-        )
+        ).json()
 
-        output = response.text.replace("\\n", "\n").replace('\\"', '"')
-        output = output.strip('"')
+        output = response['message']['content']
 
-        if stop is None:
-            return output
-
-        for word in stop:
-            stop_pos = output.find(word)
-            if stop_pos != -1:
-                return output[:stop_pos].strip()
+        #output = output.replace("\\n", "\n").replace('\\"', '"')
+        #output = output.strip('"')
 
         return output
 
@@ -249,13 +243,16 @@ def format_llama3(prompt_values: PromptValue):
         if isinstance(message, SystemMessage):
             role = "system"
         elif isinstance(message, HumanMessage):
-            role = "human"
+            role = "user"
         elif isinstance(message, AIMessage):
-            role = "ai"
+            role = "assistant"
         else:
             raise ValueError(f'Unknown message type: {type(messages)}')
 
-        messages.append({"role": role, "content": message.content})
+        content = message.content
+        content = content.replace("\\n", "").replace('\\"', '"').strip()
+
+        messages.append({"role": role, "content": content})
     return messages
 
 
