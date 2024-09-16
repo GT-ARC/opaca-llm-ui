@@ -1,5 +1,3 @@
-from abc import ABC
-
 import jsonref
 import requests
 import re
@@ -7,7 +5,7 @@ import re
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
 from langchain_core.callbacks import CallbackManagerForLLMRun
-from langchain_core.language_models import LLM, BaseChatModel
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder, \
@@ -92,11 +90,11 @@ class Action:
                 f'{self.container_id};{self.custom_params}}}')
 
     def planner_str(self, agentName: bool = False):
-        return (f'{{Name: {self.agent_name + ";" + self.action_name if agentName else self.action_name}, '
+        return (f'{{Name: {(self.agent_name + "_" + self.action_name) if agentName else self.action_name}, '
                 f'Description: {self.description}, Parameters: {self.params_in}}}')
 
     def selector_str(self, agentName: bool = False):
-        return (f'{{Name: {self.agent_name + ";" + self.action_name if agentName else self.action_name}, '
+        return (f'{{Name: {(self.agent_name + "_" + self.action_name) if agentName else self.action_name}, '
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
