@@ -3,9 +3,8 @@ from typing import Any, Dict, List, Tuple
 import re
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from .utils import build_prompt, fix_parentheses
 
@@ -130,9 +129,9 @@ available, and the parameters required to call that action.
 
 
 class Planner(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI) -> None:
+    def __init__(self, llm: BaseChatModel) -> None:
         super().__init__(llm=llm)
 
     @property

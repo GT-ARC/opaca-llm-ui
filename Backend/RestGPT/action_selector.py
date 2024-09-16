@@ -4,9 +4,8 @@ import re
 import logging
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from .utils import build_prompt, fix_parentheses
 
@@ -108,11 +107,11 @@ an overview of the parameters to call that action, and the definition of custom 
 
 
 class ActionSelector(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
     action_selector_prompt: str
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
+    def __init__(self, llm: BaseChatModel, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
         super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
@@ -155,10 +154,10 @@ class ActionSelector(Chain):
         err_out = ""
 
         # Check if exactly one semicolon was generated
-        if use_agent_names and len(action_plan.split(';')) != 3\
-                or not use_agent_names and not len(action_plan.split(';')) != 2:
-            return ("Your generated action call is not properly formatted. It should include exactly one action, "
-                    "a semicolon and a list of parameters in json format.\n")
+        if (use_agent_names and len(action_plan.split(';')) != 3)\
+                or (not use_agent_names and len(action_plan.split(';')) != 2):
+            return (f"Your generated action call is not properly formatted. It should include exactly one action, "
+                    f"a semicolon and a list of parameters in json format. (Generated Action Plan: {action_plan})\n")
 
         if use_agent_names:
             _, action, parameters = action_plan.split(';')
