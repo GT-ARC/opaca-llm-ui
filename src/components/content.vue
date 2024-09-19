@@ -2,67 +2,101 @@
     <div class="row d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column" style="height:calc(100vh - 85px)">
+        <aside class="col-xl-4 d-flex flex-column"
+               style="height:calc(100vh - 85px)">
+
             <div class="container">
-                <div>
-                    <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
-                    <input class="col-5" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
-                    <button class="btn btn-primary btn-sm" @click="initiatePrompt">Connect</button>
+                <div class="p-2 text-start">
+                    <input id="opacaUrlInput" type="text"
+                           class="form-control m-0"
+                           v-model="opacaRuntimePlatform"
+                           :placeholder="config.translations[language].opacaLocation" />
                 </div>
-                <div class="small">
-                    <label for="opacaUser">Username</label>
-                    <input class="col-3" type="text" id="opacaUser" v-model="opacaUser" />
-                    <label for="opacaPwd">Password</label>
-                    <input class="col-3" type="password" id="opacaPwd" v-model="opacaPwd" />
+
+                <div class="p-2 text-start">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <input id="opacaUser" type="text"
+                                   class="form-control m-0"
+                                   v-model="opacaUser"
+                                   placeholder="Username" />
+                        </div>
+                        <div class="col-lg-6">
+                            <input id="opacaPwd" type="password"
+                                   class="form-control m-0"
+                                   v-model="opacaPwd"
+                                   placeholder="Password" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="p-2 text-start">
+                    <input id="apiKey" type="password"
+                           class="form-control m-0"
+                           v-model="apiKey"
+                           placeholder="OpenAI API Key" />
+                </div>
+
+                <div class="text-center p-2">
+                    <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
+                </div>
+
+                <div class="form-check p-2 text-start">
+                    <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
+                    <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
                 </div>
             </div>
-            <div class="container small">
-                <label for="apiKey">OpenAI API-Key</label>
-                <input class="col-7" type="password" id="apiKey" v-model="apiKey">
-            </div>
-            <div class='container'>
-                <button class="btn btn-secondary btn-sm col-5 m-1" @click="debug=!debug">
-                    {{ debug ? "Hide Debug Output" : "Show Debug Output"}}
-                </button>
-            </div>
-            <div class="container debug-window-container flex-grow-1" v-if="debug" id="chatDebug"
-                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
-                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
+
+            <div v-show="debug" id="chatDebug"
+                 class="container debug-window-container flex-grow-1 m-2 mb-4 p-2 rounded rounded-4">
+                <div id="debug-console" style="flex-direction: column-reverse;" />
             </div>
         </aside>
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column position-relative" style="height:calc(100vh - 85px)">
+        <main class="col-xl-8 d-flex flex-column" style="height:calc(100vh - 85px)">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
             </div>
 
-            <!-- Input and Submit Button -->
-            <div class="container">
-                <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
-                <button class="btn btn-primary" @click="submitText">
-                    {{ config.translations[language].submit }}
-                </button>
+            <div class="container p-0">
+                <div class="input-group mt-2 mb-4">
+                    <input id="textInput" placeholder="Type here ..."
+                           class="form-control p-2 rounded-start-2"
+                           :value="config.translations[language].defaultQuestion"
+                           @keypress="textInputCallback"/>
+                    <button type="button"
+                            class="btn btn-primary rounded-end-2"
+                            @click="submitText">
+                        <i class="fa fa-send mx-2"/>
+                    </button>
+
+                    <button type="button" :disabled="busy" v-if="isSpeechRecognitionSupported()"
+                            class="btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="startRecognition">
+                        <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
+                        <i v-else class="fa fa-microphone mx-2"/>
+                    </button>
+
+                    <button type="button" :disabled="busy" v-if="!!speechSynthesis"
+                            class="d-none btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="speakLastMessage">
+                        <i class="fa fa-volume-up mx-2"/>
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline-danger ms-2 rounded rounded-1"
+                            @click="resetChat">
+                        <i class="fa fa-remove mx-2"/>
+                    </button>
+                </div>
             </div>
 
             <!-- Simple Keyboard -->
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
-
-            <!-- Button Group Container -->
-            <div class='container'>
-                <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
-                    {{ config.translations[language].speechRecognition }}
-                    <div v-if="recording" class="spinner-border md-2" height=2em role="status" />
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="speakLastMessage">
-                    {{ config.translations[language].readLastMessage }}
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="resetChat">
-                    {{ config.translations[language].resetChat }}
-                </button>
-            </div>
         </main>
     </div>
 
@@ -84,12 +118,13 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const language = inject('language');
     let recognition= null;
     let lastMessage = null;
-    const speechSynthesis= window.speechSynthesis;
-    const recording= ref(false);
-    const busy= ref(false);
+    const speechSynthesis = window.speechSynthesis;
+    const recording = ref(false);
+    const busy = ref(false);
     const debug = ref(false);
-    const languages= {
-        GB: 'en-EN',
+    const autoSpeakNextMessage = ref(false);
+    const languages = {
+        GB: 'en-GB',
         DE: 'de-DE'
     }
     const darkScheme = ref(false);
@@ -179,29 +214,68 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             createSpeechBubbleAI("Error while fetching data: " + error)
             scrollDown(false);
         }
+        if (autoSpeakNextMessage.value) {
+            speakLastMessage();
+            autoSpeakNextMessage.value = false;
+        }
+    }
+
+    function isSpeechRecognitionSupported() {
+        // very hacky check if the user is using the (full) google chrome browser
+        const isGoogleChrome = window.chrome !== undefined
+                && window.navigator.userAgentData !== undefined
+                && window.navigator.userAgentData.brands.length >= 3
+                && window.navigator.userAgentData.brands[2].brand === "Google Chrome"
+                && window.navigator.vendor === "Google Inc."
+                && Array.from(window.navigator.plugins).some((plugin) => {
+                    return plugin.name === "Chrome PDF Viewer";
+                });
+        return ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+                && (location.protocol === 'https' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                && isGoogleChrome;
     }
 
     async function startRecognition() {
-        // TODO this does not seem to work for me
-        recognition = new (webkitSpeechRecognition || SpeechRecognition)();
+        if (!isSpeechRecognitionSupported()) {
+            console.error("Speech recognition API is not supported by your browser.");
+            return;
+        }
+        abortSpeaking();
+        console.log("Recognized language: " + languages[language.value]);
+        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
         recognition.lang = languages[language.value];
-        console.log("language: " + languages[language.value]);
-        busy.value = true;
         recognition.onresult = async (event) => {
+            if (!event.results || event.results.length <= 0) return;
             const recognizedText = event.results[0][0].transcript;
-            await askChatGpt(recognizedText)
+            addDebug('Recognized text: ' + recognizedText);
+            autoSpeakNextMessage.value = true
+            await askChatGpt(recognizedText);
+        };
+        recognition.onspeechend = () => {
+            recording.value = false;
+        };
+        recognition.onnomatch = () => {
+            console.error('Failed to recognize spoken text.');
+        };
+        recognition.onerror = (error) => {
+            console.error(error);
+            addDebug('Recognition Error: ' + error.message || error.error, 'red');
+            createSpeechBubbleAI('The speech recognition failed to understand your request.');
         };
         recognition.onend = () => {
+            console.log('Recognition ended.');
             recording.value = false;
-            console.log("Recognition ended.");
+            busy.value = false;
         };
         recognition.start();
         recording.value = true;
+        busy.value = true;
     }
 
     async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
+        abortSpeaking();
+        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
     }
@@ -218,7 +292,8 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             </div>
         </div>`
         if (!id) {
-            document.getElementById('waitBubble').remove()
+            const waitBubble = document.getElementById('waitBubble');
+            if (waitBubble) waitBubble.remove();
             busy.value = false;
         }
         chat.appendChild(d1)
@@ -246,10 +321,26 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     function speakLastMessage() {
         if (speechSynthesis) {
-            console.log(lastMessage)
-            // TODO this does not seem to work for me
+            abortSpeaking();
+            console.log("Speaking message: " + lastMessage);
             const utterance = new SpeechSynthesisUtterance(lastMessage);
+            utterance.lang = languages[language.value];
+            utterance.onstart = () => {
+                console.log("Speaking started.");
+            }
+            utterance.onend = () => {
+                console.log("Speaking ended.");
+            }
+            utterance.onerror = (error) => {
+                console.error(error);
+            }
             speechSynthesis.speak(utterance);
+        }
+    }
+
+    function abortSpeaking() {
+        if (speechSynthesis && speechSynthesis.speaking) {
+            speechSynthesis.cancel();
         }
     }
 
@@ -297,7 +388,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         let d1 = document.createElement("div")
         d1.className = "debug-text"
         d1.textContent = text
-        d1.style.color = color
+        if (color) {
+            d1.style.color = color
+        }
         debugChat.append(d1)
     }
     
@@ -319,6 +412,18 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             color: #fff;
             background-color: #444;
         }
+
+        .form-check-input:valid, .form-control:valid {
+            background-color: #212529!important;
+            color: white;
+        }
+        .form-check-input:checked {
+            background-color: #0d6efd!important;
+        }
+        .form-control::placeholder {
+            color: #6c757d;
+            opacity: 1;
+        }
     }
 
     @media (prefers-color-scheme: light) {
@@ -327,11 +432,6 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             overflow: hidden;
             border: 1px solid #ccc; /* border only needed in light mode */
         }
-    }
-
-    input {
-        border-radius: 5px;
-        margin: 10px;
     }
 
     .chatbubble {
@@ -356,6 +456,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     .debug-window-container {
         background-color: #000; /* Black background */
         overflow: hidden;
+        overflow-y: auto;
     }
 
     .debug-text {

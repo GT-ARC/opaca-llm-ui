@@ -4,3 +4,4 @@ __pycache__
 *.pyc
 Backend/tests/test_runs
 .idea
+venv
