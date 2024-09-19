@@ -198,9 +198,6 @@ class OpacaLLM(BaseChatModel):
 
         output = response['message']['content']
 
-        #output = output.replace("\\n", "\n").replace('\\"', '"')
-        #output = output.strip('"')
-
         return output
 
 
