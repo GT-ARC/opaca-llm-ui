@@ -23,40 +23,48 @@
     <header>
         <div class="col">
             <nav class="navbar navbar-expand-lg" type="light">
-                <div class="container-fluid" style="width: 50%;">
+                <div class="ms-5 w-auto text-start">
                     <img src="./assets/opaca-logo.png" id="logo" alt="Opaca Logo" height="50"/>
                 </div>
 
-                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ conf.translations[language].language}}
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                            <li v-for="(value, key) in conf.translations" @click="setLanguage(key)">
-                                <a class="dropdown-item">
-                                    <p v-bind:style= "[language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
-                                        {{ value.name }}
-                                    </p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Backend
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="backendSelector">
-                            <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
-                                <a class="dropdown-item">
-                                    <p v-bind:style= "[backend === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
-                                        {{ value }}
-                                    </p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
+                <div class="my-auto text-end w-auto ms-auto me-5">
+                    <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
+
+                        <!-- languages -->
+                        <li class="nav-item dropdown me-3">
+                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-globe me-1"/>
+                                {{ conf.translations[language].name}}
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="languageSelector">
+                                <li v-for="(value, key) in conf.translations" @click="setLanguage(key)">
+                                    <a class="dropdown-item">
+                                        <p v-bind:style= "[language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                            {{ value.name }}
+                                        </p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <!-- backends -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-server me-1"/>
+                                {{ conf.Backends[backend] }}
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="backendSelector">
+                                <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
+                                    <a class="dropdown-item">
+                                        <p v-bind:style= "[backend === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
+                                            {{ value }}
+                                        </p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
             </nav>
         </div>
     </header>
