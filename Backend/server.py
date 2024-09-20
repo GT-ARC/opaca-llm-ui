@@ -64,8 +64,8 @@ BACKENDS = {
 async def get_backends() -> list:
     return list(BACKENDS)
 
-@app.post("/connect")
-async def connect(url: Url) -> bool:
+@app.post("/connect", description="Returns the status code of the original request (to differentiate from errors resulting from this call itself)")
+async def connect(url: Url) -> int:
     return await proxy.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions")

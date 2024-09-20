@@ -3,6 +3,7 @@ import functools
 
 import jsonref
 import requests
+from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional
 
 # TODO use aiohttp?
@@ -24,10 +25,10 @@ class OpacaProxy:
             self._get_token(user, pwd)
             requests.get(f"{self.url}/info", headers=self._headers()).raise_for_status()
             self._update_opaca_actions()
-            return True
-        except Exception as e:
+            return 200
+        except (ConnectionError, HTTPError) as e:
             print("COULD NOT CONNECT", e)
-            return False
+            return e.response.status_code if e.response is not None else 400
         
     async def get_actions(self) -> dict[str, list[str]]:
         return {

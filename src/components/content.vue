@@ -164,7 +164,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.data) {
+        if (res.data == 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
             var text = config.translations[language.value].connected;
@@ -177,8 +177,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             }
             createSpeechBubbleAI(text, "connect")
         } else {
-            console.log("STATUS " + res.status)
-            if (res.status == 403) {
+            if (res.data == 403) {
                 createSpeechBubbleAI(config.translations[language.value].unauthorized, "connect")
             } else {
                 createSpeechBubbleAI(config.translations[language.value].unreachable, "connect")
