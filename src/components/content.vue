@@ -167,17 +167,22 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         if (res.data) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
-            var text = "Connected! Known agents and actions:"
+            var text = config.translations[language.value].connected;
             if (Object.keys(actions).length > 0) {
                 for (const agent in actions) {
                     text += `\n* **${agent}:** ${actions[agent].join(", ")}`
                 }
             } else {
-                text += "None."
+                text += config.translations[language.value].none
             }
             createSpeechBubbleAI(text, "connect")
         } else {
-            createSpeechBubbleAI("Failed to connect...", "connect")
+            console.log("STATUS " + res.status)
+            if (res.status == 403) {
+                createSpeechBubbleAI(config.translations[language.value].unauthorized, "connect")
+            } else {
+                createSpeechBubbleAI(config.translations[language.value].unreachable, "connect")
+            }
         }
     }
 
