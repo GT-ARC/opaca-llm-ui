@@ -6,3 +6,4 @@ langchain-openai>=0.2,<0.3
 fastapi
 uvicorn
 colorama
+jsonref
