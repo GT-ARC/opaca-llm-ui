@@ -67,31 +67,32 @@
 </template>
 
 <style scoped>
+header {
+    background-color: #fff;
+    width: 100%;
+    height: 50px;
+    display: flex;
+    align-items: center;
+}
 
-    header {
-      background-color: #fff;
-      width: 100%;
-      height: 50px;
-      display: flex;
-      align-items: center;
+.dropdown-item {
+    cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+    #logo {
+        filter: invert(100%)
     }
-
-    .dropdown-item {
-      cursor: pointer;
-    }
-
-    @media (prefers-color-scheme: dark) {
-
-        #logo {
-            filter: invert(100%)
-        }
-
-      .navbar {
+    .navbar {
         background-color: #333;
         color: white;
-      }
-      .navbar-nav .nav-link {
-        color: white;
-      }
     }
+    .navbar-nav .nav-link {
+        color: white;
+    }
+    .dropdown-menu, .dropdown-item {
+        background-color: #212529!important;
+        color: white;
+    }
+}
 </style>
