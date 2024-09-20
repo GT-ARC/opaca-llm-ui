@@ -31,7 +31,7 @@
 
                 </div>
 
-                <div class="p-2 text-start">
+                <div class="p-2 text-start" v-if="config.ShowApiKey">
                     <input id="apiKey" type="password"
                            class="form-control m-0"
                            v-model="apiKey"

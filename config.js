@@ -15,7 +15,9 @@ var config = {
 
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    ShowKeyboard: false,
+    ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
+
+    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
     translations:{
         GB: {
