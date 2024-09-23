@@ -1,11 +1,13 @@
 <template>
-    <div class="row d-flex justify-content-start my-4 w-100">
+    <div class="d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column"
-               style="height:calc(100vh - 85px)">
+        <div v-show="isSidebarOpen()">
+            <aside id="sidebar"
+               class="container-fluid d-flex flex-column px-4"
+               style="height: calc(100vh - 85px); width: calc(100vw / 4)">
 
-            <div class="container">
+            <div id="sidebarConfig" class="container d-flex flex-column">
                 <div class="p-2 text-start">
                     <input id="opacaUrlInput" type="text"
                            class="form-control m-0"
@@ -14,14 +16,14 @@
                 </div>
 
                 <div class="p-2 text-start">
-                    <div class="row">
-                        <div class="col-lg-6">
+                    <div class="row opaca-credentials">
+                        <div class="col-md-6">
                             <input id="opacaUser" type="text"
                                    class="form-control m-0"
                                    v-model="opacaUser"
                                    placeholder="Username" />
                         </div>
-                        <div class="col-lg-6">
+                        <div class="col-md-6">
                             <input id="opacaPwd" type="password"
                                    class="form-control m-0"
                                    v-model="opacaPwd"
@@ -49,13 +51,16 @@
             </div>
 
             <div v-show="debug" id="chatDebug"
-                 class="container debug-window-container flex-grow-1 m-2 mb-4 p-2 rounded rounded-4">
-                <div id="debug-console" style="flex-direction: column-reverse;" />
+                 class="container bg-black overflow-hidden overflow-y-auto flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div id="debug-console" class="flex-row-reverse text-start"/>
             </div>
-        </aside>
 
+            <div class="resizer me-1" id="resizer" />
+        </aside>
+        </div>
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column" style="height:calc(100vh - 85px)">
+        <main id="mainContent" class="d-flex flex-column flex-grow-1 pe-4"
+              style="height:calc(100vh - 85px); max-width: calc(100vw * 3 / 4);">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
@@ -109,13 +114,16 @@ import {inject, onMounted, ref} from "vue";
 import config from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 
+document.getElementById('')
+
 let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
-    
+
     const backend = inject('backend');
     const language = inject('language');
+    const sidebarOpen = inject('sidebarOpen');
     let recognition= null;
     let lastMessage = null;
     const speechSynthesis = window.speechSynthesis;
@@ -135,7 +143,35 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         initiatePrompt();
-    })
+        setupResizableSidebar();
+    });
+
+    function setupResizableSidebar() {
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+          isResizing = true;
+          document.body.style.cursor = 'ew-resize';
+        });
+
+        document.addEventListener('mousemove', (event) => {
+          if (!isResizing) return;
+
+          // Calculate the new width for the aside
+          const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
+
+          if (newWidth > 200 && newWidth < 600) {
+            sidebar.style.width = `${newWidth}px`;
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          isResizing = false;
+          document.body.style.cursor = 'default';
+        });
+    }
 
     function updateTheme() {
         // Check if dark color scheme is preferred
@@ -164,10 +200,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.data == 200) {
+        if (res.status === 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
-            var text = config.translations[language.value].connected;
+            let text = config.translations[language.value].connected;
             if (Object.keys(actions).length > 0) {
                 for (const agent in actions) {
                     //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
@@ -177,12 +213,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
                 text += config.translations[language.value].none
             }
             alert(text)
+        } else if (res.status === 403) {
+            alert(config.translations[language.value].unauthorized)
         } else {
-            if (res.data == 403) {
-                alert(config.translations[language.value].unauthorized)
-            } else {
-                alert(config.translations[language.value].unreachable)
-            }
+            alert(config.translations[language.value].unreachable)
         }
     }
 
@@ -202,7 +236,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             throw error;
         }
     }
-    
+
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
@@ -395,11 +429,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         }
         debugChat.append(d1)
     }
-    
+
     function beforeDestroy() {
         if (recognition) {
             recognition.stop();
         }
+    }
+
+    function isSidebarOpen() {
+        return sidebarOpen.value;
     }
 
 </script>
@@ -426,6 +464,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             color: #6c757d;
             opacity: 1;
         }
+
+        .resizer {
+            background-color: #181818;
+        }
     }
 
     @media (prefers-color-scheme: light) {
@@ -433,6 +475,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             background-color: #fff; /* Gray background */
             overflow: hidden;
             border: 1px solid #ccc; /* border only needed in light mode */
+        }
+        .resizer {
+            background-color: gray;
+        }
+    }
+
+    @media (max-width: 400px) {
+        .opaca-credentials {
+            flex-direction: column;
         }
     }
 
@@ -467,5 +518,21 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         margin-left: 3px;
         font-family: "Courier New", monospace;
         font-size: small;
+    }
+
+    #sidebar {
+        min-width: 200px;
+        max-width: 600px;
+        position: relative;
+    }
+
+    .resizer {
+        width: 4px;
+        cursor: ew-resize;
+        height: calc(100vh - 85px - 25px);
+        position: absolute;
+        top: 0;
+        right: 0;
+        border-radius: 2px;
     }
 </style>

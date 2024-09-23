@@ -5,9 +5,11 @@
 
     const language = ref('GB')
     const backend = ref(conf.BackendDefault)
+    const sidebarOpen = ref(true);
 
     provide('language', language)
     provide('backend', backend)
+    provide('sidebarOpen', sidebarOpen)
     provide('config', ref(conf))
 
     function setLanguage(lang){
@@ -17,12 +19,30 @@
         backend.value = val;
         console.log("BACKEND IS NOW " + val);
     }
+    function toggleSidebar() {
+        sidebarOpen.value = !sidebarOpen.value;
+        console.log('sidebar open: ' + sidebarOpen.value);
+
+        // adjust spacing
+        const mainContent = document.getElementById('mainContent');
+        if (sidebarOpen.value) {
+            mainContent.classList.remove('mx-auto')
+            mainContent.classList.add('pe-4')
+        } else {
+            mainContent.classList.remove('pe-4');
+            mainContent.classList.add('mx-auto');
+        }
+    }
 </script>
 
 <template>
     <header>
         <div class="col">
             <nav class="navbar navbar-expand-lg" type="light">
+                <div class="sidebar-toggle" @click="toggleSidebar()">
+                    <i class="fa fa-bars fs-3 my-auto p-3"/>
+                </div>
+
                 <div class="ms-5 w-auto text-start">
                     <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>                    
                 </div>
@@ -97,16 +117,29 @@ header {
     .logo {
         filter: invert(100%)
     }
-    .navbar {
-        background-color: #333;
-        color: white;
+
+    .sidebar-toggle {
+        cursor: pointer;
     }
-    .navbar-nav .nav-link {
-        color: white;
-    }
-    .dropdown-menu, .dropdown-item {
-        background-color: #212529!important;
-        color: white;
+
+    @media (prefers-color-scheme: dark) {
+        #logo {
+            filter: invert(100%)
+        }
+
+        .navbar {
+            background-color: #333;
+            color: white;
+        }
+
+        .navbar-nav .nav-link {
+            color: white;
+        }
+
+        .dropdown-menu, .dropdown-item {
+            background-color: #212529 !important;
+            color: white;
+        }
     }
 }
 </style>
