@@ -41,7 +41,7 @@ API Response: Shelf 3 is now closed."""}
 ACTION_SELECTOR_PROMPT = """
 You are an agent that outputs RESTful API calls to assist with instructions against an API. 
 You will receive a list of known services. These services will include actions. 
-Sometimes the action name includes the agent name as a prefix, indicated by an underscore.
+Sometimes the action name includes the agent name as a prefix, indicated by two hyphens.
 Sometimes these actions will also have descriptions to better explain what each action does. 
 Your task will be to output a fitting API call consisting of an action name and the parameters belonging to that action. 
 You can get an overview of the parameters to each action from the list. Parameters can also be required. If this is the 
@@ -90,7 +90,7 @@ You output API calls. The format in which you should answer is as follows:
 API Call: action_name;{"parameter_name": "value"}
 
 You will replace action_name with the exact name of the most fitting action given in the user input.
-Sometimes the action includes the agent name as a prefix, indicated by an underscore, which you should also include.
+Sometimes the action includes the agent name as a prefix, indicated by two hyphens, which you should also include.
 After that, you output a semicolon and then you output the parameters for that action in a JSON format.
 As values for the parameters you use the most fitting value from the user input. For example, if an action requires 
 the parameter "room" as a string and the user input specified the room as "kitchen", you use "kitchen" as the 
