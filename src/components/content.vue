@@ -90,7 +90,7 @@
                     <button type="button"
                             class="btn btn-outline-danger ms-2 rounded rounded-1"
                             @click="resetChat">
-                        <i class="fa fa-remove mx-2"/>
+                        <i class="fa fa-undo mx-2"/>
                     </button>
                 </div>
             </div>
