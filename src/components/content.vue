@@ -206,16 +206,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value, api_key: apiKey});
-            const answer = result.data.result
-            const debugText = result.data.debug
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
+            const answer = result.data.result;
+            const debugText = result.data.debug;
             createSpeechBubbleAI(answer);
-            if (debug.value) {
-                processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
-                scrollDown(true)
-            }
-            scrollDown(false);
+            processDebugInput(debugText)
+                    .forEach((d) => addDebug(d.text, d.color));
+            scrollDown(debug.value);
         } catch (error) {
+            console.error(error);
             createSpeechBubbleAI("Error while fetching data: " + error)
             scrollDown(false);
         }
@@ -367,17 +366,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             "system:": ["#ff8", "#71713d"],
         }
         const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
-
-        const parts = input.split(regex).filter(Boolean)
-        const result = []
+        const parts = input.split(regex).filter(Boolean);
+        const result = [];
         for (let i = 0; i < parts.length; i += 2) {
             const keyword = parts[i]
             const text = parts[i + 1] || ""
             const color = (keywordColors[keyword] ?? ["#fff", "#000"])[darkScheme.value ? 0 : 1];
             result.push({text: keyword + text, color: color})
         }
-
-        return result
+        return result;
     }
 
     function updateDebugColors() {
@@ -389,7 +386,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     }
 
     function addDebug(text, color) {
-        const debugChat = document.getElementById("debug-console")
+        const debugChat = document.getElementById("debug-console");
         let d1 = document.createElement("div")
         d1.className = "debug-text"
         d1.textContent = text
