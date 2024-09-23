@@ -24,10 +24,13 @@
         <div class="col">
             <nav class="navbar navbar-expand-lg" type="light">
                 <div class="ms-5 w-auto text-start">
-                    <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>
+                    <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>                    
                 </div>
                 <div class="ms-5 w-auto text-start">
                     <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
+                </div>
+                <div class="ms-5 w-auto text-start">
+                    <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
                 </div>
 
                 <div class="my-auto text-end w-auto ms-auto me-5">
