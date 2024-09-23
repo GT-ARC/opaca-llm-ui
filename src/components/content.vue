@@ -2,9 +2,10 @@
     <div class="d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside id="sidebar"
+        <div v-show="isSidebarOpen()">
+            <aside id="sidebar"
                class="container-fluid d-flex flex-column px-4"
-               style="height: calc(100vh - 85px); width: calc(100vw / 3)">
+               style="height: calc(100vh - 85px); width: calc(100vw / 4)">
 
             <div id="sidebarConfig" class="container d-flex flex-column">
                 <div class="p-2 text-start">
@@ -54,11 +55,12 @@
                 <div id="debug-console" class="flex-row-reverse text-start"/>
             </div>
 
-            <div class="resizer mx-1" id="resizer" />
+            <div class="resizer me-1 d-none" id="resizer" />
         </aside>
-
+        </div>
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column flex-grow-1" style="height:calc(100vh - 85px)">
+        <main id="mainContent" class="d-flex flex-column flex-grow-1 pe-4"
+              style="height:calc(100vh - 85px); max-width: calc(100vw * 3 / 4);">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
@@ -121,6 +123,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     const backend = inject('backend');
     const language = inject('language');
+    const sidebarOpen = inject('sidebarOpen');
     let recognition= null;
     let lastMessage = null;
     const speechSynthesis = window.speechSynthesis;
@@ -431,6 +434,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         if (recognition) {
             recognition.stop();
         }
+    }
+
+    function isSidebarOpen() {
+        return sidebarOpen.value;
     }
 
 </script>
