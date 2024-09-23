@@ -1,11 +1,12 @@
 <template>
-    <div class="row d-flex justify-content-start my-4 w-100">
+    <div class="d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column"
-               style="height:calc(100vh - 85px)">
+        <aside id="sidebar"
+               class="container-fluid d-flex flex-column px-4"
+               style="height: calc(100vh - 85px); width: calc(100vw / 3)">
 
-            <div class="container">
+            <div id="sidebarConfig" class="container d-flex flex-column">
                 <div class="p-2 text-start">
                     <input id="opacaUrlInput" type="text"
                            class="form-control m-0"
@@ -14,14 +15,14 @@
                 </div>
 
                 <div class="p-2 text-start">
-                    <div class="row">
-                        <div class="col-lg-6">
+                    <div class="row opaca-credentials">
+                        <div class="col-md-6">
                             <input id="opacaUser" type="text"
                                    class="form-control m-0"
                                    v-model="opacaUser"
                                    placeholder="Username" />
                         </div>
-                        <div class="col-lg-6">
+                        <div class="col-md-6">
                             <input id="opacaPwd" type="password"
                                    class="form-control m-0"
                                    v-model="opacaPwd"
@@ -49,13 +50,15 @@
             </div>
 
             <div v-show="debug" id="chatDebug"
-                 class="container debug-window-container flex-grow-1 m-2 mb-4 p-2 rounded rounded-4">
-                <div id="debug-console" style="flex-direction: column-reverse;" />
+                 class="container bg-black overflow-hidden overflow-y-auto flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div id="debug-console" class="flex-row-reverse text-start"/>
             </div>
+
+            <div class="resizer mx-1" id="resizer" />
         </aside>
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column" style="height:calc(100vh - 85px)">
+        <main class="col-xl-8 d-flex flex-column flex-grow-1" style="height:calc(100vh - 85px)">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
@@ -109,11 +112,13 @@ import {inject, onMounted, ref} from "vue";
 import config from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 
+document.getElementById('')
+
 let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
-    
+
     const backend = inject('backend');
     const language = inject('language');
     let recognition= null;
@@ -135,7 +140,35 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         initiatePrompt();
-    })
+        setupResizableSidebar();
+    });
+
+    function setupResizableSidebar() {
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+          isResizing = true;
+          document.body.style.cursor = 'ew-resize';
+        });
+
+        document.addEventListener('mousemove', (event) => {
+          if (!isResizing) return;
+
+          // Calculate the new width for the aside
+          const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
+
+          if (newWidth > 200 && newWidth < 600) {
+            sidebar.style.width = `${newWidth}px`;
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          isResizing = false;
+          document.body.style.cursor = 'default';
+        });
+    }
 
     function updateTheme() {
         // Check if dark color scheme is preferred
@@ -197,7 +230,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             throw error;
         }
     }
-    
+
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
@@ -393,7 +426,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         }
         debugChat.append(d1)
     }
-    
+
     function beforeDestroy() {
         if (recognition) {
             recognition.stop();
@@ -434,6 +467,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         }
     }
 
+    @media (max-width: 400px) {
+        .opaca-credentials {
+            flex-direction: column;
+        }
+    }
+
     .chatbubble {
         border-radius: 10px;
         text-align: left
@@ -465,5 +504,22 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         margin-left: 3px;
         font-family: "Courier New", monospace;
         font-size: small;
+    }
+
+    #sidebar {
+        min-width: 200px;
+        max-width: 600px;
+        position: relative;
+    }
+
+    .resizer {
+        background-color: #181818;
+        width: 8px;
+        cursor: ew-resize;
+        height: calc(100vh - 85px - 25px);
+        position: absolute;
+        top: 0;
+        right: 0;
+        border-radius: 3px;
     }
 </style>
