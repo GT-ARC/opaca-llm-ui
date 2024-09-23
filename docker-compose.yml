@@ -14,6 +14,8 @@ services:
       VITE_PLATFORM_BASE_URL:
       VITE_BACKEND_BASE_URL:
       VITE_BACKEND_DEFAULT:
+      VITE_SHOW_KEYBOARD:
+      VITE_SHOW_APIKEY:
 
   # FastAPI-based backend for the OPACA LLM Integration
   opaca-llm-backend:

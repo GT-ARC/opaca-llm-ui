@@ -33,7 +33,7 @@
 
                 </div>
 
-                <div class="p-2 text-start">
+                <div class="p-2 text-start" v-if="config.ShowApiKey">
                     <input id="apiKey" type="password"
                            class="form-control m-0"
                            v-model="apiKey"
@@ -95,7 +95,7 @@
                     <button type="button"
                             class="btn btn-outline-danger ms-2 rounded rounded-1"
                             @click="resetChat">
-                        <i class="fa fa-remove mx-2"/>
+                        <i class="fa fa-undo mx-2"/>
                     </button>
                 </div>
             </div>
@@ -200,20 +200,25 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.data) {
+        if (res.data == 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
-            var text = "Connected! Known agents and actions:"
+            var text = config.translations[language.value].connected;
             if (Object.keys(actions).length > 0) {
                 for (const agent in actions) {
-                    text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                    text += `\n* ${agent}`
                 }
             } else {
-                text += "None."
+                text += config.translations[language.value].none
             }
-            createSpeechBubbleAI(text, "connect")
+            alert(text)
         } else {
-            createSpeechBubbleAI("Failed to connect...", "connect")
+            if (res.data == 403) {
+                alert(config.translations[language.value].unauthorized)
+            } else {
+                alert(config.translations[language.value].unreachable)
+            }
         }
     }
 

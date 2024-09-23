@@ -43,8 +43,14 @@
                     <i class="fa fa-bars fs-3 my-auto p-3"/>
                 </div>
 
-                <div class="ms-4 w-auto text-start">
-                    <img src="./assets/opaca-logo.png" id="logo" alt="Opaca Logo" height="50"/>
+                <div class="ms-5 w-auto text-start">
+                    <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>                    
+                </div>
+                <div class="ms-5 w-auto text-start">
+                    <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
+                </div>
+                <div class="ms-5 w-auto text-start">
+                    <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
                 </div>
 
                 <div class="my-auto text-end w-auto ms-auto me-5">
@@ -95,16 +101,21 @@
 </template>
 
 <style scoped>
-    header {
-      background-color: #fff;
-      width: 100%;
-      height: 50px;
-      display: flex;
-      align-items: center;
-    }
+header {
+    background-color: #fff;
+    width: 100%;
+    height: 50px;
+    display: flex;
+    align-items: center;
+}
 
-    .dropdown-item {
-      cursor: pointer;
+.dropdown-item {
+    cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+    .logo {
+        filter: invert(100%)
     }
 
     .sidebar-toggle {
@@ -112,17 +123,23 @@
     }
 
     @media (prefers-color-scheme: dark) {
-
         #logo {
             filter: invert(100%)
         }
 
-      .navbar {
-        background-color: #333;
-        color: white;
-      }
-      .navbar-nav .nav-link {
-        color: white;
-      }
+        .navbar {
+            background-color: #333;
+            color: white;
+        }
+
+        .navbar-nav .nav-link {
+            color: white;
+        }
+
+        .dropdown-menu, .dropdown-item {
+            background-color: #212529 !important;
+            color: white;
+        }
     }
+}
 </style>
