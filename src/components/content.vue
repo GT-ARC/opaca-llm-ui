@@ -200,10 +200,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.data == 200) {
+        if (res.status === 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
-            var text = config.translations[language.value].connected;
+            let text = config.translations[language.value].connected;
             if (Object.keys(actions).length > 0) {
                 for (const agent in actions) {
                     //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
@@ -213,12 +213,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
                 text += config.translations[language.value].none
             }
             alert(text)
+        } else if (res.status === 403) {
+            alert(config.translations[language.value].unauthorized)
         } else {
-            if (res.data == 403) {
-                alert(config.translations[language.value].unauthorized)
-            } else {
-                alert(config.translations[language.value].unreachable)
-            }
+            alert(config.translations[language.value].unreachable)
         }
     }
 
