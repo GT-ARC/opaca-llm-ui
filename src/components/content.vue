@@ -51,7 +51,7 @@
             </div>
 
             <div v-show="debug" id="chatDebug"
-                 class="container bg-black overflow-hidden overflow-y-auto flex-grow-1 mb-4 p-2 rounded rounded-4">
+                 class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                 <div id="debug-console" class="flex-row-reverse text-start"/>
             </div>
 
@@ -443,96 +443,98 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 </script>
 
 <style>
-    @media (prefers-color-scheme: dark) {
-        body {
-            color: #fff;
-            background-color: #222;
-        }
-        #chat1 {
-            color: #fff;
-            background-color: #444;
-        }
+.chatbubble {
+    border-radius: 10px;
+    text-align: left
+}
 
-        .form-check-input:valid, .form-control:valid {
-            background-color: #212529!important;
-            color: white;
-        }
-        .form-check-input:checked {
-            background-color: #0d6efd!important;
-        }
-        .form-control::placeholder {
-            color: #6c757d;
-            opacity: 1;
-        }
+.chat-user {
+    background-color: #eee3;
+}
 
-        .resizer {
-            background-color: #181818;
-        }
+.chat-ai {
+    background-color: #4ce3;
+}
+
+.chaticon {
+    width: 45px;
+    height: 100%;
+    background-color: #fff;
+    border-radius: 5px;
+}
+
+#chatDebug {
+    background-color: black;
+    overflow: hidden;
+    overflow-y: auto;
+}
+
+.debug-text {
+    display: block;
+    text-align: left;
+    margin-left: 3px;
+    font-family: "Courier New", monospace;
+    font-size: small;
+}
+
+#sidebar {
+    min-width: 200px;
+    max-width: 600px;
+    position: relative;
+}
+
+.resizer {
+    width: 4px;
+    cursor: ew-resize;
+    height: calc(100vh - 85px - 25px);
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-radius: 2px;
+}
+
+@media (max-width: 400px) {
+    .opaca-credentials {
+        flex-direction: column;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        color: #fff;
+        background-color: #222;
+    }
+    #chat1 {
+        color: #fff;
+        background-color: #444;
     }
 
-    @media (prefers-color-scheme: light) {
-        #chatDebug {
-            background-color: #fff; /* Gray background */
-            overflow: hidden;
-            border: 1px solid #ccc; /* border only needed in light mode */
-        }
-        .resizer {
-            background-color: gray;
-        }
+    .form-check-input:valid, .form-control:valid {
+        background-color: #212529!important;
+        color: white;
     }
-
-    @media (max-width: 400px) {
-        .opaca-credentials {
-            flex-direction: column;
-        }
+    .form-check-input:checked {
+        background-color: #0d6efd!important;
     }
-
-    .chatbubble {
-        border-radius: 10px;
-        text-align: left
-    }
-
-    .chat-user {
-        background-color: #eee3;
-    }
-    .chat-ai {
-        background-color: #4ce3;
-    }
-
-    .chaticon {
-        width: 45px;
-        height: 100%;
-        background-color: #fff;
-        border-radius: 5px;
-    }
-
-    .debug-window-container {
-        background-color: #000; /* Black background */
-        overflow: hidden;
-        overflow-y: auto;
-    }
-
-    .debug-text {
-        display: block;
-        text-align: left;
-        margin-left: 3px;
-        font-family: "Courier New", monospace;
-        font-size: small;
-    }
-
-    #sidebar {
-        min-width: 200px;
-        max-width: 600px;
-        position: relative;
+    .form-control::placeholder {
+        color: #6c757d;
+        opacity: 1;
     }
 
     .resizer {
-        width: 4px;
-        cursor: ew-resize;
-        height: calc(100vh - 85px - 25px);
-        position: absolute;
-        top: 0;
-        right: 0;
-        border-radius: 2px;
+        background-color: #181818;
     }
+}
+
+@media (prefers-color-scheme: light) {
+    #chatDebug {
+        background-color: #fff;
+        overflow: hidden;
+        border: 1px solid #ccc; /* border only needed in light mode */
+    }
+    .resizer {
+        background-color: gray;
+    }
+}
+
 </style>
