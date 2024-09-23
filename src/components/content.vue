@@ -170,17 +170,18 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             var text = config.translations[language.value].connected;
             if (Object.keys(actions).length > 0) {
                 for (const agent in actions) {
-                    text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                    text += `\n* ${agent}`
                 }
             } else {
                 text += config.translations[language.value].none
             }
-            createSpeechBubbleAI(text, "connect")
+            alert(text)
         } else {
             if (res.data == 403) {
-                createSpeechBubbleAI(config.translations[language.value].unauthorized, "connect")
+                alert(config.translations[language.value].unauthorized)
             } else {
-                createSpeechBubbleAI(config.translations[language.value].unreachable, "connect")
+                alert(config.translations[language.value].unreachable)
             }
         }
     }
