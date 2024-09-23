@@ -3,9 +3,8 @@ import logging
 from typing import Dict, List, Any
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import build_prompt
@@ -47,10 +46,10 @@ about the error."""
 
 
 class Caller(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List) -> None:
+    def __init__(self, llm: BaseChatModel, action_spec: List) -> None:
         super().__init__(llm=llm, action_spec=action_spec)
 
     @property
@@ -68,10 +67,9 @@ class Caller(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         api_plan = inputs['api_plan']
         try:
+            action_name, params = api_plan.split(';')
             if inputs['config']['use_agent_names']:
-                agent_name, action_name, params = api_plan.split(';')
-            else:
-                action_name, params = api_plan.split(';')
+                agent_name, action_name = action_name.split('_')
         except ValueError:
             return {'result': 'ERROR: Received malformed instruction by the action selector'}
 

@@ -401,7 +401,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         for (let i = 0; i < parts.length; i += 2) {
             const keyword = parts[i]
             const text = parts[i + 1] || ""
-            const color = keywordColors[keyword][darkScheme.value ? 0 : 1] || (darkScheme.value ? "#fff" : "#000");
+            const color = (keywordColors[keyword] ?? ["#fff", "#000"])[darkScheme.value ? 0 : 1];
             result.push({text: keyword + text, color: color})
         }
 

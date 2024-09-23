@@ -4,8 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
-from langchain_core.language_models import BaseLLM
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models import BaseChatModel
 
 from .planner import Planner
 from .action_selector import ActionSelector
@@ -18,7 +17,7 @@ logger = logging.getLogger()
 class RestGPT(Chain):
     """Consists of an agent using tools."""
 
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
@@ -30,7 +29,7 @@ class RestGPT(Chain):
 
     def __init__(
             self,
-            llm: BaseLLM | ChatOpenAI,
+            llm: BaseChatModel,
             action_spec: List,
             **kwargs: Any,
     ) -> None:

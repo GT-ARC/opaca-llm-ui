@@ -1,9 +1,8 @@
 from typing import List, Dict, Any, Tuple
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from .utils import build_prompt
 
@@ -74,10 +73,10 @@ The user will not receive any information except yours, so make sure to include 
 
 
 class Evaluator(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     planner_prompt: str
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, planner_prompt=EVAL_PROMPT) -> None:
+    def __init__(self, llm: BaseChatModel, planner_prompt=EVAL_PROMPT) -> None:
         super().__init__(llm=llm, planner_prompt=planner_prompt)
 
     @property
