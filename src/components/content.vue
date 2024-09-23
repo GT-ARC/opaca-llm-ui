@@ -55,7 +55,7 @@
                 <div id="debug-console" class="flex-row-reverse text-start"/>
             </div>
 
-            <div class="resizer me-1 d-none" id="resizer" />
+            <div class="resizer me-1" id="resizer" />
         </aside>
         </div>
         <!-- Main Container: Chat Window, Text Input -->
@@ -467,6 +467,10 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             color: #6c757d;
             opacity: 1;
         }
+
+        .resizer {
+            background-color: #181818;
+        }
     }
 
     @media (prefers-color-scheme: light) {
@@ -474,6 +478,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             background-color: #fff; /* Gray background */
             overflow: hidden;
             border: 1px solid #ccc; /* border only needed in light mode */
+        }
+        .resizer {
+            background-color: gray;
         }
     }
 
@@ -523,13 +530,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     }
 
     .resizer {
-        background-color: #181818;
-        width: 8px;
+        width: 4px;
         cursor: ew-resize;
         height: calc(100vh - 85px - 25px);
         position: absolute;
         top: 0;
         right: 0;
-        border-radius: 3px;
+        border-radius: 2px;
     }
 </style>
