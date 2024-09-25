@@ -1,103 +1,183 @@
 <template>
-    <div class="row d-flex justify-content-start my-4 w-100">
+    <div class="d-flex justify-content-start my-4 w-100">
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <aside class="col-xl-4 d-flex flex-column" style="height:calc(100vh - 85px)">
-            <div class="container">
-                <div>
-                    <label for="opacaUrlInput">{{ config.translations[language].opacaLocation }}</label>
-                    <input class="col-5" type="text" id="opacaUrlInput" v-model="opacaRuntimePlatform" />
-                    <button class="btn btn-primary btn-sm" @click="initiatePrompt">Connect</button>
-                </div>
-                <div class="small">
-                    <label for="opacaUser">Username</label>
-                    <input class="col-3" type="text" id="opacaUser" v-model="opacaUser" />
-                    <label for="opacaPwd">Password</label>
-                    <input class="col-3" type="password" id="opacaPwd" v-model="opacaPwd" />
-                </div>
-            </div>
-            <div class="container small">
-                <label for="apiKey">OpenAI API-Key</label>
-                <input class="col-7" type="password" id="apiKey" v-model="apiKey">
-            </div>
-            <div class='container'>
-                <button class="btn btn-secondary btn-sm col-5 m-1" @click="debug=!debug">
-                    {{ debug ? "Hide Debug Output" : "Show Debug Output"}}
-                </button>
-            </div>
-            <div class="container debug-window-container flex-grow-1" v-if="debug" id="chatDebug"
-                 style="margin: 10px; border-radius: 15px; overflow-y: auto;">
-                <div class="card-body" style="flex-direction: column-reverse" id="debug-console"/>
-            </div>
-        </aside>
+        <div v-show="isSidebarOpen()">
+            <aside id="sidebar"
+               class="container-fluid d-flex flex-column px-4"
+               style="height: calc(100vh - 85px); width: calc(100vw / 4)">
 
+            <div id="sidebarConfig" class="container d-flex flex-column">
+                <div class="p-2 text-start">
+                    <input id="opacaUrlInput" type="text"
+                           class="form-control m-0"
+                           v-model="opacaRuntimePlatform"
+                           :placeholder="config.translations[language].opacaLocation" />
+                </div>
+
+                <div class="p-2 text-start">
+                    <div class="row opaca-credentials">
+                        <div class="col-md-6">
+                            <input id="opacaUser" type="text"
+                                   class="form-control m-0"
+                                   v-model="opacaUser"
+                                   placeholder="Username" />
+                        </div>
+                        <div class="col-md-6">
+                            <input id="opacaPwd" type="password"
+                                   class="form-control m-0"
+                                   v-model="opacaPwd"
+                                   placeholder="Password" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="p-2 text-start" v-if="config.ShowApiKey">
+                    <input id="apiKey" type="password"
+                           class="form-control m-0"
+                           v-model="apiKey"
+                           placeholder="OpenAI API Key" />
+                </div>
+
+                <div class="text-center p-2">
+                    <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
+                </div>
+
+                <div class="form-check p-2 text-start">
+                    <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
+                    <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
+                </div>
+            </div>
+
+            <div v-show="debug" id="chatDebug"
+                 class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div id="debug-console" class="flex-row-reverse text-start"/>
+            </div>
+
+            <div class="resizer me-1" id="resizer" />
+        </aside>
+        </div>
         <!-- Main Container: Chat Window, Text Input -->
-        <main class="col-xl-8 d-flex flex-column position-relative" style="height:calc(100vh - 85px)">
+        <main id="mainContent" class="d-flex flex-column flex-grow-1 pe-4"
+              style="height:calc(100vh - 85px); max-width: calc(100vw * 3 / 4);">
 
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
             </div>
 
-            <!-- Input and Submit Button -->
-            <div class="container">
-                <input class="col-9" type="text" id="textInput" v-model="config.translations[language].defaultQuestion" @keypress="textInputCallback"/>
-                <button class="btn btn-primary" @click="submitText">
-                    {{ config.translations[language].submit }}
-                </button>
+            <div class="container p-0">
+                <div class="input-group mt-2 mb-4">
+                    <input id="textInput" placeholder="Type here ..."
+                           class="form-control p-2 rounded-start-2"
+                           :value="config.translations[language].defaultQuestion"
+                           @keypress="textInputCallback"/>
+                    <button type="button"
+                            class="btn btn-primary rounded-end-2"
+                            @click="submitText">
+                        <i class="fa fa-send mx-2"/>
+                    </button>
+
+                    <button type="button" :disabled="busy" v-if="isSpeechRecognitionSupported()"
+                            class="btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="startRecognition">
+                        <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
+                        <i v-else class="fa fa-microphone mx-2"/>
+                    </button>
+
+                    <button type="button" :disabled="busy" v-if="!!speechSynthesis"
+                            class="d-none btn btn-outline-primary ms-2 rounded rounded-1"
+                            @click="speakLastMessage">
+                        <i class="fa fa-volume-up mx-2"/>
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline-danger ms-2 rounded rounded-1"
+                            @click="resetChat">
+                        <i class="fa fa-undo mx-2"/>
+                    </button>
+                </div>
             </div>
 
             <!-- Simple Keyboard -->
             <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
-
-            <!-- Button Group Container -->
-            <div class='container'>
-                <button class="btn btn-primary col-2 m-1" :disabled="busy" @click="startRecognition">
-                    {{ config.translations[language].speechRecognition }}
-                    <div v-if="recording" class="spinner-border md-2" height=2em role="status" />
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="speakLastMessage">
-                    {{ config.translations[language].readLastMessage }}
-                </button>
-                <button class="btn btn-secondary col-2 m-1" @click="resetChat">
-                    {{ config.translations[language].resetChat }}
-                </button>
-            </div>
         </main>
     </div>
 
 </template>
 
 <script setup>
-    import axios from "axios"
-    import { marked } from "marked";
-    import { onMounted, inject, ref } from "vue";
-    import config from '../../config'
-    import SimpleKeyboard from "./SimpleKeyboard.vue";
+import axios from "axios"
+import {marked} from "marked";
+import {inject, onMounted, ref} from "vue";
+import config from '../../config'
+import SimpleKeyboard from "./SimpleKeyboard.vue";
 
-    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
+document.getElementById('')
+
+let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
-    
+
     const backend = inject('backend');
     const language = inject('language');
+    const sidebarOpen = inject('sidebarOpen');
     let recognition= null;
     let lastMessage = null;
-    const speechSynthesis= window.speechSynthesis;
-    const recording= ref(false);
-    const busy= ref(false);
+    const speechSynthesis = window.speechSynthesis;
+    const recording = ref(false);
+    const busy = ref(false);
     const debug = ref(false);
-    const languages= {
-        GB: 'en-EN',
+    const autoSpeakNextMessage = ref(false);
+    const languages = {
+        GB: 'en-GB',
         DE: 'de-DE'
     }
+    const darkScheme = ref(false);
 
     onMounted(() => {
         console.log("mounted")
+        updateTheme()
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         initiatePrompt();
-    })
+        setupResizableSidebar();
+    });
+
+    function setupResizableSidebar() {
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+          isResizing = true;
+          document.body.style.cursor = 'ew-resize';
+        });
+
+        document.addEventListener('mousemove', (event) => {
+          if (!isResizing) return;
+
+          // Calculate the new width for the aside
+          const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
+
+          if (newWidth > 200 && newWidth < 600) {
+            sidebar.style.width = `${newWidth}px`;
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          isResizing = false;
+          document.body.style.cursor = 'default';
+        });
+    }
+
+    function updateTheme() {
+        // Check if dark color scheme is preferred
+        darkScheme.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        updateDebugColors()
+    }
 
     function onChangeSimpleKeyboard(input) {
         document.getElementById("textInput").value = input;
@@ -120,10 +200,23 @@
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.data) {
-            createSpeechBubbleAI("Connected!", "connect")
+        if (res.status === 200) {
+            const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
+            const actions = res2.data;
+            let text = config.translations[language.value].connected;
+            if (Object.keys(actions).length > 0) {
+                for (const agent in actions) {
+                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                    text += `\n* ${agent}`
+                }
+            } else {
+                text += config.translations[language.value].none
+            }
+            alert(text)
+        } else if (res.status === 403) {
+            alert(config.translations[language.value].unauthorized)
         } else {
-            createSpeechBubbleAI("Failed to connect...", "connect")
+            alert(config.translations[language.value].unreachable)
         }
     }
 
@@ -143,46 +236,84 @@
             throw error;
         }
     }
-    
+
     async function askChatGpt(userText) {
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: debug.value, api_key: apiKey});
-            const answer = result.data.result
-            const debugText = result.data.debug
+            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
+            const answer = result.data.result;
+            const debugText = result.data.debug;
             createSpeechBubbleAI(answer);
-            if (debug.value) {
-                processDebugInput(debugText).forEach((d) => addDebug(d.text, d.color))
-                scrollDown(true)
-            }
-            scrollDown(false);
+            processDebugInput(debugText)
+                    .forEach((d) => addDebug(d.text, d.color));
+            scrollDown(debug.value);
         } catch (error) {
+            console.error(error);
             createSpeechBubbleAI("Error while fetching data: " + error)
             scrollDown(false);
         }
+        if (autoSpeakNextMessage.value) {
+            speakLastMessage();
+            autoSpeakNextMessage.value = false;
+        }
+    }
+
+    function isSpeechRecognitionSupported() {
+        // very hacky check if the user is using the (full) google chrome browser
+        const isGoogleChrome = window.chrome !== undefined
+                && window.navigator.userAgentData !== undefined
+                && window.navigator.userAgentData.brands.length >= 3
+                && window.navigator.userAgentData.brands[2].brand === "Google Chrome"
+                && window.navigator.vendor === "Google Inc."
+                && Array.from(window.navigator.plugins).some((plugin) => {
+                    return plugin.name === "Chrome PDF Viewer";
+                });
+        return ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+                && (location.protocol === 'https' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                && isGoogleChrome;
     }
 
     async function startRecognition() {
-        // TODO this does not seem to work for me
-        recognition = new (webkitSpeechRecognition || SpeechRecognition)();
+        if (!isSpeechRecognitionSupported()) {
+            console.error("Speech recognition API is not supported by your browser.");
+            return;
+        }
+        abortSpeaking();
+        console.log("Recognized language: " + languages[language.value]);
+        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
         recognition.lang = languages[language.value];
-        console.log("language: " + languages[language.value]);
-        busy.value = true;
         recognition.onresult = async (event) => {
+            if (!event.results || event.results.length <= 0) return;
             const recognizedText = event.results[0][0].transcript;
-            await askChatGpt(recognizedText)
+            addDebug('Recognized text: ' + recognizedText);
+            autoSpeakNextMessage.value = true
+            await askChatGpt(recognizedText);
+        };
+        recognition.onspeechend = () => {
+            recording.value = false;
+        };
+        recognition.onnomatch = () => {
+            console.error('Failed to recognize spoken text.');
+        };
+        recognition.onerror = (error) => {
+            console.error(error);
+            addDebug('Recognition Error: ' + error.message || error.error, 'red');
+            createSpeechBubbleAI('The speech recognition failed to understand your request.');
         };
         recognition.onend = () => {
+            console.log('Recognition ended.');
             recording.value = false;
-            console.log("Recognition ended.");
+            busy.value = false;
         };
         recognition.start();
         recording.value = true;
+        busy.value = true;
     }
 
     async function resetChat() {
         document.getElementById("chat-container").innerHTML = '';
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble')
+        abortSpeaking();
+        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
     }
@@ -199,7 +330,8 @@
             </div>
         </div>`
         if (!id) {
-            document.getElementById('waitBubble').remove()
+            const waitBubble = document.getElementById('waitBubble');
+            if (waitBubble) waitBubble.remove();
             busy.value = false;
         }
         chat.appendChild(d1)
@@ -227,103 +359,182 @@
 
     function speakLastMessage() {
         if (speechSynthesis) {
-            console.log(lastMessage)
-            // TODO this does not seem to work for me
+            abortSpeaking();
+            console.log("Speaking message: " + lastMessage);
             const utterance = new SpeechSynthesisUtterance(lastMessage);
+            utterance.lang = languages[language.value];
+            utterance.onstart = () => {
+                console.log("Speaking started.");
+            }
+            utterance.onend = () => {
+                console.log("Speaking ended.");
+            }
+            utterance.onerror = (error) => {
+                console.error(error);
+            }
             speechSynthesis.speak(utterance);
         }
     }
 
+    function abortSpeaking() {
+        if (speechSynthesis && speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+        }
+    }
+
     function processDebugInput(input) {
+        // color schemes for modes [dark, light]
         const keywordColors = {
             // RestGPT
-            "Query:": "#fff",
-            "Planner:": "#f00",
-            "API Selector:": "#ff0",
-            "Caller:": "#00f",
-            "Final Answer:": "#0f0",
+            "Query:": ["#fff", "#000"],
+            "Planner:": ["#f00", "#9c0000"],
+            "API Selector:": ["#ff0", "#bf6e00"],
+            "Caller:": ["#00f", "#0000b1"],
+            "Final Answer:": ["#0f0", "#007300"],
+            // Tools
+            "Tool": ["#f00", "#9c0000"],
+            "AI Answer:": ["#0f0", "#007300"],
             // Simple
-            "user:": "#fff",
-            "assistant:": "#88f",
-            "system:": "#ff8",
+            "user:": ["#fff", "#000"],
+            "assistant:": ["#88f", "#434373"],
+            "system:": ["#ff8", "#71713d"],
         }
         const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
-
-        const parts = input.split(regex).filter(Boolean)
-        const result = []
+        const parts = input.split(regex).filter(Boolean);
+        const result = [];
         for (let i = 0; i < parts.length; i += 2) {
             const keyword = parts[i]
             const text = parts[i + 1] || ""
-            const color = keywordColors[keyword] || "#fff";
+            const color = (keywordColors[keyword] ?? ["#fff", "#000"])[darkScheme.value ? 0 : 1];
             result.push({text: keyword + text, color: color})
         }
+        return result;
+    }
 
-        return result
+    function updateDebugColors() {
+        const debugElements = document.querySelectorAll('.debug-text');
+        debugElements.forEach((element) => {
+            const text = element.innerText || element.textContent;
+            element.style.color = processDebugInput(text)[0]["color"];
+        });
     }
 
     function addDebug(text, color) {
-        const debugChat = document.getElementById("debug-console")
+        const debugChat = document.getElementById("debug-console");
         let d1 = document.createElement("div")
         d1.className = "debug-text"
         d1.textContent = text
-        d1.style.color = color
+        if (color) {
+            d1.style.color = color
+        }
         debugChat.append(d1)
     }
-    
+
     function beforeDestroy() {
         if (recognition) {
             recognition.stop();
         }
     }
 
+    function isSidebarOpen() {
+        return sidebarOpen.value;
+    }
+
 </script>
 
 <style>
-    @media (prefers-color-scheme: dark) {
-        body {
-            color: #fff;
-            background-color: #222;
-        }
-        #chat1 {
-            color: #fff;
-            background-color: #444;
-        }
+.chatbubble {
+    border-radius: 10px;
+    text-align: left
+}
+
+.chat-user {
+    background-color: #eee3;
+}
+
+.chat-ai {
+    background-color: #4ce3;
+}
+
+.chaticon {
+    width: 45px;
+    height: 100%;
+    background-color: #fff;
+    border-radius: 5px;
+}
+
+#chatDebug {
+    background-color: black;
+    overflow: hidden;
+    overflow-y: auto;
+}
+
+.debug-text {
+    display: block;
+    text-align: left;
+    margin-left: 3px;
+    font-family: "Courier New", monospace;
+    font-size: small;
+}
+
+#sidebar {
+    min-width: 200px;
+    max-width: 600px;
+    position: relative;
+}
+
+.resizer {
+    width: 4px;
+    cursor: ew-resize;
+    height: calc(100vh - 85px - 25px);
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-radius: 2px;
+}
+
+@media (max-width: 400px) {
+    .opaca-credentials {
+        flex-direction: column;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        color: #fff;
+        background-color: #222;
+    }
+    #chat1 {
+        color: #fff;
+        background-color: #444;
     }
 
-    input {
-        border-radius: 5px;
-        margin: 10px;
+    .form-check-input:valid, .form-control:valid {
+        background-color: #212529!important;
+        color: white;
+    }
+    .form-check-input:checked {
+        background-color: #0d6efd!important;
+    }
+    .form-control::placeholder {
+        color: #6c757d;
+        opacity: 1;
     }
 
-    .chatbubble {
-        border-radius: 10px;
-        text-align: left
+    .resizer {
+        background-color: #181818;
     }
+}
 
-    .chat-user {
-        background-color: #eee3;
-    }
-    .chat-ai {
-        background-color: #4ce3;
-    }
-
-    .chaticon {
-        width: 45px;
-        height: 100%;
+@media (prefers-color-scheme: light) {
+    #chatDebug {
         background-color: #fff;
-        border-radius: 5px;
-    }
-
-    .debug-window-container {
-        background-color: #000; /* Black background */
         overflow: hidden;
+        border: 1px solid #ccc; /* border only needed in light mode */
     }
+    .resizer {
+        background-color: gray;
+    }
+}
 
-    .debug-text {
-        display: block;
-        text-align: left;
-        margin-left: 3px;
-        font-family: "Courier New", monospace;
-        font-size: small;
-    }
 </style>

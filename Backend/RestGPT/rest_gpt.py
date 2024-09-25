@@ -4,8 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 from langchain.chains.base import Chain
 from langchain.callbacks.manager import CallbackManagerForChainRun
-from langchain_core.language_models import BaseLLM
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models import BaseChatModel
 
 from .planner import Planner
 from .action_selector import ActionSelector
@@ -18,7 +17,7 @@ logger = logging.getLogger()
 class RestGPT(Chain):
     """Consists of an agent using tools."""
 
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
     planner: Planner
     action_selector: ActionSelector
@@ -30,7 +29,7 @@ class RestGPT(Chain):
 
     def __init__(
             self,
-            llm: BaseLLM | ChatOpenAI,
+            llm: BaseChatModel,
             action_spec: List,
             **kwargs: Any,
     ) -> None:
@@ -47,11 +46,10 @@ class RestGPT(Chain):
             evaluator=evaluator, **kwargs
         )
 
-    def _finished(self, eval_input: str, history: List[Tuple[str, str]], slim_prompt: bool, examples: bool):
+    def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
         return self.evaluator.invoke({"input": eval_input,
                                       "history": history,
-                                      "slim_prompt": slim_prompt,
-                                      "examples": examples
+                                      "config": config,
                                       })["result"]
 
     @property
@@ -136,8 +134,8 @@ class RestGPT(Chain):
                                         "actions": self.action_spec,
                                         "planner_history": planner_history,
                                         "message_history": inputs['history'],
-                                        "slim_prompt": config['slim_prompts']['planner'],
-                                        "examples": config['examples']['planner']})
+                                        "config": config,
+                                        })
             plan = plan["result"]
             self.debug_output += f'Planner: {plan}\n'
             logger.info(f"Planner: {plan}")
@@ -151,8 +149,8 @@ class RestGPT(Chain):
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history,
-                                                    "slim_prompt": config['slim_prompts']['action_selector'],
-                                                    "examples": config['examples']['action_selector']})
+                                                    "config": config,
+                                                    })
             api_plan = api_plan["result"]
             self.debug_output += f'API Selector: {api_plan}\n'
             logger.info(f'API Selector: {api_plan}')
@@ -167,7 +165,8 @@ class RestGPT(Chain):
             # CALLER
             execution_res = self.caller.invoke({"api_plan": api_plan,
                                                 "actions": self.action_spec,
-                                                "examples": config['examples']['action_selector']})
+                                                "config": config,
+                                                })
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
             logger.info(f'Caller: {execution_res}')
@@ -176,10 +175,7 @@ class RestGPT(Chain):
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
-            eval_output = self._finished(eval_input,
-                                         inputs['history'],
-                                         config['slim_prompts']['planner'],
-                                         config['examples']['planner'])
+            eval_output = self._finished(eval_input, inputs['history'], config)
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED", "", eval_output).strip()
                 break

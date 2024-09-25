@@ -1,10 +1,11 @@
+import jsonref
 import requests
 import re
 
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
 from langchain_core.callbacks import CallbackManagerForLLMRun
-from langchain_core.language_models import LLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder, \
@@ -88,11 +89,13 @@ class Action:
         return (f'{{{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
                 f'{self.container_id};{self.custom_params}}}')
 
-    def planner_str(self):
-        return f'{{Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}}}'
+    def planner_str(self, agentName: bool = False):
+        return (f'{{Name: {(self.agent_name + "_" + self.action_name) if agentName else self.action_name}, '
+                f'Description: {self.description}, Parameters: {self.params_in}}}')
 
-    def selector_str(self):
-        return (f'{{Name: {self.action_name}, Description: {self.description}, Parameters: {self.params_in}, '
+    def selector_str(self, agentName: bool = False):
+        return (f'{{Name: {(self.agent_name + "_" + self.action_name) if agentName else self.action_name}, '
+                f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
 
@@ -104,6 +107,7 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
     Output format:
     "[[action_name;description;[params_in];param_out;agent;container_id;[custom_params]], ...]"
     """
+    action_spec = jsonref.replace_refs(action_spec)
     action_list = []
     action_paths = action_spec["paths"]
     for _, content in action_paths.items():
@@ -152,7 +156,7 @@ def resolve_reference(action_spec: Dict, ref: str) -> Dict:
     return out
 
 
-class OpacaLLM(LLM):
+class OpacaLLM(BaseChatModel):
 
     url: str = ""
     model: str = ""
@@ -174,9 +178,9 @@ class OpacaLLM(LLM):
             stop: Optional[List[str]] = None,
             **kwargs: Any
     ) -> str:
-        return self._call(format_llama3(input), stop)
+        return self._generate(format_llama3(input), stop)
 
-    def _call(
+    def _generate(
             self,
             prompt: Any,
             stop: Optional[List[str]] = None,

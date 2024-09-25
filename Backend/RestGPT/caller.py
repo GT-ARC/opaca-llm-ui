@@ -3,9 +3,8 @@ import logging
 from typing import Dict, List, Any
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import build_prompt
@@ -47,10 +46,10 @@ about the error."""
 
 
 class Caller(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List) -> None:
+    def __init__(self, llm: BaseChatModel, action_spec: List) -> None:
         super().__init__(llm=llm, action_spec=action_spec)
 
     @property
@@ -68,13 +67,21 @@ class Caller(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         api_plan = inputs['api_plan']
         try:
-            api_call, params = api_plan.split(';')
+            action_name, params = api_plan.split(';')
+            if inputs['config']['use_agent_names']:
+                agent_name, action_name = action_name.split('_')
         except ValueError:
             return {'result': 'ERROR: Received malformed instruction by the action selector'}
-        logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{api_call} with parameters: {params}')
 
         try:
-            response = opaca_proxy.invoke_opaca_action(api_call, None, json.loads(params))
+            if inputs['config']['use_agent_names']:
+                logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{agent_name}/{action_name} '
+                            f'with parameters: {params}')
+                response = opaca_proxy.invoke_opaca_action(action_name, agent_name, json.loads(params))
+            else:
+                logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{action_name} '
+                            f'with parameters: {params}')
+                response = opaca_proxy.invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
             return {'result': f'ERROR: Unable to call the connected opaca platform\nCause: {e}'}
 
@@ -83,12 +90,12 @@ class Caller(Chain):
         description = ""
         # Get description from action list
         for action in inputs["actions"]:
-            if action.action_name == api_call:
+            if action.action_name == action_name:
                 description = action.description
 
         prompt = build_prompt(
             system_prompt=CALLER_PROMPT,
-            examples=examples if inputs['examples'] else [],
+            examples=examples if inputs['config']['examples'] else [],
             input_variables=["api_call", "description", "params", "response"],
             message_template="API Call: {api_call}\nDescription: {description}\n"
                              "Parameter: {params}\nResult: {response}"
@@ -96,7 +103,7 @@ class Caller(Chain):
 
         chain = prompt | self.llm
 
-        output = chain.invoke({"api_call": api_call, "description": description,
+        output = chain.invoke({"api_call": action_name, "description": description,
                                "params": params, "response": response})
 
         if isinstance(output, AIMessage):

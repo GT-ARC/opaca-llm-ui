@@ -1,4 +1,9 @@
+import decimal
+import functools
+
+import jsonref
 import requests
+from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional
 
 # TODO use aiohttp?
@@ -10,6 +15,7 @@ class OpacaProxy:
         self.url = None
         self.token = None
         self.actions = "(No services, not connected yet.)"
+        self.actions_dict = {}
         
     async def connect(self, url: str, user: str, pwd: str):
         print("CONNECT", repr(url), user, pwd)
@@ -19,10 +25,16 @@ class OpacaProxy:
             self._get_token(user, pwd)
             requests.get(f"{self.url}/info", headers=self._headers()).raise_for_status()
             self._update_opaca_actions()
-            return True
-        except Exception as e:
+            return 200
+        except (ConnectionError, HTTPError) as e:
             print("COULD NOT CONNECT", e)
-            return False
+            return e.response.status_code if e.response is not None else 400
+        
+    async def get_actions(self) -> dict[str, list[str]]:
+        return {
+            agent["agentId"]: [action["name"] for action in agent["actions"]]
+            for agent in self.actions_dict
+        }
     
     def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
@@ -40,11 +52,21 @@ class OpacaProxy:
             print("COULD NOT GET ACTIONS", e)
             return {}
 
+    def get_actions_with_refs(self):
+        try:
+            # Returns the action lists with already replaced references for openai function usage
+            loader = functools.partial(jsonref.jsonloader, parse_float=decimal.Decimal)
+            return jsonref.load_uri(f'{self.url}/v3/api-docs/actions', loader=loader)
+        except Exception as e:
+            print("COULD NOT GET ACTIONS", e)
+            return {}
+
     def _update_opaca_actions(self):
         try:
             res = requests.get(f"{self.url}/agents", headers=self._headers())
             res.raise_for_status()
             self.actions = res.text
+            self.actions_dict = res.json()
         except Exception as e:
             print("COULD NOT CONNECT", e)
             self.actions = "(No Services. Failed to connect to OPACA Runtime.)"

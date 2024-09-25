@@ -4,9 +4,8 @@ import re
 import logging
 
 from langchain.chains.base import Chain
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 
 from .utils import build_prompt, fix_parentheses
 
@@ -42,6 +41,7 @@ API Response: Shelf 3 is now closed."""}
 ACTION_SELECTOR_PROMPT = """
 You are an agent that outputs RESTful API calls to assist with instructions against an API. 
 You will receive a list of known services. These services will include actions. 
+Sometimes the action name includes the agent name as a prefix, indicated by an underscore.
 Sometimes these actions will also have descriptions to better explain what each action does. 
 Your task will be to output a fitting API call consisting of an action name and the parameters belonging to that action. 
 You can get an overview of the parameters to each action from the list. Parameters can also be required. If this is the 
@@ -90,6 +90,7 @@ You output API calls. The format in which you should answer is as follows:
 API Call: action_name;{"parameter_name": "value"}
 
 You will replace action_name with the exact name of the most fitting action given in the user input.
+Sometimes the action includes the agent name as a prefix, indicated by an underscore, which you should also include.
 After that, you output a semicolon and then you output the parameters for that action in a JSON format.
 As values for the parameters you use the most fitting value from the user input. For example, if an action requires 
 the parameter "room" as a string and the user input specified the room as "kitchen", you use "kitchen" as the 
@@ -108,11 +109,11 @@ an overview of the parameters to call that action, and the definition of custom 
 
 
 class ActionSelector(Chain):
-    llm: BaseLLM | ChatOpenAI
+    llm: BaseChatModel
     action_spec: List
     action_selector_prompt: str
 
-    def __init__(self, llm: BaseLLM | ChatOpenAI, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
+    def __init__(self, llm: BaseChatModel, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
         super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
 
     @property
@@ -151,16 +152,20 @@ class ActionSelector(Chain):
         return False
 
     @staticmethod
-    def _check_valid_action(action_plan: str, actions: List) -> str:
+    def _check_valid_action(action_plan: str, actions: List, use_agent_names: bool) -> str:
         err_out = ""
 
         # Check if exactly one semicolon was generated
-        if not len(action_plan.split(';')) == 2:
+        if len(action_plan.split(';')) != 2:
             return ("Your generated action call is not properly formatted. It should include exactly one action, "
                     "a semicolon and a list of parameters in json format.\n")
 
-        # Check if the action name is contained in the list of available actions and retrieve the action
         action, parameters = action_plan.split(';')
+
+        if use_agent_names:
+            if len(action.split('_')) != 2:
+                return "You need to include the agent name in your action name."
+            _, action = action.split('_')
 
         # Check if the parameters are in a valid json format
         try:
@@ -215,11 +220,12 @@ class ActionSelector(Chain):
         scratchpad = self._construct_scratchpad(inputs["history"])
         action_list = ""
         for action in inputs["actions"]:
-            action_list += action.selector_str() + '\n'
+            action_list += action.selector_str(inputs['config']['use_agent_names']) + '\n'
 
         prompt = build_prompt(
-            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['slim_prompt'] else ACTION_SELECTOR_PROMPT) + action_list,
-            examples=examples if inputs['examples'] else [],
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
+                           else ACTION_SELECTOR_PROMPT) + action_list,
+            examples=examples if inputs['config']['examples'] else [],
             input_variables=["input"],
             message_template=scratchpad + "{input}"
         )
@@ -237,7 +243,8 @@ class ActionSelector(Chain):
             return {"result": action_plan}
 
         correction_limit = 1
-        while (err_msg := self._check_valid_action(action_plan, inputs["actions"])) != "" and correction_limit < 3:
+        while (err_msg := self._check_valid_action(
+                action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
             output = chain.invoke({"input": inputs["plan"] + err_msg})
