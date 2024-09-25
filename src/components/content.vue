@@ -263,7 +263,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         const isGoogleChrome = window.chrome !== undefined
                 && window.navigator.userAgentData !== undefined
                 && window.navigator.userAgentData.brands.length >= 3
-                && window.navigator.userAgentData.brands[2].brand === "Google Chrome"
+                && window.navigator.userAgentData.brands.indexOf('Google Chrome') >= 0
                 && window.navigator.vendor === "Google Inc."
                 && Array.from(window.navigator.plugins).some((plugin) => {
                     return plugin.name === "Chrome PDF Viewer";
