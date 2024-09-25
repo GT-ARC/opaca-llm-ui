@@ -79,7 +79,7 @@
                         <i class="fa fa-send mx-2"/>
                     </button>
 
-                    <button type="button" :disabled="busy" v-if="isSpeechRecognitionSupported()"
+                    <button type="button" :disabled="busy"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="startRecognition">
                         <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
@@ -262,22 +262,26 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         // very hacky check if the user is using the (full) google chrome browser
         const isGoogleChrome = window.chrome !== undefined
                 && window.navigator.userAgentData !== undefined
-                && window.navigator.userAgentData.brands.length >= 3
-                && window.navigator.userAgentData.brands[2].brand === "Google Chrome"
+                && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
                 && window.navigator.vendor === "Google Inc."
-                && Array.from(window.navigator.plugins).some((plugin) => {
-                    return plugin.name === "Chrome PDF Viewer";
-                });
-        return ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-                && (location.protocol === 'https' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-                && isGoogleChrome;
+                && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
+        if (!isGoogleChrome) {
+            alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
+            return false;
+        }
+        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+            alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
+            return false;
+        }
+        if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
+            return false;
+        }
+        return true;
     }
 
     async function startRecognition() {
-        if (!isSpeechRecognitionSupported()) {
-            console.error("Speech recognition API is not supported by your browser.");
-            return;
-        }
+        if (!isSpeechRecognitionSupported()) return;
         abortSpeaking();
         console.log("Recognized language: " + languages[language.value]);
         const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
