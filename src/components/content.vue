@@ -262,22 +262,19 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         // very hacky check if the user is using the (full) google chrome browser
         const isGoogleChrome = window.chrome !== undefined
                 && window.navigator.userAgentData !== undefined
-                && window.navigator.userAgentData.brands.length >= 3
                 && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
                 && window.navigator.vendor === "Google Inc."
-                && Array.from(window.navigator.plugins).some((plugin) => {
-                    return plugin.name === "Chrome PDF Viewer";
-                });
+                && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
         if (!isGoogleChrome) {
-            alert('Cant use speech recognition: You are not using the Google Chrome browser.');
+            alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
             return false;
         }
         if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            alert('Cant use speech recognition: The feature is not enabled in your browser.');
+            alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
             return false;
         }
         if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            alert('Cant use speech recognition: The feature requires a secure connection.');
+            alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
             return false;
         }
         return true;
