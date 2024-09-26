@@ -67,10 +67,9 @@ class Caller(Chain):
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         api_plan = inputs['api_plan']
         try:
+            action_name, params = api_plan.split(';')
             if inputs['config']['use_agent_names']:
-                agent_name, action_name, params = api_plan.split(';')
-            else:
-                action_name, params = api_plan.split(';')
+                agent_name, action_name = action_name.split('--', maxsplit=1)
         except ValueError:
             return {'result': 'ERROR: Received malformed instruction by the action selector'}
 
