@@ -69,7 +69,7 @@ class Caller(Chain):
         try:
             action_name, params = api_plan.split(';')
             if inputs['config']['use_agent_names']:
-                agent_name, action_name = action_name.split('_')
+                agent_name, action_name = action_name.split('--', maxsplit=1)
         except ValueError:
             return {'result': 'ERROR: Received malformed instruction by the action selector'}
 

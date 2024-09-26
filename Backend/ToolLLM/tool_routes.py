@@ -117,7 +117,7 @@ class ToolLLMBackend:
                 tool_params.append(call['args'])
                 try:
                     if self.config['use_agent_names']:
-                        agent_name, action_name = call['name'].split('_')
+                        agent_name, action_name = call['name'].split('--', maxsplit=1)
                     else:
                         agent_name = None
                         action_name = call['name']

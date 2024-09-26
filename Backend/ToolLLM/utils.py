@@ -43,7 +43,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
                 {
                     "type": "function",
                     "function": {
-                        "name": agent_name + '_' + function_name if use_agent_names else function_name,
+                        "name": agent_name + '--' + function_name if use_agent_names else function_name,
                         "description": desc,
                         "parameters": schema
                     }
