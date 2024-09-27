@@ -79,7 +79,7 @@
                                 <i class="fa fa-server me-1"/>
                                 {{ conf.Backends[backend] }}
                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="backendSelector">
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
                                 <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
                                     <a class="dropdown-item">
                                         <p v-bind:style= "[backend === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
