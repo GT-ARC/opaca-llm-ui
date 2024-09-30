@@ -1,6 +1,7 @@
 import jsonref
 import requests
 import re
+import datetime
 
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
@@ -41,6 +42,23 @@ class DebugInfo(BaseModel):
     @property
     def total_tokens(self):
         return self.completion_tokens + self.prompt_tokens
+
+
+def model_debug_output_format(debug_infos: Dict[str, DebugInfo], query: str) -> str:
+    total_tokens = 0
+    total_completion = 0
+    total_prompt = 0
+    out = f'Query: {query} [{datetime.datetime.now()}]\n'
+    for agent_name, debug_info in debug_infos.items():
+        total_tokens += debug_info.total_tokens
+        total_completion += debug_info.completion_tokens
+        total_prompt += debug_info.prompt_tokens
+        out += (f'{agent_name}: {{Prompt Tokens: {debug_info.prompt_tokens}, '
+                f'Completion Tokens: {debug_info.completion_tokens}, '
+                f'Total Tokens: {debug_info.total_tokens}}}\n')
+    return out + (f'{{Total Completion Tokens: {total_completion}, '
+                  f'Total Prompt Tokens: {total_prompt}, '
+                  f'Total Tokens for query: {total_tokens}}}\n')
 
 
 class Parameter:

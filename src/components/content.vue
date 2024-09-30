@@ -395,6 +395,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             "API Selector:": ["#ff0", "#bf6e00"],
             "Caller:": ["#00f", "#0000b1"],
             "Final Answer:": ["#0f0", "#007300"],
+            "Evaluator:": ["#0f0", "#007300"],
             // Tools
             "Tool": ["#f00", "#9c0000"],
             "AI Answer:": ["#0f0", "#007300"],

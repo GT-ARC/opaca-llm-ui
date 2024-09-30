@@ -152,7 +152,7 @@ class RestGPT(Chain):
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history,
                                                     "config": config,
-                                                    "model_debug_info": inputs['model_debug_info']['ActionSelector'],
+                                                    "model_debug_info": inputs['model_debug_info']['API Selector'],
                                                     })
             api_plan = api_plan["result"]
             self.debug_output += f'API Selector: {api_plan}\n'

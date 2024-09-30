@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, DebugInfo
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, DebugInfo, model_debug_output_format
 from .rest_gpt import RestGPT
 
 logger = logging.getLogger()
@@ -56,12 +56,12 @@ class RestGptBackend:
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
             "use_agent_names": True,
-            "additional_debug": False,
+            "additional_debug": True,
         }
         # Save additional information for each agent
         self.model_debug_info = {
             "Planner": DebugInfo(),
-            "ActionSelector": DebugInfo(),
+            "API Selector": DebugInfo(),
             "Caller": DebugInfo(),
             "Evaluator": DebugInfo(),
         }
@@ -97,12 +97,16 @@ class RestGptBackend:
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result["result"]))
 
+        debug_out = result["debug"]
+
+        if self.config['additional_debug']:
+            debug_out += model_debug_output_format(self.model_debug_info, message)
+
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
         return {
             "result": result["result"],
-            "debug": result["debug"] if debug else "",
-            "model_debug_info": self.model_debug_info if debug else "",
+            "debug": debug_out if debug else "",
         }
 
     async def history(self) -> list:
