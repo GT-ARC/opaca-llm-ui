@@ -35,6 +35,21 @@ class ColorPrint:
             print(self.color_mapping[module] + data + Fore.RESET, end="")
 
 
+class Response(BaseModel):
+    class AgentMessage(BaseModel):
+        agent: str
+        content: str = ''
+        response_metadata: Dict[str, Any] = {}
+        execution_time: datetime.timedelta = .0
+
+    query: str = ''
+    agent_messages: List[AgentMessage] = []
+    iterations: int = 0
+    execution_time: datetime.timedelta = .0
+    content: str = ''
+    error: str = ''
+
+
 class DebugInfo(BaseModel):
     completion_tokens: int = 0
     prompt_tokens: int = 0

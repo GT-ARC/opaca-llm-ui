@@ -4,6 +4,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
+from .planner import AgentMessage
 from .utils import build_prompt
 
 
@@ -119,7 +120,7 @@ class Evaluator(Chain):
             scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
 
         prompt = build_prompt(
             system_prompt=EVAL_PROMPT_SLIM if inputs['config']['slim_prompts'] else EVAL_PROMPT,
@@ -132,10 +133,13 @@ class Evaluator(Chain):
 
         output = chain.invoke({"input": inputs["input"], "history": inputs["history"]})
 
+        res_meta_data = {}
         if isinstance(output, AIMessage):
             res_meta_data = output.response_metadata.get("token_usage", {})
-            inputs['model_debug_info'].completion_tokens += res_meta_data['completion_tokens']
-            inputs['model_debug_info'].prompt_tokens += res_meta_data['prompt_tokens']
             output = output.content
 
-        return {"result": output}
+        return {"result": AgentMessage(
+                agent="Evaluator",
+                content=output,
+                response_metadata=res_meta_data,
+                )}

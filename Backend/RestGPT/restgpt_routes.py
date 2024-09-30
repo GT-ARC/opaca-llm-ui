@@ -1,4 +1,5 @@
-from typing import Dict, Optional, List
+import time
+from typing import Dict, Optional, List, Any
 
 import logging
 import os
@@ -10,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, DebugInfo, model_debug_output_format
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, Response
 from .rest_gpt import RestGPT
 
 logger = logging.getLogger()
@@ -56,17 +57,13 @@ class RestGptBackend:
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
             "use_agent_names": True,
-            "model_debug_info": True,
-        }
-        # Save additional information for each agent
-        self.model_debug_info = {
-            "Planner": DebugInfo(),
-            "API Selector": DebugInfo(),
-            "Caller": DebugInfo(),
-            "Evaluator": DebugInfo(),
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Dict[str, Any]:
+
+        # Create response object
+        response = Response()
+        response.query = message
 
         # Model initialization here since openai requires api key in constructor
         try:
@@ -85,29 +82,23 @@ class RestGptBackend:
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
         try:
+            total_time = time.time()
             result = rest_gpt.invoke({
                 "query": message,
                 "history": self.messages,
                 "config": self.config,
-                "model_debug_info": self.model_debug_info,
-            })
+                "response": response,
+            })["result"]
+            response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
             return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                               "api key and try again.", "debug": str(e)}
         self.messages.append(HumanMessage(message))
-        self.messages.append(AIMessage(result["result"]))
-
-        debug_out = result["debug"]
-
-        if self.config['model_debug_info']:
-            debug_out += model_debug_output_format(self.model_debug_info, message)
+        self.messages.append(AIMessage(result.content))
 
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
-        return {
-            "result": result["result"],
-            "debug": debug_out if debug else "",
-        }
+        return {"result": response}
 
     async def history(self) -> list:
         return self.messages

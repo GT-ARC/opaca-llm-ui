@@ -6,6 +6,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
+from .planner import AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import build_prompt
 
@@ -64,7 +65,7 @@ class Caller(Chain):
     def output_keys(self) -> List[str]:
         return ["result"]
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         api_plan = inputs['api_plan']
         try:
             action_name, params = api_plan.split(';')
@@ -106,10 +107,13 @@ class Caller(Chain):
         output = chain.invoke({"api_call": action_name, "description": description,
                                "params": params, "response": response})
 
+        res_meta_data = {}
         if isinstance(output, AIMessage):
             res_meta_data = output.response_metadata.get("token_usage", {})
-            inputs['model_debug_info'].completion_tokens += res_meta_data['completion_tokens']
-            inputs['model_debug_info'].prompt_tokens += res_meta_data['prompt_tokens']
             output = output.content
 
-        return {'result': output}
+        return {'result': AgentMessage(
+                agent="Caller",
+                content=output,
+                response_metadata=res_meta_data,
+                )}
