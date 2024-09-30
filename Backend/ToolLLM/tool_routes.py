@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..RestGPT import build_prompt
+from ..RestGPT import build_prompt, DebugInfo, model_debug_output_format
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import openapi_to_functions
 
@@ -54,6 +54,12 @@ class ToolLLMBackend:
         self.config = {
             "temperature": 0,
             "use_agent_names": True,
+            "model_debug_info": True,
+        }
+        # Save additional information for each agent
+        self.model_debug_info = {
+            "LLM-Agent1": DebugInfo(),
+            "LLM-Agent2": DebugInfo(),
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -111,6 +117,11 @@ class ToolLLMBackend:
                 'history': self.messages
             })
 
+            # Save model debug info for LLM Agent 1
+            res_meta_data = result.response_metadata.get("token_usage", {})
+            self.model_debug_info['LLM-Agent1'].completion_tokens = res_meta_data['completion_tokens']
+            self.model_debug_info['LLM-Agent1'].prompt_tokens = res_meta_data['prompt_tokens']
+
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for call in result.tool_calls:
                 tool_names.append(call['name'])
@@ -155,6 +166,11 @@ class ToolLLMBackend:
                     'results': tool_results         # ALL the results from the opaca action calls
                 })
 
+                # Save model debug info for LLM Agent 2
+                res_meta_data = result.response_metadata.get("token_usage", {})
+                self.model_debug_info['LLM-Agent2'].completion_tokens = res_meta_data['completion_tokens']
+                self.model_debug_info['LLM-Agent2'].prompt_tokens = res_meta_data['prompt_tokens']
+
                 # Check if llm agent thinks user query has not been fulfilled yet
                 self.should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
 
@@ -172,6 +188,9 @@ class ToolLLMBackend:
         # Add query and final response to global message history
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result.content))
+
+        if self.config['model_debug_info']:
+            self.debug_output += model_debug_output_format(self.model_debug_info, message)
 
         # "result" contains the answer intended for a normal user
         # "debug" contains all internal messages
