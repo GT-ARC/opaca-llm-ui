@@ -2,15 +2,20 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "rest-gpt-llama3",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/rest-gpt-llama3",
     Backends: {
-        "simple-openai": "Simple Prompt with GPT",
-        "simple-llama": "Simple Prompt with LLAMA",
-        "rest-gpt-llama3": "RestGPT with LLAMA",
-        "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
-        "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
-        "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
-        "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
+        "opaca": {
+            "name": "OPACA LLM",
+            "subBackends": {
+                "simple-openai": "Simple Prompt with GPT",
+                "simple-llama": "Simple Prompt with LLAMA",
+                "rest-gpt-llama3": "RestGPT with LLAMA",
+                "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
+                "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
+                "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
+                "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
+            }
+        },
         "itdz-knowledge": "Berlin Knowledge Admin 'Bobbi'",
         "itdz-data": "Data Analysis and Forecasting",
     },

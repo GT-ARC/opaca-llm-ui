@@ -15,13 +15,30 @@
     function setLanguage(lang){
         language.value = lang;        
     }
-    function setBackend(val){
-        backend.value = val;
-        console.log("BACKEND IS NOW " + val);
+
+    function setBackend(key){
+        const parts = key.split('/');
+        const value = conf.Backends[parts[0]];
+        if (typeof value === 'string') {
+            backend.value = key;
+        } else {
+            const first = Array.from(Object.keys(value.subBackends))[0];
+            backend.value = key + '/' + first;
+        }
+        console.log("BACKEND IS NOW:", backend.value);
     }
+
+    function getBackendName(key) {
+        const parts = key.split('/');
+        if (parts.length === 1) {
+            return conf.Backends[key];
+        } else {
+            return conf.Backends[parts[0]].subBackends[parts[1]];
+        }
+    }
+
     function toggleSidebar() {
         sidebarOpen.value = !sidebarOpen.value;
-        console.log('sidebar open: ' + sidebarOpen.value);
 
         // adjust spacing
         const mainContent = document.getElementById('mainContent');
@@ -33,6 +50,8 @@
             mainContent.classList.add('mx-auto');
         }
     }
+
+
 </script>
 
 <template>
@@ -77,15 +96,30 @@
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-server me-1"/>
-                                {{ conf.Backends[backend] }}
+                                {{ getBackendName(backend) }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in conf.Backends" @click="setBackend(key)">
-                                    <a class="dropdown-item">
-                                        <p v-bind:style= "[backend === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
-                                            {{ value }}
-                                        </p>
+                                <li v-for="(value, key) in conf.Backends">
+
+                                    <!-- top-level item/group -->
+                                    <a v-if="typeof value !== 'string'" class="dropdown-item">
+                                        <p>{{ value.name }}</p>
                                     </a>
+                                    <a v-else class="dropdown-item">
+                                        <p> {{ value }}</p>
+                                    </a>
+
+                                    <!-- sub-level items -->
+                                    <ul v-if="typeof value !== 'string'"
+                                        class="dropdown-menu dropdown-submenu dropdown-submenu-left">
+                                        <li v-for="(subvalue, subkey) in value.subBackends"
+                                            @click="setBackend(key + '/' + subkey)">
+                                            <a class="dropdown-item">
+                                                <p>{{ subvalue }}</p>
+                                            </a>
+                                        </li>
+                                    </ul>
+
                                 </li>
                             </ul>
                         </li>
@@ -111,6 +145,26 @@ header {
 
 .dropdown-item {
     cursor: pointer;
+}
+
+.dropdown-menu li {
+    position: relative;
+}
+
+.dropdown-menu .dropdown-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -7px;
+}
+
+.dropdown-menu .dropdown-submenu-left {
+    right: 100%;
+    left: auto;
+}
+
+.dropdown-menu > li:hover > .dropdown-submenu {
+    display: block;
 }
 
 @media (prefers-color-scheme: dark) {

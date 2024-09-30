@@ -440,6 +440,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         return sidebarOpen.value;
     }
 
+    function getBackend() {
+        const parts = backend.value.split('/');
+        return parts[parts.length - 1];
+    }
+
 </script>
 
 <style>
