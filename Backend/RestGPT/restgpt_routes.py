@@ -56,7 +56,7 @@ class RestGptBackend:
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
             "use_agent_names": True,
-            "additional_debug": True,
+            "model_debug_info": True,
         }
         # Save additional information for each agent
         self.model_debug_info = {
@@ -99,7 +99,7 @@ class RestGptBackend:
 
         debug_out = result["debug"]
 
-        if self.config['additional_debug']:
+        if self.config['model_debug_info']:
             debug_out += model_debug_output_format(self.model_debug_info, message)
 
         # "result" contains the answer intended for a normal user

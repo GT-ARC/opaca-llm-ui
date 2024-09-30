@@ -47,11 +47,14 @@ class RestGPT(Chain):
         )
 
     def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict, model_debug_info):
-        return self.evaluator.invoke({"input": eval_input,
-                                      "history": history,
-                                      "config": config,
-                                      "model_debug_info": model_debug_info,
-                                      })["result"]
+        e_time = time.time()
+        result = self.evaluator.invoke({"input": eval_input,
+                                        "history": history,
+                                        "config": config,
+                                        "model_debug_info": model_debug_info,
+                                        })["result"]
+        model_debug_info.execution_time += time.time() - e_time
+        return result
 
     @property
     def _chain_type(self) -> str:
@@ -131,6 +134,7 @@ class RestGPT(Chain):
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
+            planner_time = time.time()
             plan = self.planner.invoke({"input": query,
                                         "actions": self.action_spec,
                                         "planner_history": planner_history,
@@ -138,6 +142,7 @@ class RestGPT(Chain):
                                         "config": config,
                                         "model_debug_info": inputs['model_debug_info']['Planner'],
                                         })
+            inputs['model_debug_info']['Planner'].execution_time += time.time() - planner_time
             plan = plan["result"]
             self.debug_output += f'Planner: {plan}\n'
             logger.info(f"Planner: {plan}")
@@ -148,12 +153,14 @@ class RestGPT(Chain):
                 break
 
             # ACTION SELECTOR
+            as_time = time.time()
             api_plan = self.action_selector.invoke({"plan": plan,
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history,
                                                     "config": config,
                                                     "model_debug_info": inputs['model_debug_info']['API Selector'],
                                                     })
+            inputs['model_debug_info']['API Selector'].execution_time += time.time() - as_time
             api_plan = api_plan["result"]
             self.debug_output += f'API Selector: {api_plan}\n'
             logger.info(f'API Selector: {api_plan}')
@@ -166,11 +173,13 @@ class RestGPT(Chain):
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
             # CALLER
+            c_time = time.time()
             execution_res = self.caller.invoke({"api_plan": api_plan,
                                                 "actions": self.action_spec,
                                                 "config": config,
                                                 "model_debug_info": inputs['model_debug_info']['Caller'],
                                                 })
+            inputs['model_debug_info']['Caller'].execution_time += time.time() - c_time
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
             logger.info(f'Caller: {execution_res}')

@@ -1,4 +1,5 @@
 import re
+import time
 from typing import Dict, List
 
 import logging
@@ -111,11 +112,14 @@ class ToolLLMBackend:
                 message_template="Human: {input}{scratchpad}"
             )
             chain = prompt | self.llm.bind_tools(tools=tools[:128])
+
+            agent1_time = time.time()
             result = chain.invoke({
                 'input': message,
                 'scratchpad': self.build_scratchpad(tool_responses),    # scratchpad contains ai responses
                 'history': self.messages
             })
+            self.model_debug_info['LLM-Agent1'].execution_time = time.time() - agent1_time
 
             # Save model debug info for LLM Agent 1
             res_meta_data = result.response_metadata.get("token_usage", {})
@@ -159,12 +163,15 @@ class ToolLLMBackend:
                     input_variables=['query', 'tool_names', 'parameters', 'results'],
                 )
                 response_chain = prompt_template | self.llm.bind_tools(tools=tools[:128])
+
+                agent2_time = time.time()
                 result = response_chain.invoke({
                     'query': message,               # Original user query
                     'tool_names': tool_names,       # ALL the tools used so far
                     'parameters': tool_params,      # ALL the parameters used for the tools
                     'results': tool_results         # ALL the results from the opaca action calls
                 })
+                self.model_debug_info['LLM-Agent2'].execution_time = time.time() - agent2_time
 
                 # Save model debug info for LLM Agent 2
                 res_meta_data = result.response_metadata.get("token_usage", {})
