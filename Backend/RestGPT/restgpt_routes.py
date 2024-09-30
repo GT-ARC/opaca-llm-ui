@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, DebugInfo
 from .rest_gpt import RestGPT
 
 logger = logging.getLogger()
@@ -56,6 +56,14 @@ class RestGptBackend:
             "llama-url": "http://10.0.64.101:11000",
             "llama-model": "llama3.1:70b",
             "use_agent_names": True,
+            "additional_debug": False,
+        }
+        # Save additional information for each agent
+        self.model_debug_info = {
+            "Planner": DebugInfo(),
+            "ActionSelector": DebugInfo(),
+            "Caller": DebugInfo(),
+            "Evaluator": DebugInfo(),
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Dict:
@@ -77,7 +85,12 @@ class RestGptBackend:
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
         try:
-            result = rest_gpt.invoke({"query": message, "history": self.messages, "config": self.config})
+            result = rest_gpt.invoke({
+                "query": message,
+                "history": self.messages,
+                "config": self.config,
+                "model_debug_info": self.model_debug_info,
+            })
         except openai.AuthenticationError as e:
             return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                               "api key and try again.", "debug": str(e)}
@@ -86,7 +99,11 @@ class RestGptBackend:
 
         # "result" contains the answer intended for a normal user
         # while "debug" contains all messages from the llm chain
-        return {"result": result["result"], "debug": result["debug"] if debug else ""}
+        return {
+            "result": result["result"],
+            "debug": result["debug"] if debug else "",
+            "model_debug_info": self.model_debug_info if debug else "",
+        }
 
     async def history(self) -> list:
         return self.messages

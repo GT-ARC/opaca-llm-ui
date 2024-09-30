@@ -46,10 +46,11 @@ class RestGPT(Chain):
             evaluator=evaluator, **kwargs
         )
 
-    def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
+    def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict, model_debug_info):
         return self.evaluator.invoke({"input": eval_input,
                                       "history": history,
                                       "config": config,
+                                      "model_debug_info": model_debug_info,
                                       })["result"]
 
     @property
@@ -62,7 +63,7 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["query", "history", "config"]
+        return ["query", "history", "config", "model_debug_info"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -135,6 +136,7 @@ class RestGPT(Chain):
                                         "planner_history": planner_history,
                                         "message_history": inputs['history'],
                                         "config": config,
+                                        "model_debug_info": inputs['model_debug_info']['Planner'],
                                         })
             plan = plan["result"]
             self.debug_output += f'Planner: {plan}\n'
@@ -150,6 +152,7 @@ class RestGPT(Chain):
                                                     "actions": self.action_spec,
                                                     "history": action_selector_history,
                                                     "config": config,
+                                                    "model_debug_info": inputs['model_debug_info']['ActionSelector'],
                                                     })
             api_plan = api_plan["result"]
             self.debug_output += f'API Selector: {api_plan}\n'
@@ -166,6 +169,7 @@ class RestGPT(Chain):
             execution_res = self.caller.invoke({"api_plan": api_plan,
                                                 "actions": self.action_spec,
                                                 "config": config,
+                                                "model_debug_info": inputs['model_debug_info']['Caller'],
                                                 })
             execution_res = execution_res["result"]
             self.debug_output += f'Caller: {execution_res}\n'
@@ -175,7 +179,7 @@ class RestGPT(Chain):
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
-            eval_output = self._finished(eval_input, inputs['history'], config)
+            eval_output = self._finished(eval_input, inputs['history'], config, inputs['model_debug_info']['Evaluator'])
             if re.match(r"FINISHED", eval_output):
                 final_answer = re.sub(r"FINISHED", "", eval_output).strip()
                 break

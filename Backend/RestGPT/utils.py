@@ -11,6 +11,7 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder, \
     HumanMessagePromptTemplate, AIMessagePromptTemplate
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel
 
 LLAMA_URL = "http://10.0.64.101"
 
@@ -31,6 +32,15 @@ class ColorPrint:
             print(data, end="")
         else:
             print(self.color_mapping[module] + data + Fore.RESET, end="")
+
+
+class DebugInfo(BaseModel):
+    completion_tokens: int = 0
+    prompt_tokens: int = 0
+
+    @property
+    def total_tokens(self):
+        return self.completion_tokens + self.prompt_tokens
 
 
 class Parameter:
