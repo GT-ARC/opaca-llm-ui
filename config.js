@@ -5,8 +5,8 @@ var config = {
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/rest-gpt-llama3",
     Backends: {
         "opaca": {
-            "name": "OPACA LLM",
-            "subBackends": {
+            name: "OPACA LLM",
+            subBackends: {
                 "simple-openai": "Simple Prompt with GPT",
                 "simple-llama": "Simple Prompt with LLAMA",
                 "rest-gpt-llama3": "RestGPT with LLAMA",

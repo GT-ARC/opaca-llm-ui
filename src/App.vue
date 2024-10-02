@@ -1,6 +1,6 @@
 <script setup>
     import Content from './components/content.vue'
-    import { ref, provide } from 'vue'
+    import {ref, provide, onMounted} from 'vue'
     import conf from '../config.js'
 
     const language = ref('GB')
@@ -16,25 +16,50 @@
         language.value = lang;        
     }
 
-    function setBackend(key){
-        const parts = key.split('/');
-        const value = conf.Backends[parts[0]];
-        if (typeof value === 'string') {
-            backend.value = key;
+    function setBackend(key) {
+        const keyPath = key.split('/');
+        const value = conf.Backends[keyPath[0]];
+        const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
+
+        if (isGroupSelection) {
+            if (!isBackendSelected(key)) {
+                // select first entry in group
+                const first = Array.from(Object.keys(value.subBackends))[0];
+                backend.value = key + '/' + first;
+            } else {
+                // do nothing, group already selected
+                // click one of the items in the group directly to select it
+            }
         } else {
-            const first = Array.from(Object.keys(value.subBackends))[0];
-            backend.value = key + '/' + first;
+            // set backend directly
+            backend.value = key;
         }
+
         console.log("BACKEND IS NOW:", backend.value);
     }
 
     function getBackendName(key) {
-        const parts = key.split('/');
-        if (parts.length === 1) {
+        const path = key.split('/');
+        if (path.length === 1) {
             return conf.Backends[key];
         } else {
-            return conf.Backends[parts[0]].subBackends[parts[1]];
+            return conf.Backends[path[0]].subBackends[path[1]];
         }
+    }
+
+    /**
+     * Checks if the given backend/group is currently selected.
+     */
+    function isBackendSelected(key) {
+        const selectedPath = backend.value.split('/');
+        const keyPath = key.split('/');
+        const value = conf.Backends[keyPath[0]];
+        const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
+        if (isGroupSelection && selectedPath.length > 1) {
+            // check if the currently selected backend is in the group
+            return selectedPath[0] === keyPath[0];
+        }
+        return key === backend.value;
     }
 
     function toggleSidebar() {
@@ -99,14 +124,17 @@
                                 {{ getBackendName(backend) }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in conf.Backends">
+                                <li v-for="(value, key) in conf.Backends"
+                                    @click="setBackend(key)">
 
                                     <!-- top-level item/group -->
                                     <a v-if="typeof value !== 'string'" class="dropdown-item">
-                                        <p>{{ value.name }}</p>
+                                        <p v-if="isBackendSelected(key)" class="fw-bold">{{ value.name }}</p>
+                                        <p v-else>{{ value.name }}</p>
                                     </a>
                                     <a v-else class="dropdown-item">
-                                        <p> {{ value }}</p>
+                                        <p v-if="isBackendSelected(key)" class="fw-bold">{{ value }}</p>
+                                        <p v-else>{{ value }}</p>
                                     </a>
 
                                     <!-- sub-level items -->
@@ -115,7 +143,12 @@
                                         <li v-for="(subvalue, subkey) in value.subBackends"
                                             @click="setBackend(key + '/' + subkey)">
                                             <a class="dropdown-item">
-                                                <p>{{ subvalue }}</p>
+                                                <p v-if="isBackendSelected(key + '/' + subkey)" class="fw-bold">
+                                                    {{ subvalue }}
+                                                </p>
+                                                <p v-else>
+                                                    {{ subvalue }}
+                                                </p>
                                             </a>
                                         </li>
                                     </ul>
