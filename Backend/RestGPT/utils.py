@@ -39,13 +39,14 @@ class Response(BaseModel):
     class AgentMessage(BaseModel):
         agent: str
         content: str = ''
+        tools: List[str] = []
         response_metadata: Dict[str, Any] = {}
-        execution_time: datetime.timedelta = .0
+        execution_time: float = .0
 
     query: str = ''
     agent_messages: List[AgentMessage] = []
     iterations: int = 0
-    execution_time: datetime.timedelta = .0
+    execution_time: float = .0
     content: str = ''
     error: str = ''
 
