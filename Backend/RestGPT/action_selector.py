@@ -165,9 +165,9 @@ class ActionSelector(Chain):
         action, parameters = action_plan.split(';')
 
         if use_agent_names:
-            if len(action.split('_')) != 2:
+            if len(action.split('--')) != 2:
                 return "You need to include the agent name in your action name."
-            _, action = action.split('_')
+            _, action = action.split('--')
 
         # Check if the parameters are in a valid json format
         try:
