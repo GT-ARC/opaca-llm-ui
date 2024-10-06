@@ -1,7 +1,6 @@
 import jsonref
 import requests
 import re
-import datetime
 
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
@@ -49,37 +48,6 @@ class Response(BaseModel):
     execution_time: float = .0
     content: str = ''
     error: str = ''
-
-
-class DebugInfo(BaseModel):
-    completion_tokens: int = 0
-    prompt_tokens: int = 0
-    execution_time: float = .0
-
-    @property
-    def total_tokens(self):
-        return self.completion_tokens + self.prompt_tokens
-
-
-def model_debug_output_format(debug_infos: Dict[str, DebugInfo], query: str) -> str:
-    total_tokens = 0
-    total_completion = 0
-    total_prompt = 0
-    total_time = .0
-    out = f'Query: {query} [{datetime.datetime.now()}]\n'
-    for agent_name, debug_info in debug_infos.items():
-        total_tokens += debug_info.total_tokens
-        total_completion += debug_info.completion_tokens
-        total_prompt += debug_info.prompt_tokens
-        total_time += debug_info.execution_time
-        out += (f'{agent_name}: {{Prompt Tokens: {debug_info.prompt_tokens}, '
-                f'Completion Tokens: {debug_info.completion_tokens}, '
-                f'Total Tokens: {debug_info.total_tokens}, '
-                f'Execution Time: {debug_info.execution_time:.2f}s}}\n')
-    return out + (f'{{Total Completion Tokens: {total_completion}, '
-                  f'Total Prompt Tokens: {total_prompt}, '
-                  f'Total Tokens for query: {total_tokens}, '
-                  f'Total Execution Time: {total_time:.2f}s}}\n')
 
 
 class Parameter:
