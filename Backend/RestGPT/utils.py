@@ -49,6 +49,9 @@ class Response(BaseModel):
     content: str = ''
     error: str = ''
 
+# Create alias for nested class instantiation
+AgentMessage = Response.AgentMessage
+
 
 class Parameter:
     type: str

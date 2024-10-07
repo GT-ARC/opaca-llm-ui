@@ -6,9 +6,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
-from .utils import build_prompt, fix_parentheses, Response
-
-AgentMessage = Response.AgentMessage
+from .utils import build_prompt, fix_parentheses, AgentMessage
 
 logger = logging.getLogger()
 

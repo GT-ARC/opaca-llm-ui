@@ -4,8 +4,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
-from .planner import AgentMessage
-from .utils import build_prompt
+from .utils import build_prompt, AgentMessage
 
 
 examples = [

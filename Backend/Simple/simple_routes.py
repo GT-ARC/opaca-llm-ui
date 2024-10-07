@@ -4,8 +4,7 @@ import openai
 import json
 import requests
 
-from ..RestGPT import Response
-from ..RestGPT.planner import AgentMessage
+from ..RestGPT import Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
 
 

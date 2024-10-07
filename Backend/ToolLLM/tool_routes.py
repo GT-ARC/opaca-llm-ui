@@ -11,8 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..RestGPT import build_prompt, Response
-from ..RestGPT.planner import AgentMessage
+from ..RestGPT import build_prompt, Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import openapi_to_functions
 
