@@ -4,6 +4,8 @@ import openai
 import json
 import requests
 
+from ..RestGPT import Response
+from ..RestGPT.planner import AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
 
 
@@ -61,6 +63,7 @@ class SimpleBackend:
         self._update_system_prompt()
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
+        response_out = Response(query=message)
 
         while True:
             response = self._query_internal(debug, api_key)
@@ -82,8 +85,12 @@ class SimpleBackend:
                 self.messages.append({"role": "system", "content": response})
                 break
 
-        debug_msg = "\n ".join(f'{msg["role"]}: {msg["content"]}' for msg in self.messages[last_msg:]) if debug else ""
-        return {"result": response, "debug": debug_msg}
+        response_out.agent_messages.extend(AgentMessage(
+            agent=msg["role"],
+            content=msg["content"]
+        ) for msg in self.messages[last_msg:])
+        response_out.content = response
+        return {"result": response_out}
     
     async def history(self) -> list:
         return self.messages

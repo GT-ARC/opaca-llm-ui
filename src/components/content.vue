@@ -391,22 +391,20 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         // color schemes for modes [dark, light]
         const keywordColors = {
             // RestGPT
-            "Query:": ["#fff", "#000"],
             "Planner": ["#f00", "#9c0000"],
             "Action Selector": ["#ff0", "#bf6e00"],
             "Caller": ["#5151ff", "#0000b1"],
-            "Final Answer:": ["#0f0", "#007300"],
             "Evaluator": ["#0f0", "#007300"],
             // Tools
             "Tool Generator": ["#f00", "#9c0000"],
             "Tool Evaluator": ["#ff0", "#bf6e00"],
-            "AI Answer:": ["#0f0", "#007300"],
             // Simple
-            "user:": ["#fff", "#000"],
-            "assistant:": ["#88f", "#434373"],
-            "system:": ["#ff8", "#71713d"],
+            "user": ["#fff", "#000"],
+            "assistant": ["#88f", "#434373"],
+            "system": ["#ff8", "#71713d"],
         }
 
+        // return either specific color for light/dark mode or default black/white
         return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
     }
 

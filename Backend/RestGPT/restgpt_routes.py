@@ -69,15 +69,18 @@ class RestGptBackend:
         try:
             self.init_model(api_key)
         except ValueError as e:
-            return {"result": "You are trying to use a model which uses an api key but provided none. Please "
-                              "enter a valid api key and try again.", "debug": str(e)}
+            response.content = ("You are trying to use a model which uses an api key but provided none. Please "
+                                "enter a valid api key and try again.")
+            response.error = str(e)
+            return {"result": response}
 
         try:
             action_spec = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
         except Exception as e:
-            print(str(e))
-            return {"result": "I am sorry, but there occurred an error during the action retrieval. "
-                              "Please make sure the opaca platform is running and connected.", "debug": str(e)}
+            response.content = ("I am sorry, but there occurred an error during the action retrieval. "
+                                "Please make sure the opaca platform is running and connected.")
+            response.error = str(e)
+            return {"result": response}
 
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
@@ -91,8 +94,10 @@ class RestGptBackend:
             })["result"]
             response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
-            return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
-                              "api key and try again.", "debug": str(e)}
+            response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
+                                "api key and try again.")
+            response.error = str(e)
+            return {"result": response}
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result.content))
 

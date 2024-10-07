@@ -72,7 +72,10 @@ class Caller(Chain):
             if inputs['config']['use_agent_names']:
                 agent_name, action_name = action_name.split('--', maxsplit=1)
         except ValueError:
-            return {'result': 'ERROR: Received malformed instruction by the action selector'}
+            return {'result': AgentMessage(
+                agent="Caller",
+                content='ERROR: Received malformed instruction by the action selector'
+            )}
 
         try:
             if inputs['config']['use_agent_names']:
@@ -84,7 +87,10 @@ class Caller(Chain):
                             f'with parameters: {params}')
                 response = opaca_proxy.invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
-            return {'result': f'ERROR: Unable to call the connected opaca platform\nCause: {e}'}
+            return {'result': AgentMessage(
+                agent="Caller",
+                content=f'ERROR: Unable to call the connected opaca platform\nCause: {e}'
+                )}
 
         logger.info(f'Caller: Received response: {response}')
 
