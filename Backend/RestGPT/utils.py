@@ -194,10 +194,9 @@ class OpacaLLM(BaseChatModel):
                 'model': self.model,
                 'stream': False
             }
-        ).json()
+        ).json()['message']['content']
 
-        output = response['message']['content']
-        output = output.replace("\\n", "\n").replace('\\"', '"').strip()
+        output = response.replace("\\n", "\n").replace('\\"', '"').strip()
 
         if stop is None:
             return output
@@ -245,7 +244,7 @@ def build_prompt(
 def format_llama3(prompt_values: PromptValue):
     messages = []
 
-    for message in prompt_values.messages:
+    for message in prompt_values.to_messages():
         if isinstance(message, SystemMessage):
             role = "system"
         elif isinstance(message, HumanMessage):
