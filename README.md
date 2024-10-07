@@ -5,8 +5,8 @@ A powerful chatbot which fulfills user requests by calling actions from a connec
 * RestGPT: Uses 4 agents (Planner, Action Selector, Caller, Evaluator) in a chain to automatically fulfill user queries
 * ToolLLM: Uses the built-in function of OpenAI models "tools" to generate and executes requests (**ChatGPT** only)
 
+The Web-UI in this project is based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) but has since been significantly extended and refactored.
 
-This project is based on https://gitlab.dai-labor.de/308201/.
 
 ## Quickstart
 

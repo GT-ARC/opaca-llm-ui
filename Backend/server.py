@@ -7,14 +7,6 @@ from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
 
-"""
-TODO
-make same sort of interface-class/module for RestGPT
-handle errors (backend not found, internal server error) as proper HTTP errors
-test with javascript frontend (and throw out all the "backend" stuff there)
-move get-opaca-agents and invoke-opaca-action to some common module?
-make OPACA-URL configurable (simply as another route?)
-"""
 
 app = FastAPI(
     title="OPACA LLM Backend Services",
