@@ -77,10 +77,12 @@ class ToolLLMBackend:
 
         try:
             # Convert openapi schema to openai function schema
-            tools = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
+            tools, error = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
             if len(tools) > 128:
                 self.debug_output += (f"WARNING: Your number of tools ({len(tools)}) exceed the maximum tool limit of "
                                       f"128. All tools after index 128 will be ignored!")
+            if error:
+                self.debug_output += error
         except Exception as e:
             return {"result": "It appears no actions were returned by the Opaca Platform. Make sure you are "
                               "connected to the Opaca Runtime Platform and the platform contains at least one "
