@@ -1,5 +1,3 @@
-from zipfile import error
-
 import jsonref
 
 
