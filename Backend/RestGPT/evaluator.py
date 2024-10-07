@@ -123,7 +123,7 @@ class Evaluator(Chain):
 
         prompt = build_prompt(
             system_prompt=EVAL_PROMPT_SLIM if inputs['config']['slim_prompts'] else EVAL_PROMPT,
-            examples=examples if inputs['config']['examples'] else [],
+            examples=examples if inputs['config']['examples']['evaluator'] else [],
             input_variables=["input"],
             message_template="{input}"
         )
