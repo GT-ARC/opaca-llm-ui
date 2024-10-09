@@ -8,22 +8,25 @@
 
             <i @click="toggleSidebar('connect')"
                class="fa fa-link p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Config"
                v-bind:class="{'sidebar-item-select': isSidebarOpen('connect')}" />
+
+            <i @click="toggleSidebar('agents')"
+               class="fa fa-users p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Agents"
+               v-bind:class="{'sidebar-item-select': isSidebarOpen('agents')}"/>
 
             <i @click="toggleSidebar('debug')"
                class="fa fa-terminal p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Debug"
                v-bind:class="{'sidebar-item-select': isSidebarOpen('debug')}"/>
-
-            <i @click="toggleSidebar('agents')"
-               class="fa fa-user p-2 sidebar-item"
-               v-bind:class="{'sidebar-item-select': isSidebarOpen('agents')}"/>
         </div>
 
         <!-- Left Container: Configuration, Debug-Output -->
         <div v-show="isSidebarOpen()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: calc(100vw / 4)">
+               style="height: calc(100vh - 85px); width: 400px">
 
                 <div v-show="isSidebarOpen('connect')">
                     <div id="sidebarConfig"
@@ -78,8 +81,37 @@
                 </div>
 
                 <div v-show="isSidebarOpen('agents')"
-                     id="containers-agents-display">
-                    show agents/containers of the connected platform here
+                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!platformActions">No actions available.</div>
+                    <div v-else class="flex-row" >
+                        <div class="accordion text-start p-2" id="agents-accordion">
+                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
+
+                                <!-- header -->
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
+                                    <button class="accordion-button" :class="{collapsed: index > 0}"
+                                            type="button" data-bs-toggle="collapse"
+                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + index">
+                                        <strong>{{ agent }}</strong>
+                                    </button>
+                                </h2>
+
+                                <!-- body -->
+                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
+                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
+                                    <div class="accordion-body">
+                                        <ul class="list-group list-group-flush">
+                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
+                                                {{ action }}
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="resizer me-1" id="resizer" />
@@ -148,6 +180,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
+    let platformActions = null;
 
     const backend = inject('backend');
     const language = inject('language');
@@ -167,6 +200,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     onMounted(() => {
         console.log("mounted")
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
         updateTheme()
         setupResizableSidebar();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
@@ -240,7 +278,8 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             } else {
                 text += config.translations[language.value].none
             }
-            alert(text)
+            platformActions = actions;
+            toggleSidebar('agents');
         } else if (res.status === 403) {
             alert(config.translations[language.value].unauthorized)
         } else {
@@ -543,8 +582,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     border-radius: 5px;
 }
 
-.sidebar-item-select {
+.sidebar-item:hover {
     background-color: #ccc;
+}
+
+.sidebar-item-select {
+    background-color: #ddd;
 }
 
 .resizer {
@@ -589,14 +632,49 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         background-color: #333;
     }
 
-    .sidebar-item-select {
+    .sidebar-item:hover {
         background-color: #222;
+    }
+
+    .sidebar-item-select {
+        background-color: #2a2a2a;
     }
 
     .resizer {
         background-color: #181818;
     }
 
+    .accordion, .accordion-item, .accordion-header, .accordion-body, .accordion-collapse {
+        background-color: #222;
+        color: #fff;
+    }
+
+    .accordion-item {
+        border-color: #454d55;
+    }
+
+    .accordion-button {
+        background-color: #343a40;
+        color: #fff;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background-color: #212529;
+        color: #fff;
+    }
+
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25); /* Light glow for focus */
+    }
+
+    .accordion-body .list-group .list-group-item {
+        background-color: #222;
+        color: #fff;
+    }
+
+    .accordion-button::after {
+        filter: invert(100%) !important ;
+    }
 }
 
 @media (prefers-color-scheme: light) {
