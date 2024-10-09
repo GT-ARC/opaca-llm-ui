@@ -578,6 +578,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     .resizer {
         background-color: gray;
     }
+
+    .sample-question {
+        background-color: #ddd;
+        color: #000;
+    }
+
+    .sample-question:hover {
+        background: #eee;
+    }
 }
 
 </style>
