@@ -65,7 +65,9 @@
                     </div>
 
                     <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
+                        <button class="btn btn-primary w-100" @click="initiatePrompt">
+                            <i class="fa fa-link me-1"/>Connect
+                        </button>
                     </div>
 
                     <div class="form-check p-2 text-start d-none">
@@ -126,13 +128,20 @@
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
+                <div v-show="showExampleQuestions" class="sample-questions">
+                    <div v-for="(question, index) in config.translations[language].sampleQuestions"
+                         :key="index"
+                         class="sample-question"
+                         @click="askChatGpt(question.question)">
+                        {{question.icon}} <br> {{ question.question }}
+                    </div>
+                </div>
             </div>
 
             <div class="container p-0">
                 <div class="input-group mt-2 mb-4">
                     <input id="textInput" placeholder="Type here ..."
                            class="form-control p-2 rounded-start-2"
-                           :value="config.translations[language].defaultQuestion"
                            @keypress="textInputCallback"/>
                     <button type="button"
                             class="btn btn-primary rounded-end-2"
@@ -192,6 +201,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const recording = ref(false);
     const busy = ref(false);
     const debug = ref(false);
+    const showExampleQuestions = ref(true);
     const autoSpeakNextMessage = ref(false);
     const languages = {
         GB: 'en-GB',
@@ -282,15 +292,17 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             platformActions = actions;
             toggleSidebar('agents');
         } else if (res.status === 403) {
-            alert(config.translations[language.value].unauthorized)
+            alert(config.translations[language.value].unauthorized);
+            platformActions = null;
         } else {
-            alert(config.translations[language.value].unreachable)
+            alert(config.translations[language.value].unreachable);
+            platformActions = null;
         }
     }
 
     async function sendRequest(method, url, body) {
         try {
-            const response = await axios.request({
+            return await axios.request({
                 method: method,
                 url: url,
                 data: body,
@@ -299,16 +311,16 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
                     'Access-Control-Allow-Origin': '*'
                 }
             });
-            return response;
         } catch (error) {
             throw error;
         }
     }
 
     async function askChatGpt(userText) {
+        showExampleQuestions.value = false;
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
+            const result = await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/query`, {user_query: userText, debug: true, api_key: apiKey});
             const answer = result.data.result;
             const debugText = result.data.debug;
             createSpeechBubbleAI(answer);
@@ -386,7 +398,8 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         document.getElementById("chat-container").innerHTML = '';
         abortSpeaking();
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
+        showExampleQuestions.value = true;
+        await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/reset`, null);
         busy.value = false;
     }
 
@@ -530,6 +543,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         console.log('sidebar value: ', sidebar.value);
     }
 
+    function getBackend() {
+        const parts = backend.value.split('/');
+        return parts[parts.length - 1];
+    }
+
 </script>
 
 <style>
@@ -599,6 +617,30 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     top: 0;
     right: 0;
     border-radius: 2px;
+}
+
+.sample-questions {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.sample-question {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin: 5px;
+  padding: 10px;
+  background-color: #333;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.sample-question:hover {
+    background: #222;
 }
 
 @media (max-width: 400px) {
@@ -686,6 +728,15 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     }
     .resizer {
         background-color: gray;
+    }
+
+    .sample-question {
+        background-color: #ddd;
+        color: #000;
+    }
+
+    .sample-question:hover {
+        background: #eee;
     }
 }
 
