@@ -93,6 +93,7 @@
                                             type="button" data-bs-toggle="collapse"
                                             :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
                                             :aria-controls="'accordion-body-' + index">
+                                        <i class="fa fa-user me-1"/>
                                         <strong>{{ agent }}</strong>
                                     </button>
                                 </h2>
