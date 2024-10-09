@@ -6,6 +6,7 @@ from .ToolLLM import ToolLLMBackend
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
+from .ITDZ.itdz_backends import KnowledgeBackend, DataAnalysisBackend
 
 
 app = FastAPI(
@@ -49,6 +50,8 @@ BACKENDS = {
     "simple-llama": SimpleLlamaBackend(),
     "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
     "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
+    "itdz-knowledge": KnowledgeBackend(),
+    "itdz-data": DataAnalysisBackend(),
 }
 
 

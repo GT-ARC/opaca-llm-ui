@@ -249,7 +249,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         showExampleQuestions.value = false;
         createSpeechBubbleUser(userText);
         try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
+            const result = await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/query`, {user_query: userText, debug: true, api_key: apiKey});
             const answer = result.data.result;
             const debugText = result.data.debug;
             createSpeechBubbleAI(answer);
@@ -328,7 +328,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         abortSpeaking();
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         showExampleQuestions.value = true;
-        await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
+        await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/reset`, null);
         busy.value = false;
     }
 
@@ -452,6 +452,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     function isSidebarOpen() {
         return sidebarOpen.value;
+    }
+
+    function getBackend() {
+        const parts = backend.value.split('/');
+        return parts[parts.length - 1];
     }
 
 </script>
