@@ -29,8 +29,11 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
-            defaultQuestion: 'How can you assist me?',
-            sampleQuestions: ["How can you assist me?", "Give me a summary of the agents and actions you provide.", "Call a single random action and give me the result!"],
+            sampleQuestions: [
+                {"question": "How can you assist me?", "icon": "❓"}, 
+                {"question": "Give me a summary of the agents and actions you provide.", "icon": "🤖"}, 
+                {"question": "Call a single random action and give me the result!", "icon": "🎲"}
+            ],
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
             resetChat: 'Reset',    
@@ -46,8 +49,11 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
-            defaultQuestion: 'Womit kannst du mir helfen?',
-            sampleQuestions: ["Womit kannst du mir helfen?", "Gib mir eine Zusammenfassung über die Agenten und Aktionen die du kennst.", "Rufe eine einzige, zufällige Aktion auf und gib mir das Ergebnis!"],
+            sampleQuestions: [
+                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
+                {"question": "Gib mir eine Zusammenfassung über die Agenten und Aktionen die du kennst.", "icon": "🤖"}, 
+                {"question": "Rufe eine einzige, zufällige Aktion auf und gib mir das Ergebnis!", "icon": "🎲"}
+            ],
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',
             resetChat: 'Zurücksetzen',
