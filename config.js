@@ -31,8 +31,8 @@ var config = {
             none: 'None',
             sampleQuestions: [
                 {"question": "How can you assist me?", "icon": "❓"}, 
-                {"question": "Give me a summary of the agents and actions you provide.", "icon": "🤖"}, 
-                {"question": "Call a single random action and give me the result!", "icon": "🎲"}
+                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
+                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"}
             ],
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
@@ -51,8 +51,8 @@ var config = {
             none: 'Keine',
             sampleQuestions: [
                 {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
-                {"question": "Gib mir eine Zusammenfassung über die Agenten und Aktionen die du kennst.", "icon": "🤖"}, 
-                {"question": "Rufe eine einzige, zufällige Aktion auf und gib mir das Ergebnis!", "icon": "🎲"}
+                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
+                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"}
             ],
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',
