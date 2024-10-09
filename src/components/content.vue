@@ -28,6 +28,7 @@
                class="container-fluid d-flex flex-column px-3"
                style="height: calc(100vh - 85px); width: 400px">
 
+                <!-- connection/backend settings -->
                 <div v-show="isSidebarOpen('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
@@ -70,21 +71,19 @@
                         </button>
                     </div>
 
-                    <div class="form-check p-2 text-start d-none">
-                        <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
-                        <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
-                    </div>
                 </div>
                 </div>
 
+                <!-- debug console -->
                 <div v-show="isSidebarOpen('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                     <div id="debug-console" class="flex-row-reverse text-start"/>
                 </div>
 
+                <!-- agents/actions overiew -->
                 <div v-show="isSidebarOpen('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!platformActions">No actions available.</div>
+                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start p-2" id="agents-accordion">
                             <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
@@ -596,8 +595,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 }
 
 .sidebar-item {
+    font-size: 20px;
     cursor: pointer;
-    width: 40px;
+    width: 50px;
     border-radius: 5px;
 }
 
