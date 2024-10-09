@@ -10,8 +10,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
+from ..models import Response
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec, Response
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
 from .rest_gpt import RestGPT
 
 logger = logging.getLogger()
@@ -72,7 +73,7 @@ class RestGptBackend:
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "
                                 "enter a valid api key and try again.")
             response.error = str(e)
-            return {"result": response}
+            return response
 
         try:
             action_spec = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
@@ -80,7 +81,7 @@ class RestGptBackend:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
             response.error = str(e)
-            return {"result": response}
+            return response
 
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
@@ -97,13 +98,11 @@ class RestGptBackend:
             response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                                 "api key and try again.")
             response.error = str(e)
-            return {"result": response}
+            return response
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result.content))
 
-        # "result" contains the answer intended for a normal user
-        # while "debug" contains all messages from the llm chain
-        return {"result": response}
+        return response
 
     async def history(self) -> list:
         return self.messages

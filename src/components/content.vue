@@ -241,12 +241,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         createSpeechBubbleUser(userText);
         try {
             const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
-            const answer = result.data.result.content;
-            if (result.data.result.error) {
-                addDebug(result.data.result.error)
+            const answer = result.data.content;
+            if (result.data.error) {
+                addDebug(result.data.error)
             }
             createSpeechBubbleAI(answer);
-            processDebugInput(result.data.result.agent_messages);
+            processDebugInput(result.data.agent_messages);
             scrollDown(debug.value);
         } catch (error) {
             console.error(error);

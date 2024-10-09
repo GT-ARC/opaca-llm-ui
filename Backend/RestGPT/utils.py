@@ -11,7 +11,7 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, MessagesPlaceholder, \
     HumanMessagePromptTemplate, AIMessagePromptTemplate
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel
+
 
 LLAMA_URL = "http://10.0.64.101"
 
@@ -32,25 +32,6 @@ class ColorPrint:
             print(data, end="")
         else:
             print(self.color_mapping[module] + data + Fore.RESET, end="")
-
-
-class Response(BaseModel):
-    class AgentMessage(BaseModel):
-        agent: str
-        content: str = ''
-        tools: List[str] = []
-        response_metadata: Dict[str, Any] = {}
-        execution_time: float = .0
-
-    query: str = ''
-    agent_messages: List[AgentMessage] = []
-    iterations: int = 0
-    execution_time: float = .0
-    content: str = ''
-    error: str = ''
-
-# Create alias for nested class instantiation
-AgentMessage = Response.AgentMessage
 
 
 class Parameter:

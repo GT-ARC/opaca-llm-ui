@@ -7,7 +7,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import build_prompt, AgentMessage
+from .utils import build_prompt
+from ..models import AgentMessage
 
 logger = logging.getLogger(__name__)
 

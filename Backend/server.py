@@ -1,7 +1,7 @@
-from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .models import Url, AgentMessage, Message, Response
 from .ToolLLM import ToolLLMBackend
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
@@ -29,18 +29,6 @@ app.add_middleware(
 )
 
 
-class Url(BaseModel):
-    url: str
-    user: str | None
-    pwd: str | None
-
-
-class Message(BaseModel):
-    user_query: str
-    debug: bool
-    api_key: str
-
-
 BACKENDS = {
     "rest-gpt-llama3": RestGptBackend("llama3"),
     "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
@@ -65,7 +53,7 @@ async def actions() -> dict[str, list[str]]:
     return await proxy.get_actions()
 
 @app.post("/{backend}/query")
-async def query(backend: str, message: Message) -> dict:
+async def query(backend: str, message: Message) -> Response:
     return await BACKENDS[backend].query(message.user_query, message.debug, message.api_key)
 
 @app.get("/{backend}/history")

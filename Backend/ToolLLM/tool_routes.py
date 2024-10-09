@@ -11,7 +11,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..RestGPT import build_prompt, Response, AgentMessage
+from ..models import Response, AgentMessage
+from ..RestGPT import build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import openapi_to_functions
 
@@ -56,7 +57,7 @@ class ToolLLMBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict[str, Any]:
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -78,7 +79,7 @@ class ToolLLMBackend:
             response.error = str(e)
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "
                                 "enter a valid api key and try again.")
-            return {"result": response}
+            return response
 
         try:
             # Convert openapi schema to openai function schema
@@ -93,7 +94,7 @@ class ToolLLMBackend:
             response.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
                                 "connected to the Opaca Runtime Platform and the platform contains at least one "
                                 "action.")
-            return {"result": response}
+            return response
 
         total_exec_time = time.time()
 
@@ -208,10 +209,7 @@ class ToolLLMBackend:
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it
         response.content = result.content
-
-        # "result" contains the answer intended for a normal user
-        # "debug" contains all internal messages
-        return {"result": response}
+        return response
 
     async def history(self) -> list:
         return self.messages
