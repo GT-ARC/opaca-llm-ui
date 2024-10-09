@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "rest-gpt-llama3",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "simple-openai",
     Backends: {
         "simple-openai": "Simple Prompt with GPT",
         "simple-llama": "Simple Prompt with LLAMA",
@@ -13,7 +13,7 @@ var config = {
         "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
     },
 
-    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
+    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://10.42.6.107:8000',
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
