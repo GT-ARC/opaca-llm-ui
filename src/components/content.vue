@@ -69,8 +69,8 @@
                     <div v-for="(question, index) in config.translations[language].sampleQuestions"
                          :key="index"
                          class="sample-question"
-                         @click="askChatGpt(question)">
-                        {{ question }}
+                         @click="askChatGpt(question.question)">
+                        {{question.icon}} <br> {{ question.question }}
                     </div>
                 </div>
             </div>
@@ -79,7 +79,6 @@
                 <div class="input-group mt-2 mb-4">
                     <input id="textInput" placeholder="Type here ..."
                            class="form-control p-2 rounded-start-2"
-                           :value="config.translations[language].defaultQuestion"
                            @keypress="textInputCallback"/>
                     <button type="button"
                             class="btn btn-primary rounded-end-2"
