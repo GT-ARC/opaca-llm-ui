@@ -4,7 +4,7 @@ import openai
 import json
 import requests
 
-from ..RestGPT import Response, AgentMessage
+from ..models import Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
 
 
@@ -62,9 +62,10 @@ class SimpleBackend:
         self._update_system_prompt()
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
-        response_out = Response(query=message)
+        result = Response(query=message)
 
         while True:
+            result.iterations += 1
             response = self._query_internal(debug, api_key)
             self.messages.append({"role": "assistant", "content": response})
 
@@ -72,8 +73,8 @@ class SimpleBackend:
             try:
                 d = json.loads(response.strip("`json\n")) # strip markdown, if included
                 print("Successfully parsed as JSON, calling service...")
-                result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
-                response = f"The result of this step was: {repr(result)}"
+                action_result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
             except json.JSONDecodeError as e:
                 print("Not JSON", type(e), e)
@@ -82,14 +83,12 @@ class SimpleBackend:
                 print("ERROR", type(e), e)
                 response = f"There was an error: {e}"
                 self.messages.append({"role": "system", "content": response})
+                result.error = str(e)
                 break
 
-        response_out.agent_messages.extend(AgentMessage(
-            agent=msg["role"],
-            content=msg["content"]
-        ) for msg in self.messages[last_msg:])
-        response_out.content = response
-        return {"result": response_out}
+        result.content = response
+        result.agent_messages = [AgentMessage(agent=msg["role"], content=msg["content"]) for msg in self.messages[last_msg:]]
+        return result
     
     async def history(self) -> list:
         return self.messages
