@@ -65,6 +65,14 @@
             <!-- Chat Window -->
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
+                <div v-show="showExampleQuestions" class="sample-questions">
+                    <div v-for="(question, index) in config.translations[language].sampleQuestions"
+                         :key="index"
+                         class="sample-question"
+                         @click="askChatGpt(question)">
+                        {{ question }}
+                    </div>
+                </div>
             </div>
 
             <div class="container p-0">
@@ -130,6 +138,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const recording = ref(false);
     const busy = ref(false);
     const debug = ref(false);
+    const showExampleQuestions = ref(true);
     const autoSpeakNextMessage = ref(false);
     const languages = {
         GB: 'en-GB',
@@ -238,6 +247,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     }
 
     async function askChatGpt(userText) {
+        showExampleQuestions.value = false;
         createSpeechBubbleUser(userText);
         try {
             const result = await sendRequest("POST", `${config.BackendAddress}/${backend.value}/query`, {user_query: userText, debug: true, api_key: apiKey});
@@ -318,6 +328,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         document.getElementById("chat-container").innerHTML = '';
         abortSpeaking();
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
+        showExampleQuestions.value = true;
         await sendRequest("POST", `${config.BackendAddress}/${backend.value}/reset`, null);
         busy.value = false;
     }
@@ -495,6 +506,30 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     top: 0;
     right: 0;
     border-radius: 2px;
+}
+
+.sample-questions {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.sample-question {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin: 5px;
+  padding: 10px;
+  background-color: #333;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.sample-question:hover {
+    background: #222;
 }
 
 @media (max-width: 400px) {
