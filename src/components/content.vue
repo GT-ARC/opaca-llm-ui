@@ -123,7 +123,7 @@ import SimpleKeyboard from "./SimpleKeyboard.vue";
 
 document.getElementById('')
 
-let opacaRuntimePlatform = config.OpacaRuntimePlatform;
+    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
@@ -133,6 +133,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const sidebarOpen = inject('sidebarOpen');
     let recognition= null;
     let lastMessage = null;
+    let messageCount = 0;
     const speechSynthesis = window.speechSynthesis;
     const recording = ref(false);
     const busy = ref(false);
@@ -254,8 +255,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             if (result.data.error) {
                 addDebug(result.data.error)
             }
-            createSpeechBubbleAI(answer);
-            processDebugInput(result.data.agent_messages);
+            createSpeechBubbleAI(answer, messageCount);
+            processDebugInput(result.data.agent_messages, messageCount);
+            messageCount++;
             scrollDown(debug.value);
         } catch (error) {
             console.error(error);
@@ -333,7 +335,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         busy.value = false;
     }
 
-    function createSpeechBubbleAI(text, id, debug="") {
+    function createSpeechBubbleAI(text, id) {
         lastMessage = text;
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
@@ -343,20 +345,20 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
             <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                 ${marked.parse(text)}
-                <div id="${debugId}-toggle" @click="toggleDebug" class="debug-toggle" style="cursor: pointer; font-size: 10px;">
+                <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
                     >> debug
                 </div>
                 <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                <div id="${debugId}-text" v-if="debugExpanded" class="debug-text" style="display: none; margin-top: 5px;">
-                    ${debug}
-                </div>
+                <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
             </div>
         </div>`
-        if (!id) {
-            const waitBubble = document.getElementById('waitBubble');
-            if (waitBubble) waitBubble.remove();
-            busy.value = false;
+
+        const waitBubble = document.getElementById('waitBubble');
+        if (waitBubble) {
+            waitBubble.remove();
         }
+        busy.value = false;
+
         chat.appendChild(d1)
 
         const debugToggle = document.getElementById(`${debugId}-toggle`);
@@ -446,12 +448,29 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
     }
 
-    function processDebugInput(agent_messages) {
+    function processDebugInput(agent_messages, messageCount) {
+        if (agent_messages.length > 0) {
+            // if at least one debug message was found, let the "debug" button appear on the speech bubble
+            const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
+            debugToggle.style.display = 'block';
+        }
+
         // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
         for (const message of agent_messages) {
             const color = getDebugColor(message["agent"], darkScheme.value);
             // if tools have been generated, display the tools (no message was generated in that case)
-            addDebug(message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"]), color)
+            const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
+            addDebug(content, color)
+
+            // Add the formatted debug text to the associated speech bubble
+            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
+            if (messageBubble) {
+                let d1 = document.createElement("div")
+                d1.className = "bubble-debug-text"
+                d1.textContent = content
+                d1.style.color = color
+                messageBubble.append(d1)
+            }
         }
     }
 
@@ -585,13 +604,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     justify-content: flex-end;
 }
 
-.debug-text {
+.bubble-debug-text {
     font-size: 12px;
     color: #333;
-    background-color: #f8f9fa;
+    background-color: #222222;
     padding: 5px;
     border-radius: 5px;
-    border: 1px solid #ddd;
     margin-top: 5px;
     display: flex;
     justify-content: flex-start;
