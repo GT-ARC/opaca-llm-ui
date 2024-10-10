@@ -478,7 +478,7 @@ document.getElementById('')
     }
 
     function updateDebugColors() {
-        const debugElements = document.querySelectorAll('.debug-text .bubble-debug-text');
+        const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
         debugElements.forEach((element) => {
             const text = element.innerText || element.textContent;
             element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
