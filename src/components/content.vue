@@ -333,15 +333,23 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         busy.value = false;
     }
 
-    function createSpeechBubbleAI(text, id) {
+    function createSpeechBubbleAI(text, id, debug="") {
         lastMessage = text;
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
+        let debugId = `debug-${id}`;
         d1.innerHTML += `
         <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
             <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
             <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                 ${marked.parse(text)}
+                <div id="${debugId}-toggle" @click="toggleDebug" class="debug-toggle" style="cursor: pointer; font-size: 10px;">
+                    >> debug
+                </div>
+                <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                <div id="${debugId}-text" v-if="debugExpanded" class="debug-text" style="display: none; margin-top: 5px;">
+                    ${debug}
+                </div>
             </div>
         </div>`
         if (!id) {
@@ -350,6 +358,26 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             busy.value = false;
         }
         chat.appendChild(d1)
+
+        const debugToggle = document.getElementById(`${debugId}-toggle`);
+        const debugSeparator = document.getElementById(`${debugId}-separator`);
+        const debugText = document.getElementById(`${debugId}-text`);
+
+        let debugExpanded = false;
+
+        debugToggle.addEventListener('click', () => {
+            debugExpanded = !debugExpanded;
+            if (debugExpanded) {
+                debugSeparator.style.display = 'block';
+                debugText.style.display = 'block';
+                debugToggle.textContent = '<< debug';
+            }
+            else {
+                debugSeparator.style.display = 'none';
+                debugText.style.display = 'none';
+                debugToggle.textContent = '>> debug';
+            }
+        })
     }
 
     function createSpeechBubbleUser(text) {
@@ -466,7 +494,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 <style>
 .chatbubble {
     border-radius: 10px;
-    text-align: left
+    text-align: left;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-end;
+    position: relative;
 }
 
 .chat-user {
@@ -536,6 +568,33 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
 .sample-question:hover {
     background: #222;
+}
+
+.debug-separator {
+    border: 0;
+    border-top: 1px solid #ddd;
+    margin: 5px 0;
+}
+
+.debug-toggle {
+    cursor: pointer;
+    color: #eee;
+    font-size: 10px;
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.debug-text {
+    font-size: 12px;
+    color: #333;
+    background-color: #f8f9fa;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    margin-top: 5px;
+    display: flex;
+    justify-content: flex-start;
 }
 
 @media (max-width: 400px) {
