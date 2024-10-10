@@ -256,7 +256,7 @@ class ActionSelector(Chain):
                         execution_time=time_,
                         ))
 
-        # If
+        # Return if the input prompt is missing required parameter values
         if self._check_missing(action_plan):
             return {"result": responses}
 
