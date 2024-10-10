@@ -2,18 +2,25 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "rest-gpt-llama3",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-gpt-4o-mini",
     Backends: {
-        "simple-openai": "Simple Prompt with GPT",
-        "simple-llama": "Simple Prompt with LLAMA",
-        "rest-gpt-llama3": "RestGPT with LLAMA",
-        "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
-        "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
-        "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
-        "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
+        "opaca": {
+            name: "OPACA LLM",
+            subBackends: {
+                "simple-openai": "Simple Prompt with GPT",
+                "simple-llama": "Simple Prompt with LLAMA",
+                "rest-gpt-llama3": "RestGPT with LLAMA",
+                "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
+                "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
+                "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
+                "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
+            }
+        },
+        "itdz-knowledge": "Knowledge Assistant",
+        "itdz-data": "Data Analysis",
     },
 
-    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
+    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://10.42.6.107:8000',
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
@@ -29,7 +36,11 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
-            defaultQuestion: 'How can you assist me?',
+            sampleQuestions: [
+                {"question": "How can you assist me?", "icon": "❓"}, 
+                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
+                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"}
+            ],
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
             resetChat: 'Reset',    
@@ -45,7 +56,11 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
-            defaultQuestion: 'Womit kannst du mir helfen?',
+            sampleQuestions: [
+                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
+                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
+                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"}
+            ],
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',
             resetChat: 'Zurücksetzen',
