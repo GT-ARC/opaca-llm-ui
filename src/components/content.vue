@@ -346,7 +346,8 @@ document.getElementById('')
             <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                 ${marked.parse(text)}
                 <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                    >> debug
+                    <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                    debug
                 </div>
                 <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
                 <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
@@ -372,12 +373,14 @@ document.getElementById('')
             if (debugExpanded) {
                 debugSeparator.style.display = 'block';
                 debugText.style.display = 'block';
-                debugToggle.textContent = '<< debug';
+                const icon = debugToggle.querySelector('img');
+                icon.style.transform = 'rotate(180deg)'
             }
             else {
                 debugSeparator.style.display = 'none';
                 debugText.style.display = 'none';
-                debugToggle.textContent = '>> debug';
+                const icon = debugToggle.querySelector('img');
+                icon.style.transform = 'none'
             }
         })
     }
@@ -475,7 +478,7 @@ document.getElementById('')
     }
 
     function updateDebugColors() {
-        const debugElements = document.querySelectorAll('.debug-text');
+        const debugElements = document.querySelectorAll('.debug-text .bubble-debug-text');
         debugElements.forEach((element) => {
             const text = element.innerText || element.textContent;
             element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
@@ -591,13 +594,11 @@ document.getElementById('')
 
 .debug-separator {
     border: 0;
-    border-top: 1px solid #ddd;
     margin: 5px 0;
 }
 
 .debug-toggle {
     cursor: pointer;
-    color: #eee;
     font-size: 10px;
     margin-top: auto;
     display: flex;
@@ -607,7 +608,6 @@ document.getElementById('')
 .bubble-debug-text {
     font-size: 12px;
     color: #333;
-    background-color: #222222;
     padding: 5px;
     border-radius: 5px;
     margin-top: 5px;
@@ -646,6 +646,22 @@ document.getElementById('')
     .resizer {
         background-color: #181818;
     }
+
+    .debug-toggle {
+        color: #eee;
+    }
+
+    .bubble-debug-text {
+        background-color: #222222;
+    }
+
+    .debug-separator {
+        border-top: 1px solid #ddd;
+    }
+
+    .double-down-icon {
+        filter: invert(1);
+    }
 }
 
 @media (prefers-color-scheme: light) {
@@ -665,6 +681,18 @@ document.getElementById('')
 
     .sample-question:hover {
         background: #eee;
+    }
+
+    .debug-toggle {
+        color: #444;
+    }
+
+    .bubble-debug-text {
+        background-color: #c8e3ea;
+    }
+
+    .debug-separator {
+        border-top: 1px solid #808080;
     }
 }
 
