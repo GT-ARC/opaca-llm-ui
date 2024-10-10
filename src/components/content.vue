@@ -250,11 +250,12 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         createSpeechBubbleUser(userText);
         try {
             const result = await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/query`, {user_query: userText, debug: true, api_key: apiKey});
-            const answer = result.data.result;
-            const debugText = result.data.debug;
+            const answer = result.data.content;
+            if (result.data.error) {
+                addDebug(result.data.error)
+            }
             createSpeechBubbleAI(answer);
-            processDebugInput(debugText)
-                    .forEach((d) => addDebug(d.text, d.color));
+            processDebugInput(result.data.agent_messages);
             scrollDown(debug.value);
         } catch (error) {
             console.error(error);
@@ -396,40 +397,41 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         }
     }
 
-    function processDebugInput(input) {
+    function getDebugColor(agentName, darkScheme) {
         // color schemes for modes [dark, light]
         const keywordColors = {
             // RestGPT
-            "Query:": ["#fff", "#000"],
-            "Planner:": ["#f00", "#9c0000"],
-            "API Selector:": ["#ff0", "#bf6e00"],
-            "Caller:": ["#00f", "#0000b1"],
-            "Final Answer:": ["#0f0", "#007300"],
+            "Planner": ["#f00", "#9c0000"],
+            "Action Selector": ["#ff0", "#bf6e00"],
+            "Caller": ["#5151ff", "#0000b1"],
+            "Evaluator": ["#0f0", "#007300"],
             // Tools
-            "Tool": ["#f00", "#9c0000"],
-            "AI Answer:": ["#0f0", "#007300"],
+            "Tool Generator": ["#f00", "#9c0000"],
+            "Tool Evaluator": ["#ff0", "#bf6e00"],
             // Simple
-            "user:": ["#fff", "#000"],
-            "assistant:": ["#88f", "#434373"],
-            "system:": ["#ff8", "#71713d"],
+            "user": ["#fff", "#000"],
+            "assistant": ["#88f", "#434373"],
+            "system": ["#ff8", "#71713d"],
         }
-        const regex = new RegExp(`(${Object.keys(keywordColors).join('|')})`, 'g')
-        const parts = input.split(regex).filter(Boolean);
-        const result = [];
-        for (let i = 0; i < parts.length; i += 2) {
-            const keyword = parts[i]
-            const text = parts[i + 1] || ""
-            const color = (keywordColors[keyword] ?? ["#fff", "#000"])[darkScheme.value ? 0 : 1];
-            result.push({text: keyword + text, color: color})
+
+        // return either specific color for light/dark mode or default black/white
+        return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
+    }
+
+    function processDebugInput(agent_messages) {
+        // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
+        for (const message of agent_messages) {
+            const color = getDebugColor(message["agent"], darkScheme.value);
+            // if tools have been generated, display the tools (no message was generated in that case)
+            addDebug(message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"]), color)
         }
-        return result;
     }
 
     function updateDebugColors() {
         const debugElements = document.querySelectorAll('.debug-text');
         debugElements.forEach((element) => {
             const text = element.innerText || element.textContent;
-            element.style.color = processDebugInput(text)[0]["color"];
+            element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
         });
     }
 
