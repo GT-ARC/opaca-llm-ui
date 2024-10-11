@@ -123,7 +123,7 @@ import SimpleKeyboard from "./SimpleKeyboard.vue";
 
 document.getElementById('')
 
-let opacaRuntimePlatform = config.OpacaRuntimePlatform;
+    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
@@ -133,6 +133,7 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     const sidebarOpen = inject('sidebarOpen');
     let recognition= null;
     let lastMessage = null;
+    let messageCount = 0;
     const speechSynthesis = window.speechSynthesis;
     const recording = ref(false);
     const busy = ref(false);
@@ -254,8 +255,9 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
             if (result.data.error) {
                 addDebug(result.data.error)
             }
-            createSpeechBubbleAI(answer);
-            processDebugInput(result.data.agent_messages);
+            createSpeechBubbleAI(answer, messageCount);
+            processDebugInput(result.data.agent_messages, messageCount);
+            messageCount++;
             scrollDown(debug.value);
         } catch (error) {
             console.error(error);
@@ -337,19 +339,50 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         lastMessage = text;
         const chat = document.getElementById("chat-container")
         let d1 = document.createElement("div")
+        let debugId = `debug-${id}`;
         d1.innerHTML += `
         <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
             <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
             <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                 ${marked.parse(text)}
+                <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                    <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                    debug
+                </div>
+                <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
             </div>
         </div>`
-        if (!id) {
-            const waitBubble = document.getElementById('waitBubble');
-            if (waitBubble) waitBubble.remove();
-            busy.value = false;
+
+        const waitBubble = document.getElementById('waitBubble');
+        if (waitBubble) {
+            waitBubble.remove();
         }
+        busy.value = false;
+
         chat.appendChild(d1)
+
+        const debugToggle = document.getElementById(`${debugId}-toggle`);
+        const debugSeparator = document.getElementById(`${debugId}-separator`);
+        const debugText = document.getElementById(`${debugId}-text`);
+
+        let debugExpanded = false;
+
+        debugToggle.addEventListener('click', () => {
+            debugExpanded = !debugExpanded;
+            if (debugExpanded) {
+                debugSeparator.style.display = 'block';
+                debugText.style.display = 'block';
+                const icon = debugToggle.querySelector('img');
+                icon.style.transform = 'rotate(180deg)'
+            }
+            else {
+                debugSeparator.style.display = 'none';
+                debugText.style.display = 'none';
+                const icon = debugToggle.querySelector('img');
+                icon.style.transform = 'none'
+            }
+        })
     }
 
     function createSpeechBubbleUser(text) {
@@ -418,17 +451,34 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
         return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
     }
 
-    function processDebugInput(agent_messages) {
+    function processDebugInput(agent_messages, messageCount) {
+        if (agent_messages.length > 0) {
+            // if at least one debug message was found, let the "debug" button appear on the speech bubble
+            const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
+            debugToggle.style.display = 'block';
+        }
+
         // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
         for (const message of agent_messages) {
             const color = getDebugColor(message["agent"], darkScheme.value);
             // if tools have been generated, display the tools (no message was generated in that case)
-            addDebug(message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"]), color)
+            const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
+            addDebug(content, color)
+
+            // Add the formatted debug text to the associated speech bubble
+            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
+            if (messageBubble) {
+                let d1 = document.createElement("div")
+                d1.className = "bubble-debug-text"
+                d1.textContent = content
+                d1.style.color = color
+                messageBubble.append(d1)
+            }
         }
     }
 
     function updateDebugColors() {
-        const debugElements = document.querySelectorAll('.debug-text');
+        const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
         debugElements.forEach((element) => {
             const text = element.innerText || element.textContent;
             element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
@@ -466,7 +516,11 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 <style>
 .chatbubble {
     border-radius: 10px;
-    text-align: left
+    text-align: left;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-end;
+    position: relative;
 }
 
 .chat-user {
@@ -538,6 +592,29 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     background: #222;
 }
 
+.debug-separator {
+    border: 0;
+    margin: 5px 0;
+}
+
+.debug-toggle {
+    cursor: pointer;
+    font-size: 10px;
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.bubble-debug-text {
+    font-size: 12px;
+    color: #333;
+    padding: 5px;
+    border-radius: 5px;
+    margin-top: 5px;
+    display: flex;
+    justify-content: flex-start;
+}
+
 @media (max-width: 400px) {
     .opaca-credentials {
         flex-direction: column;
@@ -569,6 +646,22 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
     .resizer {
         background-color: #181818;
     }
+
+    .debug-toggle {
+        color: #eee;
+    }
+
+    .bubble-debug-text {
+        background-color: #222222;
+    }
+
+    .debug-separator {
+        border-top: 1px solid #ddd;
+    }
+
+    .double-down-icon {
+        filter: invert(1);
+    }
 }
 
 @media (prefers-color-scheme: light) {
@@ -588,6 +681,18 @@ let opacaRuntimePlatform = config.OpacaRuntimePlatform;
 
     .sample-question:hover {
         background: #eee;
+    }
+
+    .debug-toggle {
+        color: #444;
+    }
+
+    .bubble-debug-text {
+        background-color: #c8e3ea;
+    }
+
+    .debug-separator {
+        border-top: 1px solid #808080;
     }
 }
 
