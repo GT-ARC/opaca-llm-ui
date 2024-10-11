@@ -1,4 +1,5 @@
-from typing import Dict, Optional, List
+import time
+from typing import Dict, Optional, List, Any
 
 import logging
 import os
@@ -9,6 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
+from ..models import Response
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
 from .rest_gpt import RestGPT
@@ -58,35 +60,49 @@ class RestGptBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Dict[str, Any]:
+
+        # Create response object
+        response = Response()
+        response.query = message
 
         # Model initialization here since openai requires api key in constructor
         try:
             self.init_model(api_key)
         except ValueError as e:
-            return {"result": "You are trying to use a model which uses an api key but provided none. Please "
-                              "enter a valid api key and try again.", "debug": str(e)}
+            response.content = ("You are trying to use a model which uses an api key but provided none. Please "
+                                "enter a valid api key and try again.")
+            response.error = str(e)
+            return response
 
         try:
             action_spec = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
         except Exception as e:
-            print(str(e))
-            return {"result": "I am sorry, but there occurred an error during the action retrieval. "
-                              "Please make sure the opaca platform is running and connected.", "debug": str(e)}
+            response.content = ("I am sorry, but there occurred an error during the action retrieval. "
+                                "Please make sure the opaca platform is running and connected.")
+            response.error = str(e)
+            return response
 
         rest_gpt = RestGPT(self.llm, action_spec=action_spec)
 
         try:
-            result = rest_gpt.invoke({"query": message, "history": self.messages, "config": self.config})
+            total_time = time.time()
+            result = rest_gpt.invoke({
+                "query": message,
+                "history": self.messages,
+                "config": self.config,
+                "response": response,
+            })["result"]
+            response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
-            return {"result": "I am sorry, but your provided api key seems to be invalid. Please provide a valid "
-                              "api key and try again.", "debug": str(e)}
+            response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
+                                "api key and try again.")
+            response.error = str(e)
+            return response
         self.messages.append(HumanMessage(message))
-        self.messages.append(AIMessage(result["result"]))
+        self.messages.append(AIMessage(result.content))
 
-        # "result" contains the answer intended for a normal user
-        # while "debug" contains all messages from the llm chain
-        return {"result": result["result"], "debug": result["debug"] if debug else ""}
+        return response
 
     async def history(self) -> list:
         return self.messages

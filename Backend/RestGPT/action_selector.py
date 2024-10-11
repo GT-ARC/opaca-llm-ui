@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any, Dict, List, Tuple
 import re
 import logging
@@ -8,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
 from .utils import build_prompt, fix_parentheses
+from ..models import AgentMessage
 
 logger = logging.getLogger()
 
@@ -163,9 +165,9 @@ class ActionSelector(Chain):
         action, parameters = action_plan.split(';')
 
         if use_agent_names:
-            if len(action.split('_')) != 2:
+            if len(action.split('--')) != 2:
                 return "You need to include the agent name in your action name."
-            _, action = action.split('_')
+            _, action = action.split('--')
 
         # Check if the parameters are in a valid json format
         try:
@@ -216,11 +218,14 @@ class ActionSelector(Chain):
             scratchpad += self.observation_prefix + fix_parentheses(api_response) + "\n"
         return scratchpad
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        responses = []
         scratchpad = self._construct_scratchpad(inputs["history"])
         action_list = ""
         for action in inputs["actions"]:
             action_list += action.selector_str(inputs['config']['use_agent_names']) + '\n'
+
+        # Initial Action/Parameter generation
 
         prompt = build_prompt(
             system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
@@ -232,31 +237,55 @@ class ActionSelector(Chain):
 
         chain = prompt | self.llm.bind(stop=self._stop)
 
+        time_ = time.time()
         output = chain.invoke({"input": inputs["plan"]})
+        time_ = time.time() - time_
 
+        res_meta_data = {}
         if isinstance(output, AIMessage):
+            res_meta_data = output.response_metadata.get("token_usage", {})
             output = output.content
 
         action_plan = re.sub(r"API Call:", "", output).strip()
 
+        # Add first agent message to responses
+        responses.append(AgentMessage(
+                        agent="Action Selector",
+                        content=action_plan,
+                        response_metadata=res_meta_data,
+                        execution_time=time_,
+                        ))
+
+        # Return if the input prompt is missing required parameter values
         if self._check_missing(action_plan):
-            return {"result": action_plan}
+            return {"result": responses}
 
         correction_limit = 1
         while (err_msg := self._check_valid_action(
                 action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
+            time_ = time.time()
             output = chain.invoke({"input": inputs["plan"] + err_msg})
+            time_ = time.time() - time_
 
             if isinstance(output, AIMessage):
+                res_meta_data = output.response_metadata.get("token_usage", {})
                 output = output.content
 
+            responses.append(AgentMessage(
+                agent="Action Selector",
+                content=output,
+                response_metadata=res_meta_data,
+                execution_time=time_,
+            ))
+
             if self._check_missing(output):
-                return {"result": action_plan}
+                return {"result": responses}
             else:
                 action_plan = re.sub(r"API Call+:", "", output).split('\n')[0].strip()
+                responses[-1].content = action_plan
 
             correction_limit += 1
 
-        return {"result": action_plan}
+        return {"result": responses}

@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage
 
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import build_prompt
+from ..models import AgentMessage
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +65,17 @@ class Caller(Chain):
     def output_keys(self) -> List[str]:
         return ["result"]
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         api_plan = inputs['api_plan']
         try:
             action_name, params = api_plan.split(';')
             if inputs['config']['use_agent_names']:
                 agent_name, action_name = action_name.split('--', maxsplit=1)
         except ValueError:
-            return {'result': 'ERROR: Received malformed instruction by the action selector'}
+            return {'result': AgentMessage(
+                agent="Caller",
+                content='ERROR: Received malformed instruction by the action selector'
+            )}
 
         try:
             if inputs['config']['use_agent_names']:
@@ -83,7 +87,10 @@ class Caller(Chain):
                             f'with parameters: {params}')
                 response = opaca_proxy.invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
-            return {'result': f'ERROR: Unable to call the connected opaca platform\nCause: {e}'}
+            return {'result': AgentMessage(
+                agent="Caller",
+                content=f'ERROR: Unable to call the connected opaca platform\nCause: {e}'
+                )}
 
         logger.info(f'Caller: Received response: {response}')
 
@@ -106,7 +113,13 @@ class Caller(Chain):
         output = chain.invoke({"api_call": action_name, "description": description,
                                "params": params, "response": response})
 
+        res_meta_data = {}
         if isinstance(output, AIMessage):
+            res_meta_data = output.response_metadata.get("token_usage", {})
             output = output.content
 
-        return {'result': output}
+        return {'result': AgentMessage(
+                agent="Caller",
+                content=output,
+                response_metadata=res_meta_data,
+                )}

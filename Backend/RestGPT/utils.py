@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptT
     HumanMessagePromptTemplate, AIMessagePromptTemplate
 from langchain_core.runnables import RunnableConfig
 
+
 LLAMA_URL = "http://10.0.64.101"
 
 
