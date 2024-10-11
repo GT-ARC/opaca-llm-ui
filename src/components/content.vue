@@ -85,7 +85,7 @@
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
-                        <div class="accordion text-start p-2" id="agents-accordion">
+                        <div class="accordion text-start" id="agents-accordion">
                             <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
 
                                 <!-- header -->
@@ -102,7 +102,7 @@
                                 <!-- body -->
                                 <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
                                      :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
-                                    <div class="accordion-body">
+                                    <div class="accordion-body p-0 ps-4">
                                         <ul class="list-group list-group-flush">
                                             <li v-for="(action, index) in actions" :key="index" class="list-group-item">
                                                 {{ action }}
