@@ -25,7 +25,6 @@ class RestGPT(Chain):
     evaluator: Evaluator
     max_iterations: Optional[int] = 5
     max_execution_time: Optional[float] = None
-    debug_output: str = ""
 
     def __init__(
             self,
@@ -62,7 +61,7 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["query", "history", "config"]
+        return ["query", "history", "config", "response"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -71,7 +70,7 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["result", "debug"]
+        return ["result"]
 
     def _should_continue(self, iterations: int, time_elapsed: float) -> bool:
         if self.max_iterations is not None and iterations >= self.max_iterations:
@@ -123,21 +122,25 @@ class RestGPT(Chain):
         iterations = 0
         time_elapsed = 0.0
         start_time = time.time()
+        response = inputs['response']
 
-        self.debug_output += f'Query: {query}\n'
         logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
-            plan = self.planner.invoke({"input": query,
-                                        "actions": self.action_spec,
-                                        "planner_history": planner_history,
-                                        "message_history": inputs['history'],
-                                        "config": config,
-                                        })
-            plan = plan["result"]
-            self.debug_output += f'Planner: {plan}\n'
+            planner_time = time.time()
+            planner_response = self.planner.invoke({"input": query,
+                                                    "actions": self.action_spec,
+                                                    "planner_history": planner_history,
+                                                    "message_history": inputs['history'],
+                                                    "config": config,
+                                                    "response": response,
+                                                    })["result"]
+            planner_response.execution_time = time.time() - planner_time
+            response.agent_messages.append(planner_response)
+
+            plan = planner_response.content
             logger.info(f"Planner: {plan}")
             eval_input += f'Plan step {iterations + 1}: {plan}\n'
 
@@ -146,13 +149,14 @@ class RestGPT(Chain):
                 break
 
             # ACTION SELECTOR
-            api_plan = self.action_selector.invoke({"plan": plan,
-                                                    "actions": self.action_spec,
-                                                    "history": action_selector_history,
-                                                    "config": config,
-                                                    })
-            api_plan = api_plan["result"]
-            self.debug_output += f'API Selector: {api_plan}\n'
+            # exec time is measure within action selector
+            as_response = self.action_selector.invoke({"plan": plan,
+                                                       "actions": self.action_spec,
+                                                       "history": action_selector_history,
+                                                       "config": config,
+                                                       })["result"]
+            api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
+            response.agent_messages.extend(as_response)  # Add all action selector messages
             logger.info(f'API Selector: {api_plan}')
 
             if self._is_missing(api_plan):
@@ -163,21 +167,26 @@ class RestGPT(Chain):
             eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
 
             # CALLER
-            execution_res = self.caller.invoke({"api_plan": api_plan,
-                                                "actions": self.action_spec,
-                                                "config": config,
-                                                })
-            execution_res = execution_res["result"]
-            self.debug_output += f'Caller: {execution_res}\n'
+            c_time = time.time()
+            caller_response = self.caller.invoke({"api_plan": api_plan,
+                                                  "actions": self.action_spec,
+                                                  "config": config,
+                                                  })["result"]
+            caller_response.execution_time = time.time() - c_time
+            execution_res = caller_response.content
+            response.agent_messages.append(caller_response)
             logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
             eval_input += f'API response {iterations + 1}: {execution_res}\n'
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
-            eval_output = self._finished(eval_input, inputs['history'], config)
-            if re.match(r"FINISHED", eval_output):
-                final_answer = re.sub(r"FINISHED", "", eval_output).strip()
+            e_time = time.time()
+            eval_response = self._finished(eval_input, inputs['history'], config)
+            eval_response.execution_time = time.time() - e_time
+            response.agent_messages.append(eval_response)
+            if re.match(r"FINISHED", eval_response.content):
+                final_answer = re.sub(r"FINISHED", "", eval_response.content).strip()
                 break
 
             iterations += 1
@@ -186,6 +195,8 @@ class RestGPT(Chain):
         if final_answer == "":
             final_answer = "I am sorry, but I was unable to fulfill your request."
 
-        self.debug_output += f'Final Answer: {final_answer}\n'
+        response.content = final_answer
+        response.iterations = iterations
+
         logger.info(f'Final Answer: {final_answer}')
-        return {"result": final_answer, "debug": self.debug_output}
+        return {"result": response}

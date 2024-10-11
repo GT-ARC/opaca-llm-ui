@@ -1,5 +1,6 @@
 import re
-from typing import Dict, List
+import time
+from typing import Dict, List, Any
 
 import logging
 import os
@@ -10,6 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
+from ..models import Response, AgentMessage
 from ..RestGPT import build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import openapi_to_functions
@@ -44,7 +46,6 @@ class ToolLLMBackend:
     messages: List = []
     llm_type: str
     llm: BaseChatModel | ChatOpenAI
-    debug_output: str = ""
     should_continue: bool = True
     max_iter: int = 5
 
@@ -56,10 +57,9 @@ class ToolLLMBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
 
         # Initialize parameters
-        self.debug_output = f'Query: {message}\n'
         tool_names = []
         tool_params = []
         tool_results = []
@@ -68,25 +68,35 @@ class ToolLLMBackend:
         c_it = 0
         self.should_continue = True
 
+        # Initialize the response object
+        response = Response()
+        response.query = message
+
         # Model initialization here since openai requires api key in constructor
         try:
             self.init_model(api_key)
         except ValueError as e:
-            return {"result": "You are trying to use a model which uses an api key but provided none. Please "
-                              "enter a valid api key and try again.", "debug": str(e)}
+            response.error = str(e)
+            response.content = ("You are trying to use a model which uses an api key but provided none. Please "
+                                "enter a valid api key and try again.")
+            return response
 
         try:
             # Convert openapi schema to openai function schema
             tools, error = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
             if len(tools) > 128:
-                self.debug_output += (f"WARNING: Your number of tools ({len(tools)}) exceed the maximum tool limit of "
-                                      f"128. All tools after index 128 will be ignored!")
+                response.error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit of "
+                                   f"128. All tools after index 128 will be ignored!\n")
             if error:
-                self.debug_output += error
+                response.error += error
         except Exception as e:
-            return {"result": "It appears no actions were returned by the Opaca Platform. Make sure you are "
-                              "connected to the Opaca Runtime Platform and the platform contains at least one "
-                              "action.", "debug": str(e)}
+            response.error += str(e)
+            response.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
+                                "connected to the Opaca Runtime Platform and the platform contains at least one "
+                                "action.")
+            return response
+
+        total_exec_time = time.time()
 
         # Run until request is finished or maximum number of iterations is reached
         while self.should_continue and c_it < self.max_iter:
@@ -107,11 +117,22 @@ class ToolLLMBackend:
                 message_template="Human: {input}{scratchpad}"
             )
             chain = prompt | self.llm.bind_tools(tools=tools[:128])
+
+            tool_generator_time = time.time()
             result = chain.invoke({
                 'input': message,
-                'scratchpad': self.build_scratchpad(tool_responses),    # scratchpad contains ai responses
+                'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
                 'history': self.messages
             })
+
+            tool_generator_time = time.time() - tool_generator_time
+            res_meta_data = result.response_metadata.get("token_usage", {})
+            response.agent_messages.append(AgentMessage(
+                agent="Tool Generator",
+                content=result.content,
+                response_metadata=res_meta_data,
+                execution_time=tool_generator_time,
+            ))
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for call in result.tool_calls:
@@ -131,10 +152,10 @@ class ToolLLMBackend:
                         ))
                 except Exception as e:
                     tool_results.append(str(e))
-                self.debug_output += (f'Tool {len(tool_names)}: '
-                                      f'{call["name"]}, '
-                                      f'{call["args"]["requestBody"] if "requestBody" in call["args"] else {}}, '
-                                      f'{tool_results[-1]}\n')
+                response.agent_messages[-1].tools.append(f'Tool {len(tool_names)}: '
+                                                         f'{call["name"]}, '
+                                                         f'{call["args"]["requestBody"] if "requestBody" in call["args"] else {} }, '
+                                                         f'{tool_results[-1]}\n')
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
@@ -150,12 +171,23 @@ class ToolLLMBackend:
                     input_variables=['query', 'tool_names', 'parameters', 'results'],
                 )
                 response_chain = prompt_template | self.llm.bind_tools(tools=tools[:128])
+
+                tool_evaluator_time = time.time()
                 result = response_chain.invoke({
-                    'query': message,               # Original user query
-                    'tool_names': tool_names,       # ALL the tools used so far
-                    'parameters': tool_params,      # ALL the parameters used for the tools
-                    'results': tool_results         # ALL the results from the opaca action calls
+                    'query': message,  # Original user query
+                    'tool_names': tool_names,  # ALL the tools used so far
+                    'parameters': tool_params,  # ALL the parameters used for the tools
+                    'results': tool_results  # ALL the results from the opaca action calls
                 })
+
+                tool_evaluator_time = time.time() - tool_generator_time
+                res_meta_data = result.response_metadata.get("token_usage", {})
+                response.agent_messages.append(AgentMessage(
+                    agent="Tool Evaluator",
+                    content=result.content,
+                    response_metadata=res_meta_data,
+                    execution_time=tool_evaluator_time,
+                ))
 
                 # Check if llm agent thinks user query has not been fulfilled yet
                 self.should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
@@ -168,16 +200,16 @@ class ToolLLMBackend:
             else:
                 self.should_continue = False
 
-            self.debug_output += f'AI Answer: {result.content}\n'
             c_it += 1
 
         # Add query and final response to global message history
         self.messages.append(HumanMessage(message))
         self.messages.append(AIMessage(result.content))
 
-        # "result" contains the answer intended for a normal user
-        # "debug" contains all internal messages
-        return {"result": result.content, "debug": self.debug_output if debug else ""}
+        response.execution_time = time.time() - total_exec_time
+        response.iterations = c_it
+        response.content = result.content
+        return response
 
     async def history(self) -> list:
         return self.messages
