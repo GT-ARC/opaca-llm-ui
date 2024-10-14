@@ -1,65 +1,127 @@
 <template>
-    <div class="d-flex justify-content-start my-4 w-100">
+    <div class="d-flex justify-content-start flex-grow-1 w-100">
+
+        <!-- Sidebar Menu -->
+        <div id="sidebar-menu"
+             class="d-flex flex-column justify-content-start align-items-center p-2 pt-3 gap-2"
+             style="height: calc(100vh - 50px)">
+
+            <i @click="toggleSidebar('connect')"
+               class="fa fa-link p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Config"
+               v-bind:class="{'sidebar-item-select': isSidebarOpen('connect')}" />
+
+            <i @click="toggleSidebar('agents')"
+               class="fa fa-users p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Agents"
+               v-bind:class="{'sidebar-item-select': isSidebarOpen('agents')}"/>
+
+            <i @click="toggleSidebar('debug')"
+               class="fa fa-terminal p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Debug"
+               v-bind:class="{'sidebar-item-select': isSidebarOpen('debug')}"/>
+        </div>
 
         <!-- Left Container: Configuration, Debug-Output -->
-        <div v-show="isSidebarOpen()">
+        <div v-show="isSidebarOpen()" class="mt-4">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-4"
-               style="height: calc(100vh - 85px); width: calc(100vw / 4)">
+               class="container-fluid d-flex flex-column px-3"
+               style="height: calc(100vh - 85px); width: 400px">
 
-            <div id="sidebarConfig" class="container d-flex flex-column">
-                <div class="p-2 text-start">
-                    <input id="opacaUrlInput" type="text"
-                           class="form-control m-0"
-                           v-model="opacaRuntimePlatform"
-                           :placeholder="config.translations[language].opacaLocation" />
-                </div>
+                <!-- connection/backend settings -->
+                <div v-show="isSidebarOpen('connect')">
+                    <div id="sidebarConfig"
+                     class="container d-flex flex-column">
 
-                <div class="p-2 text-start">
-                    <div class="row opaca-credentials">
-                        <div class="col-md-6">
-                            <input id="opacaUser" type="text"
-                                   class="form-control m-0"
-                                   v-model="opacaUser"
-                                   placeholder="Username" />
+                    <div class="py-2 text-start">
+                        <input id="opacaUrlInput" type="text"
+                               class="form-control m-0"
+                               v-model="opacaRuntimePlatform"
+                               :placeholder="config.translations[language].opacaLocation" />
+                    </div>
+
+                    <div class="py-2 text-start">
+                        <div class="row opaca-credentials">
+                            <div class="col-md-6">
+                                <input id="opacaUser" type="text"
+                                       class="form-control m-0"
+                                       v-model="opacaUser"
+                                       placeholder="Username" />
+                            </div>
+                            <div class="col-md-6">
+                                <input id="opacaPwd" type="password"
+                                       class="form-control m-0"
+                                       v-model="opacaPwd"
+                                       placeholder="Password" />
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <input id="opacaPwd" type="password"
-                                   class="form-control m-0"
-                                   v-model="opacaPwd"
-                                   placeholder="Password" />
-                        </div>
+
+                    </div>
+
+                    <div class="py-2 text-start" v-if="config.ShowApiKey">
+                        <input id="apiKey" type="password"
+                               class="form-control m-0"
+                               v-model="apiKey"
+                               placeholder="OpenAI API Key" />
+                    </div>
+
+                    <div class="text-center py-2">
+                        <button class="btn btn-primary w-100" @click="initiatePrompt">
+                            <i class="fa fa-link me-1"/>Connect
+                        </button>
                     </div>
 
                 </div>
-
-                <div class="p-2 text-start" v-if="config.ShowApiKey">
-                    <input id="apiKey" type="password"
-                           class="form-control m-0"
-                           v-model="apiKey"
-                           placeholder="OpenAI API Key" />
                 </div>
 
-                <div class="text-center p-2">
-                    <button class="btn btn-primary w-100" @click="initiatePrompt"><i class="fa fa-link me-1"/>Connect</button>
+                <!-- debug console -->
+                <div v-show="isSidebarOpen('debug')" id="chatDebug"
+                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                    <div id="debug-console" class="flex-row-reverse text-start"/>
                 </div>
 
-                <div class="form-check p-2 text-start">
-                    <input class="form-check-input ms-0 me-1" type="checkbox" value="" id="showDebugOutput" v-model="debug">
-                    <label class="form-check-label" for="showDebugOutput">Show Debug Output</label>
+                <!-- agents/actions overiew -->
+                <div v-show="isSidebarOpen('agents')"
+                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
+                    <div v-else class="flex-row" >
+                        <div class="accordion text-start" id="agents-accordion">
+                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
+
+                                <!-- header -->
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
+                                    <button class="accordion-button" :class="{collapsed: index > 0}"
+                                            type="button" data-bs-toggle="collapse"
+                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + index">
+                                        <i class="fa fa-user me-1"/>
+                                        <strong>{{ agent }}</strong>
+                                    </button>
+                                </h2>
+
+                                <!-- body -->
+                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
+                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
+                                    <div class="accordion-body p-0 ps-4">
+                                        <ul class="list-group list-group-flush">
+                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
+                                                {{ action }}
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div v-show="debug" id="chatDebug"
-                 class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                <div id="debug-console" class="flex-row-reverse text-start"/>
-            </div>
-
-            <div class="resizer me-1" id="resizer" />
-        </aside>
+                <div class="resizer me-1" id="resizer" />
+            </aside>
         </div>
+
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent" class="d-flex flex-column flex-grow-1 pe-4"
+        <main id="mainContent" class="d-flex flex-column flex-grow-1 mt-4 pe-4"
               style="height:calc(100vh - 85px); max-width: calc(100vw * 3 / 4);">
 
             <!-- Chat Window -->
@@ -127,10 +189,11 @@ document.getElementById('')
     let opacaUser = "";
     let opacaPwd = "";
     let apiKey = "";
+    let platformActions = null;
 
     const backend = inject('backend');
     const language = inject('language');
-    const sidebarOpen = inject('sidebarOpen');
+    const sidebar = inject('sidebar');
     let recognition= null;
     let lastMessage = null;
     let messageCount = 0;
@@ -148,11 +211,16 @@ document.getElementById('')
 
     onMounted(() => {
         console.log("mounted")
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
         updateTheme()
+        setupResizableSidebar();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
         initiatePrompt();
-        setupResizableSidebar();
     });
 
     function setupResizableSidebar() {
@@ -221,17 +289,20 @@ document.getElementById('')
             } else {
                 text += config.translations[language.value].none
             }
-            alert(text)
+            platformActions = actions;
+            toggleSidebar('agents');
         } else if (res.status === 403) {
-            alert(config.translations[language.value].unauthorized)
+            alert(config.translations[language.value].unauthorized);
+            platformActions = null;
         } else {
-            alert(config.translations[language.value].unreachable)
+            alert(config.translations[language.value].unreachable);
+            platformActions = null;
         }
     }
 
     async function sendRequest(method, url, body) {
         try {
-            const response = await axios.request({
+            return await axios.request({
                 method: method,
                 url: url,
                 data: body,
@@ -240,7 +311,6 @@ document.getElementById('')
                     'Access-Control-Allow-Origin': '*'
                 }
             });
-            return response;
         } catch (error) {
             throw error;
         }
@@ -502,8 +572,26 @@ document.getElementById('')
         }
     }
 
-    function isSidebarOpen() {
-        return sidebarOpen.value;
+    function isSidebarOpen(key) {
+        if (key !== undefined) {
+            return sidebar.value === key;
+        } else {
+            return sidebar.value !== 'none';
+        }
+    }
+
+    function toggleSidebar(key) {
+        const mainContent = document.getElementById('mainContent');
+        if (sidebar.value !== key) {
+            sidebar.value = key;
+            mainContent.classList.remove('mx-auto');
+        } else {
+            sidebar.value = 'none';
+            if (!mainContent.classList.contains('mx-auto')) {
+                mainContent.classList.add('mx-auto');
+            }
+        }
+        console.log('sidebar value: ', sidebar.value);
     }
 
     function getBackend() {
@@ -556,6 +644,25 @@ document.getElementById('')
     min-width: 200px;
     max-width: 600px;
     position: relative;
+}
+
+#sidebar-menu {
+    background-color: #fff;
+}
+
+.sidebar-item {
+    font-size: 20px;
+    cursor: pointer;
+    width: 50px;
+    border-radius: 5px;
+}
+
+.sidebar-item:hover {
+    background-color: #ccc;
+}
+
+.sidebar-item-select {
+    background-color: #ddd;
 }
 
 .resizer {
@@ -643,8 +750,52 @@ document.getElementById('')
         opacity: 1;
     }
 
+    #sidebar-menu {
+        background-color: #333;
+    }
+
+    .sidebar-item:hover {
+        background-color: #222;
+    }
+
+    .sidebar-item-select {
+        background-color: #2a2a2a;
+    }
+
     .resizer {
         background-color: #181818;
+    }
+
+    .accordion, .accordion-item, .accordion-header, .accordion-body, .accordion-collapse {
+        background-color: #222;
+        color: #fff;
+    }
+
+    .accordion-item {
+        border-color: #454d55;
+    }
+
+    .accordion-button {
+        background-color: #343a40;
+        color: #fff;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background-color: #212529;
+        color: #fff;
+    }
+
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25); /* Light glow for focus */
+    }
+
+    .accordion-body .list-group .list-group-item {
+        background-color: #222;
+        color: #fff;
+    }
+
+    .accordion-button::after {
+        filter: invert(100%) !important ;
     }
 
     .debug-toggle {

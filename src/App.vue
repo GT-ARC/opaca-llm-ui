@@ -5,11 +5,11 @@
 
     const language = ref('GB')
     const backend = ref(conf.BackendDefault)
-    const sidebarOpen = ref(true);
+    const sidebar = ref('connect');
 
     provide('language', language)
     provide('backend', backend)
-    provide('sidebarOpen', sidebarOpen)
+    provide('sidebar', sidebar)
     provide('config', ref(conf))
 
     function setLanguage(lang){
@@ -61,29 +61,13 @@
         }
         return key === backend.value;
     }
-
-    function toggleSidebar() {
-        sidebarOpen.value = !sidebarOpen.value;
-
-        // adjust spacing
-        const mainContent = document.getElementById('mainContent');
-        if (sidebarOpen.value) {
-            mainContent.classList.remove('mx-auto')
-            mainContent.classList.add('pe-4')
-        } else {
-            mainContent.classList.remove('pe-4');
-            mainContent.classList.add('mx-auto');
-        }
-    }
-
-
 </script>
 
 <template>
     <header>
         <div class="col">
             <nav class="navbar navbar-expand-lg" type="light">
-                <div class="sidebar-toggle" @click="toggleSidebar()">
+                <div class="sidebar-toggle d-none"> <!-- toggleSidebar() here -->
                     <i class="fa fa-bars fs-3 my-auto p-3"/>
                 </div>
 
@@ -205,28 +189,22 @@ header {
         filter: invert(100%)
     }
 
-    .sidebar-toggle {
-        cursor: pointer;
+    #logo {
+        filter: invert(100%)
     }
 
-    @media (prefers-color-scheme: dark) {
-        #logo {
-            filter: invert(100%)
-        }
+    .navbar {
+        background-color: #333;
+        color: white;
+    }
 
-        .navbar {
-            background-color: #333;
-            color: white;
-        }
+    .navbar-nav .nav-link {
+        color: white;
+    }
 
-        .navbar-nav .nav-link {
-            color: white;
-        }
-
-        .dropdown-menu, .dropdown-item {
-            background-color: #212529 !important;
-            color: white;
-        }
+    .dropdown-menu, .dropdown-item {
+        background-color: #212529 !important;
+        color: white;
     }
 }
 </style>
