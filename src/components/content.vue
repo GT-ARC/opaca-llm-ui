@@ -66,7 +66,7 @@
                     </div>
 
                     <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initiatePrompt">
+                        <button class="btn btn-primary w-100" @click="initiatePrompt()" id="button-connect">
                             <i class="fa fa-link me-1"/>Connect
                         </button>
                     </div>
@@ -200,7 +200,7 @@ document.getElementById('')
     const speechSynthesis = window.speechSynthesis;
     const recording = ref(false);
     const busy = ref(false);
-    const debug = ref(false);
+    const debug = ref(true);
     const showExampleQuestions = ref(true);
     const autoSpeakNextMessage = ref(false);
     const languages = {
@@ -210,17 +210,13 @@ document.getElementById('')
     const darkScheme = ref(false);
 
     onMounted(() => {
-        console.log("mounted")
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl)
-        });
-
         updateTheme()
         setupResizableSidebar();
+        setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        initiatePrompt();
+        // initiatePrompt(); // <- dont auto-connect? seems to produce unwanted behaviour more often than not...
+        console.log("mounted");
     });
 
     function setupResizableSidebar() {
@@ -250,6 +246,13 @@ document.getElementById('')
         });
     }
 
+    function setupTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
     function updateTheme() {
         // Check if dark color scheme is preferred
         darkScheme.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -275,28 +278,32 @@ document.getElementById('')
     }
 
     async function initiatePrompt() {
-        const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
-        const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.status === 200) {
-            const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
-            const actions = res2.data;
-            let text = config.translations[language.value].connected;
-            if (Object.keys(actions).length > 0) {
-                for (const agent in actions) {
-                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
-                    text += `\n* ${agent}`
+        const connectButton = document.getElementById('button-connect');
+        connectButton.disabled = true;
+        const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd};
+        try {
+            const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
+            if (res.status === 200) {
+                const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
+                if (rpStatus === 200) {
+                    const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
+                    platformActions = res2.data;
+                    toggleSidebar('agents');
+                } else if (rpStatus === 403) {
+                    platformActions = null;
+                    alert(config.translations[language.value].unauthorized);
+                } else {
+                    platformActions = null;
+                    alert(config.translations[language.value].unreachable);
                 }
             } else {
-                text += config.translations[language.value].none
+                platformActions = null;
+                alert('Backend server is unreachable.'); // put in config?
             }
-            platformActions = actions;
-            toggleSidebar('agents');
-        } else if (res.status === 403) {
-            alert(config.translations[language.value].unauthorized);
-            platformActions = null;
-        } else {
-            alert(config.translations[language.value].unreachable);
-            platformActions = null;
+        } catch (e) {
+            console.error('Error while initiating prompt:', e);
+        } finally {
+            connectButton.disabled = false;
         }
     }
 
@@ -591,7 +598,6 @@ document.getElementById('')
                 mainContent.classList.add('mx-auto');
             }
         }
-        console.log('sidebar value: ', sidebar.value);
     }
 
     function getBackend() {
