@@ -16,6 +16,11 @@
                data-toggle="tooltip" data-placement="right" title="Agents"
                v-bind:class="{'sidebar-item-select': isSidebarOpen('agents')}"/>
 
+            <i @click="toggleSidebar('config')"
+               class="fa fa-cog p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Backend Config"
+               v-bind:class="{'sidebar-item-select': isSidebarOpen('config')}"/>
+
             <i @click="toggleSidebar('debug')"
                class="fa fa-terminal p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Debug"
@@ -28,7 +33,7 @@
                class="container-fluid d-flex flex-column px-3"
                style="height: calc(100vh - 85px); width: 400px">
 
-                <!-- connection/backend settings -->
+                <!-- connection settings -->
                 <div v-show="isSidebarOpen('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
@@ -74,12 +79,6 @@
                 </div>
                 </div>
 
-                <!-- debug console -->
-                <div v-show="isSidebarOpen('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="flex-row-reverse text-start"/>
-                </div>
-
                 <!-- agents/actions overiew -->
                 <div v-show="isSidebarOpen('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
@@ -114,6 +113,34 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- backend config -->
+                <div v-show="isSidebarOpen('config')"
+                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No config available.</div>
+                    <div v-else class="flex-row text-start" >
+                        <div v-for="(value, name) in backendConfig" :key="name">
+                            <div class="py-2">
+                                <div><strong>{{ name }}</strong></div>
+                                <input v-model="backendConfig[name]"
+                                       class="form-control w-100"
+                                       type="text" :placeholder="value"/>
+                            </div>
+                        </div>
+                        <div class="py-2 text-center">
+                            <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
+                                <i class="fa fa-save me-1"/>
+                                Save Config
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- debug console -->
+                <div v-show="isSidebarOpen('debug')" id="chatDebug"
+                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                    <div id="debug-console" class="flex-row-reverse text-start"/>
                 </div>
 
                 <div class="resizer me-1" id="resizer" />
@@ -190,6 +217,7 @@ document.getElementById('')
     let opacaPwd = "";
     let apiKey = "";
     let platformActions = null;
+    let backendConfig = null;
 
     const backend = inject('backend');
     const language = inject('language');
@@ -286,8 +314,13 @@ document.getElementById('')
             if (res.status === 200) {
                 const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
                 if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
-                    platformActions = res2.data;
+                    // add some error handling?
+                    const [_actions, _config] = await Promise.all([
+                            sendRequest("GET", `${config.BackendAddress}/actions`, null),
+                            sendRequest('GET', `${config.BackendAddress}/${getBackend()}/config`, null)
+                    ]);
+                    platformActions = _actions.data;
+                    backendConfig = _config.data;
                     toggleSidebar('agents');
                 } else if (rpStatus === 403) {
                     platformActions = null;
@@ -304,6 +337,16 @@ document.getElementById('')
             console.error('Error while initiating prompt:', e);
         } finally {
             connectButton.disabled = false;
+        }
+    }
+
+    async function saveBackendConfig() {
+        const res = await sendRequest('PUT', `${config.BackendAddress}/${getBackend()}/config`, backendConfig);
+        if (res.status === 200) {
+            console.log('Saved backend config.');
+        } else {
+            console.error('Error saving backend config.');
+            console.error(res);
         }
     }
 
