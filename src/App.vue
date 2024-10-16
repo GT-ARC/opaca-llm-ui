@@ -115,7 +115,7 @@ export default {
             const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
 
             if (isGroupSelection) {
-                if (!isBackendSelected(key)) {
+                if (!this.isBackendSelected(key)) {
                     // select first entry in group
                     const first = Array.from(Object.keys(value.subBackends))[0];
                     this.backend = key + '/' + first;
