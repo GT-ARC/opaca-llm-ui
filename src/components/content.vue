@@ -277,7 +277,7 @@ document.getElementById('')
     async function initiatePrompt() {
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.status === 200) {
+        if (res.data === 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
             let text = config.translations[language.value].connected;
@@ -291,7 +291,7 @@ document.getElementById('')
             }
             platformActions = actions;
             toggleSidebar('agents');
-        } else if (res.status === 403) {
+        } else if (res.data === 403) {
             alert(config.translations[language.value].unauthorized);
             platformActions = null;
         } else {
