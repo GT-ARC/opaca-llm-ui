@@ -1,151 +1,9 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100">
 
-        <!-- Sidebar Menu -->
-        <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 pt-3 gap-2"
-             style="height: calc(100vh - 50px)">
-
-            <i @click="toggleSidebar('connect')"
-               class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Config"
-               v-bind:class="{'sidebar-item-select': isSidebarOpen('connect')}" />
-
-            <i @click="toggleSidebar('agents')"
-               class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents"
-               v-bind:class="{'sidebar-item-select': isSidebarOpen('agents')}"/>
-
-            <i @click="toggleSidebar('config')"
-               class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Backend Config"
-               v-bind:class="{'sidebar-item-select': isSidebarOpen('config')}"/>
-
-            <i @click="toggleSidebar('debug')"
-               class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Debug"
-               v-bind:class="{'sidebar-item-select': isSidebarOpen('debug')}"/>
-        </div>
-
-        <!-- Left Container: Configuration, Debug-Output -->
-        <div v-show="isSidebarOpen()" class="mt-4">
-            <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: 400px">
-
-                <!-- connection settings -->
-                <div v-show="isSidebarOpen('connect')">
-                    <div id="sidebarConfig"
-                     class="container d-flex flex-column">
-
-                    <div class="py-2 text-start">
-                        <input id="opacaUrlInput" type="text"
-                               class="form-control m-0"
-                               v-model="opacaRuntimePlatform"
-                               :placeholder="config.translations[language].opacaLocation" />
-                    </div>
-
-                    <div class="py-2 text-start">
-                        <div class="row opaca-credentials">
-                            <div class="col-md-6">
-                                <input id="opacaUser" type="text"
-                                       class="form-control m-0"
-                                       v-model="opacaUser"
-                                       placeholder="Username" />
-                            </div>
-                            <div class="col-md-6">
-                                <input id="opacaPwd" type="password"
-                                       class="form-control m-0"
-                                       v-model="opacaPwd"
-                                       placeholder="Password" />
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="py-2 text-start" v-if="config.ShowApiKey">
-                        <input id="apiKey" type="password"
-                               class="form-control m-0"
-                               v-model="apiKey"
-                               placeholder="OpenAI API Key" />
-                    </div>
-
-                    <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initiatePrompt()" id="button-connect">
-                            <i class="fa fa-link me-1"/>Connect
-                        </button>
-                    </div>
-
-                </div>
-                </div>
-
-                <!-- agents/actions overiew -->
-                <div v-show="isSidebarOpen('agents')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
-                    <div v-else class="flex-row" >
-                        <div class="accordion text-start" id="agents-accordion">
-                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
-
-                                <!-- header -->
-                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
-                                    <button class="accordion-button" :class="{collapsed: index > 0}"
-                                            type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
-                                            :aria-controls="'accordion-body-' + index">
-                                        <i class="fa fa-user me-1"/>
-                                        <strong>{{ agent }}</strong>
-                                    </button>
-                                </h2>
-
-                                <!-- body -->
-                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
-                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
-                                    <div class="accordion-body p-0 ps-4">
-                                        <ul class="list-group list-group-flush">
-                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
-                                                {{ action }}
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- backend config -->
-                <div v-show="isSidebarOpen('config')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No config available.</div>
-                    <div v-else class="flex-row text-start" >
-                        <div v-for="(value, name) in backendConfig" :key="name">
-                            <div class="py-2">
-                                <div><strong>{{ name }}</strong></div>
-                                <input v-model="backendConfig[name]"
-                                       class="form-control w-100"
-                                       type="text" :placeholder="value"/>
-                            </div>
-                        </div>
-                        <div class="py-2 text-center">
-                            <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                                <i class="fa fa-save me-1"/>
-                                Save Config
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- debug console -->
-                <div v-show="isSidebarOpen('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="flex-row-reverse text-start"/>
-                </div>
-
-                <div class="resizer me-1" id="resizer" />
-            </aside>
-        </div>
+        <Sidebar :backend="backend" :language="language" ref="sidebar"
+                 @connect="initiatePrompt"
+                 @api-key-change="(newValue) => this.apiKey = newValue"/>
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="d-flex flex-column flex-grow-1 mt-4 pe-4"
@@ -155,7 +13,7 @@
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in config.translations[language].sampleQuestions"
+                    <div v-for="(question, index) in getConfig().translations[language].sampleQuestions"
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
@@ -197,456 +55,375 @@
             </div>
 
             <!-- Simple Keyboard -->
-            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
+            <SimpleKeyboard v-if="getConfig().ShowKeyboard"
+                            @change="this.onChangeSimpleKeyboard" />
         </main>
     </div>
 
 </template>
 
-<script setup>
-import axios from "axios"
+<script>
 import {marked} from "marked";
-import {inject, onMounted, ref} from "vue";
-import config from '../../config'
+import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
+import Sidebar from "./sidebar.vue";
+import {sendRequest} from "../utils.js";
 
-document.getElementById('')
-
-    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
-    let opacaUser = "";
-    let opacaPwd = "";
-    let apiKey = "";
-    let platformActions = null;
-    let backendConfig = null;
-
-    const backend = inject('backend');
-    const language = inject('language');
-    const sidebar = inject('sidebar');
-    let recognition= null;
-    let lastMessage = null;
-    let messageCount = 0;
-    const speechSynthesis = window.speechSynthesis;
-    const recording = ref(false);
-    const busy = ref(false);
-    const debug = ref(true);
-    const showExampleQuestions = ref(true);
-    const autoSpeakNextMessage = ref(false);
-    const languages = {
-        GB: 'en-GB',
-        DE: 'de-DE'
-    }
-    const darkScheme = ref(false);
-
-    onMounted(() => {
-        updateTheme()
-        setupResizableSidebar();
-        setupTooltips();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        // initiatePrompt(); // <- dont auto-connect? seems to produce unwanted behaviour more often than not...
-        console.log("mounted");
-    });
-
-    function setupResizableSidebar() {
-        const resizer = document.getElementById('resizer');
-        const sidebar = document.getElementById('sidebar');
-        let isResizing = false;
-
-        resizer.addEventListener('mousedown', (e) => {
-          isResizing = true;
-          document.body.style.cursor = 'ew-resize';
-        });
-
-        document.addEventListener('mousemove', (event) => {
-          if (!isResizing) return;
-
-          // Calculate the new width for the aside
-          const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
-
-          if (newWidth > 200 && newWidth < 600) {
-            sidebar.style.width = `${newWidth}px`;
-          }
-        });
-
-        document.addEventListener('mouseup', () => {
-          isResizing = false;
-          document.body.style.cursor = 'default';
-        });
-    }
-
-    function setupTooltips() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
-
-    function updateTheme() {
-        // Check if dark color scheme is preferred
-        darkScheme.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        updateDebugColors()
-    }
-
-    function onChangeSimpleKeyboard(input) {
-        document.getElementById("textInput").value = input;
-    }
-
-    async function textInputCallback(event) {
-        if (event.key === "Enter") {
-            await submitText()
+export default {
+    name: 'main-content',
+    components: {Sidebar, SimpleKeyboard},
+    props: {
+        backend: String,
+        language: String,
+    },
+    data() {
+        return {
+            apiKey: '',
+            recognition: null,
+            lastMessage: null,
+            messageCount: 0,
+            speechSynthesis: window.SpeechSynthesis,
+            recording: false,
+            busy: false,
+            debug: true,
+            showExampleQuestions: true,
+            autoSpeakNextMessage: false,
+            darkScheme: false
         }
-    }
+    },
+    methods: {
+        getConfig() {
+            return conf;
+        },
 
-    async function submitText() {
-        const userInput = document.getElementById("textInput").value
-        document.getElementById("textInput").value = ""
-        if (userInput != null && userInput !== "") {
-            await askChatGpt(userInput)
-        }
-    }
+        updateTheme() {
+            // Check if dark color scheme is preferred
+            this.darkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.updateDebugColors()
+        },
 
-    async function initiatePrompt() {
-        const connectButton = document.getElementById('button-connect');
-        connectButton.disabled = true;
-        const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd};
-        try {
-            const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-            if (res.status === 200) {
-                const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
-                if (rpStatus === 200) {
-                    // add some error handling?
-                    const [_actions, _config] = await Promise.all([
-                            sendRequest("GET", `${config.BackendAddress}/actions`, null),
-                            sendRequest('GET', `${config.BackendAddress}/${getBackend()}/config`, null)
-                    ]);
-                    platformActions = _actions.data;
-                    backendConfig = _config.data;
-                    toggleSidebar('agents');
-                } else if (rpStatus === 403) {
-                    platformActions = null;
-                    alert(config.translations[language.value].unauthorized);
+        onChangeSimpleKeyboard(input) {
+            document.getElementById("textInput").value = input;
+        },
+
+        async textInputCallback(event) {
+            if (event.key === "Enter") {
+                await this.submitText()
+            }
+        },
+
+        async submitText() {
+            const userInput = document.getElementById("textInput").value;
+            document.getElementById("textInput").value = "";
+            if (userInput != null && userInput !== "") {
+                await this.askChatGpt(userInput);
+            }
+        },
+
+        async initiatePrompt(url, username, password) {
+            const body = {url: url, user: username, pwd: password};
+            console.log('init prompt', body);
+            const connectButton = document.getElementById('button-connect');
+            connectButton.disabled = true;
+            try {
+                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                if (res.status === 200) {
+                    const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
+                    if (rpStatus === 200) {
+                        // add some error handling?
+                        const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                        this.$refs.sidebar.platformActions = res2.data;
+                        this.$refs.sidebar.selectView('agents');
+                    } else if (rpStatus === 403) {
+                        this.$refs.sidebar.platformActions = null;
+                        alert(conf.translations[this.language].unauthorized);
+                    } else {
+                        this.$refs.sidebar.platformActions = null;
+                        alert(conf.translations[this.language].unreachable);
+                    }
                 } else {
-                    platformActions = null;
-                    alert(config.translations[language.value].unreachable);
+                    this.$refs.sidebar.platformActions = null;
+                    alert('Backend server is unreachable.'); // put in config?
                 }
-            } else {
-                platformActions = null;
-                alert('Backend server is unreachable.'); // put in config?
+            } catch (e) {
+                console.error('Error while initiating prompt:', e);
+            } finally {
+                connectButton.disabled = false;
             }
-        } catch (e) {
-            console.error('Error while initiating prompt:', e);
-        } finally {
-            connectButton.disabled = false;
-        }
-    }
+        },
 
-    async function saveBackendConfig() {
-        const res = await sendRequest('PUT', `${config.BackendAddress}/${getBackend()}/config`, backendConfig);
-        if (res.status === 200) {
-            console.log('Saved backend config.');
-        } else {
-            console.error('Error saving backend config.');
-            console.error(res);
-        }
-    }
-
-    async function sendRequest(method, url, body) {
-        try {
-            return await axios.request({
-                method: method,
-                url: url,
-                data: body,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
+        async askChatGpt(userText) {
+            this.showExampleQuestions = false;
+            this.createSpeechBubbleUser(userText);
+            try {
+                const result = await sendRequest(
+                        "POST",
+                        `${conf.BackendAddress}/${this.getBackend()}/query`,
+                        {user_query: userText, debug: true, api_key: this.apiKey},
+                        null);
+                const answer = result.data.content;
+                if (result.data.error) {
+                    this.addDebug(result.data.error)
                 }
-            });
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async function askChatGpt(userText) {
-        showExampleQuestions.value = false;
-        createSpeechBubbleUser(userText);
-        try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/query`, {user_query: userText, debug: true, api_key: apiKey});
-            const answer = result.data.content;
-            if (result.data.error) {
-                addDebug(result.data.error)
-            }
-            createSpeechBubbleAI(answer, messageCount);
-            processDebugInput(result.data.agent_messages, messageCount);
-            messageCount++;
-            scrollDown(debug.value);
-        } catch (error) {
-            console.error(error);
-            createSpeechBubbleAI("Error while fetching data: " + error)
-            scrollDown(false);
-        }
-        if (autoSpeakNextMessage.value) {
-            speakLastMessage();
-            autoSpeakNextMessage.value = false;
-        }
-    }
-
-    function isSpeechRecognitionSupported() {
-        // very hacky check if the user is using the (full) google chrome browser
-        const isGoogleChrome = window.chrome !== undefined
-                && window.navigator.userAgentData !== undefined
-                && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
-                && window.navigator.vendor === "Google Inc."
-                && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
-        if (!isGoogleChrome) {
-            alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
-            return false;
-        }
-        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
-            return false;
-        }
-        if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
-            return false;
-        }
-        return true;
-    }
-
-    async function startRecognition() {
-        if (!isSpeechRecognitionSupported()) return;
-        abortSpeaking();
-        console.log("Recognized language: " + languages[language.value]);
-        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
-        recognition.lang = languages[language.value];
-        recognition.onresult = async (event) => {
-            if (!event.results || event.results.length <= 0) return;
-            const recognizedText = event.results[0][0].transcript;
-            addDebug('Recognized text: ' + recognizedText);
-            autoSpeakNextMessage.value = true
-            await askChatGpt(recognizedText);
-        };
-        recognition.onspeechend = () => {
-            recording.value = false;
-        };
-        recognition.onnomatch = () => {
-            console.error('Failed to recognize spoken text.');
-        };
-        recognition.onerror = (error) => {
-            console.error(error);
-            addDebug('Recognition Error: ' + error.message || error.error, 'red');
-            createSpeechBubbleAI('The speech recognition failed to understand your request.');
-        };
-        recognition.onend = () => {
-            console.log('Recognition ended.');
-            recording.value = false;
-            busy.value = false;
-        };
-        recognition.start();
-        recording.value = true;
-        busy.value = true;
-    }
-
-    async function resetChat() {
-        document.getElementById("chat-container").innerHTML = '';
-        abortSpeaking();
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        showExampleQuestions.value = true;
-        await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/reset`, null);
-        busy.value = false;
-    }
-
-    function createSpeechBubbleAI(text, id) {
-        lastMessage = text;
-        const chat = document.getElementById("chat-container")
-        let d1 = document.createElement("div")
-        let debugId = `debug-${id}`;
-        d1.innerHTML += `
-        <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
-            <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
-            <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
-                ${marked.parse(text)}
-                <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                    <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                    debug
-                </div>
-                <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
-            </div>
-        </div>`
-
-        const waitBubble = document.getElementById('waitBubble');
-        if (waitBubble) {
-            waitBubble.remove();
-        }
-        busy.value = false;
-
-        chat.appendChild(d1)
-
-        const debugToggle = document.getElementById(`${debugId}-toggle`);
-        const debugSeparator = document.getElementById(`${debugId}-separator`);
-        const debugText = document.getElementById(`${debugId}-text`);
-
-        let debugExpanded = false;
-
-        debugToggle.addEventListener('click', () => {
-            debugExpanded = !debugExpanded;
-            if (debugExpanded) {
-                debugSeparator.style.display = 'block';
-                debugText.style.display = 'block';
-                const icon = debugToggle.querySelector('img');
-                icon.style.transform = 'rotate(180deg)'
-            }
-            else {
-                debugSeparator.style.display = 'none';
-                debugText.style.display = 'none';
-                const icon = debugToggle.querySelector('img');
-                icon.style.transform = 'none'
-            }
-        })
-    }
-
-    function createSpeechBubbleUser(text) {
-        const chat = document.getElementById("chat-container")
-        let d1 = document.createElement("div")
-        d1.innerHTML += `
-        <div class="d-flex flex-row justify-content-end mb-4">
-            <div class="p-2 me-3 small mb-0 chatbubble chat-user">
-                ${text}
-            </div>
-            <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
-        </div>`
-        chat.appendChild(d1)
-        createSpeechBubbleAI('. . .', 'waitBubble')
-        scrollDown(false)
-    }
-
-    function scrollDown(debug) {
-        const chatDiv = debug ? document.getElementById('chatDebug') : document.getElementById('chat1');
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-    }
-
-    function speakLastMessage() {
-        if (speechSynthesis) {
-            abortSpeaking();
-            console.log("Speaking message: " + lastMessage);
-            const utterance = new SpeechSynthesisUtterance(lastMessage);
-            utterance.lang = languages[language.value];
-            utterance.onstart = () => {
-                console.log("Speaking started.");
-            }
-            utterance.onend = () => {
-                console.log("Speaking ended.");
-            }
-            utterance.onerror = (error) => {
+                this.createSpeechBubbleAI(answer, this.messageCount);
+                this.processDebugInput(result.data.agent_messages, this.messageCount);
+                this.messageCount++;
+                this.scrollDown(this.debug);
+            } catch (error) {
                 console.error(error);
+                this.createSpeechBubbleAI("Error while fetching data: " + error)
+                this.scrollDown(false);
             }
-            speechSynthesis.speak(utterance);
-        }
-    }
-
-    function abortSpeaking() {
-        if (speechSynthesis && speechSynthesis.speaking) {
-            speechSynthesis.cancel();
-        }
-    }
-
-    function getDebugColor(agentName, darkScheme) {
-        // color schemes for modes [dark, light]
-        const keywordColors = {
-            // RestGPT
-            "Planner": ["#f00", "#9c0000"],
-            "Action Selector": ["#ff0", "#bf6e00"],
-            "Caller": ["#5151ff", "#0000b1"],
-            "Evaluator": ["#0f0", "#007300"],
-            // Tools
-            "Tool Generator": ["#f00", "#9c0000"],
-            "Tool Evaluator": ["#ff0", "#bf6e00"],
-            // Simple
-            "user": ["#fff", "#000"],
-            "assistant": ["#88f", "#434373"],
-            "system": ["#ff8", "#71713d"],
-        }
-
-        // return either specific color for light/dark mode or default black/white
-        return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
-    }
-
-    function processDebugInput(agent_messages, messageCount) {
-        if (agent_messages.length > 0) {
-            // if at least one debug message was found, let the "debug" button appear on the speech bubble
-            const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
-            debugToggle.style.display = 'block';
-        }
-
-        // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-        for (const message of agent_messages) {
-            const color = getDebugColor(message["agent"], darkScheme.value);
-            // if tools have been generated, display the tools (no message was generated in that case)
-            const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
-            addDebug(content, color)
-
-            // Add the formatted debug text to the associated speech bubble
-            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-            if (messageBubble) {
-                let d1 = document.createElement("div")
-                d1.className = "bubble-debug-text"
-                d1.textContent = content
-                d1.style.color = color
-                messageBubble.append(d1)
+            if (this.autoSpeakNextMessage) {
+                this.speakLastMessage();
+                this.autoSpeakNextMessage = false;
             }
-        }
-    }
+        },
 
-    function updateDebugColors() {
-        const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
-        debugElements.forEach((element) => {
-            const text = element.innerText || element.textContent;
-            element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
-        });
-    }
-
-    function addDebug(text, color) {
-        const debugChat = document.getElementById("debug-console");
-        let d1 = document.createElement("div")
-        d1.className = "debug-text"
-        d1.textContent = text
-        if (color) {
-            d1.style.color = color
-        }
-        debugChat.append(d1)
-    }
-
-    function beforeDestroy() {
-        if (recognition) {
-            recognition.stop();
-        }
-    }
-
-    function isSidebarOpen(key) {
-        if (key !== undefined) {
-            return sidebar.value === key;
-        } else {
-            return sidebar.value !== 'none';
-        }
-    }
-
-    function toggleSidebar(key) {
-        const mainContent = document.getElementById('mainContent');
-        if (sidebar.value !== key) {
-            sidebar.value = key;
-            mainContent.classList.remove('mx-auto');
-        } else {
-            sidebar.value = 'none';
-            if (!mainContent.classList.contains('mx-auto')) {
-                mainContent.classList.add('mx-auto');
+        isSpeechRecognitionSupported() {
+            // very hacky check if the user is using the (full) google chrome browser
+            const isGoogleChrome = window.chrome !== undefined
+                    && window.navigator.userAgentData !== undefined
+                    && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
+                    && window.navigator.vendor === "Google Inc."
+                    && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
+            if (!isGoogleChrome) {
+                alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
+                return false;
             }
-        }
-    }
+            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
+                return false;
+            }
+            if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
+                return false;
+            }
+            return true;
+        },
 
-    function getBackend() {
-        const parts = backend.value.split('/');
-        return parts[parts.length - 1];
-    }
+        async startRecognition() {
+            if (!this.isSpeechRecognitionSupported()) return;
+            this.abortSpeaking();
+            console.log("Recognized language: " + conf.languages[this.language]);
+            const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
+            recognition.lang = conf.languages[this.language];
+            recognition.onresult = async (event) => {
+                if (!event.results || event.results.length <= 0) return;
+                const recognizedText = event.results[0][0].transcript;
+                this.addDebug('Recognized text: ' + recognizedText);
+                this.autoSpeakNextMessage = true
+                await this.askChatGpt(recognizedText);
+            };
+            recognition.onspeechend = () => {
+                this.recording = false;
+            };
+            recognition.onnomatch = () => {
+                console.error('Failed to recognize spoken text.');
+            };
+            recognition.onerror = (error) => {
+                console.error(error);
+                this.addDebug('Recognition Error: ' + error.message || error.error, 'red');
+                this.createSpeechBubbleAI('The speech recognition failed to understand your request.');
+            };
+            recognition.onend = () => {
+                console.log('Recognition ended.');
+                this.recording = false;
+                this.busy = false;
+            };
+            recognition.start();
+            this.recording = true;
+            this.busy = true;
+        },
+
+        async resetChat() {
+            document.getElementById("chat-container").innerHTML = '';
+            this.abortSpeaking();
+            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            this.showExampleQuestions = true;
+            await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`);
+            this.busy = false;
+        },
+
+        createSpeechBubbleAI(text, id) {
+            this.lastMessage = text;
+            const chat = document.getElementById("chat-container")
+            let d1 = document.createElement("div")
+            let debugId = `debug-${id}`;
+            d1.innerHTML += `
+            <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
+                <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
+                <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
+                    ${marked.parse(text)}
+                    <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                        <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                        debug
+                    </div>
+                    <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                    <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
+                </div>
+            </div>`
+
+            const waitBubble = document.getElementById('waitBubble');
+            if (waitBubble) {
+                waitBubble.remove();
+            }
+            this.busy = false;
+
+            chat.appendChild(d1)
+
+            const debugToggle = document.getElementById(`${debugId}-toggle`);
+            const debugSeparator = document.getElementById(`${debugId}-separator`);
+            const debugText = document.getElementById(`${debugId}-text`);
+
+            let debugExpanded = false;
+
+            debugToggle.addEventListener('click', () => {
+                debugExpanded = !debugExpanded;
+                if (debugExpanded) {
+                    debugSeparator.style.display = 'block';
+                    debugText.style.display = 'block';
+                    const icon = debugToggle.querySelector('img');
+                    icon.style.transform = 'rotate(180deg)'
+                }
+                else {
+                    debugSeparator.style.display = 'none';
+                    debugText.style.display = 'none';
+                    const icon = debugToggle.querySelector('img');
+                    icon.style.transform = 'none'
+                }
+            })
+        },
+
+        createSpeechBubbleUser(text) {
+            const chat = document.getElementById("chat-container")
+            let d1 = document.createElement("div")
+            d1.innerHTML += `
+            <div class="d-flex flex-row justify-content-end mb-4">
+                <div class="p-2 me-3 small mb-0 chatbubble chat-user">
+                    ${text}
+                </div>
+                <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
+            </div>`
+            chat.appendChild(d1)
+            this.createSpeechBubbleAI('. . .', 'waitBubble')
+            this.scrollDown(false)
+        },
+
+        scrollDown(debug) {
+            const chatDiv = debug
+                    ? document.getElementById('chatDebug')
+                    : document.getElementById('chat1');
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        },
+
+        speakLastMessage() {
+            if (speechSynthesis) {
+                this.abortSpeaking();
+                console.log("Speaking message: " + this.lastMessage);
+                const utterance = new SpeechSynthesisUtterance(this.lastMessage);
+                utterance.lang = conf.languages[this.language];
+                utterance.onstart = () => {
+                    console.log("Speaking started.");
+                }
+                utterance.onend = () => {
+                    console.log("Speaking ended.");
+                }
+                utterance.onerror = (error) => {
+                    console.error(error);
+                }
+                speechSynthesis.speak(utterance);
+            }
+        },
+
+        abortSpeaking() {
+            if (speechSynthesis && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+        },
+
+        getDebugColor(agentName, darkScheme) {
+            // color schemes for modes [dark, light]
+            const keywordColors = {
+                // RestGPT
+                "Planner": ["#f00", "#9c0000"],
+                "Action Selector": ["#ff0", "#bf6e00"],
+                "Caller": ["#5151ff", "#0000b1"],
+                "Evaluator": ["#0f0", "#007300"],
+                // Tools
+                "Tool Generator": ["#f00", "#9c0000"],
+                "Tool Evaluator": ["#ff0", "#bf6e00"],
+                // Simple
+                "user": ["#fff", "#000"],
+                "assistant": ["#88f", "#434373"],
+                "system": ["#ff8", "#71713d"],
+            }
+
+            // return either specific color for light/dark mode or default black/white
+            return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
+        },
+
+        processDebugInput(agent_messages, messageCount) {
+            if (agent_messages.length > 0) {
+                // if at least one debug message was found, let the "debug" button appear on the speech bubble
+                const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
+                debugToggle.style.display = 'block';
+            }
+
+            // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
+            for (const message of agent_messages) {
+                const color = this.getDebugColor(message["agent"], this.darkScheme);
+                // if tools have been generated, display the tools (no message was generated in that case)
+                const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
+                this.addDebug(content, color)
+
+                // Add the formatted debug text to the associated speech bubble
+                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
+                if (messageBubble) {
+                    let d1 = document.createElement("div")
+                    d1.className = "bubble-debug-text"
+                    d1.textContent = content
+                    d1.style.color = color
+                    messageBubble.append(d1)
+                }
+            }
+        },
+
+        updateDebugColors() {
+            const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
+            debugElements.forEach((element) => {
+                const text = element.innerText || element.textContent;
+                element.style.color = this.getDebugColor(text.split(':')[0] ?? "", this.darkScheme);
+            });
+        },
+
+        addDebug(text, color) {
+            this.$refs.sidebar.debugMessages.push({
+                text: text,
+                color: color
+            });
+        },
+
+        beforeDestroy() {
+            if (this.recognition) {
+                this.recognition.stop();
+            }
+        },
+
+        getBackend() {
+            const parts = this.backend.split('/');
+            return parts[parts.length - 1];
+        }
+
+    },
+
+    mounted() {
+        this.updateTheme()
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
+        this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+        console.log("mounted");
+    },
+}
 
 </script>
 
@@ -679,49 +456,6 @@ document.getElementById('')
     background-color: black;
     overflow: hidden;
     overflow-y: auto;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 3px;
-    font-family: "Courier New", monospace;
-    font-size: small;
-}
-
-#sidebar {
-    min-width: 200px;
-    max-width: 600px;
-    position: relative;
-}
-
-#sidebar-menu {
-    background-color: #fff;
-}
-
-.sidebar-item {
-    font-size: 20px;
-    cursor: pointer;
-    width: 50px;
-    border-radius: 5px;
-}
-
-.sidebar-item:hover {
-    background-color: #ccc;
-}
-
-.sidebar-item-select {
-    background-color: #ddd;
-}
-
-.resizer {
-    width: 4px;
-    cursor: ew-resize;
-    height: calc(100vh - 85px - 25px);
-    position: absolute;
-    top: 0;
-    right: 0;
-    border-radius: 2px;
 }
 
 .sample-questions {
@@ -799,54 +533,6 @@ document.getElementById('')
         opacity: 1;
     }
 
-    #sidebar-menu {
-        background-color: #333;
-    }
-
-    .sidebar-item:hover {
-        background-color: #222;
-    }
-
-    .sidebar-item-select {
-        background-color: #2a2a2a;
-    }
-
-    .resizer {
-        background-color: #181818;
-    }
-
-    .accordion, .accordion-item, .accordion-header, .accordion-body, .accordion-collapse {
-        background-color: #222;
-        color: #fff;
-    }
-
-    .accordion-item {
-        border-color: #454d55;
-    }
-
-    .accordion-button {
-        background-color: #343a40;
-        color: #fff;
-    }
-
-    .accordion-button:not(.collapsed) {
-        background-color: #212529;
-        color: #fff;
-    }
-
-    .accordion-button:focus {
-        box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25); /* Light glow for focus */
-    }
-
-    .accordion-body .list-group .list-group-item {
-        background-color: #222;
-        color: #fff;
-    }
-
-    .accordion-button::after {
-        filter: invert(100%) !important ;
-    }
-
     .debug-toggle {
         color: #eee;
     }
@@ -869,9 +555,6 @@ document.getElementById('')
         background-color: #fff;
         overflow: hidden;
         border: 1px solid #ccc; /* border only needed in light mode */
-    }
-    .resizer {
-        background-color: gray;
     }
 
     .sample-question {
