@@ -37,7 +37,7 @@
                         <input id="opacaUrlInput" type="text"
                                class="form-control m-0"
                                v-model="opacaRuntimePlatform"
-                               :placeholder="config.translations[language].opacaLocation" />
+                               :placeholder="getConfig().translations[language].opacaLocation" />
                     </div>
 
                     <div class="py-2 text-start">
@@ -58,7 +58,7 @@
 
                     </div>
 
-                    <div class="py-2 text-start" v-if="config.ShowApiKey">
+                    <div class="py-2 text-start" v-if="getConfig().ShowApiKey">
                         <input id="apiKey" type="password"
                                class="form-control m-0"
                                v-model="apiKey"
@@ -128,7 +128,7 @@
             <div class="container card flex-grow-1" id="chat1" style="border-radius: 15px; overflow-y: auto;">
                 <div class="card-body" style="flex-direction: column-reverse" id="chat-container"/>
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in config.translations[language].sampleQuestions"
+                    <div v-for="(question, index) in getConfig().translations[language].sampleQuestions"
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
@@ -170,434 +170,450 @@
             </div>
 
             <!-- Simple Keyboard -->
-            <SimpleKeyboard @onChange="onChangeSimpleKeyboard" v-if="config.ShowKeyboard" />
+            <SimpleKeyboard v-if="getConfig().ShowKeyboard"
+                            @change="this.onChangeSimpleKeyboard" />
         </main>
     </div>
 
 </template>
 
-<script setup>
+<script>
 import axios from "axios"
 import {marked} from "marked";
-import {inject, onMounted, ref} from "vue";
-import config from '../../config'
+import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 
-document.getElementById('')
+export default {
+    name: 'main-content',
+    components: {SimpleKeyboard},
+    props: {
+        backend: String,
+        language: String,
+    },
+    data() {
+        return {
+            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
+            opacaUser: '',
+            opacaPwd: '',
+            apiKey: '',
+            platformActions: null,
+            recognition: null,
+            lastMessage: null,
+            messageCount: 0,
+            speechSynthesis: window.SpeechSynthesis,
+            recording: false,
+            busy: false,
+            debug: true,
+            showExampleQuestions: true,
+            autoSpeakNextMessage: false,
+            darkScheme: false,
+            sidebar: 'connect'
+        }
+    },
+    methods: {
+        getConfig() {
+            return conf;
+        },
 
-    let opacaRuntimePlatform = config.OpacaRuntimePlatform;
-    let opacaUser = "";
-    let opacaPwd = "";
-    let apiKey = "";
-    let platformActions = null;
+        setupResizableSidebar() {
+            const resizer = document.getElementById('resizer');
+            const sidebar = document.getElementById('sidebar');
+            let isResizing = false;
 
-    const backend = inject('backend');
-    const language = inject('language');
-    const sidebar = inject('sidebar');
-    let recognition= null;
-    let lastMessage = null;
-    let messageCount = 0;
-    const speechSynthesis = window.speechSynthesis;
-    const recording = ref(false);
-    const busy = ref(false);
-    const debug = ref(false);
-    const showExampleQuestions = ref(true);
-    const autoSpeakNextMessage = ref(false);
-    const languages = {
-        GB: 'en-GB',
-        DE: 'de-DE'
-    }
-    const darkScheme = ref(false);
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'ew-resize';
+            });
 
-    onMounted(() => {
+            document.addEventListener('mousemove', (event) => {
+                if (!isResizing) return;
+
+                // Calculate the new width for the aside
+                // const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
+
+                if (newWidth > 200 && newWidth < 600) {
+                    sidebar.style.width = `${newWidth}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            });
+        },
+
+        updateTheme() {
+            // Check if dark color scheme is preferred
+            this.darkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.updateDebugColors()
+        },
+
+        onChangeSimpleKeyboard(input) {
+            document.getElementById("textInput").value = input;
+        },
+
+        async textInputCallback(event) {
+            if (event.key === "Enter") {
+                await this.submitText()
+            }
+        },
+
+        async submitText() {
+            const userInput = document.getElementById("textInput").value;
+            document.getElementById("textInput").value = "";
+            if (userInput != null && userInput !== "") {
+                await this.askChatGpt(userInput);
+            }
+        },
+
+        async initiatePrompt() {
+            const body = {
+                url: this.opacaRuntimePlatform,
+                user: this.opacaUser,
+                pwd: this.opacaPwd
+            }
+            const res = await this.sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+            if (res.status === 200) {
+                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`, null);
+                const actions = res2.data;
+                let text = conf.translations[this.language].connected;
+                if (Object.keys(actions).length > 0) {
+                    for (const agent in actions) {
+                        //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
+                        text += `\n* ${agent}`
+                    }
+                } else {
+                    text += conf.translations[this.language].none
+                }
+                this.platformActions = actions;
+                this.toggleSidebar('agents');
+            } else if (res.status === 403) {
+                alert(conf.translations[this.language].unauthorized);
+                this.platformActions = null;
+            } else {
+                alert(conf.translations[this.language].unreachable);
+                this.platformActions = null;
+            }
+        },
+
+        async sendRequest(method, url, body) {
+            try {
+                return await axios.request({
+                    method: method,
+                    url: url,
+                    data: body,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            } catch (error) {
+                throw error;
+            }
+        },
+
+        async askChatGpt(userText) {
+            this.showExampleQuestions = false;
+            this.createSpeechBubbleUser(userText);
+            try {
+                const result = await this.sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`,
+                        {user_query: userText, debug: true, api_key: this.apiKey});
+                const answer = result.data.content;
+                if (result.data.error) {
+                    this.addDebug(result.data.error)
+                }
+                this.createSpeechBubbleAI(answer, this.messageCount);
+                this.processDebugInput(result.data.agent_messages, this.messageCount);
+                this.messageCount++;
+                this.scrollDown(true);
+            } catch (error) {
+                console.error(error);
+                this.createSpeechBubbleAI("Error while fetching data: " + error)
+                this.scrollDown(false);
+            }
+            if (this.autoSpeakNextMessage) {
+                this.speakLastMessage();
+                this.autoSpeakNextMessage = false;
+            }
+        },
+
+        isSpeechRecognitionSupported() {
+            // very hacky check if the user is using the (full) google chrome browser
+            const isGoogleChrome = window.chrome !== undefined
+                    && window.navigator.userAgentData !== undefined
+                    && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
+                    && window.navigator.vendor === "Google Inc."
+                    && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
+            if (!isGoogleChrome) {
+                alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
+                return false;
+            }
+            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
+                return false;
+            }
+            if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
+                return false;
+            }
+            return true;
+        },
+
+        async startRecognition() {
+            if (!this.isSpeechRecognitionSupported()) return;
+            this.abortSpeaking();
+            console.log("Recognized language: " + conf.languages[this.language]);
+            const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
+            recognition.lang = conf.languages[this.language];
+            recognition.onresult = async (event) => {
+                if (!event.results || event.results.length <= 0) return;
+                const recognizedText = event.results[0][0].transcript;
+                this.addDebug('Recognized text: ' + recognizedText);
+                this.autoSpeakNextMessage = true
+                await this.askChatGpt(recognizedText);
+            };
+            recognition.onspeechend = () => {
+                this.recording = false;
+            };
+            recognition.onnomatch = () => {
+                console.error('Failed to recognize spoken text.');
+            };
+            recognition.onerror = (error) => {
+                console.error(error);
+                this.addDebug('Recognition Error: ' + error.message || error.error, 'red');
+                this.createSpeechBubbleAI('The speech recognition failed to understand your request.');
+            };
+            recognition.onend = () => {
+                console.log('Recognition ended.');
+                this.recording = false;
+                this.busy = false;
+            };
+            recognition.start();
+            this.recording = true;
+            this.busy = true;
+        },
+
+        async resetChat() {
+            document.getElementById("chat-container").innerHTML = '';
+            this.abortSpeaking();
+            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            this.showExampleQuestions = true;
+            await this.sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`, null);
+            this.busy = false;
+        },
+
+        createSpeechBubbleAI(text, id) {
+            this.lastMessage = text;
+            const chat = document.getElementById("chat-container")
+            let d1 = document.createElement("div")
+            let debugId = `debug-${id}`;
+            d1.innerHTML += `
+            <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
+                <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
+                <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
+                    ${marked.parse(text)}
+                    <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                        <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                        debug
+                    </div>
+                    <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                    <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
+                </div>
+            </div>`
+
+            const waitBubble = document.getElementById('waitBubble');
+            if (waitBubble) {
+                waitBubble.remove();
+            }
+            this.busy = false;
+
+            chat.appendChild(d1)
+
+            const debugToggle = document.getElementById(`${debugId}-toggle`);
+            const debugSeparator = document.getElementById(`${debugId}-separator`);
+            const debugText = document.getElementById(`${debugId}-text`);
+
+            let debugExpanded = false;
+
+            debugToggle.addEventListener('click', () => {
+                debugExpanded = !debugExpanded;
+                if (debugExpanded) {
+                    debugSeparator.style.display = 'block';
+                    debugText.style.display = 'block';
+                    const icon = debugToggle.querySelector('img');
+                    icon.style.transform = 'rotate(180deg)'
+                }
+                else {
+                    debugSeparator.style.display = 'none';
+                    debugText.style.display = 'none';
+                    const icon = debugToggle.querySelector('img');
+                    icon.style.transform = 'none'
+                }
+            })
+        },
+
+        createSpeechBubbleUser(text) {
+            const chat = document.getElementById("chat-container")
+            let d1 = document.createElement("div")
+            d1.innerHTML += `
+            <div class="d-flex flex-row justify-content-end mb-4">
+                <div class="p-2 me-3 small mb-0 chatbubble chat-user">
+                    ${text}
+                </div>
+                <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
+            </div>`
+            chat.appendChild(d1)
+            this.createSpeechBubbleAI('. . .', 'waitBubble')
+            this.scrollDown(false)
+        },
+
+        scrollDown(debug) {
+            const chatDiv = debug
+                    ? document.getElementById('chatDebug')
+                    : document.getElementById('chat1');
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        },
+
+        speakLastMessage() {
+            if (speechSynthesis) {
+                this.abortSpeaking();
+                console.log("Speaking message: " + this.lastMessage);
+                const utterance = new SpeechSynthesisUtterance(this.lastMessage);
+                utterance.lang = conf.languages[this.language];
+                utterance.onstart = () => {
+                    console.log("Speaking started.");
+                }
+                utterance.onend = () => {
+                    console.log("Speaking ended.");
+                }
+                utterance.onerror = (error) => {
+                    console.error(error);
+                }
+                speechSynthesis.speak(utterance);
+            }
+        },
+
+        abortSpeaking() {
+            if (speechSynthesis && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+        },
+
+        getDebugColor(agentName, darkScheme) {
+            // color schemes for modes [dark, light]
+            const keywordColors = {
+                // RestGPT
+                "Planner": ["#f00", "#9c0000"],
+                "Action Selector": ["#ff0", "#bf6e00"],
+                "Caller": ["#5151ff", "#0000b1"],
+                "Evaluator": ["#0f0", "#007300"],
+                // Tools
+                "Tool Generator": ["#f00", "#9c0000"],
+                "Tool Evaluator": ["#ff0", "#bf6e00"],
+                // Simple
+                "user": ["#fff", "#000"],
+                "assistant": ["#88f", "#434373"],
+                "system": ["#ff8", "#71713d"],
+            }
+
+            // return either specific color for light/dark mode or default black/white
+            return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
+        },
+
+        processDebugInput(agent_messages, messageCount) {
+            if (agent_messages.length > 0) {
+                // if at least one debug message was found, let the "debug" button appear on the speech bubble
+                const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
+                debugToggle.style.display = 'block';
+            }
+
+            // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
+            for (const message of agent_messages) {
+                const color = this.getDebugColor(message["agent"], this.darkScheme);
+                // if tools have been generated, display the tools (no message was generated in that case)
+                const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
+                this.addDebug(content, color)
+
+                // Add the formatted debug text to the associated speech bubble
+                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
+                if (messageBubble) {
+                    let d1 = document.createElement("div")
+                    d1.className = "bubble-debug-text"
+                    d1.textContent = content
+                    d1.style.color = color
+                    messageBubble.append(d1)
+                }
+            }
+        },
+
+        updateDebugColors() {
+            const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
+            debugElements.forEach((element) => {
+                const text = element.innerText || element.textContent;
+                element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
+            });
+        },
+
+        addDebug(text, color) {
+            const debugChat = document.getElementById("debug-console");
+            let d1 = document.createElement("div")
+            d1.className = "debug-text"
+            d1.textContent = text
+            if (color) {
+                d1.style.color = color
+            }
+            debugChat.append(d1)
+        },
+
+        beforeDestroy() {
+            if (recognition) {
+                recognition.stop();
+            }
+        },
+
+        isSidebarOpen(key) {
+            if (key !== undefined) {
+                return this.sidebar === key;
+            } else {
+                return this.sidebar !== 'none';
+            }
+        },
+
+        toggleSidebar(key) {
+            const mainContent = document.getElementById('mainContent');
+            if (sidebar.value !== key) {
+                sidebar.value = key;
+                mainContent.classList.remove('mx-auto');
+            } else {
+                sidebar.value = 'none';
+                if (!mainContent.classList.contains('mx-auto')) {
+                    mainContent.classList.add('mx-auto');
+                }
+            }
+            console.log('sidebar value: ', sidebar.value);
+        },
+
+        getBackend() {
+            const parts = this.backend.split('/');
+            return parts[parts.length - 1];
+        }
+
+    },
+
+    mounted() {
         console.log("mounted")
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl)
+            return new bootstrap.Tooltip(tooltipTriggerEl)
         });
 
-        updateTheme()
-        setupResizableSidebar();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        initiatePrompt();
-    });
-
-    function setupResizableSidebar() {
-        const resizer = document.getElementById('resizer');
-        const sidebar = document.getElementById('sidebar');
-        let isResizing = false;
-
-        resizer.addEventListener('mousedown', (e) => {
-          isResizing = true;
-          document.body.style.cursor = 'ew-resize';
-        });
-
-        document.addEventListener('mousemove', (event) => {
-          if (!isResizing) return;
-
-          // Calculate the new width for the aside
-          const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
-
-          if (newWidth > 200 && newWidth < 600) {
-            sidebar.style.width = `${newWidth}px`;
-          }
-        });
-
-        document.addEventListener('mouseup', () => {
-          isResizing = false;
-          document.body.style.cursor = 'default';
-        });
-    }
-
-    function updateTheme() {
-        // Check if dark color scheme is preferred
-        darkScheme.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        updateDebugColors()
-    }
-
-    function onChangeSimpleKeyboard(input) {
-        document.getElementById("textInput").value = input;
-    }
-
-    async function textInputCallback(event) {
-        if (event.key === "Enter") {
-            await submitText()
-        }
-    }
-
-    async function submitText() {
-        const userInput = document.getElementById("textInput").value
-        document.getElementById("textInput").value = ""
-        if (userInput != null && userInput !== "") {
-            await askChatGpt(userInput)
-        }
-    }
-
-    async function initiatePrompt() {
-        const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
-        const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.status === 200) {
-            const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
-            const actions = res2.data;
-            let text = config.translations[language.value].connected;
-            if (Object.keys(actions).length > 0) {
-                for (const agent in actions) {
-                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
-                    text += `\n* ${agent}`
-                }
-            } else {
-                text += config.translations[language.value].none
-            }
-            platformActions = actions;
-            toggleSidebar('agents');
-        } else if (res.status === 403) {
-            alert(config.translations[language.value].unauthorized);
-            platformActions = null;
-        } else {
-            alert(config.translations[language.value].unreachable);
-            platformActions = null;
-        }
-    }
-
-    async function sendRequest(method, url, body) {
-        try {
-            return await axios.request({
-                method: method,
-                url: url,
-                data: body,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                }
-            });
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async function askChatGpt(userText) {
-        showExampleQuestions.value = false;
-        createSpeechBubbleUser(userText);
-        try {
-            const result = await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/query`, {user_query: userText, debug: true, api_key: apiKey});
-            const answer = result.data.content;
-            if (result.data.error) {
-                addDebug(result.data.error)
-            }
-            createSpeechBubbleAI(answer, messageCount);
-            processDebugInput(result.data.agent_messages, messageCount);
-            messageCount++;
-            scrollDown(debug.value);
-        } catch (error) {
-            console.error(error);
-            createSpeechBubbleAI("Error while fetching data: " + error)
-            scrollDown(false);
-        }
-        if (autoSpeakNextMessage.value) {
-            speakLastMessage();
-            autoSpeakNextMessage.value = false;
-        }
-    }
-
-    function isSpeechRecognitionSupported() {
-        // very hacky check if the user is using the (full) google chrome browser
-        const isGoogleChrome = window.chrome !== undefined
-                && window.navigator.userAgentData !== undefined
-                && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
-                && window.navigator.vendor === "Google Inc."
-                && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
-        if (!isGoogleChrome) {
-            alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
-            return false;
-        }
-        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
-            return false;
-        }
-        if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
-            return false;
-        }
-        return true;
-    }
-
-    async function startRecognition() {
-        if (!isSpeechRecognitionSupported()) return;
-        abortSpeaking();
-        console.log("Recognized language: " + languages[language.value]);
-        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
-        recognition.lang = languages[language.value];
-        recognition.onresult = async (event) => {
-            if (!event.results || event.results.length <= 0) return;
-            const recognizedText = event.results[0][0].transcript;
-            addDebug('Recognized text: ' + recognizedText);
-            autoSpeakNextMessage.value = true
-            await askChatGpt(recognizedText);
-        };
-        recognition.onspeechend = () => {
-            recording.value = false;
-        };
-        recognition.onnomatch = () => {
-            console.error('Failed to recognize spoken text.');
-        };
-        recognition.onerror = (error) => {
-            console.error(error);
-            addDebug('Recognition Error: ' + error.message || error.error, 'red');
-            createSpeechBubbleAI('The speech recognition failed to understand your request.');
-        };
-        recognition.onend = () => {
-            console.log('Recognition ended.');
-            recording.value = false;
-            busy.value = false;
-        };
-        recognition.start();
-        recording.value = true;
-        busy.value = true;
-    }
-
-    async function resetChat() {
-        document.getElementById("chat-container").innerHTML = '';
-        abortSpeaking();
-        createSpeechBubbleAI(config.translations[language.value].welcome, 'startBubble');
-        showExampleQuestions.value = true;
-        await sendRequest("POST", `${config.BackendAddress}/${getBackend()}/reset`, null);
-        busy.value = false;
-    }
-
-    function createSpeechBubbleAI(text, id) {
-        lastMessage = text;
-        const chat = document.getElementById("chat-container")
-        let d1 = document.createElement("div")
-        let debugId = `debug-${id}`;
-        d1.innerHTML += `
-        <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
-            <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
-            <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
-                ${marked.parse(text)}
-                <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                    <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                    debug
-                </div>
-                <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
-            </div>
-        </div>`
-
-        const waitBubble = document.getElementById('waitBubble');
-        if (waitBubble) {
-            waitBubble.remove();
-        }
-        busy.value = false;
-
-        chat.appendChild(d1)
-
-        const debugToggle = document.getElementById(`${debugId}-toggle`);
-        const debugSeparator = document.getElementById(`${debugId}-separator`);
-        const debugText = document.getElementById(`${debugId}-text`);
-
-        let debugExpanded = false;
-
-        debugToggle.addEventListener('click', () => {
-            debugExpanded = !debugExpanded;
-            if (debugExpanded) {
-                debugSeparator.style.display = 'block';
-                debugText.style.display = 'block';
-                const icon = debugToggle.querySelector('img');
-                icon.style.transform = 'rotate(180deg)'
-            }
-            else {
-                debugSeparator.style.display = 'none';
-                debugText.style.display = 'none';
-                const icon = debugToggle.querySelector('img');
-                icon.style.transform = 'none'
-            }
-        })
-    }
-
-    function createSpeechBubbleUser(text) {
-        const chat = document.getElementById("chat-container")
-        let d1 = document.createElement("div")
-        d1.innerHTML += `
-        <div class="d-flex flex-row justify-content-end mb-4">
-            <div class="p-2 me-3 small mb-0 chatbubble chat-user">
-                ${text}
-            </div>
-            <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
-        </div>`
-        chat.appendChild(d1)
-        createSpeechBubbleAI('. . .', 'waitBubble')
-        scrollDown(false)
-    }
-
-    function scrollDown(debug) {
-        const chatDiv = debug ? document.getElementById('chatDebug') : document.getElementById('chat1');
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-    }
-
-    function speakLastMessage() {
-        if (speechSynthesis) {
-            abortSpeaking();
-            console.log("Speaking message: " + lastMessage);
-            const utterance = new SpeechSynthesisUtterance(lastMessage);
-            utterance.lang = languages[language.value];
-            utterance.onstart = () => {
-                console.log("Speaking started.");
-            }
-            utterance.onend = () => {
-                console.log("Speaking ended.");
-            }
-            utterance.onerror = (error) => {
-                console.error(error);
-            }
-            speechSynthesis.speak(utterance);
-        }
-    }
-
-    function abortSpeaking() {
-        if (speechSynthesis && speechSynthesis.speaking) {
-            speechSynthesis.cancel();
-        }
-    }
-
-    function getDebugColor(agentName, darkScheme) {
-        // color schemes for modes [dark, light]
-        const keywordColors = {
-            // RestGPT
-            "Planner": ["#f00", "#9c0000"],
-            "Action Selector": ["#ff0", "#bf6e00"],
-            "Caller": ["#5151ff", "#0000b1"],
-            "Evaluator": ["#0f0", "#007300"],
-            // Tools
-            "Tool Generator": ["#f00", "#9c0000"],
-            "Tool Evaluator": ["#ff0", "#bf6e00"],
-            // Simple
-            "user": ["#fff", "#000"],
-            "assistant": ["#88f", "#434373"],
-            "system": ["#ff8", "#71713d"],
-        }
-
-        // return either specific color for light/dark mode or default black/white
-        return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
-    }
-
-    function processDebugInput(agent_messages, messageCount) {
-        if (agent_messages.length > 0) {
-            // if at least one debug message was found, let the "debug" button appear on the speech bubble
-            const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
-            debugToggle.style.display = 'block';
-        }
-
-        // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-        for (const message of agent_messages) {
-            const color = getDebugColor(message["agent"], darkScheme.value);
-            // if tools have been generated, display the tools (no message was generated in that case)
-            const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
-            addDebug(content, color)
-
-            // Add the formatted debug text to the associated speech bubble
-            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-            if (messageBubble) {
-                let d1 = document.createElement("div")
-                d1.className = "bubble-debug-text"
-                d1.textContent = content
-                d1.style.color = color
-                messageBubble.append(d1)
-            }
-        }
-    }
-
-    function updateDebugColors() {
-        const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
-        debugElements.forEach((element) => {
-            const text = element.innerText || element.textContent;
-            element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
-        });
-    }
-
-    function addDebug(text, color) {
-        const debugChat = document.getElementById("debug-console");
-        let d1 = document.createElement("div")
-        d1.className = "debug-text"
-        d1.textContent = text
-        if (color) {
-            d1.style.color = color
-        }
-        debugChat.append(d1)
-    }
-
-    function beforeDestroy() {
-        if (recognition) {
-            recognition.stop();
-        }
-    }
-
-    function isSidebarOpen(key) {
-        if (key !== undefined) {
-            return sidebar.value === key;
-        } else {
-            return sidebar.value !== 'none';
-        }
-    }
-
-    function toggleSidebar(key) {
-        const mainContent = document.getElementById('mainContent');
-        if (sidebar.value !== key) {
-            sidebar.value = key;
-            mainContent.classList.remove('mx-auto');
-        } else {
-            sidebar.value = 'none';
-            if (!mainContent.classList.contains('mx-auto')) {
-                mainContent.classList.add('mx-auto');
-            }
-        }
-        console.log('sidebar value: ', sidebar.value);
-    }
-
-    function getBackend() {
-        const parts = backend.value.split('/');
-        return parts[parts.length - 1];
-    }
+        this.updateTheme()
+        this.setupResizableSidebar();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
+        this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+        // this.initiatePrompt();
+    },
+}
 
 </script>
 
