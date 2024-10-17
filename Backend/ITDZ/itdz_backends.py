@@ -34,6 +34,9 @@ class KnowledgeBackend(ProxyBackend):
             "msg_id": 0,
         }
 
+    async def reset(self):
+        self.config["conv_id"] = random.randint(1000, 10000)
+
     async def query(self, message: str, debug: bool, api_key: str) -> Response:
         print("QUERY", message)
         url = self.config["url"].format(model=self.config["model"])
