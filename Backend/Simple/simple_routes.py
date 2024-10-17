@@ -57,7 +57,7 @@ class SimpleBackend:
         self.messages = []
         self.config = self._init_config()
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
         print("QUERY", message)
         self._update_system_prompt()
         last_msg = len(self.messages)
