@@ -33,14 +33,14 @@
                         <i class="fa fa-send mx-2"/>
                     </button>
 
-                    <button type="button" :disabled="busy"
+                    <button type="button" :disabled="isBusy"
                             class="btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="startRecognition">
-                        <i v-if="recording" class="fa fa-spinner fa-spin mx-2"/>
+                        <i v-if="isRecording" class="fa fa-spinner fa-spin mx-2"/>
                         <i v-else class="fa fa-microphone mx-2"/>
                     </button>
 
-                    <button type="button" :disabled="busy" v-if="!!speechSynthesis"
+                    <button type="button" :disabled="isBusy" v-if="!!speechSynthesis"
                             class="d-none btn btn-outline-primary ms-2 rounded rounded-1"
                             @click="speakLastMessage">
                         <i class="fa fa-volume-up mx-2"/>
@@ -83,12 +83,11 @@ export default {
             lastMessage: null,
             messageCount: 0,
             speechSynthesis: window.SpeechSynthesis,
-            recording: false,
-            busy: false,
-            debug: true,
+            isRecording: false,
+            isBusy: false,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            darkScheme: false
+            isDarkScheme: false
         }
     },
     methods: {
@@ -98,7 +97,7 @@ export default {
 
         updateTheme() {
             // Check if dark color scheme is preferred
-            this.darkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
             this.updateDebugColors()
         },
 
@@ -171,7 +170,7 @@ export default {
                 this.createSpeechBubbleAI(answer, this.messageCount);
                 this.processDebugInput(result.data.agent_messages, this.messageCount);
                 this.messageCount++;
-                this.scrollDown(this.debug);
+                this.scrollDown(true);
             } catch (error) {
                 console.error(error);
                 this.createSpeechBubbleAI("Error while fetching data: " + error)
@@ -219,7 +218,7 @@ export default {
                 await this.askChatGpt(recognizedText);
             };
             recognition.onspeechend = () => {
-                this.recording = false;
+                this.isRecording = false;
             };
             recognition.onnomatch = () => {
                 console.error('Failed to recognize spoken text.');
@@ -231,12 +230,12 @@ export default {
             };
             recognition.onend = () => {
                 console.log('Recognition ended.');
-                this.recording = false;
-                this.busy = false;
+                this.isRecording = false;
+                this.isBusy = false;
             };
             recognition.start();
-            this.recording = true;
-            this.busy = true;
+            this.isRecording = true;
+            this.isBusy = true;
         },
 
         async resetChat() {
@@ -245,7 +244,7 @@ export default {
             this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
             this.showExampleQuestions = true;
             await this.sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`, null);
-            this.busy = false;
+            this.isBusy = false;
         },
 
         createSpeechBubbleAI(text, id) {
@@ -271,7 +270,7 @@ export default {
             if (waitBubble) {
                 waitBubble.remove();
             }
-            this.busy = false;
+            this.isBusy = false;
 
             chat.appendChild(d1)
 
@@ -375,7 +374,7 @@ export default {
 
             // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
             for (const message of agent_messages) {
-                const color = this.getDebugColor(message["agent"], this.darkScheme);
+                const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
                 this.addDebug(content, color)
@@ -411,30 +410,25 @@ export default {
             debugChat.append(d1)
         },
 
-        beforeDestroy() {
-            if (recognition) {
-                recognition.stop();
-            }
-        },
-
         getBackend() {
             const parts = this.backend.split('/');
             return parts[parts.length - 1];
-        }
+        },
 
+        setupTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+        }
     },
 
     mounted() {
-        console.log("mounted")
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        });
-
-        this.updateTheme()
+        this.updateTheme();
+        this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
         this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
-        // this.initiatePrompt();
+        console.log("mounted");
     },
 }
 
