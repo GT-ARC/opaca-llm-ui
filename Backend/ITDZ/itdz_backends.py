@@ -59,7 +59,7 @@ class DataAnalysisBackend(ProxyBackend):
 
     def _init_config(self):
         return {
-            "url": "http://10.42.6.107:3002/ask_llama",
+            "url": "http://10.42.6.107:3002/ask_csv",
         }
 
     async def query(self, message: str, debug: bool, api_key: str) -> Response:
