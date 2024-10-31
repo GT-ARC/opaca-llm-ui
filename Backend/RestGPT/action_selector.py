@@ -220,7 +220,7 @@ class ActionSelector(Chain):
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         responses = []
-        scratchpad = self._construct_scratchpad(inputs["history"])
+        scratchpad = self._construct_scratchpad(inputs["action_history"])
         action_list = ""
         for action in inputs["actions"]:
             action_list += action.selector_str(inputs['config']['use_agent_names']) + '\n'
@@ -228,7 +228,7 @@ class ActionSelector(Chain):
         # Initial Action/Parameter generation
 
         prompt = build_prompt(
-            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']['action_selector']
                            else ACTION_SELECTOR_PROMPT) + action_list,
             examples=examples if inputs['config']['examples']['action_selector'] else [],
             input_variables=["input"],
@@ -238,7 +238,7 @@ class ActionSelector(Chain):
         chain = prompt | self.llm.bind(stop=self._stop)
 
         time_ = time.time()
-        output = chain.invoke({"input": inputs["plan"]})
+        output = chain.invoke({"input": inputs["plan"], "history": inputs["message_history"]})
         time_ = time.time() - time_
 
         res_meta_data = {}
@@ -266,7 +266,7 @@ class ActionSelector(Chain):
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
             time_ = time.time()
-            output = chain.invoke({"input": inputs["plan"] + err_msg})
+            output = chain.invoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]})
             time_ = time.time() - time_
 
             if isinstance(output, AIMessage):
