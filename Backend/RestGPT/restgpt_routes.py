@@ -12,8 +12,9 @@ from pydantic import BaseModel
 
 from ..models import Response
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
+from .utils import OpacaLLM, ColorPrint
 from .rest_gpt import RestGPT
+from ..utils import get_reduced_action_spec
 
 logger = logging.getLogger()
 

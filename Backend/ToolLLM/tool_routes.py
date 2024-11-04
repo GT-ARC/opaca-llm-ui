@@ -14,7 +14,7 @@ from langchain_openai import ChatOpenAI
 from ..models import Response, AgentMessage
 from ..RestGPT import build_prompt
 from ..opaca_proxy import proxy as opaca_proxy
-from .utils import openapi_to_functions
+from ..utils import openapi_to_functions
 
 
 class ColorPrint:
