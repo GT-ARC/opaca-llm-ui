@@ -37,16 +37,9 @@ class OpacaLLM(Chain):
             f'{self.url}/api/chat',
             json={
                 'messages': [
-                    {"role": "system", "content": "If you use tools, answer only in the following format, even if no parameters are necessary for a tool:\n\n"
-                                                  "{\"name\": \"ToolName\", \"parameters\": {\"ParameterName\", Value}}\n\n"
-                                                  "If you generate multiple tool calls, separate them with semicolons.\n"
-                                                  "All of the keys and the tool name need to be surrounded by quotation marks.\n\n"
-                                                  "If you do not generate a tool call, start your Answer by outputting the word \"STOP\"."
-                                                  "If the user asks you about your functionality or how you can assist them, output a summary of the tools you can provide based on the list of actions given in that message."
-                                                  "If a user asks about a specific tool or service, provide them with the asked information."
-                                                  "Parameter values should only be surrounded by quotation marks if they are meant to be string values."},
                     {"role": "user", "content": inputs.get('input', '').to_string()}
                 ],
+                'temperature': 0,
                 'model': self.model,
                 'stream': False,
             }

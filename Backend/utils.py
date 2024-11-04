@@ -69,6 +69,11 @@ class Action:
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
+    def llama_str(self, agentName: bool = False):
+        return (f'{{"name": "{(self.agent_name + "--" + self.action_name) if agentName else self.action_name}", '
+                f'"description": {self.description}, "parameters": {self.params_in}, '
+                f'"custom types": {self.custom_params}}}')
+
 
 def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
     if p_type["items"]["type"] == "array":
