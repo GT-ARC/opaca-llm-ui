@@ -31,7 +31,7 @@ Always generate tool calls the following format:
 
 {{"name": "tool", "parameters": {{"parameter_name": value}}}}
 
-If you have generated multiple tool calls, output them separated with a semicolon.
+Do NOT generate multiple tool calls. Instead use the next Plan step to generate the next one if necessary.
 Make sure you format the value of the parameters correctly. If a value should be an integer or number, do not use 
 quotation marks or apostrophes around the value. Do not capitalize the keys. Always put the keys in quotation marks. Use the exact parameter names given in the tool definitions.
 Always use the full name of a tool. Do not use tool names as parameter values.
@@ -46,6 +46,32 @@ API response: This the the result of your second plan step.
 ... (this Plan step n and API response can repeat N times)
 
 Here is the list of tools you use to formulate your steps:
+
+{actions}
+
+Begin!
+
+User query: {input}
+Plan step 1: {scratchpad}
+"""
+
+LLAMA_PROMPT_ALT = """Given the following functions, please respond with a JSON for a function call with it proper 
+arguments that best answers the given prompt. 
+
+Respond in the format {{"name": "function name", "parameters": dictionary of argument names and its value}}. 
+Do not use variables.
+
+It can happen that a user task requires multiple, sequential function call. For that case, only output the next 
+concrete step of your proposed plan in the following format:
+
+User query: The input from the user
+Plan step 1: The first step of your plan.
+API response: This is the result of your first plan step.
+Plan step 2: The second step of your plan.
+API response: This the the result of your second plan step.
+... (this Plan step n and API response can repeat N times)
+
+Here is the list of functions: 
 
 {actions}
 
@@ -181,7 +207,7 @@ class LLamaBackend:
 
             # Build first llm agent
             prompt = PromptTemplate(
-                template=LLAMA_PROMPT,
+                template=LLAMA_PROMPT_ALT,
                 partial_variables={"actions": action_list, "scratchpad": self._construct_scratchpad(history)},
                 input_variables=["input"]
             )
