@@ -67,6 +67,9 @@ class SimpleBackend:
             print("RESPONSE:", repr(response))
             try:
                 d = json.loads(response.strip("`json\n")) # strip markdown, if included
+                if type(d) is not dict or any(x not in d for x in ("action", "agentId", "params")):
+                    print("JSON, but not an action call...")
+                    break
                 print("Successfully parsed as JSON, calling service...")
                 action_result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
