@@ -99,7 +99,7 @@ class SimpleBackend:
         self.config = {k: conf.get(k, v) for k, v in self.config.items()}
 
     def _update_system_prompt(self):
-        policy = ask_policies[self.config["ask_policy"]]
+        policy = ask_policies[int(self.config["ask_policy"])]
         self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_proxy.actions)}]
 
 
@@ -108,7 +108,7 @@ class SimpleOpenAIBackend(SimpleBackend):
     def _init_config(self):
         return {
             "model": "gpt-4o-mini",
-            "temperature": None,
+            "temperature": 1.0,
             "ask_policy": 0,
         }
 
@@ -116,7 +116,7 @@ class SimpleOpenAIBackend(SimpleBackend):
         print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
-        completion = self.client.chat.completions.create(model=self.config["model"], temperature=self.config["temperature"], messages=self.messages)
+        completion = self.client.chat.completions.create(model=self.config["model"], temperature=float(self.config["temperature"]), messages=self.messages)
         return completion.choices[0].message.content
 
 
@@ -126,6 +126,7 @@ class SimpleLlamaBackend(SimpleBackend):
         return {
             "api-url": "http://10.0.64.101:11000",
             "model": "llama3.1:70b",
+            "temperature": 1.0,
             "ask_policy": 0,
         }
 
@@ -135,5 +136,8 @@ class SimpleLlamaBackend(SimpleBackend):
             "messages": self.messages,
             "model": self.config["model"],
             "stream": False,
+            "options": {
+                "temperature": float(self.config["temperature"])
+            }
             })
         return result.json()["message"]["content"]
