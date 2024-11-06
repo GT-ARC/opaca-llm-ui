@@ -63,11 +63,11 @@
 </template>
 
 <script>
-import axios from "axios"
 import {marked} from "marked";
 import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
+import {sendRequest} from "../utils.js";
 
 export default {
     name: 'main-content',
@@ -110,7 +110,7 @@ export default {
                 await this.submitText()
             }
         },
-    
+
         async submitText() {
             const userInput = document.getElementById("textInput").value;
             document.getElementById("textInput").value = "";
@@ -121,38 +121,29 @@ export default {
 
         async initiatePrompt(url, username, password) {
             console.log(`CONNECTING as ${opacaUser}`)
-            const body = {
-                url: url,
-                user: username,
-                pwd: password
-            }
-            const res = await this.sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-            if (res.data === 200) {
-                const res2 = await this.sendRequest("GET", `${conf.BackendAddress}/actions`, null);
-                this.$refs.sidebar.platformActions = res2.data;
-                this.$refs.sidebar.selectView('agents');
-            } else if (res.data === 403) {
-                alert(conf.translations[this.language].unauthorized);
-                this.$refs.sidebar.platformActions = null;
-            } else {
-                alert(conf.translations[this.language].unreachable);
-                this.$refs.sidebar.platformActions = null;
-            }
-        },
-
-        async sendRequest(method, url, body) {
+            const body = {url: url, user: username, pwd: password};
+            const connectButton = document.getElementById('button-connect');
+            connectButton.disabled = true;
             try {
-                return await axios.request({
-                    method: method,
-                    url: url,
-                    data: body,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
-            } catch (error) {
-                throw error;
+                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
+                if (rpStatus === 200) {
+                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                    this.$refs.sidebar.platformActions = res2.data;
+                    this.$refs.sidebar.selectView('agents');
+                } else if (rpStatus === 403) {
+                    this.$refs.sidebar.platformActions = null;
+                    alert(conf.translations[this.language].unauthorized);
+                } else {
+                    this.$refs.sidebar.platformActions = null;
+                    alert(conf.translations[this.language].unreachable);
+                }
+            } catch (e) {
+                console.error('Error while initiating prompt:', e);
+                this.$refs.sidebar.platformActions = null;
+                alert('Backend server is unreachable.'); // put in config?
+            } finally {
+                connectButton.disabled = false;
             }
         },
 
@@ -160,8 +151,11 @@ export default {
             this.showExampleQuestions = false;
             this.createSpeechBubbleUser(userText);
             try {
-                const result = await this.sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`,
-                        {user_query: userText, debug: true, api_key: this.apiKey});
+                const result = await sendRequest(
+                        "POST",
+                        `${conf.BackendAddress}/${this.getBackend()}/query`,
+                        {user_query: userText, debug: true, api_key: this.apiKey},
+                        null);
                 const answer = result.data.content;
                 if (result.data.error) {
                     this.addDebug(result.data.error)
@@ -242,7 +236,7 @@ export default {
             this.abortSpeaking();
             this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
             this.showExampleQuestions = true;
-            await this.sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`, null);
+            await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`);
             this.isBusy = false;
         },
 
@@ -394,19 +388,15 @@ export default {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
             debugElements.forEach((element) => {
                 const text = element.innerText || element.textContent;
-                element.style.color = getDebugColor(text.split(':')[0] ?? "", darkScheme.value);
+                element.style.color = this.getDebugColor(text.split(':')[0] ?? "", this.darkScheme);
             });
         },
 
         addDebug(text, color) {
-            const debugChat = document.getElementById("debug-console");
-            let d1 = document.createElement("div")
-            d1.className = "debug-text"
-            d1.textContent = text
-            if (color) {
-                d1.style.color = color
-            }
-            debugChat.append(d1)
+            this.$refs.sidebar.debugMessages.push({
+                text: text,
+                color: color
+            });
         },
 
         getBackend() {
@@ -462,14 +452,6 @@ export default {
     background-color: black;
     overflow: hidden;
     overflow-y: auto;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 3px;
-    font-family: "Courier New", monospace;
-    font-size: small;
 }
 
 .sample-questions {

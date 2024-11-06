@@ -153,7 +153,17 @@ export default {
                 return selectedPath[0] === keyPath[0];
             }
             return key === this.backend;
+        },
+
+        setupTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
         }
+    },
+    mounted() {
+        this.setupTooltips();
     }
 }
 </script>

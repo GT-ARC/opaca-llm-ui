@@ -7,17 +7,22 @@
 
             <i @click="selectView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Config"
+               data-toggle="tooltip" data-placement="right" title="Connection"
                v-bind:class="{'sidebar-item-select': isViewSelected('connect')}" />
 
             <i @click="selectView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents"
+               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
                v-bind:class="{'sidebar-item-select': isViewSelected('agents')}"/>
+
+            <i @click="selectView('config')"
+               class="fa fa-cog p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Configuration"
+               v-bind:class="{'sidebar-item-select': isViewSelected('config')}"/>
 
             <i @click="selectView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Debug"
+               data-toggle="tooltip" data-placement="right" title="Logging"
                v-bind:class="{'sidebar-item-select': isViewSelected('debug')}"/>
         </div>
 
@@ -27,7 +32,7 @@
                class="container-fluid d-flex flex-column px-3"
                style="height: calc(100vh - 85px); width: 400px">
 
-                <!-- connection/backend settings -->
+                <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
@@ -66,7 +71,7 @@
                     </div>
 
                     <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initRpConnection()">
+                        <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
                             <i class="fa fa-link me-1"/>Connect
                         </button>
                     </div>
@@ -74,13 +79,7 @@
                 </div>
                 </div>
 
-                <!-- debug console -->
-                <div v-show="isViewSelected('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="flex-row-reverse text-start"/>
-                </div>
-
-                <!-- agents/actions overiew -->
+                <!-- agents/actions overview -->
                 <div v-show="isViewSelected('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
@@ -116,6 +115,39 @@
                     </div>
                 </div>
 
+                <!-- backend config -->
+                <div v-show="isViewSelected('config')"
+                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
+                    <div v-else class="flex-row text-start" >
+                        <div v-for="(value, name) in backendConfig" :key="name">
+                            <div class="py-2">
+                                <div><strong>{{ name }}</strong></div>
+                                <input v-model="backendConfig[name]"
+                                       class="form-control w-100"
+                                       type="text" :placeholder="String(value)"/>
+                            </div>
+                        </div>
+                        <div class="py-2 text-center">
+                            <button class="btn btn-primary py-2 w-100" type="button" @click="this.saveBackendConfig()">
+                                <i class="fa fa-save me-1"/>
+                                Save Config
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- debug console -->
+                <div v-show="isViewSelected('debug')" id="chatDebug"
+                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                    <div id="debug-console" class="flex-row-reverse text-start">
+                        <div v-for="debugMessage in this.debugMessages" class="debug-text"
+                             :style="debugMessage.color ? { color: debugMessage.color } : {}">
+                            {{ debugMessage.text }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="resizer me-1" id="resizer" />
             </aside>
         </div>
@@ -124,6 +156,7 @@
 
 <script>
 import conf from '../../config.js'
+import {sendRequest} from "../utils.js";
 
 export default {
     name: 'Sidebar',
@@ -139,6 +172,8 @@ export default {
             opacaPwd: '',
             apiKey: '',
             platformActions: null,
+            backendConfig: null,
+            debugMessages: []
         };
     },
     methods: {
@@ -173,8 +208,19 @@ export default {
             this.$emit('connect', this.opacaRuntimePlatform, this.opacaUser, this.opacaPwd);
         },
 
-        updateBackendConfig() {
-            // todo: fetch new config values, after other mr
+        getBackend() {
+            const parts = this.backend.split('/');
+            return parts[parts.length - 1];
+        },
+
+        async saveBackendConfig() {
+            const backend = this.getBackend();
+            const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
+            if (response.status === 200) {
+                console.log('Saved backend config.');
+            } else {
+                console.error('Error saving backend config.');
+            }
         },
 
         setupResizer() {
@@ -202,15 +248,26 @@ export default {
                 isResizing = false;
                 document.body.style.cursor = 'default';
             });
+        },
+
+        async fetchBackendConfig() {
+            const backend = this.getBackend();
+            const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
+            if (response.status === 200) {
+                this.backendConfig = response.data;
+            } else {
+                this.backendConfig = null;
+                console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
+            }
         }
     },
     mounted() {
         this.setupResizer();
+        this.fetchBackendConfig();
     },
     watch: {
-        backend(newValue, oldValue) {
-            console.log('backend changed:', oldValue, newValue);
-            this.updateBackendConfig();
+        backend(newValue) {
+            this.fetchBackendConfig();
         }
     }
 }
@@ -251,6 +308,14 @@ export default {
     top: 0;
     right: 0;
     border-radius: 2px;
+}
+
+.debug-text {
+    display: block;
+    text-align: left;
+    margin-left: 3px;
+    font-family: "Courier New", monospace;
+    font-size: small;
 }
 
 @media (prefers-color-scheme: dark) {
