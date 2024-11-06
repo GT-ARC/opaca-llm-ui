@@ -110,7 +110,7 @@ export default {
                 await this.submitText()
             }
         },
-
+    
         async submitText() {
             const userInput = document.getElementById("textInput").value;
             document.getElementById("textInput").value = "";
@@ -120,19 +120,18 @@ export default {
         },
 
         async initiatePrompt(url, username, password) {
+            console.log(`CONNECTING as ${opacaUser}`)
             const body = {
                 url: url,
                 user: username,
                 pwd: password
             }
             const res = await this.sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-            if (res.status === 200) {
+            if (res.data === 200) {
                 const res2 = await this.sendRequest("GET", `${conf.BackendAddress}/actions`, null);
-                const actions = res2.data;
-                let text = conf.translations[this.language].connected;
-                this.$refs.sidebar.platformActions = actions;
+                this.$refs.sidebar.platformActions = res2.data;
                 this.$refs.sidebar.selectView('agents');
-            } else if (res.status === 403) {
+            } else if (res.data === 403) {
                 alert(conf.translations[this.language].unauthorized);
                 this.$refs.sidebar.platformActions = null;
             } else {

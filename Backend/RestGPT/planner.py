@@ -186,7 +186,7 @@ class Planner(Chain):
             system_prompt=(PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts'] else PLANNER_PROMPT) + action_list,
             examples=examples if inputs['config']['examples']['planner'] else [],
             input_variables=["input"],
-            message_template=scratchpad + "{input}"
+            message_template="{input}" + scratchpad
         )
 
         chain = prompt | self.llm.bind(stop=self._stop)
