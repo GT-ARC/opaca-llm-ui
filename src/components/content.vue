@@ -275,7 +275,7 @@ document.getElementById('')
     }
 
     async function initiatePrompt() {
-        console.log(`CONNECTING with ${opacaUser} ${opacaPwd}`)
+        console.log(`CONNECTING as ${opacaUser}`)
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
         if (res.data === 200) {

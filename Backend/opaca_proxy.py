@@ -18,12 +18,11 @@ class OpacaProxy:
         self.actions_dict = {}
         
     async def connect(self, url: str, user: str, pwd: str):
-        print("CONNECT", repr(url), user, pwd)
+        print("CONNECT", repr(url), user)
         self.url = url
 
         try:
             self._get_token(user, pwd)
-            #requests.get(f"{self.url}/info", headers=self._headers()).raise_for_status()
             self._update_opaca_actions()
             return 200
         except (ConnectionError, HTTPError) as e:
