@@ -3,6 +3,8 @@ from typing import Dict
 import requests
 import random
 
+from ..models import Response, AgentMessage
+
 
 class ProxyBackend:
 
@@ -32,7 +34,10 @@ class KnowledgeBackend(ProxyBackend):
             "msg_id": 0,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def reset(self):
+        self.config["conv_id"] = random.randint(1000, 10000)
+
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
         print("QUERY", message)
         url = self.config["url"].format(model=self.config["model"])
         json = {
@@ -47,17 +52,17 @@ class KnowledgeBackend(ProxyBackend):
         result = response.json()
         print("RESULT", result)
         self.config["msg_id"] = int(result["msg_id"])
-        return {"result": result["content"], "debug": ""}
+        return Response(query=message, content=result["content"])
 
 
 class DataAnalysisBackend(ProxyBackend):
 
     def _init_config(self):
         return {
-            "url": "http://10.42.6.107:3002/ask_llama",
+            "url": "http://10.42.6.107:3002/ask_csv",
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
         print("QUERY", message)
         url = self.config["url"]
         response = requests.post(url, json={"question": message})
@@ -65,9 +70,9 @@ class DataAnalysisBackend(ProxyBackend):
         result = response.json()
         print("RESULT", result)
         if result["type"] == "answer":
-            return {"result": f"{result['content']}", "debug": ""}
+            return Response(query=message, content=f"{result['content']}")
         elif result["type"] == "plot":
             img_url = f"{url[:url.rfind('/')]}/get_image/{result['content']}"
-            return {"result": f'<img src="{img_url}" width="100%">', "debug": ""}
+            return Response(query=message, content=f'<img src="{img_url}" width="100%">')
         else:
-            return {"result": str(result), "debug": ""}
+            return Response(query=message, content=str(result))

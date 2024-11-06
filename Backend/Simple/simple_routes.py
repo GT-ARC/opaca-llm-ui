@@ -26,30 +26,25 @@ In order to invoke an action with parameters, output the following JSON format a
     }
 }
 
-It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
-So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..."!
-Again, in order to call a service, your response must ONLY contain the JSON and nothing else.
-
 The result of the action invocation is then fed back into the prompt as a system message.
 If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
 Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
 
-If multiple actions will be needed to fulfill the request, first show which actions you are about to call (as a list), and only start calling the services (using the above format) once the user confirmed the plan with "okay", "do it", or similar. But if just a single action is needed, then you execute it directly without asking for confirmation first.
+It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
+So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..., now calling ..."!
+Again, in order to call a service, your response must ONLY contain the JSON and nothing else.
 
-Again, please follow this exact process:
-- if multiple actions have to be called:
-  1. show a list of the actions to be called and ask the user to confirm this.
-  2. wait for the user's input
-  3. print the JSON for invoking the first action, and nothing else
-  4. evaluate the result of the action (given as a system message)
-  5. either respond to the user's original question, giving them the result, or continue with the next action (going back to 3.)
-- if a only single action has to be called:
-  1. print the JSON for invoking the action, and nothing else
-  2. evaluate the result of the action (given as a system message)
-  3. respond to the user's original question, giving them the result
+%s
 
 Following is the list of available agents and actions described in JSON:
+%s
 """
+
+ask_policies = [
+    "Directly execute the action you find best fitting without asking the user for confirmation.",
+    "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+    "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation."
+]
 
 class SimpleBackend:
 
@@ -57,7 +52,7 @@ class SimpleBackend:
         self.messages = []
         self.config = self._init_config()
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Dict:
+    async def query(self, message: str, debug: bool, api_key: str) -> Response:
         print("QUERY", message)
         self._update_system_prompt()
         last_msg = len(self.messages)
@@ -104,7 +99,8 @@ class SimpleBackend:
         self.config = {k: conf.get(k, v) for k, v in self.config.items()}
 
     def _update_system_prompt(self):
-        self.messages[:1] = [{"role": "system", "content": system_prompt + opaca_proxy.actions}]
+        policy = ask_policies[self.config["ask_policy"]]
+        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_proxy.actions)}]
 
 
 class SimpleOpenAIBackend(SimpleBackend):
@@ -113,6 +109,7 @@ class SimpleOpenAIBackend(SimpleBackend):
         return {
             "model": "gpt-4o-mini",
             "temperature": None,
+            "ask_policy": 0,
         }
 
     def _query_internal(self, debug: bool, api_key: str) -> str:
@@ -129,6 +126,7 @@ class SimpleLlamaBackend(SimpleBackend):
         return {
             "api-url": "http://10.0.64.101:11000",
             "model": "llama3.1:70b",
+            "ask_policy": 0,
         }
 
     def _query_internal(self, debug: bool, api_key: str) -> str:

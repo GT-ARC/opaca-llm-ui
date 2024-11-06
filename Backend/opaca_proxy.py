@@ -18,12 +18,11 @@ class OpacaProxy:
         self.actions_dict = {}
         
     async def connect(self, url: str, user: str, pwd: str):
-        print("CONNECT", repr(url), user, pwd)
+        print("CONNECT", repr(url), user)
         self.url = url
 
         try:
             self._get_token(user, pwd)
-            requests.get(f"{self.url}/info", headers=self._headers()).raise_for_status()
             self._update_opaca_actions()
             return 200
         except (ConnectionError, HTTPError) as e:
@@ -68,8 +67,10 @@ class OpacaProxy:
             self.actions = res.text
             self.actions_dict = res.json()
         except Exception as e:
-            print("COULD NOT CONNECT", e)
+            print("COULD NOT UPDATE ACTIONS", e)
             self.actions = "(No Services. Failed to connect to OPACA Runtime.)"
+            self.actions_dict = {}
+            raise e
 
     def _headers(self):
         return {'Authorization': f'Bearer {self.token}'} if self.token else None

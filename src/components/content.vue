@@ -120,32 +120,28 @@ export default {
         },
 
         async initiatePrompt(url, username, password) {
+            console.log(`CONNECTING as ${opacaUser}`)
             const body = {url: url, user: username, pwd: password};
-            console.log('init prompt', body);
             const connectButton = document.getElementById('button-connect');
             connectButton.disabled = true;
             try {
                 const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                if (res.status === 200) {
-                    const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
-                    if (rpStatus === 200) {
-                        // add some error handling?
-                        const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                        this.$refs.sidebar.platformActions = res2.data;
-                        this.$refs.sidebar.selectView('agents');
-                    } else if (rpStatus === 403) {
-                        this.$refs.sidebar.platformActions = null;
-                        alert(conf.translations[this.language].unauthorized);
-                    } else {
-                        this.$refs.sidebar.platformActions = null;
-                        alert(conf.translations[this.language].unreachable);
-                    }
+                const rpStatus = parseInt(res.data); // actual rp status is in response body (maybe backend should instead just return this as its own status?)
+                if (rpStatus === 200) {
+                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                    this.$refs.sidebar.platformActions = res2.data;
+                    this.$refs.sidebar.selectView('agents');
+                } else if (rpStatus === 403) {
+                    this.$refs.sidebar.platformActions = null;
+                    alert(conf.translations[this.language].unauthorized);
                 } else {
                     this.$refs.sidebar.platformActions = null;
-                    alert('Backend server is unreachable.'); // put in config?
+                    alert(conf.translations[this.language].unreachable);
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
+                this.$refs.sidebar.platformActions = null;
+                alert('Backend server is unreachable.'); // put in config?
             } finally {
                 connectButton.disabled = false;
             }
