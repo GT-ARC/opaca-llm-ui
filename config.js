@@ -26,6 +26,11 @@ var config = {
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
+    languages: {
+        GB: 'en-GB',
+        DE: 'de-DE'
+    },
+
     translations:{
         GB: {
             name: "English",
