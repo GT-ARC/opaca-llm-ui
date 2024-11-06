@@ -7,22 +7,22 @@
 
             <i @click="selectView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Config"
+               data-toggle="tooltip" data-placement="right" title="Connection"
                v-bind:class="{'sidebar-item-select': isViewSelected('connect')}" />
 
             <i @click="selectView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents"
+               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
                v-bind:class="{'sidebar-item-select': isViewSelected('agents')}"/>
 
             <i @click="selectView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Backend Config"
+               data-toggle="tooltip" data-placement="right" title="Configuration"
                v-bind:class="{'sidebar-item-select': isViewSelected('config')}"/>
 
             <i @click="selectView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Debug"
+               data-toggle="tooltip" data-placement="right" title="Logging"
                v-bind:class="{'sidebar-item-select': isViewSelected('debug')}"/>
         </div>
 
