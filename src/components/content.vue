@@ -275,23 +275,16 @@ document.getElementById('')
     }
 
     async function initiatePrompt() {
+        console.log(`CONNECTING as ${opacaUser}`)
         const body = {url: opacaRuntimePlatform, user: opacaUser, pwd: opacaPwd}
         const res = await sendRequest("POST", `${config.BackendAddress}/connect`, body);
-        if (res.status === 200) {
+        if (res.data === 200) {
             const res2 = await sendRequest("GET", `${config.BackendAddress}/actions`, null);
             const actions = res2.data;
-            let text = config.translations[language.value].connected;
-            if (Object.keys(actions).length > 0) {
-                for (const agent in actions) {
-                    //text += `\n* **${agent}:** ${actions[agent].join(", ")}`
-                    text += `\n* ${agent}`
-                }
-            } else {
-                text += config.translations[language.value].none
-            }
+            console.log(`ACTIONS ${JSON.stringify(actions)}`)
             platformActions = actions;
             toggleSidebar('agents');
-        } else if (res.status === 403) {
+        } else if (res.data === 403) {
             alert(config.translations[language.value].unauthorized);
             platformActions = null;
         } else {
