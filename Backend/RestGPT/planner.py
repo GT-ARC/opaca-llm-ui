@@ -5,8 +5,9 @@ import re
 from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
+from langchain_core.prompts import PromptTemplate
 
-from .utils import build_prompt
+from .utils import build_prompt, OpacaLLM
 from ..models import AgentMessage
 
 logger = logging.getLogger()
@@ -128,6 +129,73 @@ Following is the list of available actions. It will include the name of each act
 available, and the parameters required to call that action.
 """
 
+examples_llama = """Example 1
+User query: Book me the desk with id 6.
+Plan step 1: Check if the desk with id 6 is currently free.
+API response: The desk with id 6 is free.
+Plan step 2: Book the desk with id 6.
+API response: Successfully booked the desk with id 6.
+
+Example 2
+User query: Can you open shelf 1 for me?
+Plan step 1: Open the shelf with id 1.
+API response: The shelf with id 1 is now open.
+
+Example 3
+User query: Please open the shelf with cups in it.
+Plan step 1: Find the shelf with the cups in it.
+API response: The shelf containing the cups is the shelf with id 3.
+Plan step 2: Open the shelf with id 3.
+API response: Successfully opened the shelf with id 3.
+
+Example 4
+User query: Book me any desk in the office that is currently free.
+Plan step 1: Get all desks in the office.
+API response: The ids of the desks are 0, 4, 6.
+Plan step 2: Check if the desk with id 0 is free.
+API response: The desk with id 0 is not free.
+Plan step 3: Check if the desk with id 4 is free.
+API response: The desk with id 4 is free.
+Plan step 4: Book the desk with id 4.
+API response: Successfully booked the desk with id 4.
+
+Example 5
+User query: Get the Co2 level for sensor 111 and the temperature for sensor 103.
+Plan step 1: Get the Co2 level for sensor 111.
+API response: The Co2 level for sensor 111 is 39.0.
+Plan step 2: Get the temperature for sensor 103.
+API response: The humidity for room 1 is 45.2.
+
+Example 6
+User query: Please add 4 apples to my grocery list with an expiration date of 29th of July 2024.
+Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to the category fruits.
+API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024
+"""
+
+PLANNER_PROMPT_LLAMA = """You are an agent that plan solution to user queries.
+You should always give your plan in natural language.
+Another model will receive your plan and find the right API calls and give you the result in natural language.
+The plan should be as specific as possible. The plan should be straightforward.
+
+Starting below, you should follow this format:
+
+User query: The query a User wants help with.
+Plan step 1: The first step of your plan for how to solve the query.
+API response: The result of executing the first step of your plan.
+Plan step 2: Based on the API response, the second step of your plan.
+API response: The result of executing the second step of your plan.
+... (this Plan step n and API response can repeat N times)
+Thought: I am finished executing a plan and have the information the user asked for or the data the used asked to create.
+Final Answer: The final output from executing the plan.
+
+{examples}
+
+Begin!
+
+User query: {input}
+Plan step 1: {scratchpad}
+"""
+
 
 class Planner(Chain):
     llm: BaseChatModel
@@ -175,19 +243,41 @@ class Planner(Chain):
             scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
+    def _construct_scratchpad_llama(
+            self, history: List[Tuple[str, str]]
+    ) -> str:
+        if len(history) == 0:
+            return ""
+        scratchpad = ""
+        for i, (plan, execution_res) in enumerate(history):
+            scratchpad += plan + "\n"
+            scratchpad += self.observation_prefix + execution_res + "\n"
+            scratchpad += self.llm_prefix.format(i + 2)
+        return scratchpad
+
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        scratchpad = self._construct_scratchpad(inputs['planner_history'])
+        if isinstance(self.llm, OpacaLLM):
+            scratchpad = self._construct_scratchpad_llama(inputs['planner_history'])
+        else:
+            scratchpad = self._construct_scratchpad(inputs['planner_history'])
         action_list = ""
 
         for action in inputs["actions"]:
             action_list += action.planner_str(inputs['config']['use_agent_names']) + '\n'
 
-        prompt = build_prompt(
-            system_prompt=(PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts'] else PLANNER_PROMPT) + action_list,
-            examples=examples if inputs['config']['examples']['planner'] else [],
-            input_variables=["input"],
-            message_template="{input}" + scratchpad
-        )
+        if isinstance(self.llm, OpacaLLM):
+            prompt = PromptTemplate(
+                template=PLANNER_PROMPT_LLAMA,
+                partial_variables={"actions": action_list, "scratchpad": scratchpad, "examples": examples_llama},
+                input_variables=["input"]
+            )
+        else:
+            prompt = build_prompt(
+                system_prompt=(PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts'] else PLANNER_PROMPT) + action_list,
+                examples=examples if inputs['config']['examples']['planner'] else [],
+                input_variables=["input"],
+                message_template="{input}" + scratchpad
+            )
 
         chain = prompt | self.llm.bind(stop=self._stop)
 
