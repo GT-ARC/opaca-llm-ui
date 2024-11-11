@@ -119,7 +119,11 @@ class SimpleOpenAIBackend(SimpleBackend):
         print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
-        completion = self.client.chat.completions.create(model=self.config["model"], temperature=float(self.config["temperature"]), messages=self.messages)
+        completion = self.client.chat.completions.create(
+            model=self.config["model"],
+            messages=self.messages,
+            temperature=float(self.config["temperature"]),
+        )
         return completion.choices[0].message.content
 
 
@@ -136,11 +140,12 @@ class SimpleLlamaBackend(SimpleBackend):
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling LLAMA...")
         result = requests.post(f'{self.config["api-url"]}/api/chat', json={
-            "messages": self.messages,
             "model": self.config["model"],
+            "messages": self.messages,
             "stream": False,
             "options": {
-                "temperature": float(self.config["temperature"])
+                "temperature": float(self.config["temperature"]),
+                "num_ctx": 32768,  # consider last X tokens for response
             }
-            })
+        })
         return result.json()["message"]["content"]
