@@ -172,21 +172,12 @@ Plan step 1: Add 4 apples to the grocery list with expiration date 29.07.2024 to
 API response: Added 4 apples to the grocery list with category fruits and expiration date 29.07.2024
 """
 
-PLANNER_PROMPT_LLAMA = """You are an agent that plan solution to user queries.
-You should always give your plan in natural language.
-Another model will receive your plan and find the right API calls and give you the result in natural language.
-The plan should be as specific as possible. The plan should be straightforward.
+PLANNER_PROMPT_LLAMA = """{prompt}
 
-Starting below, you should follow this format:
+{actions}
 
-User query: The query a User wants help with.
-Plan step 1: The first step of your plan for how to solve the query.
-API response: The result of executing the first step of your plan.
-Plan step 2: Based on the API response, the second step of your plan.
-API response: The result of executing the second step of your plan.
-... (this Plan step n and API response can repeat N times)
-Thought: I am finished executing a plan and have the information the user asked for or the data the used asked to create.
-Final Answer: The final output from executing the plan.
+Do not formulate tool calls or function calls on your own. Only output one short and precise sentence.
+Here are some examples of how you should answer:
 
 {examples}
 
@@ -268,7 +259,7 @@ class Planner(Chain):
         if isinstance(self.llm, OpacaLLM):
             prompt = PromptTemplate(
                 template=PLANNER_PROMPT_LLAMA,
-                partial_variables={"actions": action_list, "scratchpad": scratchpad, "examples": examples_llama},
+                partial_variables={"prompt": PLANNER_PROMPT, "actions": action_list, "scratchpad": scratchpad, "examples": examples_llama},
                 input_variables=["input"]
             )
         else:
