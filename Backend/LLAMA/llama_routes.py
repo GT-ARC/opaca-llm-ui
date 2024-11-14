@@ -47,13 +47,13 @@ You are a helpful ai assistant."""
 
 
 LLAMA_EVAL_PROMPT = """A user had the following request: {query} 
-You just used the the following functions:
+You just used the the following function:
 
-{functions} 
+{function} 
 
-You called these functions with the following parameters: {parameters} 
+You called this function with the following parameters: {parameters} 
 
-The result were: {results}
+The result was: {result}
 
 Generate a response explaining the result directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
 At the end of your request, you must either output 
@@ -132,24 +132,28 @@ class LLamaBackend:
                 print(f'Message is no tool call: {message}')
         return tools
 
-    def _fix_type(self, action: Action, parameters: Dict[str, Any]):
+    def _fix_type(self, action: Dict[str, Any], parameters: Dict[str, Any]):
         out = parameters
         for key, value in parameters.items():
-            for a_key in action.params_in.keys():
+            for a_key in action.get("parameters", {}).keys():
                 print(f'Key: {a_key}')
-                if key == a_key:
-                    print(f'type: {action.params_in[a_key].type}')
-                    match action.params_in[a_key].type:
-                        case 'string':
-                            out[key] = str(value)
-                        case 'number':
-                            out[key] = float(value)
-                        case 'integer':
-                            out[key] = int(value)
-                        case 'boolean':
-                            out[key] = bool(value)
-                        case _:
-                            out[key] = value
+                try:
+                    if key == a_key:
+                        print(f'type: {action["parameters"][a_key]["param_type"]}')
+                        match action["parameters"][a_key]["param_type"]:
+                            case 'string':
+                                out[key] = str(value)
+                            case 'number':
+                                out[key] = float(value)
+                            case 'integer':
+                                out[key] = int(value)
+                            case 'boolean':
+                                out[key] = bool(value)
+                            case _:
+                                out[key] = value
+                except ValueError:
+                    # This is pretty ugly
+                    continue
         return out
 
 
@@ -159,7 +163,6 @@ class LLamaBackend:
         tool_names = []
         tool_params = []
         tool_results = []
-        used_functions = []
         c_it = 0
         self.should_continue = True
         prompt_input = message
@@ -193,6 +196,7 @@ class LLamaBackend:
             llama_gen_time = time.time() - llama_gen_time
 
             print(f'Generator output: {result_gen}')
+            messages.append(AIMessage(content=result_gen))
 
             response.agent_messages.append(AgentMessage(
                 agent="LLAMA Generator",
@@ -211,7 +215,11 @@ class LLamaBackend:
                 agent, action = action_name.split('--')
                 tool_names.append(action_name)
                 tool_params.append(parameters)
-                used_functions.extend([action for action in actions if action["name"] == action_name])
+                used_function = {}
+                for a in actions:
+                    if a["name"] == action_name:
+                        used_function = a
+                parameters = self._fix_type(used_function, parameters)
                 try:
                     tool_results.append(opaca_proxy.invoke_opaca_action(
                         action,
@@ -221,6 +229,7 @@ class LLamaBackend:
                 except Exception as e:
                     tool_results.append(str(e))
             else:
+                # TODO
                 return response
 
             llama_evl_time = time.time()
@@ -228,9 +237,9 @@ class LLamaBackend:
                 "messages": [HumanMessage(
                     content=LLAMA_EVAL_PROMPT.format(
                     query=prompt_input,  # Original user query
-                    functions=used_functions,  # ALL the tools used so far
-                    parameters=tool_params,  # ALL the parameters used for the tools
-                    results=tool_results  # ALL the results from the opaca action calls
+                    function=used_function,  # ALL the tools used so far
+                    parameters=tool_params[-1],  # ALL the parameters used for the tools
+                    result=tool_results[-1]  # ALL the results from the opaca action calls
                     ))],
                 "history": []
                 }
@@ -244,7 +253,7 @@ class LLamaBackend:
                 execution_time=llama_evl_time,
             ))
 
-            messages.append(AIMessage(content=result_evl))
+            messages.append(HumanMessage(content=result_evl))
 
             # Remove the keywords from the generated response
             response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
@@ -257,6 +266,9 @@ class LLamaBackend:
             c_it += 1
 
         response.execution_time = time.time() - total_exec_time
+
+        self.message_history.append({"role": "user", "content": prompt_input})
+        self.message_history.append({"role": "assistant", "content": response.content})
         return response
 
     async def history(self) -> list:
