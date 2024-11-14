@@ -2,6 +2,8 @@ import requests
 
 from typing import Any, Dict, Optional, List
 from langchain.chains.base import Chain
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.prompt_values import PromptValue
 from langchain_core.runnables import RunnableConfig
 
 
@@ -20,7 +22,7 @@ class OpacaLLM(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["input"]
+        return ["messages"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -36,14 +38,19 @@ class OpacaLLM(Chain):
         response = requests.post(
             f'{self.url}/api/chat',
             json={
-                'messages': [
-                    {"role": "user", "content": inputs.get('input', '').to_string()}
-                ],
-                'temperature': 0,
+                'messages': self._format_llama3(inputs["messages"]),
                 'model': self.model,
                 'stream': False,
+                'options': {
+                    'temperature': 0.0,
+                    'num_ctx': 32768
+                }
             }
-        ).json()['message']['content']
+        ).json()
+
+        print(f'Raw output: {response}')
+
+        response = response['message']['content']
 
         output = response.replace("\\n", "\n").replace('\\"', '"').strip()
 
@@ -53,3 +60,23 @@ class OpacaLLM(Chain):
                 return output[:stop_pos].strip()
 
         return {"result": output}
+
+    @staticmethod
+    def _format_llama3(input_messages):
+        messages = []
+
+        for message in input_messages:
+            if isinstance(message, SystemMessage):
+                role = "system"
+            elif isinstance(message, HumanMessage):
+                role = "user"
+            elif isinstance(message, AIMessage):
+                role = "assistant"
+            else:
+                raise ValueError(f'Unknown message type: {type(message)}')
+
+            content = message.content
+            content = content.replace("\\n", "").replace('\\"', '"')
+
+            messages.append({"role": role, "content": content})
+        return messages

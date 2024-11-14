@@ -7,79 +7,51 @@ from typing import List, Tuple, Dict, Any
 import logging
 
 from colorama import Fore
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import PromptTemplate
 
 from .llama_proxy import OpacaLLM
+from ..RestGPT import build_prompt
 from ..models import Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
-from ..utils import get_reduced_action_spec, fix_parentheses, Action
+from ..utils import get_reduced_action_spec, fix_parentheses, Action, openapi_to_functions
 
-LLAMA_PROMPT = """You are a helpful ai assistant that plans solution to user queries with the help of 
-tools. You can find those tools in the tool section. Do not generate optional 
-parameters for those tools if the user has not explicitly told you to.
-Some queries require sequential calls with those tools. Never output tool calls missing information. If possible, 
-generate the tool calls to get that information first. For example, if a tool requires an id to a given value and the 
-user has provided you with the value, check if a tool exist to get the associated id. If other tool calls have been 
-made already, you will receive the generated AI response of these tool calls. In that 
-case you should continue to fulfill the user query with the additional knowledge. 
-If you are unable to fulfill the user queries with the given tools, let the user know. 
-You are only allowed to use those given tools. If a user asks about tools directly, 
-answer them with the required information. Tools can also be described as services.
+LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
+Today Date: 11 November 2024
 
-Always generate tool calls the following format:
-
-{{"name": "tool", "parameters": {{"parameter_name": value}}}}
-
-Do NOT generate multiple tool calls. Instead use the next Plan step to generate the next one if necessary.
-Make sure you format the value of the parameters correctly. If a value should be an integer or number, do not use 
-quotation marks or apostrophes around the value. Do not capitalize the keys. Always put the keys in quotation marks. Use the exact parameter names given in the tool definitions.
-Always use the full name of a tool. Do not use tool names as parameter values.
-
-A typical conversation where a user wants you to use tools will look like this:
-
-User query: The input from the user
-Plan step 1: The first step of your plan.
-API response: This is the result of your first plan step.
-Plan step 2: The second step of your plan.
-API response: This the the result of your second plan step.
-... (this Plan step n and API response can repeat N times)
-
-Here is the list of tools you use to formulate your steps:
+You have access to the following functions:
 
 {actions}
 
-Begin!
+If you choose to call a function ONLY reply in the following format:
+<{{start_tag}}={{function_name}}>{{parameters}}{{end_tag}}
+where
 
-User query: {input}
-Plan step 1: {scratchpad}
-"""
+start_tag => `<function`
+parameters => a JSON dict with the function argument name as key and function argument value as value.
+end_tag => `</function>`
 
-LLAMA_PROMPT_ALT = """Given the following functions, please respond with a JSON for a function call with it proper 
-arguments that best answers the given prompt. 
+Here is an example,
+<function=example_function_name>{{"example_name": "example_value"}}</function>
 
-Respond in the format {{"name": "function name", "parameters": dictionary of argument names and its value}}. 
-Do not use variables.
+Reminder:
+- Function calls MUST follow the specified format
+- Required parameters MUST be specified
+- Only call one function at a time
+- Put the entire function call reply on one line
+- Sometimes you can get required parameters by calling other functions beforehand and using their results
 
-It can happen that a user task requires multiple, sequential function call. For that case, only output the next 
-concrete step of your proposed plan in the following format:
+You are a helpful ai assistant."""
 
-User query: The input from the user
-Plan step 1: The first step of your plan.
-API response: This is the result of your first plan step.
-Plan step 2: The second step of your plan.
-API response: This the the result of your second plan step.
-... (this Plan step n and API response can repeat N times)
 
-Here is the list of functions: 
+LLAMA_EVAL_PROMPT = """A user had the following request: {query} 
+You just used the functions {tool_names} with the following parameters: {parameters} 
+The results were {results}
 
-{actions}
-
-Begin!
-
-User query: {input}
-Plan step 1: {scratchpad}
-"""
+Generate a response explaining the result to a user. DO NOT FORMULATE FUNCTION CALLS. 
+At the end of your request, you must either output 
+'FINISHED' if the user request has been fulfilled in its entirety and you were able to 
+answer the user, or output 'CONTINUE' so more function calls can be made by another model."""
 
 
 class ColorPrint:
@@ -111,8 +83,8 @@ class LLamaBackend:
     messages: List = []
     should_continue: bool = True
     max_iter: int = 5
-    observation_prefix = "API Response: "
-    llm_prefix = "Plan Step {}: "
+    observation_prefix = "Result: "
+    llm_prefix = "Function {}: "
 
     def __init__(self):
         # This is the DEFAULT config
@@ -131,7 +103,7 @@ class LLamaBackend:
             return ""
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
-            scratchpad += (plan + "\n" + self.observation_prefix + fix_parentheses(execution_res) +
+            scratchpad += (plan + "\n" + self.observation_prefix.format(i + 2) + fix_parentheses(execution_res) +
                            "\n" + self.llm_prefix.format(i + 2))
         print(f'Scratchpad built: {scratchpad}')
         return scratchpad
@@ -192,8 +164,7 @@ class LLamaBackend:
         response.query = message
 
         try:
-            actions = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
-            action_list = [action.llama_str(self.config['use_agent_names']) for action in actions]
+            actions, errors = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
@@ -202,106 +173,71 @@ class LLamaBackend:
 
         total_exec_time = time.time()
 
+        messages = [SystemMessage(content=LLAMA_SYSTEM_PROMPT_GENERATOR.format(actions=actions)),
+                    HumanMessage(content=prompt_input)]
+
         # Run until request is finished or maximum number of iterations is reached
         while self.should_continue and c_it < self.max_iter:
 
-            # Build first llm agent
-            prompt = PromptTemplate(
-                template=LLAMA_PROMPT_ALT,
-                partial_variables={"actions": action_list, "scratchpad": self._construct_scratchpad(history)},
-                input_variables=["input"]
-            )
-
-            chain = prompt | llm
-
             llama_gen_time = time.time()
-            result_gen = chain.invoke({
-                'input': prompt_input,
+            result_gen = llm.invoke({
+                'messages': messages,
                 #'history': self.messages
             })["result"]
             llama_gen_time = time.time() - llama_gen_time
 
+            print(f'Result before match: {result_gen}')
+            match = re.search(r"<function=([a-zA-Z_][a-zA-Z0-9_\-]*)>(\{.*})</function>", result_gen)
 
-            print(f'Generator Output: {result_gen}')
+            if match:
+                action_name = match.group(1)
+                parameters = json.loads(match.group(2))
 
-            response.agent_messages.append(AgentMessage(
-                agent="LLAMA Generator",
-                content=result_gen,
-                execution_time=llama_gen_time,
-            ))
-            response.content = result_gen
+                print(f'Found action "{action_name}" with parameters {parameters}')
 
-            tools = self._check_for_tools(result_gen)
-            print(f'Found tools: {tools}')
-
-            for call in tools:
-                tool_names.append(call['name'])
-                tool_params.append(call['parameters'])
-                try:
-                    if self.config['use_agent_names']:
-                        agent_name, action_name = call['name'].split('--', maxsplit=1)
-                    else:
-                        agent_name = None
-                        action_name = call['name']
-
-                    params = call.get('parameters', {})
-                    print(f'Params before: {params}')
-                    for action in actions:
-                        if action.action_name == action_name:
-                            params = self._fix_type(action, call['parameters'])
-                    print(f'Params built: {params}')
-
-                    tool_results.append(
-                        opaca_proxy.invoke_opaca_action(
-                            action_name,
-                            agent_name,
-                            params,
-                        ))
-                except Exception as e:
-                    print(f'ERROR: {str(e)}')
-                    tool_results.append(str(e))
-                response.agent_messages[-1].tools.append(f'Tool {len(tool_names)}: '
-                                                         f'{call["name"]}, '
-                                                         f'{call.get("parameters", {})}, '
-                                                         f'{tool_results[-1]}\n')
-            if tools:
-                prompt_template = PromptTemplate(
-                    template="A user had the following request: {query}\n"
-                             "You just used the tools {tool_names} with the following parameters: {parameters}\n"
-                             "The results were {results}\n"
-                             "Generate a response explaining the result to a user. At the end of your request, output "
-                             "'FINISHED' the user request has been fulfilled in its entirety and you were able to "
-                             "answer the user, or output 'CONTINUE' so more tool calls can be made.",
-                    input_variables=['query', 'tool_names', 'parameters', 'results'],
-                )
-                response_chain = prompt_template | llm
-
-                tool_evaluator_time = time.time()
-                result_evl = response_chain.invoke({
-                    'query': message,  # Original user query
-                    'tool_names': tool_names,  # ALL the tools used so far
-                    'parameters': tool_params,  # ALL the parameters used for the tools
-                    'results': tool_results  # ALL the results from the opaca action calls
-                })["result"]
-
-                print(f'Evaluator Output: {result_evl}')
-
-                tool_evaluator_time = time.time() - tool_evaluator_time
+                agent, action = action_name.split('--')
+                tool_names.append(action_name)
+                tool_params.append(parameters)
+                tool_results.append(opaca_proxy.invoke_opaca_action(
+                    action,
+                    agent,
+                    parameters
+                ))
+            else:
+                response.content = result_gen
                 response.agent_messages.append(AgentMessage(
                     agent="LLAMA Evaluator",
-                    content=result_evl,
-                    execution_time=tool_evaluator_time,
+                    content=result_gen,
+                    execution_time=llama_gen_time,
                 ))
+                return response
 
-                # Check if llm agent thinks user query has not been fulfilled yet
-                self.should_continue = True if re.search(r"\bCONTINUE\b", result_evl) else False
+            llama_evl_time = time.time()
+            result_evl = llm.invoke({
+                "messages": [HumanMessage(content=LLAMA_EVAL_PROMPT.format(
+                query=prompt_input,  # Original user query
+                tool_names=tool_names,  # ALL the tools used so far
+                parameters=tool_params,  # ALL the parameters used for the tools
+                results=tool_results  # ALL the results from the opaca action calls
+                ))]}
+            )["result"]
+            llama_evl_time = time.time() - llama_evl_time
 
-                # Remove the keywords from the generated response
-                response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
+            print(f'Evaluator Output: {result_evl}')
+            response.agent_messages.append(AgentMessage(
+                agent="LLAMA Evaluator",
+                content=result_evl,
+                execution_time=llama_evl_time,
+            ))
 
-                history.append((result_gen, result_evl))
-            else:
+            # Remove the keywords from the generated response
+            response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
+
+            # Check if llm agent thinks user query has not been fulfilled yet
+            if not re.search(r"\bCONTINUE\b", result_evl):
                 self.should_continue = False
+                return response
+
             c_it += 1
 
         return response
@@ -317,15 +253,3 @@ class LLamaBackend:
 
     async def set_config(self, conf: dict):
         self.config = conf
-
-    @staticmethod
-    def check_for_key(api_key: str):
-        if not api_key:
-            raise ValueError("No api key provided")
-
-    @staticmethod
-    def build_scratchpad(messages: List[AIMessage]) -> str:
-        out = ''
-        for message in messages:
-            out += f'\nAI: {message.content}'
-        return out
