@@ -22,7 +22,7 @@ class OpacaLLM(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["messages"]
+        return ["messages", "history"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -38,7 +38,7 @@ class OpacaLLM(Chain):
         response = requests.post(
             f'{self.url}/api/chat',
             json={
-                'messages': self._format_llama3(inputs["messages"]),
+                'messages': self._format_llama3(inputs["messages"], inputs["history"]),
                 'model': self.model,
                 'stream': False,
                 'options': {
@@ -47,8 +47,6 @@ class OpacaLLM(Chain):
                 }
             }
         ).json()
-
-        print(f'Raw output: {response}')
 
         response = response['message']['content']
 
@@ -62,12 +60,14 @@ class OpacaLLM(Chain):
         return {"result": output}
 
     @staticmethod
-    def _format_llama3(input_messages):
+    def _format_llama3(input_messages, message_history):
         messages = []
+        system_message = []
 
         for message in input_messages:
             if isinstance(message, SystemMessage):
-                role = "system"
+                system_message = [{"role": "system", "content": message.content}]
+                continue
             elif isinstance(message, HumanMessage):
                 role = "user"
             elif isinstance(message, AIMessage):
@@ -75,8 +75,6 @@ class OpacaLLM(Chain):
             else:
                 raise ValueError(f'Unknown message type: {type(message)}')
 
-            content = message.content
-            content = content.replace("\\n", "").replace('\\"', '"')
+            messages.append({"role": role, "content": message.content})
 
-            messages.append({"role": role, "content": content})
-        return messages
+        return system_message + message_history + messages

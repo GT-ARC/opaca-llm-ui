@@ -14,7 +14,7 @@ from .llama_proxy import OpacaLLM
 from ..RestGPT import build_prompt
 from ..models import Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
-from ..utils import get_reduced_action_spec, fix_parentheses, Action, openapi_to_functions
+from ..utils import get_reduced_action_spec, fix_parentheses, Action, openapi_to_functions, openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
 Today Date: 11 November 2024
@@ -37,21 +37,28 @@ Here is an example,
 Reminder:
 - Function calls MUST follow the specified format
 - Required parameters MUST be specified
+- Parameter values MUST use their specified type
 - Only call one function at a time
 - Put the entire function call reply on one line
-- Sometimes you can get required parameters by calling other functions beforehand and using their results
+- If a function does not require any parameter, you still MUST output an empty JSON object like {{}}
+- Sometimes you need to find parameter values first by using other functions before you can fulfill the user request
 
 You are a helpful ai assistant."""
 
 
 LLAMA_EVAL_PROMPT = """A user had the following request: {query} 
-You just used the functions {tool_names} with the following parameters: {parameters} 
-The results were {results}
+You just used the the following functions:
 
-Generate a response explaining the result to a user. DO NOT FORMULATE FUNCTION CALLS. 
+{functions} 
+
+You called these functions with the following parameters: {parameters} 
+
+The result were: {results}
+
+Generate a response explaining the result directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
 At the end of your request, you must either output 
 'FINISHED' if the user request has been fulfilled in its entirety and you were able to 
-answer the user, or output 'CONTINUE' so more function calls can be made by another model."""
+answer the user, or output 'CONTINUE' so more function calls can be made by another model with the newly gained information."""
 
 
 class ColorPrint:
@@ -80,7 +87,7 @@ logging.basicConfig(
 
 
 class LLamaBackend:
-    messages: List = []
+    message_history: List = []
     should_continue: bool = True
     max_iter: int = 5
     observation_prefix = "Result: "
@@ -152,8 +159,7 @@ class LLamaBackend:
         tool_names = []
         tool_params = []
         tool_results = []
-        tool_responses = []
-        history = []
+        used_functions = []
         c_it = 0
         self.should_continue = True
         prompt_input = message
@@ -164,7 +170,7 @@ class LLamaBackend:
         response.query = message
 
         try:
-            actions, errors = openapi_to_functions(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
+            actions, errors = openapi_to_llama(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
@@ -182,11 +188,18 @@ class LLamaBackend:
             llama_gen_time = time.time()
             result_gen = llm.invoke({
                 'messages': messages,
-                #'history': self.messages
+                'history': self.message_history,
             })["result"]
             llama_gen_time = time.time() - llama_gen_time
 
-            print(f'Result before match: {result_gen}')
+            print(f'Generator output: {result_gen}')
+
+            response.agent_messages.append(AgentMessage(
+                agent="LLAMA Generator",
+                content=result_gen,
+                execution_time=llama_gen_time,
+            ))
+
             match = re.search(r"<function=([a-zA-Z_][a-zA-Z0-9_\-]*)>(\{.*})</function>", result_gen)
 
             if match:
@@ -198,28 +211,29 @@ class LLamaBackend:
                 agent, action = action_name.split('--')
                 tool_names.append(action_name)
                 tool_params.append(parameters)
-                tool_results.append(opaca_proxy.invoke_opaca_action(
-                    action,
-                    agent,
-                    parameters
-                ))
+                used_functions.extend([action for action in actions if action["name"] == action_name])
+                try:
+                    tool_results.append(opaca_proxy.invoke_opaca_action(
+                        action,
+                        agent,
+                        parameters
+                    ))
+                except Exception as e:
+                    tool_results.append(str(e))
             else:
-                response.content = result_gen
-                response.agent_messages.append(AgentMessage(
-                    agent="LLAMA Evaluator",
-                    content=result_gen,
-                    execution_time=llama_gen_time,
-                ))
                 return response
 
             llama_evl_time = time.time()
             result_evl = llm.invoke({
-                "messages": [HumanMessage(content=LLAMA_EVAL_PROMPT.format(
-                query=prompt_input,  # Original user query
-                tool_names=tool_names,  # ALL the tools used so far
-                parameters=tool_params,  # ALL the parameters used for the tools
-                results=tool_results  # ALL the results from the opaca action calls
-                ))]}
+                "messages": [HumanMessage(
+                    content=LLAMA_EVAL_PROMPT.format(
+                    query=prompt_input,  # Original user query
+                    functions=used_functions,  # ALL the tools used so far
+                    parameters=tool_params,  # ALL the parameters used for the tools
+                    results=tool_results  # ALL the results from the opaca action calls
+                    ))],
+                "history": []
+                }
             )["result"]
             llama_evl_time = time.time() - llama_evl_time
 
@@ -229,6 +243,8 @@ class LLamaBackend:
                 content=result_evl,
                 execution_time=llama_evl_time,
             ))
+
+            messages.append(AIMessage(content=result_evl))
 
             # Remove the keywords from the generated response
             response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
@@ -240,13 +256,14 @@ class LLamaBackend:
 
             c_it += 1
 
+        response.execution_time = time.time() - total_exec_time
         return response
 
     async def history(self) -> list:
-        return self.messages
+        return self.message_history
 
     async def reset(self):
-        self.messages = []
+        self.message_history = []
 
     async def get_config(self) -> dict:
         return self.config
