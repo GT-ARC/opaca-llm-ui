@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+import time
+import uuid
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import Url, AgentMessage, Message, Response
+from .models import Url, AgentMessage, Message, Response, CustomResponse
 from .ToolLLM import ToolLLMBackend
 from .RestGPT.restgpt_routes import RestGptBackend
 from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
@@ -43,6 +46,9 @@ BACKENDS = {
 }
 
 
+sessions = {}
+
+
 @app.get("/backends")
 async def get_backends() -> list:
     return list(BACKENDS)
@@ -76,6 +82,22 @@ async def set_config(backend: str, conf: dict) -> dict:
     await BACKENDS[backend].set_config(conf)
     return await BACKENDS[backend].get_config()
 
+@app.get("/chat", response_class=CustomResponse)
+async def chat(request: Request):
+    session_id = request.cookies.get("session_id")
+    response = CustomResponse(Response(content="Hallo", agent="Cool Agent", execution_time=1234))
+
+    if not session_id or session_id not in sessions:
+        session_id = str(uuid.uuid4())
+        sessions[session_id] = {"messages": []}
+        response.set_cookie("session_id", value=session_id, httponly=True)
+
+    session_data = sessions[session_id]
+    session_data["messages"].append(str(time.time()))
+
+    print(f'Session_id: {session_id}\nSession_data: {session_data}\nSessions: {sessions}')
+
+    return response
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":
