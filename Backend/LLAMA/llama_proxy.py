@@ -3,7 +3,6 @@ import requests
 from typing import Any, Dict, Optional, List
 from langchain.chains.base import Chain
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.prompt_values import PromptValue
 from langchain_core.runnables import RunnableConfig
 
 
@@ -22,7 +21,7 @@ class OpacaLLM(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["messages", "history"]
+        return ["messages", "history", "config"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -42,8 +41,8 @@ class OpacaLLM(Chain):
                 'model': self.model,
                 'stream': False,
                 'options': {
-                    'temperature': 0.0,
-                    'num_ctx': 32768
+                    'temperature': inputs["config"].get("temperature", 0),
+                    'num_ctx': inputs["config"].get("num_ctx", 32768)
                 }
             }
         ).json()

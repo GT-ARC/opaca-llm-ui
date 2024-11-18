@@ -180,7 +180,7 @@ class ToolLLMBackend:
                     'results': tool_results  # ALL the results from the opaca action calls
                 })
 
-                tool_evaluator_time = time.time() - tool_generator_time
+                tool_evaluator_time = time.time() - tool_evaluator_time
                 res_meta_data = result.response_metadata.get("token_usage", {})
                 response.agent_messages.append(AgentMessage(
                     agent="Tool Evaluator",

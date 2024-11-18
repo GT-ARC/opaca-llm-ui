@@ -1,7 +1,11 @@
-fastapi
-langchain
-openai
+fastapi~=0.115.4
+langchain~=0.3.7
+openai~=1.45.0
 langchain_openai
-colorama
-uvicorn
-jsonref
+colorama~=0.4.6
+uvicorn~=0.29.0
+jsonref~=1.1.0
+requests~=2.31.0
+langchain-core~=0.3.0
+langchain-openai~=0.2.0
+pydantic~=2.9.1

@@ -1,20 +1,17 @@
-import ast
 import json
 import re
 import time
-from typing import List, Tuple, Dict, Any
+from typing import List, Dict, Any
 
 import logging
 
 from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.prompts import PromptTemplate
 
 from .llama_proxy import OpacaLLM
-from ..RestGPT import build_prompt
 from ..models import Response, AgentMessage
 from ..opaca_proxy import proxy as opaca_proxy
-from ..utils import get_reduced_action_spec, fix_parentheses, Action, openapi_to_functions, openapi_to_llama
+from ..utils import openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
 Today Date: 11 November 2024
@@ -47,15 +44,19 @@ You are a helpful ai assistant."""
 
 
 LLAMA_EVAL_PROMPT = """A user had the following request: {query} 
-You just used the the following function:
+You just used the the following functions:
 
-{function} 
+{functions} 
 
-You called this function with the following parameters: {parameters} 
+You called these functions with the following parameters: 
 
-The result was: {result}
+{parameters} 
 
-Generate a response explaining the result directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
+The results were: 
+
+{results}
+
+Generate a response explaining the results directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
 At the end of your request, you must either output 
 'FINISHED' if the user request has been fulfilled in its entirety and you were able to 
 answer the user, or output 'CONTINUE' so more function calls can be made by another model with the newly gained information."""
@@ -87,11 +88,8 @@ logging.basicConfig(
 
 
 class LLamaBackend:
-    message_history: List = []
-    should_continue: bool = True
-    max_iter: int = 5
-    observation_prefix = "Result: "
-    llm_prefix = "Function {}: "
+    message_history: List = []          # Messages generated in previous iterations
+    max_iter: int = 5                   # Maximum number of internal iterations
 
     def __init__(self):
         # This is the DEFAULT config
@@ -103,36 +101,16 @@ class LLamaBackend:
             "max_iterations": 5
         }
 
-    def _construct_scratchpad(
-            self, history: List[Tuple[str, str]]
-    ) -> str:
-        if len(history) == 0:
-            return ""
-        scratchpad = ""
-        for i, (plan, execution_res) in enumerate(history):
-            scratchpad += (plan + "\n" + self.observation_prefix.format(i + 2) + fix_parentheses(execution_res) +
-                           "\n" + self.llm_prefix.format(i + 2))
-        print(f'Scratchpad built: {scratchpad}')
-        return scratchpad
-
-    def _check_for_tools(self, message: str) -> List:
-        tools = []
-        if re.search(r"python_tag", message):
-            for tool in re.sub(r'<\|python_tag\|>', '', message).strip().split(';'):
-                try:
-                    tools.append(json.loads(tool))
-                except ValueError:
-                    print(f'Tool could not get converted: {tool}')
-                    continue
-        else:
-            try:
-                for tool in message.split(';'):
-                    tools.append(json.loads(tool))
-            except ValueError:
-                print(f'Message is no tool call: {message}')
-        return tools
-
-    def _fix_type(self, action: Dict[str, Any], parameters: Dict[str, Any]):
+    @staticmethod
+    def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Given the correct action definition, iterates through the list of generated parameters
+        and checks if the parameter types matches the type in the definition. If it does not,
+        this function attempts to cast the generated value to the expected value.
+        :param action: Reference definition of the OPACA action
+        :param parameters: Generated parameter list by the LLM
+        :return: The parameter list with potential type fixes
+        """
         out = parameters
         for key, value in parameters.items():
             for a_key in action.get("parameters", {}).keys():
@@ -153,9 +131,10 @@ class LLamaBackend:
                                 out[key] = value
                 except ValueError:
                     # This is pretty ugly
+                    # The idea is that if an invalid value was found, it should not try to cast this value but skip it
+                    # The Evaluator will then receive the error encountered during the action invocation
                     continue
         return out
-
 
     async def query(self, message: str, debug: bool, api_key: str) -> Response:
 
@@ -164,7 +143,7 @@ class LLamaBackend:
         tool_params = []
         tool_results = []
         c_it = 0
-        self.should_continue = True
+        should_continue = True
         prompt_input = message
         llm = OpacaLLM(url=self.config['llama-url'], model=self.config['llama-model'])
 
@@ -172,31 +151,39 @@ class LLamaBackend:
         response = Response()
         response.query = message
 
+        # Save time before execution
+        total_exec_time = time.time()
+
+        # Get list of available actions from connected opaca platform
         try:
             actions, errors = openapi_to_llama(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
-                                "Please make sure the opaca platform is running and connected.")
+                                "Please make sure the OPACA platform is running and connected.")
             response.error = str(e)
             return response
 
-        total_exec_time = time.time()
-
+        # Save system message and user input in list of messages
+        # This list only saves the generated messages of the current iteration
         messages = [SystemMessage(content=LLAMA_SYSTEM_PROMPT_GENERATOR.format(actions=actions)),
                     HumanMessage(content=prompt_input)]
 
         # Run until request is finished or maximum number of iterations is reached
-        while self.should_continue and c_it < self.max_iter:
+        while should_continue and c_it < self.max_iter:
 
+            # Invoke the GENERATOR
+            # Attempts to generate a function call for the current user request
             llama_gen_time = time.time()
             result_gen = llm.invoke({
                 'messages': messages,
                 'history': self.message_history,
+                'config': self.config,
             })["result"]
             llama_gen_time = time.time() - llama_gen_time
 
-            print(f'Generator output: {result_gen}')
+            # Save the result in the list of internal messages
             messages.append(AIMessage(content=result_gen))
+            print(f'Generator output: {result_gen}')
 
             response.agent_messages.append(AgentMessage(
                 agent="LLAMA Generator",
@@ -204,22 +191,27 @@ class LLamaBackend:
                 execution_time=llama_gen_time,
             ))
 
+            # Check if a function was generated
             match = re.search(r"<function=([a-zA-Z_][a-zA-Z0-9_\-]*)>(\{.*})</function>", result_gen)
 
+            # If a function was generated, try to retrieve the action name and the parameters
             if match:
                 action_name = match.group(1)
                 parameters = json.loads(match.group(2))
-
                 print(f'Found action "{action_name}" with parameters {parameters}')
-
                 agent, action = action_name.split('--')
                 tool_names.append(action_name)
-                tool_params.append(parameters)
+
+                # Fix the parameter types based on the action definition
                 used_function = {}
                 for a in actions:
                     if a["name"] == action_name:
                         used_function = a
                 parameters = self._fix_type(used_function, parameters)
+                tool_params.append(parameters)
+
+                # Attempt to invoke the generated action call
+                # Save the result (or error) in the results
                 try:
                     tool_results.append(opaca_proxy.invoke_opaca_action(
                         action,
@@ -228,45 +220,55 @@ class LLamaBackend:
                     ))
                 except Exception as e:
                     tool_results.append(str(e))
+
+                # Append the generated tool to the last agent message (the last Generator message)
+                response.agent_messages[-1].tools.append(f'Tool {len(tool_names)}: '
+                                                         f'{tool_names[-1]}, '
+                                                         f'{tool_params[-1]}, '
+                                                         f'{tool_results[-1]}\n')
             else:
-                # TODO
+                # If no function was generated, save the result and return the response directly
+                self.message_history.append({"role": "user", "content": prompt_input})
+                self.message_history.append({"role": "assistant", "content": response.content})
                 return response
 
+            # Evaluate the original user request against the achieved results so far
+            # Only considers generated messages in this iteration
             llama_evl_time = time.time()
             result_evl = llm.invoke({
                 "messages": [HumanMessage(
                     content=LLAMA_EVAL_PROMPT.format(
-                    query=prompt_input,  # Original user query
-                    function=used_function,  # ALL the tools used so far
-                    parameters=tool_params[-1],  # ALL the parameters used for the tools
-                    result=tool_results[-1]  # ALL the results from the opaca action calls
+                        query=prompt_input,  # Original user query
+                        functions=tool_names,  # ALL the tools used so far
+                        parameters=tool_params,  # ALL the parameters used for the tools
+                        results=tool_results  # ALL the results from the opaca action calls
                     ))],
-                "history": []
+                "history": [],
+                "config": self.config,
                 }
             )["result"]
             llama_evl_time = time.time() - llama_evl_time
 
-            print(f'Evaluator Output: {result_evl}')
+            # Add the Evaluator message to the list of agent messages
+            # and the internal list of messages
             response.agent_messages.append(AgentMessage(
                 agent="LLAMA Evaluator",
                 content=result_evl,
                 execution_time=llama_evl_time,
             ))
-
+            print(f'Evaluator Output: {result_evl}')
             messages.append(HumanMessage(content=result_evl))
 
             # Remove the keywords from the generated response
             response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
 
-            # Check if llm agent thinks user query has not been fulfilled yet
+            # Check if the evaluator thinks the user query has not been fulfilled yet
             if not re.search(r"\bCONTINUE\b", result_evl):
-                self.should_continue = False
-                return response
-
+                should_continue = False
             c_it += 1
 
+        # Save the total execution time and the messages in the global history and return the response
         response.execution_time = time.time() - total_exec_time
-
         self.message_history.append({"role": "user", "content": prompt_input})
         self.message_history.append({"role": "assistant", "content": response.content})
         return response
