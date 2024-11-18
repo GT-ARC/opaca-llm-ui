@@ -1,11 +1,28 @@
-# Opaca-LLM
+# OPACA LLM UI
+
+Copyright 2023-2024 GT-ARC & DAI-Labor, TU Berlin
+
+* Main Contributors: Robert Strehlow, Tobias Küster
+* Further contributions by: Oskar Kupke, Benjamin Acar, Abdullah Kiwan
+
+This (https://github.com/gt-arc/opaca-llm-ui/) is the public repository of the OPACA LLM UI project. Feel free to create issues if you have any suggestions, or improve things yourself with a fork and pull request. The main development work still happens in the internal/private repository at https://gitlab.dai-labor.de, including most (internal) tickets, development branches, merge requests, build pipelines, etc.
+
+
+## TODO: review, update and extend readme
+* explain repository structure
+* explain UI functionality
+* include a screenshot
+* explain backend functionality, different clients (just in brief, not as detailed as in the paper)
+* pay attribution to rest-gpt
+
+
 
 A powerful chatbot which fulfills user requests by calling actions from a connected OPACA platform. The chatbot currently supports **ChatGPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta. There are currently three approaches to solve user queries:
 * Simple: First generates a plan consisting of API calls and then asks for confirmation by the user to execute it
 * RestGPT: Uses 4 agents (Planner, Action Selector, Caller, Evaluator) in a chain to automatically fulfill user queries
 * ToolLLM: Uses the built-in function of OpenAI models "tools" to generate and executes requests (**ChatGPT** only)
 
-The Web-UI in this project is based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) but has since been significantly extended and refactored.
+The Web-UI in this project is based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) by Tobias Schulz, but has since been significantly extended and refactored.
 
 
 ## Quickstart
