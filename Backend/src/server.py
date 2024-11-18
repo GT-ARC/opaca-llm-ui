@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import Url, AgentMessage, Message, Response
-from .ToolLLM import ToolLLMBackend
-from .RestGPT.restgpt_routes import RestGptBackend
-from .Simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
+from .toolllm import ToolLLMBackend
+from .restgpt.restgpt_routes import RestGptBackend
+from .simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
-from .ITDZ.itdz_backends import KnowledgeBackend, DataAnalysisBackend
+from .itdz.itdz_backends import KnowledgeBackend, DataAnalysisBackend
 
 
 app = FastAPI(
