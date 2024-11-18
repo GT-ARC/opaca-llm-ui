@@ -57,6 +57,7 @@ The results were:
 {results}
 
 Generate a response explaining the results directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
+Please note that the results are in order, meaning that an error might have been resolved by a later result.
 At the end of your request, you must either output 
 'FINISHED' if the user request has been fulfilled in its entirety and you were able to 
 answer the user, or output 'CONTINUE' so more function calls can be made by another model with the newly gained information."""
@@ -186,7 +187,7 @@ class LLamaBackend:
             print(f'Generator output: {result_gen}')
 
             response.agent_messages.append(AgentMessage(
-                agent="LLAMA Generator",
+                agent="Tool Generator",
                 content=result_gen,
                 execution_time=llama_gen_time,
             ))
@@ -228,6 +229,9 @@ class LLamaBackend:
                                                          f'{tool_results[-1]}\n')
             else:
                 # If no function was generated, save the result and return the response directly
+                response.content = result_gen
+                response.execution_time = time.time() - total_exec_time
+                response.iterations = c_it + 1
                 self.message_history.append({"role": "user", "content": prompt_input})
                 self.message_history.append({"role": "assistant", "content": response.content})
                 return response
@@ -252,7 +256,7 @@ class LLamaBackend:
             # Add the Evaluator message to the list of agent messages
             # and the internal list of messages
             response.agent_messages.append(AgentMessage(
-                agent="LLAMA Evaluator",
+                agent="Tool Evaluator",
                 content=result_evl,
                 execution_time=llama_evl_time,
             ))
@@ -269,6 +273,7 @@ class LLamaBackend:
 
         # Save the total execution time and the messages in the global history and return the response
         response.execution_time = time.time() - total_exec_time
+        response.iterations = c_it + 1
         self.message_history.append({"role": "user", "content": prompt_input})
         self.message_history.append({"role": "assistant", "content": response.content})
         return response
