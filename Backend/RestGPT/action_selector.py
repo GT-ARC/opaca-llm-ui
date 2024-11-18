@@ -7,9 +7,8 @@ import logging
 from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_core.prompts import PromptTemplate
 
-from .utils import build_prompt, OpacaLLM
+from .utils import build_prompt
 from ..models import AgentMessage
 
 logger = logging.getLogger()
@@ -109,41 +108,6 @@ All of your answers either start with "API Call: " or "MISSING".
 Here is the list of actions. It includes the name of the action, a short description if one is available,
 an overview of the parameters to call that action, and the definition of custom parameters, if used.
 """
-
-examples_llama = """Instruction: Book the desk with id 5
-API Call: BookDesk;{"desk": 5}
-API Response: Successfully booked the desk with id 5.
-
-Instruction: Check if the shelf with id 1 contains plates.
-API Call: GetContents;{"shelf": 1}
-API Response: The shelf with id 1 contains plates.
-
-Instruction: Get a list of all desks ids for the office.
-API Call: GetDesks;{"room": "office"}
-API Response: The list of desks ids in the office room is (0, 1, 2, 3, 4, 5).
-
-Instruction: Get all available shelf ids.
-API Call: GetShelves;{}
-API Response: The available shelves are (0, 1, 2, 3).
-
-Instruction: Close the shelf with id 3.
-API Call: CloseShelf;{"shelf": 3}
-API Response: Shelf 3 is now closed."""
-
-ACTION_SELECTOR_PROMPT_LLAMA = """{prompt}
-
-Here is the list of actions. You can only use actions from this list:
-
-{actions}
-
-Here are some examples you can orientate yourself with:
-
-{examples}
-
-Begin!
-
-Instruction: {input}
-API Call: """
 
 
 class ActionSelector(Chain):
@@ -263,20 +227,13 @@ class ActionSelector(Chain):
 
         # Initial Action/Parameter generation
 
-        if isinstance(self.llm, OpacaLLM):
-            prompt = PromptTemplate(
-                template=ACTION_SELECTOR_PROMPT_LLAMA,
-                partial_variables={"prompt": ACTION_SELECTOR_PROMPT, "actions": action_list, "examples": examples_llama},
-                input_variables=["input"]
-            )
-        else:
-            prompt = build_prompt(
-                system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
-                               else ACTION_SELECTOR_PROMPT) + action_list,
-                examples=examples if inputs['config']['examples']['action_selector'] else [],
-                input_variables=["input"],
-                message_template=scratchpad + "{input}"
-            )
+        prompt = build_prompt(
+            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']
+                           else ACTION_SELECTOR_PROMPT) + action_list,
+            examples=examples if inputs['config']['examples']['action_selector'] else [],
+            input_variables=["input"],
+            message_template=scratchpad + "{input}"
+        )
 
         chain = prompt | self.llm.bind(stop=self._stop)
 
@@ -288,8 +245,6 @@ class ActionSelector(Chain):
         if isinstance(output, AIMessage):
             res_meta_data = output.response_metadata.get("token_usage", {})
             output = output.content
-
-        print(f'Action selector raw output: {output}')
 
         action_plan = re.sub(r"API Call:", "", output).strip()
 

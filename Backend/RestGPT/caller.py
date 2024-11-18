@@ -3,12 +3,9 @@ import logging
 from typing import Dict, List, Any
 
 from langchain.chains.base import Chain
-from langchain_core import outputs
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_core.prompts import PromptTemplate
 
-from ..LLAMA import OpacaLLM
 from ..opaca_proxy import proxy as opaca_proxy
 from .utils import build_prompt
 from ..models import AgentMessage
@@ -40,30 +37,6 @@ To navigate to the kitchen, you have to turn left, move to the end of the hallwa
 """},
 ]
 
-examples_llama = """API Call: http://localhost:8000/invoke/GetTemperature
-Description: Get the current temperature for the room with the given room id.
-Parameter: {"room": "1"}
-Result: 23
-The temperature for room 1 is 23 degrees.
-
-API Call: http://localhost:8000/invoke/IsFree
-Description: Check if a given desk id is free and available to book.
-Parameter: {"desk": 4}
-Result: False
-The desk 4 is currently not free.
-
-API Call: http://localhost:8000/invoke/GetShelfs
-Description: Returns a list of all available shelf ids.
-Parameter: {}
-Result: [0, 1, 2, 3]
-The available desks are (0, 1, 2, 3)
-
-API Call: http://localhost:8000/invoke/NavigateTo
-Description: Returns an instruction to navigate to the given room.
-Parameter: {"room": "Kitchen"}
-Result: Turn left, move to the end of the hallway, then enter the door on your right.
-To navigate to the kitchen, you have to turn left, move to the end of the hallway, then enter the door on your right."""
-
 CALLER_PROMPT = """You are an agent that summarizes API calls.
 You will be provided with an API call, which will include the endpoint that got called, a description for the API call 
 if one is available, the parameters that were used for that API call, and finally the result that was returned after 
@@ -71,20 +44,6 @@ calling that API.
 Your task will be to generate a response in natural language for a user including all relevant information.
 If there was an error or the api call was unsuccessful, then also generate an appropriate output to inform the user 
 about the error."""
-
-CALLER_PROMPT_LLAMA = """{prompt}
-
-Here are some examples: 
-
-{examples}
-
-Begin!
-
-{api_call}
-{description}
-{parameter}
-{result}
-"""
 
 
 class Caller(Chain):
@@ -141,20 +100,13 @@ class Caller(Chain):
             if action.action_name == action_name:
                 description = action.description
 
-        if isinstance(self.llm, OpacaLLM):
-            prompt = PromptTemplate(
-                template=CALLER_PROMPT_LLAMA,
-                partial_variables={"prompt": CALLER_PROMPT, "examples": examples_llama},
-                input_variables=["api_call", "description", "parameters", "result"]
-            )
-        else:
-            prompt = build_prompt(
-                system_prompt=CALLER_PROMPT,
-                examples=examples if inputs['config']['examples']['caller'] else [],
-                input_variables=["api_call", "description", "params", "response"],
-                message_template="API Call: {api_call}\nDescription: {description}\n"
-                                 "Parameter: {params}\nResult: {response}"
-            )
+        prompt = build_prompt(
+            system_prompt=CALLER_PROMPT,
+            examples=examples if inputs['config']['examples']['caller'] else [],
+            input_variables=["api_call", "description", "params", "response"],
+            message_template="API Call: {api_call}\nDescription: {description}\n"
+                             "Parameter: {params}\nResult: {response}"
+        )
 
         chain = prompt | self.llm
 

@@ -1,6 +1,4 @@
-import jsonref
 import requests
-import re
 
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
 from colorama import Fore
