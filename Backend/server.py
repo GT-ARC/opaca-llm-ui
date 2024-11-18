@@ -39,9 +39,9 @@ BACKENDS = {
     "simple-llama": SimpleLlamaBackend(),
     "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
     "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
+    "tool-llm-llama": LLamaBackend(),
     "itdz-knowledge": KnowledgeBackend(),
     "itdz-data": DataAnalysisBackend(),
-    "llama": LLamaBackend(),
 }
 
 
