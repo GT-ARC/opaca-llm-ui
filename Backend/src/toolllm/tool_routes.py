@@ -12,7 +12,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
 from ..models import Response, AgentMessage
-from ..restgpt import build_prompt
+from ..restgpt.utils import build_prompt
 from ..opaca_client import client as opaca_client
 from .utils import openapi_to_functions
 
