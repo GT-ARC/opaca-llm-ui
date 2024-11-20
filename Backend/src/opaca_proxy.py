@@ -1,3 +1,8 @@
+"""
+Client for OPACA Runtime Platform, for establishing a connection, managing access tokens,
+getting list of available actions in different formats, and invoking actions.
+"""
+
 import decimal
 import functools
 
@@ -5,8 +10,6 @@ import jsonref
 import requests
 from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional
-
-# TODO use aiohttp?
 
 
 class OpacaProxy:

@@ -1,12 +1,18 @@
+"""
+FastAPI Server providing HTTP/REST routes to be used by the Frontend.
+Provides a list of available "backends", or LLM clients that can be used,
+and different routes for posting questions, updating the configuration, etc.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import Url, AgentMessage, Message, Response
+from .models import Url, Message, Response
 from .toolllm import ToolLLMBackend
-from .restgpt.restgpt_routes import RestGptBackend
-from .simple.simple_routes import SimpleOpenAIBackend, SimpleLlamaBackend
+from .restgpt import RestGptBackend
+from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_proxy import proxy
-from .itdz.itdz_backends import KnowledgeBackend, DataAnalysisBackend
+from .itdz import KnowledgeBackend, DataAnalysisBackend
 
 
 app = FastAPI(
@@ -43,35 +49,35 @@ BACKENDS = {
 }
 
 
-@app.get("/backends")
+@app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
     return list(BACKENDS)
 
-@app.post("/connect", description="Returns the status code of the original request (to differentiate from errors resulting from this call itself)")
+@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(url: Url) -> int:
     return await proxy.connect(url.url, url.user, url.pwd)
 
-@app.get("/actions")
+@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions() -> dict[str, list[str]]:
     return await proxy.get_actions()
 
-@app.post("/{backend}/query")
+@app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(backend: str, message: Message) -> Response:
     return await BACKENDS[backend].query(message.user_query, message.debug, message.api_key)
 
-@app.get("/{backend}/history")
+@app.get("/{backend}/history", description="Get full message history of given LLM client since last reset.")
 async def history(backend: str) -> list:
     return await BACKENDS[backend].history()
 
-@app.post("/{backend}/reset")
+@app.post("/{backend}/reset", description="Reset message history for the given LLM client, restore/update system message if any.")
 async def reset(backend: str):
     await BACKENDS[backend].reset()
 
-@app.get("/{backend}/config")
+@app.get("/{backend}/config", description="Get current configuration of the given LLM client")
 async def get_config(backend: str) -> dict:
     return await BACKENDS[backend].get_config()
 
-@app.put("/{backend}/config")
+@app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(backend: str, conf: dict) -> dict:
     await BACKENDS[backend].set_config(conf)
     return await BACKENDS[backend].get_config()

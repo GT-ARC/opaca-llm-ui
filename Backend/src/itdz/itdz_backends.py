@@ -3,7 +3,7 @@ from typing import Dict
 import requests
 import random
 
-from ..models import Response, AgentMessage
+from ..models import Response
 
 
 class ProxyBackend:
