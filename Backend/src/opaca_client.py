@@ -12,7 +12,7 @@ from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional
 
 
-class OpacaProxy:
+class OpacaClient:
 
     def __init__(self):
         self.url = None
@@ -86,5 +86,5 @@ class OpacaProxy:
             self.token = res.text
 
 
-# pseudo "singleton" instance of the proxy to be used by the other modules by importing from this module
-proxy = OpacaProxy()
+# pseudo "singleton" instance of the client to be used by the other modules by importing from this module
+client = OpacaClient()

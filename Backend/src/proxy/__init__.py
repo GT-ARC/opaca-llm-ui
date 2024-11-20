@@ -3,4 +3,4 @@ Different backends relaying the messages directly to some other domain-specific 
 running at DAI-Labor/GT-ARC.
 """
 
-from .itdz_backends import KnowledgeBackend, DataAnalysisBackend
+from .proxy_backends import KnowledgeBackend, DataAnalysisBackend
