@@ -20,7 +20,7 @@ var config = {
         "itdz-data": "Data Analysis",
     },
 
-    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://10.42.6.107:8000',
+    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
