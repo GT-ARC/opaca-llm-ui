@@ -5,7 +5,7 @@ import json
 import requests
 
 from ..models import Response, AgentMessage
-from ..opaca_proxy import proxy as opaca_proxy
+from ..opaca_client import client as opaca_client
 
 
 system_prompt = """
@@ -71,7 +71,7 @@ class SimpleBackend:
                     print("JSON, but not an action call...")
                     break
                 print("Successfully parsed as JSON, calling service...")
-                action_result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                action_result = opaca_client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
             except json.JSONDecodeError as e:
@@ -103,7 +103,7 @@ class SimpleBackend:
 
     def _update_system_prompt(self):
         policy = ask_policies[int(self.config["ask_policy"])]
-        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_proxy.actions)}]
+        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_client.actions)}]
 
 
 class SimpleOpenAIBackend(SimpleBackend):
