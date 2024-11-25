@@ -11,10 +11,9 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..models import Response
-from ..opaca_proxy import proxy as opaca_proxy
-from .utils import OpacaLLM, ColorPrint
+from ..opaca_client import client as opaca_client
+from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
 from .rest_gpt import RestGPT
-from ..utils import get_reduced_action_spec
 
 logger = logging.getLogger()
 
@@ -77,7 +76,7 @@ class RestGptBackend:
             return response
 
         try:
-            action_spec = get_reduced_action_spec(opaca_proxy.get_actions_with_refs())
+            action_spec = get_reduced_action_spec(opaca_client.get_actions_with_refs())
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")

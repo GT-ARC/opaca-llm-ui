@@ -5,7 +5,7 @@ import json
 import requests
 
 from ..models import Response, AgentMessage
-from ..opaca_proxy import proxy as opaca_proxy
+from ..opaca_client import client as opaca_client
 
 
 system_prompt = """
@@ -67,8 +67,11 @@ class SimpleBackend:
             print("RESPONSE:", repr(response))
             try:
                 d = json.loads(response.strip("`json\n")) # strip markdown, if included
+                if type(d) is not dict or any(x not in d for x in ("action", "agentId", "params")):
+                    print("JSON, but not an action call...")
+                    break
                 print("Successfully parsed as JSON, calling service...")
-                action_result = opaca_proxy.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                action_result = opaca_client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
             except json.JSONDecodeError as e:
@@ -99,8 +102,8 @@ class SimpleBackend:
         self.config = {k: conf.get(k, v) for k, v in self.config.items()}
 
     def _update_system_prompt(self):
-        policy = ask_policies[self.config["ask_policy"]]
-        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_proxy.actions)}]
+        policy = ask_policies[int(self.config["ask_policy"])]
+        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_client.actions)}]
 
 
 class SimpleOpenAIBackend(SimpleBackend):
@@ -108,7 +111,7 @@ class SimpleOpenAIBackend(SimpleBackend):
     def _init_config(self):
         return {
             "model": "gpt-4o-mini",
-            "temperature": None,
+            "temperature": 1.0,
             "ask_policy": 0,
         }
 
@@ -116,7 +119,11 @@ class SimpleOpenAIBackend(SimpleBackend):
         print("Calling GPT...")
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
-        completion = self.client.chat.completions.create(model=self.config["model"], temperature=self.config["temperature"], messages=self.messages)
+        completion = self.client.chat.completions.create(
+            model=self.config["model"],
+            messages=self.messages,
+            temperature=float(self.config["temperature"]),
+        )
         return completion.choices[0].message.content
 
 
@@ -126,14 +133,19 @@ class SimpleLlamaBackend(SimpleBackend):
         return {
             "api-url": "http://10.0.64.101:11000",
             "model": "llama3.1:70b",
+            "temperature": 1.0,
             "ask_policy": 0,
         }
 
     def _query_internal(self, debug: bool, api_key: str) -> str:
         print("Calling LLAMA...")
         result = requests.post(f'{self.config["api-url"]}/api/chat', json={
-            "messages": self.messages,
             "model": self.config["model"],
+            "messages": self.messages,
             "stream": False,
-            })
+            "options": {
+                "temperature": float(self.config["temperature"]),
+                "num_ctx": 32768,  # consider last X tokens for response
+            }
+        })
         return result.json()["message"]["content"]

@@ -4,8 +4,8 @@ services:
 
   # Vite/Vue-based frontend for the OPACA LLM Integration
   opaca-llm-frontend:
-    build:
-      context: .
+    build: ./Frontend
+    image: opaca-llm-frontend
     ports:
       - "5173:5173"
     depends_on:
@@ -19,8 +19,8 @@ services:
 
   # FastAPI-based backend for the OPACA LLM Integration
   opaca-llm-backend:
-    build:
-      context: ./Backend
+    build: ./Backend
+    image: opaca-llm-backend
     ports:
       - "3001:3001"
     environment:
