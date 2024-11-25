@@ -10,8 +10,8 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from .llama_proxy import OpacaLLM
 from ..models import Response, AgentMessage
-from ..opaca_proxy import proxy as opaca_proxy
-from ..utils import openapi_to_llama
+from ..opaca_client import client as opaca_client
+from Backend.utils import openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
 Today Date: 11 November 2024
@@ -157,7 +157,7 @@ class LLamaBackend:
 
         # Get list of available actions from connected opaca platform
         try:
-            actions, errors = openapi_to_llama(opaca_proxy.get_actions_with_refs(), self.config['use_agent_names'])
+            actions, errors = openapi_to_llama(opaca_client.get_actions_with_refs(), self.config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the OPACA platform is running and connected.")
@@ -214,7 +214,7 @@ class LLamaBackend:
                 # Attempt to invoke the generated action call
                 # Save the result (or error) in the results
                 try:
-                    tool_results.append(opaca_proxy.invoke_opaca_action(
+                    tool_results.append(opaca_client.invoke_opaca_action(
                         action,
                         agent,
                         parameters
