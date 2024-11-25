@@ -172,7 +172,7 @@ class Planner(Chain):
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
             scratchpad += self.llm_prefix.format(i + 1) + plan + "\n"
-            scratchpad += self.observation_prefix + "\n"
+            scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
