@@ -2,8 +2,9 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
+from docutils.nodes import status
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
@@ -27,7 +28,8 @@ class AgentMessage(BaseModel):
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
 
-class Response(BaseModel):
+
+class ResponseData(BaseModel):
     query: str = ''
     agent_messages: List[AgentMessage] = []
     iterations: int = 0
@@ -35,16 +37,17 @@ class Response(BaseModel):
     content: str = ''
     error: str = ''
 
-class CustomResponse(JSONResponse):
+
+class Response(JSONResponse):
     def __init__(
-        self,
-        model: Response,
-        session_id: str = None,
-        status_code: int = 200,
-        **kwargs
+            self,
+            model: Optional[ResponseData] = None,
+            session_id: str = None,
+            status_code: int = 200,
+            **kwargs
     ):
-        content = model.model_dump()
+        content = model.model_dump() if model else {}
         super().__init__(content=content, status_code=status_code, **kwargs)
 
         if session_id:
-            self.set_cookie(key='session_id', value=session_id, httponly=True)
+            self.set_cookie('session_id', session_id, httponly=True)

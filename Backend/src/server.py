@@ -9,8 +9,9 @@ import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from langchain_core.messages import HumanMessage, AIMessage
 
-from .models import Url, Message, Response
+from .models import Url, Message, Response, ResponseData
 from .toolllm import ToolLLMBackend
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
@@ -25,7 +26,6 @@ app = FastAPI(
 
 # Configure CORS settings
 origins = [
-    "*",
     "http://localhost",
     "http://localhost:5173",  # Assuming Vue app is running on this port
 ]
@@ -54,6 +54,7 @@ BACKENDS = {
 
 sessions = {}
 
+
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
     return list(BACKENDS)
@@ -67,16 +68,22 @@ async def actions() -> dict[str, list[str]]:
     return await client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
-async def query(backend: str, message: Message) -> Response:
-    return await BACKENDS[backend].query(message.user_query, message.debug, message.api_key)
+async def query(request: Request, backend: str, message: Message) -> Response:
+    session_id = get_session_id(request)
+    responseData = await BACKENDS[backend].query(message.user_query, message.debug, message.api_key, sessions[session_id]["messages"])
+    response = Response(responseData, session_id=session_id)
+    print(sessions)
+    return response
 
 @app.get("/{backend}/history", description="Get full message history of given LLM client since last reset.")
 async def history(backend: str) -> list:
     return await BACKENDS[backend].history()
 
 @app.post("/{backend}/reset", description="Reset message history for the given LLM client, restore/update system message if any.")
-async def reset(backend: str):
-    await BACKENDS[backend].reset()
+async def reset(request: Request, backend: str):
+    session_id = get_session_id(request)
+    sessions[session_id]["messages"].clear()
+    return Response(session_id=session_id)
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client")
 async def get_config(backend: str) -> dict:
@@ -87,22 +94,13 @@ async def set_config(backend: str, conf: dict) -> dict:
     await BACKENDS[backend].set_config(conf)
     return await BACKENDS[backend].get_config()
 
-@app.get("/chat", response_class=CustomResponse)
-async def chat(request: Request):
+def get_session_id(request: Request):
     session_id = request.cookies.get("session_id")
-    response = CustomResponse(Response(content="Hallo", agent="Cool Agent", execution_time=1234))
-
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
+        print(f'Created new session id: {session_id}')
         sessions[session_id] = {"messages": []}
-        response.set_cookie("session_id", value=session_id, httponly=True)
-
-    session_data = sessions[session_id]
-    session_data["messages"].append(str(time.time()))
-
-    print(f'Session_id: {session_id}\nSession_data: {session_data}\nSessions: {sessions}')
-
-    return response
+    return session_id
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":

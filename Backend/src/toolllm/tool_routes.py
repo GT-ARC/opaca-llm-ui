@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..models import Response, AgentMessage
+from ..models import ResponseData, AgentMessage
 from ..restgpt.utils import build_prompt
 from ..opaca_client import client as opaca_client
 from .utils import openapi_to_functions
@@ -43,7 +43,6 @@ logging.basicConfig(
 
 
 class ToolLLMBackend:
-    messages: List = []
     llm_type: str
     llm: BaseChatModel | ChatOpenAI
     should_continue: bool = True
@@ -57,7 +56,7 @@ class ToolLLMBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, messages: List) -> ResponseData:
 
         # Initialize parameters
         tool_names = []
@@ -69,7 +68,7 @@ class ToolLLMBackend:
         self.should_continue = True
 
         # Initialize the response object
-        response = Response()
+        response = ResponseData()
         response.query = message
 
         # Model initialization here since openai requires api key in constructor
@@ -122,7 +121,7 @@ class ToolLLMBackend:
             result = chain.invoke({
                 'input': message,
                 'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
-                'history': self.messages
+                'history': messages
             })
 
             tool_generator_time = time.time() - tool_generator_time
@@ -203,19 +202,13 @@ class ToolLLMBackend:
             c_it += 1
 
         # Add query and final response to global message history
-        self.messages.append(HumanMessage(message))
-        self.messages.append(AIMessage(result.content))
+        messages.append(HumanMessage(message))
+        messages.append(AIMessage(result.content))
 
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it
         response.content = result.content
         return response
-
-    async def history(self) -> list:
-        return self.messages
-
-    async def reset(self):
-        self.messages = []
 
     async def get_config(self) -> dict:
         return self.config
