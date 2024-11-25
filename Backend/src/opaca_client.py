@@ -1,3 +1,8 @@
+"""
+Client for OPACA Runtime Platform, for establishing a connection, managing access tokens,
+getting list of available actions in different formats, and invoking actions.
+"""
+
 import decimal
 import functools
 
@@ -6,10 +11,8 @@ import requests
 from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional
 
-# TODO use aiohttp?
 
-
-class OpacaProxy:
+class OpacaClient:
 
     def __init__(self):
         self.url = None
@@ -83,5 +86,5 @@ class OpacaProxy:
             self.token = res.text
 
 
-# pseudo "singleton" instance of the proxy to be used by the other modules by importing from this module
-proxy = OpacaProxy()
+# pseudo "singleton" instance of the client to be used by the other modules by importing from this module
+client = OpacaClient()

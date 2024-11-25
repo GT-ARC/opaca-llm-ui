@@ -1,3 +1,7 @@
+"""
+Request and response models used in the FastAPI routes (and in some of the implementations).
+"""
+
 from typing import List, Dict, Any
 
 from pydantic import BaseModel
