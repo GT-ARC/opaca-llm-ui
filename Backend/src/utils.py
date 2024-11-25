@@ -2,6 +2,25 @@ import re
 from typing import Dict, List, Optional
 
 import jsonref
+from colorama import Fore
+
+
+class ColorPrint:
+    def __init__(self):
+        self.color_mapping = {
+            "Planner": Fore.RED,
+            "API Selector": Fore.YELLOW,
+            "Caller": Fore.BLUE,
+            "Final Answer": Fore.GREEN,
+            "Code": Fore.WHITE,
+        }
+
+    def write(self, data):
+        module = data.split(':')[0]
+        if module not in self.color_mapping:
+            print(data, end="")
+        else:
+            print(self.color_mapping[module] + data + Fore.RESET, end="")
 
 
 class Parameter:

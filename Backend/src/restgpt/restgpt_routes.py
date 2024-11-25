@@ -12,7 +12,8 @@ from pydantic import BaseModel
 
 from ..models import Response
 from ..opaca_client import client as opaca_client
-from .utils import OpacaLLM, ColorPrint, get_reduced_action_spec
+from .utils import OpacaLLM
+from ..utils import get_reduced_action_spec, ColorPrint
 from .rest_gpt import RestGPT
 
 logger = logging.getLogger()

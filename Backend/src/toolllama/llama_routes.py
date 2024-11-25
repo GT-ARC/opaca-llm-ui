@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from .llama_proxy import OpacaLLM
 from ..models import Response, AgentMessage
 from ..opaca_client import client as opaca_client
-from Backend.utils import openapi_to_llama
+from ..utils import openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
 Today Date: 11 November 2024

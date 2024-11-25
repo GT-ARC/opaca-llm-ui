@@ -1,7 +1,6 @@
 import requests
 
 from typing import Optional, List, Dict, Any, Union, Sequence, Tuple
-from colorama import Fore
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
@@ -12,24 +11,6 @@ from langchain_core.runnables import RunnableConfig
 
 
 LLAMA_URL = "http://10.0.64.101"
-
-
-class ColorPrint:
-    def __init__(self):
-        self.color_mapping = {
-            "Planner": Fore.RED,
-            "API Selector": Fore.YELLOW,
-            "Caller": Fore.BLUE,
-            "Final Answer": Fore.GREEN,
-            "Code": Fore.WHITE,
-        }
-
-    def write(self, data):
-        module = data.split(':')[0]
-        if module not in self.color_mapping:
-            print(data, end="")
-        else:
-            print(self.color_mapping[module] + data + Fore.RESET, end="")
 
 
 class OpacaLLM(BaseChatModel):
