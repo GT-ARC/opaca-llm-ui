@@ -63,7 +63,8 @@ class OpacaLLM(Chain):
         messages = []
         system_message = []
 
-        for message in input_messages:
+        # Transform all message objects into llama messages
+        for message in message_history + input_messages:
             if isinstance(message, SystemMessage):
                 system_message = [{"role": "system", "content": message.content}]
                 continue
@@ -76,4 +77,4 @@ class OpacaLLM(Chain):
 
             messages.append({"role": role, "content": message.content})
 
-        return system_message + message_history + messages
+        return system_message + messages

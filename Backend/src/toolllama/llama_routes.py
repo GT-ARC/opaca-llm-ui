@@ -232,8 +232,8 @@ class LLamaBackend:
                 response.content = result_gen
                 response.execution_time = time.time() - total_exec_time
                 response.iterations = c_it + 1
-                self.message_history.append({"role": "user", "content": prompt_input})
-                self.message_history.append({"role": "assistant", "content": response.content})
+                self.message_history.append(HumanMessage(prompt_input))
+                self.message_history.append(AIMessage(response.content))
                 return response
 
             # Evaluate the original user request against the achieved results so far
@@ -274,8 +274,8 @@ class LLamaBackend:
         # Save the total execution time and the messages in the global history and return the response
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it + 1
-        self.message_history.append({"role": "user", "content": prompt_input})
-        self.message_history.append({"role": "assistant", "content": response.content})
+        self.message_history.append(HumanMessage(prompt_input))
+        self.message_history.append(AIMessage(response.content))
         return response
 
     async def history(self) -> list:
