@@ -1,9 +1,11 @@
 # OPACA LLM UI
 
-Copyright 2023-2024 GT-ARC & DAI-Labor, TU Berlin
+Copyright 2024 GT-ARC & DAI-Labor, TU Berlin
 
 * Main Contributors: Robert Strehlow, Tobias Küster
 * Further contributions by: Oskar Kupke, Abdullah Kiwan, Benjamin Acar
+
+Part of the code in this repository is based on [RestGPT](https://github.com/Yifan-Song793/RestGPT).
 
 This (https://github.com/gt-arc/opaca-llm-ui/) is the public repository of the OPACA LLM UI project. Feel free to create issues if you have any suggestions, or improve things yourself with a fork and pull request. The main development work still happens in the internal/private repository at https://gitlab.dai-labor.de, including most (internal) tickets, development branches, merge requests, build pipelines, etc.
 
