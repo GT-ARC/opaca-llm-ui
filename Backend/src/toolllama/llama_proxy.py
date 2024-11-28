@@ -21,7 +21,7 @@ class OpacaLLM(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["messages", "history", "config"]
+        return ["messages", "history", "config", "tools"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -40,12 +40,15 @@ class OpacaLLM(Chain):
                 'messages': self._format_llama3(inputs["messages"], inputs["history"]),
                 'model': self.model,
                 'stream': False,
+                'tools': inputs["tools"],
                 'options': {
                     'temperature': inputs["config"].get("temperature", 0),
                     'num_ctx': inputs["config"].get("num_ctx", 32768)
                 }
             }
         ).json()
+
+        tool_calls = response['message'].get('tool_calls', [])
 
         response = response['message']['content']
 
@@ -56,7 +59,7 @@ class OpacaLLM(Chain):
             if stop_pos != -1:
                 return output[:stop_pos].strip()
 
-        return {"result": output}
+        return {"result": output, "tool_calls": tool_calls}
 
     @staticmethod
     def _format_llama3(input_messages, message_history):
