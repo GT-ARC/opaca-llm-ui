@@ -5,6 +5,7 @@ Request and response models used in the FastAPI routes (and in some of the imple
 from typing import List, Dict, Any, Optional
 
 from docutils.nodes import status
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
@@ -46,7 +47,7 @@ class Response(JSONResponse):
             status_code: int = 200,
             **kwargs
     ):
-        content = model.model_dump() if model else {}
+        content = jsonable_encoder(model) if model else {}
         super().__init__(content=content, status_code=status_code, **kwargs)
 
         if session_id:

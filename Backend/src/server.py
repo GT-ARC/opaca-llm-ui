@@ -70,20 +70,29 @@ async def actions() -> dict[str, list[str]]:
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, backend: str, message: Message) -> Response:
     session_id = get_session_id(request)
-    responseData = await BACKENDS[backend].query(message.user_query, message.debug, message.api_key, sessions[session_id]["messages"])
-    response = Response(responseData, session_id=session_id)
-    print(sessions)
+    response_data = await BACKENDS[backend].query(
+        message.user_query,
+        message.debug,
+        message.api_key,
+        sessions[session_id]["messages"]
+    )
+    response = Response(response_data, session_id=session_id)
     return response
 
-@app.get("/{backend}/history", description="Get full message history of given LLM client since last reset.")
-async def history(backend: str) -> list:
-    return await BACKENDS[backend].history()
+@app.get("/history", description="Get full message history of given LLM client since last reset.")
+async def history(request: Request) -> Response:
+    session_id = get_session_id(request)
+    return Response(sessions[session_id]["messages"], session_id=session_id)
 
-@app.post("/{backend}/reset", description="Reset message history for the given LLM client, restore/update system message if any.")
-async def reset(request: Request, backend: str):
+@app.post("/reset", description="Reset message history for the current session, restore/update system message if any.")
+async def reset(request: Request):
     session_id = get_session_id(request)
     sessions[session_id]["messages"].clear()
     return Response(session_id=session_id)
+
+@app.post("/reset_all", description="Reset all message histories for")
+async def reset_all():
+    sessions.clear()
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client")
 async def get_config(backend: str) -> dict:
