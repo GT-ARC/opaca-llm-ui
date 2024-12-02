@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import Url, Message, Response
+from .models import Url, Message, Response, SessionData
 from .toolllm import ToolLLMBackend
 from .toolllama import LLamaBackend
 from .restgpt import RestGptBackend
@@ -78,23 +78,22 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
         message.user_query,
         message.debug,
         message.api_key,
-        sessions[session_id]["messages"],
-        sessions[session_id].get(f'config-{backend}', await BACKENDS[backend].get_config()),
+        sessions[session_id]
     )
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
     session_id = handle_session_id(request)
     response.set_cookie("session_id", session_id)
-    return sessions[session_id]["messages"]
+    return sessions[session_id].messages
 
 @app.post("/reset", description="Reset message history for the current session.")
 async def reset(request: Request, response: FastAPIResponse) -> None:
     session_id = handle_session_id(request)
     response.set_cookie("session_id", session_id)
-    sessions[session_id]["messages"].clear()
+    sessions[session_id].messages.clear()
 
-@app.post("/reset_all", description="Reset all message histories for")
+@app.post("/reset_all", description="Reset all sessions")
 async def reset_all():
     sessions.clear()
 
@@ -102,15 +101,15 @@ async def reset_all():
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
     session_id = handle_session_id(request)
     response.set_cookie("session_id", session_id)
-    sessions[session_id][f'config-{backend}'] = await BACKENDS[backend].get_config()
-    return sessions[session_id][f'config-{backend}']
+    sessions[session_id].config[backend] = sessions[session_id].config.get(backend, await BACKENDS[backend].get_config())
+    return sessions[session_id].config[backend]
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> dict:
     session_id = handle_session_id(request)
     response.set_cookie("session_id", session_id)
-    sessions[session_id][f'config-{backend}'] = conf
-    return sessions[session_id][f'config-{backend}']
+    sessions[session_id].config[backend] = conf
+    return sessions[session_id].config[backend]
 
 def handle_session_id(request: Request):
     """
@@ -121,7 +120,7 @@ def handle_session_id(request: Request):
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
         print(f'Created new session id: {session_id}')
-        sessions[session_id] = {"messages": []}
+        sessions[session_id] = SessionData()
     return session_id
 
 # run as `python3 -m Backend.server`

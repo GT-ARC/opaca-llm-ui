@@ -39,3 +39,11 @@ class Response(BaseModel):
     execution_time: float = .0
     content: str = ''
     error: str = ''
+
+
+class SessionData(BaseModel):
+    """
+    Stores relevant information regarding the session
+    """
+    messages: List[Any] = []
+    config: Dict[str, Any] = {}
