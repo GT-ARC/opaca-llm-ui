@@ -236,7 +236,7 @@ export default {
             this.abortSpeaking();
             this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
             this.showExampleQuestions = true;
-            await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/reset`);
+            await sendRequest("POST", `${conf.BackendAddress}/reset`);
             this.isBusy = false;
         },
 

@@ -4,14 +4,13 @@ Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 
-import time
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_core.messages import HumanMessage, AIMessage
 
-from .models import Url, Message, Response, ResponseData
+from .models import Url, Message, Response
 from .toolllm import ToolLLMBackend
 from .toolllama import LLamaBackend
 from .restgpt import RestGptBackend
@@ -54,6 +53,8 @@ BACKENDS = {
 }
 
 
+# Simple dict to store session data
+# Keep in mind: The session data is only reset upon restarting the application
 sessions = {}
 
 
@@ -70,46 +71,52 @@ async def actions() -> dict[str, list[str]]:
     return await client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
-async def query(request: Request, backend: str, message: Message) -> Response:
-    session_id = get_session_id(request)
-    response_data = await BACKENDS[backend].query(
+async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
+    return await BACKENDS[backend].query(
         message.user_query,
         message.debug,
         message.api_key,
         sessions[session_id]["messages"],
         sessions[session_id].get(f'config-{backend}', await BACKENDS[backend].get_config()),
     )
-    response = Response(response_data, session_id=session_id)
-    return response
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
-async def history(request: Request) -> Response:
-    session_id = get_session_id(request)
-    return Response(sessions[session_id]["messages"], session_id=session_id)
+async def history(request: Request, response: FastAPIResponse) -> list:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
+    return sessions[session_id]["messages"]
 
-@app.post("/reset", description="Reset message history for the current session, restore/update system message if any.")
-async def reset(request: Request) -> Response:
-    session_id = get_session_id(request)
+@app.post("/reset", description="Reset message history for the current session.")
+async def reset(request: Request, response: FastAPIResponse) -> None:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
     sessions[session_id]["messages"].clear()
-    return Response(session_id=session_id)
 
 @app.post("/reset_all", description="Reset all message histories for")
 async def reset_all():
     sessions.clear()
 
-@app.get("/{backend}/config", description="Get current configuration of the given LLM client")
-async def get_config(request: Request, backend: str) -> Response:
-    session_id = get_session_id(request)
+@app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
+async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
     sessions[session_id][f'config-{backend}'] = await BACKENDS[backend].get_config()
-    return Response(sessions[session_id][f'config-{backend}'], session_id=session_id)
+    return sessions[session_id][f'config-{backend}']
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
-async def set_config(request: Request, backend: str, conf: dict) -> Response:
-    session_id = get_session_id(request)
+async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> dict:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
     sessions[session_id][f'config-{backend}'] = conf
-    return Response(sessions[session_id][f'config-{backend}'], session_id=session_id)
+    return sessions[session_id][f'config-{backend}']
 
-def get_session_id(request: Request):
+def handle_session_id(request: Request):
+    """
+    Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
+    session id and adds an empty list of messages to that session id.
+    """
     session_id = request.cookies.get("session_id")
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())

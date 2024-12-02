@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..models import ResponseData, AgentMessage
+from ..models import Response, AgentMessage
 from ..restgpt.utils import build_prompt
 from ..opaca_client import client as opaca_client
 from ..utils import openapi_to_functions
@@ -56,7 +56,7 @@ class ToolLLMBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, messages: List, config: dict) -> ResponseData:
+    async def query(self, message: str, debug: bool, api_key: str, messages: List, config: dict) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -68,7 +68,7 @@ class ToolLLMBackend:
         self.should_continue = True
 
         # Initialize the response object
-        response = ResponseData()
+        response = Response()
         response.query = message
 
         # Set config
