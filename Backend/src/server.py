@@ -15,7 +15,7 @@ from .toolllm import ToolLLMBackend
 from .toolllama import LLamaBackend
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
-from .opaca_client import client
+from .opaca_client import OpacaClient
 from .proxy import KnowledgeBackend, DataAnalysisBackend
 
 
@@ -63,12 +63,17 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(url: Url) -> int:
-    return await client.connect(url.url, url.user, url.pwd)
+async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
+    sessions[session_id].client = OpacaClient()
+    return await sessions[session_id].client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
-async def actions() -> dict[str, list[str]]:
-    return await client.get_actions()
+async def actions(request: Request, response: FastAPIResponse) -> dict[str, list[str]]:
+    session_id = handle_session_id(request)
+    response.set_cookie("session_id", session_id)
+    return await sessions[session_id].client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:

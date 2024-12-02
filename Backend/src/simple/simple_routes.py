@@ -3,7 +3,6 @@ import json
 import requests
 
 from ..models import Response, AgentMessage, SessionData
-from ..opaca_client import client as opaca_client
 from ..utils import message_to_dict, message_to_class
 
 system_prompt = """
@@ -52,7 +51,11 @@ class SimpleBackend:
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        self._update_system_prompt()
+
+        # Set system prompt
+        policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
+        self.messages = [{"role": "system", "content": system_prompt % (policy, session.client.actions)}]
+
         self.messages.extend([message_to_dict(msg) for msg in session.messages])
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
@@ -70,7 +73,7 @@ class SimpleBackend:
                     print("JSON, but not an action call...")
                     break
                 print("Successfully parsed as JSON, calling service...")
-                action_result = opaca_client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                action_result = session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
             except json.JSONDecodeError as e:
@@ -90,10 +93,6 @@ class SimpleBackend:
 
     async def get_config(self) -> dict:
         return self._init_config()
-
-    def _update_system_prompt(self):
-        policy = ask_policies[int(self.config["ask_policy"])]
-        self.messages = [{"role": "system", "content": system_prompt % (policy, opaca_client.actions)}]
 
 
 class SimpleOpenAIBackend(SimpleBackend):

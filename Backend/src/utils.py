@@ -274,7 +274,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     return functions, error_msg
 
 
-def message_to_class(msg):
+def message_to_dict(msg):
     """
     Takes in a message as a built-in class type (HumanMessage, AIMessage, SystemMessage) and returns it as a dict
     """
@@ -289,7 +289,7 @@ def message_to_class(msg):
             return msg
 
 
-def message_to_dict(msg):
+def message_to_class(msg):
     """
     Takes in a message as a dict and returns it as a built-in class type (HumanMessage, AIMessage, SystemMessage)
     """

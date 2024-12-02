@@ -13,7 +13,6 @@ from langchain_openai import ChatOpenAI
 
 from ..models import Response, AgentMessage, SessionData
 from ..restgpt.utils import build_prompt
-from ..opaca_client import client as opaca_client
 from ..utils import openapi_to_functions
 
 
@@ -79,7 +78,7 @@ class ToolLLMBackend:
 
         try:
             # Convert openapi schema to openai function schema
-            tools, error = openapi_to_functions(opaca_client.get_actions_with_refs(), config['use_agent_names'])
+            tools, error = openapi_to_functions(session.client.get_actions_with_refs(), config['use_agent_names'])
             if len(tools) > 128:
                 response.error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit of "
                                    f"128. All tools after index 128 will be ignored!\n")
@@ -141,7 +140,7 @@ class ToolLLMBackend:
                         agent_name = None
                         action_name = call['name']
                     tool_results.append(
-                        opaca_client.invoke_opaca_action(
+                        session.client.invoke_opaca_action(
                             action_name,
                             agent_name,
                             call['args']['requestBody'] if 'requestBody' in call['args'] else {}

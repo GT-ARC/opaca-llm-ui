@@ -11,7 +11,6 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..models import Response, SessionData
-from ..opaca_client import client as opaca_client
 from .utils import OpacaLLM
 from ..utils import get_reduced_action_spec, ColorPrint
 from .rest_gpt import RestGPT
@@ -61,7 +60,7 @@ class RestGptBackend:
             return response
 
         try:
-            action_spec = get_reduced_action_spec(opaca_client.get_actions_with_refs())
+            action_spec = get_reduced_action_spec(session.client.get_actions_with_refs())
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
@@ -77,6 +76,7 @@ class RestGptBackend:
                 "history": session.messages,
                 "config": config,
                 "response": response,
+                "client": session.client,
             })["result"]
             response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:

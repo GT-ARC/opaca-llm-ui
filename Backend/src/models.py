@@ -47,3 +47,4 @@ class SessionData(BaseModel):
     """
     messages: List[Any] = []
     config: Dict[str, Any] = {}
+    client: Any = None

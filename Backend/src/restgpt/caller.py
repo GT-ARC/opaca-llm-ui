@@ -6,7 +6,6 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
-from ..opaca_client import client as opaca_client
 from .utils import build_prompt
 from ..models import AgentMessage
 
@@ -81,11 +80,11 @@ class Caller(Chain):
             if inputs['config']['use_agent_names']:
                 logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{agent_name}/{action_name} '
                             f'with parameters: {params}')
-                response = opaca_client.invoke_opaca_action(action_name, agent_name, json.loads(params))
+                response = inputs["client"].invoke_opaca_action(action_name, agent_name, json.loads(params))
             else:
                 logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{action_name} '
                             f'with parameters: {params}')
-                response = opaca_client.invoke_opaca_action(action_name, None, json.loads(params))
+                response = inputs["client"].invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
             return {'result': AgentMessage(
                 agent="Caller",
