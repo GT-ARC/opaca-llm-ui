@@ -43,9 +43,9 @@ BACKENDS = {
     "rest-gpt-gpt-4o-mini": RestGptBackend("gpt-4o-mini"),
     "simple-openai": SimpleOpenAIBackend(),
     "simple-llama": SimpleLlamaBackend(),
-    "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
-    "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
+    "tool-llm-gpt": ToolLLMBackend(),
     "tool-llm-llama": LLamaBackend(),
+    # special backends
     "itdz-knowledge": KnowledgeBackend(),
     "itdz-data": DataAnalysisBackend(),
 }

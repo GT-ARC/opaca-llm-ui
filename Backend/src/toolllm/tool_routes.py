@@ -44,15 +44,14 @@ logging.basicConfig(
 
 class ToolLLMBackend:
     messages: List = []
-    llm_type: str
     llm: BaseChatModel | ChatOpenAI
     should_continue: bool = True
     max_iter: int = 5
 
-    def __init__(self, llm_type: str):
-        self.llm_type = llm_type
+    def __init__(self):
         # This is the DEFAULT config
         self.config = {
+            "gpt_model": "gpt-4o-mini",
             "temperature": 0,
             "use_agent_names": True,
         }
@@ -224,13 +223,14 @@ class ToolLLMBackend:
         self.config = conf
 
     def init_model(self, api_key: str):
+        logger.info("CREATE MODEL WITH %s" % self.config["gpt_model"])
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
-        if self.llm_type == "gpt-4o":
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o", temperature=self.config["temperature"], openai_api_key=api_key)
-        elif self.llm_type == "gpt-4o-mini":
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=self.config["temperature"], openai_api_key=api_key)
+        self.check_for_key(api_key)
+        self.llm = ChatOpenAI(
+            model=self.config["gpt_model"],
+            temperature=self.config["temperature"],
+            openai_api_key=api_key
+        )
 
     @staticmethod
     def check_for_key(api_key: str):

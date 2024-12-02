@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-gpt-4o-mini",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-gpt",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
@@ -12,8 +12,7 @@ var config = {
                 "rest-gpt-llama3": "RestGPT (LLAMA)",
                 "rest-gpt-gpt-4o": "RestGPT (4o)",
                 "rest-gpt-gpt-4o-mini": "RestGPT (4o-mini)",
-                "tool-llm-gpt-4o": "Tool LLM (4o)",
-                "tool-llm-gpt-4o-mini": "Tool LLM (4o-mini)",
+                "tool-llm-gpt": "Tool LLM",
                 "tool-llm-llama": "Tool LLM (LLAMA)"
             }
         },
