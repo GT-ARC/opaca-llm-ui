@@ -56,7 +56,7 @@ class ToolLLMBackend:
             "use_agent_names": True,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, messages: List) -> ResponseData:
+    async def query(self, message: str, debug: bool, api_key: str, messages: List, config: dict) -> ResponseData:
 
         # Initialize parameters
         tool_names = []
@@ -70,6 +70,10 @@ class ToolLLMBackend:
         # Initialize the response object
         response = ResponseData()
         response.query = message
+
+        # Set config
+        self.config = config
+        print(f'Current config: {self.config}')
 
         # Model initialization here since openai requires api key in constructor
         try:
@@ -212,9 +216,6 @@ class ToolLLMBackend:
 
     async def get_config(self) -> dict:
         return self.config
-
-    async def set_config(self, conf: dict):
-        self.config = conf
 
     def init_model(self, api_key: str):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env

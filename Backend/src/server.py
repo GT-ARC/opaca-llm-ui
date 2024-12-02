@@ -74,7 +74,8 @@ async def query(request: Request, backend: str, message: Message) -> Response:
         message.user_query,
         message.debug,
         message.api_key,
-        sessions[session_id]["messages"]
+        sessions[session_id]["messages"],
+        sessions[session_id].get(f'config-{backend}', await BACKENDS[backend].get_config()),
     )
     response = Response(response_data, session_id=session_id)
     return response
@@ -85,7 +86,7 @@ async def history(request: Request) -> Response:
     return Response(sessions[session_id]["messages"], session_id=session_id)
 
 @app.post("/reset", description="Reset message history for the current session, restore/update system message if any.")
-async def reset(request: Request):
+async def reset(request: Request) -> Response:
     session_id = get_session_id(request)
     sessions[session_id]["messages"].clear()
     return Response(session_id=session_id)
@@ -95,13 +96,16 @@ async def reset_all():
     sessions.clear()
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client")
-async def get_config(backend: str) -> dict:
-    return await BACKENDS[backend].get_config()
+async def get_config(request: Request, backend: str) -> Response:
+    session_id = get_session_id(request)
+    sessions[session_id][f'config-{backend}'] = await BACKENDS[backend].get_config()
+    return Response(sessions[session_id][f'config-{backend}'], session_id=session_id)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
-async def set_config(backend: str, conf: dict) -> dict:
-    await BACKENDS[backend].set_config(conf)
-    return await BACKENDS[backend].get_config()
+async def set_config(request: Request, backend: str, conf: dict) -> Response:
+    session_id = get_session_id(request)
+    sessions[session_id][f'config-{backend}'] = conf
+    return Response(sessions[session_id][f'config-{backend}'], session_id=session_id)
 
 def get_session_id(request: Request):
     session_id = request.cookies.get("session_id")
