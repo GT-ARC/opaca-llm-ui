@@ -51,15 +51,22 @@ class SimpleBackend:
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
+        result = Response(query=message)
 
         # Set system prompt
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
-        self.messages = [{"role": "system", "content": system_prompt % (policy, session.client.actions)}]
+        try:
+            self.messages = [{"role": "system", "content": system_prompt % (policy, session.client.actions)}]
+        except AttributeError as e:
+            result.error = str(e)
+            result.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
+                              "connected to the Opaca Runtime Platform and the platform contains at least one "
+                              "action.")
+            return result
 
         self.messages.extend([message_to_dict(msg) for msg in session.messages])
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
-        result = Response(query=message)
 
         while True:
             result.iterations += 1
