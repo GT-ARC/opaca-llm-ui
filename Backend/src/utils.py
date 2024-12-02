@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 import jsonref
 from colorama import Fore
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 
 class ColorPrint:
@@ -272,3 +273,25 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
             )
 
     return functions, error_msg
+
+
+def convert_message(msg):
+    match msg:
+        case HumanMessage():
+            return {"role": "user", "content": msg.content}
+        case AIMessage():
+            return {"role": "assistant", "content": msg.content}
+        case SystemMessage():
+            return {"role": "system", "content": msg.content}
+        case dict():
+            match msg.get("role"):
+                case "user":
+                    return HumanMessage(msg.get("content", ""))
+                case "assistant":
+                    return AIMessage(msg.get("content", ""))
+                case "system":
+                    return SystemMessage(msg.get("content", ""))
+                case _:
+                    return msg
+        case _:
+            return msg

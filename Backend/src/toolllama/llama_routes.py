@@ -9,7 +9,7 @@ from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from .llama_proxy import OpacaLLM
-from ..models import Response, AgentMessage
+from ..models import Response, AgentMessage, SessionData
 from ..opaca_client import client as opaca_client
 from ..utils import openapi_to_llama
 
@@ -108,18 +108,7 @@ logging.basicConfig(
 
 
 class LLamaBackend:
-    message_history: List = []          # Messages generated in previous iterations
     max_iter: int = 5                   # Maximum number of internal iterations
-
-    def __init__(self):
-        # This is the DEFAULT config
-        self.config = {
-            "llama-url": "http://10.0.64.101:11000",
-            "llama-model": "llama3.1:70b",
-            "temperature": 0,
-            "use_agent_names": True,
-            "max_iterations": 5
-        }
 
     @staticmethod
     def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -154,7 +143,10 @@ class LLamaBackend:
                     continue
         return out
 
-    async def query_alt(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query_alt(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+
+        # Set the config
+        config = session.config.get("tool-llm-llama", await self.get_config())
 
         # Initialize parameters
         tool_names = []
@@ -163,7 +155,7 @@ class LLamaBackend:
         c_it = 0
         should_continue = True
         prompt_input = message
-        llm = OpacaLLM(url=self.config['llama-url'], model=self.config['llama-model'])
+        llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
 
         # Initialize the response object
         response = Response()
@@ -174,7 +166,7 @@ class LLamaBackend:
 
         # Get list of available actions from connected opaca platform
         try:
-            tools, errors = openapi_to_llama(opaca_client.get_actions_with_refs(), self.config['use_agent_names'])
+            tools, errors = openapi_to_llama(opaca_client.get_actions_with_refs(), config['use_agent_names'])
             tools = [{"type": "function", "function": tool} for tool in tools]
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
@@ -195,8 +187,8 @@ class LLamaBackend:
             llama_gen_time = time.time()
             result_gen = llm.invoke({
                 'messages': messages,
-                'history': self.message_history,
-                'config': self.config,
+                'history': session.messages,
+                'config': config,
                 'tools': tools,
             })
             llama_gen_time = time.time() - llama_gen_time
@@ -217,7 +209,7 @@ class LLamaBackend:
                 tool_names.append(call['function']['name'])
                 tool_params.append(call['function'].get('arguments', {}))
                 try:
-                    if self.config['use_agent_names']:
+                    if config['use_agent_names']:
                         agent_name, action_name = call['function']['name'].split('--', maxsplit=1)
                     else:
                         agent_name = None
@@ -248,7 +240,7 @@ class LLamaBackend:
                             results=tool_results  # ALL the results from the opaca action calls
                         ))],
                     "history": [],
-                    "config": self.config,
+                    "config": config,
                     "tools": tools,
                     }
                 )["result"]
@@ -277,11 +269,14 @@ class LLamaBackend:
         # Save the total execution time and the messages in the global history and return the response
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it + 1
-        self.message_history.append(HumanMessage(prompt_input))
-        self.message_history.append(AIMessage(response.content))
+        session.messages.append(HumanMessage(prompt_input))
+        session.messages.append(AIMessage(response.content))
         return response
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+
+        # Set the config
+        config = session.config.get("tool-llm-llama", await self.get_config())
 
         # Initialize parameters
         tool_names = []
@@ -290,7 +285,7 @@ class LLamaBackend:
         c_it = 0
         should_continue = True
         prompt_input = message
-        llm = OpacaLLM(url=self.config['llama-url'], model=self.config['llama-model'])
+        llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
 
         # Initialize the response object
         response = Response()
@@ -301,7 +296,7 @@ class LLamaBackend:
 
         # Get list of available actions from connected opaca platform
         try:
-            actions, errors = openapi_to_llama(opaca_client.get_actions_with_refs(), self.config['use_agent_names'])
+            actions, errors = openapi_to_llama(opaca_client.get_actions_with_refs(), config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the OPACA platform is running and connected.")
@@ -321,8 +316,8 @@ class LLamaBackend:
             llama_gen_time = time.time()
             result_gen = llm.invoke({
                 'messages': messages,
-                'history': self.message_history,
-                'config': self.config,
+                'history': session.messages,
+                'config': config,
                 'tools': [],
             })["result"]
             llama_gen_time = time.time() - llama_gen_time
@@ -376,8 +371,8 @@ class LLamaBackend:
                 response.content = result_gen
                 response.execution_time = time.time() - total_exec_time
                 response.iterations = c_it + 1
-                self.message_history.append(HumanMessage(prompt_input))
-                self.message_history.append(AIMessage(response.content))
+                session.messages.append(HumanMessage(prompt_input))
+                session.messages.append(AIMessage(response.content))
                 return response
 
             # Evaluate the original user request against the achieved results so far
@@ -392,7 +387,7 @@ class LLamaBackend:
                         results=tool_results  # ALL the results from the opaca action calls
                     ))],
                 "history": [],
-                "config": self.config,
+                "config": config,
                 "tools": []
                 }
             )["result"]
@@ -419,18 +414,19 @@ class LLamaBackend:
         # Save the total execution time and the messages in the global history and return the response
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it + 1
-        self.message_history.append(HumanMessage(prompt_input))
-        self.message_history.append(AIMessage(response.content))
+        session.messages.append(HumanMessage(prompt_input))
+        session.messages.append(AIMessage(response.content))
         return response
 
-    async def history(self) -> list:
-        return self.message_history
-
-    async def reset(self):
-        self.message_history = []
-
-    async def get_config(self) -> dict:
-        return self.config
-
-    async def set_config(self, conf: dict):
-        self.config = conf
+    @staticmethod
+    async def get_config() -> dict:
+        """
+        Declares the default configuration
+        """
+        return {
+            "llama-url": "http://10.0.64.101:11000",
+            "llama-model": "llama3.1:70b",
+            "temperature": 0,
+            "use_agent_names": True,
+            "max_iterations": 5
+        }

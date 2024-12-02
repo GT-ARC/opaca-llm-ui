@@ -3,10 +3,11 @@ from typing import Dict
 import openai
 import json
 import requests
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from ..models import Response, AgentMessage
+from ..models import Response, AgentMessage, SessionData
 from ..opaca_client import client as opaca_client
-
+from ..utils import convert_message
 
 system_prompt = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -52,16 +53,17 @@ class SimpleBackend:
         self.messages = []
         self.config = self._init_config()
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
         self._update_system_prompt()
+        self.messages.extend([convert_message(msg) for msg in session.messages])
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
         result = Response(query=message)
 
         while True:
             result.iterations += 1
-            response = self._query_internal(debug, api_key)
+            response = self._query_internal(debug, api_key, session)
             self.messages.append({"role": "assistant", "content": response})
 
             print("RESPONSE:", repr(response))
@@ -86,24 +88,15 @@ class SimpleBackend:
 
         result.content = response
         result.agent_messages = [AgentMessage(agent=msg["role"], content=msg["content"]) for msg in self.messages[last_msg:]]
+        session.messages.extend([convert_message(msg) for msg in self.messages[last_msg:]])
         return result
-    
-    async def history(self) -> list:
-        return self.messages
-
-    async def reset(self):
-        self.messages = []
-        self._update_system_prompt()
 
     async def get_config(self) -> dict:
-        return self.config
-
-    async def set_config(self, conf: dict):
-        self.config = {k: conf.get(k, v) for k, v in self.config.items()}
+        return self._init_config()
 
     def _update_system_prompt(self):
         policy = ask_policies[int(self.config["ask_policy"])]
-        self.messages[:1] = [{"role": "system", "content": system_prompt % (policy, opaca_client.actions)}]
+        self.messages = [{"role": "system", "content": system_prompt % (policy, opaca_client.actions)}]
 
 
 class SimpleOpenAIBackend(SimpleBackend):
@@ -115,8 +108,10 @@ class SimpleOpenAIBackend(SimpleBackend):
             "ask_policy": 0,
         }
 
-    def _query_internal(self, debug: bool, api_key: str) -> str:
+    def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
         print("Calling GPT...")
+        # Set config
+        self.config = session.config.get("simple-openai", self._init_config())
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
         completion = self.client.chat.completions.create(
@@ -137,8 +132,10 @@ class SimpleLlamaBackend(SimpleBackend):
             "ask_policy": 0,
         }
 
-    def _query_internal(self, debug: bool, api_key: str) -> str:
+    def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
         print("Calling LLAMA...")
+        # Set config
+        self.config = session.config.get("simple-llama", self._init_config())
         result = requests.post(f'{self.config["api-url"]}/api/chat', json={
             "model": self.config["model"],
             "messages": self.messages,
