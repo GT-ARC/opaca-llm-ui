@@ -1,7 +1,7 @@
 import json
 import re
 import time
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 import logging
 

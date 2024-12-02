@@ -119,7 +119,6 @@ def handle_session_id(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
-        print(f'Created new session id: {session_id}')
         sessions[session_id] = SessionData()
     return session_id
 
