@@ -223,12 +223,11 @@ class ToolLLMBackend:
         self.config = conf
 
     def init_model(self, api_key: str):
-        logger.info("CREATE MODEL WITH %s" % self.config["gpt_model"])
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         self.check_for_key(api_key)
         self.llm = ChatOpenAI(
             model=self.config["gpt_model"],
-            temperature=self.config["temperature"],
+            temperature=float(self.config["temperature"]),
             openai_api_key=api_key
         )
 
