@@ -6,7 +6,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
-from .utils import build_prompt, fix_parentheses
+from .utils import build_prompt
 from ..models import AgentMessage
 
 logger = logging.getLogger()
@@ -172,7 +172,7 @@ class Planner(Chain):
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
             scratchpad += self.llm_prefix.format(i + 1) + plan + "\n"
-            scratchpad += self.observation_prefix + fix_parentheses(execution_res) + "\n"
+            scratchpad += self.observation_prefix + execution_res + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:

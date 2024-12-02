@@ -14,6 +14,7 @@ var config = {
                 "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
                 "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
                 "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
+                "tool-llm-llama": "Tool LLM with LLAMA"
             }
         },
         "itdz-knowledge": "Knowledge Assistant",

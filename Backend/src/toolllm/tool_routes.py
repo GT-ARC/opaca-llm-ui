@@ -1,6 +1,6 @@
 import re
 import time
-from typing import Dict, List, Any
+from typing import List
 
 import logging
 import os
@@ -14,7 +14,7 @@ from langchain_openai import ChatOpenAI
 from ..models import ResponseData, AgentMessage
 from ..restgpt.utils import build_prompt
 from ..opaca_client import client as opaca_client
-from .utils import openapi_to_functions
+from ..utils import openapi_to_functions
 
 
 class ColorPrint:
