@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .models import Url, Message, Response
 from .toolllm import ToolLLMBackend
+from .toolllama import LLamaBackend
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import client
@@ -44,6 +45,7 @@ BACKENDS = {
     "simple-llama": SimpleLlamaBackend(),
     "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
     "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
+    "tool-llm-llama": LLamaBackend(),
     "itdz-knowledge": KnowledgeBackend(),
     "itdz-data": DataAnalysisBackend(),
 }

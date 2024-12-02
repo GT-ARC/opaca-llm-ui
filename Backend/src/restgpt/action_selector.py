@@ -8,7 +8,7 @@ from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
-from .utils import build_prompt, fix_parentheses
+from .utils import build_prompt
 from ..models import AgentMessage
 
 logger = logging.getLogger()
@@ -79,7 +79,7 @@ modify the last call either by adding or removing parameters, correcting the typ
 to call a different action.
 Here is the format in which you should answer normally:
 
-API Call: {action_name};{"parameter_name": "value"}
+API Call: action_name;{"parameter_name": "value"}
 
 You are forbidden to start your response with anything else than the phrases "API Call:" or "MISSING".
 
@@ -213,9 +213,9 @@ class ActionSelector(Chain):
             return ""
         scratchpad = ""
         for i, (plan, api_call, api_response) in enumerate(history):
-            scratchpad += f'Instruction: {fix_parentheses(plan)}\n'
-            scratchpad += self.llm_prefix + fix_parentheses(api_call) + "\n"
-            scratchpad += self.observation_prefix + fix_parentheses(api_response) + "\n"
+            scratchpad += f'Instruction: {plan}\n'
+            scratchpad += self.llm_prefix + api_call + "\n"
+            scratchpad += self.observation_prefix + api_response + "\n"
         return scratchpad
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
