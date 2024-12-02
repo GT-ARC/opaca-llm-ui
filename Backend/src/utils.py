@@ -274,7 +274,10 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     return functions, error_msg
 
 
-def convert_message(msg):
+def message_to_class(msg):
+    """
+    Takes in a message as a built-in class type (HumanMessage, AIMessage, SystemMessage) and returns it as a dict
+    """
     match msg:
         case HumanMessage():
             return {"role": "user", "content": msg.content}
@@ -282,15 +285,20 @@ def convert_message(msg):
             return {"role": "assistant", "content": msg.content}
         case SystemMessage():
             return {"role": "system", "content": msg.content}
-        case dict():
-            match msg.get("role"):
-                case "user":
-                    return HumanMessage(msg.get("content", ""))
-                case "assistant":
-                    return AIMessage(msg.get("content", ""))
-                case "system":
-                    return SystemMessage(msg.get("content", ""))
-                case _:
-                    return msg
+        case _:
+            return msg
+
+
+def message_to_dict(msg):
+    """
+    Takes in a message as a dict and returns it as a built-in class type (HumanMessage, AIMessage, SystemMessage)
+    """
+    match msg.get("role"):
+        case "user":
+            return HumanMessage(msg.get("content", ""))
+        case "assistant":
+            return AIMessage(msg.get("content", ""))
+        case "system":
+            return SystemMessage(msg.get("content", ""))
         case _:
             return msg

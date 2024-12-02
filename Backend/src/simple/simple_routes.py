@@ -4,7 +4,7 @@ import requests
 
 from ..models import Response, AgentMessage, SessionData
 from ..opaca_client import client as opaca_client
-from ..utils import convert_message
+from ..utils import message_to_dict, message_to_class
 
 system_prompt = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -53,7 +53,7 @@ class SimpleBackend:
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
         self._update_system_prompt()
-        self.messages.extend([convert_message(msg) for msg in session.messages])
+        self.messages.extend([message_to_dict(msg) for msg in session.messages])
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
         result = Response(query=message)
@@ -85,7 +85,7 @@ class SimpleBackend:
 
         result.content = response
         result.agent_messages = [AgentMessage(agent=msg["role"], content=msg["content"]) for msg in self.messages[last_msg:]]
-        session.messages.extend([convert_message(msg) for msg in self.messages[last_msg:]])
+        session.messages.extend([message_to_class(msg) for msg in self.messages[last_msg:]])
         return result
 
     async def get_config(self) -> dict:
