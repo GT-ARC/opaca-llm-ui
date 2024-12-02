@@ -1,27 +1,13 @@
-from typing import Dict
-
 import requests
 import random
 
-from ..models import Response
+from ..models import Response, SessionData
 
 
 class ProxyBackend:
 
-    def __init__(self):
-        self.config = self._init_config()
-
-    async def history(self) -> list:
-        return []
-
-    async def reset(self):
-        pass
-
     async def get_config(self) -> dict:
-        return self.config
-
-    async def set_config(self, conf: dict):
-        self.config = {k: conf.get(k, v) for k, v in self.config.items()}
+        return self._init_config()
 
 
 class KnowledgeBackend(ProxyBackend):
@@ -34,15 +20,13 @@ class KnowledgeBackend(ProxyBackend):
             "msg_id": 0,
         }
 
-    async def reset(self):
-        self.config["conv_id"] = random.randint(1000, 10000)
-
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        url = self.config["url"].format(model=self.config["model"])
+        config = session.get("itdz-knowledge", await self.get_config())
+        url = config["url"].format(model=config["model"])
         json = {
-            "conv_id": self.config["conv_id"],
-            "msg_id": self.config["msg_id"] + 1,
+            "conv_id": config["conv_id"],
+            "msg_id": config["msg_id"] + 1,
             "role": "user",
             "content": message,
             "rating": 0
@@ -51,7 +35,7 @@ class KnowledgeBackend(ProxyBackend):
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
-        self.config["msg_id"] = int(result["msg_id"])
+        config["msg_id"] = int(result["msg_id"])
         return Response(query=message, content=result["content"])
 
 
@@ -62,9 +46,10 @@ class DataAnalysisBackend(ProxyBackend):
             "url": "http://10.42.6.107:3002/ask_csv",
         }
 
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        url = self.config["url"]
+        config = session.get("itdz-data", await self.get_config())
+        url = config["url"]
         response = requests.post(url, json={"question": message})
         response.raise_for_status()
         result = response.json()
