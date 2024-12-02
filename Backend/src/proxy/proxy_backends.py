@@ -7,12 +7,13 @@ from ..models import Response, SessionData
 class ProxyBackend:
 
     async def get_config(self) -> dict:
-        return self._init_config()
+        return self._get_config()
 
 
 class KnowledgeBackend(ProxyBackend):
 
-    def _init_config(self):
+    @staticmethod
+    def _get_config():
         return {
             "url": "http://10.0.4.59:8000/chat-{model}",
             "model": "ollama",
@@ -22,7 +23,7 @@ class KnowledgeBackend(ProxyBackend):
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get("itdz-knowledge", await self.get_config())
+        config = session.get("itdz-knowledge", self._get_config())
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -41,14 +42,15 @@ class KnowledgeBackend(ProxyBackend):
 
 class DataAnalysisBackend(ProxyBackend):
 
-    def _init_config(self):
+    @staticmethod
+    def _get_config():
         return {
             "url": "http://10.42.6.107:3002/ask_csv",
         }
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get("itdz-data", await self.get_config())
+        config = session.get("itdz-data", self._get_config())
         url = config["url"]
         response = requests.post(url, json={"question": message})
         response.raise_for_status()
