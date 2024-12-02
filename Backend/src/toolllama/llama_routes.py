@@ -134,10 +134,8 @@ class LLamaBackend:
         out = parameters
         for key, value in parameters.items():
             for a_key in action.get("parameters", {}).keys():
-                print(f'Key: {a_key}')
                 try:
                     if key == a_key:
-                        print(f'type: {action["parameters"][a_key]["param_type"]}')
                         match action["parameters"][a_key]["param_type"]:
                             case 'string':
                                 out[key] = str(value)
@@ -203,7 +201,6 @@ class LLamaBackend:
             })
             llama_gen_time = time.time() - llama_gen_time
             tool_calls = result_gen['tool_calls']
-            print(f'Found tool calls: {tool_calls}')
             result_gen = result_gen['result']
 
             # Save the result in the list of internal messages
@@ -347,7 +344,6 @@ class LLamaBackend:
             if match:
                 action_name = match.group(1)
                 parameters = json.loads(match.group(2))
-                print(f'Found action "{action_name}" with parameters {parameters}')
                 agent, action = action_name.split('--')
                 tool_names.append(action_name)
 

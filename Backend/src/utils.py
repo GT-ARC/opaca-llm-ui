@@ -150,11 +150,6 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         action_list.append(action)
     return action_list
 
-
-def fix_parentheses(x: str) -> str:
-    # Prevents langchain from thinking there are parameters expected in the string
-    return re.sub(r"\{", "{{", re.sub(r"}", "}}", x))
-
 def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
     functions = []
     error_msg = ""
