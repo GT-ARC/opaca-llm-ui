@@ -44,7 +44,7 @@ class RestGptBackend:
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
         # Set config
-        config = session.config.get(f'rest-gpt', await self.get_config())
+        config = session.config.get(f'rest-gpt-{"llama" if self.use_llama else "openai"}', await self.get_config())
 
         # Create response object
         response = Response()
@@ -115,7 +115,7 @@ class RestGptBackend:
             })
         else:
             config.update({
-                "temperature": 0,                       # Temperature for models
+                "temperature": 0,  # Temperature for models
                 "gpt-model": "gpt-4o-mini",
             })
 

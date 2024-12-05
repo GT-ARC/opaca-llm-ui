@@ -61,7 +61,7 @@ class ToolLLMBackend:
         response.query = message
 
         # Set config
-        config = session.config.get(f'tool-llm', await self.get_config())
+        config = session.config.get(f'tool-llm-openai', await self.get_config())
 
         # Model initialization here since openai requires api key in constructor
         try:
