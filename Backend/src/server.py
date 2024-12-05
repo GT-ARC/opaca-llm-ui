@@ -40,14 +40,13 @@ app.add_middleware(
 
 
 BACKENDS = {
-    "rest-gpt-llama3": RestGptBackend("llama3"),
-    "rest-gpt-gpt-4o": RestGptBackend("gpt-4o"),
-    "rest-gpt-gpt-4o-mini": RestGptBackend("gpt-4o-mini"),
+    "rest-gpt-openai": RestGptBackend(use_llama=False),
+    "rest-gpt-llama": RestGptBackend(use_llama=True),
     "simple-openai": SimpleOpenAIBackend(),
     "simple-llama": SimpleLlamaBackend(),
-    "tool-llm-gpt-4o": ToolLLMBackend("gpt-4o"),
-    "tool-llm-gpt-4o-mini": ToolLLMBackend("gpt-4o-mini"),
+    "tool-llm-openai": ToolLLMBackend(),
     "tool-llm-llama": LLamaBackend(),
+    # special backends
     "itdz-knowledge": KnowledgeBackend(),
     "itdz-data": DataAnalysisBackend(),
 }

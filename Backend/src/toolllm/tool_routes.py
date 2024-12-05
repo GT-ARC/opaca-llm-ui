@@ -42,12 +42,8 @@ logging.basicConfig(
 
 
 class ToolLLMBackend:
-    llm_type: str
     llm: BaseChatModel | ChatOpenAI
     max_iter: int = 5
-
-    def __init__(self, llm_type: str):
-        self.llm_type = llm_type
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
@@ -65,7 +61,7 @@ class ToolLLMBackend:
         response.query = message
 
         # Set config
-        config = session.config.get(f'tool-llm-{self.llm_type}', await self.get_config())
+        config = session.config.get(f'tool-llm', await self.get_config())
 
         # Model initialization here since openai requires api key in constructor
         try:
@@ -212,18 +208,19 @@ class ToolLLMBackend:
         Declares the default configuration
         """
         return {
+            "gpt_model": "gpt-4o-mini",
             "temperature": 0,
             "use_agent_names": True,
         }
 
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
-        if self.llm_type == "gpt-4o":
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o", temperature=config["temperature"], openai_api_key=api_key)
-        elif self.llm_type == "gpt-4o-mini":
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=config["temperature"], openai_api_key=api_key)
+        self.check_for_key(api_key)
+        self.llm = ChatOpenAI(
+            model=config["gpt_model"],
+            temperature=float(config["temperature"]),
+            openai_api_key=api_key
+        )
 
     @staticmethod
     def check_for_key(api_key: str):

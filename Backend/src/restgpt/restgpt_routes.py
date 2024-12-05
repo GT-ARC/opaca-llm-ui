@@ -35,16 +35,16 @@ class Action(BaseModel):
 
 
 class RestGptBackend:
-    llm_type: str
+    use_llama: bool
     llm: BaseChatModel | ChatOpenAI
 
-    def __init__(self, llm_type: str):
-        self.llm_type = llm_type
+    def __init__(self, use_llama: bool):
+        self.use_llama = use_llama
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
         # Set config
-        config = session.config.get(f'rest-gpt-{self.llm_type}', await self.get_config())
+        config = session.config.get(f'rest-gpt', await self.get_config())
 
         # Create response object
         response = Response()
@@ -89,12 +89,11 @@ class RestGptBackend:
 
         return response
 
-    @staticmethod
-    async def get_config() -> dict:
+    async def get_config(self) -> dict:
         """
         Declares the default configuration
         """
-        return {
+        config = {
             "slim_prompts": {                       # Use slim prompts -> cheaper
                 "planner": True,
                 "action_selector": True,
@@ -106,22 +105,36 @@ class RestGptBackend:
                 "caller": True,
                 "evaluator": True
             },
-            "temperature": 0,                       # Temperature for models
-            "llama-url": "http://10.0.64.101:11000",
-            "llama-model": "llama3.1:70b",
             "use_agent_names": True,
         }
 
+        if self.use_llama:
+            config.update({
+                "llama-url": "http://10.0.64.101:11000",
+                "llama-model": "llama3.1:70b",
+            })
+        else:
+            config.update({
+                "temperature": 0,                       # Temperature for models
+                "gpt-model": "gpt-4o-mini",
+            })
+
+        return config
+
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
-        if self.llm_type == "llama3":
-            self.llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
-        elif self.llm_type == "gpt-4o":
+        if self.use_llama:
+            self.llm = OpacaLLM(
+                url=config['llama-url'],
+                model=config['llama-model']
+            )
+        else:
             self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o", temperature=config["temperature"], openai_api_key=api_key)
-        elif self.llm_type == "gpt-4o-mini":
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=config["temperature"], openai_api_key=api_key)
+            self.llm = ChatOpenAI(
+                model=config["gpt-model"],
+                temperature=float(config["temperature"]),
+                openai_api_key=api_key
+            )
 
     @staticmethod
     def check_for_key(api_key: str):

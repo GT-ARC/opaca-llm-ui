@@ -2,19 +2,17 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-gpt-4o-mini",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-openai",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
             subBackends: {
-                "simple-openai": "Simple Prompt with GPT",
-                "simple-llama": "Simple Prompt with LLAMA",
-                "rest-gpt-llama3": "RestGPT with LLAMA",
-                "rest-gpt-gpt-4o": "RestGPT with GPT-4o",
-                "rest-gpt-gpt-4o-mini": "RestGPT with GPT-4o-Mini",
-                "tool-llm-gpt-4o": "Tool LLM with GPT-4o",
-                "tool-llm-gpt-4o-mini": "Tool LLM with GPT-4o-Mini",
-                "tool-llm-llama": "Tool LLM with LLAMA"
+                "simple-openai": "Simple Prompt",
+                "simple-llama": "Simple Prompt (LLAMA)",
+                "rest-gpt-openai": "RestGPT",
+                "rest-gpt-llama": "RestGPT (LLAMA)",
+                "tool-llm-openai": "Tool LLM",
+                "tool-llm-llama": "Tool LLM (LLAMA)"
             }
         },
         "itdz-knowledge": "Knowledge Assistant",
@@ -45,7 +43,9 @@ var config = {
             sampleQuestions: [
                 {"question": "How can you assist me?", "icon": "❓"}, 
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
-                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"}
+                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"},
+                {"question": "Please find me someone from Go-KI who knows about LLM.", "icon": "🧑"}
+                
             ],
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
@@ -65,7 +65,8 @@ var config = {
             sampleQuestions: [
                 {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
                 {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
-                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"}
+                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"},
+                {"question": "Finde finde jemanden aus Go-KI der sich mit LLM auskennt.", "icon": "🧑"}
             ],
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',
