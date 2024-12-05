@@ -276,29 +276,23 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
 
 def message_to_dict(msg):
     """
-    Takes in a message as a built-in class type (HumanMessage, AIMessage, SystemMessage) and returns it as a dict
+    Convert from Langchain classes (HumanMessage, AIMessage, SystemMessage) to JSON format used in the APIs
     """
-    match msg:
-        case HumanMessage():
-            return {"role": "user", "content": msg.content}
-        case AIMessage():
-            return {"role": "assistant", "content": msg.content}
-        case SystemMessage():
-            return {"role": "system", "content": msg.content}
-        case _:
-            return msg
+    role = {
+        HumanMessage: "user",
+        AIMessage: "assistant",
+        SystemMessage: "system",
+    }[type(msg)]
+    return {"role": role, "content": msg.content}
 
 
 def message_to_class(msg):
     """
-    Takes in a message as a dict and returns it as a built-in class type (HumanMessage, AIMessage, SystemMessage)
+    Convert from JSON format used in the APIs to Langchain classes (HumanMessage, AIMessage, SystemMessage)
     """
-    match msg.get("role"):
-        case "user":
-            return HumanMessage(msg.get("content", ""))
-        case "assistant":
-            return AIMessage(msg.get("content", ""))
-        case "system":
-            return SystemMessage(msg.get("content", ""))
-        case _:
-            return msg
+    MessageType = {
+        "user": HumanMessage,
+        "assistant": AIMessage,
+        "system": SystemMessage,
+    }[msg["role"]]
+    return MessageType(msg.get("content", ""))
