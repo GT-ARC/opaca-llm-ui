@@ -63,39 +63,34 @@ async def get_backends() -> list:
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    sessions[session_id].client = OpacaClient()
-    return await sessions[session_id].client.connect(url.url, url.user, url.pwd)
+    session = handle_session_id(request, response)
+    session.client = OpacaClient()
+    return await session.client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, list[str]]:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    return await sessions[session_id].client.get_actions()
+    session = handle_session_id(request, response)
+    return await session.client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
+    session = handle_session_id(request, response)
     return await BACKENDS[backend].query(
         message.user_query,
         message.debug,
         message.api_key,
-        sessions[session_id]
+        session
     )
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    return sessions[session_id].messages
+    session = handle_session_id(request, response)
+    return session.messages
 
 @app.post("/reset", description="Reset message history for the current session.")
 async def reset(request: Request, response: FastAPIResponse) -> None:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    sessions[session_id].messages.clear()
+    session = handle_session_id(request, response)
+    session.messages.clear()
 
 @app.post("/reset_all", description="Reset all sessions")
 async def reset_all():
@@ -103,28 +98,28 @@ async def reset_all():
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    sessions[session_id].config[backend] = sessions[session_id].config.get(backend, await BACKENDS[backend].get_config())
-    return sessions[session_id].config[backend]
+    session = handle_session_id(request, response)
+    session.config[backend] = session.config.get(backend, await BACKENDS[backend].get_config())
+    return session.config[backend]
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> dict:
-    session_id = handle_session_id(request)
-    response.set_cookie("session_id", session_id)
-    sessions[session_id].config[backend] = conf
-    return sessions[session_id].config[backend]
+    session = handle_session_id(request, response)
+    session.config[backend] = conf
+    return session.config[backend]
 
-def handle_session_id(request: Request):
+def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id.
+    session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
+    response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
         sessions[session_id] = SessionData()
-    return session_id
+    response.set_cookie("session_id", session_id)
+    return sessions[session_id]
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":
