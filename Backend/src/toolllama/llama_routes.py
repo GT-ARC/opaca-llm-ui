@@ -107,6 +107,7 @@ logging.basicConfig(
 
 
 class LLamaBackend:
+    NAME = "tool-llm-llama"
     max_iter: int = 5                   # Maximum number of internal iterations
 
     @staticmethod
@@ -145,7 +146,7 @@ class LLamaBackend:
     async def query_alt(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
         # Set the config
-        config = session.config.get("tool-llm-llama", await self.get_config())
+        config = session.config.get(LLamaBackend.NAME, await self.get_config())
 
         # Initialize parameters
         tool_names = []
@@ -275,7 +276,7 @@ class LLamaBackend:
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
         # Set the config
-        config = session.config.get("tool-llm-llama", await self.get_config())
+        config = session.config.get(LLamaBackend.NAME, await self.get_config())
 
         # Initialize parameters
         tool_names = []

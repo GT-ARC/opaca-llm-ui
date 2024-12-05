@@ -42,6 +42,7 @@ logging.basicConfig(
 
 
 class ToolLLMBackend:
+    NAME = 'tool-llm-openai'
     llm: BaseChatModel | ChatOpenAI
     max_iter: int = 5
 
@@ -61,7 +62,7 @@ class ToolLLMBackend:
         response.query = message
 
         # Set config
-        config = session.config.get(f'tool-llm-openai', await self.get_config())
+        config = session.config.get(ToolLLMBackend.NAME, await self.get_config())
 
         # Model initialization here since openai requires api key in constructor
         try:

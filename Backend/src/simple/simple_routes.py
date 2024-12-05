@@ -103,6 +103,7 @@ class SimpleBackend:
 
 
 class SimpleOpenAIBackend(SimpleBackend):
+    NAME = "simple-openai"
 
     def _init_config(self):
         return {
@@ -114,7 +115,7 @@ class SimpleOpenAIBackend(SimpleBackend):
     def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
         print("Calling GPT...")
         # Set config
-        self.config = session.config.get("simple-openai", self._init_config())
+        self.config = session.config.get(SimpleOpenAIBackend.NAME, self._init_config())
         self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
 
         completion = self.client.chat.completions.create(
@@ -126,6 +127,7 @@ class SimpleOpenAIBackend(SimpleBackend):
 
 
 class SimpleLlamaBackend(SimpleBackend):
+    NAME = "simple-llama"
 
     def _init_config(self):
         return {
@@ -138,7 +140,7 @@ class SimpleLlamaBackend(SimpleBackend):
     def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
         print("Calling LLAMA...")
         # Set config
-        self.config = session.config.get("simple-llama", self._init_config())
+        self.config = session.config.get(SimpleLlamaBackend.NAME, self._init_config())
         result = requests.post(f'{self.config["api-url"]}/api/chat', json={
             "model": self.config["model"],
             "messages": self.messages,

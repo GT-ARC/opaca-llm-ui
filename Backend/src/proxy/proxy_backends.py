@@ -11,6 +11,7 @@ class ProxyBackend:
 
 
 class KnowledgeBackend(ProxyBackend):
+    NAME = "itdz-knowledge"
 
     @staticmethod
     def _get_config():
@@ -23,7 +24,7 @@ class KnowledgeBackend(ProxyBackend):
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get("itdz-knowledge", self._get_config())
+        config = session.get(KnowledgeBackend.NAME, self._get_config())
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -41,6 +42,7 @@ class KnowledgeBackend(ProxyBackend):
 
 
 class DataAnalysisBackend(ProxyBackend):
+    NAME = "itdz-data"
 
     @staticmethod
     def _get_config():
@@ -50,7 +52,7 @@ class DataAnalysisBackend(ProxyBackend):
 
     async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get("itdz-data", self._get_config())
+        config = session.get(DataAnalysisBackend.NAME, self._get_config())
         url = config["url"]
         response = requests.post(url, json={"question": message})
         response.raise_for_status()
