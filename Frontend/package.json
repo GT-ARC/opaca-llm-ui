@@ -1,7 +1,7 @@
 {
-  "name": "vitevue",
-  "private": true,
-  "version": "0.0.0",
+  "name": "opaca-llm-ui",
+  "version": "0.1.0",
+  "description": "LLM Chat UI for the OPACA framework. Frontend for the OPACA-LLM backend, that connects to an OPACA Runtime Platform and an LLM, prompting it so it can select and execute different available OPACA actions.",
   "type": "module",
   "scripts": {
     "dev_all": "concurrently \"vite --host\" \"cd ../Backend; python3 -m src.server\"",
@@ -10,6 +10,23 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GT-ARC/opaca-llm-ui",
+    "directory": ""
+  },
+  "author": {
+    "name": "Robert Strehlow"
+  },
+  "contributors": [
+    {
+      "name": "Tobias Küster"
+    },
+    {
+      "name": "Oskar Kupke"
+    }
+  ],
+  "license": "OPACA",
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "apiai": "^4.0.3",
