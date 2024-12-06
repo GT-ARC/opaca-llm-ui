@@ -232,7 +232,7 @@ class ActionSelector(Chain):
                            else ACTION_SELECTOR_PROMPT) + action_list,
             examples=examples if inputs['config']['examples']['action_selector'] else [],
             input_variables=["input"],
-            message_template=re.sub(r"\{", "{{", re.sub(r"}", "}}", scratchpad)) + "{input}"
+            message_template = scratchpad.replace("{", "{{").replace("}", "}}") + "{input}"
         )
 
         chain = prompt | self.llm.bind(stop=self._stop)

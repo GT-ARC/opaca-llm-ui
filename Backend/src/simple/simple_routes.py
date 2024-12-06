@@ -53,18 +53,14 @@ class SimpleBackend:
         print("QUERY", message)
         result = Response(query=message)
 
-        # Set system prompt
+        # initialize messages with system prompt and previous messages
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
-        try:
-            self.messages = [{"role": "system", "content": system_prompt % (policy, session.client.actions)}]
-        except AttributeError as e:
-            result.error = str(e)
-            result.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
-                              "connected to the Opaca Runtime Platform and the platform contains at least one "
-                              "action.")
-            return result
-
-        self.messages.extend([message_to_dict(msg) for msg in session.messages])
+        actions = session.client.actions if session.client else "(No services, not connected yet.)"
+        self.messages = [
+            {"role": "system", "content": system_prompt % (policy, actions)},
+            *map(message_to_dict, session.messages)
+        ]
+        # new conversation starts here
         last_msg = len(self.messages)
         self.messages.append({"role": "user", "content": message})
 
