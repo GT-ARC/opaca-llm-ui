@@ -246,7 +246,7 @@ class ActionSelector(Chain):
             res_meta_data = output.response_metadata.get("token_usage", {})
             output = output.content
 
-        action_plan = re.sub(r"API Call:", "", output).strip()
+        action_plan = output.replace("API Call:", "").strip()
 
         # Add first agent message to responses
         responses.append(AgentMessage(
@@ -283,7 +283,7 @@ class ActionSelector(Chain):
             if self._check_missing(output):
                 return {"result": responses}
             else:
-                action_plan = re.sub(r"API Call+:", "", output).split('\n')[0].strip()
+                action_plan = output.replace("API Call:", "").strip()
                 responses[-1].content = action_plan
 
             correction_limit += 1
