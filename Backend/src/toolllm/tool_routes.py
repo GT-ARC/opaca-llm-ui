@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 
 from ..models import Response, AgentMessage, SessionData
 from ..restgpt.utils import build_prompt
-from ..utils import openapi_to_functions
+from ..utils import openapi_to_functions, add_dicts
 
 
 class ColorPrint:
@@ -117,6 +117,7 @@ class ToolLLMBackend:
                 'history': session.messages
             })
             tool_calls = result.tool_calls
+            res_meta_data = result.response_metadata.get("token_usage", {})
 
             # Check the generated tool calls for errors and regenerate them if necessary
             # Correction limit is set to 3 to check iteratively:
@@ -130,11 +131,10 @@ class ToolLLMBackend:
                     'history': session.messages
                 })
                 tool_calls = result.tool_calls
+                res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
-
             tool_generator_time = time.time() - tool_generator_time
-            res_meta_data = result.response_metadata.get("token_usage", {})
             response.agent_messages.append(AgentMessage(
                 agent="Tool Generator",
                 content=result.content,
