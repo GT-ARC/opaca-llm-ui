@@ -276,11 +276,13 @@ class ToolLLMBackend:
                             f'name with two hyphens "--" if it is defined that way.\n')
                 continue
 
+            # Get the request body definition of the found action
+            req_body = action_def['parameters']['properties'].get('requestBody', {})
+
             # Check if the generated parameters are in the right place (in the requestBody field) if the generated
             # action requires at least one parameter
             # If not, abort current iteration since we have to assume no parameters were generated at all
-            if action_def['parameters']['properties'].get('requestBody', {}).get('required', []) \
-                    and not call['args'].get('requestBody', {}):
+            if req_body.get('required', []) and not args:
                 err_out += (f'For the function "{action}" you have not included any parameters in the request body, '
                             f'even though the function requires certain parameters. Please make sure to always put '
                             f'your generated parameters in the request body field.\n')
@@ -288,14 +290,13 @@ class ToolLLMBackend:
 
 
             # Check if all required parameters are present
-            for parameter in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()
-                              if p in action_def['parameters']['properties'].get('requestBody', {}).get('required', [])]:
-                if parameter not in args.keys():
-                    err_out += f'For the function "{action}" you have not included the required parameter {parameter}.\n'
+            if missing := [p for p in req_body.get('required', []) if p not in args.keys()]:
+                err_out += f'For the function "{action}" you have not included the required parameters {missing}.\n'
 
             # Check if no parameter is hallucinated
-            for parameter in args.keys():
-                if parameter not in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()]:
-                    err_out += (f'For the function "{action}" you have included the improper parameter {parameter} in your generated list of '
-                                f'parameters. Please only use parameters that are given in the function definition.\n')
+            if hall := [p for p in args.keys() if p not in req_body.get('properties', {}).keys()]:
+                err_out += (f'For the function "{action}" you have included the improper parameter {hall} in your '
+                            f'generated list of parameters. Please only use parameters that are given in the function '
+                            f'definition.\n')
+
         return err_out
