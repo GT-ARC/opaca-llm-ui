@@ -1,4 +1,3 @@
-import json
 import re
 import time
 from typing import List
@@ -117,6 +116,22 @@ class ToolLLMBackend:
                 'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
                 'history': session.messages
             })
+            tool_calls = result.tool_calls
+
+            # Check the generated tool calls for errors and regenerate them if necessary
+            # Correction limit is set to 3 to check iteratively:
+            # 1. Valid action name 2. Parameters were generated in the "requestBody" field 3. Parameter validity
+            # These steps are sequentially dependent and require at most 3 steps
+            correction_limit = 0
+            while (err_msg := self._check_valid_action(tool_calls, tools[:128])) and correction_limit < 3:
+                result = chain.invoke({
+                    'input': message,
+                    'scratchpad': self.build_scratchpad(tool_responses) + '\n' + err_msg,
+                    'history': session.messages
+                })
+                tool_calls = result.tool_calls
+                correction_limit += 1
+
 
             tool_generator_time = time.time() - tool_generator_time
             res_meta_data = result.response_metadata.get("token_usage", {})
@@ -128,9 +143,7 @@ class ToolLLMBackend:
             ))
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in result.tool_calls:
-
-                print(self._check_valid_action(call, tools[:128], self.config['use_agent_names']))
+            for call in tool_calls:
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
@@ -155,7 +168,7 @@ class ToolLLMBackend:
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
-            if len(result.tool_calls) > 0:
+            if len(tool_calls) > 0:
                 # Build second llm agent
                 prompt_template = PromptTemplate(
                     template="A user had the following request: {query}\n"
@@ -240,29 +253,49 @@ class ToolLLMBackend:
         return out
 
     @staticmethod
-    def _check_valid_action(call: dict, actions: List, use_agent_names: bool) -> str:
+    def _check_valid_action(calls: List[dict], actions: List) -> str:
+        # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
-        action = call['name']
-        args = call['args'].get('requestBody', {})
+        # Since the gpt models can generate multiple tools, iterate over each generated call
+        for call in calls:
 
-        action_def = None
-        for a in actions:
-            if a['function']['name'] == action:
-                action_def = a['function']
+            # Get the generated name and parameters
+            action = call['name']
+            args = call['args'].get('requestBody', {})
 
-        if not action_def:
-            err_out += 'Your generate function name does not exist.\n'
+            # Check if the generated action name is found in the list of action definitions
+            # If not, abort current iteration since no reference parameters can be found
+            action_def = None
+            for a in actions:
+                if a['function']['name'] == action:
+                    action_def = a['function']
+            if not action_def:
+                err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
+                            f'defined in your tool section. Please make sure to separate the agent name and function '
+                            f'name with two hyphens "--" if it is defined that way.\n')
+                continue
 
-        # Check if all required parameters are present
-        for parameter in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()
-                          if p in action_def['parameters']['properties'].get('requestBody', {}).get('required', [])]:
-            if parameter not in args.keys():
-                err_out += f'You have not included the required parameter {parameter}.\n'
+            # Check if the generated parameters are in the right place (in the requestBody field) if the generated
+            # action requires at least one parameter
+            # If not, abort current iteration since we have to assume no parameters were generated at all
+            if action_def['parameters']['properties'].get('requestBody', {}).get('required', []) \
+                    and not call['args'].get('requestBody', {}):
+                err_out += (f'For the function "{action}" you have not included any parameters in the request body, '
+                            f'even though the function requires certain parameters. Please make sure to always put '
+                            f'your generated parameters in the request body field.\n')
+                continue
 
-        # Check if no parameter is hallucinated
-        for parameter in args.keys():
-            if parameter not in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()]:
-                err_out += (f'You have included the improper parameter {parameter} in your generated list of '
-                            f'parameters. Please only use parameters that are given in the action description.\n')
+
+            # Check if all required parameters are present
+            for parameter in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()
+                              if p in action_def['parameters']['properties'].get('requestBody', {}).get('required', [])]:
+                if parameter not in args.keys():
+                    err_out += f'For the function "{action}" you have not included the required parameter {parameter}.\n'
+
+            # Check if no parameter is hallucinated
+            for parameter in args.keys():
+                if parameter not in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()]:
+                    err_out += (f'For the function "{action}" you have included the improper parameter {parameter} in your generated list of '
+                                f'parameters. Please only use parameters that are given in the function definition.\n')
         return err_out
