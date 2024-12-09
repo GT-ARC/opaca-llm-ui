@@ -124,10 +124,12 @@ class ToolLLMBackend:
             # 1. Valid action name 2. Parameters were generated in the "requestBody" field 3. Parameter validity
             # These steps are sequentially dependent and require at most 3 steps
             correction_limit = 0
+            full_err = '\n'
             while (err_msg := self._check_valid_action(tool_calls, tools[:128])) and correction_limit < 3:
+                full_err += err_msg
                 result = chain.invoke({
                     'input': message,
-                    'scratchpad': self.build_scratchpad(tool_responses) + '\n' + err_msg,
+                    'scratchpad': self.build_scratchpad(tool_responses) + full_err,
                     'history': session.messages
                 })
                 tool_calls = result.tool_calls
