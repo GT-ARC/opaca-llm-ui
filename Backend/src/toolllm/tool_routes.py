@@ -1,3 +1,4 @@
+import json
 import re
 import time
 from typing import List
@@ -135,6 +136,9 @@ class ToolLLMBackend:
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for call in result.tool_calls:
+
+                print(self._check_valid_action(call, tools[:128], self.config['use_agent_names']))
+
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
                 try:
@@ -242,3 +246,31 @@ class ToolLLMBackend:
         for message in messages:
             out += f'\nAI: {message.content}'
         return out
+
+    @staticmethod
+    def _check_valid_action(call: dict, actions: List, use_agent_names: bool) -> str:
+        err_out = ""
+
+        action = call['name']
+        args = call['args'].get('requestBody', {})
+
+        action_def = None
+        for a in actions:
+            if a['function']['name'] == action:
+                action_def = a['function']
+
+        if not action_def:
+            err_out += 'Your generate function name does not exist.\n'
+
+        # Check if all required parameters are present
+        for parameter in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()
+                          if p in action_def['parameters']['properties'].get('requestBody', {}).get('required', [])]:
+            if parameter not in args.keys():
+                err_out += f'You have not included the required parameter {parameter}.\n'
+
+        # Check if no parameter is hallucinated
+        for parameter in args.keys():
+            if parameter not in [p for p in action_def['parameters']['properties'].get('requestBody', {}).get('properties', {}).keys()]:
+                err_out += (f'You have included the improper parameter {parameter} in your generated list of '
+                            f'parameters. Please only use parameters that are given in the action description.\n')
+        return err_out
