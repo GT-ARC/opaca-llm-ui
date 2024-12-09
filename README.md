@@ -41,11 +41,15 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * RestGPT: Based on [RestGPT](https://github.com/Yifan-Song793/RestGPT); using LangChain with four agents (Planner, Action Selector, Caller, Evaluator) to determine what to do, which actions to call, and evaluate the result.
 
-* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of OpenAI models; currently only works with GPT (a LLAMA version is WIP but requires some more adaptations).
+* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of OpenAI models. A similar version for LLAMA is currently in progress.
 
 The different LLM clients provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta.
 
-**Note:** At the moment, the message history is kept in the backend and shared between all instances of the UI, but there is a separate history for the different models. This can be confusing if not considered. To make sure to have a "clean start", hit the "Reset" button in the UI when initiating a chat. We are working to improve this.
+### Sessions, Message History and Configuration
+
+The message history and configuration (model version, temperature, etc.) is stored in the backend, along with a session ID, associating it with a specific browser/user. The history is shared between different LLM backends, i.e. if the performance of once backend is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser, even though the chat window appears empty. Clicking on the "Reset" button (lower right, red) will reset the message history, but not the configuration.
+
+The Session ID is stored as a Cookie in the frontend and sent to the backend. On the first request, when no Cookie is set, the backend will create a new random Session ID and associated session data and set the Session ID as a Cookie in the response. It will then automatically be used by the frontend in all subsequent requests.
 
 
 ## Environment Variables

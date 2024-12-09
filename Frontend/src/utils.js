@@ -13,6 +13,7 @@ export async function sendRequest(method, url, body = null, timeout = 10000) {
         url: url,
         data: body,
         timeout: timeout,
+        withCredentials: true,
         headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'

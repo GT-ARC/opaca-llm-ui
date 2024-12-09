@@ -1,8 +1,8 @@
-import re
 from typing import Dict, List, Optional
 
 import jsonref
 from colorama import Fore
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 
 class ColorPrint:
@@ -272,3 +272,27 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
             )
 
     return functions, error_msg
+
+
+def message_to_dict(msg):
+    """
+    Convert from Langchain classes (HumanMessage, AIMessage, SystemMessage) to JSON format used in the APIs
+    """
+    role = {
+        HumanMessage: "user",
+        AIMessage: "assistant",
+        SystemMessage: "system",
+    }[type(msg)]
+    return {"role": role, "content": msg.content}
+
+
+def message_to_class(msg):
+    """
+    Convert from JSON format used in the APIs to Langchain classes (HumanMessage, AIMessage, SystemMessage)
+    """
+    MessageType = {
+        "user": HumanMessage,
+        "assistant": AIMessage,
+        "system": SystemMessage,
+    }[msg["role"]]
+    return MessageType(msg.get("content", ""))

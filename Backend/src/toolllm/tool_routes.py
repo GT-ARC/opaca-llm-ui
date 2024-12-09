@@ -11,9 +11,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..models import Response, AgentMessage
+from ..models import Response, AgentMessage, SessionData
 from ..restgpt.utils import build_prompt
-from ..opaca_client import client as opaca_client
 from ..utils import openapi_to_functions
 
 
@@ -43,20 +42,11 @@ logging.basicConfig(
 
 
 class ToolLLMBackend:
-    messages: List = []
+    NAME = 'tool-llm-openai'
     llm: BaseChatModel | ChatOpenAI
-    should_continue: bool = True
     max_iter: int = 5
 
-    def __init__(self):
-        # This is the DEFAULT config
-        self.config = {
-            "gpt_model": "gpt-4o-mini",
-            "temperature": 0,
-            "use_agent_names": True,
-        }
-
-    async def query(self, message: str, debug: bool, api_key: str) -> Response:
+    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -65,15 +55,18 @@ class ToolLLMBackend:
         tool_responses = []
         result = None
         c_it = 0
-        self.should_continue = True
+        should_continue = True
 
         # Initialize the response object
         response = Response()
         response.query = message
 
+        # Set config
+        config = session.config.get(ToolLLMBackend.NAME, await self.get_config())
+
         # Model initialization here since openai requires api key in constructor
         try:
-            self.init_model(api_key)
+            self.init_model(api_key, config)
         except ValueError as e:
             response.error = str(e)
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "
@@ -82,7 +75,7 @@ class ToolLLMBackend:
 
         try:
             # Convert openapi schema to openai function schema
-            tools, error = openapi_to_functions(opaca_client.get_actions_with_refs(), self.config['use_agent_names'])
+            tools, error = openapi_to_functions(session.client.get_actions_with_refs(), config['use_agent_names'])
             if len(tools) > 128:
                 response.error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit of "
                                    f"128. All tools after index 128 will be ignored!\n")
@@ -98,7 +91,7 @@ class ToolLLMBackend:
         total_exec_time = time.time()
 
         # Run until request is finished or maximum number of iterations is reached
-        while self.should_continue and c_it < self.max_iter:
+        while should_continue and c_it < self.max_iter:
 
             # Build first llm agent
             prompt = build_prompt(
@@ -121,7 +114,7 @@ class ToolLLMBackend:
             result = chain.invoke({
                 'input': message,
                 'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
-                'history': self.messages
+                'history': session.messages
             })
 
             tool_generator_time = time.time() - tool_generator_time
@@ -138,13 +131,13 @@ class ToolLLMBackend:
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
                 try:
-                    if self.config['use_agent_names']:
+                    if config['use_agent_names']:
                         agent_name, action_name = call['name'].split('--', maxsplit=1)
                     else:
                         agent_name = None
                         action_name = call['name']
                     tool_results.append(
-                        opaca_client.invoke_opaca_action(
+                        session.client.invoke_opaca_action(
                             action_name,
                             agent_name,
                             call['args']['requestBody'] if 'requestBody' in call['args'] else {}
@@ -178,8 +171,8 @@ class ToolLLMBackend:
                     'parameters': tool_params,  # ALL the parameters used for the tools
                     'results': tool_results  # ALL the results from the opaca action calls
                 })
+                tool_evaluator_time = time.time() - tool_evaluator_time
 
-                tool_evaluator_time = time.time() - tool_generator_time
                 res_meta_data = result.response_metadata.get("token_usage", {})
                 response.agent_messages.append(AgentMessage(
                     agent="Tool Evaluator",
@@ -189,7 +182,7 @@ class ToolLLMBackend:
                 ))
 
                 # Check if llm agent thinks user query has not been fulfilled yet
-                self.should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
+                should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
 
                 # Remove the keywords from the generated response
                 result.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result.content).strip()
@@ -197,37 +190,36 @@ class ToolLLMBackend:
                 # Add generated response to internal history to give result to first llm agent
                 tool_responses.append(AIMessage(result.content))
             else:
-                self.should_continue = False
+                should_continue = False
 
             c_it += 1
 
         # Add query and final response to global message history
-        self.messages.append(HumanMessage(message))
-        self.messages.append(AIMessage(result.content))
+        session.messages.append(HumanMessage(message))
+        session.messages.append(AIMessage(result.content))
 
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it
         response.content = result.content
         return response
 
-    async def history(self) -> list:
-        return self.messages
+    @staticmethod
+    async def get_config() -> dict:
+        """
+        Declares the default configuration
+        """
+        return {
+            "gpt_model": "gpt-4o-mini",
+            "temperature": 0,
+            "use_agent_names": True,
+        }
 
-    async def reset(self):
-        self.messages = []
-
-    async def get_config(self) -> dict:
-        return self.config
-
-    async def set_config(self, conf: dict):
-        self.config = conf
-
-    def init_model(self, api_key: str):
+    def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         self.check_for_key(api_key)
         self.llm = ChatOpenAI(
-            model=self.config["gpt_model"],
-            temperature=float(self.config["temperature"]),
+            model=config["gpt_model"],
+            temperature=float(config["temperature"]),
             openai_api_key=api_key
         )
 
