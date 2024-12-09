@@ -61,7 +61,7 @@ class RestGPT(Chain):
 
         :meta private:
         """
-        return ["query", "history", "config", "response"]
+        return ["query", "history", "config", "response", "client"]
 
     @property
     def output_keys(self) -> List[str]:
@@ -172,6 +172,7 @@ class RestGPT(Chain):
             caller_response = self.caller.invoke({"api_plan": api_plan,
                                                   "actions": self.action_spec,
                                                   "config": config,
+                                                  "client": inputs["client"],
                                                   })["result"]
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
