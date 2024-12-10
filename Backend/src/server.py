@@ -26,6 +26,7 @@ app = FastAPI(
 
 # Configure CORS settings
 origins = [
+    "*",
     "http://localhost",
     "http://localhost:5173",  # Assuming Vue app is running on this port
 ]
