@@ -19,6 +19,8 @@ var config = {
         "itdz-data": "Data Analysis",
     },
 
+    BackLink: import.meta.env.VITE_BACKLINK ?? null,
+
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,

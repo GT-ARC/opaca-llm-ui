@@ -6,14 +6,25 @@
                     <i class="fa fa-bars fs-3 my-auto p-3"/>
                 </div>
 
-                <div class="ms-5 w-auto text-start">
-                    <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>
+                <div class="ms-5 w-auto text-start" v-if="getConfig().BackLink != null">
+                    <a v-bind:href="getConfig().BackLink">
+                        <img src="./assets/Icons/back.png" class="logo" alt="Back" height="30"/>
+                    </a>
                 </div>
                 <div class="ms-5 w-auto text-start">
-                    <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
+                    <a href="https://github.com/GT-ARC/opaca-core" target="blank">
+                        <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>
+                    </a>
                 </div>
                 <div class="ms-5 w-auto text-start">
-                    <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
+                    <a href="https://go-ki.org/" target="blank">
+                        <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
+                    </a>
+                </div>
+                <div class="ms-5 w-auto text-start">
+                    <a href="https://ze-ki.de/" target="blank">
+                        <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
+                    </a>
                 </div>
 
                 <div class="my-auto text-end w-auto ms-auto me-5">
