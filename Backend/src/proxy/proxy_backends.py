@@ -1,16 +1,10 @@
 import requests
 import random
 
-from ..models import Response, SessionData
+from ..models import Response, SessionData, OpacaLLMBackend
 
 
-class ProxyBackend:
-
-    async def get_config(self) -> dict:
-        return self._get_config()
-
-
-class KnowledgeBackend(ProxyBackend):
+class KnowledgeBackend(OpacaLLMBackend):
     NAME = "itdz-knowledge"
 
     @staticmethod
@@ -22,7 +16,7 @@ class KnowledgeBackend(ProxyBackend):
             "msg_id": 0,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
         config = session.get(KnowledgeBackend.NAME, self._get_config())
         url = config["url"].format(model=config["model"])
@@ -41,7 +35,7 @@ class KnowledgeBackend(ProxyBackend):
         return Response(query=message, content=result["content"])
 
 
-class DataAnalysisBackend(ProxyBackend):
+class DataAnalysisBackend(OpacaLLMBackend):
     NAME = "itdz-data"
 
     @staticmethod
@@ -50,7 +44,7 @@ class DataAnalysisBackend(ProxyBackend):
             "url": "http://10.42.6.107:3002/ask_csv",
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
         config = session.get(DataAnalysisBackend.NAME, self._get_config())
         url = config["url"]

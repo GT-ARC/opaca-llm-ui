@@ -9,7 +9,7 @@ from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from .llama_proxy import OpacaLLM
-from ..models import Response, AgentMessage, SessionData
+from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..utils import openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
@@ -106,9 +106,9 @@ logging.basicConfig(
 )
 
 
-class LLamaBackend:
-    NAME = "tool-llm-llama"
+class LLamaBackend(OpacaLLMBackend):
     max_iter: int = 5                   # Maximum number of internal iterations
+    NAME = "tool-llm-llama"
 
     @staticmethod
     def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,7 +143,7 @@ class LLamaBackend:
                     continue
         return out
 
-    async def query_alt(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query_alt(self, message: str, session: SessionData) -> Response:
 
         # Set the config
         config = session.config.get(LLamaBackend.NAME, await self.get_config())
@@ -273,7 +273,7 @@ class LLamaBackend:
         session.messages.append(AIMessage(response.content))
         return response
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
 
         # Set the config
         config = session.config.get(LLamaBackend.NAME, await self.get_config())

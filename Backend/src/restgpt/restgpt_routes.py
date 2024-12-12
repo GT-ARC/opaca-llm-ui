@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from ..models import Response, SessionData
+from ..models import Response, SessionData, OpacaLLMBackend
 from .utils import OpacaLLM
 from ..utils import get_reduced_action_spec, ColorPrint
 from .rest_gpt import RestGPT
@@ -34,7 +34,7 @@ class Action(BaseModel):
         return f'{self.name}, Description: {self.description}, Parameters: {self.parameters}, Result: {self.result}'
 
 
-class RestGptBackend:
+class RestGptBackend(OpacaLLMBackend):
     NAME_OPENAI = "rest-gpt-openai"
     NAME_LLAMA = "rest-gpt-llama"
     use_llama: bool
@@ -43,7 +43,7 @@ class RestGptBackend:
     def __init__(self, use_llama: bool):
         self.use_llama = use_llama
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
 
         # Set config
         config = session.config.get(RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI, await self.get_config())
@@ -54,7 +54,7 @@ class RestGptBackend:
 
         # Model initialization here since openai requires api key in constructor
         try:
-            self.init_model(api_key, config)
+            self.init_model(session.api_key, config)
         except ValueError as e:
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "
                                 "enter a valid api key and try again.")

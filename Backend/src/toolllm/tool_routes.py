@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..models import Response, AgentMessage, SessionData
+from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..restgpt.utils import build_prompt
 from ..utils import openapi_to_functions, add_dicts
 
@@ -41,12 +41,12 @@ logging.basicConfig(
 )
 
 
-class ToolLLMBackend:
+class ToolLLMBackend(OpacaLLMBackend):
     NAME = 'tool-llm-openai'
     llm: BaseChatModel | ChatOpenAI
     max_iter: int = 5
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -66,7 +66,7 @@ class ToolLLMBackend:
 
         # Model initialization here since openai requires api key in constructor
         try:
-            self.init_model(api_key, config)
+            self.init_model(session.api_key, config)
         except ValueError as e:
             response.error = str(e)
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "

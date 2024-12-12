@@ -2,7 +2,7 @@ import openai
 import json
 import requests
 
-from ..models import Response, AgentMessage, SessionData
+from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..utils import message_to_dict, message_to_class
 
 system_prompt = """
@@ -43,13 +43,13 @@ ask_policies = [
     "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation."
 ]
 
-class SimpleBackend:
+class SimpleBackend(OpacaLLMBackend):
 
     def __init__(self):
         self.messages = []
         self.config = self._init_config()
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
         result = Response(query=message)
 
@@ -66,7 +66,7 @@ class SimpleBackend:
 
         while True:
             result.iterations += 1
-            response = self._query_internal(debug, api_key, session)
+            response = self._query_internal(session.api_key, session)
             self.messages.append({"role": "assistant", "content": response})
 
             print("RESPONSE:", repr(response))
@@ -99,16 +99,18 @@ class SimpleBackend:
 
 
 class SimpleOpenAIBackend(SimpleBackend):
+
     NAME = "simple-openai"
 
-    def _init_config(self):
+    @staticmethod
+    def _init_config():
         return {
             "model": "gpt-4o-mini",
             "temperature": 1.0,
             "ask_policy": 0,
         }
 
-    def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
+    def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling GPT...")
         # Set config
         self.config = session.config.get(SimpleOpenAIBackend.NAME, self._init_config())
@@ -123,9 +125,11 @@ class SimpleOpenAIBackend(SimpleBackend):
 
 
 class SimpleLlamaBackend(SimpleBackend):
+
     NAME = "simple-llama"
 
-    def _init_config(self):
+    @staticmethod
+    def _init_config():
         return {
             "api-url": "http://10.0.64.101:11000",
             "model": "llama3.1:70b",
@@ -133,7 +137,7 @@ class SimpleLlamaBackend(SimpleBackend):
             "ask_policy": 0,
         }
 
-    def _query_internal(self, debug: bool, api_key: str, session: SessionData) -> str:
+    def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling LLAMA...")
         # Set config
         self.config = session.config.get(SimpleLlamaBackend.NAME, self._init_config())

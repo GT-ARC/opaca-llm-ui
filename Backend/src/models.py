@@ -1,8 +1,10 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-
 from typing import List, Dict, Any
+
+from langchain_core.language_models import BaseChatModel
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 
@@ -48,3 +50,15 @@ class SessionData(BaseModel):
     messages: List[Any] = []
     config: Dict[str, Any] = {}
     client: Any = None
+    api_key: str = None
+
+
+class OpacaLLMBackend:
+    NAME: str
+    llm: BaseChatModel | ChatOpenAI     # TODO maybe extend the types to support different future models
+
+    async def query(self, message: str, session: SessionData) -> Response:
+        pass
+
+    async def defaultConfig(self) -> Dict[str, Any]:
+        pass
