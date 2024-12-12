@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 
 from ..models import Response, AgentMessage, SessionData
 from ..restgpt.utils import build_prompt
-from ..utils import openapi_to_functions
+from ..utils import openapi_to_functions, add_dicts
 
 
 class ColorPrint:
@@ -116,9 +116,27 @@ class ToolLLMBackend:
                 'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
                 'history': session.messages
             })
+            tool_calls = result.tool_calls
+            res_meta_data = result.response_metadata.get("token_usage", {})
+
+            # Check the generated tool calls for errors and regenerate them if necessary
+            # Correction limit is set to 3 to check iteratively:
+            # 1. Valid action name 2. Parameters were generated in the "requestBody" field 3. Parameter validity
+            # These steps are sequentially dependent and require at most 3 steps
+            correction_limit = 0
+            full_err = '\n'
+            while (err_msg := self._check_valid_action(tool_calls, tools[:128])) and correction_limit < 3:
+                full_err += err_msg
+                result = chain.invoke({
+                    'input': message,
+                    'scratchpad': self.build_scratchpad(tool_responses) + full_err,
+                    'history': session.messages
+                })
+                tool_calls = result.tool_calls
+                res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
+                correction_limit += 1
 
             tool_generator_time = time.time() - tool_generator_time
-            res_meta_data = result.response_metadata.get("token_usage", {})
             response.agent_messages.append(AgentMessage(
                 agent="Tool Generator",
                 content=result.content,
@@ -127,7 +145,8 @@ class ToolLLMBackend:
             ))
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in result.tool_calls:
+            for call in tool_calls:
+
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
                 try:
@@ -151,7 +170,7 @@ class ToolLLMBackend:
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
-            if len(result.tool_calls) > 0:
+            if len(tool_calls) > 0:
                 # Build second llm agent
                 prompt_template = PromptTemplate(
                     template="A user had the following request: {query}\n"
@@ -234,3 +253,52 @@ class ToolLLMBackend:
         for message in messages:
             out += f'\nAI: {message.content}'
         return out
+
+    @staticmethod
+    def _check_valid_action(calls: List[dict], actions: List) -> str:
+        # Save all encountered errors in a single string, which will be given to the llm as an input
+        err_out = ""
+
+        # Since the gpt models can generate multiple tools, iterate over each generated call
+        for call in calls:
+
+            # Get the generated name and parameters
+            action = call['name']
+            args = call['args'].get('requestBody', {})
+
+            # Check if the generated action name is found in the list of action definitions
+            # If not, abort current iteration since no reference parameters can be found
+            action_def = None
+            for a in actions:
+                if a['function']['name'] == action:
+                    action_def = a['function']
+            if not action_def:
+                err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
+                            f'defined in your tool section. Please make sure to separate the agent name and function '
+                            f'name with two hyphens "--" if it is defined that way.\n')
+                continue
+
+            # Get the request body definition of the found action
+            req_body = action_def['parameters']['properties'].get('requestBody', {})
+
+            # Check if the generated parameters are in the right place (in the requestBody field) if the generated
+            # action requires at least one parameter
+            # If not, abort current iteration since we have to assume no parameters were generated at all
+            if req_body.get('required', []) and not args:
+                err_out += (f'For the function "{action}" you have not included any parameters in the request body, '
+                            f'even though the function requires certain parameters. Please make sure to always put '
+                            f'your generated parameters in the request body field.\n')
+                continue
+
+
+            # Check if all required parameters are present
+            if missing := [p for p in req_body.get('required', []) if p not in args.keys()]:
+                err_out += f'For the function "{action}" you have not included the required parameters {missing}.\n'
+
+            # Check if no parameter is hallucinated
+            if hall := [p for p in args.keys() if p not in req_body.get('properties', {}).keys()]:
+                err_out += (f'For the function "{action}" you have included the improper parameter {hall} in your '
+                            f'generated list of parameters. Please only use parameters that are given in the function '
+                            f'definition.\n')
+
+        return err_out

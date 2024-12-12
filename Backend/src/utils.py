@@ -94,6 +94,17 @@ class Action:
                 f'"custom types": {self.custom_params}}}')
 
 
+def add_dicts(d1: dict, d2: dict) -> dict:
+    result = {}
+    for key in d1.keys() | d2.keys():
+        if isinstance(d1[key], dict) and isinstance(d2[key], dict):
+            result[key] = add_dicts(d1[key], d2[key])
+        else:
+            result[key] = d1.get(key, 0) + d2.get(key, 0)
+    return result
+
+
+
 def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
     if p_type["items"]["type"] == "array":
         array_item = Parameter.ArrayItems("array")

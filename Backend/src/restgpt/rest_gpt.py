@@ -152,7 +152,8 @@ class RestGPT(Chain):
             # exec time is measure within action selector
             as_response = self.action_selector.invoke({"plan": plan,
                                                        "actions": self.action_spec,
-                                                       "history": action_selector_history,
+                                                       "action_history": action_selector_history,
+                                                       "message_history": inputs["history"],
                                                        "config": config,
                                                        })["result"]
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
