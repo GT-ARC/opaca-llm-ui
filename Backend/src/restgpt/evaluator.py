@@ -1,12 +1,8 @@
 from typing import List, Dict, Any, Tuple
 
-from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
 
-from .utils import build_prompt
-from ..models import AgentMessage
-
+from ..models import AgentMessage, LLMAgent
 
 examples = [
     {"input": """What is the way to the kitchen?
@@ -73,41 +69,25 @@ The user will not receive any information except yours, so make sure to include 
 """
 
 
-class Evaluator(Chain):
+class Evaluator(LLMAgent):
     llm: BaseChatModel
     planner_prompt: str
 
-    def __init__(self, llm: BaseChatModel, planner_prompt=EVAL_PROMPT) -> None:
-        super().__init__(llm=llm, planner_prompt=planner_prompt)
+    def __init__(self, llm: BaseChatModel):
+        super().__init__(
+            name='Evaluator',
+            llm=llm.bind(stop=self._stop),
+            system_prompt=EVAL_PROMPT
+        )
 
     @property
-    def _chain_type(self) -> str:
-        return "LLama Evaluator"
-
-    @property
-    def input_keys(self) -> List[str]:
-        return ["input"]
-
-    @property
-    def output_keys(self) -> List[str]:
-        return ["result"]
-
-    @property
-    def observation_prefix(self) -> str:
-        """Prefix to append the observation with."""
+    def _stop(self):
         return "API response: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
         return "Plan step {}: "
-
-    @property
-    def _stop(self) -> List[str]:
-        return [
-            f"\n{self.observation_prefix.rstrip()}",
-            f"\n\t{self.observation_prefix.rstrip()}",
-        ]
 
     def _construct_scratchpad(
             self, history: List[Tuple[str, str]]
@@ -116,30 +96,15 @@ class Evaluator(Chain):
             return ""
         scratchpad = ""
         for i, (plan, execution_res) in enumerate(history):
-            scratchpad += self.llm_prefix.format(i + 1) + plan + "\n"
-            scratchpad += self.observation_prefix + execution_res + "\n"
+            scratchpad += f'Plan step {i + 1}: ' + plan + "\n"
+            scratchpad += self._stop + execution_res + "\n"
         return scratchpad
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    def invoke(self, inputs: Dict[str, Any]) -> AgentMessage:
 
-        prompt = build_prompt(
-            system_prompt=EVAL_PROMPT_SLIM if inputs['config']['slim_prompts']['evaluator'] else EVAL_PROMPT,
-            examples=examples if inputs['config']['examples']['evaluator'] else [],
-            input_variables=["input"],
-            message_template="{input}"
-        )
+        self.system_prompt = EVAL_PROMPT_SLIM if inputs['config']['slim_prompts']['evaluator'] else EVAL_PROMPT
+        self.examples = examples if inputs['config']['examples']['evaluator'] else []
+        self.input_variables = ['input']
+        self.message_template = "{input}"
 
-        chain = prompt | self.llm.bind(stop=self._stop)
-
-        output = chain.invoke({"input": inputs["input"], "history": inputs["history"]})
-
-        res_meta_data = {}
-        if isinstance(output, AIMessage):
-            res_meta_data = output.response_metadata.get("token_usage", {})
-            output = output.content
-
-        return {"result": AgentMessage(
-                agent="Evaluator",
-                content=output,
-                response_metadata=res_meta_data,
-                )}
+        return super().invoke({"input": inputs["input"], "history": inputs["history"]})

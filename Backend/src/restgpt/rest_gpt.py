@@ -36,8 +36,8 @@ class RestGPT(Chain):
         print(f'Initialized RestGPT with model type {type(llm)}')
 
         planner = Planner(llm=llm)
-        action_selector = ActionSelector(llm=llm, action_spec=action_spec)
-        caller = Caller(llm=llm, action_spec=action_spec)
+        action_selector = ActionSelector(llm=llm)
+        caller = Caller(llm=llm)
         evaluator = Evaluator(llm=llm)
 
         super().__init__(
@@ -49,7 +49,7 @@ class RestGPT(Chain):
         return self.evaluator.invoke({"input": eval_input,
                                       "history": history,
                                       "config": config,
-                                      })["result"]
+                                      })
 
     @property
     def _chain_type(self) -> str:
@@ -129,15 +129,13 @@ class RestGPT(Chain):
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
-            planner_time = time.time()
             planner_response = self.planner.invoke({"input": query,
                                                     "actions": self.action_spec,
                                                     "planner_history": planner_history,
                                                     "message_history": inputs['history'],
                                                     "config": config,
                                                     "response": response,
-                                                    })["result"]
-            planner_response.execution_time = time.time() - planner_time
+                                                    })
             response.agent_messages.append(planner_response)
 
             plan = planner_response.content
@@ -155,7 +153,7 @@ class RestGPT(Chain):
                                                        "action_history": action_selector_history,
                                                        "message_history": inputs["history"],
                                                        "config": config,
-                                                       })["result"]
+                                                       })
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
             response.agent_messages.extend(as_response)  # Add all action selector messages
             logger.info(f'API Selector: {api_plan}')
@@ -173,7 +171,7 @@ class RestGPT(Chain):
                                                   "actions": self.action_spec,
                                                   "config": config,
                                                   "client": inputs["client"],
-                                                  })["result"]
+                                                  })
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
             response.agent_messages.append(caller_response)

@@ -8,11 +8,9 @@ import os
 from colorama import Fore
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
-from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
-from ..restgpt.utils import build_prompt
+from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
 from ..utils import openapi_to_functions, add_dicts
 
 
@@ -93,8 +91,9 @@ class ToolLLMBackend(OpacaLLMBackend):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
 
-            # Build first llm agent
-            prompt = build_prompt(
+            generator_agent = LLMAgent(
+                name="Tool Generator",
+                llm=self.llm,
                 system_prompt="You are a helpful ai assistant that plans solution to user queries with the help of "
                               "tools. You can find those tools in the tool section. Do not generate optional "
                               "parameters for those tools if the user has not explicitly told you to."
@@ -105,19 +104,16 @@ class ToolLLMBackend(OpacaLLMBackend):
                               "You are only allowed to use those given tools. If a user asks about tools directly, "
                               "answer them with the required information. Tools can also be described as services.",
                 examples=[],
-                input_variables=['input'],
-                message_template="Human: {input}{scratchpad}"
+                input_variables=['input', 'scratchpad'],
+                message_template="Human: {input}{scratchpad}",
+                tools=tools[:128]
             )
-            chain = prompt | self.llm.bind_tools(tools=tools[:128])
-
-            tool_generator_time = time.time()
-            result = chain.invoke({
+            result = generator_agent.invoke({
                 'input': message,
                 'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
                 'history': session.messages
             })
-            tool_calls = result.tool_calls
-            res_meta_data = result.response_metadata.get("token_usage", {})
+            res_meta_data = result.response_metadata
 
             # Check the generated tool calls for errors and regenerate them if necessary
             # Correction limit is set to 3 to check iteratively:
@@ -125,9 +121,9 @@ class ToolLLMBackend(OpacaLLMBackend):
             # These steps are sequentially dependent and require at most 3 steps
             correction_limit = 0
             full_err = '\n'
-            while (err_msg := self._check_valid_action(tool_calls, tools[:128])) and correction_limit < 3:
+            while (err_msg := self._check_valid_action(result.tools, tools[:128])) and correction_limit < 3:
                 full_err += err_msg
-                result = chain.invoke({
+                result = generator_agent.invoke({
                     'input': message,
                     'scratchpad': self.build_scratchpad(tool_responses) + full_err,
                     'history': session.messages
@@ -136,16 +132,10 @@ class ToolLLMBackend(OpacaLLMBackend):
                 res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
-            tool_generator_time = time.time() - tool_generator_time
-            response.agent_messages.append(AgentMessage(
-                agent="Tool Generator",
-                content=result.content,
-                response_metadata=res_meta_data,
-                execution_time=tool_generator_time,
-            ))
+            response.agent_messages.append(result)
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in tool_calls:
+            for call in result.tools:
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
@@ -170,35 +160,29 @@ class ToolLLMBackend(OpacaLLMBackend):
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
-            if len(tool_calls) > 0:
-                # Build second llm agent
-                prompt_template = PromptTemplate(
-                    template="A user had the following request: {query}\n"
-                             "You just used the tools {tool_names} with the following parameters: {parameters}\n"
-                             "The results were {results}\n"
-                             "Generate a response explaining the result to a user. Decide if the user request "
-                             "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response.",
+            if len(result.tools) > 0:
+                evaluator_agent = LLMAgent(
+                    name="Tool Evaluator",
+                    llm=self.llm,
+                    system_prompt='',
+                    examples=[],
                     input_variables=['query', 'tool_names', 'parameters', 'results'],
+                    message_template="A user had the following request: {query}\n"
+                                     "You just used the tools {tool_names} with the following parameters: {parameters}\n"
+                                     "The results were {results}\n"
+                                     "Generate a response explaining the result to a user. Decide if the user request "
+                                     "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
+                                     "response.",
+                    tools=tools[:128]
                 )
-                response_chain = prompt_template | self.llm.bind_tools(tools=tools[:128])
 
-                tool_evaluator_time = time.time()
-                result = response_chain.invoke({
+                result = evaluator_agent.invoke({
                     'query': message,  # Original user query
                     'tool_names': tool_names,  # ALL the tools used so far
                     'parameters': tool_params,  # ALL the parameters used for the tools
                     'results': tool_results  # ALL the results from the opaca action calls
                 })
-                tool_evaluator_time = time.time() - tool_evaluator_time
-
-                res_meta_data = result.response_metadata.get("token_usage", {})
-                response.agent_messages.append(AgentMessage(
-                    agent="Tool Evaluator",
-                    content=result.content,
-                    response_metadata=res_meta_data,
-                    execution_time=tool_evaluator_time,
-                ))
+                response.agent_messages.append(result)
 
                 # Check if llm agent thinks user query has not been fulfilled yet
                 should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False

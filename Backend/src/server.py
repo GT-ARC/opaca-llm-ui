@@ -76,12 +76,7 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, list
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = handle_session_id(request, response)
-    return await BACKENDS[backend].query(
-        message.user_query,
-        message.debug,
-        message.api_key,
-        session
-    )
+    return await BACKENDS[backend].query(message.user_query,session)
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
