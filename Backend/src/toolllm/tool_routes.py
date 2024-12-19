@@ -1,48 +1,47 @@
 import re
 import time
 from typing import List
-
-import logging
 import os
 
-from colorama import Fore
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
-from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
-from ..utils import openapi_to_functions, add_dicts
-
-
-class ColorPrint:
-    def __init__(self):
-        self.color_mapping = {
-            "Tools": Fore.RED,
-            "AI Answer": Fore.GREEN,
-            "Query": Fore.WHITE,
-        }
-
-    def write(self, data):
-        module = data.split(':')[0]
-        if module not in self.color_mapping:
-            print(data, end="")
-        else:
-            print(self.color_mapping[module] + data + Fore.RESET, end="")
-
-
-logger = logging.getLogger()
-
-logging.basicConfig(
-    format="%(message)s",
-    handlers=[logging.StreamHandler(ColorPrint())],
-    level=logging.INFO
-)
+from .tool_agents import ToolGenerator, ToolEvaluator
+from ..models import Response, SessionData, OpacaLLMBackend
+from ..toolllama import OpacaLLM
+from ..utils import openapi_to_functions, add_dicts, openapi_to_llama
 
 
 class ToolLLMBackend(OpacaLLMBackend):
-    NAME = 'tool-llm-openai'
+    NAME_OPENAI = 'tool-llm-openai'
+    NAME_LLAMA = 'tool-llm-llama'
     llm: BaseChatModel | ChatOpenAI
     max_iter: int = 5
+
+    def __init__(self, use_llama: bool):
+        self.use_llama = use_llama
+
+    @property
+    def _name(self):
+        return self.NAME_LLAMA if self.use_llama else self.NAME_OPENAI
+
+    @property
+    def config(self):
+        if self.use_llama:
+            return {
+                "llama-url": "http://10.0.64.101:11000",
+                "llama-model": "llama3.1:70b",
+                "temperature": 0,
+                "use_agent_names": True,
+                "max_iterations": 5
+            }
+        else:
+            return {
+                "gpt_model": "gpt-4o-mini",
+                "temperature": 0,
+                "use_agent_names": True,
+            }
 
     async def query(self, message: str, session: SessionData) -> Response:
 
@@ -60,25 +59,36 @@ class ToolLLMBackend(OpacaLLMBackend):
         response.query = message
 
         # Set config
-        config = session.config.get(ToolLLMBackend.NAME, await self.get_config())
+        config = session.config.get(self._name, self.config)
 
-        # Model initialization here since openai requires api key in constructor
-        try:
-            self.init_model(session.api_key, config)
-        except ValueError as e:
-            response.error = str(e)
-            response.content = ("You are trying to use a model which uses an api key but provided none. Please "
-                                "enter a valid api key and try again.")
-            return response
+        # Save time before execution
+        total_exec_time = time.time()
 
+        # Initialize selected model
+        if self.use_llama:
+            self.llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
+        else:
+            try:
+                self.init_model(session.api_key, config)
+            except ValueError as e:
+                response.error = str(e)
+                response.content = ("You are trying to use a model which uses an api key but provided none. Please "
+                                    "enter a valid api key and try again.")
+                return response
+
+        # Get tools from connected opaca platform
         try:
-            # Convert openapi schema to openai function schema
-            tools, error = openapi_to_functions(session.client.get_actions_with_refs(), config['use_agent_names'])
-            if len(tools) > 128:
-                response.error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit of "
-                                   f"128. All tools after index 128 will be ignored!\n")
-            if error:
-                response.error += error
+            if self.use_llama:
+                tools, error = openapi_to_llama(session.client.get_actions_with_refs(), config['use_agent_names'])
+                tools = [{"type": "function", "function": tool} for tool in tools]
+            else:
+                # Convert openapi schema to openai function schema
+                tools, error = openapi_to_functions(session.client.get_actions_with_refs(), config['use_agent_names'])
+                if len(tools) > 128:
+                    tools = tools[:128]
+                    error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
+                              f"of 128. All tools after index 128 will be ignored!\n")
+            response.error += error
         except Exception as e:
             response.error += str(e)
             response.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
@@ -86,33 +96,28 @@ class ToolLLMBackend(OpacaLLMBackend):
                                 "action.")
             return response
 
-        total_exec_time = time.time()
+        generator_agent = ToolGenerator(
+            self.llm,
+            tools=tools,
+            input_variables=['input', 'history', 'config'] if self.use_llama else ['input', 'scratchpad'],
+            message_template='' if self.use_llama else 'Human: {input}{scratchpad}',
+        )
+        evaluator_agent = ToolEvaluator(self.llm, tools=tools)
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-
-            generator_agent = LLMAgent(
-                name="Tool Generator",
-                llm=self.llm,
-                system_prompt="You are a helpful ai assistant that plans solution to user queries with the help of "
-                              "tools. You can find those tools in the tool section. Do not generate optional "
-                              "parameters for those tools if the user has not explicitly told you to."
-                              "Some queries require sequential calls with those tools. If other tool calls have been "
-                              "made already, you will receive the generated AI response of these tool calls. In that "
-                              "case you should continue to fulfill the user query with the additional knowledge. "
-                              "If you are unable to fulfill the user queries with the given tools, let the user know. "
-                              "You are only allowed to use those given tools. If a user asks about tools directly, "
-                              "answer them with the required information. Tools can also be described as services.",
-                examples=[],
-                input_variables=['input', 'scratchpad'],
-                message_template="Human: {input}{scratchpad}",
-                tools=tools[:128]
-            )
-            result = generator_agent.invoke({
-                'input': message,
-                'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
-                'history': session.messages
-            })
+            if self.use_llama:
+                result = generator_agent.invoke({
+                    'input': message,
+                    'config': config,
+                    'history': session.messages,
+                })
+            else:
+                result = generator_agent.invoke({
+                    'input': message,
+                    'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
+                    'history': session.messages
+                })
             res_meta_data = result.response_metadata
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -128,14 +133,13 @@ class ToolLLMBackend(OpacaLLMBackend):
                     'scratchpad': self.build_scratchpad(tool_responses) + full_err,
                     'history': session.messages
                 })
-                tool_calls = result.tool_calls
                 res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
             response.agent_messages.append(result)
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in result.tools:
+            for call in result.tools.copy():
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
@@ -161,21 +165,6 @@ class ToolLLMBackend(OpacaLLMBackend):
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
-                evaluator_agent = LLMAgent(
-                    name="Tool Evaluator",
-                    llm=self.llm,
-                    system_prompt='',
-                    examples=[],
-                    input_variables=['query', 'tool_names', 'parameters', 'results'],
-                    message_template="A user had the following request: {query}\n"
-                                     "You just used the tools {tool_names} with the following parameters: {parameters}\n"
-                                     "The results were {results}\n"
-                                     "Generate a response explaining the result to a user. Decide if the user request "
-                                     "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                                     "response.",
-                    tools=tools[:128]
-                )
-
                 result = evaluator_agent.invoke({
                     'query': message,  # Original user query
                     'tool_names': tool_names,  # ALL the tools used so far
@@ -205,17 +194,6 @@ class ToolLLMBackend(OpacaLLMBackend):
         response.iterations = c_it
         response.content = result.content
         return response
-
-    @staticmethod
-    async def get_config() -> dict:
-        """
-        Declares the default configuration
-        """
-        return {
-            "gpt_model": "gpt-4o-mini",
-            "temperature": 0,
-            "use_agent_names": True,
-        }
 
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env

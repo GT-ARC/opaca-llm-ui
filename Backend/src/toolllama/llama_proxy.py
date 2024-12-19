@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 class OpacaLLM(Chain):
     url: str = ""
     model: str = ""
+    tools: List = []
 
     def __init__(self, url: str, model: str) -> None:
         super().__init__()
@@ -21,11 +22,15 @@ class OpacaLLM(Chain):
 
     @property
     def input_keys(self) -> List[str]:
-        return ["messages", "history", "config", "tools"]
+        return ['input', 'history', 'config']
 
     @property
     def output_keys(self) -> List[str]:
         return ["result"]
+
+    def bind_tools(self, tools: List):
+        self.tools = tools
+        return self
 
     def _call(
             self,
@@ -37,10 +42,10 @@ class OpacaLLM(Chain):
         response = requests.post(
             f'{self.url}/api/chat',
             json={
-                'messages': self._format_llama3(inputs["messages"], inputs["history"]),
+                'messages': self._format_llama3(inputs["input"], inputs["history"]),
                 'model': self.model,
                 'stream': False,
-                'tools': inputs["tools"],
+                'tools': self.tools,
                 'options': {
                     'temperature': inputs["config"].get("temperature", 0),
                     'num_ctx': inputs["config"].get("num_ctx", 32768)

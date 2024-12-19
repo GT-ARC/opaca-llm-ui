@@ -45,8 +45,9 @@ BACKENDS = {
     RestGptBackend.NAME_LLAMA: RestGptBackend(use_llama=True),
     SimpleOpenAIBackend.NAME: SimpleOpenAIBackend(),
     SimpleLlamaBackend.NAME: SimpleLlamaBackend(),
-    ToolLLMBackend.NAME: ToolLLMBackend(),
-    LLamaBackend.NAME: LLamaBackend(),
+    ToolLLMBackend.NAME_OPENAI: ToolLLMBackend(use_llama=False),
+    ToolLLMBackend.NAME_LLAMA: ToolLLMBackend(use_llama=True),
+    #LLamaBackend.NAME: LLamaBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
