@@ -111,8 +111,8 @@ class ToolLLMBackend(OpacaLLMBackend):
             llm=self.llm,
             system_prompt=TOOL_GENERATOR_PROMPT,
             tools=tools,
-            input_variables=['input', 'history', 'config'] if self.use_llama else ['input', 'scratchpad'],
-            message_template='' if self.use_llama else 'Human: {input}{scratchpad}',
+            input_variables=['input'] if self.use_llama else ['input', 'scratchpad'],
+            message_template='{input}' if self.use_llama else 'Human: {input}{scratchpad}',
         )
         evaluator_agent = LLMAgent(
             name="Tool Evaluator",
