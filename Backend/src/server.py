@@ -110,6 +110,12 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     session.config[backend] = conf
     return session.config[backend]
 
+@app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
+async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+    session = handle_session_id(request, response)
+    session.config[backend] = await BACKENDS[backend].get_config()
+    return session.config[backend]
+
 def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
