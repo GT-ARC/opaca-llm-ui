@@ -110,6 +110,19 @@ class LLamaBackend(OpacaLLMBackend):
     max_iter: int = 5                   # Maximum number of internal iterations
     NAME = "tool-llm-llama"
 
+    @property
+    def default_config(self) -> dict:
+        """
+        Declares the default configuration
+        """
+        return {
+            "llama-url": "http://10.0.64.101:11000",
+            "llama-model": "llama3.1:70b",
+            "temperature": 0,
+            "use_agent_names": True,
+            "max_iterations": 5
+        }
+
     @staticmethod
     def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -417,16 +430,3 @@ class LLamaBackend(OpacaLLMBackend):
         session.messages.append(HumanMessage(prompt_input))
         session.messages.append(AIMessage(response.content))
         return response
-
-    @staticmethod
-    async def get_config() -> dict:
-        """
-        Declares the default configuration
-        """
-        return {
-            "llama-url": "http://10.0.64.101:11000",
-            "llama-model": "llama3.1:70b",
-            "temperature": 0,
-            "use_agent_names": True,
-            "max_iterations": 5
-        }

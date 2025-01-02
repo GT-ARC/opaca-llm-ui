@@ -2,6 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import time
+from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
 from langchain_core.language_models import BaseChatModel
@@ -57,10 +58,16 @@ class SessionData(BaseModel):
     api_key: str = None
 
 
-class OpacaLLMBackend:
+class OpacaLLMBackend(ABC):
     NAME: str
     llm: BaseChatModel | ChatOpenAI     # TODO maybe extend the types to support different future models
 
+    @abstractmethod
+    @property
+    def default_config(self):
+        pass
+
+    @abstractmethod
     async def query(self, message: str, session: SessionData) -> Response:
         pass
 
