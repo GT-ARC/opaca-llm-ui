@@ -7,10 +7,20 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
-from .tool_agents import ToolGenerator, ToolEvaluator
-from ..models import Response, SessionData, OpacaLLMBackend
+from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
 from ..toolllama import OpacaLLM
 from ..utils import openapi_to_functions, add_dicts, openapi_to_llama
+
+
+TOOL_GENERATOR_PROMPT = """You are a helpful ai assistant that plans solution to user queries with the help of 
+tools. You can find those tools in the tool section. Do not generate optional 
+parameters for those tools if the user has not explicitly told you to. 
+Some queries require sequential calls with those tools. If other tool calls have been 
+made already, you will receive the generated AI response of these tool calls. In that 
+case you should continue to fulfill the user query with the additional knowledge. 
+If you are unable to fulfill the user queries with the given tools, let the user know. 
+You are only allowed to use those given tools. If a user asks about tools directly, 
+answer them with the required information. Tools can also be described as services."""
 
 
 class ToolLLMBackend(OpacaLLMBackend):
@@ -27,7 +37,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         return self.NAME_LLAMA if self.use_llama else self.NAME_OPENAI
 
     @property
-    def config(self):
+    def default_config(self):
         if self.use_llama:
             return {
                 "llama-url": "http://10.0.64.101:11000",
@@ -59,7 +69,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         response.query = message
 
         # Set config
-        config = session.config.get(self._name, self.config)
+        config = session.config.get(self._name, self.get_config)
 
         # Save time before execution
         total_exec_time = time.time()
@@ -96,13 +106,27 @@ class ToolLLMBackend(OpacaLLMBackend):
                                 "action.")
             return response
 
-        generator_agent = ToolGenerator(
-            self.llm,
+        generator_agent = LLMAgent(
+            name='Tool Generator',
+            llm=self.llm,
+            system_prompt=TOOL_GENERATOR_PROMPT,
             tools=tools,
             input_variables=['input', 'history', 'config'] if self.use_llama else ['input', 'scratchpad'],
             message_template='' if self.use_llama else 'Human: {input}{scratchpad}',
         )
-        evaluator_agent = ToolEvaluator(self.llm, tools=tools)
+        evaluator_agent = LLMAgent(
+            name="Tool Evaluator",
+            llm=self.llm,
+            system_prompt="",
+            tools=tools,
+            input_variables=['query', 'tool_names', 'parameters', 'results'],
+            message_template="A user had the following request: {query}\n"
+                             "You just used the tools {tool_names} with the following parameters: {parameters}\n"
+                             "The results were {results}\n"
+                             "Generate a response explaining the result to a user. Decide if the user request "
+                             "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
+                             "response."
+        )
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
@@ -251,7 +275,6 @@ class ToolLLMBackend(OpacaLLMBackend):
                             f'even though the function requires certain parameters. Please make sure to always put '
                             f'your generated parameters in the request body field.\n')
                 continue
-
 
             # Check if all required parameters are present
             if missing := [p for p in req_body.get('required', []) if p not in args.keys()]:
