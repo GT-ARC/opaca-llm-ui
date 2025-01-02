@@ -134,6 +134,12 @@
                                 Save Config
                             </button>
                         </div>
+                        <div class="py-2 text-center">
+                            <button class="btn btn-danger py-2 w-100" type="button" @click="this.resetBackendConfig()">
+                                <i class="fa fa-undo me-1"/>
+                                Reset to Default
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -220,6 +226,18 @@ export default {
                 console.log('Saved backend config.');
             } else {
                 console.error('Error saving backend config.');
+            }
+        },
+
+        async resetBackendConfig() {
+            const backend = this.getBackend()
+            const response = await sendRequest('POST', `${conf.BackendAddress}/${backend}/config/reset`);
+            if (response.status === 200) {
+                this.backendConfig = response.data;
+                console.log('Reset backend config.');
+            } else {
+                this.backendConfig = null;
+                console.error('Error resetting backend config.');
             }
         },
 
