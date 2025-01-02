@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
 from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
-from ..toolllama import OpacaLLM
+from ..llama_proxy import OpacaLLM
 from ..utils import openapi_to_functions, add_dicts, openapi_to_llama
 
 

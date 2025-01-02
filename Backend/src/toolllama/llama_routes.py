@@ -8,7 +8,7 @@ import logging
 from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from .llama_proxy import OpacaLLM
+from ..llama_proxy import OpacaLLM
 from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..utils import openapi_to_llama
 

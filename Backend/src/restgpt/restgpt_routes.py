@@ -10,8 +10,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
+from ..llama_proxy import OpacaLLM
 from ..models import Response, SessionData, OpacaLLMBackend
-from .utils import OpacaLLM
 from ..utils import get_reduced_action_spec, ColorPrint
 from .rest_gpt import RestGPT
 

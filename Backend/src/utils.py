@@ -106,7 +106,6 @@ def add_dicts(d1: dict, d2: dict) -> dict:
     return result
 
 
-
 def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
     if p_type["items"]["type"] == "array":
         array_item = Parameter.ArrayItems("array")
@@ -162,6 +161,7 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
         action_list.append(action)
     return action_list
+
 
 def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
     functions = []
