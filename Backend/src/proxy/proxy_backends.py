@@ -7,8 +7,8 @@ from ..models import Response, SessionData, OpacaLLMBackend
 class KnowledgeBackend(OpacaLLMBackend):
     NAME = "itdz-knowledge"
 
-    @staticmethod
-    def _get_config():
+    @property
+    def default_config(self):
         return {
             "url": "http://10.0.4.59:8000/chat-{model}",
             "model": "ollama",
@@ -18,7 +18,7 @@ class KnowledgeBackend(OpacaLLMBackend):
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(KnowledgeBackend.NAME, self._get_config())
+        config = session.get(KnowledgeBackend.NAME, self.default_config)
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -38,15 +38,15 @@ class KnowledgeBackend(OpacaLLMBackend):
 class DataAnalysisBackend(OpacaLLMBackend):
     NAME = "itdz-data"
 
-    @staticmethod
-    def _get_config():
+    @property
+    def default_config(self):
         return {
             "url": "http://10.42.6.107:3002/ask_csv",
         }
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(DataAnalysisBackend.NAME, self._get_config())
+        config = session.get(DataAnalysisBackend.NAME, self.default_config)
         url = config["url"]
         response = requests.post(url, json={"question": message})
         response.raise_for_status()

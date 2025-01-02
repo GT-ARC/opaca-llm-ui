@@ -47,7 +47,7 @@ class SimpleBackend(OpacaLLMBackend):
 
     def __init__(self):
         self.messages = []
-        self.config = self._init_config()
+        self.config = self.default_config
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
@@ -94,7 +94,8 @@ class SimpleBackend(OpacaLLMBackend):
         session.messages.extend([message_to_class(msg) for msg in self.messages[last_msg:]])
         return result
 
-    async def get_config(self) -> dict:
+    @property
+    def default_config(self) -> dict:
         return self._init_config()
 
 

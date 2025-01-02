@@ -97,7 +97,7 @@ async def reset_all():
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
     session = handle_session_id(request, response)
     if backend not in session.config:
-        session.config[backend] = await BACKENDS[backend].get_config()
+        session.config[backend] = BACKENDS[backend].default_config
     return session.config[backend]
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")

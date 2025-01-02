@@ -69,7 +69,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         response.query = message
 
         # Set config
-        config = session.config.get(self._name, self.get_config)
+        config = session.config.get(self._name, self.default_config)
 
         # Save time before execution
         total_exec_time = time.time()

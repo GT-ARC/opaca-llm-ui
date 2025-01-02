@@ -46,7 +46,7 @@ class RestGptBackend(OpacaLLMBackend):
     async def query(self, message: str, session: SessionData) -> Response:
 
         # Set config
-        config = session.config.get(RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI, await self.get_config())
+        config = session.config.get(RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI, self.default_config)
 
         # Create response object
         response = Response()
@@ -91,7 +91,8 @@ class RestGptBackend(OpacaLLMBackend):
 
         return response
 
-    async def get_config(self) -> dict:
+    @property
+    def default_config(self) -> dict:
         """
         Declares the default configuration
         """
