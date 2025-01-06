@@ -62,8 +62,8 @@ class OpacaLLMBackend(ABC):
     NAME: str
     llm: BaseChatModel | ChatOpenAI     # TODO maybe extend the types to support different future models
 
-    @abstractmethod
     @property
+    @abstractmethod
     def default_config(self):
         pass
 

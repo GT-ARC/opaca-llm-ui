@@ -7,3 +7,6 @@ Currently only works with GPT-4.
 """
 
 from .tool_routes import ToolLLMBackend
+from .tool_method import ToolMethod, ToolMethodRegistry
+from .tool_method_llama import ToolMethodLlama
+from .tool_method_openai import ToolMethodOpenAI

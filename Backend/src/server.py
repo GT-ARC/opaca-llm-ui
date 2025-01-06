@@ -11,8 +11,7 @@ from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import Url, Message, Response, SessionData
-from .toolllm import ToolLLMBackend
-from .toolllama import LLamaBackend
+from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import OpacaClient
@@ -45,13 +44,14 @@ BACKENDS = {
     RestGptBackend.NAME_LLAMA: RestGptBackend(use_llama=True),
     SimpleOpenAIBackend.NAME: SimpleOpenAIBackend(),
     SimpleLlamaBackend.NAME: SimpleLlamaBackend(),
-    ToolLLMBackend.NAME_OPENAI: ToolLLMBackend(use_llama=False),
-    ToolLLMBackend.NAME_LLAMA: ToolLLMBackend(use_llama=True),
     #LLamaBackend.NAME: LLamaBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
 }
+
+BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
+print(ToolMethodRegistry.registry)
 
 
 # Simple dict to store session data

@@ -7,8 +7,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
+from .tool_method import ToolMethod
 from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
-from ..llama_proxy import OpacaLLM
 from ..utils import openapi_to_functions, add_dicts, openapi_to_llama
 
 
@@ -24,34 +24,15 @@ answer them with the required information. Tools can also be described as servic
 
 
 class ToolLLMBackend(OpacaLLMBackend):
-    NAME_OPENAI = 'tool-llm-openai'
-    NAME_LLAMA = 'tool-llm-llama'
-    llm: BaseChatModel | ChatOpenAI
     max_iter: int = 5
+    method: ToolMethod
 
-    def __init__(self, use_llama: bool):
-        self.use_llama = use_llama
-
-    @property
-    def _name(self):
-        return self.NAME_LLAMA if self.use_llama else self.NAME_OPENAI
+    def __init__(self, method: str):
+        self.method = ToolMethod.create_method(method)
 
     @property
     def default_config(self):
-        if self.use_llama:
-            return {
-                "llama-url": "http://10.0.64.101:11000",
-                "llama-model": "llama3.1:70b",
-                "temperature": 0,
-                "use_agent_names": True,
-                "max_iterations": 5
-            }
-        else:
-            return {
-                "gpt_model": "gpt-4o-mini",
-                "temperature": 0,
-                "use_agent_names": True,
-            }
+        return self.method.config
 
     async def query(self, message: str, session: SessionData) -> Response:
 
@@ -69,67 +50,38 @@ class ToolLLMBackend(OpacaLLMBackend):
         response.query = message
 
         # Set config
-        config = session.config.get(self._name, self.default_config)
+        config = session.config.get(self.method.name, self.default_config)
 
         # Save time before execution
         total_exec_time = time.time()
 
-        # Initialize selected model
-        if self.use_llama:
-            self.llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
-        else:
-            try:
-                self.init_model(session.api_key, config)
-            except ValueError as e:
-                response.error = str(e)
-                response.content = ("You are trying to use a model which uses an api key but provided none. Please "
-                                    "enter a valid api key and try again.")
-                return response
+        """
+        # Initialize model
+        try:
+            self.llm = self.method.init_model(config, session.api_key or os.getenv("OPENAI_API_KEY"))
+        except Exception as e:
+            response.error = str(e)
+            response.content = ("I am sorry, but I was unable to initialize the model for the selected method. "
+                                "Make sure you use a valid API key.")
+            return response
 
         # Get tools from connected opaca platform
         try:
-            if self.use_llama:
-                tools, error = openapi_to_llama(session.client.get_actions_with_refs(), config['use_agent_names'])
-                tools = [{"type": "function", "function": tool} for tool in tools]
-            else:
-                # Convert openapi schema to openai function schema
-                tools, error = openapi_to_functions(session.client.get_actions_with_refs(), config['use_agent_names'])
-                if len(tools) > 128:
-                    tools = tools[:128]
-                    error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
-                              f"of 128. All tools after index 128 will be ignored!\n")
-            response.error += error
+            tools, error = self.method.get_tools(session.client.get_actions_with_refs(), config)
         except Exception as e:
             response.error += str(e)
             response.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
                                 "connected to the Opaca Runtime Platform and the platform contains at least one "
                                 "action.")
             return response
+        """
 
-        generator_agent = LLMAgent(
-            name='Tool Generator',
-            llm=self.llm,
-            system_prompt=TOOL_GENERATOR_PROMPT,
-            tools=tools,
-            input_variables=['input'] if self.use_llama else ['input', 'scratchpad'],
-            message_template='{input}' if self.use_llama else 'Human: {input}{scratchpad}',
-        )
-        evaluator_agent = LLMAgent(
-            name="Tool Evaluator",
-            llm=self.llm,
-            system_prompt="",
-            tools=tools,
-            input_variables=['query', 'tool_names', 'parameters', 'results'],
-            message_template="A user had the following request: {query}\n"
-                             "You just used the tools {tool_names} with the following parameters: {parameters}\n"
-                             "The results were {results}\n"
-                             "Generate a response explaining the result to a user. Decide if the user request "
-                             "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response."
-        )
+        self.method.init_agents(session, config)
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
+            result = self.method.invoke_generator(session, message, tool_responses) # TODO?
+            """
             if self.use_llama:
                 result = generator_agent.invoke({
                     'input': message,
@@ -142,6 +94,7 @@ class ToolLLMBackend(OpacaLLMBackend):
                     'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
                     'history': session.messages
                 })
+            """
             res_meta_data = result.response_metadata
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -150,13 +103,9 @@ class ToolLLMBackend(OpacaLLMBackend):
             # These steps are sequentially dependent and require at most 3 steps
             correction_limit = 0
             full_err = '\n'
-            while (err_msg := self._check_valid_action(result.tools, tools[:128])) and correction_limit < 3:
+            while (err_msg := self.method.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = generator_agent.invoke({
-                    'input': message,
-                    'scratchpad': self.build_scratchpad(tool_responses) + full_err,
-                    'history': session.messages
-                })
+                result = self.method.invoke_generator(session, message, tool_responses, full_err)
                 res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
@@ -189,12 +138,12 @@ class ToolLLMBackend(OpacaLLMBackend):
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
-                result = evaluator_agent.invoke({
-                    'query': message,  # Original user query
-                    'tool_names': tool_names,  # ALL the tools used so far
-                    'parameters': tool_params,  # ALL the parameters used for the tools
-                    'results': tool_results  # ALL the results from the opaca action calls
-                })
+                result = self.method.invoke_evaluator(
+                    message,  # Original user query
+                    tool_names,  # ALL the tools used so far
+                    tool_params,  # ALL the parameters used for the tools
+                    tool_results  # ALL the results from the opaca action calls
+                )
                 response.agent_messages.append(result)
 
                 # Check if llm agent thinks user query has not been fulfilled yet
