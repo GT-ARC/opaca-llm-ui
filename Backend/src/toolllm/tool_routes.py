@@ -63,9 +63,11 @@ class ToolLLMBackend(OpacaLLMBackend):
                 correction_limit += 1
 
             response.agent_messages.append(result)
+            tools = result.tools.copy()
+            result.tools = []
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in result.tools.copy():
+            for call in tools:
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
