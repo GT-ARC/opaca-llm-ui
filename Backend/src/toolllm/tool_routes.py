@@ -58,7 +58,7 @@ class ToolLLMBackend(OpacaLLMBackend):
             full_err = '\n'
             while (err_msg := self.method.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = await self.method.invoke_generator(session, message, tool_responses, full_err)
+                result = await self.method.invoke_generator(session, message, tool_responses, config, full_err)
                 res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
