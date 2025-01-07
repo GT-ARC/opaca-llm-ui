@@ -26,6 +26,15 @@ class OpacaLLM(BaseChatModel):
         self.tools = tools
         return self
 
+    async def ainvoke(
+            self,
+            input: Union[PromptValue, str, Sequence[Union[BaseMessage, List[str], Tuple[str, str], str, Dict[str, Any]]]],
+            config: Optional[RunnableConfig] = None,
+            stop: Optional[List[str]] = None,
+            **kwargs: Any
+    ) -> AIMessage:
+        return self._generate(input.to_messages(), stop, None, **config.get('metadata', {}))
+
     def invoke(
             self,
             input: Union[PromptValue, str, Sequence[Union[BaseMessage, List[str], Tuple[str, str], str, Dict[str, Any]]]],

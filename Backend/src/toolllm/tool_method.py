@@ -98,11 +98,11 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         )
 
     @abstractmethod
-    def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
+    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
         pass
 
     @abstractmethod
-    def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
+    async def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
         pass
 
     @abstractmethod

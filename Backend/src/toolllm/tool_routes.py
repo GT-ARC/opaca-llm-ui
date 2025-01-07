@@ -47,7 +47,7 @@ class ToolLLMBackend(OpacaLLMBackend):
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-            result = self.method.invoke_generator(session, message, tool_responses, config)
+            result = await self.method.invoke_generator(session, message, tool_responses, config)
             res_meta_data = result.response_metadata
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -58,7 +58,7 @@ class ToolLLMBackend(OpacaLLMBackend):
             full_err = '\n'
             while (err_msg := self.method.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = self.method.invoke_generator(session, message, tool_responses, full_err)
+                result = await self.method.invoke_generator(session, message, tool_responses, full_err)
                 res_meta_data = add_dicts(result.response_metadata.get("token_usage", {}), res_meta_data)
                 correction_limit += 1
 
@@ -91,7 +91,7 @@ class ToolLLMBackend(OpacaLLMBackend):
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
-                result = self.method.invoke_evaluator(
+                result = await self.method.invoke_evaluator(
                     message,  # Original user query
                     tool_names,  # ALL the tools used so far
                     tool_params,  # ALL the parameters used for the tools

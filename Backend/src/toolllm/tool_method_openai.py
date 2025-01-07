@@ -51,15 +51,15 @@ class ToolMethodOpenAI(ToolMethod):
                       f"of 128. All tools after index 128 will be ignored!\n")
         return self.tools, error
 
-    def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = ""):
-        return self.generator_agent.invoke({
+    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = ""):
+        return await self.generator_agent.ainvoke({
             'input': message,
             'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
             'history': session.messages
         })
 
-    def invoke_evaluator(self, message, tool_names, tool_params, tool_results):
-        return self.evaluator_agent.invoke({
+    async def invoke_evaluator(self, message, tool_names, tool_params, tool_results):
+        return await self.evaluator_agent.ainvoke({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far
             'parameters': tool_params,  # ALL the parameters used for the tools

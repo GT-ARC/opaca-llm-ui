@@ -44,15 +44,15 @@ class ToolMethodLlama(ToolMethod):
         tools = [{"type": "function", "function": tool} for tool in tools]
         return tools, error
 
-    def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
-        return self.generator_agent.invoke({
+    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
+        return await self.generator_agent.ainvoke({
             'input': message + correction_message,
             'config': config,
             'history': session.messages,
         })
 
-    def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
-        return self.evaluator_agent.invoke({
+    async def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
+        return await self.evaluator_agent.ainvoke({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far
             'parameters': tool_parameters,  # ALL the parameters used for the tools
