@@ -6,3 +6,6 @@ Backend/tests/test_runs
 .idea
 venv
 .venv
+docker-compose.yml
+Backend/.DS_Store
+.DS_Store

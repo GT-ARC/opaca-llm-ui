@@ -93,7 +93,7 @@
     </header>
 
     <div class="col background">
-        <MainContent class="tab" :backend="this.backend" :language="this.language" ref="content" />
+        <MainContent class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
     </div>
 </template>
 
@@ -181,15 +181,43 @@ export default {
 
 <style scoped>
 header {
-    background-color: #fff;
+    background-color: var(--background-light);
     width: 100%;
-    height: 50px;
+    height: 60px;
     display: flex;
     align-items: center;
+    box-shadow: var(--shadow-sm);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.logo {
+    transition: transform 0.2s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
 }
 
 .dropdown-item {
     cursor: pointer;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: var(--surface-light);
+}
+
+.dropdown-menu {
+    border-radius: var(--border-radius-md);
+    border: 1px solid #e5e7eb;
+    box-shadow: var(--shadow-md);
+    padding: 0.5rem;
+    min-width: 200px;
 }
 
 .dropdown-menu li {
@@ -201,6 +229,9 @@ header {
     position: absolute;
     left: 100%;
     top: -7px;
+    border-radius: var(--border-radius-md);
+    border: 1px solid #e5e7eb;
+    box-shadow: var(--shadow-md);
 }
 
 .dropdown-menu .dropdown-submenu-left {
@@ -212,27 +243,55 @@ header {
     display: block;
 }
 
+.nav-link {
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-md);
+    transition: all 0.2s ease;
+    color: var(--text-primary-light);
+}
+
+.nav-link:hover {
+    background-color: var(--surface-light);
+    color: var(--primary-light);
+}
+
+.dropdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 @media (prefers-color-scheme: dark) {
+    header {
+        background-color: var(--background-dark);
+        border-color: #2e2e2e;
+    }
+
     .logo {
-        filter: invert(100%)
+        filter: invert(1);
     }
 
-    #logo {
-        filter: invert(100%)
+    .nav-link {
+        color: var(--text-primary-dark);
     }
 
-    .navbar {
-        background-color: #333;
-        color: white;
+    .nav-link:hover {
+        background-color: var(--surface-dark);
+        color: var(--primary-dark);
     }
 
-    .navbar-nav .nav-link {
-        color: white;
+    .dropdown-menu {
+        background-color: var(--surface-dark);
+        border-color: #2e2e2e;
     }
 
-    .dropdown-menu, .dropdown-item {
-        background-color: #212529 !important;
-        color: white;
+    .dropdown-item {
+        color: var(--text-primary-dark);
+    }
+
+    .dropdown-item:hover {
+        background-color: var(--background-dark);
+        color: var(--primary-dark);
     }
 }
 </style>
