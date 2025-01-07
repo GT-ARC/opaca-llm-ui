@@ -3,9 +3,6 @@ import re
 import time
 from typing import Dict, Any
 
-import logging
-
-from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from ..llama_proxy import OpacaLLM
@@ -65,31 +62,6 @@ answer the user, or output 'CONTINUE' so more function calls can be made by anot
 Base your final decision of whether the query has been fulfilled only on the presence of information. For example, if 
 a user asked if devices are damaged and it was found out they are, the query is fulfilled. If you think the last 
 function call included errors, for example an incorrect data type, you should hint at these errors in your response."""
-
-
-class ColorPrint:
-    def __init__(self):
-        self.color_mapping = {
-            "Generator": Fore.RED,
-            "Evaluator": Fore.GREEN,
-            "Query": Fore.WHITE,
-        }
-
-    def write(self, data):
-        module = data.split(':')[0]
-        if module not in self.color_mapping:
-            print(data, end="")
-        else:
-            print(self.color_mapping[module] + data + Fore.RESET, end="")
-
-
-logger = logging.getLogger()
-
-logging.basicConfig(
-    format="%(message)s",
-    handlers=[logging.StreamHandler(ColorPrint())],
-    level=logging.INFO
-)
 
 
 class LLamaBackend(OpacaLLMBackend):

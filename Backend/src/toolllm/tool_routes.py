@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from .tool_method import ToolMethod
 from ..models import Response, SessionData, OpacaLLMBackend
-from ..utils import add_dicts
 
 
 class ToolLLMBackend(OpacaLLMBackend):

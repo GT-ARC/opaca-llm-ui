@@ -15,14 +15,6 @@ from ..models import Response, SessionData, OpacaLLMBackend
 from ..utils import get_reduced_action_spec, ColorPrint
 from .rest_gpt import RestGPT
 
-logger = logging.getLogger()
-
-logging.basicConfig(
-    format="%(message)s",
-    handlers=[logging.StreamHandler(ColorPrint())],
-    level=logging.INFO
-)
-
 
 class Action(BaseModel):
     name: str
