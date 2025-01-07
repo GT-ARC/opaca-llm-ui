@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Any, List, Tuple, Optional
 
 from langchain_core.messages import AIMessage
@@ -38,11 +39,10 @@ class ToolMethodOpenAI(ToolMethod):
         return ChatOpenAI(
             model=config["gpt_model"],
             temperature=float(config["temperature"]),
-            openai_api_key=api_key
+            openai_api_key=api_key or os.getenv("OPENAI_API_KEY"),
         )
 
-    def get_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
-        print(f'config in tool openai: {config}')
+    def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
         # Convert openapi schema to openai function schema
         self.tools, error = openapi_to_functions(tools_openapi, config['use_agent_names'])
         if len(self.tools) > 128:

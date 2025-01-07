@@ -39,7 +39,7 @@ class ToolMethodLlama(ToolMethod):
             model=config['llama-model']
         )
 
-    def get_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
+    def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
         tools, error = openapi_to_llama(tools_openapi, config['use_agent_names'])
         tools = [{"type": "function", "function": tool} for tool in tools]
         return tools, error

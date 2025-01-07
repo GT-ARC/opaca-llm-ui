@@ -1,11 +1,17 @@
-import os
 from abc import abstractmethod
 from typing import Dict, Any, List, Tuple, Optional
 
-from ..models import LLMAgent
+from langchain_core.messages import AIMessage
+
+from ..models import LLMAgent, SessionData, AgentMessage
 
 
 class ToolMethodRegistry(type):
+    """
+    A registry which stores the implemented tool methods.
+    All methods inheriting from the class ToolMethod are automatically added.
+    """
+
     registry = {}
 
     def __new__(cls, name, bases, attrs):
@@ -18,6 +24,9 @@ class ToolMethodRegistry(type):
 
 
 class ToolMethod(metaclass=ToolMethodRegistry):
+    """
+    An abstract class to implement specific methods to be used in combination with the tool-method logic.
+    """
 
     def __init__(self, *args, **kwargs):
         self.args = args
@@ -35,25 +44,40 @@ class ToolMethod(metaclass=ToolMethodRegistry):
     @property
     @abstractmethod
     def name(self):
+        """
+        The name of the method
+        """
         pass
 
     @property
     @abstractmethod
     def config(self) -> Dict[str, Any]:
+        """
+        A dictionary containing method specific configuration settings.
+        """
         pass
 
     @property
     @abstractmethod
     def input_variables(self) -> List[str]:
+        """
+        A list of input variables, passed to the llm.
+        """
         pass
 
     @property
     @abstractmethod
     def message_template(self) -> str:
+        """
+        The message template for the llm.
+        """
         pass
 
     @property
     def _generator_system_prompt(self) -> str:
+        """
+        The system prompt that will be given to the generator agent.
+        """
         return """You are a helpful ai assistant that plans solution to user queries with the help of 
                   tools. You can find those tools in the tool section. Do not generate optional 
                   parameters for those tools if the user has not explicitly told you to. 
@@ -64,17 +88,34 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                   You are only allowed to use those given tools. If a user asks about tools directly, 
                   answer them with the required information. Tools can also be described as services."""
 
-    def init_agents(self, session, config):
+    def init_agents(
+            self,
+            session: SessionData,
+            config: Dict[str, Any],
+    ) -> None:
+        """
+        Initializes both agents (generator agent and evaluator agent).
+        Needs to be called before invoking.
+        :param session: The session object of the current user
+        :param config: The method specific configuration
+        """
+
+        # Retrieve the tools from connected opaca platform
+        # Uses the user specific opaca client
         try:
-            tools, error = self.get_tools(session.client.get_actions_with_refs(), config)
+            tools, error = self.transform_tools(session.client.get_actions_with_refs(), config)
         except Exception as e:
             raise Exception(f"Unable to get tools from connected OPACA client. Are you connected with a running "
                             f"OPACA client?\nError: {e}")
+
+        # Initializes the method specific model
+        # Optionally passes the api key for the current session
         try:
-            llm = self.init_model(config, session.api_key or os.environ.get("OPENAI_API_KEY"))
+            llm = self.init_model(config, session.api_key)
         except Exception as e:
             raise Exception(f"Unable to initialize model. Is a valid api key given?\n"
                             f"Error: {e}")
+
         self.generator_agent = LLMAgent(
             name='Tool Generator',
             llm=llm,
@@ -98,20 +139,81 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         )
 
     @abstractmethod
-    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
+    async def invoke_generator(
+            self,
+            session: SessionData,
+            message: str,
+            tool_responses: List[AIMessage],
+            config: Optional[Dict[str, Any]],
+            correction_message: str = ""
+    ) -> AgentMessage:
+        """
+        Invokes the generator agent.
+        :param session: The current session object
+        :param message: The current message query sent by the user
+        :param tool_responses: The list of tool responses. Per entry includes the tool name, tool parameters, tool result
+        :param config: The method specific configuration
+        :param correction_message: An optional correction message. Is appended to the original message
+        :return: AgentMessage
+        """
         pass
 
     @abstractmethod
-    async def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
+    async def invoke_evaluator(
+            self,
+            message,
+            tool_names,
+            tool_parameters,
+            tool_results
+    ) -> AgentMessage:
+        """
+        Invokes the evaluator agent.
+        :param message: The current message query sent by the user
+        :param tool_names: A list of names of the called tools
+        :param tool_parameters: A list of the parameters in JSON format of the called tools
+        :param tool_results: A list of the returned results by the OPACA platform of the called tools
+        :return: AgentMessage
+        """
         pass
 
     @abstractmethod
-    def init_model(self, config: Dict[str, Any], api_key: str = None):
+    def init_model(
+            self,
+            config: Dict[str, Any],
+            api_key: str = None
+    ) -> None:
+        """
+        Initializes the model class.
+        :param config: The method specific configuration
+        :param api_key: An optional API key for the model
+        """
         pass
 
     @abstractmethod
-    def get_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
+    def transform_tools(
+            self,
+            tools_openapi: Dict[str, Any],
+            config: Dict[str, Any]
+    ) -> Tuple[List[Dict[str, Any]], str]:
+        """
+        Transforms actions given as a OpenAPI specification into model specific tools.
+        Also provides an additional error or warning message.
+        :param tools_openapi: The list of OPACA actions in OpenAPI specification
+        :param config: The method specific configuration
+        :return: A list of transformed tools and an optional error/warning message
+        """
         pass
 
-    def check_valid_action(self, calls: List[dict]) -> str:
+    def check_valid_action(
+            self,
+            calls: List[dict]
+    ) -> str:
+        """
+        A method specific tool validation method. Takes in the list of generated tool calls and compares them against
+        the OPACA action definition. Returns a correction message, indicating inconsistencies, e.g. missing
+        required parameters, hallucinated parameters/tool names.
+        If all tool calls are valid, will return an empty string.
+        :param calls: A list of generated tool calls by the model.
+        :return: A correction message or an empty string.
+        """
         pass
