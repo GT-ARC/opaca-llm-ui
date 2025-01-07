@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Dict, Any, List, Tuple, Optional
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
 from ..models import LLMAgent, SessionData, AgentMessage
@@ -181,7 +182,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
             self,
             config: Dict[str, Any],
             api_key: str = None
-    ) -> None:
+    ) -> BaseChatModel:
         """
         Initializes the model class.
         :param config: The method specific configuration

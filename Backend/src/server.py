@@ -44,14 +44,12 @@ BACKENDS = {
     RestGptBackend.NAME_LLAMA: RestGptBackend(use_llama=True),
     SimpleOpenAIBackend.NAME: SimpleOpenAIBackend(),
     SimpleLlamaBackend.NAME: SimpleLlamaBackend(),
-    #LLamaBackend.NAME: LLamaBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
 }
 
 BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
-print(ToolMethodRegistry.registry)
 
 
 # Simple dict to store session data
