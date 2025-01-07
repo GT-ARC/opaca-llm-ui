@@ -7,7 +7,6 @@ from typing import List, Dict, Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from .utils import build_prompt
@@ -60,7 +59,7 @@ class SessionData(BaseModel):
 
 class OpacaLLMBackend(ABC):
     NAME: str
-    llm: BaseChatModel | ChatOpenAI     # TODO maybe extend the types to support different future models
+    llm: BaseChatModel
 
     @property
     @abstractmethod
@@ -74,14 +73,14 @@ class OpacaLLMBackend(ABC):
 
 class LLMAgent:
     name: str
-    llm: BaseChatModel | ChatOpenAI
+    llm: BaseChatModel
     system_prompt: str
     examples: List = []
     input_variables: List[str] = []
     message_template: str = ''
     tools: List = []
 
-    def __init__(self, name: str, llm: BaseChatModel | ChatOpenAI, system_prompt: str, **kwargs):
+    def __init__(self, name: str, llm: BaseChatModel, system_prompt: str, **kwargs):
         self.name = name
         self.llm = llm
         self.system_prompt = system_prompt
