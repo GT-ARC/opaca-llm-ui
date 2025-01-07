@@ -1,10 +1,9 @@
 import requests
 
 from typing import Any, Dict, Optional, List, Union, Sequence, Tuple
-from langchain.chains.base import Chain
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage, ToolCall
 from langchain_core.prompt_values import PromptValue
 from langchain_core.runnables import RunnableConfig
 
@@ -33,7 +32,7 @@ class OpacaLLM(BaseChatModel):
             config: Optional[RunnableConfig] = None,
             stop: Optional[List[str]] = None,
             **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> AIMessage:
         return self._generate(input.to_messages(), stop, None, **config.get('metadata', {}))
 
     def _generate(
@@ -42,7 +41,7 @@ class OpacaLLM(BaseChatModel):
             stop: Optional[List[str]] = None,
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> AIMessage:
 
         response = requests.post(
             f'{self.url}/api/chat',
@@ -58,18 +57,19 @@ class OpacaLLM(BaseChatModel):
             }
         ).json()
 
-        tool_calls = response['message'].get('tool_calls', [])
+        tool_calls = [ToolCall(name=call["function"]["name"], args=call["function"]["arguments"], id="")
+                      for call in response['message'].get('tool_calls', [])]
 
         response = response['message']['content']
 
-        output = response.replace("\\n", "\n").replace('\\"', '"').strip()
+        content = response.replace("\\n", "\n").replace('\\"', '"').strip()
 
-        for word in stop:
-            stop_pos = output.find(word)
+        for word in stop or []:
+            stop_pos = content.find(word)
             if stop_pos != -1:
-                return output[:stop_pos].strip()
+                return content[:stop_pos].strip()
 
-        return {"result": output, "tool_calls": tool_calls}
+        return AIMessage(content=content, tool_calls=tool_calls, response_meta_data={})
 
     @staticmethod
     def _format_llama3(messages):

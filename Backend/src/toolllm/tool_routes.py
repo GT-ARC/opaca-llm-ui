@@ -3,24 +3,12 @@ import time
 from typing import List
 import os
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
 from .tool_method import ToolMethod
-from ..models import Response, SessionData, OpacaLLMBackend, LLMAgent
-from ..utils import openapi_to_functions, add_dicts, openapi_to_llama
-
-
-TOOL_GENERATOR_PROMPT = """You are a helpful ai assistant that plans solution to user queries with the help of 
-tools. You can find those tools in the tool section. Do not generate optional 
-parameters for those tools if the user has not explicitly told you to. 
-Some queries require sequential calls with those tools. If other tool calls have been 
-made already, you will receive the generated AI response of these tool calls. In that 
-case you should continue to fulfill the user query with the additional knowledge. 
-If you are unable to fulfill the user queries with the given tools, let the user know. 
-You are only allowed to use those given tools. If a user asks about tools directly, 
-answer them with the required information. Tools can also be described as services."""
+from ..models import Response, SessionData, OpacaLLMBackend
+from ..utils import add_dicts
 
 
 class ToolLLMBackend(OpacaLLMBackend):
@@ -55,46 +43,11 @@ class ToolLLMBackend(OpacaLLMBackend):
         # Save time before execution
         total_exec_time = time.time()
 
-        """
-        # Initialize model
-        try:
-            self.llm = self.method.init_model(config, session.api_key or os.getenv("OPENAI_API_KEY"))
-        except Exception as e:
-            response.error = str(e)
-            response.content = ("I am sorry, but I was unable to initialize the model for the selected method. "
-                                "Make sure you use a valid API key.")
-            return response
-
-        # Get tools from connected opaca platform
-        try:
-            tools, error = self.method.get_tools(session.client.get_actions_with_refs(), config)
-        except Exception as e:
-            response.error += str(e)
-            response.content = ("It appears no actions were returned by the Opaca Platform. Make sure you are "
-                                "connected to the Opaca Runtime Platform and the platform contains at least one "
-                                "action.")
-            return response
-        """
-
         self.method.init_agents(session, config)
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-            result = self.method.invoke_generator(session, message, tool_responses) # TODO?
-            """
-            if self.use_llama:
-                result = generator_agent.invoke({
-                    'input': message,
-                    'config': config,
-                    'history': session.messages,
-                })
-            else:
-                result = generator_agent.invoke({
-                    'input': message,
-                    'scratchpad': self.build_scratchpad(tool_responses),  # scratchpad contains ai responses
-                    'history': session.messages
-                })
-            """
+            result = self.method.invoke_generator(session, message, tool_responses, config)
             res_meta_data = result.response_metadata
 
             # Check the generated tool calls for errors and regenerate them if necessary

@@ -1,6 +1,6 @@
 import os
 from abc import abstractmethod
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 from ..models import LLMAgent
 
@@ -65,7 +65,6 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                   answer them with the required information. Tools can also be described as services."""
 
     def init_agents(self, session, config):
-        print(f'Session in tool method')
         try:
             tools, error = self.get_tools(session.client.get_actions_with_refs(), config)
         except Exception as e:
@@ -99,7 +98,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         )
 
     @abstractmethod
-    def invoke_generator(self, session, message, tool_responses, correction_message: str = ""):
+    def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
         pass
 
     @abstractmethod

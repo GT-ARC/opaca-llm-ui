@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
@@ -51,7 +51,7 @@ class ToolMethodOpenAI(ToolMethod):
                       f"of 128. All tools after index 128 will be ignored!\n")
         return self.tools, error
 
-    def invoke_generator(self, session, message, tool_responses, correction_messages: str = ""):
+    def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = ""):
         return self.generator_agent.invoke({
             'input': message,
             'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
