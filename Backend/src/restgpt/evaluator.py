@@ -100,11 +100,11 @@ class Evaluator(LLMAgent):
             scratchpad += self._stop + execution_res + "\n"
         return scratchpad
 
-    def invoke(self, inputs: Dict[str, Any]) -> AgentMessage:
+    async def ainvoke(self, inputs: Dict[str, Any]) -> AgentMessage:
 
         self.system_prompt = EVAL_PROMPT_SLIM if inputs['config']['slim_prompts']['evaluator'] else EVAL_PROMPT
         self.examples = examples if inputs['config']['examples']['evaluator'] else []
         self.input_variables = ['input']
         self.message_template = "{input}"
 
-        return super().invoke({"input": inputs["input"], "history": inputs["history"]})
+        return await super().ainvoke({"input": inputs["input"], "history": inputs["history"]})

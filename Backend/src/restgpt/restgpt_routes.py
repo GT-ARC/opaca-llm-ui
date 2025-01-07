@@ -61,17 +61,17 @@ class RestGptBackend(OpacaLLMBackend):
             response.error = str(e)
             return response
 
-        rest_gpt = RestGPT(self.llm, action_spec=action_spec)
+        rest_gpt = RestGPT(self.llm, action_spec)
 
         try:
             total_time = time.time()
-            result = rest_gpt.invoke({
+            result = await rest_gpt.ainvoke({
                 "query": message,
                 "history": session.messages,
                 "config": config,
                 "response": response,
                 "client": session.client,
-            })["result"]
+            })
             response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
             response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "

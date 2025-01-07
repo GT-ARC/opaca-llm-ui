@@ -148,7 +148,7 @@ class Planner(LLMAgent):
             scratchpad += self._stop + execution_res + "\n"
         return scratchpad
 
-    def invoke(
+    async def ainvoke(
             self,
             inputs: Dict[str, Any]
     ) -> AgentMessage:
@@ -164,4 +164,4 @@ class Planner(LLMAgent):
         self.input_variables = ['input']
         self.message_template = '{input}' + scratchpad
 
-        return super().invoke({"input": inputs["input"], "history": inputs["message_history"]})
+        return await super().ainvoke({"input": inputs["input"], "history": inputs["message_history"]})

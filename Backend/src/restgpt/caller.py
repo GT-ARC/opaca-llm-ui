@@ -51,7 +51,7 @@ class Caller(LLMAgent):
             system_prompt=CALLER_PROMPT,
         )
 
-    def invoke(self, inputs: Dict[str, Any]) -> AgentMessage:
+    async def ainvoke(self, inputs: Dict[str, Any]) -> AgentMessage:
         api_plan = inputs['api_plan']
         try:
             action_name, params = api_plan.split(';')
@@ -91,5 +91,5 @@ class Caller(LLMAgent):
         self.message_template = ("API Call: {api_call}\nDescription: {description}\n" 
                                  "Parameter: {params}\nResult: {response}")
 
-        return super().invoke({"api_call": action_name, "description": description,
+        return await super().ainvoke({"api_call": action_name, "description": description,
                               "params": params, "response": response})
