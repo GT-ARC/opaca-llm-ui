@@ -81,6 +81,7 @@ import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import {sendRequest} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
+import {debugColors, defaultDebugColors} from '../config/debug-colors.js';
 
 export default {
     name: 'main-content',
@@ -130,7 +131,7 @@ export default {
         updateTheme() {
             // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.updateDebugColors()
+            // this.updateDebugColors()
         },
 
         onChangeSimpleKeyboard(input) {
@@ -376,24 +377,7 @@ export default {
         },
 
         getDebugColor(agentName, darkScheme) {
-            // color schemes for modes [dark, light]
-            const keywordColors = {
-                // RestGPT
-                "Planner": ["rgba(16, 163, 127, 0.9)", "rgba(16, 163, 127, 0.95)"],
-                "Action Selector": ["rgba(16, 163, 127, 0.8)", "rgba(16, 163, 127, 0.85)"],
-                "Caller": ["rgba(16, 163, 127, 0.7)", "rgba(16, 163, 127, 0.75)"],
-                "Evaluator": ["rgba(16, 163, 127, 0.6)", "rgba(16, 163, 127, 0.65)"],
-                // Tools
-                "Tool Generator": ["rgba(16, 163, 127, 0.9)", "rgba(16, 163, 127, 0.95)"],
-                "Tool Evaluator": ["rgba(16, 163, 127, 0.8)", "rgba(16, 163, 127, 0.85)"],
-                // Simple
-                "user": ["rgba(16, 163, 127, 0.7)", "rgba(16, 163, 127, 0.75)"],
-                "assistant": ["rgba(16, 163, 127, 0.8)", "rgba(16, 163, 127, 0.85)"],
-                "system": ["rgba(16, 163, 127, 0.9)", "rgba(16, 163, 127, 0.95)"],
-            }
-
-            // return either specific color for light/dark mode or default color
-            return (keywordColors[agentName] ?? ["rgba(16, 163, 127, 0.7)", "rgba(16, 163, 127, 0.8)"])[darkScheme ? 0 : 1];
+            return (debugColors[agentName] ?? defaultDebugColors)[darkScheme ? 0 : 1];
         },
 
         processDebugInput(agent_messages, messageCount) {
@@ -407,19 +391,17 @@ export default {
             for (const message of agent_messages) {
                 const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
-                const agentName = message["agent"];
-                const content = message["tools"].length > 0 ? message["tools"] : message["content"];
-                this.addDebug(`${agentName}: ${content}`, color);
+                const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
+                this.addDebug(content, color)
 
                 // Add the formatted debug text to the associated speech bubble
-                const messageBubble = document.getElementById(`debug-${messageCount}-text`);
+                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
                 if (messageBubble) {
-                    let d1 = document.createElement("div");
-                    d1.className = "bubble-debug-text";
-                    d1.textContent = content;
-                    d1.style.color = color;
-                    d1.setAttribute('data-agent', `${agentName}:`);
-                    messageBubble.append(d1);
+                    let d1 = document.createElement("div")
+                    d1.className = "bubble-debug-text"
+                    d1.textContent = content
+                    d1.style.color = color
+                    messageBubble.append(d1)
                 }
             }
         },
@@ -900,7 +882,7 @@ export default {
 }
 
 .debug-text {
-    color: rgba(16, 163, 127, 0.8) !important; /* Slightly transparent primary color */
+    /* color: rgba(16, 163, 127, 0.8) !important; */
 }
 
 .debug-toggle {
@@ -940,7 +922,7 @@ export default {
 
 @media (prefers-color-scheme: dark) {
     .debug-text {
-        color: rgba(16, 163, 127, 0.7) !important; /* More transparent in dark mode */
+        /* color: rgba(16, 163, 127, 0.7) !important; */
     }
 
     .debug-toggle {

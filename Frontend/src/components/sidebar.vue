@@ -169,11 +169,13 @@
                 <!-- debug console -->
                 <div v-show="isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="flex-row-reverse text-start">
-                        <div v-for="debugMessage in this.debugMessages" class="debug-text"
-                             :style="debugMessage.color ? { color: debugMessage.color } : {}">
-                            {{ debugMessage.text }}
-                        </div>
+                    <div id="debug-console" class="text-start">
+                        <DebugMessage
+                            v-for="debugMessage in debugMessages"
+                            :key="debugMessage.text"
+                            :text="debugMessage.text"
+                            :color="debugMessage.color"
+                        />
                     </div>
                 </div>
 
@@ -186,9 +188,13 @@
 <script>
 import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
+import DebugMessage from './DebugMessage.vue';
 
 export default {
     name: 'Sidebar',
+    components: {
+        DebugMessage
+    },
     props: {
         backend: String,
         language: String,
@@ -433,6 +439,22 @@ export default {
     background-color: var(--primary-light);
 }
 
+.debug-container {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.debug-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column-reverse;
+    padding: 0.75rem;
+}
+
 .debug-text {
     display: block;
     text-align: left;
@@ -440,6 +462,61 @@ export default {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.875rem;
     padding: 0.25rem 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+    .debug-container {
+        background-color: var(--surface-dark);
+        border-color: var(--border-dark);
+    }
+
+    #chatDebug {
+        background-color: var(--surface-dark);
+    }
+
+    #sidebar {
+        background-color: var(--background-dark);
+    }
+
+    #sidebar-menu {
+        background-color: var(--surface-dark);
+    }
+
+    .sidebar-item {
+        color: var(--text-secondary-dark);
+    }
+
+    .sidebar-item:hover {
+        background-color: var(--background-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .sidebar-item-select {
+        background-color: var(--primary-dark);
+        color: white;
+    }
+
+    .resizer {
+        background-color: var(--border-dark);
+    }
+
+    .resizer:hover {
+        background-color: var(--primary-dark);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .debug-container {
+        background-color: var(--surface-light);
+        border-color: var(--border-light);
+    }
+
+    #chatDebug {
+        background-color: var(--surface-light);
+    }
 }
 
 /* Accordion Styling */
@@ -658,6 +735,77 @@ export default {
 
     .config-section-header i {
         color: var(--primary-dark);
+    }
+}
+
+#chatDebug {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#debug-console {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+}
+
+.debug-text {
+    display: block;
+    text-align: left;
+    margin-left: 3px;
+    font-family: "Courier New", monospace;
+    font-size: small;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+    #chatDebug {
+        background-color: var(--surface-dark);
+        border: 1px solid var(--border-dark);
+    }
+
+    #sidebar-menu {
+        background-color: var(--surface-dark);
+    }
+
+    .sidebar-item {
+        color: var(--text-secondary-dark);
+    }
+
+    .sidebar-item:hover {
+        background-color: var(--background-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .sidebar-item-select {
+        background-color: var(--primary-dark);
+        color: white;
+    }
+
+    .resizer {
+        background-color: var(--border-dark);
+    }
+
+    .resizer:hover {
+        background-color: var(--primary-dark);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    #chatDebug {
+        background-color: var(--surface-light);
+        border: 1px solid var(--border-light);
+    }
+
+    .resizer {
+        background-color: var(--border-light);
     }
 }
 

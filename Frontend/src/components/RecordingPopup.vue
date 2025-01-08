@@ -4,33 +4,32 @@
          @keydown.esc="closePopup" 
          tabindex="0"
          ref="modal">
-        <div class="w-full max-w-2xl flex flex-col items-center space-y-8 p-4 relative">
-            <!-- Close Button -->
-            <button 
-                @click="closePopup"
-                class="absolute top-2 right-2 p-2 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-200 flex items-center justify-center z-50 w-8 h-8 border-0"
-                aria-label="Close"
-            >
-                <i class="fa fa-times text-white text-lg"></i>
-            </button>
+        <div class="w-full max-w-2xl flex flex-col items-center space-y-8 p-4">
+            <div class="w-full bg-zinc-800 backdrop-blur-md rounded-[2rem] p-8 relative">
+                <!-- Close Button -->
+                <button 
+                    @click="closePopup"
+                    class="absolute -top-3 -right-3 p-2 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-200 flex items-center justify-center z-50 w-8 h-8 border-0 shadow-lg"
+                    aria-label="Close"
+                >
+                    <i class="fa fa-times text-white text-lg"></i>
+                </button>
 
-            <!-- Title Section -->
-            <div class="text-center space-y-4 absolute -top-16">
-                <h1 class="text-4xl font-bold" style="background: linear-gradient(to right, #60a5fa, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                    Superfast Whisper Voice
-                </h1>
-            </div>
+                <!-- Title Section -->
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold" style="background: linear-gradient(to right, #60a5fa, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Superfast Whisper Voice
+                    </h1>
+                </div>
 
-            <!-- Main Recording Interface -->
-            <div class="w-full bg-zinc-800 backdrop-blur-md rounded-[2rem] p-8 space-y-6 main-recording-interface">
                 <canvas 
                     id="visualizer" 
-                    class="w-full h-32 bg-zinc-900 rounded-[1.5rem]"
+                    class="w-full h-32 bg-zinc-900 rounded-[1.5rem] mt-6"
                     width="600"
                     height="128"
                 ></canvas>
                 
-                <div class="flex gap-3">
+                <div class="flex gap-3 mt-6">
                     <button
                         @click="stopRecording(false)"
                         class="flex-1 py-2 px-4 rounded-[1rem] text-base font-semibold transition-all duration-300 flex items-center justify-center gap-2 stop-recording-btn"
@@ -50,7 +49,7 @@
                     </button>
                 </div>
 
-                <div v-if="isProcessing" class="text-center text-zinc-400">
+                <div v-if="isProcessing" class="text-center text-zinc-400 mt-4">
                     Processing audio...
                 </div>
             </div>
