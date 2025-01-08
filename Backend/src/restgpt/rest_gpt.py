@@ -2,8 +2,6 @@ import time
 import re
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from langchain.chains.base import Chain
-from langchain.callbacks.manager import CallbackManagerForChainRun
 from langchain_core.language_models import BaseChatModel
 
 from .planner import Planner
@@ -41,9 +39,9 @@ class RestGPT:
 
     async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
         return await self.evaluator.ainvoke({"input": eval_input,
-                                            "history": history,
-                                            "config": config,
-                                            })
+                                             "history": history,
+                                             "config": config,
+                                             })
 
     @property
     def _chain_type(self) -> str:

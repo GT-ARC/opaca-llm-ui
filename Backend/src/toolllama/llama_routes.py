@@ -57,8 +57,8 @@ The results were:
 Generate a response explaining the results directly to a user. DO NOT FORMULATE FUNCTION CALLS. 
 Please note that the results are in order, meaning that an error might have been resolved by a later result.
 At the end of your request, you must either output 
-'FINISHED' if the user request has been fulfilled in its entirety and you are able to 
-answer the user, or output 'CONTINUE' so more function calls can be made by another model with the newly gained information. 
+'FINISHED' if the user request has been fulfilled in its entirety and you are able to answer the user, 
+or output 'CONTINUE' so more function calls can be made by another model with the newly gained information. 
 Base your final decision of whether the query has been fulfilled only on the presence of information. For example, if 
 a user asked if devices are damaged and it was found out they are, the query is fulfilled. If you think the last 
 function call included errors, for example an incorrect data type, you should hint at these errors in your response."""

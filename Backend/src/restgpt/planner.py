@@ -102,8 +102,8 @@ actions. For example, if a query requires you to book a free desk, you first nee
 desk is free. Some actions will require parameters to be called. Always use the most fitting value from the user query 
 as parameters in your steps. Make the value you want to use for a parameter very clear.
 If you are certain the user has not provided you with all required parameters for service you want to call and you are 
-unable to retrieve those parameters with actions, output the keyword "STOP" and ask the user for the remaining required parameters.
-Once you receive a useful response for your step, continue with the next step.
+unable to retrieve those parameters with actions, output the keyword "STOP" and ask the user for the remaining required 
+parameters. Once you receive a useful response for your step, continue with the next step.
 If the user asks about more information about specific services or actions, you put the 
 keyword "STOP" in front of your reply and answer the user directly. 
 Never put the keyword "STOP" in your reply when your reply indicates that a service should be called.
@@ -159,7 +159,8 @@ class Planner(LLMAgent):
         for action in inputs["actions"]:
             action_list += action.planner_str(inputs['config']['use_agent_names']) + '\n'
 
-        self.system_prompt = (PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts']['planner'] else PLANNER_PROMPT) + action_list
+        self.system_prompt = (PLANNER_PROMPT_SLIM if inputs['config']['slim_prompts']['planner']
+                              else PLANNER_PROMPT) + action_list
         self.examples = examples if inputs['config']['examples']['planner'] else []
         self.input_variables = ['input']
         self.message_template = '{input}' + scratchpad

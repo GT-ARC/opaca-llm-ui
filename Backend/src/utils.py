@@ -219,6 +219,7 @@ def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
 
     return functions, error_msg
 
+
 def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     functions = []
     error_msg = ""
@@ -316,7 +317,7 @@ def build_prompt(
         examples: List[Dict[str, str]],
         input_variables: List[str],
         message_template: str
-    ) -> ChatPromptTemplate:
+) -> ChatPromptTemplate:
 
     example_prompt = ChatPromptTemplate.from_messages(
         [

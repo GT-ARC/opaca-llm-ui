@@ -16,7 +16,7 @@ class ToolMethodOpenAI(ToolMethod):
         self.tools = []
 
     @property
-    def name (self):
+    def name(self):
         return self.NAME
     
     @property

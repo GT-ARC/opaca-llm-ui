@@ -1,7 +1,6 @@
 import time
 from typing import Dict, Optional
 
-import logging
 import os
 
 import openai
@@ -12,7 +11,7 @@ from pydantic import BaseModel
 
 from ..llama_proxy import OpacaLLM
 from ..models import Response, SessionData, OpacaLLMBackend
-from ..utils import get_reduced_action_spec, ColorPrint
+from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
 
 
@@ -38,7 +37,10 @@ class RestGptBackend(OpacaLLMBackend):
     async def query(self, message: str, session: SessionData) -> Response:
 
         # Set config
-        config = session.config.get(RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI, self.default_config)
+        config = session.config.get(
+            RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
+            self.default_config
+        )
 
         # Create response object
         response = Response()

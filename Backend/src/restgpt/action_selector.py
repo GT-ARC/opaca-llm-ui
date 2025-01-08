@@ -167,8 +167,9 @@ class ActionSelector(LLMAgent):
                 # Check if no parameter is hallucinated
                 for parameter in p_json.keys():
                     if parameter not in [p for p in action_from_list.params_in.keys()]:
-                        err_out += (f'You have included the improper parameter {parameter} in your generated list of '
-                                    f'parameters. Please only use parameters that are given in the action description.\n')
+                        err_out += (f'You have included the improper parameter {parameter} in '
+                                    f'your generated list of parameters. Please only use parameters '
+                                    f'that are given in the action description.\n')
 
                 if err_out == "":
                     return ""
