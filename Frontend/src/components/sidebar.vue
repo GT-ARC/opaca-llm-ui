@@ -10,6 +10,11 @@
                data-toggle="tooltip" data-placement="right" title="Connection"
                v-bind:class="{'sidebar-item-select': isViewSelected('connect')}" />
 
+            <i @click="selectView('questions')"
+               class="fa fa-book p-2 sidebar-item"
+               data-toggle="tooltip" data-placement="right" title="Prompt Library"
+               v-bind:class="{'sidebar-item-select': isViewSelected('questions')}" />
+
             <i @click="selectView('agents')"
                class="fa fa-users p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Agents & Actions"
@@ -179,6 +184,14 @@
                     </div>
                 </div>
 
+                <!-- sample questions -->
+                <div v-show="isViewSelected('questions')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <SidebarQuestions 
+                        :questions="getConfig().translations[language].sidebarQuestions"
+                        @select-question="handleQuestionSelect"/>
+                </div>
+
                 <div class="resizer me-1" id="resizer" />
             </aside>
         </div>
@@ -189,11 +202,13 @@
 import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
+import SidebarQuestions from './SidebarQuestions.vue';
 
 export default {
     name: 'Sidebar',
     components: {
-        DebugMessage
+        DebugMessage,
+        SidebarQuestions
     },
     props: {
         backend: String,
@@ -217,6 +232,10 @@ export default {
             isConnected: false
         };
     },
+    created() {
+        // Initialize the sidebar with the connection view open
+        this.selectView('connect');
+    },
     methods: {
         getConfig() {
             return conf;
@@ -226,12 +245,13 @@ export default {
             const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
                 this.selectedView = key;
-                mainContent.classList.remove('mx-auto');
+                mainContent?.classList.remove('mx-auto');
+            } else if (!this.isConnected) {
+                // Don't allow closing the connect view if not connected
+                return;
             } else {
                 this.selectedView = 'none';
-                if (!mainContent.classList.contains('mx-auto')) {
-                    mainContent.classList.add('mx-auto');
-                }
+                mainContent?.classList.add('mx-auto');
             }
             this.$emit('onSidebarToggle', this.selectedView);
             console.log('selected sidebar view:', this.selectedView);
@@ -257,7 +277,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView('agents');
+                    this.selectView('questions');
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -349,6 +369,11 @@ export default {
                 console.error('Error fetching backend config:', error);
                 this.backendConfig = null;
             }
+        },
+
+        handleQuestionSelect(question) {
+            // Send the question to the chat without closing the sidebar
+            this.$emit('select-question', question);
         }
     },
     mounted() {
@@ -358,6 +383,11 @@ export default {
             this.selectedLanguage = 'english';
         } else if (this.language === 'DE') {
             this.selectedLanguage = 'german';
+        }
+        // Ensure the main content is properly positioned
+        const mainContent = document.getElementById('mainContent');
+        if (mainContent) {
+            mainContent.classList.remove('mx-auto');
         }
     },
     watch: {

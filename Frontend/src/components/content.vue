@@ -5,6 +5,7 @@
                  :device-info="deviceInfo"
                  @connect="initiatePrompt"
                  @language-change="handleLanguageChange"
+                 @select-question="askChatGpt"
                  @api-key-change="(newValue) => this.apiKey = newValue"/>
 
         <!-- Recording Popup -->
