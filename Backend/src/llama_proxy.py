@@ -1,4 +1,4 @@
-import requests
+import httpx
 
 from typing import Any, Dict, Optional, List, Union, Sequence, Tuple
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -33,18 +33,9 @@ class OpacaLLM(BaseChatModel):
             stop: Optional[List[str]] = None,
             **kwargs: Any
     ) -> AIMessage:
-        return self._generate(input.to_messages(), stop, None, **config.get('metadata', {}))
+        return await self._generate(input.to_messages(), stop, None, **config.get('metadata', {}))
 
-    def invoke(
-            self,
-            input: Union[PromptValue, str, Sequence[Union[BaseMessage, List[str], Tuple[str, str], str, Dict[str, Any]]]],
-            config: Optional[RunnableConfig] = None,
-            stop: Optional[List[str]] = None,
-            **kwargs: Any
-    ) -> AIMessage:
-        return self._generate(input.to_messages(), stop, None, **config.get('metadata', {}))
-
-    def _generate(
+    async def _generate(
             self,
             messages,
             stop: Optional[List[str]] = None,
@@ -52,19 +43,21 @@ class OpacaLLM(BaseChatModel):
             **kwargs: Any
     ) -> AIMessage:
 
-        response = requests.post(
-            f'{self.url}/api/chat',
-            json={
-                'messages': self._format_llama3(messages),
-                'model': self.model,
-                'stream': False,
-                'tools': self.tools,
-                'options': {
-                    'temperature': kwargs.get("temperature", 0),
-                    'num_ctx': kwargs.get("num_ctx", 32768)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f'{self.url}/api/chat',
+                json={
+                    'messages': self._format_llama3(messages),
+                    'model': self.model,
+                    'stream': False,
+                    'tools': self.tools,
+                    'options': {
+                        'temperature': kwargs.get("temperature", 0),
+                        'num_ctx': kwargs.get("num_ctx", 32768)
+                    }
                 }
-            }
-        ).json()
+            )
+            response = response.json()
 
         tool_calls = [ToolCall(name=call["function"]["name"], args=call["function"]["arguments"], id="")
                       for call in response['message'].get('tool_calls', [])]

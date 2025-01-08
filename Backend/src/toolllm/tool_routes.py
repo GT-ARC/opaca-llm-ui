@@ -39,7 +39,14 @@ class ToolLLMBackend(OpacaLLMBackend):
         # Save time before execution
         total_exec_time = time.time()
 
-        self.method.init_agents(session, config)
+        try:
+            self.method.init_agents(session, config)
+        except Exception as e:
+            print(e)
+            response.error = str(e)
+            response.content = ("I am sorry, but I encountered a problem during initialization. This is the error that "
+                                f"was given to me:\n\n\"{e}\"")
+            return response
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:

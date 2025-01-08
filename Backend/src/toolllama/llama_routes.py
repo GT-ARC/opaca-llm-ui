@@ -155,26 +155,26 @@ class LLamaBackend(OpacaLLMBackend):
             # Invoke the GENERATOR
             # Attempts to generate a function call for the current user request
             llama_gen_time = time.time()
-            result_gen = llm.invoke({
+            result_gen = await llm.ainvoke({
                 'messages': messages,
                 'history': session.messages,
                 'config': config,
                 'tools': [],
-            })["result"]
+            })
             llama_gen_time = time.time() - llama_gen_time
 
             # Save the result in the list of internal messages
-            messages.append(AIMessage(content=result_gen))
-            print(f'Generator output: {result_gen}')
+            messages.append(result_gen)
+            print(f'Generator output: {result_gen.content}')
 
             response.agent_messages.append(AgentMessage(
                 agent="Tool Generator",
-                content=result_gen,
+                content=result_gen.content,
                 execution_time=llama_gen_time,
             ))
 
             # Check if a function was generated
-            match = re.search(r"<function=([a-zA-Z_][a-zA-Z0-9_\-]*)>(\{.*})</function>", result_gen)
+            match = re.search(r"<function=([a-zA-Z_][a-zA-Z0-9_\-]*)>(\{.*})</function>", result_gen.content)
 
             # If a function was generated, try to retrieve the action name and the parameters
             if match:
@@ -209,7 +209,7 @@ class LLamaBackend(OpacaLLMBackend):
                                                          f'{tool_results[-1]}\n')
             else:
                 # If no function was generated, save the result and return the response directly
-                response.content = result_gen
+                response.content = result_gen.content
                 response.execution_time = time.time() - total_exec_time
                 response.iterations = c_it + 1
                 session.messages.append(HumanMessage(prompt_input))
@@ -231,24 +231,24 @@ class LLamaBackend(OpacaLLMBackend):
                 "config": config,
                 "tools": []
                 }
-            )["result"]
+            )
             llama_evl_time = time.time() - llama_evl_time
 
             # Add the Evaluator message to the list of agent messages
             # and the internal list of messages
             response.agent_messages.append(AgentMessage(
                 agent="Tool Evaluator",
-                content=result_evl,
+                content=result_evl.content,
                 execution_time=llama_evl_time,
             ))
-            print(f'Evaluator Output: {result_evl}')
-            messages.append(HumanMessage(content=result_evl))
+            print(f'Evaluator Output: {result_evl.content}')
+            messages.append(HumanMessage(content=result_evl.content))
 
             # Remove the keywords from the generated response
-            response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl).strip()
+            response.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result_evl.content).strip()
 
             # Check if the evaluator thinks the user query has not been fulfilled yet
-            if not re.search(r"\bCONTINUE\b", result_evl):
+            if not re.search(r"\bCONTINUE\b", result_evl.content):
                 should_continue = False
             c_it += 1
 

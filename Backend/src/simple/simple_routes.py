@@ -1,6 +1,6 @@
 import openai
 import json
-import requests
+import httpx
 
 from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..utils import message_to_dict, message_to_class
@@ -66,7 +66,7 @@ class SimpleBackend(OpacaLLMBackend):
 
         while True:
             result.iterations += 1
-            response = self._query_internal(session.api_key, session)
+            response = await self._query_internal(session.api_key, session)
             self.messages.append({"role": "assistant", "content": response})
 
             print("RESPONSE:", repr(response))
@@ -111,13 +111,13 @@ class SimpleOpenAIBackend(SimpleBackend):
             "ask_policy": 0,
         }
 
-    def _query_internal(self, api_key: str, session: SessionData) -> str:
+    async def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling GPT...")
         # Set config
         self.config = session.config.get(SimpleOpenAIBackend.NAME, self._init_config())
-        self.client = openai.OpenAI(api_key=api_key or None)  # use if provided, else from Env
+        self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
 
-        completion = self.client.chat.completions.create(
+        completion = await self.client.chat.completions.create(
             model=self.config["model"],
             messages=self.messages,
             temperature=float(self.config["temperature"]),
@@ -138,17 +138,19 @@ class SimpleLlamaBackend(SimpleBackend):
             "ask_policy": 0,
         }
 
-    def _query_internal(self, api_key: str, session: SessionData) -> str:
+    async def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling LLAMA...")
         # Set config
         self.config = session.config.get(SimpleLlamaBackend.NAME, self._init_config())
-        result = requests.post(f'{self.config["api-url"]}/api/chat', json={
-            "model": self.config["model"],
-            "messages": self.messages,
-            "stream": False,
-            "options": {
-                "temperature": float(self.config["temperature"]),
-                "num_ctx": 32768,  # consider last X tokens for response
-            }
-        })
+
+        async with httpx.AsyncClient() as client:
+            result = await client.post(f'{self.config["api-url"]}/api/chat', json={
+                "model": self.config["model"],
+                "messages": self.messages,
+                "stream": False,
+                "options": {
+                    "temperature": float(self.config["temperature"]),
+                    "num_ctx": 32768,  # consider last X tokens for response
+                }
+            })
         return result.json()["message"]["content"]

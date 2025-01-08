@@ -1,4 +1,4 @@
-import requests
+import httpx
 import random
 
 from ..models import Response, SessionData, OpacaLLMBackend
@@ -18,7 +18,7 @@ class KnowledgeBackend(OpacaLLMBackend):
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(KnowledgeBackend.NAME, self.default_config)
+        config = session.config.get(KnowledgeBackend.NAME, self.default_config)
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -27,7 +27,8 @@ class KnowledgeBackend(OpacaLLMBackend):
             "content": message,
             "rating": 0
         }
-        response = requests.post(url, json=json)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=json)
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
@@ -46,9 +47,10 @@ class DataAnalysisBackend(OpacaLLMBackend):
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(DataAnalysisBackend.NAME, self.default_config)
+        config = session.config.get(DataAnalysisBackend.NAME, self.default_config)
         url = config["url"]
-        response = requests.post(url, json={"question": message})
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json={"question": message})
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
