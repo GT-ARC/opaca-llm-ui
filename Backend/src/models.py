@@ -20,7 +20,6 @@ class Url(BaseModel):
 
 class Message(BaseModel):
     user_query: str
-    debug: bool
     api_key: str
 
 
