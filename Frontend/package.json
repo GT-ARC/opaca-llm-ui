@@ -4,7 +4,7 @@
   "description": "LLM Chat UI for the OPACA framework. Frontend for the OPACA-LLM backend, that connects to an OPACA Runtime Platform and an LLM, prompting it so it can select and execute different available OPACA actions.",
   "type": "module",
   "scripts": {
-    "dev_all": "concurrently \"vite --host\" \"cd ../Backend; python3 -m src.server \" \"cd ../Backend; python3 -m tts-server\"",
+    "dev_all": "concurrently \"vite --host\" \"cd ../Backend; python3 -m src.server \" \"cd ../Backend; python3 -m tts-server.src\"",
     "dev": "vite",
     "host": "vite --host",
     "build": "vite build",
