@@ -58,6 +58,8 @@
 </template>
 
 <script>
+import conf from '../../config.js'
+
 const CHUNK_SIZE = 1920000;
 const MAX_PARALLEL_CHUNKS = 3;
 const MIN_DECIBELS = -45;
@@ -99,6 +101,10 @@ export default {
         }
     },
     methods: {
+        getConfig() {
+            return conf;
+        },
+
         handleKeydown(e) {
             if (this.show && !this.isProcessing) {
                 if (e.key === 'Enter') {
@@ -354,7 +360,7 @@ export default {
             formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
 
             try {
-                const response = await fetch(`http://localhost:8000/transcribe?is_final=true&language=${this.language}`, {
+                const response = await fetch(`${this.getConfig().VoiceServerAddress}/transcribe?is_final=true&language=${this.language}`, {
                     method: 'POST',
                     body: formData
                 });

@@ -453,7 +453,7 @@ export default {
         
         // Fetch device info
         try {
-            const response = await fetch('http://localhost:8000/info');
+            const response = await fetch(`${conf.VoiceServerAddress}/info`);
             if (!response.ok) {
                 throw new Error('Failed to fetch device info');
             }

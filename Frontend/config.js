@@ -23,6 +23,8 @@ var config = {
 
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
+    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? 'http://localhost:7431',
+
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
@@ -82,8 +84,8 @@ var config = {
                     "icon": "🏢",
                     "questions": [
                         {"question": "Plot the past noise levels in the ZEKI kitchen."},
-                        {"question": "Is the current CO2 level in the conference room above threshold?"},
-                        {"question": "Create a forecast of the temperature in the Coworking Space."},
+                        //{"question": "Is the current CO2 level in the conference room above threshold?"}, //Currently not working properly
+                        //{"question": "Create a forecast of the temperature in the Coworking Space."}, //Currently not working properly
                         {"question": "Where can I find the espresso cups in the kitchen?"}
                     ]
                 },
@@ -93,7 +95,7 @@ var config = {
                     "questions": [
                         {"question": "How can I get an appointment at the Berlin Bürgeramt?"},
                         {"question": "What documents do I need for residence permit?"},
-                        {"question": "Find the nearest public service office."}
+                        {"question": "How can I find the nearest public service office for my address?"}
                     ]
                 },
                 {
@@ -162,8 +164,8 @@ var config = {
                     "icon": "🏢",
                     "questions": [
                         {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar."},
-                        {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"},
-                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space."},
+                        // {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"}, //Currently not working properly
+                        // {"question": "Erstelle eine Temperaturprognose für den Coworking Space."}, //Currently not working properly
                         {"question": "Wo finde ich die Espressotassen in der Küche?"}
                     ]
                 },
@@ -173,7 +175,7 @@ var config = {
                     "questions": [
                         {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?"},
                         {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?"},
-                        {"question": "Finde das nächstgelegene Bürgeramt."}
+                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?"}
                     ]
                 },
                 {
