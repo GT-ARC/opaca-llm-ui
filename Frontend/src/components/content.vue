@@ -68,6 +68,7 @@ import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import {sendRequest} from "../utils.js";
+import axios from "axios";
 
 export default {
     name: 'main-content',
@@ -151,6 +152,36 @@ export default {
             this.showExampleQuestions = false;
             this.createSpeechBubbleUser(userText);
             try {
+                await fetch(`${conf.BackendAddress}/${this.getBackend()}/query_start_stream`, {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    withCredentials: true,
+                    body: JSON.stringify({user_query: userText, api_key: this.apiKey})
+                })
+
+                const eventSource = new EventSource(`${conf.BackendAddress}/${this.getBackend()}/query_stream_result`, {
+                    withCredentials: true
+                })
+
+                eventSource.onmessage = event => {
+                    console.log("Event: ", event)
+                    const data = JSON.parse(event.data);
+                    console.log("Message Content: ", data.content);
+                }
+
+                eventSource.onerror = error => {
+                    console.error(error);
+                }
+
+                setTimeout(() => {
+                    console.log("Closing EventSource")
+                    eventSource.close()
+                }, 10000)
+
+                /*
                 const result = await sendRequest(
                         "POST",
                         `${conf.BackendAddress}/${this.getBackend()}/query`,
@@ -164,6 +195,7 @@ export default {
                 this.processDebugInput(result.data.agent_messages, this.messageCount);
                 this.messageCount++;
                 this.scrollDown(true);
+                 */
             } catch (error) {
                 console.error(error);
                 this.createSpeechBubbleAI("Error while fetching data: " + error)

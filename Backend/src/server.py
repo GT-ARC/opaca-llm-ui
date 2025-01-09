@@ -3,12 +3,13 @@ FastAPI Server providing HTTP/REST routes to be used by the Frontend.
 Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
-
+import asyncio
 import uuid
 
 from fastapi import FastAPI, Request
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import StreamingResponse
 
 from .models import Url, Message, Response, SessionData
 from .toolllm import *
@@ -56,6 +57,8 @@ BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.reg
 # Keep in mind: The session data is only reset upon restarting the application
 sessions = {}
 
+data = None
+
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
@@ -76,6 +79,25 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, list
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = handle_session_id(request, response)
     return await BACKENDS[backend].query(message.user_query, session)
+
+async def stream_example():
+    response = Response(content=f'')
+    for i in range(0, 10):
+        response.content += f"Message {i}\n"
+        yield f'data: {response.model_dump_json()}\n\n'
+        await asyncio.sleep(1)
+
+@app.post("/{backend}/query_start_stream", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
+async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+    print(f'in Start stream')
+    session = handle_session_id(request, response)
+    return Response(content="Started generation")
+
+@app.get("/{backend}/query_stream_result", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
+async def query(request: Request, response: StreamingResponse) -> StreamingResponse:
+    print(f'in stream result with request: {request}')
+    session = handle_session_id(request, response)
+    return StreamingResponse(stream_example(), media_type="text/event-stream")
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
@@ -110,7 +132,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
     session.config[backend] = await BACKENDS[backend].get_config()
     return session.config[backend]
 
-def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
+def handle_session_id(request: Request, response: FastAPIResponse | StreamingResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
     session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
