@@ -1,6 +1,6 @@
 from typing import Dict, Any, Tuple, List, Optional
 
-from ..llama_proxy import OpacaLLM
+from ..llama_proxy import LlamaProxy
 from ..toolllm.tool_method import ToolMethod
 from ..utils import openapi_to_llama
 
@@ -35,7 +35,7 @@ class ToolMethodLlama(ToolMethod):
         return '{input}'
 
     def init_model(self, config: Dict[str, Any], api_key: str = None):
-        return OpacaLLM(
+        return LlamaProxy(
             url=config['llama-url'],
             model=config['llama-model']
         )

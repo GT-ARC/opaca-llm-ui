@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from ..llama_proxy import OpacaLLM
+from ..llama_proxy import LlamaProxy
 from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
 from ..utils import openapi_to_llama
 
@@ -126,7 +126,7 @@ class LLamaBackend(OpacaLLMBackend):
         c_it = 0
         should_continue = True
         prompt_input = message
-        llm = OpacaLLM(url=config['llama-url'], model=config['llama-model'])
+        llm = LlamaProxy(url=config['llama-url'], model=config['llama-model'])
 
         # Initialize the response object
         response = Response()

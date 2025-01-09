@@ -8,7 +8,7 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.runnables import RunnableConfig
 
 
-class OpacaLLM(BaseChatModel):
+class LlamaProxy(BaseChatModel):
     url: str = ""
     model: str = ""
     tools: List = []
@@ -55,7 +55,8 @@ class OpacaLLM(BaseChatModel):
                         'temperature': kwargs.get("temperature", 0),
                         'num_ctx': kwargs.get("num_ctx", 32768)
                     }
-                }
+                },
+                timeout=None    # This could lead to some loops, but necessary for possible demos etc.
             )
             response = response.json()
 
