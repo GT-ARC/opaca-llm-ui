@@ -1,7 +1,8 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
-torch==2.1.1
-torchaudio==2.1.1
-transformers==4.35.2
-numpy==1.26.2
+fastapi==0.115.6
+uvicorn==0.34.0
+python-multipart==0.0.20
+torch==2.5.1
+torchaudio==2.5.1
+transformers==4.47.1
+numpy==1.26.4
+accelerate==1.2.1
