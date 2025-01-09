@@ -270,11 +270,18 @@ export default {
             }
         },
 
-        async initRpConnection() {
+        async initRpConnection(url, username, password) {
             const connectButton = document.getElementById('button-connect');
             connectButton.disabled = true;
+
+            // Use passed credentials if provided, otherwise use the form values
+            const connectionUrl = url || this.opacaRuntimePlatform;
+            const connectionUser = username || this.opacaUser;
+            const connectionPwd = password || this.opacaPwd;
+
+            console.log(`CONNECTING as ${connectionUser}`);
             try {
-                const body = {url: this.opacaRuntimePlatform, user: this.opacaUser, pwd: this.opacaPwd};
+                const body = {url: connectionUrl, user: connectionUser, pwd: connectionPwd};
                 const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
                 const rpStatus = parseInt(res.data);
                 if (rpStatus === 200) {

@@ -155,32 +155,8 @@ export default {
         },
 
         async initiatePrompt(url, username, password) {
-            console.log(`CONNECTING as ${username}`);
-            const body = {url: url, user: username, pwd: password};
-            try {
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                const rpStatus = parseInt(res.data);
-                if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                    this.$refs.sidebar.platformActions = res2.data;
-                    this.$refs.sidebar.isConnected = true;
-                    await this.$refs.sidebar.fetchBackendConfig();
-                    this.$refs.sidebar.selectView('agents');
-                } else if (rpStatus === 403) {
-                    this.$refs.sidebar.platformActions = null;
-                    this.$refs.sidebar.isConnected = false;
-                    alert(conf.translations[this.language].unauthorized);
-                } else {
-                    this.$refs.sidebar.platformActions = null;
-                    this.$refs.sidebar.isConnected = false;
-                    alert(conf.translations[this.language].unreachable);
-                }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.$refs.sidebar.platformActions = null;
-                this.$refs.sidebar.isConnected = false;
-                alert('Backend server is unreachable.');
-            }
+            // Pass the credentials to the sidebar
+            await this.$refs.sidebar.initRpConnection(url, username, password);
         },
 
         async askChatGpt(userText) {
