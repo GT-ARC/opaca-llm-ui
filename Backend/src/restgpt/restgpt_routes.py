@@ -56,7 +56,7 @@ class RestGptBackend(OpacaLLMBackend):
             return response
 
         try:
-            action_spec = get_reduced_action_spec(session.client.get_actions_with_refs())
+            action_spec = get_reduced_action_spec(await session.client.get_actions_with_refs())
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")

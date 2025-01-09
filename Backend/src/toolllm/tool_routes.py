@@ -40,7 +40,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         total_exec_time = time.time()
 
         try:
-            self.method.init_agents(session, config)
+            await self.method.init_agents(session, config)
         except Exception as e:
             print(e)
             response.error = str(e)
@@ -79,7 +79,7 @@ class ToolLLMBackend(OpacaLLMBackend):
                         agent_name = None
                         action_name = call['name']
                     tool_results.append(
-                        session.client.invoke_opaca_action(
+                        await session.client.invoke_opaca_action(
                             action_name,
                             agent_name,
                             call['args']['requestBody'] if 'requestBody' in call['args'] else {}

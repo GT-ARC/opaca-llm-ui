@@ -137,7 +137,7 @@ class LLamaBackend(OpacaLLMBackend):
 
         # Get list of available actions from connected opaca platform
         try:
-            actions, errors = openapi_to_llama(session.client.get_actions_with_refs(), config['use_agent_names'])
+            actions, errors = openapi_to_llama(await session.client.get_actions_with_refs(), config['use_agent_names'])
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the OPACA platform is running and connected.")
@@ -194,7 +194,7 @@ class LLamaBackend(OpacaLLMBackend):
                 # Attempt to invoke the generated action call
                 # Save the result (or error) in the results
                 try:
-                    tool_results.append(session.client.invoke_opaca_action(
+                    tool_results.append(await session.client.invoke_opaca_action(
                         action,
                         agent,
                         parameters

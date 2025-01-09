@@ -89,7 +89,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                   You are only allowed to use those given tools. If a user asks about tools directly, 
                   answer them with the required information. Tools can also be described as services."""
 
-    def init_agents(
+    async def init_agents(
             self,
             session: SessionData,
             config: Dict[str, Any],
@@ -104,7 +104,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         # Retrieve the tools from connected opaca platform
         # Uses the user specific opaca client
         try:
-            tools, error = self.transform_tools(session.client.get_actions_with_refs(), config)
+            tools, error = self.transform_tools(await session.client.get_actions_with_refs(), config)
         except Exception as e:
             raise Exception(f"Unable to get tools from connected OPACA client. Are you connected with a running "
                             f"OPACA client?\nError: {e}")
