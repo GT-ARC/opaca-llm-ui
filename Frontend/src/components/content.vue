@@ -154,7 +154,7 @@ export default {
                 const result = await sendRequest(
                         "POST",
                         `${conf.BackendAddress}/${this.getBackend()}/query`,
-                        {user_query: userText, debug: true, api_key: this.apiKey},
+                        {user_query: userText, api_key: this.apiKey},
                         null);
                 const answer = result.data.content;
                 if (result.data.error) {

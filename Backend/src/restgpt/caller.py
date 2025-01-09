@@ -1,13 +1,10 @@
 import json
 import logging
-from typing import Dict, List, Any
+from typing import Dict, Any
 
-from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
 
-from .utils import build_prompt
-from ..models import AgentMessage
+from ..models import AgentMessage, LLMAgent
 
 logger = logging.getLogger(__name__)
 
@@ -45,36 +42,26 @@ If there was an error or the api call was unsuccessful, then also generate an ap
 about the error."""
 
 
-class Caller(Chain):
-    llm: BaseChatModel
-    action_spec: List
+class Caller(LLMAgent):
 
-    def __init__(self, llm: BaseChatModel, action_spec: List) -> None:
-        super().__init__(llm=llm, action_spec=action_spec)
+    def __init__(self, llm: BaseChatModel):
+        super().__init__(
+            name='Caller',
+            llm=llm,
+            system_prompt=CALLER_PROMPT,
+        )
 
-    @property
-    def _chain_type(self) -> str:
-        return "Opaca-LLM Caller"
-
-    @property
-    def input_keys(self) -> List[str]:
-        return ["api_plan"]
-
-    @property
-    def output_keys(self) -> List[str]:
-        return ["result"]
-
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    async def ainvoke(self, inputs: Dict[str, Any]) -> AgentMessage:
         api_plan = inputs['api_plan']
         try:
             action_name, params = api_plan.split(';')
             if inputs['config']['use_agent_names']:
                 agent_name, action_name = action_name.split('--', maxsplit=1)
         except ValueError:
-            return {'result': AgentMessage(
+            return AgentMessage(
                 agent="Caller",
                 content='ERROR: Received malformed instruction by the action selector'
-            )}
+            )
 
         try:
             if inputs['config']['use_agent_names']:
@@ -86,10 +73,10 @@ class Caller(Chain):
                             f'with parameters: {params}')
                 response = inputs["client"].invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
-            return {'result': AgentMessage(
+            return AgentMessage(
                 agent="Caller",
                 content=f'ERROR: Unable to call the connected opaca platform\nCause: {e}'
-                )}
+                )
 
         logger.info(f'Caller: Received response: {response}')
 
@@ -99,26 +86,10 @@ class Caller(Chain):
             if action.action_name == action_name:
                 description = action.description
 
-        prompt = build_prompt(
-            system_prompt=CALLER_PROMPT,
-            examples=examples if inputs['config']['examples']['caller'] else [],
-            input_variables=["api_call", "description", "params", "response"],
-            message_template="API Call: {api_call}\nDescription: {description}\n"
-                             "Parameter: {params}\nResult: {response}"
-        )
+        self.examples = examples if inputs['config']['examples']['caller'] else []
+        self.input_variables = ["api_call", "description", "params", "response"]
+        self.message_template = ("API Call: {api_call}\nDescription: {description}\n" 
+                                 "Parameter: {params}\nResult: {response}")
 
-        chain = prompt | self.llm
-
-        output = chain.invoke({"api_call": action_name, "description": description,
-                               "params": params, "response": response})
-
-        res_meta_data = {}
-        if isinstance(output, AIMessage):
-            res_meta_data = output.response_metadata.get("token_usage", {})
-            output = output.content
-
-        return {'result': AgentMessage(
-                agent="Caller",
-                content=output,
-                response_metadata=res_meta_data,
-                )}
+        return await super().ainvoke({"api_call": action_name, "description": description,
+                                      "params": params, "response": response})
