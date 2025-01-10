@@ -33,7 +33,7 @@ class AgentMessage(BaseModel):
     """
     agent: str
     content: str = ''
-    tools: List = []
+    tools: List[Any] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
 
@@ -103,7 +103,13 @@ class StreamCallbackHandler(BaseCallbackHandler):
                 self.first = False
             else:
                 self.tool_calls += chunk
-            self.agent_message.tools = self.tool_calls.message.additional_kwargs['tool_calls']
+
+            functions = self.tool_calls.message.additional_kwargs["tool_calls"]
+            self.agent_message.tools = [
+                (f'Tool {i+1}:\n'
+                 f'\tName: {function["function"].get("name", "")}\n'
+                 f'\tArguments: {str(function["function"].get("arguments", ""))}\n')
+                for i, function in enumerate(functions)]
         else:
             self.agent_message.content = token
         await self.websocket.send_json(self.agent_message.model_dump_json())

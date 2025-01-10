@@ -154,17 +154,20 @@ export default {
             try {
                 const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
 
-                socket.onmessage = function (event) {
-                    const result = JSON.parse(event.data);
-                    console.log("Result: ", result);
+                socket.onmessage = (event) => {
+                    const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+                    if (result.hasOwnProperty("agent")) {
+                        this.addDebugToken(result, this.messageCount)
+                        this.scrollDown(true);
+                    }
                 }
 
-                socket.onopen = function () {
+                socket.onopen = () => {
                   const inputData = {user_query: userText, api_key: this.apiKey};
                   socket.send(JSON.stringify(inputData));
                 };
 
-                socket.onclose = function () {
+                socket.onclose = () => {
                   console.log("WebSocket connection closed");
                 };
                 /*
@@ -374,6 +377,11 @@ export default {
 
             // return either specific color for light/dark mode or default black/white
             return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
+        },
+
+        addDebugToken(agent_message, messageCount) {
+            const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
+            this.addDebug(agent_message["tools"].length > 0 ? agent_message["tools"] : agent_message["content"], color)
         },
 
         processDebugInput(agent_messages, messageCount) {
