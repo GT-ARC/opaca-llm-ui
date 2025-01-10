@@ -29,10 +29,21 @@ var config = {
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
+    // if true, attempt to connect to the configured platform on load
+    AutoConnect: import.meta.env.VITE_AUTO_CONNECT ?? false,
+
     languages: {
         GB: 'en-GB',
         DE: 'de-DE'
     },
+
+    // which set of questions is shown within the chat window on startup.
+    // possible values: 'general', 'email', 'scheduling', 'smart_office', 'public_services', 'learning', 'random'
+    DefaultQuestions: import.meta.env.VITE_DEFAULT_QUESTIONS ?? 'random',
+
+    // which sidebar view is shown by default.
+    // possible values: 'connect', 'questions', 'agents', 'config', 'debug'
+    DefaultSidebarOption: import.meta.env.VITE_DEFAULT_SIDE_OPTION ?? 'agents',
 
     translations:{
         GB: {
@@ -52,6 +63,7 @@ var config = {
             ],
             sidebarQuestions: [
                 {
+                    "id": "general",
                     "header": "General",
                     "icon": "❓",
                     "questions": [
@@ -62,6 +74,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "email",
                     "header": "Email Assistant",
                     "icon": "✉️",
                     "questions": [
@@ -71,6 +84,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "scheduling",
                     "header": "Scheduling Assistant",
                     "icon": "📅",
                     "questions": [
@@ -80,6 +94,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "smart_office",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
@@ -90,6 +105,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "public_services",
                     "header": "Public Services",
                     "icon": "🏛️",
                     "questions": [
@@ -99,6 +115,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "learning",
                     "header": "Learning",
                     "icon": "📚",
                     "questions": [
@@ -132,6 +149,7 @@ var config = {
             ],
             sidebarQuestions: [
                 {
+                    "id": "general",
                     "header": "Allgemein",
                     "icon": "❓",
                     "questions": [
@@ -142,6 +160,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "email",
                     "header": "E-Mail Assistent",
                     "icon": "✉️",
                     "questions": [
@@ -151,6 +170,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "scheduling",
                     "header": "Terminplanung",
                     "icon": "📅",
                     "questions": [
@@ -160,6 +180,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "smart_office",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
@@ -170,6 +191,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "public_services",
                     "header": "Öffentlicher Dienst",
                     "icon": "🏛️",
                     "questions": [
@@ -179,6 +201,7 @@ var config = {
                     ]
                 },
                 {
+                    "id": "learning",
                     "header": "Lernen",
                     "icon": "📚",
                     "questions": [

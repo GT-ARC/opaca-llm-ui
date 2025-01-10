@@ -203,6 +203,7 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import {sleep} from "openai/core";
 
 export default {
     name: 'Sidebar',
@@ -283,7 +284,9 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView('questions');
+                    console.log(this.getConfig());
+                    console.log(this.getConfig().DefaultSidebarOption);
+                    this.selectView(this.getConfig().DefaultSidebarOption);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -394,6 +397,10 @@ export default {
         const mainContent = document.getElementById('mainContent');
         if (mainContent) {
             mainContent.classList.remove('mx-auto');
+        }
+
+        if (conf.AutoConnect) {
+            this.initRpConnection();
         }
     },
     watch: {

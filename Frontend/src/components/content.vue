@@ -23,11 +23,11 @@
             <div class="container-fluid flex-grow-1 px-0" id="chat1">
                 <div class="card-body" id="chat-container"/>
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in getConfig().translations[language].sampleQuestions"
+                    <div v-for="(question, index) in getSampleQuestions()"
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
-                        {{question.icon}} <br> {{ question.question }}
+                        {{ question.question }}
                     </div>
                 </div>
             </div>
@@ -79,7 +79,7 @@ import {marked} from "marked";
 import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
-import {sendRequest} from "../utils.js";
+import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors} from '../config/debug-colors.js';
 
@@ -408,6 +408,21 @@ export default {
             const textarea = event.target;
             textarea.style.height = 'auto';
             textarea.style.height = (textarea.scrollHeight) + 'px';
+        },
+
+        getSampleQuestions() {
+            const value = this.getConfig().DefaultQuestions
+            if (value === 'random') {
+                let questions = [];
+                this.getConfig().translations[this.language].sidebarQuestions
+                    .forEach(group => questions = questions.concat(group.questions));
+                shuffleArray(questions);
+                return questions.slice(0, 4);
+            } else {
+                return this.getConfig().translations[this.language].sidebarQuestions
+                    .find(group => group.id === value)
+                    .questions;
+            }
         },
     },
 
