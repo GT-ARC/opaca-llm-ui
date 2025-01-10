@@ -43,7 +43,7 @@ var config = {
 
     // which sidebar view is shown by default.
     // possible values: 'connect', 'questions', 'agents', 'config', 'debug'
-    DefaultSidebarOption: import.meta.env.VITE_DEFAULT_SIDE_OPTION ?? 'agents',
+    DefaultSidebarView: import.meta.env.VITE_DEFAULT_SIDE_OPTION ?? 'agents',
 
     translations:{
         GB: {

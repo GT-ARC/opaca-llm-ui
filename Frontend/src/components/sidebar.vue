@@ -284,9 +284,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    console.log(this.getConfig());
-                    console.log(this.getConfig().DefaultSidebarOption);
-                    this.selectView(this.getConfig().DefaultSidebarOption);
+                    this.selectView(this.getConfig().DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
