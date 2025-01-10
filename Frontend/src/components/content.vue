@@ -152,35 +152,21 @@ export default {
             this.showExampleQuestions = false;
             this.createSpeechBubbleUser(userText);
             try {
-                await fetch(`${conf.BackendAddress}/${this.getBackend()}/query_start_stream`, {
-                    method: "POST",
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*'
-                    },
-                    withCredentials: true,
-                    body: JSON.stringify({user_query: userText, api_key: this.apiKey})
-                })
+                const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
 
-                const eventSource = new EventSource(`${conf.BackendAddress}/${this.getBackend()}/query_stream_result`, {
-                    withCredentials: true
-                })
-
-                eventSource.onmessage = event => {
-                    console.log("Event: ", event)
-                    const data = JSON.parse(event.data);
-                    console.log("Message Content: ", data.content);
+                socket.onmessage = function (event) {
+                    const result = JSON.parse(event.data);
+                    console.log("Result: ", result);
                 }
 
-                eventSource.onerror = error => {
-                    console.error(error);
-                }
+                socket.onopen = function () {
+                  const inputData = {user_query: userText, api_key: this.apiKey};
+                  socket.send(JSON.stringify(inputData));
+                };
 
-                setTimeout(() => {
-                    console.log("Closing EventSource")
-                    eventSource.close()
-                }, 10000)
-
+                socket.onclose = function () {
+                  console.log("WebSocket connection closed");
+                };
                 /*
                 const result = await sendRequest(
                         "POST",

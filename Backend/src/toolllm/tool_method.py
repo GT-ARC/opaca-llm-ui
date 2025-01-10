@@ -93,6 +93,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
             self,
             session: SessionData,
             config: Dict[str, Any],
+            websocket = None
     ) -> None:
         """
         Initializes both agents (generator agent and evaluator agent).
@@ -124,6 +125,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
             tools=tools,
             input_variables=self.input_variables,
             message_template=self.message_template,
+            websocket=websocket,
         )
         self.evaluator_agent = LLMAgent(
             name="Tool Evaluator",
@@ -136,7 +138,8 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                              "The results were {results}\n"
                              "Generate a response explaining the result to a user. Decide if the user request "
                              "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response."
+                             "response.",
+            websocket=websocket,
         )
 
     @abstractmethod

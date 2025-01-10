@@ -19,6 +19,9 @@ class ToolLLMBackend(OpacaLLMBackend):
         return self.method.config
 
     async def query(self, message: str, session: SessionData) -> Response:
+        return await self.query_stream(message, session)
+
+    async def query_stream(self, message: str, session: SessionData, websocket = None) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -40,7 +43,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         total_exec_time = time.time()
 
         try:
-            self.method.init_agents(session, config)
+            self.method.init_agents(session, config, websocket=websocket)
         except Exception as e:
             print(e)
             response.error = str(e)
