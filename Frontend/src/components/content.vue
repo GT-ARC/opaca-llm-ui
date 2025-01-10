@@ -3,7 +3,6 @@
 
         <Sidebar :backend="backend" :language="language" ref="sidebar"
                  :device-info="deviceInfo"
-                 @connect="initiatePrompt"
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @api-key-change="(newValue) => this.apiKey = newValue"/>
@@ -152,11 +151,6 @@ export default {
             if (userInput != null && userInput !== "") {
                 await this.askChatGpt(userInput);
             }
-        },
-
-        async initiatePrompt(url, username, password) {
-            // Pass the credentials to the sidebar
-            await this.$refs.sidebar.initRpConnection(url, username, password);
         },
 
         async askChatGpt(userText) {
