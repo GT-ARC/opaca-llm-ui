@@ -67,11 +67,11 @@ class Caller(LLMAgent):
             if inputs['config']['use_agent_names']:
                 logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{agent_name}/{action_name} '
                             f'with parameters: {params}')
-                response = inputs["client"].invoke_opaca_action(action_name, agent_name, json.loads(params))
+                response = await inputs["client"].invoke_opaca_action(action_name, agent_name, json.loads(params))
             else:
                 logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{action_name} '
                             f'with parameters: {params}')
-                response = inputs["client"].invoke_opaca_action(action_name, None, json.loads(params))
+                response = await inputs["client"].invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
             return AgentMessage(
                 agent="Caller",

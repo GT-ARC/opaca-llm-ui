@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from ..llama_proxy import OpacaLLM
+from ..llama_proxy import LlamaProxy
 from ..models import Response, SessionData, OpacaLLMBackend
 from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
@@ -56,7 +56,7 @@ class RestGptBackend(OpacaLLMBackend):
             return response
 
         try:
-            action_spec = get_reduced_action_spec(session.client.get_actions_with_refs())
+            action_spec = get_reduced_action_spec(await session.client.get_actions_with_refs())
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
@@ -121,7 +121,7 @@ class RestGptBackend(OpacaLLMBackend):
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.use_llama:
-            self.llm = OpacaLLM(
+            self.llm = LlamaProxy(
                 url=config['llama-url'],
                 model=config['llama-model']
             )
