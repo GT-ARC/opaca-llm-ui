@@ -1,20 +1,14 @@
-import requests
+import httpx
 import random
 
-from ..models import Response, SessionData
+from ..models import Response, SessionData, OpacaLLMBackend
 
 
-class ProxyBackend:
-
-    async def get_config(self) -> dict:
-        return self._get_config()
-
-
-class KnowledgeBackend(ProxyBackend):
+class KnowledgeBackend(OpacaLLMBackend):
     NAME = "itdz-knowledge"
 
-    @staticmethod
-    def _get_config():
+    @property
+    def default_config(self):
         return {
             "url": "http://10.0.4.59:8000/chat-{model}",
             "model": "ollama",
@@ -22,9 +16,9 @@ class KnowledgeBackend(ProxyBackend):
             "msg_id": 0,
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(KnowledgeBackend.NAME, self._get_config())
+        config = session.config.get(KnowledgeBackend.NAME, self.default_config)
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -33,7 +27,8 @@ class KnowledgeBackend(ProxyBackend):
             "content": message,
             "rating": 0
         }
-        response = requests.post(url, json=json)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=json)
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)
@@ -41,20 +36,21 @@ class KnowledgeBackend(ProxyBackend):
         return Response(query=message, content=result["content"])
 
 
-class DataAnalysisBackend(ProxyBackend):
+class DataAnalysisBackend(OpacaLLMBackend):
     NAME = "itdz-data"
 
-    @staticmethod
-    def _get_config():
+    @property
+    def default_config(self):
         return {
             "url": "http://10.42.6.107:3002/ask_csv",
         }
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.get(DataAnalysisBackend.NAME, self._get_config())
+        config = session.config.get(DataAnalysisBackend.NAME, self.default_config)
         url = config["url"]
-        response = requests.post(url, json={"question": message})
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json={"question": message})
         response.raise_for_status()
         result = response.json()
         print("RESULT", result)

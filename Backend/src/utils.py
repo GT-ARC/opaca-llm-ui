@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 import jsonref
 from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
+    FewShotChatMessagePromptTemplate, MessagesPlaceholder
 
 
 class ColorPrint:
@@ -104,7 +106,6 @@ def add_dicts(d1: dict, d2: dict) -> dict:
     return result
 
 
-
 def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
     if p_type["items"]["type"] == "array":
         array_item = Parameter.ArrayItems("array")
@@ -161,6 +162,7 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         action_list.append(action)
     return action_list
 
+
 def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
     functions = []
     error_msg = ""
@@ -216,6 +218,7 @@ def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
             )
 
     return functions, error_msg
+
 
 def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     functions = []
@@ -307,3 +310,35 @@ def message_to_class(msg):
         "system": SystemMessage,
     }[msg["role"]]
     return MessageType(msg.get("content", ""))
+
+
+def build_prompt(
+        system_prompt: str,
+        examples: List[Dict[str, str]],
+        input_variables: List[str],
+        message_template: str
+) -> ChatPromptTemplate:
+
+    example_prompt = ChatPromptTemplate.from_messages(
+        [
+            HumanMessagePromptTemplate.from_template("{input}"),
+            AIMessagePromptTemplate.from_template("{output}")
+        ]
+    )
+
+    few_shot_prompt = FewShotChatMessagePromptTemplate(
+        input_variables=input_variables,
+        example_prompt=example_prompt,
+        examples=examples
+    )
+
+    final_prompt = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(content=system_prompt),
+            few_shot_prompt,
+            MessagesPlaceholder(variable_name="history", optional=True),
+            ("human", message_template),
+        ]
+    )
+
+    return final_prompt

@@ -2,19 +2,18 @@ import time
 import re
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from langchain.chains.base import Chain
-from langchain.callbacks.manager import CallbackManagerForChainRun
 from langchain_core.language_models import BaseChatModel
 
 from .planner import Planner
 from .action_selector import ActionSelector
 from .caller import Caller
 from .evaluator import Evaluator
+from ..models import Response
 
 logger = logging.getLogger()
 
 
-class RestGPT(Chain):
+class RestGPT:
     """Consists of an agent using tools."""
 
     llm: BaseChatModel
@@ -29,27 +28,20 @@ class RestGPT(Chain):
     def __init__(
             self,
             llm: BaseChatModel,
-            action_spec: List,
-            **kwargs: Any,
+            action_spec: List
     ) -> None:
 
-        print(f'Initialized RestGPT with model type {type(llm)}')
+        self.planner = Planner(llm=llm)
+        self.action_selector = ActionSelector(llm=llm)
+        self.caller = Caller(llm=llm)
+        self.evaluator = Evaluator(llm=llm)
+        self.action_spec = action_spec
 
-        planner = Planner(llm=llm)
-        action_selector = ActionSelector(llm=llm, action_spec=action_spec)
-        caller = Caller(llm=llm, action_spec=action_spec)
-        evaluator = Evaluator(llm=llm)
-
-        super().__init__(
-            llm=llm, action_spec=action_spec, planner=planner, action_selector=action_selector, caller=caller,
-            evaluator=evaluator, **kwargs
-        )
-
-    def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
-        return self.evaluator.invoke({"input": eval_input,
-                                      "history": history,
-                                      "config": config,
-                                      })["result"]
+    async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
+        return await self.evaluator.ainvoke({"input": eval_input,
+                                             "history": history,
+                                             "config": config,
+                                             })
 
     @property
     def _chain_type(self) -> str:
@@ -107,11 +99,10 @@ class RestGPT(Chain):
             return True
         return False
 
-    def _call(
+    async def ainvoke(
             self,
             inputs: Dict[str, Any],
-            run_manager: Optional[CallbackManagerForChainRun] = None,
-    ) -> Dict[str, Any]:
+    ) -> Response:
         query = inputs['query']
         config = inputs['config']
 
@@ -129,15 +120,13 @@ class RestGPT(Chain):
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
-            planner_time = time.time()
-            planner_response = self.planner.invoke({"input": query,
-                                                    "actions": self.action_spec,
-                                                    "planner_history": planner_history,
-                                                    "message_history": inputs['history'],
-                                                    "config": config,
-                                                    "response": response,
-                                                    })["result"]
-            planner_response.execution_time = time.time() - planner_time
+            planner_response = await self.planner.ainvoke({"input": query,
+                                                           "actions": self.action_spec,
+                                                           "planner_history": planner_history,
+                                                           "message_history": inputs['history'],
+                                                           "config": config,
+                                                           "response": response,
+                                                           })
             response.agent_messages.append(planner_response)
 
             plan = planner_response.content
@@ -150,12 +139,12 @@ class RestGPT(Chain):
 
             # ACTION SELECTOR
             # exec time is measure within action selector
-            as_response = self.action_selector.invoke({"plan": plan,
-                                                       "actions": self.action_spec,
-                                                       "action_history": action_selector_history,
-                                                       "message_history": inputs["history"],
-                                                       "config": config,
-                                                       })["result"]
+            as_response = await self.action_selector.ainvoke({"plan": plan,
+                                                              "actions": self.action_spec,
+                                                              "action_history": action_selector_history,
+                                                              "message_history": inputs["history"],
+                                                              "config": config,
+                                                              })
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
             response.agent_messages.extend(as_response)  # Add all action selector messages
             logger.info(f'API Selector: {api_plan}')
@@ -169,11 +158,11 @@ class RestGPT(Chain):
 
             # CALLER
             c_time = time.time()
-            caller_response = self.caller.invoke({"api_plan": api_plan,
-                                                  "actions": self.action_spec,
-                                                  "config": config,
-                                                  "client": inputs["client"],
-                                                  })["result"]
+            caller_response = await self.caller.ainvoke({"api_plan": api_plan,
+                                                         "actions": self.action_spec,
+                                                         "config": config,
+                                                         "client": inputs["client"],
+                                                         })
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
             response.agent_messages.append(caller_response)
@@ -184,7 +173,7 @@ class RestGPT(Chain):
 
             # EVALUATOR
             e_time = time.time()
-            eval_response = self._finished(eval_input, inputs['history'], config)
+            eval_response = await self._finished(eval_input, inputs['history'], config)
             eval_response.execution_time = time.time() - e_time
             response.agent_messages.append(eval_response)
             if re.match(r"FINISHED", eval_response.content):
@@ -201,4 +190,4 @@ class RestGPT(Chain):
         response.iterations = iterations
 
         logger.info(f'Final Answer: {final_answer}')
-        return {"result": response}
+        return response

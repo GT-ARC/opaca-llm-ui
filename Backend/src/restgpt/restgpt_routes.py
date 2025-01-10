@@ -1,7 +1,6 @@
 import time
 from typing import Dict, Optional
 
-import logging
 import os
 
 import openai
@@ -10,18 +9,10 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from ..models import Response, SessionData
-from .utils import OpacaLLM
-from ..utils import get_reduced_action_spec, ColorPrint
+from ..llama_proxy import LlamaProxy
+from ..models import Response, SessionData, OpacaLLMBackend
+from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
-
-logger = logging.getLogger()
-
-logging.basicConfig(
-    format="%(message)s",
-    handlers=[logging.StreamHandler(ColorPrint())],
-    level=logging.INFO
-)
 
 
 class Action(BaseModel):
@@ -34,7 +25,7 @@ class Action(BaseModel):
         return f'{self.name}, Description: {self.description}, Parameters: {self.parameters}, Result: {self.result}'
 
 
-class RestGptBackend:
+class RestGptBackend(OpacaLLMBackend):
     NAME_OPENAI = "rest-gpt-openai"
     NAME_LLAMA = "rest-gpt-llama"
     use_llama: bool
@@ -43,10 +34,13 @@ class RestGptBackend:
     def __init__(self, use_llama: bool):
         self.use_llama = use_llama
 
-    async def query(self, message: str, debug: bool, api_key: str, session: SessionData) -> Response:
+    async def query(self, message: str, session: SessionData) -> Response:
 
         # Set config
-        config = session.config.get(RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI, await self.get_config())
+        config = session.config.get(
+            RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
+            self.default_config
+        )
 
         # Create response object
         response = Response()
@@ -54,7 +48,7 @@ class RestGptBackend:
 
         # Model initialization here since openai requires api key in constructor
         try:
-            self.init_model(api_key, config)
+            self.init_model(session.api_key, config)
         except ValueError as e:
             response.content = ("You are trying to use a model which uses an api key but provided none. Please "
                                 "enter a valid api key and try again.")
@@ -62,24 +56,24 @@ class RestGptBackend:
             return response
 
         try:
-            action_spec = get_reduced_action_spec(session.client.get_actions_with_refs())
+            action_spec = get_reduced_action_spec(await session.client.get_actions_with_refs())
         except Exception as e:
             response.content = ("I am sorry, but there occurred an error during the action retrieval. "
                                 "Please make sure the opaca platform is running and connected.")
             response.error = str(e)
             return response
 
-        rest_gpt = RestGPT(self.llm, action_spec=action_spec)
+        rest_gpt = RestGPT(self.llm, action_spec)
 
         try:
             total_time = time.time()
-            result = rest_gpt.invoke({
+            result = await rest_gpt.ainvoke({
                 "query": message,
                 "history": session.messages,
                 "config": config,
                 "response": response,
                 "client": session.client,
-            })["result"]
+            })
             response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
             response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
@@ -91,7 +85,8 @@ class RestGptBackend:
 
         return response
 
-    async def get_config(self) -> dict:
+    @property
+    def default_config(self) -> dict:
         """
         Declares the default configuration
         """
@@ -126,7 +121,7 @@ class RestGptBackend:
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
         if self.use_llama:
-            self.llm = OpacaLLM(
+            self.llm = LlamaProxy(
                 url=config['llama-url'],
                 model=config['llama-model']
             )

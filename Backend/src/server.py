@@ -11,8 +11,7 @@ from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import Url, Message, Response, SessionData
-from .toolllm import ToolLLMBackend
-from .toolllama import LLamaBackend
+from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import OpacaClient
@@ -45,12 +44,12 @@ BACKENDS = {
     RestGptBackend.NAME_LLAMA: RestGptBackend(use_llama=True),
     SimpleOpenAIBackend.NAME: SimpleOpenAIBackend(),
     SimpleLlamaBackend.NAME: SimpleLlamaBackend(),
-    ToolLLMBackend.NAME: ToolLLMBackend(),
-    LLamaBackend.NAME: LLamaBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
 }
+
+BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
 
 
 # Simple dict to store session data
@@ -76,12 +75,7 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, list
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = handle_session_id(request, response)
-    return await BACKENDS[backend].query(
-        message.user_query,
-        message.debug,
-        message.api_key,
-        session
-    )
+    return await BACKENDS[backend].query(message.user_query, session)
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
@@ -101,7 +95,7 @@ async def reset_all():
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
     session = handle_session_id(request, response)
     if backend not in session.config:
-        session.config[backend] = await BACKENDS[backend].get_config()
+        session.config[backend] = BACKENDS[backend].default_config
     return session.config[backend]
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
