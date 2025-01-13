@@ -68,7 +68,6 @@ import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import {sendRequest} from "../utils.js";
-import axios from "axios";
 
 export default {
     name: 'main-content',
@@ -151,6 +150,8 @@ export default {
         async askChatGpt(userText) {
             this.showExampleQuestions = false;
             this.createSpeechBubbleUser(userText);
+            this.createSpeechBubbleAI(`Preparing the system`, `ai-message-${this.messageCount}`)
+            this.toggleLoadingSymbol(this.messageCount);
             try {
                 const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
 
@@ -161,7 +162,8 @@ export default {
                         this.scrollDown(true);
                     }
                     else {
-                        this.createSpeechBubbleAI(result.content, this.messageCount);
+                        this.toggleLoadingSymbol(this.messageCount);
+                        this.editTextSpeechBubbleAI(result.content, this.messageCount)
                         this.messageCount++;
                         this.scrollDown(true);
                     }
@@ -192,7 +194,9 @@ export default {
                  */
             } catch (error) {
                 console.error(error);
+                this.toggleLoadingSymbol(this.messageCount)
                 this.createSpeechBubbleAI("Error while fetching data: " + error)
+                this.messageCount++;
                 this.scrollDown(false);
             }
             if (this.autoSpeakNextMessage) {
@@ -275,7 +279,8 @@ export default {
             <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
                 <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
                 <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
-                    ${marked.parse(text)}
+                    <div id="loadingContainer"><div class="loader hidden"></div></div>
+                    <div id="messageContainer">${marked.parse(text)}</div>
                     <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
                         <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
                         debug
@@ -285,10 +290,6 @@ export default {
                 </div>
             </div>`
 
-            const waitBubble = document.getElementById('waitBubble');
-            if (waitBubble) {
-                waitBubble.remove();
-            }
             this.isBusy = false;
 
             chat.appendChild(d1)
@@ -327,7 +328,6 @@ export default {
                 <img src=/src/assets/Icons/nutzer.png alt="User" class="chaticon">
             </div>`
             chat.appendChild(d1)
-            this.createSpeechBubbleAI('. . .', 'waitBubble')
             this.scrollDown(false)
         },
 
@@ -384,8 +384,31 @@ export default {
             return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
         },
 
+        getDebugLoadingMessage(agentName) {
+            const debugLoadingMessages = {
+                // RestGPT
+                "Planner": "Planning the next step",
+                "Action Selector": "Selecting the best action",
+                "Caller": "Calling the OPACA platform",
+                "Evaluator": "Evaluating the results",
+                // Tools
+                "Tool Generator": "Generating the necessary tools",
+                "Tool Evaluator": "Evaluating the tools",
+                // Simple
+                "user": "",
+                "assistant": "",
+                "system": "",
+            }
+
+            return debugLoadingMessages[agentName];
+        },
+
         addDebugToken(agent_message, messageCount) {
             const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
+
+            // Include a loading symbol in the currently generated ai message bubble
+            this.editTextSpeechBubbleAI(this.getDebugLoadingMessage(agent_message["agent"]), messageCount)
+
             if (agent_message["tools"].length > 0) {
                 this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"])
             }
@@ -458,6 +481,19 @@ export default {
                     color: color,
                     type: type,
                 });
+            }
+        },
+
+        editTextSpeechBubbleAI(text, id) {
+            const aiBubble = document.getElementById(`ai-message-${id}`)
+            aiBubble.querySelector("#messageContainer").innerHTML = text
+        },
+
+        toggleLoadingSymbol(id) {
+            const aiBubble = document.getElementById(`ai-message-${id}`)
+            const loadingContainer = aiBubble.querySelector("#loadingContainer");
+            if (loadingContainer) {
+                loadingContainer.classList.toggle("loader");
             }
         },
 
@@ -561,6 +597,29 @@ export default {
     margin-top: 5px;
     display: flex;
     justify-content: flex-start;
+}
+
+.loader {
+  border: 4px solid transparent;
+  border-top: 4px solid #3498db; /* Change this color for different loading styles */
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-right: 10px; /* Space between the loader and the text */
+}
+
+.hidden {
+    display: none;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 400px) {
