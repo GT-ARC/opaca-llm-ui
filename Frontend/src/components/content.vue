@@ -160,6 +160,11 @@ export default {
                         this.addDebugToken(result, this.messageCount)
                         this.scrollDown(true);
                     }
+                    else {
+                        this.createSpeechBubbleAI(result.content, this.messageCount);
+                        this.messageCount++;
+                        this.scrollDown(true);
+                    }
                 }
 
                 socket.onopen = () => {
@@ -227,7 +232,7 @@ export default {
             recognition.onresult = async (event) => {
                 if (!event.results || event.results.length <= 0) return;
                 const recognizedText = event.results[0][0].transcript;
-                this.addDebug('Recognized text: ' + recognizedText);
+                this.addDebug('Recognized text: ' + recognizedText, "white", "speech");
                 this.autoSpeakNextMessage = true
                 await this.askChatGpt(recognizedText);
             };
@@ -239,7 +244,7 @@ export default {
             };
             recognition.onerror = (error) => {
                 console.error(error);
-                this.addDebug('Recognition Error: ' + error.message || error.error, 'red');
+                this.addDebug('Recognition Error: ' + error.message || error.error, 'red', "error");
                 this.createSpeechBubbleAI('The speech recognition failed to understand your request.');
             };
             recognition.onend = () => {
@@ -381,7 +386,21 @@ export default {
 
         addDebugToken(agent_message, messageCount) {
             const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
-            this.addDebug(agent_message["tools"].length > 0 ? agent_message["tools"] : agent_message["content"], color)
+            if (agent_message["tools"].length > 0) {
+                this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"])
+            }
+            else {
+                this.addDebug(agent_message["content"], color, agent_message["agent"])
+            }
+            // Add the formatted debug text to the associated speech bubble
+            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
+            if (messageBubble) {
+                let d1 = document.createElement("div")
+                d1.className = "bubble-debug-text"
+                d1.textContent = content
+                d1.style.color = color
+                messageBubble.append(d1)
+            }
         },
 
         processDebugInput(agent_messages, messageCount) {
@@ -396,7 +415,7 @@ export default {
                 const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
-                this.addDebug(content, color)
+                this.addDebug(content, color, message["agent"])
 
                 // Add the formatted debug text to the associated speech bubble
                 const messageBubble = document.getElementById(`debug-${messageCount}-text`)
@@ -418,11 +437,28 @@ export default {
             });
         },
 
-        addDebug(text, color) {
-            this.$refs.sidebar.debugMessages.push({
-                text: text,
-                color: color
-            });
+        addDebug(text, color, type) {
+            const debugMessages = this.$refs.sidebar.debugMessages;
+
+            // If the message is from the Tool Generator, the message needs to be replaced instead of appended
+            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator" && text) {
+                debugMessages[debugMessages.length - 1] = {
+                    text: text,
+                    color: color,
+                    type: type,
+                }
+            }
+            // If the message is
+            else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
+                debugMessages[debugMessages.length - 1].text += `${text}`
+            }
+            else {
+                debugMessages.push({
+                    text: text,
+                    color: color,
+                    type: type,
+                });
+            }
         },
 
         getBackend() {
