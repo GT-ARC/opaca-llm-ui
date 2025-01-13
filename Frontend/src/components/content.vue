@@ -152,6 +152,7 @@ export default {
             this.createSpeechBubbleUser(userText);
             this.createSpeechBubbleAI(`Preparing the system`, `ai-message-${this.messageCount}`)
             this.toggleLoadingSymbol(this.messageCount);
+            this.scrollDown(false)
             try {
                 const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
 
@@ -165,7 +166,7 @@ export default {
                         this.toggleLoadingSymbol(this.messageCount);
                         this.editTextSpeechBubbleAI(result.content, this.messageCount)
                         this.messageCount++;
-                        this.scrollDown(true);
+                        this.scrollDown(false)
                     }
                 }
 
@@ -410,7 +411,7 @@ export default {
             this.editTextSpeechBubbleAI(this.getDebugLoadingMessage(agent_message["agent"]), messageCount)
 
             if (agent_message["tools"].length > 0) {
-                this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"])
+                this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"] + "-Tools")
             }
             else {
                 this.addDebug(agent_message["content"], color, agent_message["agent"])
@@ -463,21 +464,21 @@ export default {
         addDebug(text, color, type) {
             const debugMessages = this.$refs.sidebar.debugMessages;
 
-            // If the message is from the Tool Generator, the message needs to be replaced instead of appended
-            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator" && text) {
+            // If the message includes tools, the message needs to be replaced instead of appended
+            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && text) {
                 debugMessages[debugMessages.length - 1] = {
                     text: text,
                     color: color,
                     type: type,
                 }
             }
-            // If the message is
+            // If the message has the same type as before but is not a tool, append the token to the text
             else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
                 debugMessages[debugMessages.length - 1].text += `${text}`
             }
             else {
                 debugMessages.push({
-                    text: text,
+                    text: type + ":\n" + text,
                     color: color,
                     type: type,
                 });
@@ -486,7 +487,7 @@ export default {
 
         editTextSpeechBubbleAI(text, id) {
             const aiBubble = document.getElementById(`ai-message-${id}`)
-            aiBubble.querySelector("#messageContainer").innerHTML = text
+            aiBubble.querySelector("#messageContainer").innerHTML = `${marked.parse(text)}`
         },
 
         toggleLoadingSymbol(id) {
