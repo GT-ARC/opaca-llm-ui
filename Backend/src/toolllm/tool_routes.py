@@ -19,9 +19,9 @@ class ToolLLMBackend(OpacaLLMBackend):
         return self.method.config
 
     async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
+        return await self.query_stream(message, session, None)
 
-    async def query_stream(self, message: str, session: SessionData, websocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Initialize parameters
         tool_names = []
@@ -43,7 +43,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         total_exec_time = time.time()
 
         try:
-            await self.method.init_agents(session, config, websocket=websocket)
+            await self.method.init_agents(session, config)
         except Exception as e:
             print(e)
             response.error = str(e)
@@ -53,7 +53,7 @@ class ToolLLMBackend(OpacaLLMBackend):
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-            result = await self.method.invoke_generator(session, message, tool_responses, config)
+            result = await self.method.invoke_generator(session, message, tool_responses, config, websocket=websocket)
 
             # Check the generated tool calls for errors and regenerate them if necessary
             # Correction limit is set to 3 to check iteratively:
@@ -63,7 +63,7 @@ class ToolLLMBackend(OpacaLLMBackend):
             full_err = '\n'
             while (err_msg := self.method.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = await self.method.invoke_generator(session, message, tool_responses, config, full_err)
+                result = await self.method.invoke_generator(session, message, tool_responses, config, full_err, websocket=websocket)
                 correction_limit += 1
 
             response.agent_messages.append(result)
@@ -98,10 +98,11 @@ class ToolLLMBackend(OpacaLLMBackend):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.method.invoke_evaluator(
-                    message,  # Original user query
-                    tool_names,  # ALL the tools used so far
-                    tool_params,  # ALL the parameters used for the tools
-                    tool_results  # ALL the results from the opaca action calls
+                    message,                # Original user query
+                    tool_names,             # ALL the tools used so far
+                    tool_params,            # ALL the parameters used for the tools
+                    tool_results,           # ALL the results from the opaca action calls
+                    websocket=websocket     # Websocket for llm token streaming
                 )
                 response.agent_messages.append(result)
 

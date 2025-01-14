@@ -51,20 +51,20 @@ class ToolMethodOpenAI(ToolMethod):
                       f"of 128. All tools after index 128 will be ignored!\n")
         return self.tools, error
 
-    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = ""):
+    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = "", websocket=None):
         return await self.generator_agent.ainvoke({
             'input': message,
             'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
             'history': session.messages
-        })
+        }, websocket)
 
-    async def invoke_evaluator(self, message, tool_names, tool_params, tool_results):
+    async def invoke_evaluator(self, message, tool_names, tool_params, tool_results, websocket=None):
         return await self.evaluator_agent.ainvoke({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far
             'parameters': tool_params,  # ALL the parameters used for the tools
             'results': tool_results  # ALL the results from the opaca action calls
-        })
+        }, websocket)
 
     @staticmethod
     def build_scratchpad(messages: List[AIMessage]) -> str:

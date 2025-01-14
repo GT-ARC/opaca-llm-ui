@@ -3,7 +3,6 @@ FastAPI Server providing HTTP/REST routes to be used by the Frontend.
 Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
-import asyncio
 import uuid
 
 from fastapi import FastAPI, Request
@@ -87,7 +86,7 @@ async def query_stream(websocket: WebSocket, backend: str):
     try:
         data = await websocket.receive_json()
         message = Message(**data)
-        response = await BACKENDS[backend].query_stream(message.user_query, session, websocket=websocket)
+        response = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
         await websocket.send_json(response.model_dump_json())
     finally:
         await websocket.close()
