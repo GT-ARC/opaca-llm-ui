@@ -9,7 +9,6 @@ from ..models import Response, SessionData, OpacaLLMBackend
 
 class ToolLLMBackend(OpacaLLMBackend):
     max_iter: int = 5
-    method: ToolMethod
 
     def __init__(self, method: str):
         self.method = ToolMethod.create_method(method)
@@ -63,15 +62,14 @@ class ToolLLMBackend(OpacaLLMBackend):
             full_err = '\n'
             while (err_msg := self.method.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = await self.method.invoke_generator(session, message, tool_responses, config, full_err, websocket=websocket)
+                result = await self.method.invoke_generator(session, message, tool_responses, config, full_err,
+                                                            websocket=websocket)
                 correction_limit += 1
 
             response.agent_messages.append(result)
-            tools = result.tools.copy()
-            result.tools = []
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
-            for call in tools:
+            for i, call in enumerate(result.tools):
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
@@ -85,24 +83,30 @@ class ToolLLMBackend(OpacaLLMBackend):
                         await session.client.invoke_opaca_action(
                             action_name,
                             agent_name,
-                            call['args']['requestBody'] if 'requestBody' in call['args'] else {}
+                            call['args'].get('requestBody', {})
                         ))
                 except Exception as e:
                     tool_results.append(str(e))
-                response.agent_messages[-1].tools.append(f'Tool {len(tool_names)}: '
-                                                         f'{call["name"]}, '
-                                                         f'{call["args"]["requestBody"] if "requestBody" in call["args"] else {} }, '
-                                                         f'{tool_results[-1]}\n')
+
+                # The format should match the one in the StreamCallbackHandler
+                result.tools[i] = (f'Tool {len(tool_names)}: \n'
+                                   f'\tName: {call["name"]},\n'
+                                   f'\tArguments: {call["args"]},\n'
+                                   f'\tResults: {tool_results[-1]}\n')
+
+            # If a websocket was defined, send the tools WITH their results to the frontend
+            if websocket:
+                await websocket.send_json(result.model_dump_json())
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.method.invoke_evaluator(
-                    message,                # Original user query
-                    tool_names,             # ALL the tools used so far
-                    tool_params,            # ALL the parameters used for the tools
-                    tool_results,           # ALL the results from the opaca action calls
-                    websocket=websocket     # Websocket for llm token streaming
+                    message,  # Original user query
+                    tool_names,  # ALL the tools used so far
+                    tool_params,  # ALL the parameters used for the tools
+                    tool_results,  # ALL the results from the opaca action calls
+                    websocket=websocket  # Websocket for llm token streaming
                 )
                 response.agent_messages.append(result)
 
