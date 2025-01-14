@@ -153,53 +153,75 @@ export default {
             const currentMessageCount = this.messageCount;
             this.messageCount++;
             this.createSpeechBubbleUser(userText);
-            this.createSpeechBubbleAI(`Preparing the system`, currentMessageCount);
-            this.toggleLoadingSymbol(currentMessageCount);
-            this.scrollDown(false)
             try {
-                const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
+                if (this.getBackend() === 'tool-llm-openai') {
 
-                socket.onmessage = (event) => {
-                    const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-                    if (result.hasOwnProperty("agent")) {
-                        // Agent messages are intermediate results
-                        this.addDebugToken(result, currentMessageCount)
-                        this.scrollDown(true);
-                    }
-                    else {
-                        // Last message received should be final response
-                        this.toggleLoadingSymbol(currentMessageCount);
-                        this.editTextSpeechBubbleAI(result.content, currentMessageCount)
+                    this.createSpeechBubbleAI(`Preparing the system`, currentMessageCount);
+                    this.toggleLoadingSymbol(currentMessageCount);
+                    this.scrollDown(false)
 
-                        // Append the debug messages generated during this request to the ai message bubble
-                        const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`)
-                        const debugMessages = this.$refs.sidebar.debugMessages
-                        if (aiBubble) {
-                            for (let i = debugMessageLength; i < debugMessages.length; i++) {
-                                console.log(debugMessages.at(i));
-                                let d1 = document.createElement("div")
-                                d1.className = "bubble-debug-text"
-                                d1.textContent = debugMessages.at(i).text
-                                d1.style.color = debugMessages.at(i).color
-                                aiBubble.append(d1)
+                    const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
+
+                    socket.onmessage = (event) => {
+                        const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+                        if (result.hasOwnProperty("agent")) {
+                            // Agent messages are intermediate results
+                            this.addDebugToken(result, currentMessageCount)
+                            this.scrollDown(true);
+                        } else {
+                            // Last message received should be final response
+                            this.toggleLoadingSymbol(currentMessageCount);
+                            this.editTextSpeechBubbleAI(result.content, currentMessageCount)
+
+                            // Append the debug messages generated during this request to the ai message bubble
+                            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`)
+                            const debugMessages = this.$refs.sidebar.debugMessages
+                            if (aiBubble) {
+                                for (let i = debugMessageLength; i < debugMessages.length; i++) {
+                                    console.log(debugMessages.at(i));
+                                    let d1 = document.createElement("div")
+                                    d1.className = "bubble-debug-text"
+                                    d1.textContent = debugMessages.at(i).text
+                                    d1.style.color = debugMessages.at(i).color
+                                    aiBubble.append(d1)
+                                }
                             }
+
+                            // Make expand debug button appear
+                            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
+                            debugToggle.style.display = 'block';
+                            this.scrollDown(false)
                         }
-
-                        // Make expand debug button appear
-                        const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
-                        debugToggle.style.display = 'block';
-                        this.scrollDown(false)
                     }
+
+                    socket.onopen = () => {
+                        const inputData = {user_query: userText, api_key: this.apiKey};
+                        socket.send(JSON.stringify(inputData));
+                    };
+
+                    socket.onclose = () => {
+                        console.log("WebSocket connection closed");
+                    };
+                } else {
+                    this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
+                    this.toggleLoadingSymbol(currentMessageCount);
+                    this.scrollDown(false)
+
+                    const result = await sendRequest(
+                        "POST",
+                        `${conf.BackendAddress}/${this.getBackend()}/query`,
+                        {user_query: userText, api_key: this.apiKey},
+                        null);
+                    const answer = result.data.content;
+                    if (result.data.error) {
+                        this.addDebug(result.data.error)
+                    }
+                    this.toggleLoadingSymbol(currentMessageCount)
+                    this.editTextSpeechBubbleAI(answer, currentMessageCount)
+                    this.scrollDown(false);
+                    this.processDebugInput(result.data.agent_messages, currentMessageCount);
+                    this.scrollDown(true);
                 }
-
-                socket.onopen = () => {
-                  const inputData = {user_query: userText, api_key: this.apiKey};
-                  socket.send(JSON.stringify(inputData));
-                };
-
-                socket.onclose = () => {
-                  console.log("WebSocket connection closed");
-                };
             } catch (error) {
                 console.error(error);
                 this.toggleLoadingSymbol(currentMessageCount)
