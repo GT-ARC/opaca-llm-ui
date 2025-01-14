@@ -189,7 +189,8 @@
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions 
                         :questions="getConfig().translations[language].sidebarQuestions"
-                        @select-question="handleQuestionSelect"/>
+                        @select-question="handleQuestionSelect"
+                        @category-selected="(category) => $emit('category-selected', category)"/>
                 </div>
 
                 <div class="resizer me-1" id="resizer" />

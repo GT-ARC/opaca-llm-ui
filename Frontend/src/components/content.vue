@@ -5,6 +5,7 @@
                  :device-info="deviceInfo"
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
+                 @category-selected="updateSelectedCategory"
                  @api-key-change="(newValue) => this.apiKey = newValue"/>
 
         <!-- Recording Popup -->
@@ -23,7 +24,7 @@
             <div class="container-fluid flex-grow-1 px-0" id="chat1">
                 <div class="card-body" id="chat-container"/>
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in getConfig().translations[language].sampleQuestions"
+                    <div v-for="(question, index) in getCurrentCategoryQuestions()"
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
@@ -108,7 +109,8 @@ export default {
             isDarkScheme: false,
             showRecordingPopup: false,
             selectedLanguage: 'english',
-            deviceInfo: ''
+            deviceInfo: '',
+            selectedCategory: 'Information & Upskilling'
         }
     },
     watch: {
@@ -408,6 +410,26 @@ export default {
             const textarea = event.target;
             textarea.style.height = 'auto';
             textarea.style.height = (textarea.scrollHeight) + 'px';
+        },
+
+        getCurrentCategoryQuestions() {
+            const categories = conf.translations[this.language].sidebarQuestions;
+            const currentCategory = categories.find(cat => cat.header === this.selectedCategory);
+            
+            if (!currentCategory) {
+                // If no category is selected, show default sample questions
+                return conf.translations[this.language].sampleQuestions;
+            }
+            
+            // Take first 3 questions and use their individual icons
+            return currentCategory.questions.slice(0, 3).map(q => ({
+                question: q.question,
+                icon: q.icon || currentCategory.icon // Fallback to category icon if question has no icon
+            }));
+        },
+
+        updateSelectedCategory(category) {
+            this.selectedCategory = category;
         },
     },
 
