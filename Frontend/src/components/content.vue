@@ -149,9 +149,12 @@ export default {
 
         async askChatGpt(userText) {
             this.showExampleQuestions = false;
+            const debugMessageLength = this.$refs.sidebar.debugMessages.length;
+            const currentMessageCount = this.messageCount;
+            this.messageCount++;
             this.createSpeechBubbleUser(userText);
-            this.createSpeechBubbleAI(`Preparing the system`, `ai-message-${this.messageCount}`)
-            this.toggleLoadingSymbol(this.messageCount);
+            this.createSpeechBubbleAI(`Preparing the system`, currentMessageCount);
+            this.toggleLoadingSymbol(currentMessageCount);
             this.scrollDown(false)
             try {
                 const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
@@ -159,13 +162,32 @@ export default {
                 socket.onmessage = (event) => {
                     const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
                     if (result.hasOwnProperty("agent")) {
-                        this.addDebugToken(result, this.messageCount)
+                        // Agent messages are intermediate results
+                        this.addDebugToken(result, currentMessageCount)
                         this.scrollDown(true);
                     }
                     else {
-                        this.toggleLoadingSymbol(this.messageCount);
-                        this.editTextSpeechBubbleAI(result.content, this.messageCount)
-                        this.messageCount++;
+                        // Last message received should be final response
+                        this.toggleLoadingSymbol(currentMessageCount);
+                        this.editTextSpeechBubbleAI(result.content, currentMessageCount)
+
+                        // Append the debug messages generated during this request to the ai message bubble
+                        const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`)
+                        const debugMessages = this.$refs.sidebar.debugMessages
+                        if (aiBubble) {
+                            for (let i = debugMessageLength; i < debugMessages.length; i++) {
+                                console.log(debugMessages.at(i));
+                                let d1 = document.createElement("div")
+                                d1.className = "bubble-debug-text"
+                                d1.textContent = debugMessages.at(i).text
+                                d1.style.color = debugMessages.at(i).color
+                                aiBubble.append(d1)
+                            }
+                        }
+
+                        // Make expand debug button appear
+                        const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
+                        debugToggle.style.display = 'block';
                         this.scrollDown(false)
                     }
                 }
@@ -178,26 +200,10 @@ export default {
                 socket.onclose = () => {
                   console.log("WebSocket connection closed");
                 };
-                /*
-                const result = await sendRequest(
-                        "POST",
-                        `${conf.BackendAddress}/${this.getBackend()}/query`,
-                        {user_query: userText, api_key: this.apiKey},
-                        null);
-                const answer = result.data.content;
-                if (result.data.error) {
-                    this.addDebug(result.data.error)
-                }
-                this.createSpeechBubbleAI(answer, this.messageCount);
-                this.processDebugInput(result.data.agent_messages, this.messageCount);
-                this.messageCount++;
-                this.scrollDown(true);
-                 */
             } catch (error) {
                 console.error(error);
-                this.toggleLoadingSymbol(this.messageCount)
+                this.toggleLoadingSymbol(currentMessageCount)
                 this.createSpeechBubbleAI("Error while fetching data: " + error)
-                this.messageCount++;
                 this.scrollDown(false);
             }
             if (this.autoSpeakNextMessage) {
@@ -280,8 +286,10 @@ export default {
             <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
                 <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
                 <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
-                    <div id="loadingContainer"><div class="loader hidden"></div></div>
-                    <div id="messageContainer">${marked.parse(text)}</div>
+                    <div class="d-flex flex-row justify-content-start">
+                        <div id="loadingContainer"><div class="loader hidden"></div></div>
+                        <div id="messageContainer">${marked.parse(text)}</div>
+                    </div>
                     <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
                         <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
                         debug
@@ -407,7 +415,7 @@ export default {
         addDebugToken(agent_message, messageCount) {
             const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
 
-            // Include a loading symbol in the currently generated ai message bubble
+            // Change the loading message depending on the currently received agent message
             this.editTextSpeechBubbleAI(this.getDebugLoadingMessage(agent_message["agent"]), messageCount)
 
             if (agent_message["tools"].length > 0) {
@@ -415,15 +423,6 @@ export default {
             }
             else {
                 this.addDebug(agent_message["content"], color, agent_message["agent"])
-            }
-            // Add the formatted debug text to the associated speech bubble
-            const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-            if (messageBubble) {
-                let d1 = document.createElement("div")
-                d1.className = "bubble-debug-text"
-                d1.textContent = content
-                d1.style.color = color
-                messageBubble.append(d1)
             }
         },
 
@@ -476,6 +475,7 @@ export default {
             else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
                 debugMessages[debugMessages.length - 1].text += `${text}`
             }
+            // If the message has a new type, assume it is the beginning of a new agent message
             else {
                 debugMessages.push({
                     text: type + ":\n" + text,
@@ -486,12 +486,12 @@ export default {
         },
 
         editTextSpeechBubbleAI(text, id) {
-            const aiBubble = document.getElementById(`ai-message-${id}`)
+            const aiBubble = document.getElementById(`${id}`)
             aiBubble.querySelector("#messageContainer").innerHTML = `${marked.parse(text)}`
         },
 
         toggleLoadingSymbol(id) {
-            const aiBubble = document.getElementById(`ai-message-${id}`)
+            const aiBubble = document.getElementById(`${id}`)
             const loadingContainer = aiBubble.querySelector("#loadingContainer");
             if (loadingContainer) {
                 loadingContainer.classList.toggle("loader");
