@@ -41,7 +41,7 @@ class OpacaClient:
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers())
+            res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
         res.raise_for_status()
         return res.json()
 
