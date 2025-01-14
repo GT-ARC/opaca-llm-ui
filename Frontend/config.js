@@ -73,9 +73,9 @@ var config = {
                     "questions": [
                         {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
                         {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
-                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
                         {"question": "Summarize my upcoming meetings for the next week.", "icon": "📅"},
-                        {"question": "Show my the phone numbers of all participants in my next meeting.", "icon": "📞"},
+                        {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
+                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
                         {"question": "I need the phone numbers of the people working with XAI from the GoKI project.", "icon": "👥"},
                         {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
                         {"question": "Find a meeting slot with the XAI team next week.", "icon": "📆"},
@@ -137,9 +137,9 @@ var config = {
                     "questions": [
                         {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
                         {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
-                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
                         {"question": "Fasse mir meine nächsten Termine für die zusammen.", "icon": "📅"},
                         {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
+                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
                         {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten.", "icon": "👥"},
                         {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
                         {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche.", "icon": "📆"},
