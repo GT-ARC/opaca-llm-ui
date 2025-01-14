@@ -52,60 +52,42 @@ var config = {
             ],
             sidebarQuestions: [
                 {
-                    "header": "General",
-                    "icon": "❓",
-                    "questions": [
-                        {"question": "How can you assist me?"},
-                        {"question": "What are 'Large Language Models'?"},
-                        {"question": "Tell me something about the 'go-KI' project by GT-ARC."},
-                        {"question": "What are the most exciting tech trends for 2025?"}
-                    ]
-                },
-                {
-                    "header": "Email Assistant",
-                    "icon": "✉️",
-                    "questions": [
-                        {"question": "Please fetch and summarize my latest e-mails."},
-                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks."},
-                        {"question": "Show me all unread emails from last week."}
-                    ]
-                },
-                {
-                    "header": "Scheduling Assistant",
-                    "icon": "📅",
-                    "questions": [
-                        {"question": "Schedule a brainstorming session with Tobias."},
-                        {"question": "Find a meeting slot with the XAI team next week."},
-                        {"question": "Show my calendar for next week."}
-                    ]
-                },
-                {
-                    "header": "Smart Office",
-                    "icon": "🏢",
-                    "questions": [
-                        {"question": "Plot the past noise levels in the ZEKI kitchen."},
-                        //{"question": "Is the current CO2 level in the conference room above threshold?"}, //Currently not working properly
-                        //{"question": "Create a forecast of the temperature in the Coworking Space."}, //Currently not working properly
-                        {"question": "Where can I find the espresso cups in the kitchen?"}
-                    ]
-                },
-                {
-                    "header": "Public Services",
-                    "icon": "🏛️",
-                    "questions": [
-                        {"question": "How can I get an appointment at the Berlin Bürgeramt?"},
-                        {"question": "What documents do I need for residence permit?"},
-                        {"question": "How can I find the nearest public service office for my address?"}
-                    ]
-                },
-                {
-                    "header": "Learning",
+                    "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
-                        {"question": "Help me learn data science basics."},
-                        {"question": "Explain Agile methodology."},
-                        {"question": "How to build a simple website?"},
-                        {"question": "What is the Fourth Industrial Revolution?"}
+                        {"question": "Womit kannst du mir helfen?"},
+                        {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC."},
+                        {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?"},
+                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?"},
+                        {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?"},
+                        {"question": "Was sind 'Large Language Models'?"},
+                        {"question": "Was sind die spannendsten Tech-Trends für 2025?"},
+                        {"question": "Erkläre die Agile-Methodik."},
+                        {"question": "Wie erstelle ich eine einfache Website?"}
+                    ]
+                },
+                {
+                    "header": "Task Automation",
+                    "icon": "🤖",
+                    "questions": [
+                        {"question": "Wo finde ich die Espressotassen in der Küche?"},
+                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen."},
+                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird."},
+                        {"question": "Fasse mir meine nächsten Termine für die zusammen."},
+                        {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting."},
+                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten."},
+                        {"question": "Plane ein Brainstorming mit Tobias."},
+                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche."},
+                        {"question": "Zeige mir meinen Kalender für die nächste Woche."}
+                    ]
+                },
+                {
+                    "header": "Data Analysis",
+                    "icon": "📊",
+                    "questions": [
+                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar."},
+                        {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"},
+                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space."}
                     ]
                 }
             ],
@@ -132,60 +114,42 @@ var config = {
             ],
             sidebarQuestions: [
                 {
-                    "header": "Allgemein",
-                    "icon": "❓",
-                    "questions": [
-                        {"question": "Womit kannst du mir helfen?"},
-                        {"question": "Was sind 'Large Language Models'?"},
-                        {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC."},
-                        {"question": "Was sind die spannendsten Tech-Trends für 2025?"}
-                    ]
-                },
-                {
-                    "header": "E-Mail Assistent",
-                    "icon": "✉️",
-                    "questions": [
-                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen."},
-                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird."},
-                        {"question": "Zeige mir alle ungelesenen E-Mails der letzten Woche."}
-                    ]
-                },
-                {
-                    "header": "Terminplanung",
-                    "icon": "📅",
-                    "questions": [
-                        {"question": "Plane ein Brainstorming mit Tobias."},
-                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche."},
-                        {"question": "Zeige meinen Kalender für nächste Woche."}
-                    ]
-                },
-                {
-                    "header": "Smart Office",
-                    "icon": "🏢",
-                    "questions": [
-                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar."},
-                        // {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"}, //Currently not working properly
-                        // {"question": "Erstelle eine Temperaturprognose für den Coworking Space."}, //Currently not working properly
-                        {"question": "Wo finde ich die Espressotassen in der Küche?"}
-                    ]
-                },
-                {
-                    "header": "Öffentlicher Dienst",
-                    "icon": "🏛️",
-                    "questions": [
-                        {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?"},
-                        {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?"},
-                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?"}
-                    ]
-                },
-                {
-                    "header": "Lernen",
+                    "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
-                        {"question": "Hilf mir, die Grundlagen der Data Science zu lernen."},
+                        {"question": "Womit kannst du mir helfen?"},
+                        {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC."},
+                        {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?"},
+                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?"},
+                        {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?"},
+                        {"question": "Was sind 'Large Language Models'?"},
+                        {"question": "Was sind die spannendsten Tech-Trends für 2025?"},
                         {"question": "Erkläre die Agile-Methodik."},
-                        {"question": "Wie erstelle ich eine einfache Website?"},
-                        {"question": "Was ist die Vierte Industrielle Revolution?"}
+                        {"question": "Wie erstelle ich eine einfache Website?"}
+                    ]
+                },
+                {
+                    "header": "Task Automation",
+                    "icon": "🤖",
+                    "questions": [
+                        {"question": "Wo finde ich die Espressotassen in der Küche?"},
+                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen."},
+                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird."},
+                        {"question": "Fasse mir meine nächsten Termine für die zusammen."},
+                        {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting."},
+                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten."},
+                        {"question": "Plane ein Brainstorming mit Tobias."},
+                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche."},
+                        {"question": "Zeige mir meinen Kalender für die nächste Woche."}
+                    ]
+                },
+                {
+                    "header": "Data Analysis",
+                    "icon": "📊",
+                    "questions": [
+                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar."},
+                        {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"},
+                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space."}
                     ]
                 }
             ],
