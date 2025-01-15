@@ -173,7 +173,7 @@ export default {
                             // Last message received should be final response
                             this.toggleLoadingSymbol(currentMessageCount);
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount)
-                            this.editAnimationSpeechBubbleAI(currentMessageCount, false, "#ffffff");
+                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
                             // Append the debug messages generated during this request to the ai message bubble
                             const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`)
@@ -227,7 +227,7 @@ export default {
                 console.error(error);
                 this.toggleLoadingSymbol(currentMessageCount)
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
-                this.editAnimationSpeechBubbleAI(currentMessageCount, false, "#ffffff");
+                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
             }
             if (this.autoSpeakNextMessage) {
@@ -518,25 +518,31 @@ export default {
 
         editAnimationSpeechBubbleAI(id, active, color) {
             const aiBubble = document.getElementById(`${id}`)
-            const animationName = `move-glow-${color.replace(/[^a-zA-Z0-9]/g, "")}`
-            if (!document.querySelector(`#${animationName}`)) {
+
+            if (!document.querySelector(`#move-glow`)) {
                 // Create a style block for the custom animation
                 const style = document.createElement("style");
-                style.id = animationName;
+                style.id = "move-glow";
                 style.innerHTML = `
-                    @keyframes ${animationName} {
+                    @keyframes move-glow {
                         0%, 100% {
-                            box-shadow: 0 0 10px ${color}40;
+                            box-shadow: 0 0 20px var(--glow-color-1, #ffffff40);
                         }
                         50% {
-                            box-shadow: 0 0 20px ${color}90;
+                            box-shadow: 0 0 40px var(--glow-color-2, #ffffff90);
                         }
                     }
                 `;
                 document.head.appendChild(style);
             }
 
-            aiBubble.querySelector("#chatBubble").style.animation = active ? `${animationName} 3s infinite` : "";
+            if (active) {
+                aiBubble.style.setProperty("--glow-color-1", `${color}40`);
+                aiBubble.style.setProperty("--glow-color-2", `${color}90`);
+                aiBubble.querySelector("#chatBubble").style.animation = "move-glow 3s infinite";
+            } else {
+                aiBubble.querySelector("#chatBubble").style.animation = "";
+            }
         },
 
         toggleLoadingSymbol(id) {
