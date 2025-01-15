@@ -86,6 +86,35 @@
                                 </li>
                             </ul>
                         </li>
+
+                        <!-- Voice Server Settings -->
+                        <li class="nav-item dropdown ms-3">
+                            <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-microphone me-1"/>
+                                Voice Server
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
+                                <li>
+                                    <div class="dropdown-item">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
+                                            <span class="ms-2">{{ voiceServerConnected ? 'Connected' : 'Disconnected' }}</span>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li v-if="voiceServerConnected">
+                                    <div class="dropdown-item">
+                                        <small class="text-muted">{{ deviceInfo }}</small>
+                                    </div>
+                                </li>
+                                <li v-if="!voiceServerConnected">
+                                    <button class="dropdown-item" @click="checkVoiceServerConnection">
+                                        <i class="fa fa-refresh me-2"/>
+                                        Retry Connection
+                                    </button>
+                                </li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -109,6 +138,8 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            voiceServerConnected: false,
+            deviceInfo: ''
         }
     },
     methods: {
@@ -171,10 +202,36 @@ export default {
             const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
+        },
+
+        async checkVoiceServerConnection() {
+            try {
+                const response = await fetch(`${conf.VoiceServerAddress}/info`);
+                if (!response.ok) {
+                    this.updateVoiceServerStatus(false);
+                    return;
+                }
+                const data = await response.json();
+                this.deviceInfo = `${data.model} on ${data.device}`;
+                this.updateVoiceServerStatus(true);
+            } catch (error) {
+                this.updateVoiceServerStatus(false);
+            }
+        },
+
+        updateVoiceServerStatus(isConnected) {
+            this.voiceServerConnected = isConnected;
+            this.deviceInfo = isConnected ? this.deviceInfo : '';
+            // Update the voice server status in the MainContent component
+            if (this.$refs.content) {
+                this.$refs.content.voiceServerConnected = isConnected;
+                this.$refs.content.deviceInfo = this.deviceInfo;
+            }
         }
     },
     mounted() {
         this.setupTooltips();
+        this.checkVoiceServerConnection();
     }
 }
 </script>
@@ -292,6 +349,42 @@ header {
     .dropdown-item:hover {
         background-color: var(--background-dark);
         color: var(--primary-dark);
+    }
+
+    .text-muted {
+        color: var(--text-secondary-dark) !important;
+    }
+}
+
+/* Voice Server Settings Styles */
+.text-success {
+    color: #10b981 !important;
+}
+
+.text-danger {
+    color: #ef4444 !important;
+}
+
+.dropdown-item .fa {
+    width: 1.25rem;
+    text-align: center;
+}
+
+.dropdown-item button {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    padding: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .text-success {
+        color: #34d399 !important;
+    }
+
+    .text-danger {
+        color: #f87171 !important;
     }
 }
 </style>

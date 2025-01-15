@@ -2,7 +2,6 @@
     <div class="d-flex justify-content-start flex-grow-1 w-100">
 
         <Sidebar :backend="backend" :language="language" ref="sidebar"
-                 :device-info="deviceInfo"
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @category-selected="updateSelectedCategory"
@@ -50,7 +49,8 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
 
-                    <button type="button"
+                    <button v-if="voiceServerConnected"
+                            type="button"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
                             :disabled="isBusy">
@@ -110,7 +110,8 @@ export default {
             showRecordingPopup: false,
             selectedLanguage: 'english',
             deviceInfo: '',
-            selectedCategory: 'Information & Upskilling'
+            selectedCategory: 'Information & Upskilling',
+            voiceServerConnected: false
         }
     },
     watch: {
@@ -443,7 +444,7 @@ export default {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
         this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
         
-        // Fetch device info
+        // Check voice server connection
         try {
             const response = await fetch(`${conf.VoiceServerAddress}/info`);
             if (!response.ok) {
@@ -451,9 +452,11 @@ export default {
             }
             const data = await response.json();
             this.deviceInfo = `${data.model} on ${data.device}`;
+            this.voiceServerConnected = true;
         } catch (error) {
             console.error('Error fetching device info:', error);
             this.deviceInfo = 'Speech recognition device not available';
+            this.voiceServerConnected = false;
         }
     },
 }
