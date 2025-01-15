@@ -226,7 +226,8 @@ export default {
             } catch (error) {
                 console.error(error);
                 this.toggleLoadingSymbol(currentMessageCount)
-                this.createSpeechBubbleAI("Error while fetching data: " + error)
+                this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
+                this.editAnimationSpeechBubbleAI(currentMessageCount, false, "#ffffff");
                 this.scrollDown(false);
             }
             if (this.autoSpeakNextMessage) {
@@ -513,7 +514,6 @@ export default {
         editTextSpeechBubbleAI(text, id) {
             const aiBubble = document.getElementById(`${id}`)
             aiBubble.querySelector("#messageContainer").innerHTML = `${marked.parse(text)}`
-            // aiBubble.querySelector("#chatBubble").style.boxShadow = color ? `0 0 10px ${color}` : ""
         },
 
         editAnimationSpeechBubbleAI(id, active, color) {
