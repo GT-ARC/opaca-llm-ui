@@ -158,6 +158,7 @@ export default {
 
                     this.createSpeechBubbleAI(`Preparing the system`, currentMessageCount);
                     this.toggleLoadingSymbol(currentMessageCount);
+                    this.editAnimationSpeechBubbleAI(currentMessageCount, true, "#ffffff");
                     this.scrollDown(false)
 
                     const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
@@ -172,13 +173,13 @@ export default {
                             // Last message received should be final response
                             this.toggleLoadingSymbol(currentMessageCount);
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount)
+                            this.editAnimationSpeechBubbleAI(currentMessageCount, false, "#ffffff");
 
                             // Append the debug messages generated during this request to the ai message bubble
                             const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`)
                             const debugMessages = this.$refs.sidebar.debugMessages
                             if (aiBubble) {
                                 for (let i = debugMessageLength; i < debugMessages.length; i++) {
-                                    console.log(debugMessages.at(i));
                                     let d1 = document.createElement("div")
                                     d1.className = "bubble-debug-text"
                                     d1.textContent = debugMessages.at(i).text
@@ -307,7 +308,7 @@ export default {
             d1.innerHTML += `
             <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
                 <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
-                <div class="p-2 ms-3 small mb-0 chatbubble chat-ai">
+                <div id="chatBubble" class="p-2 ms-3 small mb-0 chatbubble chat-ai">
                     <div class="d-flex flex-row justify-content-start">
                         <div id="loadingContainer"><div class="loader hidden"></div></div>
                         <div id="messageContainer">${marked.parse(text)}</div>
@@ -398,17 +399,17 @@ export default {
             // color schemes for modes [dark, light]
             const keywordColors = {
                 // RestGPT
-                "Planner": ["#f00", "#9c0000"],
-                "Action Selector": ["#ff0", "#bf6e00"],
+                "Planner": ["#ff0000", "#9c0000"],
+                "Action Selector": ["#ffff00", "#bf6e00"],
                 "Caller": ["#5151ff", "#0000b1"],
-                "Evaluator": ["#0f0", "#007300"],
+                "Evaluator": ["#00ff00", "#007300"],
                 // Tools
-                "Tool Generator": ["#f00", "#9c0000"],
-                "Tool Evaluator": ["#ff0", "#bf6e00"],
+                "Tool Generator": ["#ff0000", "#9c0000"],
+                "Tool Evaluator": ["#ffff00", "#bf6e00"],
                 // Simple
-                "user": ["#fff", "#000"],
-                "assistant": ["#88f", "#434373"],
-                "system": ["#ff8", "#71713d"],
+                "user": ["#ffffff", "#000000"],
+                "assistant": ["#8888ff", "#434373"],
+                "system": ["#ffff88", "#71713d"],
             }
 
             // return either specific color for light/dark mode or default black/white
@@ -436,9 +437,11 @@ export default {
 
         addDebugToken(agent_message, messageCount) {
             const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
+            const message = this.getDebugLoadingMessage(agent_message["agent"])
+            // Change the loading message and color depending on the currently received agent message
 
-            // Change the loading message depending on the currently received agent message
-            this.editTextSpeechBubbleAI(this.getDebugLoadingMessage(agent_message["agent"]), messageCount)
+            this.editTextSpeechBubbleAI(message, messageCount)
+            this.editAnimationSpeechBubbleAI(messageCount, true, color)
 
             if (agent_message["tools"].length > 0) {
                 this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"] + "-Tools")
@@ -510,6 +513,30 @@ export default {
         editTextSpeechBubbleAI(text, id) {
             const aiBubble = document.getElementById(`${id}`)
             aiBubble.querySelector("#messageContainer").innerHTML = `${marked.parse(text)}`
+            // aiBubble.querySelector("#chatBubble").style.boxShadow = color ? `0 0 10px ${color}` : ""
+        },
+
+        editAnimationSpeechBubbleAI(id, active, color) {
+            const aiBubble = document.getElementById(`${id}`)
+            const animationName = `move-glow-${color.replace(/[^a-zA-Z0-9]/g, "")}`
+            if (!document.querySelector(`#${animationName}`)) {
+                // Create a style block for the custom animation
+                const style = document.createElement("style");
+                style.id = animationName;
+                style.innerHTML = `
+                    @keyframes ${animationName} {
+                        0%, 100% {
+                            box-shadow: 0 0 10px ${color}40;
+                        }
+                        50% {
+                            box-shadow: 0 0 20px ${color}90;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            aiBubble.querySelector("#chatBubble").style.animation = active ? `${animationName} 3s infinite` : "";
         },
 
         toggleLoadingSymbol(id) {
