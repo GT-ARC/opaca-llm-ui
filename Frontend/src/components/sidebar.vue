@@ -148,7 +148,8 @@
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                     <div id="debug-console" class="flex-row-reverse text-start">
                         <div v-for="debugMessage in this.debugMessages" class="debug-text"
-                             :style="debugMessage.color ? { color: debugMessage.color } : {}">
+                             :style="debugMessage.color ? { color: debugMessage.color } : {}"
+                             :data-type="debugMessage.type">
                             {{ debugMessage.text }}
                         </div>
                     </div>

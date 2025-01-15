@@ -98,7 +98,7 @@ export default {
         updateTheme() {
             // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.updateDebugColors()
+            this.updateDebugColors(this.isDarkScheme)
         },
 
         onChangeSimpleKeyboard(input) {
@@ -184,6 +184,7 @@ export default {
                                     d1.className = "bubble-debug-text"
                                     d1.textContent = debugMessages.at(i).text
                                     d1.style.color = debugMessages.at(i).color
+                                    d1.dataset.type = debugMessages.at(i).type
                                     aiBubble.append(d1)
                                 }
                             }
@@ -414,7 +415,7 @@ export default {
             }
 
             // return either specific color for light/dark mode or default black/white
-            return (keywordColors[agentName] ?? ["#fff", "#000"])[darkScheme ? 0 : 1];
+            return (keywordColors[agentName] ?? ["#ffffff", "#000000"])[darkScheme ? 0 : 1];
         },
 
         getDebugLoadingMessage(agentName) {
@@ -478,11 +479,10 @@ export default {
             }
         },
 
-        updateDebugColors() {
+        updateDebugColors(darkScheme) {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
             debugElements.forEach((element) => {
-                const text = element.innerText || element.textContent;
-                element.style.color = this.getDebugColor(text.split(':')[0] ?? "", this.darkScheme);
+                element.style.color = this.getDebugColor(element.dataset.type ?? "", darkScheme);
             });
         },
 
@@ -494,7 +494,7 @@ export default {
                 debugMessages[debugMessages.length - 1] = {
                     text: text,
                     color: color,
-                    type: type,
+                    type: "Tool Generator",
                 }
             }
             // If the message has the same type as before but is not a tool, append the token to the text
