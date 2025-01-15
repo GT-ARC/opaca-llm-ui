@@ -107,4 +107,4 @@ class Evaluator(LLMAgent):
         self.input_variables = ['input']
         self.message_template = "{input}"
 
-        return await super().ainvoke({"input": inputs["input"], "history": inputs["history"]})
+        return await super().ainvoke({"input": inputs["input"], "history": inputs["history"]}, inputs["websocket"])

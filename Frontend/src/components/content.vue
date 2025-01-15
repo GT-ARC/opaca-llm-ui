@@ -154,7 +154,7 @@ export default {
             this.messageCount++;
             this.createSpeechBubbleUser(userText);
             try {
-                if (this.getBackend() === 'tool-llm-openai') {
+                if (['tool-llm-openai', 'rest-gpt-openai'].includes(this.getBackend())) {
 
                     this.createSpeechBubbleAI(`Preparing the system`, currentMessageCount);
                     this.toggleLoadingSymbol(currentMessageCount);

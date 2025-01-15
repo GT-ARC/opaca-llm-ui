@@ -35,6 +35,9 @@ class RestGptBackend(OpacaLLMBackend):
         self.use_llama = use_llama
 
     async def query(self, message: str, session: SessionData) -> Response:
+        return await self.query_stream(message, session, None)
+
+    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Set config
         config = session.config.get(
@@ -73,6 +76,7 @@ class RestGptBackend(OpacaLLMBackend):
                 "config": config,
                 "response": response,
                 "client": session.client,
+                "websocket": websocket,
             })
             response.execution_time = time.time() - total_time
         except openai.AuthenticationError as e:
