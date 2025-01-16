@@ -8,13 +8,21 @@ from fastapi.middleware.cors import CORSMiddleware
 import torch
 from torch.nn.attention import SDPBackend, sdpa_kernel
 import torchaudio
+import torchaudio.transforms as T
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 import io
-import os
-import numpy as np
-from pathlib import Path
-import tempfile
 import logging
+
+def is_flash_attention_2_installed() -> bool:
+    """
+    Attempt to import flash-attn. If successful, return True.
+    Otherwise return False.
+    """
+    try:
+        import flash_attn  # noqa
+        return True
+    except ImportError:
+        return False
 
 class TTSServer:
     def __init__(self):
@@ -37,7 +45,6 @@ class TTSServer:
         self.logger = logging.getLogger(__name__)
 
     def setup_cors(self):
-        # Enable CORS
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -56,55 +63,57 @@ class TTSServer:
     async def startup_event(self):
         # Determine device
         if torch.cuda.is_available():
-            device = "cuda"
+            device = "cuda:0"
             self.device_info = f"CUDA GPU: {torch.cuda.get_device_name(0)}"
+            torch_dtype = torch.float16
         elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
             device = "mps"
             self.device_info = "Apple Silicon MPS"
+            torch_dtype = torch.float32
         else:
             device = "cpu"
             self.device_info = "CPU"
+            torch_dtype = torch.float32
         
         print(f"Device set to use {device}")
-        
-        torch_dtype = torch.float16 if device == "cuda" else torch.float32
+
         model_id = "openai/whisper-large-v3-turbo"
         
-        # Load model with optimizations
+        # Decide on the attention implementation
+        if device.startswith("cuda") and is_flash_attention_2_installed():
+            attn_impl = "flash_attention_2"
+            print("Using Flash Attention 2.")
+        else:
+            attn_impl = "sdpa"
+            print("Falling back to SDPA.")
+        
+        # Load model with proper configuration
         self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            model_id, 
+            model_id,
             torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
             use_safetensors=True,
-            attn_implementation="sdpa"
-        )
-        self.model.to(device)
-        
-        # Enable static cache and compile only for CUDA
-        self.model.generation_config.cache_implementation = "static"
-        self.model.generation_config.max_new_tokens = 128
-        if device == "cuda":
-            self.model.forward = torch.compile(self.model.forward, mode="reduce-overhead", fullgraph=True)
-        
+            attn_implementation=attn_impl,
+        ).to(device)
+
         # Load processor
         self.processor = AutoProcessor.from_pretrained(model_id)
         
-        # Create pipeline with device-specific settings
+        # Configure generation settings
+        self.model.generation_config.cache_implementation = "static"
+        self.model.generation_config.max_new_tokens = 256
+        self.model.generation_config.max_batch_size = 8  # Avoid batch_size deprecation warning
+
+        # Create pipeline with proper configuration
         self.pipe = pipeline(
             "automatic-speech-recognition",
             model=self.model,
             tokenizer=self.processor.tokenizer,
             feature_extractor=self.processor.feature_extractor,
-            chunk_length_s=30,  # Process in 30-second chunks
-            stride_length_s=5,  # 5-second overlap between chunks
-            generate_kwargs={
-                "task": "transcribe",
-                "language": "german",
-                "max_new_tokens": 128,
-                "return_timestamps": False
-            },
             torch_dtype=torch_dtype,
             device=device,
+            chunk_length_s=30,
+            stride_length_s=5,
         )
 
     async def get_device(self):
@@ -121,28 +130,35 @@ class TTSServer:
             contents = await file.read()
             audio_data = io.BytesIO(contents)
             
-            # Load audio using torchaudio
+            # Load audio with torchaudio
             waveform, sample_rate = torchaudio.load(audio_data)
             
             # Convert to mono if stereo
             if waveform.shape[0] > 1:
                 waveform = torch.mean(waveform, dim=0, keepdim=True)
             
-            # Convert to numpy array and prepare input
-            audio_array = waveform.squeeze().numpy()
-            input_features = {
-                "array": audio_array,
-                "sampling_rate": sample_rate
-            }
+            # Resample to 16kHz if needed
+            if sample_rate != 16000:
+                resampler = T.Resample(sample_rate, 16000)
+                waveform = resampler(waveform)
+                sample_rate = 16000
             
-            # Get transcription
-            result = self.pipe(
-                input_features,
-                batch_size=8,
-                generate_kwargs={"task": "transcribe", "language": language}
-            )
+            # Convert to a NumPy array
+            audio_array = waveform.squeeze().numpy()
+
+            # Let pipeline handle the chunking and feature extraction
+            with sdpa_kernel(SDPBackend.MATH):
+                result = self.pipe(
+                    {"raw": audio_array, "sampling_rate": 16000},
+                    generate_kwargs={
+                        "task": "transcribe",
+                        "language": language,
+                        "return_timestamps": False,
+                    }
+                )
             
             return {"text": result["text"].strip()}
+
         except Exception as e:
             self.logger.error(f"Error in transcribe_audio: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
