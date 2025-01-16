@@ -89,10 +89,10 @@ class ToolLLMBackend(OpacaLLMBackend):
                     tool_results.append(str(e))
 
                 # The format should match the one in the StreamCallbackHandler
-                result.tools[i] = (f'Tool {len(tool_names)}: \n'
-                                   f'\tName: {call["name"]},\n'
-                                   f'\tArguments: {call["args"]},\n'
-                                   f'\tResults: {tool_results[-1]}\n')
+                result.tools[i] = (f'Tool {len(tool_names)}:\n'
+                                   f'Name: {call["name"]},\n'
+                                   f'Arguments: {call["args"]},\n'
+                                   f'Results: {tool_results[-1]}\n')
 
             # If a websocket was defined, send the tools WITH their results to the frontend
             if websocket:

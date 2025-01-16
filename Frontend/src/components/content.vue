@@ -82,7 +82,7 @@ import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import {sendRequest} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
-import {debugColors, defaultDebugColors} from '../config/debug-colors.js';
+import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
 export default {
     name: 'main-content',
@@ -134,7 +134,7 @@ export default {
         updateTheme() {
             // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            // this.updateDebugColors(this.isDarkScheme)
+            this.updateDebugColors(this.isDarkScheme)
         },
 
         onChangeSimpleKeyboard(input) {
@@ -409,42 +409,10 @@ export default {
         },
 
         getDebugColor(agentName, darkScheme) {
-            // color schemes for modes [dark, light]
-            const keywordColors = {
-                // RestGPT
-                "Planner": ["#ff0000", "#9c0000"],
-                "Action Selector": ["#ffff00", "#bf6e00"],
-                "Caller": ["#5151ff", "#0000b1"],
-                "Evaluator": ["#00ff00", "#007300"],
-                // Tools
-                "Tool Generator": ["#ff0000", "#9c0000"],
-                "Tool Evaluator": ["#ffff00", "#bf6e00"],
-                // Simple
-                "user": ["#ffffff", "#000000"],
-                "assistant": ["#8888ff", "#434373"],
-                "system": ["#ffff88", "#71713d"],
-            }
-
-            // return either specific color for light/dark mode or default black/white
-            return (keywordColors[agentName] ?? ["#ffffff", "#000000"])[darkScheme ? 0 : 1];
+            return (debugColors[agentName] ?? defaultDebugColors)[darkScheme ? 0 : 1];
         },
 
         getDebugLoadingMessage(agentName) {
-            const debugLoadingMessages = {
-                // RestGPT
-                "Planner": "Planning the next step",
-                "Action Selector": "Selecting the best action",
-                "Caller": "Calling the OPACA platform",
-                "Evaluator": "Evaluating the results",
-                // Tools
-                "Tool Generator": "Generating the necessary tools",
-                "Tool Evaluator": "Evaluating the tools",
-                // Simple
-                "user": "",
-                "assistant": "",
-                "system": "",
-            }
-
             return debugLoadingMessages[agentName];
         },
 
@@ -505,7 +473,7 @@ export default {
                 debugMessages[debugMessages.length - 1] = {
                     text: text,
                     color: color,
-                    type: "Tool Generator",
+                    type: "Tool Generator-Tools",
                 }
             }
             // If the message has the same type as before but is not a tool, append the token to the text
@@ -1064,6 +1032,7 @@ export default {
 
 .debug-toggle:hover {
     color: var(--primary-light);
+}
 
 .loader {
   border: 4px solid transparent;

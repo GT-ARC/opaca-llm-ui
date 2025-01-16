@@ -117,8 +117,8 @@ class StreamCallbackHandler(BaseCallbackHandler):
             functions = self.tool_calls.message.additional_kwargs["tool_calls"]
             self.agent_message.tools = [
                 (f'Tool {i+1}:\n'
-                 f'\tName: {function["function"].get("name", "")},\n'
-                 f'\tArguments: {str(function["function"].get("arguments", ""))},\n')
+                 f'Name: {function["function"].get("name", "")},\n'
+                 f'Arguments: {str(function["function"].get("arguments", ""))},\n')
                 for i, function in enumerate(functions)]
         else:
             self.agent_message.content = token
