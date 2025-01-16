@@ -86,6 +86,35 @@
                                 </li>
                             </ul>
                         </li>
+
+                        <!-- Voice Server Settings -->
+                        <li class="nav-item dropdown ms-3">
+                            <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa fa-microphone me-1"/>
+                                Voice Server
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
+                                <li>
+                                    <div class="dropdown-item">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
+                                            <span class="ms-2">{{ voiceServerConnected ? 'Connected' : 'Disconnected' }}</span>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li v-if="voiceServerConnected">
+                                    <div class="dropdown-item">
+                                        <small class="text-muted">{{ deviceInfo }}</small>
+                                    </div>
+                                </li>
+                                <li v-if="!voiceServerConnected">
+                                    <button class="dropdown-item" @click="checkVoiceServerConnection">
+                                        <i class="fa fa-refresh me-2"/>
+                                        Retry Connection
+                                    </button>
+                                </li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -93,7 +122,7 @@
     </header>
 
     <div class="col background">
-        <MainContent class="tab" :backend="this.backend" :language="this.language" ref="content" />
+        <MainContent class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
     </div>
 </template>
 
@@ -109,6 +138,8 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            voiceServerConnected: false,
+            deviceInfo: ''
         }
     },
     methods: {
@@ -171,25 +202,79 @@ export default {
             const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
+        },
+
+        async checkVoiceServerConnection() {
+            try {
+                const response = await fetch(`${conf.VoiceServerAddress}/info`);
+                if (!response.ok) {
+                    this.updateVoiceServerStatus(false);
+                    return;
+                }
+                const data = await response.json();
+                this.deviceInfo = `${data.model} on ${data.device}`;
+                this.updateVoiceServerStatus(true);
+            } catch (error) {
+                this.updateVoiceServerStatus(false);
+            }
+        },
+
+        updateVoiceServerStatus(isConnected) {
+            this.voiceServerConnected = isConnected;
+            this.deviceInfo = isConnected ? this.deviceInfo : '';
+            // Update the voice server status in the MainContent component
+            if (this.$refs.content) {
+                this.$refs.content.voiceServerConnected = isConnected;
+                this.$refs.content.deviceInfo = this.deviceInfo;
+            }
         }
     },
     mounted() {
         this.setupTooltips();
+        this.checkVoiceServerConnection();
     }
 }
 </script>
 
 <style scoped>
 header {
-    background-color: #fff;
+    background-color: var(--background-light);
     width: 100%;
-    height: 50px;
+    height: 60px;
     display: flex;
     align-items: center;
+    box-shadow: var(--shadow-sm);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.logo {
+    transition: transform 0.2s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
 }
 
 .dropdown-item {
     cursor: pointer;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: var(--surface-light);
+}
+
+.dropdown-menu {
+    border-radius: var(--border-radius-md);
+    border: 1px solid #e5e7eb;
+    box-shadow: var(--shadow-md);
+    padding: 0.5rem;
+    min-width: 200px;
 }
 
 .dropdown-menu li {
@@ -201,6 +286,9 @@ header {
     position: absolute;
     left: 100%;
     top: -7px;
+    border-radius: var(--border-radius-md);
+    border: 1px solid #e5e7eb;
+    box-shadow: var(--shadow-md);
 }
 
 .dropdown-menu .dropdown-submenu-left {
@@ -212,27 +300,91 @@ header {
     display: block;
 }
 
+.nav-link {
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-md);
+    transition: all 0.2s ease;
+    color: var(--text-primary-light);
+}
+
+.nav-link:hover {
+    background-color: var(--surface-light);
+    color: var(--primary-light);
+}
+
+.dropdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 @media (prefers-color-scheme: dark) {
+    header {
+        background-color: var(--background-dark);
+        border-color: #2e2e2e;
+    }
+
     .logo {
-        filter: invert(100%)
+        filter: invert(1);
     }
 
-    #logo {
-        filter: invert(100%)
+    .nav-link {
+        color: var(--text-primary-dark);
     }
 
-    .navbar {
-        background-color: #333;
-        color: white;
+    .nav-link:hover {
+        background-color: var(--surface-dark);
+        color: var(--primary-dark);
     }
 
-    .navbar-nav .nav-link {
-        color: white;
+    .dropdown-menu {
+        background-color: var(--surface-dark);
+        border-color: #2e2e2e;
     }
 
-    .dropdown-menu, .dropdown-item {
-        background-color: #212529 !important;
-        color: white;
+    .dropdown-item {
+        color: var(--text-primary-dark);
+    }
+
+    .dropdown-item:hover {
+        background-color: var(--background-dark);
+        color: var(--primary-dark);
+    }
+
+    .text-muted {
+        color: var(--text-secondary-dark) !important;
+    }
+}
+
+/* Voice Server Settings Styles */
+.text-success {
+    color: #10b981 !important;
+}
+
+.text-danger {
+    color: #ef4444 !important;
+}
+
+.dropdown-item .fa {
+    width: 1.25rem;
+    text-align: center;
+}
+
+.dropdown-item button {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    padding: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .text-success {
+        color: #34d399 !important;
+    }
+
+    .text-danger {
+        color: #f87171 !important;
     }
 }
 </style>
