@@ -136,7 +136,10 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                              "The results were {results}\n"
                              "Generate a response explaining the result to a user. Decide if the user request "
                              "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response.",
+                             "response. Do not try to think ahead on your own. If the user has asked you only "
+                             "for information, it is not your job to solve problems without the user's consent. "
+                             "If a user has asked only for information about damaged devices and you received "
+                             "the necessary information, consider the request as finished.",
         )
 
     @abstractmethod
