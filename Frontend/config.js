@@ -29,21 +29,21 @@ var config = {
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
-    // if true, attempt to connect to the configured platform on load
-    AutoConnect: import.meta.env.VITE_AUTO_CONNECT ?? false,
-
     languages: {
         GB: 'en-GB',
         DE: 'de-DE'
     },
 
+    // if true, attempt to connect to the configured platform on load
+    AutoConnect: false,
+
     // which set of questions is shown within the chat window on startup.
     // possible values: 'general', 'email', 'scheduling', 'smart_office', 'public_services', 'learning', 'random'
-    DefaultQuestions: import.meta.env.VITE_DEFAULT_QUESTIONS ?? 'random',
+    DefaultQuestions: 'random',
 
     // which sidebar view is shown by default.
-    // possible values: 'connect', 'questions', 'agents', 'config', 'debug'
-    DefaultSidebarView: import.meta.env.VITE_DEFAULT_SIDE_OPTION ?? 'agents',
+    // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
+    DefaultSidebarView: 'questions',
 
     translations:{
         GB: {
@@ -219,4 +219,17 @@ var config = {
         },
     },
 }
-export default config = config
+
+function parseQueryParams() {
+    const urlParams = {};
+    for (const [key, value] of (new URLSearchParams(window.location.search)).entries()) {
+        urlParams[key.toLowerCase()] = value;
+    }
+    config.AutoConnect = (urlParams['autoconnect'] === 'true');
+    config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
+    config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
+}
+
+parseQueryParams();
+
+export default config = config;

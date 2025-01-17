@@ -234,16 +234,7 @@ export default {
         };
     },
     created() {
-        // Initialize the sidebar with the connection view open
-        this.selectedView = 'connect';
-        // Ensure the main content is properly positioned on startup
-        this.$nextTick(() => {
-            const mainContent = document.getElementById('mainContent');
-            if (mainContent) {
-                mainContent.classList.remove('mx-auto');
-            }
-            this.$emit('onSidebarToggle', this.selectedView);
-        });
+        // this.selectView('connect');
     },
     methods: {
         getConfig() {

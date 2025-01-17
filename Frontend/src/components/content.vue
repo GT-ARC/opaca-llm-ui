@@ -419,9 +419,15 @@ export default {
                 shuffleArray(questions);
                 return questions.slice(0, 4);
             } else {
-                return this.getConfig().translations[this.language].sidebarQuestions
-                    .find(group => group.id === value)
-                    .questions;
+                try {
+                    return this.getConfig().translations[this.language].sidebarQuestions
+                        .find(group => group.id === value)
+                        .questions;
+                } catch (e) {
+                    console.error(`Invalid sample questions: ${this.getConfig().DefaultQuestions}`);
+                    console.error(e);
+                    return [];
+                }
             }
         },
     },
