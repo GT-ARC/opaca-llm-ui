@@ -68,14 +68,8 @@ class ToolLLMBackend(OpacaLLMBackend):
 
             response.agent_messages.append(result)
 
-            print(f'result: {result}')
-
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for i, call in enumerate(result.tools):
-
-                print(f'call args: {call["args"]}')
-                if call['args'] is None:
-                    call['args'] = {}
 
                 tool_names.append(call['name'])
                 tool_params.append(call['args'])
