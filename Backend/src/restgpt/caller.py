@@ -92,4 +92,4 @@ class Caller(LLMAgent):
                                  "Parameter: {params}\nResult: {response}")
 
         return await super().ainvoke({"api_call": action_name, "description": description,
-                                      "params": params, "response": response})
+                                      "params": params, "response": response}, inputs["websocket"])

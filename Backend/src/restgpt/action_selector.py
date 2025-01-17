@@ -208,7 +208,7 @@ class ActionSelector(LLMAgent):
         self.input_variables = ['input']
         self.message_template = scratchpad.replace("{", "{{").replace("}", "}}") + "{input}"
 
-        result = await super().ainvoke({"input": inputs["plan"], "history": inputs["message_history"]})
+        result = await super().ainvoke({"input": inputs["plan"], "history": inputs["message_history"]}, inputs["websocket"])
         action_plan = result.content.replace("API Call:", "").strip()
 
         # Add first agent message to responses
@@ -223,7 +223,7 @@ class ActionSelector(LLMAgent):
                 action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
-            result = await super().ainvoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]})
+            result = await super().ainvoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]}, inputs["websocket"])
             action_plan = result.content
 
             responses.append(result)

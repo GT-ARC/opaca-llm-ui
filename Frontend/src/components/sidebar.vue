@@ -157,6 +157,7 @@
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :color="debugMessage.color"
+                            :data-type="debugMessage.type"
                         />
                     </div>
                 </div>
@@ -164,7 +165,7 @@
                 <!-- sample questions -->
                 <div v-show="isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions 
+                    <SidebarQuestions
                         :questions="getConfig().translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
                         @category-selected="(category) => $emit('category-selected', category)"/>

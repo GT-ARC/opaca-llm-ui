@@ -59,7 +59,7 @@ var config = {
                         {"question": "How can you assist me?", "icon": "❓"},
                         {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                         {"question": "What documents do I need for a residence permit?", "icon": "📄"},
-                        {"question": "How can I find the nearest public service office for my address?", "icon": "🏢"},
+                        {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
                         {"question": "How can I get an appointment at the Berlin Bürgeramt?", "icon": "📅"},
                         {"question": "What are 'Large Language Models'?", "icon": "🧠"},
                         {"question": "What are the most exciting tech trends for 2025?", "icon": "🚀"},
@@ -68,10 +68,21 @@ var config = {
                     ]
                 },
                 {
+                    "header": "Smart Office",
+                    "icon": "🏢",
+                    "questions": [
+                        //{"question": "How is the temperature in the kitchen?", "icon": "🌡️"},
+                        {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
+                        {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
+                        {"question": "Open the shelf in that stores the glasses.", "icon": "🥃"},
+                        {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
+
+                    ]
+                },
+                {
                     "header": "Task Automation",
                     "icon": "🤖",
                     "questions": [
-                        {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
                         {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                         {"question": "Summarize my upcoming meetings for the next week.", "icon": "📅"},
                         {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
@@ -86,10 +97,9 @@ var config = {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
-                        {"question": "Illustrate a route from Munich to Berlin with UTF-8 characters.", "icon": "🚗"},
                         {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
-                        {"question": "Is the current CO2 level in the conference room above threshold?", "icon": "🌡️"},
+                        {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
+                        {"question": "Give me a detailed step by step route from Munich to Berlin.", "icon": "🚗"}
                     ]
                 }
             ],
@@ -132,10 +142,21 @@ var config = {
                     ]
                 },
                 {
+                    "header": "Smart Office",
+                    "icon": "🏢",
+                    "questions": [
+                        {"question": "Wie ist der CO2-Wert im Konferenzraum?", "icon": "🌡️"},
+                        {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
+                        {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
+                        {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "☕"},
+                        {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
+                        {"question": "Wie ist die Temperatur in der Küche?", "icon": "🌡️"}
+                    ]
+                },
+                {
                     "header": "Task Automation",
                     "icon": "🤖",
                     "questions": [
-                        {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
                         {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                         {"question": "Fasse mir meine nächsten Termine für die zusammen.", "icon": "📅"},
                         {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
@@ -150,10 +171,9 @@ var config = {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
-                        {"question": "Visualisiere eine Route von München nach Berlin mit UTF-8 Zeichen.", "icon": "🚗"},
                         {"question": "Erstelle eine Temperaturprognose für den Coworking Space.", "icon": "🌤️"},
-                        {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?", "icon": "🌡️"},
+                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
+                        {"question": "Visualisiere eine Route von München nach Berlin mit UTF-8 Zeichen.", "icon": "🚗"}
                     ]
                 }
             ],

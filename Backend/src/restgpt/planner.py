@@ -165,4 +165,4 @@ class Planner(LLMAgent):
         self.input_variables = ['input']
         self.message_template = '{input}' + scratchpad
 
-        return await super().ainvoke({"input": inputs["input"], "history": inputs["message_history"]})
+        return await super().ainvoke({"input": inputs["input"], "history": inputs["message_history"]}, inputs["websocket"])

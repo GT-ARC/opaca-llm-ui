@@ -37,10 +37,11 @@ class RestGPT:
         self.evaluator = Evaluator(llm=llm)
         self.action_spec = action_spec
 
-    async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
+    async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict, websocket=None):
         return await self.evaluator.ainvoke({"input": eval_input,
                                              "history": history,
                                              "config": config,
+                                             "websocket": websocket,
                                              })
 
     @property
@@ -126,6 +127,7 @@ class RestGPT:
                                                            "message_history": inputs['history'],
                                                            "config": config,
                                                            "response": response,
+                                                           "websocket": inputs['websocket'],
                                                            })
             response.agent_messages.append(planner_response)
 
@@ -144,6 +146,7 @@ class RestGPT:
                                                               "action_history": action_selector_history,
                                                               "message_history": inputs["history"],
                                                               "config": config,
+                                                              "websocket": inputs['websocket'],
                                                               })
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
             response.agent_messages.extend(as_response)  # Add all action selector messages
@@ -162,6 +165,7 @@ class RestGPT:
                                                          "actions": self.action_spec,
                                                          "config": config,
                                                          "client": inputs["client"],
+                                                         "websocket": inputs['websocket'],
                                                          })
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
@@ -173,7 +177,7 @@ class RestGPT:
 
             # EVALUATOR
             e_time = time.time()
-            eval_response = await self._finished(eval_input, inputs['history'], config)
+            eval_response = await self._finished(eval_input, inputs['history'], config, inputs['websocket'])
             eval_response.execution_time = time.time() - e_time
             response.agent_messages.append(eval_response)
             if re.match(r"FINISHED", eval_response.content):

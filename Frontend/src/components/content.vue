@@ -35,13 +35,13 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
-                    <textarea id="textInput" 
+                    <textarea id="textInput"
                            :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
                            class="form-control"
                            rows="1"
                            @input="autoResize"
                            @keypress="textInputCallback"></textarea>
-                    
+
                     <button type="button"
                             class="btn btn-primary"
                             @click="submitText"
@@ -82,7 +82,7 @@ import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import {sendRequest} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
-import {debugColors, defaultDebugColors} from '../config/debug-colors.js';
+import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
 export default {
     name: 'main-content',
@@ -111,7 +111,8 @@ export default {
             selectedLanguage: 'english',
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
-            voiceServerConnected: false
+            voiceServerConnected: false,
+            statusMessages: {} // Track status messages by messageCount
         }
     },
     watch: {
@@ -134,7 +135,7 @@ export default {
         updateTheme() {
             // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            // this.updateDebugColors()
+            this.updateDebugColors(this.isDarkScheme)
         },
 
         onChangeSimpleKeyboard(input) {
@@ -158,24 +159,102 @@ export default {
 
         async askChatGpt(userText) {
             this.showExampleQuestions = false;
+            const currentMessageCount = this.messageCount;
+            this.messageCount++;
+            const debugMessageLength = this.$refs.sidebar.debugMessages.length;
             this.createSpeechBubbleUser(userText);
             try {
-                const result = await sendRequest(
+                if (['tool-llm-openai', 'rest-gpt-openai'].includes(this.getBackend())) {
+                    // Initialize with preparing message
+                    this.statusMessages[currentMessageCount] = new Map();
+                    const systemMessage = this.getDebugLoadingMessage('preparing');
+                    this.statusMessages[currentMessageCount].set('preparing', systemMessage + ' ...');
+                    this.editTextSpeechBubbleAI(Array.from(this.statusMessages[currentMessageCount].values()).join('\n'), currentMessageCount);
+                    
+                    // Show loading indicator for initial message
+                    const aiBubble = document.getElementById(`${currentMessageCount}`);
+                    if (aiBubble) {
+                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                        if (loadingContainer) {
+                            loadingContainer.classList.remove('hidden');
+                        }
+                    }
+                    
+                    const preparingColor = this.getDebugColor('preparing', this.isDarkScheme);
+                    this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
+                    this.scrollDown(false);
+
+                    const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
+
+                    socket.onmessage = (event) => {
+                        const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+                        if (result.hasOwnProperty("agent")) {
+                            // Mark system preparation as complete on first agent message
+                            if (this.statusMessages[currentMessageCount].has('preparing')) {
+                                const preparingMessage = this.getDebugLoadingMessage('preparing');
+                                this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
+                            }
+                            // Agent messages are intermediate results
+                            this.addDebugToken(result, currentMessageCount);
+                            this.scrollDown(true);
+                        } else {
+                            // Last message received should be final response
+                            this.editTextSpeechBubbleAI(result.content, currentMessageCount);
+                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+
+                            // Append the debug messages generated during this request to the ai message bubble
+                            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
+                            const debugMessages = this.$refs.sidebar.debugMessages;
+                            if (aiBubble) {
+                                for (let i = debugMessageLength; i < debugMessages.length; i++) {
+                                    let d1 = document.createElement("div");
+                                    d1.className = "bubble-debug-text";
+                                    d1.textContent = debugMessages.at(i).text;
+                                    d1.style.color = debugMessages.at(i).color;
+                                    d1.dataset.type = debugMessages.at(i).type;
+                                    aiBubble.append(d1);
+                                }
+                            }
+
+                            // Make expand debug button appear
+                            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
+                            debugToggle.style.display = 'block';
+                            this.scrollDown(false);
+                        }
+                    };
+
+                    socket.onopen = () => {
+                        const inputData = {user_query: userText, api_key: this.apiKey};
+                        socket.send(JSON.stringify(inputData));
+                    };
+
+                    socket.onclose = () => {
+                        console.log("WebSocket connection closed");
+                    };
+                } else {
+                    this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
+                    this.toggleLoadingSymbol(currentMessageCount);
+                    this.scrollDown(false)
+
+                    const result = await sendRequest(
                         "POST",
                         `${conf.BackendAddress}/${this.getBackend()}/query`,
                         {user_query: userText, api_key: this.apiKey},
                         null);
-                const answer = result.data.content;
-                if (result.data.error) {
-                    this.addDebug(result.data.error)
+                    const answer = result.data.content;
+                    if (result.data.error) {
+                        this.addDebug(result.data.error)
+                    }
+                    this.toggleLoadingSymbol(currentMessageCount)
+                    this.editTextSpeechBubbleAI(answer, currentMessageCount)
+                    this.scrollDown(false);
+                    this.processDebugInput(result.data.agent_messages, currentMessageCount);
+                    this.scrollDown(true);
                 }
-                this.createSpeechBubbleAI(answer, this.messageCount);
-                this.processDebugInput(result.data.agent_messages, this.messageCount);
-                this.messageCount++;
-                this.scrollDown(true);
             } catch (error) {
                 console.error(error);
-                this.createSpeechBubbleAI("Error while fetching data: " + error)
+                this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
+                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
             }
             if (this.autoSpeakNextMessage) {
@@ -249,34 +328,40 @@ export default {
 
         createSpeechBubbleAI(text, id) {
             this.lastMessage = text;
-            const chat = document.getElementById("chat-container")
-            let d1 = document.createElement("div")
+            const chat = document.getElementById("chat-container");
+            let d1 = document.createElement("div");
             let debugId = `debug-${id}`;
-            const isWaiting = text === '. . .';
-            const content = isWaiting ? '<span>.</span><span>.</span><span>.</span>' : marked.parse(text);
+            const isStatusMessage = text.includes('...') || text.includes('✓');
+            
+            // Format the initial text appropriately
+            const formattedText = isStatusMessage 
+                ? text.split('\n')
+                    .filter(line => line.trim() !== '')
+                    .map(line => `<div class="status-line">${line}</div>`)
+                    .join('')
+                : marked.parse(text);
+
             d1.innerHTML = `
-                <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
-                    <div class="chaticon">
-                        <img src="/src/assets/Icons/ai.png" alt="AI">
+            <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
+                <div class="chaticon">
+                    <img src="/src/assets/Icons/ai.png" alt="AI">
+                </div>
+                <div id="chatBubble" class="p-3 ms-3 small mb-0 chatbubble chat-ai">
+                    <div class="d-flex flex-row justify-content-start message-content">
+                        <div id="loadingContainer"><div class="loader hidden"></div></div>
+                        <div id="messageContainer" class="message-text">${formattedText}</div>
                     </div>
-                    <div class="chatbubble chat-ai ${isWaiting ? 'waiting' : ''}">
-                        ${content}
-                        <div id="${debugId}-toggle" class="debug-toggle" style="display: none;">
-                            <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                            debug
-                        </div>
-                        <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                        <div id="${debugId}-text" class="bubble-debug-text" style="display: none;"/>
+                    <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                        <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                        debug
                     </div>
-                </div>`;
+                    <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                    <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
+                </div>
+            </div>`;
 
-            const waitBubble = document.getElementById('waitBubble');
-            if (waitBubble) {
-                waitBubble.remove();
-            }
             this.isBusy = false;
-
-            chat.appendChild(d1)
+            chat.appendChild(d1);
 
             const debugToggle = document.getElementById(`${debugId}-toggle`);
             const debugSeparator = document.getElementById(`${debugId}-separator`);
@@ -314,13 +399,12 @@ export default {
                     </div>
                 </div>`;
             chat.appendChild(d1)
-            this.createSpeechBubbleAI('. . .', 'waitBubble')
             this.scrollDown(false)
         },
 
         scrollDown(debug) {
             const chatDiv = debug
-                    ? document.getElementById('chatDebug')
+                    ? document.getElementById('debug-console')
                     : document.getElementById('chat1');
             chatDiv.scrollTop = chatDiv.scrollHeight;
         },
@@ -354,6 +438,46 @@ export default {
             return (debugColors[agentName] ?? defaultDebugColors)[darkScheme ? 0 : 1];
         },
 
+        getDebugLoadingMessage(agentName) {
+            // Use the current language (GB or DE) to get the appropriate message
+            return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
+        },
+
+        addDebugToken(agent_message, messageCount) {
+            const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
+            const message = this.getDebugLoadingMessage(agent_message["agent"]);
+
+            // Initialize status messages for this messageCount if not exists
+            if (!this.statusMessages[messageCount]) {
+                this.statusMessages[messageCount] = new Map();
+            }
+
+            // Update status message for this agent
+            if (message) {
+                // Mark previous agent's message as completed
+                for (const [agent, status] of this.statusMessages[messageCount].entries()) {
+                    if (status.endsWith('...')) {
+                        this.statusMessages[messageCount].set(agent, status.replace('...', '✓'));
+                    }
+                }
+                // Set current agent's message
+                this.statusMessages[messageCount].set(agent_message["agent"], message + ' ...');
+            }
+
+            // Build cumulative status message from all agents
+            const statusMessage = Array.from(this.statusMessages[messageCount].values()).join('\n');
+            
+            // Change the loading message and color depending on the currently received agent message
+            this.editTextSpeechBubbleAI(statusMessage, messageCount);
+            this.editAnimationSpeechBubbleAI(messageCount, true, color);
+
+            if (agent_message["tools"].length > 0) {
+                this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"] + "-Tools");
+            } else {
+                this.addDebug(agent_message["content"], color, agent_message["agent"]);
+            }
+        },
+
         processDebugInput(agent_messages, messageCount) {
             if (agent_messages.length > 0) {
                 // if at least one debug message was found, let the "debug" button appear on the speech bubble
@@ -366,7 +490,7 @@ export default {
                 const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
-                this.addDebug(content, color)
+                this.addDebug(content, color, message["agent"])
 
                 // Add the formatted debug text to the associated speech bubble
                 const messageBubble = document.getElementById(`debug-${messageCount}-text`)
@@ -380,19 +504,123 @@ export default {
             }
         },
 
-        updateDebugColors() {
+        updateDebugColors(darkScheme) {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
             debugElements.forEach((element) => {
-                const text = element.innerText || element.textContent;
-                element.style.color = this.getDebugColor(text.split(':')[0] ?? "", this.darkScheme);
+                element.style.color = this.getDebugColor(element.dataset.type ?? "", darkScheme);
             });
         },
 
-        addDebug(text, color) {
-            this.$refs.sidebar.debugMessages.push({
-                text: text,
-                color: color
-            });
+        addDebug(text, color, type) {
+            const debugMessages = this.$refs.sidebar.debugMessages;
+
+            // If the message includes tools, the message needs to be replaced instead of appended
+            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && text) {
+                debugMessages[debugMessages.length - 1] = {
+                    text: text,
+                    color: color,
+                    type: "Tool Generator-Tools",
+                }
+            }
+            // If the message has the same type as before but is not a tool, append the token to the text
+            else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
+                debugMessages[debugMessages.length - 1].text += `${text}`
+            }
+            // If the message has a new type, assume it is the beginning of a new agent message
+            else {
+                debugMessages.push({
+                    text: type + ":\n" + text,
+                    color: color,
+                    type: type,
+                });
+            }
+        },
+
+        editAnimationSpeechBubbleAI(id, active, color) {
+            const aiBubble = document.getElementById(`${id}`);
+            if (!aiBubble) return;
+
+            if (!document.querySelector(`#move-glow`)) {
+                // Create a style block for the custom animation
+                const style = document.createElement("style");
+                style.id = "move-glow";
+                style.innerHTML = `
+                    @keyframes move-glow {
+                        0%, 100% {
+                            box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
+                        }
+                        50% {
+                            box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            const chatBubble = aiBubble.querySelector("#chatBubble");
+            if (!chatBubble) return;
+
+            if (active) {
+                if (color === "#ffffff") {
+                    // Initial phase - use primary color with more intensity
+                    chatBubble.style.setProperty("--glow-color-1", "var(--primary-light)40");
+                    chatBubble.style.setProperty("--glow-color-2", "var(--primary-light)90");
+                } else {
+                    chatBubble.style.setProperty("--glow-color-1", `${color}40`);
+                    chatBubble.style.setProperty("--glow-color-2", `${color}90`);
+                }
+                chatBubble.style.animation = "move-glow 3s infinite";
+            } else {
+                chatBubble.style.animation = "";
+            }
+        },
+
+        editTextSpeechBubbleAI(text, id) {
+            const aiBubble = document.getElementById(`${id}`);
+            if (!aiBubble) {
+                // If the bubble doesn't exist yet, create it
+                this.createSpeechBubbleAI(text, id);
+                return;
+            }
+
+            const messageContainer = aiBubble.querySelector("#messageContainer");
+            if (!messageContainer) return;
+
+            // Check if this is a status message (contains checkmarks or ellipsis)
+            const isStatusMessage = text.includes('...') || text.includes('✓');
+            
+            if (isStatusMessage) {
+                // Format status messages with clean line breaks
+                const formattedText = text.split('\n')
+                    .filter(line => line.trim() !== '')
+                    .map(line => `<div class="status-line">${line}</div>`)
+                    .join('');
+                messageContainer.innerHTML = formattedText;
+
+                // Show loading indicator for active status
+                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                if (loadingContainer) {
+                    loadingContainer.classList.toggle('hidden', !text.includes('...'));
+                }
+            } else {
+                // Use markdown parsing for regular messages
+                messageContainer.innerHTML = marked.parse(text);
+                // Hide loading indicator for final message
+                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                if (loadingContainer) {
+                    loadingContainer.classList.add('hidden');
+                }
+            }
+        },
+
+        toggleLoadingSymbol(id) {
+            const aiBubble = document.getElementById(`${id}`);
+            if (!aiBubble) return;
+
+            const loadingContainer = aiBubble.querySelector("#loadingContainer");
+            if (!loadingContainer) return;
+
+            loadingContainer.classList.toggle("loader");
         },
 
         getBackend() {
@@ -416,12 +644,12 @@ export default {
         getCurrentCategoryQuestions() {
             const categories = conf.translations[this.language].sidebarQuestions;
             const currentCategory = categories.find(cat => cat.header === this.selectedCategory);
-            
+
             if (!currentCategory) {
                 // If no category is selected, show default sample questions
                 return conf.translations[this.language].sampleQuestions;
             }
-            
+
             // Take first 3 questions and use their individual icons
             return currentCategory.questions.slice(0, 3).map(q => ({
                 question: q.question,
@@ -443,7 +671,7 @@ export default {
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
         this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
-        
+
         // Check voice server connection
         try {
             const response = await fetch(`${conf.VoiceServerAddress}/info`);
@@ -468,17 +696,28 @@ export default {
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
-    padding: 0.75rem 1.25rem;
-    margin: 0.25rem auto;
     transition: all 0.2s ease;
     width: fit-content;
     max-width: 800px;
+}
+
+.message-content {
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.message-text {
+    flex: 1;
+    min-width: 0;
+    padding-right: 0.5rem;
+    white-space: normal;
 }
 
 .chat-user {
     background-color: var(--chat-user-light);
     margin-left: auto;
     margin-right: 1rem;
+    padding: 0.75rem 1.25rem;
     width: auto !important; /* Override any width constraints */
 }
 
@@ -487,6 +726,8 @@ export default {
     margin-left: 1rem;
     margin-right: auto;
     width: calc(100% - 4rem) !important;
+    will-change: box-shadow;
+    transition: box-shadow 0.3s ease;
 }
 
 .chaticon {
@@ -543,7 +784,7 @@ export default {
 /* Top fade */
 #mainContent::before {
     top: 0;
-    background: linear-gradient(to bottom, 
+    background: linear-gradient(to bottom,
         var(--background-light) 0%,
         var(--background-light) 40%,
         transparent 100%);
@@ -552,7 +793,7 @@ export default {
 /* Bottom fade */
 #mainContent::after {
     bottom: 88px; /* Input container height + padding */
-    background: linear-gradient(to top, 
+    background: linear-gradient(to top,
         var(--background-light) 0%,
         var(--background-light) 40%,
         transparent 100%);
@@ -560,14 +801,14 @@ export default {
 
 @media (prefers-color-scheme: dark) {
     #mainContent::before {
-        background: linear-gradient(to bottom, 
+        background: linear-gradient(to bottom,
             var(--background-dark) 0%,
             var(--background-dark) 40%,
             transparent 100%);
     }
 
     #mainContent::after {
-        background: linear-gradient(to top, 
+        background: linear-gradient(to top,
             var(--background-dark) 0%,
             var(--background-dark) 40%,
             transparent 100%);
@@ -877,10 +1118,6 @@ export default {
     background-color: transparent;
 }
 
-.debug-text {
-    /* color: rgba(16, 163, 127, 0.8) !important; */
-}
-
 .debug-toggle {
     cursor: pointer;
     font-size: 0.75rem;
@@ -895,6 +1132,31 @@ export default {
 
 .debug-toggle:hover {
     color: var(--primary-light);
+}
+
+.loader {
+    border: 2px solid transparent;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+.hidden {
+    display: none;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 400px) {
+    .opaca-credentials {
+        flex-direction: column;
+    }
 }
 
 .debug-toggle img {
@@ -918,7 +1180,7 @@ export default {
 
 @media (prefers-color-scheme: dark) {
     .debug-text {
-        /* color: rgba(16, 163, 127, 0.7) !important; */
+        /* Remove empty style */
     }
 
     .debug-toggle {
@@ -993,6 +1255,23 @@ export default {
 /* Remove the bubble bounce animation */
 #waitBubble .chat-ai {
     animation: none;
+}
+
+.status-line {
+    margin: 0;
+    line-height: 1.4;
+    padding: 0.1rem 0;
+    display: flex;
+    align-items: center;
+}
+
+@keyframes move-glow {
+    0%, 100% {
+        box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
+    }
+    50% {
+        box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
+    }
 }
 
 </style>

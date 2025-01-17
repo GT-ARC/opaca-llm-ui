@@ -136,7 +136,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                              "The results were {results}\n"
                              "Generate a response explaining the result to a user. Decide if the user request "
                              "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response."
+                             "response.",
         )
 
     @abstractmethod
@@ -146,7 +146,8 @@ class ToolMethod(metaclass=ToolMethodRegistry):
             message: str,
             tool_responses: List[AIMessage],
             config: Optional[Dict[str, Any]],
-            correction_message: str = ""
+            correction_message: str = "",
+            websocket=None,
     ) -> AgentMessage:
         """
         Invokes the generator agent.
@@ -155,6 +156,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         :param tool_responses: The list of tool responses. Per entry includes the tool name, tool parameters, tool result
         :param config: The method specific configuration
         :param correction_message: An optional correction message. Is appended to the original message
+        :param websocket: Optional websocket to stream llm tokens during their generation
         :return: AgentMessage
         """
         pass
@@ -165,7 +167,8 @@ class ToolMethod(metaclass=ToolMethodRegistry):
             message,
             tool_names,
             tool_parameters,
-            tool_results
+            tool_results,
+            websocket=None,
     ) -> AgentMessage:
         """
         Invokes the evaluator agent.
@@ -173,6 +176,7 @@ class ToolMethod(metaclass=ToolMethodRegistry):
         :param tool_names: A list of names of the called tools
         :param tool_parameters: A list of the parameters in JSON format of the called tools
         :param tool_results: A list of the returned results by the OPACA platform of the called tools
+        :param websocket: Optional websocket to stream llm tokens during their generation
         :return: AgentMessage
         """
         pass
