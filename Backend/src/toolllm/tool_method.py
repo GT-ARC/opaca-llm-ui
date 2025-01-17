@@ -139,7 +139,8 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                              "response. Do not try to think ahead on your own. If the user has asked you only "
                              "for information, it is not your job to solve problems without the user's consent. "
                              "If a user has asked only for information about damaged devices and you received "
-                             "the necessary information, consider the request as finished.",
+                             "the necessary information, consider the request as finished. Use the markdown language "
+                             "if necessary.",
         )
 
     @abstractmethod
