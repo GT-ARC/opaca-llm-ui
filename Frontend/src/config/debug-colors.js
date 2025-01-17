@@ -24,7 +24,7 @@ export const defaultDebugColors = ["#fff", "#000"];
 export const debugLoadingMessages = {
     GB: {
         // System
-        "preparing": "Initializing the OPACA AI Agent",
+        "preparing": "Initializing the OPACA AI Agents",
         // RestGPT
         "Planner": "Analyzing your request",
         "Action Selector": "Determining best approach",
@@ -40,7 +40,7 @@ export const debugLoadingMessages = {
     },
     DE: {
         // System
-        "preparing": "OPACA KI-Agent wird initialisiert",
+        "preparing": "OPACA KI-Agenten werden initialisiert",
         // RestGPT
         "Planner": "Analysiere Ihre Anfrage",
         "Action Selector": "Ermittle beste Vorgehensweise",

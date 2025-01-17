@@ -404,7 +404,7 @@ export default {
 
         scrollDown(debug) {
             const chatDiv = debug
-                    ? document.getElementById('chatDebug')
+                    ? document.getElementById('debug-console')
                     : document.getElementById('chat1');
             chatDiv.scrollTop = chatDiv.scrollHeight;
         },
