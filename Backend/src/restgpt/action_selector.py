@@ -1,15 +1,11 @@
 import json
-import time
 from typing import Any, Dict, List, Tuple
 import re
 import logging
 
-from langchain.chains.base import Chain
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
 
-from .utils import build_prompt
-from ..models import AgentMessage
+from ..models import AgentMessage, LLMAgent
 
 logger = logging.getLogger()
 
@@ -110,42 +106,18 @@ an overview of the parameters to call that action, and the definition of custom 
 """
 
 
-class ActionSelector(Chain):
-    llm: BaseChatModel
-    action_spec: List
-    action_selector_prompt: str
+class ActionSelector(LLMAgent):
 
-    def __init__(self, llm: BaseChatModel, action_spec: List, action_selector_prompt=ACTION_SELECTOR_PROMPT) -> None:
-        super().__init__(llm=llm, action_spec=action_spec, action_selector_prompt=action_selector_prompt)
-
-    @property
-    def _chain_type(self) -> str:
-        return "Opaca-LLM Action Selector"
+    def __init__(self, llm: BaseChatModel):
+        super().__init__(
+            name="Action Selector",
+            llm=llm.bind(stop=self._stop),
+            system_prompt=ACTION_SELECTOR_PROMPT,
+        )
 
     @property
-    def input_keys(self) -> List[str]:
-        return ["plan"]
-
-    @property
-    def output_keys(self) -> List[str]:
-        return ["result"]
-
-    @property
-    def observation_prefix(self) -> str:
-        """Prefix to append the observation with."""
+    def _stop(self):
         return "API Response: "
-
-    @property
-    def llm_prefix(self) -> str:
-        """Prefix to append the llm call with."""
-        return "API Call: "
-
-    @property
-    def _stop(self) -> List[str]:
-        return [
-            f"\n{self.observation_prefix.rstrip()}",
-            f"\n\t{self.observation_prefix.rstrip()}",
-        ]
 
     @staticmethod
     def _check_missing(output: str):
@@ -195,8 +167,9 @@ class ActionSelector(Chain):
                 # Check if no parameter is hallucinated
                 for parameter in p_json.keys():
                     if parameter not in [p for p in action_from_list.params_in.keys()]:
-                        err_out += (f'You have included the improper parameter {parameter} in your generated list of '
-                                    f'parameters. Please only use parameters that are given in the action description.\n')
+                        err_out += (f'You have included the improper parameter {parameter} in '
+                                    f'your generated list of parameters. Please only use parameters '
+                                    f'that are given in the action description.\n')
 
                 if err_out == "":
                     return ""
@@ -214,11 +187,14 @@ class ActionSelector(Chain):
         scratchpad = ""
         for i, (plan, api_call, api_response) in enumerate(history):
             scratchpad += f'Instruction: {plan}\n'
-            scratchpad += self.llm_prefix + api_call + "\n"
-            scratchpad += self.observation_prefix + api_response + "\n"
+            scratchpad += 'API Call: ' + api_call + "\n"
+            scratchpad += self._stop + api_response + "\n"
         return scratchpad
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    async def ainvoke(
+            self,
+            inputs: Dict[str, Any]
+    ) -> List[AgentMessage]:
         responses = []
         scratchpad = self._construct_scratchpad(inputs["action_history"])
         action_list = ""
@@ -226,66 +202,38 @@ class ActionSelector(Chain):
             action_list += action.selector_str(inputs['config']['use_agent_names']) + '\n'
 
         # Initial Action/Parameter generation
+        self.system_prompt = (ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']['action_selector']
+                              else ACTION_SELECTOR_PROMPT) + action_list
+        self.examples = examples if inputs['config']['examples']['action_selector'] else []
+        self.input_variables = ['input']
+        self.message_template = scratchpad.replace("{", "{{").replace("}", "}}") + "{input}"
 
-        prompt = build_prompt(
-            system_prompt=(ACTION_SELECTOR_PROMPT_SLIM if inputs['config']['slim_prompts']['action_selector']
-                           else ACTION_SELECTOR_PROMPT) + action_list,
-            examples=examples if inputs['config']['examples']['action_selector'] else [],
-            input_variables=["input"],
-            message_template = scratchpad.replace("{", "{{").replace("}", "}}") + "{input}"
-        )
-
-        chain = prompt | self.llm.bind(stop=self._stop)
-
-        time_ = time.time()
-        output = chain.invoke({"input": inputs["plan"], "history": inputs["message_history"]})
-        time_ = time.time() - time_
-
-        res_meta_data = {}
-        if isinstance(output, AIMessage):
-            res_meta_data = output.response_metadata.get("token_usage", {})
-            output = output.content
-
-        action_plan = output.replace("API Call:", "").strip()
+        result = await super().ainvoke({"input": inputs["plan"], "history": inputs["message_history"]}, inputs["websocket"])
+        action_plan = result.content.replace("API Call:", "").strip()
 
         # Add first agent message to responses
-        responses.append(AgentMessage(
-                        agent="Action Selector",
-                        content=action_plan,
-                        response_metadata=res_meta_data,
-                        execution_time=time_,
-                        ))
+        responses.append(result)
 
         # Return if the input prompt is missing required parameter values
         if self._check_missing(action_plan):
-            return {"result": responses}
+            return responses
 
         correction_limit = 1
         while (err_msg := self._check_valid_action(
                 action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
             logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
 
-            time_ = time.time()
-            output = chain.invoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]})
-            time_ = time.time() - time_
+            result = await super().ainvoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]}, inputs["websocket"])
+            action_plan = result.content
 
-            if isinstance(output, AIMessage):
-                res_meta_data = output.response_metadata.get("token_usage", {})
-                output = output.content
+            responses.append(result)
 
-            responses.append(AgentMessage(
-                agent="Action Selector",
-                content=output,
-                response_metadata=res_meta_data,
-                execution_time=time_,
-            ))
-
-            if self._check_missing(output):
-                return {"result": responses}
+            if self._check_missing(action_plan):
+                return responses
             else:
-                action_plan = output.replace("API Call:", "").strip()
+                action_plan = action_plan.replace("API Call:", "").strip()
                 responses[-1].content = action_plan
 
             correction_limit += 1
 
-        return {"result": responses}
+        return responses

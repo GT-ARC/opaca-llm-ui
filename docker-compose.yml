@@ -10,7 +10,7 @@ services:
       - "5173:5173"
     depends_on:
       - opaca-llm-backend
-      - opaca-tts-server
+      #- opaca-tts-server
     environment:
       VITE_PLATFORM_BASE_URL:
       VITE_BACKEND_BASE_URL:
@@ -30,8 +30,8 @@ services:
       OPENAI_API_KEY:
 
   # TTS Server for voice synthesis
-  opaca-tts-server:
-    build: ./Backend/tts-server
-    image: opaca-tts-server
-    ports:
-      - "7431:7431"
+  #opaca-tts-server:
+  #  build: ./Backend/tts-server
+  #  image: opaca-tts-server
+  #  ports:
+  #    - "7431:7431"

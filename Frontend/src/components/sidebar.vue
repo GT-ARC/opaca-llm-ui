@@ -125,29 +125,6 @@
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <!-- Device Info
-                        <div class="config-section">
-                            <div class="config-section-header">
-                                <i class="fa fa-microchip"/>
-                                <strong>Speech Recognition Device</strong>
-                            </div>
-                            <div class="config-section-content">{{ deviceInfo || 'Loading...' }}</div>
-                        </div> -->
-
-                        <!-- Language Selection -->
-                        <!-- <div class="config-section">
-                            <div class="config-section-header">
-                                <i class="fa fa-language"/>
-                                <strong>Recognition Language</strong>
-                            </div>
-                            <select v-model="selectedLanguage"
-                                    class="form-control"
-                                    @change="$emit('language-change', selectedLanguage)">
-                                <option value="english">English</option>
-                                <option value="german">German</option>
-                            </select>
-                        </div> -->
-
                         <!-- Other Config Items -->
                         <div v-for="(value, name) in backendConfig" :key="name" class="config-section">
                             <div class="config-section-header">
@@ -180,6 +157,7 @@
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :color="debugMessage.color"
+                            :data-type="debugMessage.type"
                         />
                     </div>
                 </div>
@@ -187,9 +165,10 @@
                 <!-- sample questions -->
                 <div v-show="isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions 
+                    <SidebarQuestions
                         :questions="getConfig().translations[language].sidebarQuestions"
-                        @select-question="handleQuestionSelect"/>
+                        @select-question="handleQuestionSelect"
+                        @category-selected="(category) => $emit('category-selected', category)"/>
                 </div>
 
                 <div class="resizer me-1" id="resizer" />
@@ -213,11 +192,7 @@ export default {
     },
     props: {
         backend: String,
-        language: String,
-        deviceInfo: {
-            type: String,
-            default: ''
-        }
+        language: String
     },
     data() {
         return {

@@ -1,9 +1,19 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+import time
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional, Union
+from uuid import UUID
 
-from typing import List, Dict, Any
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
 from pydantic import BaseModel
+from starlette.websockets import WebSocket
+
+from .utils import build_prompt
 
 
 class Url(BaseModel):
@@ -14,8 +24,7 @@ class Url(BaseModel):
 
 class Message(BaseModel):
     user_query: str
-    debug: bool
-    api_key: str
+    api_key: str = ""
 
 
 class AgentMessage(BaseModel):
@@ -24,7 +33,7 @@ class AgentMessage(BaseModel):
     """
     agent: str
     content: str = ''
-    tools: List[str] = []
+    tools: List[Any] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
 
@@ -48,3 +57,124 @@ class SessionData(BaseModel):
     messages: List[Any] = []
     config: Dict[str, Any] = {}
     client: Any = None
+    api_key: str = None
+
+
+class OpacaLLMBackend(ABC):
+    NAME: str
+    llm: BaseChatModel
+
+    @property
+    @abstractmethod
+    def default_config(self):
+        pass
+
+    @abstractmethod
+    async def query(self, message: str, session: SessionData) -> Response:
+        pass
+
+    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+        pass
+
+
+class StreamCallbackHandler(BaseCallbackHandler):
+
+    def __init__(self, agent_message: AgentMessage, websocket):
+        self.agent_message = agent_message
+        self.websocket = websocket
+        self.tool_calls = None
+        self.first = True
+
+    async def on_llm_new_token(
+            self,
+            token: str,
+            *,
+            chunk: Optional[Union[GenerationChunk, ChatGenerationChunk]] = None,
+            run_id: UUID,
+            parent_run_id: Optional[UUID] = None,
+            **kwargs: Any,
+    ) -> Any:
+        """
+        Is called everytime the llm generates a new token.
+        If the handler was initialized with a websocket, sends an incomplete AgentMessage via the websocket.
+        The generated AgentMessage does NOT include the result from the OPACA platform.
+        Generated tools are "extended" over time and send as a list.
+            E.g.: 1st event: [{"name": "foo", "args": {}}]
+                  2nd event: [{"name": "foo", "args": {"param": "value"}}]
+                  ...
+        Generated output tokens are send on their own in the content field.
+            E.g.: 1st event: "Hello"
+                  2nd event: " World"
+                  ...
+        """
+        if chunk.message.additional_kwargs.get('tool_calls', {}):
+            if self.first:
+                self.tool_calls = chunk
+                self.first = False
+            else:
+                self.tool_calls += chunk
+
+            functions = self.tool_calls.message.additional_kwargs["tool_calls"]
+            self.agent_message.tools = [
+                (f'Tool {i+1}:\n'
+                 f'Name: {function["function"].get("name", "")},\n'
+                 f'Arguments: {str(function["function"].get("arguments", ""))},\n')
+                for i, function in enumerate(functions)]
+        else:
+            self.agent_message.content = token
+        if self.websocket:
+            await self.websocket.send_json(self.agent_message.model_dump_json())
+
+
+class LLMAgent:
+    name: str
+    llm: BaseChatModel
+    system_prompt: str
+    examples: List = []
+    input_variables: List[str] = []
+    message_template: str = ''
+    tools: List = []
+
+    def __init__(self, name: str, llm: BaseChatModel, system_prompt: str, **kwargs):
+        self.name = name
+        self.llm = llm
+        self.system_prompt = system_prompt
+        self.examples = kwargs.get('examples', [])
+        self.input_variables = kwargs.get('input_variables', [])
+        self.message_template = kwargs.get('message_template', '')
+        self.tools = kwargs.get('tools', [])
+
+    async def ainvoke(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
+        exec_time = time.time()
+        prompt = build_prompt(
+            system_prompt=self.system_prompt,
+            examples=self.examples,
+            input_variables=self.input_variables,
+            message_template=self.message_template,
+        )
+
+        agent_message = AgentMessage(
+            agent=self.name,
+            content='',
+            tools=[],
+        )
+
+        config = inputs.get('config', {})
+        config |= {'callbacks': [StreamCallbackHandler(agent_message, websocket)]}
+
+        chain = prompt | (self.llm.bind_tools(tools=self.tools) if len(self.tools) > 0 else self.llm)
+
+        result = AIMessageChunk(content="")
+        async for chunk in chain.astream(inputs, config=config):
+            result += chunk
+
+        # Check if the response type matches the expected AIMessage
+        if isinstance(result, AIMessage):
+            agent_message.response_metadata = result.response_metadata.get("token_usage", {})
+            agent_message.tools = result.tool_calls
+            agent_message.content = result.content
+        else:
+            agent_message.content = result
+        agent_message.execution_time = time.time() - exec_time
+
+        return agent_message

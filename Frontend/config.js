@@ -55,74 +55,59 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
-            sampleQuestions: [
-                {"question": "How can you assist me?", "icon": "❓"}, 
-                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
-                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"},
-                {"question": "Please find me someone from Go-KI who knows about LLM.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
-                    "id": "general",
-                    "header": "General",
-                    "icon": "❓",
+                    "id": "info",
+                    "header": "Information & Upskilling",
+                    "icon": "📚",
                     "questions": [
-                        {"question": "How can you assist me?"},
-                        {"question": "What are 'Large Language Models'?"},
-                        {"question": "Tell me something about the 'go-KI' project by GT-ARC."},
-                        {"question": "What are the most exciting tech trends for 2025?"}
+                        {"question": "How can you assist me?", "icon": "❓"},
+                        {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
+                        {"question": "What documents do I need for a residence permit?", "icon": "📄"},
+                        {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
+                        {"question": "How can I get an appointment at the Berlin Bürgeramt?", "icon": "📅"},
+                        {"question": "What are 'Large Language Models'?", "icon": "🧠"},
+                        {"question": "What are the most exciting tech trends for 2025?", "icon": "🚀"},
+                        {"question": "Explain Agile methodology.", "icon": "🔄"},
+                        {"question": "How to build a simple website?", "icon": "💻"}
                     ]
                 },
                 {
-                    "id": "email",
-                    "header": "Email Assistant",
-                    "icon": "✉️",
-                    "questions": [
-                        {"question": "Please fetch and summarize my latest e-mails."},
-                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks."},
-                        {"question": "Show me all unread emails from last week."}
-                    ]
-                },
-                {
-                    "id": "scheduling",
-                    "header": "Scheduling Assistant",
-                    "icon": "📅",
-                    "questions": [
-                        {"question": "Schedule a brainstorming session with Tobias."},
-                        {"question": "Find a meeting slot with the XAI team next week."},
-                        {"question": "Show my calendar for next week."}
-                    ]
-                },
-                {
-                    "id": "smart_office",
+                    "id": "smart",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
-                        {"question": "Plot the past noise levels in the ZEKI kitchen."},
-                        //{"question": "Is the current CO2 level in the conference room above threshold?"}, //Currently not working properly
-                        //{"question": "Create a forecast of the temperature in the Coworking Space."}, //Currently not working properly
-                        {"question": "Where can I find the espresso cups in the kitchen?"}
+                        //{"question": "How is the temperature in the kitchen?", "icon": "🌡️"},
+                        {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
+                        {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
+                        {"question": "Open the shelf in that stores the glasses.", "icon": "🥃"},
+                        {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
+
                     ]
                 },
                 {
-                    "id": "public_services",
-                    "header": "Public Services",
-                    "icon": "🏛️",
+                    "id": "tasks",
+                    "header": "Task Automation",
+                    "icon": "🤖",
                     "questions": [
-                        {"question": "How can I get an appointment at the Berlin Bürgeramt?"},
-                        {"question": "What documents do I need for residence permit?"},
-                        {"question": "How can I find the nearest public service office for my address?"}
+                        {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
+                        {"question": "Summarize my upcoming meetings for the next week.", "icon": "📅"},
+                        {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
+                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
+                        {"question": "I need the phone numbers of the people working with XAI from the GoKI project.", "icon": "👥"},
+                        {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
+                        {"question": "Find a meeting slot with the XAI team next week.", "icon": "📆"},
+                        {"question": "Show my calendar for next week.", "icon": "📅"}
                     ]
                 },
                 {
-                    "id": "learning",
-                    "header": "Learning",
-                    "icon": "📚",
+                    "id": "data",
+                    "header": "Data Analysis",
+                    "icon": "📊",
                     "questions": [
-                        {"question": "Help me learn data science basics."},
-                        {"question": "Explain Agile methodology."},
-                        {"question": "How to build a simple website?"},
-                        {"question": "What is the Fourth Industrial Revolution?"}
+                        {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
+                        {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
+                        {"question": "Give me a detailed step by step route from Munich to Berlin.", "icon": "🚗"}
                     ]
                 }
             ],
@@ -141,74 +126,59 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
-            sampleQuestions: [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
-                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
-                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"},
-                {"question": "Finde finde jemanden aus Go-KI der sich mit LLM auskennt.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
-                    "id": "general",
-                    "header": "Allgemein",
-                    "icon": "❓",
+                    "id": "info",
+                    "header": "Information & Upskilling",
+                    "icon": "📚",
                     "questions": [
-                        {"question": "Womit kannst du mir helfen?"},
-                        {"question": "Was sind 'Large Language Models'?"},
-                        {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC."},
-                        {"question": "Was sind die spannendsten Tech-Trends für 2025?"}
+                        {"question": "Womit kannst du mir helfen?", "icon": "❓"},
+                        {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
+                        {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
+                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
+                        {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?", "icon": "📅"},
+                        {"question": "Was sind 'Large Language Models'?", "icon": "🧠"},
+                        {"question": "Was sind die spannendsten Tech-Trends für 2025?", "icon": "🚀"},
+                        {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
+                        {"question": "Wie erstelle ich eine einfache Website?", "icon": "💻"}
                     ]
                 },
                 {
-                    "id": "email",
-                    "header": "E-Mail Assistent",
-                    "icon": "✉️",
-                    "questions": [
-                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen."},
-                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird."},
-                        {"question": "Zeige mir alle ungelesenen E-Mails der letzten Woche."}
-                    ]
-                },
-                {
-                    "id": "scheduling",
-                    "header": "Terminplanung",
-                    "icon": "📅",
-                    "questions": [
-                        {"question": "Plane ein Brainstorming mit Tobias."},
-                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche."},
-                        {"question": "Zeige meinen Kalender für nächste Woche."}
-                    ]
-                },
-                {
-                    "id": "smart_office",
+                    "id": "smart",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
-                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar."},
-                        // {"question": "Ist der aktuelle CO2-Wert im Konferenzraum über dem Grenzwert?"}, //Currently not working properly
-                        // {"question": "Erstelle eine Temperaturprognose für den Coworking Space."}, //Currently not working properly
-                        {"question": "Wo finde ich die Espressotassen in der Küche?"}
+                        {"question": "Wie ist der CO2-Wert im Konferenzraum?", "icon": "🌡️"},
+                        {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
+                        {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
+                        {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "☕"},
+                        {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
+                        {"question": "Wie ist die Temperatur in der Küche?", "icon": "🌡️"}
                     ]
                 },
                 {
-                    "id": "public_services",
-                    "header": "Öffentlicher Dienst",
-                    "icon": "🏛️",
+                    "id": "tasks",
+                    "header": "Task Automation",
+                    "icon": "🤖",
                     "questions": [
-                        {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?"},
-                        {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?"},
-                        {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?"}
+                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
+                        {"question": "Fasse mir meine nächsten Termine für die zusammen.", "icon": "📅"},
+                        {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
+                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
+                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten.", "icon": "👥"},
+                        {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
+                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche.", "icon": "📆"},
+                        {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
                     ]
                 },
                 {
-                    "id": "learning",
-                    "header": "Lernen",
-                    "icon": "📚",
+                    "id": "data",
+                    "header": "Data Analysis",
+                    "icon": "📊",
                     "questions": [
-                        {"question": "Hilf mir, die Grundlagen der Data Science zu lernen."},
-                        {"question": "Erkläre die Agile-Methodik."},
-                        {"question": "Wie erstelle ich eine einfache Website?"},
-                        {"question": "Was ist die Vierte Industrielle Revolution?"}
+                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space.", "icon": "🌤️"},
+                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
+                        {"question": "Visualisiere eine Route von München nach Berlin mit UTF-8 Zeichen.", "icon": "🚗"}
                     ]
                 }
             ],

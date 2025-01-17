@@ -50,8 +50,10 @@ export default {
         toggleSection(index) {
             if (this.expandedSection === index) {
                 this.expandedSection = null;
+                this.$emit('category-selected', null);
             } else {
                 this.expandedSection = index;
+                this.$emit('category-selected', this.questions[index].header);
             }
         }
     }
