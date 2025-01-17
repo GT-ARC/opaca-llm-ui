@@ -681,6 +681,8 @@ export default {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
         this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
 
+        this.updateSelectedCategory(this.getConfig().DefaultQuestions);
+
         // Check voice server connection
         try {
             const response = await fetch(`${conf.VoiceServerAddress}/info`);

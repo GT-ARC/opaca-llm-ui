@@ -27,7 +27,7 @@ var config = {
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
-    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? true,
+    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
     languages: {
         GB: 'en-GB',
@@ -38,8 +38,7 @@ var config = {
     AutoConnect: false,
 
     // which set of questions is shown within the chat window on startup.
-    // possible values: 'info', 'smart', 'tasks', 'data, 'random'
-    DefaultQuestions: 'random',
+    DefaultQuestions: 'Information & Upskilling',
 
     // which sidebar view is shown by default.
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
