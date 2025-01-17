@@ -165,9 +165,10 @@ class ToolMethodOpenAI(ToolMethod):
                                 out[key] = bool(value)
                             case _:
                                 out[key] = value
-                except ValueError:
+                except Exception as e:
                     # This is pretty ugly
                     # The idea is that if an invalid value was found, it should not try to cast this value but skip it
                     # The Evaluator will then receive the error encountered during the action invocation
+                    print(e)
                     continue
         return out
