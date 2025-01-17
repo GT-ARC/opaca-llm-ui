@@ -196,7 +196,7 @@ export default {
     },
     data() {
         return {
-            selectedView: 'connect',
+            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -207,9 +207,6 @@ export default {
             selectedLanguage: 'english',
             isConnected: false
         };
-    },
-    created() {
-        // this.selectView('connect');
     },
     methods: {
         getConfig() {
@@ -264,6 +261,7 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
+                this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -365,6 +363,8 @@ export default {
 
         if (conf.AutoConnect) {
             this.initRpConnection();
+        } else {
+            this.selectView('connect');
         }
     },
     watch: {

@@ -27,7 +27,7 @@ var config = {
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
-    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
+    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? true,
 
     languages: {
         GB: 'en-GB',
@@ -38,7 +38,7 @@ var config = {
     AutoConnect: false,
 
     // which set of questions is shown within the chat window on startup.
-    // possible values: 'general', 'email', 'scheduling', 'smart_office', 'public_services', 'learning', 'random'
+    // possible values: 'info', 'smart', 'tasks', 'data, 'random'
     DefaultQuestions: 'random',
 
     // which sidebar view is shown by default.
@@ -57,7 +57,6 @@ var config = {
             none: 'None',
             sidebarQuestions: [
                 {
-                    "id": "info",
                     "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
@@ -73,7 +72,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "smart",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
@@ -86,7 +84,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "tasks",
                     "header": "Task Automation",
                     "icon": "🤖",
                     "questions": [
@@ -101,7 +98,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "data",
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
@@ -128,7 +124,6 @@ var config = {
             none: 'Keine',
             sidebarQuestions: [
                 {
-                    "id": "info",
                     "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
@@ -144,7 +139,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "smart",
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
@@ -157,7 +151,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "tasks",
                     "header": "Task Automation",
                     "icon": "🤖",
                     "questions": [
@@ -172,7 +165,6 @@ var config = {
                     ]
                 },
                 {
-                    "id": "data",
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [

@@ -23,7 +23,7 @@
             <div class="container-fluid flex-grow-1 px-0" id="chat1">
                 <div class="card-body" id="chat-container"/>
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in getSampleQuestions()"
+                    <div v-for="(question, index) in getCurrentCategoryQuestions()"
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
@@ -641,25 +641,13 @@ export default {
             textarea.style.height = (textarea.scrollHeight) + 'px';
         },
 
-        getSampleQuestions() {
-            const value = this.getConfig().DefaultQuestions
-            if (value === 'random') {
-                let questions = [];
-                this.getConfig().translations[this.language].sidebarQuestions
-                    .forEach(group => questions = questions.concat(group.questions));
-                shuffleArray(questions);
-                return questions.slice(0, 4);
-            } else {
-                const category = this.getConfig().translations[this.language].sidebarQuestions
-                    .find(group => group.id === value);
-                if (category) {
-                    return category.questions.slice(0, 4);
-                }
-                else {
-                    console.error(`Unknown defautl questions value: ${value}`);
-                    return [];
-                }
-            }
+        getRandomSampleQuestions(num_questions = 3) {
+            function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
+            let questions = [];
+            this.getConfig().translations[this.language].sidebarQuestions
+                .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
+            shuffleArray(questions);
+            return questions.slice(0, num_questions);
         },
 
         getCurrentCategoryQuestions() {
@@ -667,8 +655,8 @@ export default {
             const currentCategory = categories.find(cat => cat.header === this.selectedCategory);
 
             if (!currentCategory) {
-                // If no category is selected, show default sample questions
-                return conf.translations[this.language].sampleQuestions;
+                // If no category is selected, show random sample questions
+                return this.getRandomSampleQuestions();
             }
 
             // Take first 3 questions and use their individual icons
