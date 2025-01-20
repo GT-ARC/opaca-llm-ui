@@ -42,7 +42,7 @@ class ToolMethodOpenAI(ToolMethod):
         else:
             # If model does NOT start with gpt: use vllm
             key = "Bearer " + (api_key or os.getenv("VLLM_API_KEY"))
-            base_url = None or os.getenv("VLLM_BASE_URL")
+            base_url = os.getenv("VLLM_BASE_URL")
         return ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
