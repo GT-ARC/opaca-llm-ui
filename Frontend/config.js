@@ -34,6 +34,16 @@ var config = {
         DE: 'de-DE'
     },
 
+    // if true, attempt to connect to the configured platform on load
+    AutoConnect: false,
+
+    // which set of questions is shown within the chat window on startup.
+    DefaultQuestions: 'Information & Upskilling',
+
+    // which sidebar view is shown by default.
+    // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
+    DefaultSidebarView: 'questions',
+
     translations:{
         GB: {
             name: "English",
@@ -44,13 +54,6 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
-            // Left in for now as a fallback for the sample questions
-            sampleQuestions: [
-                {"question": "How can you assist me?", "icon": "❓"}, 
-                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
-                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"},
-                {"question": "Please find me someone from Go-KI who knows about LLM.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
                     "header": "Information & Upskilling",
@@ -118,13 +121,6 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
-            // Left in for now as a fallback for the sample questions
-            sampleQuestions: [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
-                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
-                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"},
-                {"question": "Finde finde jemanden aus Go-KI der sich mit LLM auskennt.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
                     "header": "Information & Upskilling",
@@ -184,4 +180,17 @@ var config = {
         },
     },
 }
-export default config = config
+
+function parseQueryParams() {
+    const urlParams = {};
+    for (const [key, value] of (new URLSearchParams(window.location.search)).entries()) {
+        urlParams[key.toLowerCase()] = value;
+    }
+    config.AutoConnect = (urlParams['autoconnect'] === 'true');
+    config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
+    config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
+}
+
+parseQueryParams();
+
+export default config = config;

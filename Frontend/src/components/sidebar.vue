@@ -182,6 +182,7 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import {sleep} from "openai/core";
 
 export default {
     name: 'Sidebar',
@@ -195,7 +196,7 @@ export default {
     },
     data() {
         return {
-            selectedView: 'connect',
+            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -206,18 +207,6 @@ export default {
             selectedLanguage: 'english',
             isConnected: false
         };
-    },
-    created() {
-        // Initialize the sidebar with the connection view open
-        this.selectedView = 'connect';
-        // Ensure the main content is properly positioned on startup
-        this.$nextTick(() => {
-            const mainContent = document.getElementById('mainContent');
-            if (mainContent) {
-                mainContent.classList.remove('mx-auto');
-            }
-            this.$emit('onSidebarToggle', this.selectedView);
-        });
     },
     methods: {
         getConfig() {
@@ -258,7 +247,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView('questions');
+                    this.selectView(this.getConfig().DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -272,6 +261,7 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
+                this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -369,6 +359,12 @@ export default {
         const mainContent = document.getElementById('mainContent');
         if (mainContent) {
             mainContent.classList.remove('mx-auto');
+        }
+
+        if (conf.AutoConnect) {
+            this.initRpConnection();
+        } else {
+            this.selectView('connect');
         }
     },
     watch: {

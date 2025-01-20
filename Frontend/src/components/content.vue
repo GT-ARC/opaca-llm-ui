@@ -27,7 +27,7 @@
                          :key="index"
                          class="sample-question"
                          @click="askChatGpt(question.question)">
-                        {{question.icon}} <br> {{ question.question }}
+                        {{ question.icon }} <br> {{ question.question }}
                     </div>
                 </div>
             </div>
@@ -80,7 +80,7 @@ import {marked} from "marked";
 import conf from '../../config'
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
-import {sendRequest} from "../utils.js";
+import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
@@ -642,13 +642,22 @@ export default {
             textarea.style.height = (textarea.scrollHeight) + 'px';
         },
 
+        getRandomSampleQuestions(num_questions = 3) {
+            function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
+            let questions = [];
+            this.getConfig().translations[this.language].sidebarQuestions
+                .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
+            shuffleArray(questions);
+            return questions.slice(0, num_questions);
+        },
+
         getCurrentCategoryQuestions() {
             const categories = conf.translations[this.language].sidebarQuestions;
             const currentCategory = categories.find(cat => cat.header === this.selectedCategory);
 
             if (!currentCategory) {
-                // If no category is selected, show default sample questions
-                return conf.translations[this.language].sampleQuestions;
+                // If no category is selected, show random sample questions
+                return this.getRandomSampleQuestions();
             }
 
             // Take first 3 questions and use their individual icons
@@ -672,6 +681,8 @@ export default {
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
         this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+
+        this.updateSelectedCategory(this.getConfig().DefaultQuestions);
 
         // Check voice server connection
         try {
