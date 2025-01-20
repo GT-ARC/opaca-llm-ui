@@ -220,7 +220,7 @@ export default {
 
                     socket.onerror = (error) => {
                         if (!this.isFinished) {
-                            this.handleUnexpectedConnectionClosed("I encountered the following error: " + error.toString(), currentMessageCount, debugMessageLength)
+                            this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
                         }
                         console.log("Received error: ", error)
                     }
