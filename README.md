@@ -41,7 +41,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * RestGPT: Based on [RestGPT](https://github.com/Yifan-Song793/RestGPT); using LangChain with four agents (Planner, Action Selector, Caller, Evaluator) to determine what to do, which actions to call, and evaluate the result.
 
-* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of OpenAI models. A similar version for LLAMA is currently in progress.
+* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
 
 The different LLM clients provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta.
 
@@ -77,7 +77,8 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 ### Backend
 
 * `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
-
+* `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
+* `VLLM_API_KEY`: API key for the vLLM API, if any.
 
 ## Getting Started
 

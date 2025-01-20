@@ -319,6 +319,7 @@ export default {
 
         async resetChat() {
             document.getElementById("chat-container").innerHTML = '';
+            this.$refs.sidebar.debugMessages = []
             this.abortSpeaking();
             this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
             this.showExampleQuestions = true;
