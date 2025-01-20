@@ -9,3 +9,4 @@ venv
 docker-compose.yml
 Backend/.DS_Store
 .DS_Store
+.env
