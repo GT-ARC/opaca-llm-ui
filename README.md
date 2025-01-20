@@ -60,6 +60,15 @@ The message handling of the OPACA LLM is illustrated in the image above. During 
 The chatbot-UI supports speech-to-text (STT) using the Whisper model. A server with accordant API routes is included in this project under `Backend/tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running, or no URL provided, the STT feature will not be available.
 
 
+## Configuration and Parameters
+
+The OPACA LLM can be configured in various ways using the `config.js` file in the Frontend directory. Here, you can configure, among others, the default OPACA Platform to connect to, which sample questions to show, which backend options to show, as well as some UI settings. Some of those settings can also be configured using Environment Variables (see next section), while others can be overwritten using Query parameters (i.e. appending `?abc=foo&xyz=bar` to the request URL):
+
+* `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
+* `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `connect` (stay on connect page), `questions` (sample questions), `agents` (agents and actions), `config` and `debug`.
+* `samples`: Which category of sample questions to show; possible options see "headers" in the `sidebarQuestions` section in the config (special characters might have to be URL-encoded), plus `random` for a random selection.
+
+
 ## Environment Variables
 
 ### Frontend
