@@ -213,26 +213,14 @@ export default {
 
                     socket.onclose = () => {
                         if (!this.isFinished) {
-                            this.editTextSpeechBubbleAI("It seems there was a problem during the response generation...", currentMessageCount);
-                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-                            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                            if (loadingContainer) {
-                                loadingContainer.classList.add('hidden');
-                            }
+                            this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
                         }
                         console.log("WebSocket connection closed");
                     };
 
                     socket.onerror = (error) => {
                         if (!this.isFinished) {
-                            this.editTextSpeechBubbleAI("I encountered the following error: " + error.toString(), currentMessageCount);
-                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-                            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                            if (loadingContainer) {
-                                loadingContainer.classList.add('hidden');
-                            }
+                            this.handleUnexpectedConnectionClosed("I encountered the following error: " + error.toString(), currentMessageCount, debugMessageLength)
                         }
                         console.log("Received error: ", error)
                     }
@@ -427,6 +415,21 @@ export default {
             debugToggle.style.display = 'block';
             this.scrollDown(false);
             this.isFinished = true
+        },
+
+        handleUnexpectedConnectionClosed(message, currentMessageCount, debugMessageLength) {
+            this.editTextSpeechBubbleAI(message, currentMessageCount);
+            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
+
+            const aiBubble = document.getElementById(`${currentMessageCount}`);
+            const messageContainer = aiBubble.querySelector("#messageContainer");
+            messageContainer.style.color = "red"
+
+            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+            if (loadingContainer) {
+                loadingContainer.classList.add('hidden');
+            }
         },
 
         scrollDown(debug) {
