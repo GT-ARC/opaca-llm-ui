@@ -25,7 +25,6 @@ class ToolMethodOpenAI(ToolMethod):
                 "model": "gpt-4o-mini",
                 "temperature": 0,
                 "use_agent_names": True,
-                "base_url": "",
                }
 
     @property
@@ -37,14 +36,18 @@ class ToolMethodOpenAI(ToolMethod):
         return 'Human: {input}{scratchpad}'
 
     def init_model(self, config: Dict[str, Any], api_key: str = None):
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if config["base_url"]:
-            api_key = "Bearer " + api_key
+        if config["model"].startswith("gpt"):
+            key = api_key or os.getenv("OPENAI_API_KEY")
+            base_url = None
+        else:
+            # If model does NOT start with gpt: use vllm
+            key = "Bearer " + (api_key or os.getenv("VLLM_API_KEY"))
+            base_url = None or os.getenv("VLLM_BASE_URL")
         return ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
-            openai_api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            base_url=config["base_url"]
+            openai_api_key=key,
+            base_url=base_url
         )
 
     def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
