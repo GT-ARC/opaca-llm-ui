@@ -22,11 +22,10 @@ class ToolMethodOpenAI(ToolMethod):
     @property
     def config(self) -> Dict[str, Any]:
         return {
-                "model": "Llama-3.3-70B-Instruct-AWQ-INT4",
+                "model": "gpt-4o-mini",
                 "temperature": 0,
                 "use_agent_names": True,
-                "base_url": "http://10.0.64.101:8000/v1",
-                "framework": "vllm"
+                "base_url": "",
                }
 
     @property
@@ -38,14 +37,13 @@ class ToolMethodOpenAI(ToolMethod):
         return 'Human: {input}{scratchpad}'
 
     def init_model(self, config: Dict[str, Any], api_key: str = None):
-        if config["framework"] == "vllm":
-            openai_api_key = "5xyCIt13kd6j1Cn/hxiX+w=="
-        else:
-            openai_api_key = api_key or os.getenv("OPENAI_API_KEY")
+        api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if config["base_url"]:
+            api_key = "Bearer " + api_key
         return ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
-            openai_api_key=openai_api_key,
+            openai_api_key=api_key or os.getenv("OPENAI_API_KEY"),
             base_url=config["base_url"]
         )
 
@@ -65,15 +63,14 @@ class ToolMethodOpenAI(ToolMethod):
             'history': session.messages
         }, websocket)
 
-        if config["framework"] == "vllm":
-            for action in result.tools:
-                # Fix the parameter types based on the action definition
-                used_function = {}
-                for a in self.tools:
-                    if a["function"]["name"] == action["name"]:
-                        used_function = a["function"]
-                parameters = self._fix_type(used_function.get("parameters", {}).get("properties", {}).get("requestBody", {}).get("properties", {}), action["args"].get("requestBody", {}))
-                action["args"]["requestBody"] = parameters
+        for action in result.tools:
+            # Fix the parameter types based on the action definition
+            used_function = {}
+            for a in self.tools:
+                if a["function"]["name"] == action["name"]:
+                    used_function = a["function"]
+            parameters = self._fix_type(used_function.get("parameters", {}).get("properties", {}).get("requestBody", {}).get("properties", {}), action["args"].get("requestBody", {}))
+            action["args"]["requestBody"] = parameters
 
         return result
 
