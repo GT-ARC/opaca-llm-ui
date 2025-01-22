@@ -2,6 +2,12 @@
 export const debugColors = {
     // System
     "preparing": ["#10a37f", "#10a37f"],  // Primary green color for preparation phase
+    // Multi-Agent System
+    "Orchestrator": ["#ff6b6b", "#ff6b6b"],
+    "WorkerAgent": ["#4ecdc4", "#4ecdc4"],
+    "AgentEvaluator": ["#45b7d1", "#45b7d1"],
+    "OverallEvaluator": ["#96ceb4", "#96ceb4"],
+    "OutputGenerator": ["#ffbe0b", "#ffbe0b"],
     // RestGPT
     "Planner": ["#ff0000", "#9c0000"],
     "Action Selector": ["#ffff00", "#bf6e00"],
@@ -25,6 +31,12 @@ export const debugLoadingMessages = {
     GB: {
         // System
         "preparing": "Initializing the OPACA AI Agents",
+        // Multi-Agent System
+        "Orchestrator": "Planning execution strategy",
+        "WorkerAgent": "Workers are executing specialized tasks",
+        "AgentEvaluator": "Evaluating worker task completion",
+        "OverallEvaluator": "Assessing overall progress",
+        "OutputGenerator": "Generating final response",
         // RestGPT
         "Planner": "Analyzing your request",
         "Action Selector": "Determining best approach",
@@ -41,6 +53,12 @@ export const debugLoadingMessages = {
     DE: {
         // System
         "preparing": "OPACA KI-Agenten werden initialisiert",
+        // Multi-Agent System
+        "Orchestrator": "Ausführungsstrategie wird geplant",
+        "WorkerAgent": "Arbeiter-Agenten führen spezialisierte Aufgaben aus",
+        "AgentEvaluator": "Bewerte Aufgabenabschluss der Arbeiter-Agenten",
+        "OverallEvaluator": "Bewerte Gesamtfortschritt",
+        "OutputGenerator": "Generiere finale Antwort",
         // RestGPT
         "Planner": "Analysiere Ihre Anfrage",
         "Action Selector": "Ermittle beste Vorgehensweise",

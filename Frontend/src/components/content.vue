@@ -112,7 +112,8 @@ export default {
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
-            statusMessages: {} // Track status messages by messageCount
+            statusMessages: {}, // Track status messages by messageCount
+            accumulatedContent: ''
         }
     },
     watch: {
@@ -162,9 +163,10 @@ export default {
             const currentMessageCount = this.messageCount;
             this.messageCount++;
             const debugMessageLength = this.$refs.sidebar.debugMessages.length;
+            this.accumulatedContent = ''; // Reset accumulated content for new message
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm-openai', 'rest-gpt-openai'].includes(this.getBackend())) {
+                if (['tool-llm-openai', 'rest-gpt-openai', 'multi-agent'].includes(this.getBackend())) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');
@@ -194,25 +196,46 @@ export default {
                                 const preparingMessage = this.getDebugLoadingMessage('preparing');
                                 this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
                             }
-                            // Agent messages are intermediate results
-                            this.addDebugToken(result, currentMessageCount);
+
+                            if (result.agent === 'assistant') {
+                                // Accumulate content for streaming without coloring
+                                if (!this.accumulatedContent) {
+                                    this.accumulatedContent = '';
+                                }
+                                this.accumulatedContent += result.content;
+                                this.editTextSpeechBubbleAI(this.accumulatedContent, currentMessageCount);
+                                // Remove any active glow animation for assistant content
+                                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+                            } else {
+                                // Agent messages are intermediate results
+                                this.addDebugToken(result, currentMessageCount);
+                            }
                             this.scrollDown(true);
                         } else {
                             // Last message received should be final response
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount);
                             this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
-                            // Append the debug messages generated during this request to the ai message bubble
-                            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
-                            const debugMessages = this.$refs.sidebar.debugMessages;
+                            // Hide loading indicator
+                            const aiBubble = document.getElementById(`${currentMessageCount}`);
                             if (aiBubble) {
+                                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                                if (loadingContainer) {
+                                    loadingContainer.classList.add('hidden');
+                                }
+                            }
+
+                            // Append the debug messages to the bubble
+                            const debugBubble = document.getElementById(`debug-${currentMessageCount}-text`);
+                            const debugMessages = this.$refs.sidebar.debugMessages;
+                            if (debugBubble) {
                                 for (let i = debugMessageLength; i < debugMessages.length; i++) {
                                     let d1 = document.createElement("div");
                                     d1.className = "bubble-debug-text";
                                     d1.textContent = debugMessages.at(i).text;
                                     d1.style.color = debugMessages.at(i).color;
                                     d1.dataset.type = debugMessages.at(i).type;
-                                    aiBubble.append(d1);
+                                    debugBubble.append(d1);
                                 }
                             }
 
@@ -472,7 +495,7 @@ export default {
             this.editTextSpeechBubbleAI(statusMessage, messageCount);
             this.editAnimationSpeechBubbleAI(messageCount, true, color);
 
-            if (agent_message["tools"].length > 0) {
+            if (agent_message["tools"] && agent_message["tools"].length > 0) {
                 this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"] + "-Tools");
             } else {
                 this.addDebug(agent_message["content"], color, agent_message["agent"]);

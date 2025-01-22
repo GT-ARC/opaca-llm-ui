@@ -4,6 +4,7 @@ Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import uuid
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi import Response as FastAPIResponse
@@ -11,12 +12,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from .models import Url, Message, Response, SessionData
 from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import OpacaClient
 from .proxy import KnowledgeBackend, DataAnalysisBackend
+from .multiagent import MultiAgentBackend
 
 
 app = FastAPI(
@@ -48,6 +57,8 @@ BACKENDS = {
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
+    # multi-agent backend
+    "multi-agent": MultiAgentBackend(),
 }
 
 BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}

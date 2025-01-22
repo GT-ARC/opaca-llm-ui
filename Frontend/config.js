@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-openai",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/multi-agent",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
@@ -12,7 +12,8 @@ var config = {
                 "rest-gpt-openai": "RestGPT",
                 "rest-gpt-llama": "RestGPT (LLAMA)",
                 "tool-llm-openai": "Tool LLM",
-                "tool-llm-llama": "Tool LLM (LLAMA)"
+                "tool-llm-llama": "Tool LLM (LLAMA)",
+                "multi-agent": "Multi-Agent System"
             }
         },
         "itdz-knowledge": "Knowledge Assistant",
@@ -54,6 +55,13 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
+            // Left in for now as a fallback for the sample questions
+            sampleQuestions: [
+                {"question": "How can you assist me?", "icon": "❓"}, 
+                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
+                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"},
+                {"question": "Please find me someone from Go-KI who knows about LLM.", "icon": "🧑"}
+            ],
             sidebarQuestions: [
                 {
                     "header": "Information & Upskilling",
@@ -74,11 +82,12 @@ var config = {
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
-                        //{"question": "How is the temperature in the kitchen?", "icon": "🌡️"},
-                        {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
+
+                        {"question": "How is the current temperature in the kitchen?", "icon": "🌡️"},
                         {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
-                        {"question": "Open the shelf in that stores the glasses.", "icon": "🥃"},
+                        {"question": "Open the shelf that stores the glasses.", "icon": "🥃"},
                         {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
+                        {"question": "It is too noisy in the kitchen. Could you compare the noise level in the kitchen to the noise level in the co-working space?", "icon": "🔊"},
 
                     ]
                 },
@@ -86,21 +95,25 @@ var config = {
                     "header": "Task Automation",
                     "icon": "🤖",
                     "questions": [
-                        {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
+                        {"question": "Please fetch and summarize my latest 5 e-mails.", "icon": "📧"},
+                        {"question": "Get the two applications and compare them in a neutral way in a table.", "icon": "📊"},
                         {"question": "Summarize my upcoming meetings for the next week.", "icon": "📅"},
                         {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
+                        {"question": "Show the phone numbers of all participants in the after work meeting later today.", "icon": "📞"},
                         {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
                         {"question": "I need the phone numbers of the people working with XAI from the GoKI project.", "icon": "👥"},
                         {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
                         {"question": "Find a meeting slot with the XAI team next week.", "icon": "📆"},
-                        {"question": "Show my calendar for next week.", "icon": "📅"}
                     ]
                 },
                 {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
+                        {"question": "Create a weather forecast for Berlin.", "icon": "🌤️"},
                         {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
+                        {"question": "Please plot the temperature in the kitchen?", "icon": "🌡️"},
+                        {"question": "Can you show temperature, humidity and noise levels in the kitchen with bullet points and one emoji per sensor?", "icon": "🥳"},
                         {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
                         {"question": "Give me a detailed step by step route from Munich to Berlin.", "icon": "🚗"}
                     ]
@@ -121,6 +134,13 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
+            // Left in for now as a fallback for the sample questions
+            sampleQuestions: [
+                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
+                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
+                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"},
+                {"question": "Finde finde jemanden aus Go-KI der sich mit LLM auskennt.", "icon": "🧑"}
+            ],
             sidebarQuestions: [
                 {
                     "header": "Information & Upskilling",
@@ -142,11 +162,11 @@ var config = {
                     "icon": "🏢",
                     "questions": [
                         {"question": "Wie ist der CO2-Wert im Konferenzraum?", "icon": "🌡️"},
+                        {"question": "Wie ist die Temperatur in der Küche?", "icon": "🌡️"},
                         {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
                         {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
                         {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "☕"},
                         {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
-                        {"question": "Wie ist die Temperatur in der Küche?", "icon": "🌡️"}
                     ]
                 },
                 {
