@@ -41,13 +41,13 @@ class ToolMethodOpenAI(ToolMethod):
             base_url = None
         else:
             # If model does NOT start with gpt: use vllm
-            key = "Bearer " + (api_key or os.getenv("VLLM_API_KEY"))
+            key = os.getenv("VLLM_API_KEY")
             base_url = os.getenv("VLLM_BASE_URL")
         return ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
             openai_api_key=key,
-            base_url=base_url
+            openai_api_base=base_url
         )
 
     def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
