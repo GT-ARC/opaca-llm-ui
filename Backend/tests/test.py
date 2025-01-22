@@ -1,130 +1,137 @@
 import datetime
 import json
 import os
+import numpy as np
 import subprocess
 import time
 import unittest
 import requests
+from langchain_openai import ChatOpenAI
 
-# All available models: [llama3-rest-gpt, gpt-4o-rest-gpt, gpt-3.5-turbo-rest-gpt]
-MODEL = "llama3-rest-gpt"
-api_key = ""    # has to be set when an OpenAI model ist used
+from Backend.src.models import LLMAgent
 
-opaca_url = "http://localhost:8000"
-llm_url = "http://localhost:3001"
-query_url = f"http://localhost:3001/{MODEL}/query"
+BACKEND = "tool-llm-openai"             # Which backend is used
 
-calls = {
-    "single": [
-        "What is the current temperature in room 1?",
-        "Get me a list of the desks in the office.",
-        "Open shelf 3 for me please."
-    ],
-    "service": [
-        "What services do you know?",
-        "What parameters are required to call \"AddGroceries\"?",
-        "What does the action \"GetUserBookings\" do?"
-    ],
-    "missing_svc": [
-        "What is the current weather in australia?",
-        "Order a pair of white shoes from Amazon.",
-        "Create a new spotify playlist titled \"Best Hits\"."
-    ],
-    "stupid": [
-        "What am I currently thinking of?",
-        "Turn around.",
-        "What are you currently listening to?"
-    ],
-    "spelling": [
-        "Waht is the crrt tmperatre?",
-        "Gt temprtrue 1.",
-        "Lst of grceis pls."
-    ],
-    "fuzzing": [
-        "itrohaw8r934ahih9gy923n20awh3246",
-        """<div id="${id}" class="d-flex flex-row justify-content-start mb-4">
-            <img src=/src/assets/Icons/ai.png alt="AI" class="chaticon">
-            <div class="p-2 ms-3 small mb-0 chatbubble" style="background-color: #39c0ed33;">
-                ${marked.parse(text)}
-            </div>
-        </div>""",
-        "¦DË\"î{ÈºÃË►Å ãíºJ↓Y╝|ØãÆ#┌\""
-    ],
-    "medium": [
-        "Open the shelf with the plates.",
-        "Get me the temperature, humidity, and noise level for room 2.",
-        "Book me a free desk in the office."
-    ],
-    "hard": [
-        "Can you tell me the current temperature in the kitchen, then open the shelf with the plates, close it and "
-        "finally add one Banana to my Grocery list with the expiration date 2024-07-01 with the category \"fruit\"?",
-        "Can you check for all desks in the office whether they are free or occupied?",
-        "Tell me the average Co2 levels of all available sensor ids."
-    ],
-    "missing_params": [
-        "Add bananas to my grocery list.",
-        "Open the shelf",
-        "Tell me the temperature"
-    ]
+# ATTENTION this config object should match the config object within the selected method
+CONFIG = {
+    "model": "gpt-4o-mini",             # Which model is used
+    "temperature": 0,
+    "use_agent_names": True,
 }
 
+opaca_url = "http://10.42.6.107:8000"
+llm_url = "http://localhost:3001"
+query_url = f"http://localhost:3001/{BACKEND}/query"
+session = requests.Session()
 
-def exec_test(test_key: str, test_name: str, file_name: str) -> bool:
+questions = [
+    {
+        "input": "What is the current weather condition in Berlin?",
+        "output": "Answer should include a hint for the current day, the temperature, the general condition, the precipitation, and humidity."
+    },
+    {
+        "input": "When is the next federal election in germany?",
+        "output": "Answer should give an exact date of the next election."
+    },
+    {
+        "input": "Give me the contact details about someone from go-KI who knows about LLM.",
+        "output": "The answer should include the name of a person familiar with the LLM topic and include its phone number and email address."
+    },
+    {
+        "input": "Get me the current stock prices for Amazon, Apple and Microsoft. Also try to find out when these stocks had their all time high.",
+        "output": "The answer should include the current stock prices of all the three companies: Amazon, Apple, and Microsoft. Further, for each of the stocks, the answer should include the all time high value and the date when this value was reached."
+    },
+    {
+        "input": "Please summarize my latest 5 emails",
+        "output": "The answer should include an overview of exactly the last 5 emails."
+    }
+]
+
+other_questions = [
+    {
+        "input": "I want you to give me the temperature data for each available sensor with an even id and give me the CO2 value for each sensor with an odd id.",
+        "output": "The answer should include a lot of well structured sensor data. Make sure that the temperature data should only be given for sensors with an even id, while the CO2 value should only be given for sensors with an odd id."
+    },
+]
+
+
+judge_llm = LLMAgent(
+    name="Judge LLM",
+    llm=ChatOpenAI(
+            model="gpt-4o",
+            temperature=0,
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        ),
+    system_prompt="Given a question, expected answer, and response. Evaluate if the response was helpful and "
+                  "included the information that were mentioned in the expected answer. Helpful responses include "
+                  "all the expected information. Unhelpful responses include errors or a missing vital parts "
+                  "of the expected information. Return a label: 'helpful' or 'unhelpful'.",
+    input_variables=["question", "expected_answer", "response"],
+    message_template="A user had the following question: {question}\n\n"
+                     "The expected answer for this question: {expected_answer}\n\n"
+                     "This was the generated response: {response}"
+)
+
+
+async def benchmark_test(file_name: str) -> bool:
+
     if not os.path.exists('test_runs'):
         os.makedirs('test_runs')
+
+    total_time = .0
+    iterations = []
+    execution_times = []
+    number_tools = 0
+
     with open(f'test_runs/{file_name}', 'a', encoding="utf-8") as f:
-        f.write(f'-------------- {test_name} --------------\n')
         try:
-            for call in calls[test_key]:
-                result = requests.post(query_url, json={'user_query': call, 'debug': True, 'api_key': api_key}).content
+            for i, call in enumerate(questions):
+                f.write(f'-------------- Question {i+1} --------------\n')
+                cur_time = time.time()
+                result = session.post(query_url, json={'user_query': call["input"], 'api_key': ""}).content
+                run_time = time.time() - cur_time
                 result = json.loads(result)
-                f.write(f'{result["debug"]}\n')
-            f.write('\n\n')
+                judge_response = await judge_llm.ainvoke({"question": call["input"], "expected_answer": call["output"], "response": result["content"]})
+                f.write(f'Question: {call["input"]}\n'
+                        f'Expected Answer Reference: {call["output"]}\n'
+                        f'Response: {result["content"]}\n'
+                        f'Iterations: {result["iterations"]}\n'
+                        f'Time: {result["execution_time"]}(Test side: {run_time})\n'
+                        f'Tools called: {sum(len(message["tools"]) for message in result["agent_messages"])}\n'
+                        f'Judge Response: {judge_response.content}\n\n\n')
+
+                total_time += result["execution_time"]
+                execution_times.append(result["execution_time"])
+                iterations.append(result["iterations"])
+                number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
+
+            f.write(f'-------------- Summary --------------\n')
+            f.write(f'Used backend: {BACKEND}\n'
+                    f'Used config: {CONFIG}\n'
+                    f'Total Execution time: {total_time}\n'
+                    f'Avg Execution time per iteration: {np.average(np.array(execution_times) / np.array(iterations))}\n')
             return True
         except Exception as e:
             f.write(f'EXCEPTION: {str(e)}\n\n\n')
             return False
 
 
-class TestOpacaLLM(unittest.TestCase):
+class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
 
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
 
     def setUp(self):
-        self.server_process = subprocess.Popen(['python', '-m', 'Backend.server'])
+        self.server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.dirname(os.getcwd()))
         time.sleep(1)
-        requests.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
+        session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
+        session.put(llm_url + f'/{BACKEND}/config', json=CONFIG)
 
     def tearDown(self):
         self.server_process.terminate()
         self.server_process.wait()
 
-    def testSingleCalls(self):
-        assert exec_test('single', 'Single Execution Test', self.file_name)
-
-    def testServiceCalls(self):
-        assert exec_test('service', 'Service Questions Test', self.file_name)
-
-    def testMissingServices(self):
-        assert exec_test('missing_svc', "Missing Services Test", self.file_name)
-
-    def testStupid(self):
-        assert exec_test('stupid', 'Stupid Questions Test', self.file_name)
-
-    def testSpellingMistakes(self):
-        assert exec_test('spelling', 'Spelling Mistakes Test', self.file_name)
-
-    def testFuzzing(self):
-        assert exec_test('fuzzing', 'Fuzzing Test', self.file_name)
-
-    def testMediumComplex(self):
-        assert exec_test('medium', 'Medium Difficulty Test', self.file_name)
-
-    def testVeryComplex(self):
-        assert exec_test('hard', 'Hard Difficulty Test', self.file_name)
-
-    def testMissingParams(self):
-        assert exec_test('missing_params', 'Missing Parameter Test', self.file_name)
+    async def testBenchmark(self):
+        assert await benchmark_test(self.file_name)
 
 
 if __name__ == "__main__":
