@@ -158,6 +158,7 @@ export default {
         },
 
         async askChatGpt(userText) {
+            this.isFinished = false;
             this.showExampleQuestions = false;
             const currentMessageCount = this.messageCount;
             this.messageCount++;
@@ -201,25 +202,7 @@ export default {
                             // Last message received should be final response
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount);
                             this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-
-                            // Append the debug messages generated during this request to the ai message bubble
-                            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
-                            const debugMessages = this.$refs.sidebar.debugMessages;
-                            if (aiBubble) {
-                                for (let i = debugMessageLength; i < debugMessages.length; i++) {
-                                    let d1 = document.createElement("div");
-                                    d1.className = "bubble-debug-text";
-                                    d1.textContent = debugMessages.at(i).text;
-                                    d1.style.color = debugMessages.at(i).color;
-                                    d1.dataset.type = debugMessages.at(i).type;
-                                    aiBubble.append(d1);
-                                }
-                            }
-
-                            // Make expand debug button appear
-                            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
-                            debugToggle.style.display = 'block';
-                            this.scrollDown(false);
+                            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
                         }
                     };
 
@@ -229,8 +212,18 @@ export default {
                     };
 
                     socket.onclose = () => {
+                        if (!this.isFinished) {
+                            this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
+                        }
                         console.log("WebSocket connection closed");
                     };
+
+                    socket.onerror = (error) => {
+                        if (!this.isFinished) {
+                            this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
+                        }
+                        console.log("Received error: ", error)
+                    }
                 } else {
                     this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
                     this.toggleLoadingSymbol(currentMessageCount);
@@ -401,6 +394,43 @@ export default {
                 </div>`;
             chat.appendChild(d1)
             this.scrollDown(false)
+        },
+
+        bindDebugMsgToBubble(currentMessageCount, debugMessageLength) {
+            // Append the debug messages generated during this request to the ai message bubble
+            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
+            const debugMessages = this.$refs.sidebar.debugMessages;
+            if (aiBubble) {
+                for (let i = debugMessageLength; i < debugMessages.length; i++) {
+                    let d1 = document.createElement("div");
+                    d1.className = "bubble-debug-text";
+                    d1.textContent = debugMessages.at(i).text;
+                    d1.style.color = debugMessages.at(i).color;
+                    d1.dataset.type = debugMessages.at(i).type;
+                    aiBubble.append(d1);
+                }
+            }
+
+            // Make expand debug button appear
+            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
+            debugToggle.style.display = 'block';
+            this.scrollDown(false);
+            this.isFinished = true
+        },
+
+        handleUnexpectedConnectionClosed(message, currentMessageCount, debugMessageLength) {
+            this.editTextSpeechBubbleAI(message, currentMessageCount);
+            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
+
+            const aiBubble = document.getElementById(`${currentMessageCount}`);
+            const messageContainer = aiBubble.querySelector("#messageContainer");
+            messageContainer.style.color = "red"
+
+            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+            if (loadingContainer) {
+                loadingContainer.classList.add('hidden');
+            }
         },
 
         scrollDown(debug) {
