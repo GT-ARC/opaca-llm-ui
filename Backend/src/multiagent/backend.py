@@ -407,7 +407,7 @@ Continue with the task using these results."""
                 self._log_interaction(
                     "Orchestrator",
                     input_content=message,
-                    output_content=f"Execution Plan:\nThinking: {plan.thinking}\nContext: {plan.context}\nTasks: {json.dumps([task.dict() for task in plan.tasks], indent=2)}",
+                    output_content=f"Execution Plan:\nThinking: {plan.thinking}\nTasks: {json.dumps([task.dict() for task in plan.tasks], indent=2)}",
                     system_prompt=ORCHESTRATOR_SYSTEM_PROMPT.format(agent_summaries=json.dumps(agent_summaries, indent=2)),
                     include_prompts=True
                 )

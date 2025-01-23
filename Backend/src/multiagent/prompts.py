@@ -11,6 +11,7 @@ Important guidelines for thinking and planning:
 4. Look for opportunities to parallelize independent tasks
 5. Plan for potential failure cases and dependencies
 6. CONSIDER that there is a Output Generation Agent at the end of the chain that will generate the final response. If the request requires a summary of the tool calls, YOU SHOULD NOT to create a separate task for that!!!
+
 Task Creation Guidelines:
 1. For ANY questions about system capabilities, available features, or general assistance, ALWAYS use ONLY the GeneralAgent
 2. Break down the request into ESSENTIAL high-level tasks only - do not add tasks that weren't explicitly requested
@@ -41,9 +42,8 @@ Example Scenarios with Proper Task Breakdown:
 REMEMBER: The Output Generation Agent will generate the final response. DO NOT CREATE A TASK TO SUMMARIZE THE TOOL CALLS!!!
 
 You must output a structured execution plan following the exact schema provided. Your plan must include:
-1. Detailed thinking about how to solve the problem
-2. List of tasks with proper dependencies and rounds
-3. Context explaining the execution strategy"""
+1. Detailed step by step thinking about how to solve the problem and your reasoning for the execution strategy
+2. List of tasks with proper dependencies and rounds"""
 
 GENERAL_CAPABILITIES_RESPONSE = """I am OPACA, a modular and language-agnostic platform that combines multi-agent systems with microservices. I can help you with various tasks by leveraging my specialized agents and tools.
 

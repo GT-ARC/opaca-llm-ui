@@ -11,9 +11,8 @@ class AgentTask(BaseModel):
 
 class ExecutionPlan(BaseModel):
     """Model for the orchestrator's execution plan"""
-    thinking: str = Field(..., description="Chain of thought reasoning about how to break down and solve the task")
+    thinking: str = Field(..., description="Step by step reasoning about how to break down and solve the task")
     tasks: List[AgentTask] = Field(..., description="List of tasks to be executed")
-    context: str = Field(..., description="Context or reasoning for the execution plan")
 
 class AgentEvaluation(str, Enum):
     """Possible outcomes from the agent evaluator"""
