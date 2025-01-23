@@ -41,7 +41,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * RestGPT: Based on [RestGPT](https://github.com/Yifan-Song793/RestGPT); using LangChain with four agents (Planner, Action Selector, Caller, Evaluator) to determine what to do, which actions to call, and evaluate the result.
 
-* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of OpenAI models. A similar version for LLAMA is currently in progress.
+* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
 
 The different LLM clients provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta.
 
@@ -58,6 +58,15 @@ The message handling of the OPACA LLM is illustrated in the image above. During 
 ### Speech Input and Output
 
 The chatbot-UI supports speech-to-text (STT) using the Whisper model. A server with accordant API routes is included in this project under `Backend/tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running, or no URL provided, the STT feature will not be available.
+
+
+## Configuration and Parameters
+
+The OPACA LLM can be configured in various ways using the `config.js` file in the Frontend directory. Here, you can configure, among others, the default OPACA Platform to connect to, which sample questions to show, which backend options to show, as well as some UI settings. Some of those settings can also be configured using Environment Variables (see next section), while others can be overwritten using Query parameters (i.e. appending `?abc=foo&xyz=bar` to the request URL):
+
+* `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
+* `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `connect` (stay on connect page), `questions` (sample questions), `agents` (agents and actions), `config` and `debug`.
+* `samples`: Which category of sample questions to show; possible options see "headers" in the `sidebarQuestions` section in the config (special characters might have to be URL-encoded), plus `random` for a random selection.
 
 
 ## Environment Variables
@@ -77,7 +86,8 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 ### Backend
 
 * `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
-
+* `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
+* `VLLM_API_KEY`: API key for the vLLM API, if any.
 
 ## Getting Started
 
