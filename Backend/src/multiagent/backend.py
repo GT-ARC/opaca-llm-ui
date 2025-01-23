@@ -13,6 +13,7 @@ from .prompts import (
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
     OUTPUT_GENERATOR_PROMPT,
+    ITERATION_ADVISOR_PROMPT,
 )
 
 from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage
@@ -23,6 +24,7 @@ from .agents import (
     OverallEvaluator,
     OutputGenerator,
     GeneralAgent,
+    IterationAdvisor,
 )
 from .models import AgentEvaluation, OverallEvaluation, AgentResult
 
@@ -381,6 +383,7 @@ Continue with the task using these results."""
             agent_evaluator = AgentEvaluator(orchestrator_client, config["model"])
             overall_evaluator = OverallEvaluator(orchestrator_client, config["model"])
             output_generator = OutputGenerator(orchestrator_client, config["model"])
+            iteration_advisor = IterationAdvisor(orchestrator_client, config["model"])
             
             # Add GeneralAgent to available worker agents
             worker_agents = {
@@ -511,13 +514,62 @@ Continue with the task using these results."""
                         content=f"Overall evaluation result: {evaluation}"
                     ).model_dump_json())
                     
-                    # Send completion message for overall evaluator
                     await websocket.send_json(AgentMessage(
                         agent="OverallEvaluator",
                         content="Overall evaluation complete ✓"
                     ).model_dump_json())
                 
-                if evaluation == OverallEvaluation.FINISHED:
+                if evaluation == OverallEvaluation.CONTINUE:
+                    # Get iteration advice before continuing
+                    if websocket:
+                        await websocket.send_json(AgentMessage(
+                            agent="IterationAdvisor",
+                            content="Analyzing results and preparing advice for next iteration..."
+                        ).model_dump_json())
+                    
+                    advice = await iteration_advisor.get_advice(message, all_results)
+                    
+                    # Log the iteration advice
+                    self._log_interaction(
+                        "IterationAdvisor",
+                        input_content=f"Request: {message}\nResults: {json.dumps([r.dict() for r in all_results], indent=2)}",
+                        output_content=json.dumps(advice.dict(), indent=2),
+                        system_prompt=ITERATION_ADVISOR_PROMPT,
+                        include_prompts=True
+                    )
+                    
+                    if websocket:
+                        await websocket.send_json(AgentMessage(
+                            agent="IterationAdvisor",
+                            content=f"Iteration Advice:\n{json.dumps(advice.dict(), indent=2)}"
+                        ).model_dump_json())
+                    
+                    # If advisor suggests not to retry, mark as finished
+                    if not advice.should_retry:
+                        if websocket:
+                            await websocket.send_json(AgentMessage(
+                                agent="IterationAdvisor",
+                                content="Advisor suggests stopping iterations - proceeding to final output"
+                            ).model_dump_json())
+                        break
+                    
+                    # Add the advice to the message for the next iteration
+                    message = f"""Original request: {message}
+
+Previous iteration summary: {advice.context_summary}
+
+Issues identified:
+{chr(10).join(f'- {issue}' for issue in advice.issues)}
+
+Please address these specific improvements:
+{chr(10).join(f'- {step}' for step in advice.improvement_steps)}"""
+                    
+                    if websocket:
+                        await websocket.send_json(AgentMessage(
+                            agent="IterationAdvisor",
+                            content="Proceeding with next iteration using provided advice ✓"
+                        ).model_dump_json())
+                else:
                     break
                 
                 rounds += 1

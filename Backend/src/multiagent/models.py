@@ -30,4 +30,11 @@ class AgentResult(BaseModel):
     task: str
     output: str
     tool_calls: List[Dict[str, Any]] = []
-    tool_results: List[Any] = [] 
+    tool_results: List[Any] = []
+
+class IterationAdvice(BaseModel):
+    """Model for providing structured advice for the next iteration"""
+    issues: List[str] = Field(..., description="List of specific issues identified in the current iteration")
+    improvement_steps: List[str] = Field(..., description="Concrete steps to improve in the next iteration")
+    context_summary: str = Field(..., description="Brief summary of relevant context to carry forward")
+    should_retry: bool = Field(..., description="Whether retrying would be beneficial") 

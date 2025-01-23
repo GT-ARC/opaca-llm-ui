@@ -201,9 +201,19 @@ export default {
                                 // Accumulate content for streaming without coloring
                                 if (!this.accumulatedContent) {
                                     this.accumulatedContent = '';
+                                    // Hide loading indicator on first chunk
+                                    const aiBubble = document.getElementById(`${currentMessageCount}`);
+                                    if (aiBubble) {
+                                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                                        if (loadingContainer) {
+                                            loadingContainer.classList.add('hidden');
+                                        }
+                                    }
                                 }
                                 this.accumulatedContent += result.content;
-                                this.editTextSpeechBubbleAI(this.accumulatedContent, currentMessageCount);
+                                // Apply markdown parsing to the entire accumulated content
+                                const formattedContent = marked.parse(this.accumulatedContent);
+                                this.editTextSpeechBubbleAI(formattedContent, currentMessageCount, true, false); // Pass false to prevent loading indicator changes
                                 // Remove any active glow animation for assistant content
                                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                             } else {
@@ -350,7 +360,7 @@ export default {
             this.isBusy = false;
         },
 
-        createSpeechBubbleAI(text, id) {
+        createSpeechBubbleAI(text, id, isPreformatted = false) {
             this.lastMessage = text;
             const chat = document.getElementById("chat-container");
             let d1 = document.createElement("div");
@@ -363,7 +373,7 @@ export default {
                     .filter(line => line.trim() !== '')
                     .map(line => `<div class="status-line">${line}</div>`)
                     .join('')
-                : marked.parse(text);
+                : isPreformatted ? text : marked.parse(text);
 
             d1.innerHTML = `
             <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
@@ -599,7 +609,7 @@ export default {
             }
         },
 
-        editTextSpeechBubbleAI(text, id) {
+        editTextSpeechBubbleAI(text, id, isPreformatted = false, updateLoading = true) {
             const aiBubble = document.getElementById(`${id}`);
             if (!aiBubble) {
                 // If the bubble doesn't exist yet, create it
@@ -621,18 +631,23 @@ export default {
                     .join('');
                 messageContainer.innerHTML = formattedText;
 
-                // Show loading indicator for active status
-                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                if (loadingContainer) {
-                    loadingContainer.classList.toggle('hidden', !text.includes('...'));
+                // Show loading indicator for active status only if we should update loading
+                if (updateLoading) {
+                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                    if (loadingContainer) {
+                        loadingContainer.classList.toggle('hidden', !text.includes('...'));
+                    }
                 }
             } else {
-                // Use markdown parsing for regular messages
-                messageContainer.innerHTML = marked.parse(text);
-                // Hide loading indicator for final message
-                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                if (loadingContainer) {
-                    loadingContainer.classList.add('hidden');
+                // Use the pre-formatted content or parse markdown as needed
+                messageContainer.innerHTML = isPreformatted ? text : marked.parse(text);
+                
+                // Hide loading indicator only if we should update loading
+                if (updateLoading) {
+                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                    if (loadingContainer) {
+                        loadingContainer.classList.add('hidden');
+                    }
                 }
             }
         },

@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from openai import AsyncOpenAI
 import logging
 
-from .models import AgentTask, ExecutionPlan, AgentEvaluation, OverallEvaluation, AgentResult
+from .models import AgentTask, ExecutionPlan, AgentEvaluation, OverallEvaluation, AgentResult, IterationAdvice
 from .prompts import (
     ORCHESTRATOR_SYSTEM_PROMPT,
     AGENT_SYSTEM_PROMPT,
@@ -11,6 +11,7 @@ from .prompts import (
     OVERALL_EVALUATOR_PROMPT,
     OUTPUT_GENERATOR_PROMPT,
     GENERAL_CAPABILITIES_RESPONSE,
+    ITERATION_ADVISOR_PROMPT,
 )
 
 class BaseAgent:
@@ -377,3 +378,33 @@ class OutputGenerator(BaseAgent):
             temperature=0  # Add temperature=0 to reduce creative thinking
         )
         return response.content 
+
+class IterationAdvisor(BaseAgent):
+    """Agent that provides structured advice for improving the next iteration"""
+    
+    async def get_advice(
+        self,
+        original_request: str,
+        current_results: List[AgentResult]
+    ) -> IterationAdvice:
+        """Analyze current results and provide structured advice"""
+        messages = [
+            {
+                "role": "system",
+                "content": ITERATION_ADVISOR_PROMPT
+            },
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "original_request": original_request,
+                    "current_results": [r.dict() for r in current_results]
+                }, indent=2)
+            }
+        ]
+        
+        response = await self._call_llm(
+            messages=messages,
+            guided_json=IterationAdvice.model_json_schema()
+        )
+        
+        return IterationAdvice.model_validate_json(response.content) 
