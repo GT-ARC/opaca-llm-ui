@@ -5,7 +5,8 @@
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"/>
+                 @api-key-change="(newValue) => this.apiKey = newValue"
+                 @on-sidebar-toggle="this.onSidebarToggle"/>
 
         <!-- Recording Popup -->
         <RecordingPopup
@@ -17,59 +18,63 @@
         />
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent" class="d-flex flex-column flex-grow-1">
+        <main id="mainContent" v-show="this.isMainContentVisible()">
 
             <!-- Chat Window -->
-            <div class="container-fluid flex-grow-1 px-0" id="chat1">
-                <div class="card-body" id="chat-container"/>
-                <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in getCurrentCategoryQuestions()"
-                         :key="index"
-                         class="sample-question"
-                         @click="askChatGpt(question.question)">
-                        {{question.icon}} <br> {{ question.question }}
+            <div class="d-flex flex-column flex-grow-1">
+                <div class="container-fluid flex-grow-1 px-0" id="chat1">
+                    <div class="card-body" id="chat-container"/>
+                    <div v-show="showExampleQuestions" class="sample-questions">
+                        <div v-for="(question, index) in getCurrentCategoryQuestions()"
+                             :key="index"
+                             class="sample-question"
+                             @click="askChatGpt(question.question)">
+                            {{question.icon}} <br> {{ question.question }}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Input Area -->
-            <div class="input-container">
-                <div class="input-group">
+                <!-- Input Area -->
+                <div class="input-container">
+                    <div class="input-group">
                     <textarea id="textInput"
-                           :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
-                           class="form-control"
-                           rows="1"
-                           @input="autoResize"
-                           @keypress="textInputCallback"></textarea>
+                          v-model="textInput"
+                          :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
+                          class="form-control overflow-hidden"
+                          rows="1"
+                          @input="autoResize"
+                          @keypress="textInputCallback"></textarea>
 
-                    <button type="button"
-                            class="btn btn-primary"
-                            @click="submitText"
-                            :disabled="isBusy">
-                        <i class="fa fa-paper-plane"/>
-                    </button>
-
-                    <button v-if="voiceServerConnected"
-                            type="button"
-                            class="btn btn-outline-primary"
-                            @click="startRecognition"
-                            :disabled="isBusy">
-                        <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
-                        <i v-else class="fa fa-microphone"/>
-                    </button>
-
-                    <button type="button"
-                            class="btn btn-outline-danger"
-                            @click="resetChat"
-                            :disabled="isBusy">
-                        <i class="fa fa-refresh"/>
-                    </button>
+                        <!-- user has entered text into message box -> send button available -->
+                        <button type="button"
+                                v-if="this.isSendAvailable()"
+                                class="btn btn-primary"
+                                @click="submitText"
+                                :disabled="isBusy">
+                            <i class="fa fa-paper-plane"/>
+                        </button>
+                        <button type="button"
+                                v-if="this.isSpeechRecognitionAvailable()"
+                                class="btn btn-outline-primary"
+                                @click="startRecognition"
+                                :disabled="isBusy">
+                            <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
+                            <i v-else class="fa fa-microphone"/>
+                        </button>
+                        <button type="button"
+                                v-if="this.isResetAvailable()"
+                                class="btn btn-outline-danger"
+                                @click="resetChat"
+                                :disabled="isBusy">
+                            <i class="fa fa-refresh"/>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Simple Keyboard -->
-            <SimpleKeyboard v-if="getConfig().ShowKeyboard"
-                            @change="this.onChangeSimpleKeyboard" />
+                <!-- Simple Keyboard -->
+                <SimpleKeyboard v-if="getConfig().ShowKeyboard"
+                                @change="this.onChangeSimpleKeyboard" />
+            </div>
         </main>
     </div>
 
@@ -98,6 +103,7 @@ export default {
     data() {
         return {
             apiKey: '',
+            textInput: '',
             recognition: null,
             lastMessage: null,
             messageCount: 0,
@@ -112,7 +118,9 @@ export default {
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
-            statusMessages: {} // Track status messages by messageCount
+            statusMessages: {}, // Track status messages by messageCount
+            isSidebarActive: false,
+            windowWidth: window.innerWidth,
         }
     },
     watch: {
@@ -139,7 +147,7 @@ export default {
         },
 
         onChangeSimpleKeyboard(input) {
-            document.getElementById("textInput").value = input;
+            this.textInput = input;
         },
 
         async textInputCallback(event) {
@@ -150,9 +158,9 @@ export default {
         },
 
         async submitText() {
-            const userInput = document.getElementById("textInput").value;
-            document.getElementById("textInput").value = "";
-            if (userInput != null && userInput !== "") {
+            const userInput = this.textInput;
+            if (this.textInput) {
+                this.textInput = '';
                 await this.askChatGpt(userInput);
             }
         },
@@ -291,13 +299,13 @@ export default {
 
         handleTranscriptionComplete(text) {
             if (text) {
-                document.getElementById("textInput").value = text;
+                this.textInput = text;
             }
         },
 
         handleSendMessage(text) {
             if (text) {
-                document.getElementById("textInput").value = "";
+                this.textInput = "";
                 this.askChatGpt(text);
             }
         },
@@ -660,9 +668,45 @@ export default {
         updateSelectedCategory(category) {
             this.selectedCategory = category;
         },
+
+        updateWidth() {
+            this.windowWidth = window.innerWidth;
+        },
+
+        onSidebarToggle(key) {
+            this.isSidebarActive = (key !== 'none');
+        },
+
+        isMobileView() {
+            return this.windowWidth <= 768
+        },
+
+        isMainContentVisible() {
+            console.log('isMainContentVisible', !(this.isMobileView() && this.isSidebarActive));
+            return !(this.isMobileView() && this.isSidebarActive);
+        },
+
+        isSendAvailable() {
+            console.log('isSendAvailable', !this.isMobileView(), this.textInput.length > 0);
+            if (!this.isMobileView()) return true;
+            return this.textInput.length > 0;
+        },
+
+        isSpeechRecognitionAvailable() {
+            if (!this.voiceServerConnected) return false;
+            if (!this.isMobileView()) return true;
+            return this.textInput.length === 0;
+        },
+
+        isResetAvailable() {
+            if (!this.isMobileView()) return true;
+            return this.textInput.length === 0;
+        },
     },
 
     async mounted() {
+        window.addEventListener('resize', this.updateWidth);
+
         // Initialize the selected language from the sidebar if available
         if (this.$refs.sidebar) {
             this.selectedLanguage = this.$refs.sidebar.selectedLanguage;
@@ -687,6 +731,10 @@ export default {
             this.voiceServerConnected = false;
         }
     },
+
+    beforeUnmount() {
+        window.removeEventListener('resize', this.updateWidth);
+    }
 }
 
 </script>
@@ -762,7 +810,7 @@ export default {
 #chat-container {
     width: 100%;
     max-width: min(80%, 120ch);
-    padding: 1rem;
+    padding: 0.25rem;
     margin: 0 auto;
     position: relative;
 }
@@ -778,7 +826,7 @@ export default {
     height: 40px;
     pointer-events: none;
     z-index: 10;
-    max-width: calc(100% - 4rem); /* Account for padding */
+    max-width: calc(100% - 2rem); /* Account for padding */
 }
 
 /* Top fade */

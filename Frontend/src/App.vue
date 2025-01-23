@@ -13,17 +13,17 @@
                 </div>
                 <div class="ms-5 w-auto text-start">
                     <a href="https://github.com/GT-ARC/opaca-core" target="blank">
-                        <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>
+                        <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="40"/>
                     </a>
                 </div>
                 <div class="ms-5 w-auto text-start">
                     <a href="https://go-ki.org/" target="blank">
-                        <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
+                        <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="40"/>
                     </a>
                 </div>
                 <div class="ms-5 w-auto text-start">
                     <a href="https://ze-ki.de/" target="blank">
-                        <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
+                        <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="40"/>
                     </a>
                 </div>
 
@@ -34,7 +34,7 @@
                         <li class="nav-item dropdown me-3">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-globe me-1"/>
-                                {{ getConfig().translations[this.language].name}}
+                                <!-- {{ getConfig().translations[this.language].name}} -->
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
                                 <li v-for="(value, key) in getConfig().translations" @click="this.setLanguage(key)">
@@ -51,7 +51,7 @@
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-server me-1"/>
-                                {{ getBackendName(backend) }}
+                                <!-- {{ getBackendName(backend) }} -->
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
                                 <li v-for="(value, key) in getConfig().Backends"
@@ -91,7 +91,7 @@
                         <li class="nav-item dropdown ms-3">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
-                                Voice Server
+                                <!-- Voice Server -->
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
                                 <li>
@@ -240,7 +240,7 @@ export default {
 header {
     background-color: var(--background-light);
     width: 100%;
-    height: 60px;
+    height: auto;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);

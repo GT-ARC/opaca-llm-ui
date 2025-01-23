@@ -182,6 +182,7 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import sm from '../SidebarManager.js';
 
 export default {
     name: 'Sidebar',
@@ -224,6 +225,10 @@ export default {
             return conf;
         },
 
+        getSidebarManager() {
+            return sm;
+        },
+
         selectView(key) {
             const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
@@ -233,7 +238,7 @@ export default {
                 this.selectedView = 'none';
                 mainContent?.classList.add('mx-auto');
             }
-            this.$emit('onSidebarToggle', this.selectedView);
+            this.$emit('on-sidebar-toggle', this.selectedView);
             console.log('selected sidebar view:', this.selectedView);
         },
 
