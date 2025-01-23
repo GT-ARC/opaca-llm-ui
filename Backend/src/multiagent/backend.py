@@ -62,16 +62,17 @@ class MultiAgentBackend(OpacaLLMBackend):
     @property
     def default_config(self) -> Dict[str, Any]:
         return {
-            "model": "gpt-4o-mini",  # Model for orchestration and evaluation
-            "worker_model": "gpt-4o-mini",  # Model for worker agents
+            "model": "Qwen25_32B_R1_Distill_FP8",  # Model for orchestration and evaluation
+            "worker_model": "Mistral-Small-Instruct-2409-FP8-Dynamic",  # Model for worker agents
             "temperature": 0,
             "max_rounds": 5,  # Maximum number of orchestration rounds
             "max_iterations": 3,  # Maximum iterations per agent task
-            #"base_url": "http://10.0.64.101:8000/v1",  # Base URL for orchestration/evaluation
-            #"worker_base_url": "http://10.0.64.101:8001/v1",  # Base URL for worker agents
-            "base_url": None,  # Base URL for orchestration/evaluation
-            "worker_base_url": None,  # Base URL for worker agents           
-            "backend_type": "openai",  # Can be 'openai' or 'vllm'
+            "base_url": "http://10.0.64.101:8000/v1",  # Base URL for orchestration/evaluation
+            "worker_base_url": "http://10.0.64.101:8001/v1",  # Base URL for worker agents
+            #"base_url": None,  # Base URL for orchestration/evaluation
+            #"worker_base_url": None,  # Base URL for worker agents           
+            "backend_type": "vllm",  # Can be 'openai' or 'vllm'
+            "use_worker_for_output": True  # Whether to use worker model for output generation
         }
     
     async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:
@@ -82,21 +83,23 @@ class MultiAgentBackend(OpacaLLMBackend):
             api_key = None
 
             # Determine base_url and api_key based on configuration
-            if is_worker and config.get("worker_base_url"):
-                base_url = config["worker_base_url"]
+            if config["backend_type"] == "vllm":
+                # For vLLM, always use VLLM_API_KEY
                 api_key = session.api_key or os.getenv("VLLM_API_KEY")
-            elif config.get("base_url"):
-                base_url = config["base_url"]
-                api_key = session.api_key or os.getenv("OPENAI_API_KEY")
-            elif config["backend_type"] == "vllm":
-                base_url = os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
-                api_key = session.api_key or os.getenv("VLLM_API_KEY")
+                if is_worker:
+                    base_url = config.get("worker_base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1"))
+                else:
+                    base_url = config.get("base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1"))
             else:
-                # Default to OpenAI configuration
+                # For OpenAI, use OPENAI_API_KEY
                 api_key = session.api_key or os.getenv("OPENAI_API_KEY")
+                if is_worker and config.get("worker_base_url"):
+                    base_url = config["worker_base_url"]
+                elif config.get("base_url"):
+                    base_url = config["base_url"]
             
             if not api_key:
-                raise ValueError("No OpenAI API key found in session or environment")
+                raise ValueError("No API key found in session or environment")
             
             # Initialize kwargs with api_key
             kwargs = {"api_key": api_key}
@@ -112,48 +115,41 @@ class MultiAgentBackend(OpacaLLMBackend):
     async def _create_chat_completion(self, client: AsyncOpenAI, messages: List[Dict], config: Dict, stream: bool = False) -> Any:
         """Create a chat completion with proper structured output handling for both OpenAI and vLLM"""
         try:
-            # Common parameters
-            kwargs = {
-                "model": config["model"],
-                "messages": messages.copy(),  # Make a copy to avoid modifying the original
-                "temperature": config["temperature"],
-                "stream": stream
-            }
-            
             # Check if we're using a GPT model
             is_gpt = "gpt" in config["model"].lower()
             self.logger.info(f"Using {'OpenAI GPT' if is_gpt else 'vLLM'} model")
             
-            if is_gpt:  # Using OpenAI API
-                kwargs["response_format"] = {"type": "json_object"}
-                # Add instruction to generate JSON in the system message
-                if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
-                    kwargs["messages"][0]["content"] = kwargs["messages"][0]["content"] + "\nPlease provide your response in JSON format with 'steps' (array of objects with 'explanation' and 'output') and 'final_answer' fields."
-            else:  # Using vLLM
-                kwargs["extra_body"] = {
-                    "guided_json": {
-                        "type": "object",
-                        "properties": {
-                            "steps": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "explanation": {"type": "string"},
-                                        "output": {"type": "string"}
-                                    },
-                                    "required": ["explanation", "output"],
-                                    "additionalProperties": False
-                                }
-                            },
-                            "final_answer": {"type": "string"}
-                        },
-                        "required": ["steps", "final_answer"],
-                        "additionalProperties": False
-                    }
-                }
+            # Base configuration that's always included
+            kwargs = {
+                "model": config["model"],
+                "messages": messages,
+                "temperature": config["temperature"]
+            }
             
+            # For tool calls, keep it extremely simple
+            if "tools" in config:
+                kwargs["tools"] = config["tools"]
+                kwargs["tool_choice"] = config.get("tool_choice", "auto")
+                return await client.chat.completions.create(**kwargs)
+            
+            # For streaming responses
+            if stream:
+                kwargs["stream"] = True
+                return await client.chat.completions.create(**kwargs)
+            
+            # For guided outputs
+            if "guided_json" in config:
+                if is_gpt:
+                    kwargs["response_format"] = {"type": "json_object"}
+                else:
+                    kwargs["extra_body"] = {"guided_json": config["guided_json"]}
+            elif "guided_choice" in config:
+                if not is_gpt:
+                    kwargs["extra_body"] = {"guided_choice": config["guided_choice"]}
+            
+            # Create the completion
             return await client.chat.completions.create(**kwargs)
+            
         except Exception as e:
             self.logger.error(f"Error creating chat completion: {str(e)}")
             raise
@@ -542,9 +538,13 @@ Continue with the task using these results."""
                 "content": f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.dict() for r in all_results], indent=2)}"
             }]
             
+            # Use worker model and client if configured
+            output_client = worker_client if config.get("use_worker_for_output", True) else orchestrator_client
+            output_model = config["worker_model"] if config.get("use_worker_for_output", True) else config["model"]
+            
             # Simple streaming text request without any special constraints
-            stream = await orchestrator_client.chat.completions.create(
-                model=config["model"],
+            stream = await output_client.chat.completions.create(
+                model=output_model,
                 messages=messages,
                 temperature=config["temperature"],
                 stream=True

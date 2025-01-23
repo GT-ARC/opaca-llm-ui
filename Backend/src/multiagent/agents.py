@@ -39,7 +39,13 @@ class BaseAgent:
             "temperature": 0
         }
         
-        # Handle guided outputs
+        # Handle tool calls first since they're simpler
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice or "auto"
+            return await self.client.chat.completions.create(**kwargs)
+            
+        # Handle guided outputs for non-tool calls
         if guided_choice:
             if is_gpt:
                 # For OpenAI, add instruction to choose from options
@@ -93,28 +99,6 @@ class BaseAgent:
                     }
                 ]
                 kwargs["extra_body"] = {"guided_json": guided_json}
-        elif tools:
-            kwargs["tools"] = tools
-            kwargs["tool_choice"] = tool_choice or "auto"
-            if not is_gpt:
-                # For vLLM, keep original system prompt and add tool instruction
-                system_msg = kwargs["messages"][0]["content"] if kwargs["messages"] else ""
-                system_msg = f"{system_msg}\n\nYou have access to tools that you must use to complete tasks. Always use the most appropriate tool for the task."
-                
-                # Move everything except the actual task/query to system message
-                user_msg = kwargs["messages"][-1]["content"] if len(kwargs["messages"]) > 1 else ""
-                
-                kwargs["messages"] = [
-                    {
-                        "role": "system",
-                        "content": system_msg
-                    },
-                    {
-                        "role": "user",
-                        "content": user_msg
-                    }
-                ]
-                kwargs["extra_body"] = {"response_format": {"type": "json_object"}}
         
         response = await self.client.chat.completions.create(**kwargs)
         return response.choices[0].message
@@ -200,10 +184,13 @@ class WorkerAgent(BaseAgent):
 
     async def execute_task(self, task: str) -> AgentResult:
         """Execute a task using the agent's tools"""
+        # For tool calls, use a simple and direct system prompt
+        system_prompt = f"You are the {self.agent_name}. YOU MUST USE THE TOOLS AVAILABLE TO YOU TO COMPLETE THE TASK. DO NOT PROVIDE ANY EXPLANATIONS, JUST USE THE TOOLS."
+        
         messages = [
             {
                 "role": "system",
-                "content": AGENT_SYSTEM_PROMPT + "\n\n" + self.instructions + "\n\nIMPORTANT: You MUST make a tool call to complete your task. DO NOT provide any explanations or text responses. ONLY output a JSON object with your tool call."
+                "content": system_prompt
             },
             {
                 "role": "user",
@@ -222,54 +209,27 @@ class WorkerAgent(BaseAgent):
         output = ""
         
         try:
-            # Try to parse the response content as JSON if it's a string
-            if isinstance(response.content, str):
-                try:
-                    parsed_content = json.loads(response.content)
-                    # Check if we got a direct tool call without the proper wrapper
-                    if "name" in parsed_content and "parameters" in parsed_content:
-                        # Convert to proper format
-                        parsed_content = {
-                            "tool_calls": [{
-                                "function": {
-                                    "name": parsed_content["name"],
-                                    "arguments": json.dumps(parsed_content["parameters"])
-                                }
-                            }]
-                        }
-                    # Create synthetic tool calls
-                    if "tool_calls" in parsed_content:
-                        response.tool_calls = []
-                        for tool_call in parsed_content["tool_calls"]:
-                            # Create a tool call object that matches OpenAI's format
-                            class SyntheticToolCall:
-                                class Function:
-                                    def __init__(self, name, arguments):
-                                        self.name = name
-                                        self.arguments = arguments if isinstance(arguments, str) else json.dumps(arguments)
-                                
-                                def __init__(self, function_data):
-                                    self.function = self.Function(
-                                        function_data["function"]["name"],
-                                        function_data["function"]["arguments"]
-                                    )
-                            
-                            response.tool_calls.append(SyntheticToolCall(tool_call))
-                except json.JSONDecodeError:
-                    # If we can't parse as JSON, treat as regular content
-                    pass
+            # Handle both OpenAI and vLLM response formats
+            if hasattr(response, 'tool_calls'):
+                # OpenAI format
+                tool_calls_list = response.tool_calls
+            elif hasattr(response, 'choices') and response.choices[0].message.tool_calls:
+                # vLLM format
+                tool_calls_list = response.choices[0].message.tool_calls
+            else:
+                tool_calls_list = []
             
-            if response.tool_calls:
+            if tool_calls_list:
                 tool_calls = [
                     {
                         "name": tool_call.function.name,
                         "arguments": tool_call.function.arguments
                     }
-                    for tool_call in response.tool_calls
+                    for tool_call in tool_calls_list
                 ]
                 
                 # Execute each tool call
-                for tool_call in response.tool_calls:
+                for tool_call in tool_calls_list:
                     result = await self._execute_tool_call(tool_call)
                     tool_results.append({
                         "name": tool_call.function.name,
@@ -279,7 +239,7 @@ class WorkerAgent(BaseAgent):
                     output += f"Result from {tool_call.function.name}: {result}\n"
             else:
                 # If no tool calls were made, use the response content as output
-                output = response.content if response.content else "No output generated"
+                output = response.content if hasattr(response, 'content') else response.choices[0].message.content
         
         except Exception as e:
             logger = logging.getLogger(__name__)
