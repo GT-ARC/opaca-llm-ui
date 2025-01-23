@@ -31,7 +31,6 @@ class BaseAgent:
         
         # Check if we're using a GPT model
         is_gpt = "gpt" in self.model.lower()
-        logger.info(f"Using {'OpenAI GPT' if is_gpt else 'vLLM'} model")
         
         # Base kwargs that are always included
         kwargs = {
@@ -115,8 +114,7 @@ class BaseAgent:
                         "content": user_msg
                     }
                 ]
-        
-        logger.info(f"Final kwargs for chat completion: {kwargs}")
+                kwargs["extra_body"] = {"response_format": {"type": "json_object"}}
         
         response = await self.client.chat.completions.create(**kwargs)
         return response.choices[0].message
@@ -153,8 +151,12 @@ class WorkerAgent(BaseAgent):
         agent_name: str,
         instructions: str,
         tools: List[Dict],
-        internal_tools: List[Dict]
+        internal_tools: List[Dict],
+        config: Dict[str, Any] = None
     ):
+        # Use worker_model from config if available, otherwise fall back to default model
+        if config and "worker_model" in config:
+            model = config["worker_model"]
         super().__init__(client, model)
         self.agent_name = agent_name
         self.instructions = instructions
@@ -185,10 +187,6 @@ class WorkerAgent(BaseAgent):
             if not session_client:
                 return f"Error: No session client found for tool {func_name}"
             
-            # Log tool execution
-            logger = logging.getLogger(__name__)
-            logger.info(f"\n=== Executing Tool: {func_name} ===\nArguments: {json.dumps(args, indent=2)}")
-            
             # Invoke the OPACA action
             result = await session_client.invoke_opaca_action(
                 action=action_name,
@@ -205,9 +203,12 @@ class WorkerAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": AGENT_SYSTEM_PROMPT + "\n\n" + self.instructions
+                "content": AGENT_SYSTEM_PROMPT + "\n\n" + self.instructions + "\n\nIMPORTANT: You MUST make a tool call to complete your task. DO NOT provide any explanations or text responses. ONLY output a JSON object with your tool call."
             },
-            {"role": "user", "content": task}
+            {
+                "role": "user",
+                "content": f"Make a tool call to complete this task: {task}"
+            }
         ]
         
         response = await self._call_llm(
@@ -220,27 +221,70 @@ class WorkerAgent(BaseAgent):
         tool_results = []
         output = ""
         
-        if response.tool_calls:
-            tool_calls = [
-                {
-                    "name": tool_call.function.name,
-                    "arguments": tool_call.function.arguments
-                }
-                for tool_call in response.tool_calls
-            ]
+        try:
+            # Try to parse the response content as JSON if it's a string
+            if isinstance(response.content, str):
+                try:
+                    parsed_content = json.loads(response.content)
+                    # Check if we got a direct tool call without the proper wrapper
+                    if "name" in parsed_content and "parameters" in parsed_content:
+                        # Convert to proper format
+                        parsed_content = {
+                            "tool_calls": [{
+                                "function": {
+                                    "name": parsed_content["name"],
+                                    "arguments": json.dumps(parsed_content["parameters"])
+                                }
+                            }]
+                        }
+                    # Create synthetic tool calls
+                    if "tool_calls" in parsed_content:
+                        response.tool_calls = []
+                        for tool_call in parsed_content["tool_calls"]:
+                            # Create a tool call object that matches OpenAI's format
+                            class SyntheticToolCall:
+                                class Function:
+                                    def __init__(self, name, arguments):
+                                        self.name = name
+                                        self.arguments = arguments if isinstance(arguments, str) else json.dumps(arguments)
+                                
+                                def __init__(self, function_data):
+                                    self.function = self.Function(
+                                        function_data["function"]["name"],
+                                        function_data["function"]["arguments"]
+                                    )
+                            
+                            response.tool_calls.append(SyntheticToolCall(tool_call))
+                except json.JSONDecodeError:
+                    # If we can't parse as JSON, treat as regular content
+                    pass
             
-            # Execute each tool call
-            for tool_call in response.tool_calls:
-                result = await self._execute_tool_call(tool_call)
-                tool_results.append({
-                    "name": tool_call.function.name,
-                    "result": result
-                })
-                # Add the tool result to the output
-                output += f"Result from {tool_call.function.name}: {result}\n"
-        else:
-            # If no tool calls were made, use the response content as output
-            output = response.content if response.content else "No output generated"
+            if response.tool_calls:
+                tool_calls = [
+                    {
+                        "name": tool_call.function.name,
+                        "arguments": tool_call.function.arguments
+                    }
+                    for tool_call in response.tool_calls
+                ]
+                
+                # Execute each tool call
+                for tool_call in response.tool_calls:
+                    result = await self._execute_tool_call(tool_call)
+                    tool_results.append({
+                        "name": tool_call.function.name,
+                        "result": result
+                    })
+                    # Add the tool result to the output
+                    output += f"Result from {tool_call.function.name}: {result}\n"
+            else:
+                # If no tool calls were made, use the response content as output
+                output = response.content if response.content else "No output generated"
+        
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error processing tool calls: {str(e)}")
+            output = f"Error processing tool calls: {str(e)}"
         
         return AgentResult(
             agent_name=self.agent_name,
@@ -256,12 +300,16 @@ class AgentEvaluator(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": AGENT_EVALUATOR_PROMPT.format(
-                    task=task,
-                    output=result.output,
-                    tool_calls=result.tool_calls,
-                    tool_results=result.tool_results
-                )
+                "content": AGENT_EVALUATOR_PROMPT
+            },
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "task": task,
+                    "agent_output": result.output,
+                    "tool_calls": result.tool_calls,
+                    "tool_results": result.tool_results
+                }, indent=2)
             }
         ]
         
@@ -282,10 +330,14 @@ class OverallEvaluator(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": OVERALL_EVALUATOR_PROMPT.format(
-                    original_request=original_request,
-                    current_results=json.dumps([r.dict() for r in current_results], indent=2)
-                )
+                "content": OVERALL_EVALUATOR_PROMPT
+            },
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "original_request": original_request,
+                    "current_results": [r.dict() for r in current_results]
+                }, indent=2)
             }
         ]
         
@@ -299,7 +351,10 @@ class OverallEvaluator(BaseAgent):
 class GeneralAgent(BaseAgent):
     """Agent that handles general capability questions without using tools."""
     
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any]):
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], config: Dict[str, Any] = None):
+        # Use worker_model from config if available, otherwise fall back to default model
+        if config and "worker_model" in config:
+            model = config["worker_model"]
         super().__init__(client, model)
         self.agent_name = "GeneralAgent"
         
@@ -309,13 +364,25 @@ class GeneralAgent(BaseAgent):
         )
         
     async def execute_task(self, task: str) -> AgentResult:
-        """Simply return the predefined capabilities response."""
+        """Return capabilities response with proper tool structure."""
+        # Create a dummy tool call to maintain consistent structure
+        tool_call = {
+            "name": "GetCapabilities",
+            "arguments": json.dumps({"request": task})
+        }
+        
+        # Create a dummy tool result with the actual response
+        tool_result = {
+            "name": "GetCapabilities",
+            "result": self.predefined_response
+        }
+        
         return AgentResult(
             agent_name=self.agent_name,
             task=task,
-            output=self.predefined_response,
-            tool_calls=[],
-            tool_results=[]
+            output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
+            tool_calls=[tool_call],
+            tool_results=[tool_result]
         )
 
 class OutputGenerator(BaseAgent):
@@ -325,15 +392,28 @@ class OutputGenerator(BaseAgent):
         execution_results: List[AgentResult]
     ) -> str:
         """Generate the final response to the user"""
+        # Create input data for logging
+        input_data = {
+            "original_request": original_request,
+            "execution_results": [r.dict() for r in execution_results]
+        }
+        
+        # Log the input data
+        self.logger.info(f"Final output generation input: {json.dumps(input_data, indent=2)}")
+        
         messages = [
             {
                 "role": "system",
-                "content": OUTPUT_GENERATOR_PROMPT.format(
-                    original_request=original_request,
-                    execution_results=json.dumps([r.dict() for r in execution_results], indent=2)
-                )
+                "content": OUTPUT_GENERATOR_PROMPT
+            },
+            {
+                "role": "user",
+                "content": json.dumps(input_data, indent=2)
             }
         ]
         
-        response = await self._call_llm(messages=messages)
+        response = await self._call_llm(
+            messages=messages,
+            temperature=0  # Add temperature=0 to reduce creative thinking
+        )
         return response.content 

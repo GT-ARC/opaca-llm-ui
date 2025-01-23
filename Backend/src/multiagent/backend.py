@@ -44,41 +44,65 @@ class MultiAgentBackend(OpacaLLMBackend):
         # Set up logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
+        
+        # Initialize logging settings
+        self.log_to_file = True
+        self.log_file = "agents.log"
+        
+        # Clear the log file at startup
+        if self.log_to_file:
+            with open(self.log_file, 'w') as f:
+                f.write(f"\n{'=' * 35} New Session Started {'=' * 35}\n\n\n\n")
+        
+        # Initialize session tracking
+        self.current_session_id = None
+        self.current_session_log = []
+        self.logged_interactions = set()  # Track unique interactions to prevent duplicates
     
     @property
     def default_config(self) -> Dict[str, Any]:
         return {
-            "model": "Mistral-Small-Instruct-2409-FP8-Dynamic",
+            "model": "gpt-4o-mini",  # Model for orchestration and evaluation
+            "worker_model": "gpt-4o-mini",  # Model for worker agents
             "temperature": 0,
             "max_rounds": 5,  # Maximum number of orchestration rounds
             "max_iterations": 3,  # Maximum iterations per agent task
-            "base_url": "http://10.0.64.101:8000/v1",  # Base URL for the API (e.g., vLLM server)
-            "backend_type": "vllm",  # Can be 'openai' or 'vllm'
+            #"base_url": "http://10.0.64.101:8000/v1",  # Base URL for orchestration/evaluation
+            #"worker_base_url": "http://10.0.64.101:8001/v1",  # Base URL for worker agents
+            "base_url": None,  # Base URL for orchestration/evaluation
+            "worker_base_url": None,  # Base URL for worker agents           
+            "backend_type": "openai",  # Can be 'openai' or 'vllm'
         }
     
-    async def _create_openai_client(self, session: SessionData) -> AsyncOpenAI:
+    async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:
         """Create OpenAI client with appropriate configuration"""
         try:
             config = session.config.get(self.NAME, self.default_config)
+            base_url = None
+            api_key = None
 
-            # Add base_url if specified in config or if using vLLM
-            if config["base_url"]:
+            # Determine base_url and api_key based on configuration
+            if is_worker and config.get("worker_base_url"):
+                base_url = config["worker_base_url"]
+                api_key = session.api_key or os.getenv("VLLM_API_KEY")
+            elif config.get("base_url"):
                 base_url = config["base_url"]
                 api_key = session.api_key or os.getenv("OPENAI_API_KEY")
             elif config["backend_type"] == "vllm":
                 base_url = os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
                 api_key = session.api_key or os.getenv("VLLM_API_KEY")
-            
+            else:
+                # Default to OpenAI configuration
+                api_key = session.api_key or os.getenv("OPENAI_API_KEY")
             
             if not api_key:
                 raise ValueError("No OpenAI API key found in session or environment")
             
             # Initialize kwargs with api_key
             kwargs = {"api_key": api_key}
-            kwargs["base_url"] = base_url
-            
+            if base_url:
+                kwargs["base_url"] = base_url
 
-            
             client = AsyncOpenAI(**kwargs)
             return client
         except Exception as e:
@@ -211,14 +235,23 @@ class MultiAgentBackend(OpacaLLMBackend):
                     content=f"Agent {agent_name} is working on task..."
                 ).model_dump_json())
             
+            # Log task input before execution
+            agent_data = self.agents_data["agents_simple"].get(agent_name, {})
+            self._log_interaction(
+                agent_name,
+                input_content=current_task,
+                system_prompt=AGENT_SYSTEM_PROMPT.format(agent_instructions=agent_data.get("instructions", "")),
+                include_prompts=True
+            )
+            
             # Execute task
             result = await agent.execute_task(current_task)
             
-            # Log tool calls and results (terminal only)
-            if result.tool_calls:
-                self.logger.info(f"\n=== Tool Calls for {agent_name} ===\n{json.dumps(result.tool_calls, indent=2)}")
-            if result.tool_results:
-                self.logger.info(f"\n=== Tool Results for {agent_name} ===\n{json.dumps(result.tool_results, indent=2)}")
+            # Log the result after execution
+            self._log_interaction(
+                agent_name,
+                output_content=f"Output: {result.output}\nTool Calls: {json.dumps(result.tool_calls, indent=2)}\nTool Results: {json.dumps(result.tool_results, indent=2)}"
+            )
             
             # Send results via websocket
             if websocket:
@@ -253,10 +286,16 @@ class MultiAgentBackend(OpacaLLMBackend):
             # Evaluate result
             evaluation = await agent_evaluator.evaluate(current_task, result)
             
-            # Log evaluation result (terminal only)
-            self.logger.info(f"\n=== Evaluation Result for {agent_name} ===\n{evaluation}")
+            # Log agent evaluator interaction
+            self._log_interaction(
+                "AgentEvaluator",
+                input_content=f"Task: {current_task}\nResult: {json.dumps(result.dict(), indent=2)}",
+                output_content=f"Evaluation: {evaluation}",
+                system_prompt=AGENT_EVALUATOR_PROMPT,
+                include_prompts=True
+            )
             
-            # Send evaluation results
+            # Send evaluation results via websocket
             if websocket:
                 await websocket.send_json(AgentMessage(
                     agent="AgentEvaluator",
@@ -298,10 +337,16 @@ Continue with the task using these results."""
         return await self.query_stream(message, session)
     
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
-        """Process a query using the multi-agent system"""
+        """Process a user message using multiple agents"""
         try:
+            # Log initial user message
+            self._log_interaction("User", input_content=message)
+            
             config = session.config.get(self.NAME, self.default_config)
-            client = await self._create_openai_client(session)
+            
+            # Create separate clients for orchestration and worker agents
+            orchestrator_client = await self._create_openai_client(session, is_worker=False)
+            worker_client = await self._create_openai_client(session, is_worker=True)
             
             # Initialize response
             response = Response(query=message)
@@ -313,9 +358,9 @@ Continue with the task using these results."""
                     content="Initializing the OPACA AI Agents"
                 ).model_dump_json())
             
-            # Extract just the summaries from agents_simple
+            # Get simplified agent summaries for the orchestrator
             agent_summaries = {
-                name: data["summary"]  # Pass summary directly without extra nesting
+                name: data["summary"]
                 for name, data in self.agents_data["agents_simple"].items()
             }
             
@@ -327,27 +372,27 @@ Continue with the task using these results."""
 **Goals and Capabilities:** The GeneralAgent can:
 1. Explain what the system can do
 2. Provide information about available agents and their capabilities
-3. Answer general questions about the system
-4. Help users understand how to best utilize the system"""
+3. Answer general questions about the system"""
             
             # Initialize agents
             orchestrator = OrchestratorAgent(
-                client=client,
+                client=orchestrator_client,
                 model=config["model"],
                 agent_summaries=agent_summaries
             )
             
             # Initialize evaluators and output generator
-            agent_evaluator = AgentEvaluator(client, config["model"])
-            overall_evaluator = OverallEvaluator(client, config["model"])
-            output_generator = OutputGenerator(client, config["model"])
+            agent_evaluator = AgentEvaluator(orchestrator_client, config["model"])
+            overall_evaluator = OverallEvaluator(orchestrator_client, config["model"])
+            output_generator = OutputGenerator(orchestrator_client, config["model"])
             
             # Add GeneralAgent to available worker agents
             worker_agents = {
                 "GeneralAgent": GeneralAgent(
-                    client=client,
-                    model=config["model"],
-                    agent_summaries=agent_summaries  # Use the same simplified summaries
+                    client=worker_client,
+                    model=config["worker_model"],
+                    agent_summaries=agent_summaries,
+                    config=config
                 )
             }
             
@@ -358,8 +403,14 @@ Continue with the task using these results."""
                 # Get execution plan from orchestrator
                 plan = await orchestrator.create_execution_plan(message)
                 
-                # Log orchestrator plan
-                self.logger.info(f"\n=== Orchestrator Plan ===\n{json.dumps(plan.dict(), indent=2)}")
+                # Log orchestrator's plan with system prompt
+                self._log_interaction(
+                    "Orchestrator",
+                    input_content=message,
+                    output_content=f"Execution Plan:\nThinking: {plan.thinking}\nContext: {plan.context}\nTasks: {json.dumps([task.dict() for task in plan.tasks], indent=2)}",
+                    system_prompt=ORCHESTRATOR_SYSTEM_PROMPT.format(agent_summaries=json.dumps(agent_summaries, indent=2)),
+                    include_prompts=True
+                )
                 
                 if websocket:
                     await websocket.send_json(AgentMessage(
@@ -408,12 +459,13 @@ Continue with the task using these results."""
                             raise ValueError(f"Agent {agent_name} is missing required instructions")
                         
                         worker_agents[agent_name] = WorkerAgent(
-                            client=client,
-                            model=config["model"],
+                            client=worker_client,
+                            model=config["worker_model"],
                             agent_name=agent_name,
                             instructions=agent_data["instructions"],
                             tools=agent_tools,
-                            internal_tools=agent_functions
+                            internal_tools=agent_functions,
+                            config=config
                         )
                 
                 # Group tasks by round
@@ -437,10 +489,20 @@ Continue with the task using these results."""
                         all_results,
                         websocket
                     )
+                    
                     all_results.extend(round_results)
                 
                 # Evaluate overall progress
                 evaluation = await overall_evaluator.evaluate(message, all_results)
+                
+                # Log evaluation with system prompt
+                self._log_interaction(
+                    "OverallEvaluator",
+                    input_content=f"Request: {message}\nResults so far: {json.dumps([r.dict() for r in all_results], indent=2)}",
+                    output_content=f"Evaluation result: {evaluation}",
+                    system_prompt=AGENT_EVALUATOR_PROMPT,
+                    include_prompts=True
+                )
                 
                 if websocket:
                     await websocket.send_json(AgentMessage(
@@ -479,9 +541,9 @@ Continue with the task using these results."""
                 "role": "user",
                 "content": f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.dict() for r in all_results], indent=2)}"
             }]
-
+            
             # Simple streaming text request without any special constraints
-            stream = await client.chat.completions.create(
+            stream = await orchestrator_client.chat.completions.create(
                 model=config["model"],
                 messages=messages,
                 temperature=config["temperature"],
@@ -502,6 +564,15 @@ Continue with the task using these results."""
             # Set the complete response content after streaming
             response.content = "".join(final_output)
             
+            # Log final response with system prompt
+            self._log_interaction(
+                "OutputGenerator",
+                input_content=f"Request: {message}\nResults: {json.dumps([r.dict() for r in all_results], indent=2)}",
+                output_content=response.content,
+                system_prompt=OUTPUT_GENERATOR_PROMPT,
+                include_prompts=True
+            )
+            
             # Send completion message for output generator
             if websocket:
                 await websocket.send_json(AgentMessage(
@@ -518,6 +589,11 @@ Continue with the task using these results."""
                 for result in all_results
             ]
             
+            # Save complete session log
+            self._save_session_log()
+            
+            return response
+            
         except Exception as e:
             self.logger.error(f"Error in query_stream: {str(e)}", exc_info=True)
             response.error = str(e)
@@ -526,5 +602,71 @@ Continue with the task using these results."""
                     agent="system",
                     content=f"Error: {str(e)}"
                 ).model_dump_json())
+            # Log error
+            self._log_interaction("System", output_content=f"Error: {str(e)}")
+            self._save_session_log()
+            return response
+
+    def enable_file_logging(self, log_file_path: str):
+        """Enable logging to a file for multi-agent interactions"""
+        self.log_to_file = True
+        self.log_file = log_file_path
+
+    def disable_file_logging(self):
+        """Disable logging to file"""
+        self.log_to_file = False
+        self.log_file = None
+
+    def _log_interaction(self, agent: str, input_content: str = None, output_content: str = None, system_prompt: str = None, include_prompts: bool = False):
+        """Log an agent's interaction to the current session log"""
+        # Create a unique identifier for this interaction
+        interaction_id = f"{agent}_{hash(str(input_content))}{hash(str(output_content))}"
         
-        return response 
+        # Skip if this exact interaction was already logged
+        if interaction_id in self.logged_interactions:
+            return
+        
+        self.logged_interactions.add(interaction_id)
+        
+        # Only add agent header if this is a new interaction (has input or system prompt)
+        if input_content is not None or (include_prompts and system_prompt):
+            log_entry = f"\n{'=' * 35} {agent} {'=' * 35}\n\n"
+        else:
+            log_entry = ""  # No header for output-only entries
+        
+        if include_prompts and system_prompt:
+            log_entry += f"{'-' * 35} System Prompt {'-' * 35}\n\n"
+            log_entry += f"{system_prompt}\n\n\n\n"
+        
+        if input_content is not None:
+            log_entry += f"{'-' * 35} Input {'-' * 35}\n\n"
+            log_entry += f"{input_content}\n\n\n\n"
+        
+        if output_content is not None:
+            log_entry += f"{'-' * 35} Output {'-' * 35}\n\n"
+            log_entry += f"{output_content}\n\n\n\n"
+        
+        self.current_session_log.append(log_entry)
+        
+        # Write to file if enabled
+        if self.log_to_file and self.log_file:
+            try:
+                with open(self.log_file, 'a') as f:
+                    f.write(log_entry)
+            except Exception as e:
+                self.logger.error(f"Error writing to log file: {str(e)}")
+
+    def _save_session_log(self):
+        """Save the complete session log to file if logging is enabled"""
+        if self.log_to_file and self.log_file and self.current_session_log:
+            try:
+                with open(self.log_file, 'a') as f:
+                    f.write("\n" + "="*50 + "\n")
+                    f.write("End of Session\n")
+                    f.write("="*50 + "\n\n\n\n")
+            except Exception as e:
+                self.logger.error(f"Error saving session log: {str(e)}")
+        
+        # Clear the session log and interaction tracking
+        self.current_session_log = []
+        self.logged_interactions.clear() 
