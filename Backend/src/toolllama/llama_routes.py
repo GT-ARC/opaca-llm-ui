@@ -6,7 +6,7 @@ from typing import Dict, Any
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from ..llama_proxy import LlamaProxy
-from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
+from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend, ConfigParameter
 from ..utils import openapi_to_llama
 
 LLAMA_SYSTEM_PROMPT_GENERATOR = """Environment:ipython
@@ -69,17 +69,17 @@ class LLamaBackend(OpacaLLMBackend):
     NAME = "tool-llm-llama"
 
     @property
-    def default_config(self) -> dict:
+    def config_schema(self) -> dict:
         """
         Declares the default configuration
         """
         return {
-            "llama-url": "http://10.0.64.101:11000",
-            "llama-model": "llama3.1:70b",
-            "temperature": 0,
-            "use_agent_names": True,
-            "max_iterations": 5
-        }
+                "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
+                "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "use_agent_names": ConfigParameter(type="string", required=True, default=True),
+                "max_iterations": ConfigParameter(type="string", required=True, default=5)
+               }
 
     @staticmethod
     def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -117,7 +117,7 @@ class LLamaBackend(OpacaLLMBackend):
     async def query(self, message: str, session: SessionData) -> Response:
 
         # Set the config
-        config = session.config.get(LLamaBackend.NAME, self.default_config)
+        config = session.config.get(LLamaBackend.NAME, self.default_config())
 
         # Initialize parameters
         tool_names = []

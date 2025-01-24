@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
+from ..models import ConfigParameter
 from ..toolllm.tool_method import ToolMethod
 from ..utils import openapi_to_functions
 
@@ -20,11 +21,11 @@ class ToolMethodOpenAI(ToolMethod):
         return self.NAME
     
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> Dict[str, ConfigParameter]:
         return {
-                "model": "gpt-4o-mini",
-                "temperature": 0,
-                "use_agent_names": True,
+                "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=False),
                }
 
     @property

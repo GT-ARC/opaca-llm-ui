@@ -2,7 +2,7 @@ import openai
 import json
 import httpx
 
-from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend
+from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend, ConfigParameter
 from ..utils import message_to_dict, message_to_class
 
 system_prompt = """
@@ -95,7 +95,7 @@ class SimpleBackend(OpacaLLMBackend):
         return result
 
     @property
-    def default_config(self) -> dict:
+    def config_schema(self) -> dict:
         return self._init_config()
 
 
@@ -106,15 +106,15 @@ class SimpleOpenAIBackend(SimpleBackend):
     @staticmethod
     def _init_config():
         return {
-            "model": "gpt-4o-mini",
-            "temperature": 1.0,
-            "ask_policy": 0,
+            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+            "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
+            "ask_policy": ConfigParameter(type="integer", required=True, default=0, enum=[*range(0, len(ask_policies))]),
         }
 
     async def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling GPT...")
         # Set config
-        self.config = session.config.get(SimpleOpenAIBackend.NAME, self._init_config())
+        self.config = session.config.get(SimpleOpenAIBackend.NAME, self.default_config())
         self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
 
         completion = await self.client.chat.completions.create(
@@ -132,16 +132,16 @@ class SimpleLlamaBackend(SimpleBackend):
     @staticmethod
     def _init_config():
         return {
-            "api-url": "http://10.0.64.101:11000",
-            "model": "llama3.1:70b",
-            "temperature": 1.0,
-            "ask_policy": 0,
+            "api-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
+            "model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
+            "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
+            "ask_policy": ConfigParameter(type="integer", required=True, default=0, enum=[*range(0, len(ask_policies))]),
         }
 
     async def _query_internal(self, api_key: str, session: SessionData) -> str:
         print("Calling LLAMA...")
         # Set config
-        self.config = session.config.get(SimpleLlamaBackend.NAME, self._init_config())
+        self.config = session.config.get(SimpleLlamaBackend.NAME, self.default_config())
 
         async with httpx.AsyncClient() as client:
             result = await client.post(f'{self.config["api-url"]}/api/chat', json={

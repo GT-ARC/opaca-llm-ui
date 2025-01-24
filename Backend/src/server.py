@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .models import Url, Message, Response, SessionData
+from .models import Url, Message, Response, SessionData, ConfigPayload
 from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
@@ -106,10 +106,10 @@ async def reset_all():
     sessions.clear()
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
-async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = handle_session_id(request, response)
     if backend not in session.config:
-        session.config[backend] = BACKENDS[backend].default_config
+        session.config[backend] = BACKENDS[backend].default_config()
     return session.config[backend]
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
@@ -121,7 +121,7 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
     session = handle_session_id(request, response)
-    session.config[backend] = BACKENDS[backend].default_config
+    session.config[backend] = BACKENDS[backend].default_config()
     return session.config[backend]
 
 def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:

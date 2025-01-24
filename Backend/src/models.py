@@ -66,8 +66,11 @@ class OpacaLLMBackend(ABC):
 
     @property
     @abstractmethod
-    def default_config(self):
+    def config_schema(self):
         pass
+
+    def default_config(self):
+        return {key: value.default for key, value in self.config_schema.items()}
 
     @abstractmethod
     async def query(self, message: str, session: SessionData) -> Response:
@@ -75,6 +78,28 @@ class OpacaLLMBackend(ABC):
 
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         pass
+
+
+class ConfigArrayItem(BaseModel):
+    type: str
+    array_items: 'Optional[List[ConfigArrayItem]]' = None
+
+class ConfigParameter(BaseModel):
+    """
+    A custom parameter definition for the configuration of each implemented method
+    """
+    type: str
+    required: bool
+    default: Any
+    description: Optional[str] = None
+    array_items: Optional[List[ConfigArrayItem]] = None
+    minimum: Optional[int] = None
+    maximum: Optional[int] = None
+    enum: Optional[List[Any]] = None
+
+class ConfigPayload(BaseModel):
+    value: Any
+    schema: ConfigParameter
 
 
 class StreamCallbackHandler(BaseCallbackHandler):
