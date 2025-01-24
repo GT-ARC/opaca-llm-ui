@@ -92,7 +92,16 @@ class OpacaLLMBackend(ABC):
         pass
 
     def default_config(self):
-        return {key: value.default for key, value in self.config_schema.items()}
+        def extract_defaults(schema):
+            # Extracts the default values of nested configurations
+            if isinstance(schema, ConfigParameter):
+                if schema.type == 'object' and isinstance(schema.default, dict):
+                    return {key: extract_defaults(value) for key, value in schema.default.items()}
+                else:
+                    return schema.default
+            else:
+                return schema
+        return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
     @abstractmethod
     async def query(self, message: str, session: SessionData) -> Response:
