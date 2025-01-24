@@ -15,12 +15,31 @@ from Backend.src.models import LLMAgent
 
 BACKEND = "tool-llm-openai"             # Which backend is used
 
-# ATTENTION this config object should match the config object within the selected method
-CONFIG = {
-    "model": "DeepSeek-R1-Distill-Qwen-32B-FP8-Dynamic",             # Which model is used
+tool_llm_config = {
+    "model": "gpt-4o-mini",             # Which model is used
     "temperature": 0,
     "use_agent_names": True,
 }
+
+rest_gpt_config = {
+    "slim_prompts": {                       # Use slim prompts -> cheaper
+        "planner": True,
+        "action_selector": True,
+        "evaluator": False
+    },
+    "examples": {                           # How many examples are used per agent
+        "planner": False,
+        "action_selector": True,
+        "caller": True,
+        "evaluator": True
+    },
+    "use_agent_names": True,
+    "temperature": 0,  # Temperature for models
+    "gpt-model": "gpt-4o-mini",
+}
+
+# ATTENTION this config object should match the config object within the selected method
+CONFIG = tool_llm_config
 
 opaca_url = "http://localhost:8000"
 llm_url = "http://localhost:3001"
@@ -62,7 +81,7 @@ question_set_deployment = [
     }
 ]
 
-question_set_local = [
+question_set_local_smart_office = [
     {
         "input": "Please tell me the name of the room with id 1.",
         "output": "The answer should have successfully determined that the name of the room with id 1 is 'Experience Hub'."
@@ -98,6 +117,33 @@ question_set_local = [
     {
         "input": "Please create an overview in the form of a table what contents are in which fridge spaces",
         "output": "The answer should include a formatted table in markdown. In this table, the fridge ids ranging from 60 to 66 should be listed alongside their contents."
+    }
+]
+
+question_set_local_warehouse = [
+    {
+        "input": "Please get the total size of the warehouse. Given a monthly rent cost of 7.50$ per square meter, what would be the monthly rent for the entire warehouse?",
+        "output": "The answer should tell the user, that the total size of the warehouse is 5000 square meters. The answer then should give value for the monthly rent, which would be 37,500$."
+    },
+    {
+        "input": "Find out in which warehouse zone the curtains are and navigate the logistic robot 2 to that zone to pick up two sets of curtains.",
+        "output": "The answer should tell the user, the curtains were located in 'zone-E'. It should then have sent specifically the logistic robot number 2 to the 'zone-E' and should have made it pick up exactly 2 sets of curtains."
+    },
+    {
+        "input": "I want to buy a printer and also a new sink, where would I find them?",
+        "output": "The answer should tell the user, that the printers are located in 'zone-C', while the sinks are located in 'zone-E'."
+    },
+    {
+        "input": "Please find out the contact details for the warehouse and prepare a formal written letter, that I would like to seek a job opportunity as a logistics manager in that warehouse.",
+        "output": "The answer should include the address of the warehouse, which is 'Industrial Street 1'. Additionally, it might include that the name of the warehouse is 'Super Awesome Warehouse', the owner's name is 'John Warehouse', and the email address of the warehouse is 'Warehouse@mail.com'. It then has to include a formal letter, addressing the wish to start working at that warehouse as a logistics manager."
+    },
+    {
+        "input": "I want to order a new pair of green scissors and a pair of blue jeans.",
+        "output": "The answer should confirm the creation of two orders, one which has as an item a pair of green scissors and the other one which has an item of a pair of blue jeans. The order ids should be provided as well"
+    },
+    {
+        "input": "Please move every logistics robot to 'zone-A'.",
+        "output": "The answer should confirm, that the logistics robots number 1, 2, and 3 were all moved to 'zone-A'."
     }
 ]
 
@@ -209,8 +255,14 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
         self.server_process.terminate()
         self.server_process.wait()
 
-    async def testBenchmark(self):
-        assert await benchmark_test(self.file_name, question_set_local)
+    async def testDeployment(self):
+        assert await benchmark_test(self.file_name, question_set_deployment)
+
+    async def testLocalSmartOffice(self):
+        assert await benchmark_test(self.file_name, question_set_local_smart_office)
+
+    async def testLocalWarehouse(self):
+        assert await benchmark_test(self.file_name, question_set_local_warehouse)
 
 
 if __name__ == "__main__":
