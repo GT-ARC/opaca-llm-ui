@@ -110,19 +110,19 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     session = handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
-    return session.config[backend]
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
-async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> dict:
+async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = handle_session_id(request, response)
     session.config[backend] = conf
-    return session.config[backend]
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
-async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
-    return session.config[backend]
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """

@@ -25,7 +25,7 @@ class ToolMethodOpenAI(ToolMethod):
         return {
                 "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "use_agent_names": ConfigParameter(type="boolean", required=True, default=False),
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
 
     @property

@@ -60,26 +60,6 @@ class SessionData(BaseModel):
     api_key: str = None
 
 
-class OpacaLLMBackend(ABC):
-    NAME: str
-    llm: BaseChatModel
-
-    @property
-    @abstractmethod
-    def config_schema(self):
-        pass
-
-    def default_config(self):
-        return {key: value.default for key, value in self.config_schema.items()}
-
-    @abstractmethod
-    async def query(self, message: str, session: SessionData) -> Response:
-        pass
-
-    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
-        pass
-
-
 class ConfigArrayItem(BaseModel):
     type: str
     array_items: 'Optional[List[ConfigArrayItem]]' = None
@@ -99,7 +79,27 @@ class ConfigParameter(BaseModel):
 
 class ConfigPayload(BaseModel):
     value: Any
-    schema: ConfigParameter
+    config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
+class OpacaLLMBackend(ABC):
+    NAME: str
+    llm: BaseChatModel
+
+    @property
+    @abstractmethod
+    def config_schema(self) -> Dict[str, ConfigParameter]:
+        pass
+
+    def default_config(self):
+        return {key: value.default for key, value in self.config_schema.items()}
+
+    @abstractmethod
+    async def query(self, message: str, session: SessionData) -> Response:
+        pass
+
+    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+        pass
 
 
 class StreamCallbackHandler(BaseCallbackHandler):

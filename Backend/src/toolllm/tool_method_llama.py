@@ -23,8 +23,8 @@ class ToolMethodLlama(ToolMethod):
                 "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
                 "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "use_agent_names": ConfigParameter(type="string", required=True, default=True),
-                "max_iterations": ConfigParameter(type="string", required=True, default=5)
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
+                "max_iterations": ConfigParameter(type="integer", required=True, default=5, minimum=1)
                }
 
     @property
