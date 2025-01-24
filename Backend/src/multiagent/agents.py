@@ -2,8 +2,12 @@ import json
 from typing import Dict, Any, List, Optional
 from openai import AsyncOpenAI
 import logging
+from pydantic import BaseModel, Field
 
-from .models import AgentTask, ExecutionPlan, AgentEvaluation, OverallEvaluation, AgentResult, IterationAdvice
+from .models import (
+    AgentTask, ExecutionPlan, AgentEvaluation, OverallEvaluation, 
+    AgentResult, IterationAdvice, ChatHistory
+)
 from .prompts import (
     ORCHESTRATOR_SYSTEM_PROMPT,
     AGENT_SYSTEM_PROMPT,
@@ -12,6 +16,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT,
     GENERAL_CAPABILITIES_RESPONSE,
     ITERATION_ADVISOR_PROMPT,
+    AGENT_PLANNER_PROMPT,
 )
 
 class BaseAgent:
@@ -105,12 +110,22 @@ class BaseAgent:
         return response.choices[0].message
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any]):
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[ChatHistory] = None):
         super().__init__(client, model)
         self.agent_summaries = agent_summaries
-        
+        self.chat_history = chat_history
+    
     async def create_execution_plan(self, user_request: str) -> ExecutionPlan:
         """Create an execution plan for the user's request"""
+        # Prepare chat history context if available
+        chat_context = ""
+        if self.chat_history and self.chat_history.messages:
+            # Get last 5 messages for context
+            recent_messages = self.chat_history.messages[-5:]
+            chat_context = "\n\nRecent chat history:\n"
+            for msg in recent_messages:
+                chat_context += f"{msg.role}: {msg.content}\n"
+        
         messages = [
             {
                 "role": "system",
@@ -118,7 +133,10 @@ class OrchestratorAgent(BaseAgent):
                     agent_summaries=json.dumps(self.agent_summaries, indent=2)
                 )
             },
-            {"role": "user", "content": user_request}
+            {
+                "role": "user",
+                "content": f"Create an execution plan for this request:{chat_context}\n\nCurrent request: {user_request}"
+            }
         ]
         
         response = await self._call_llm(
@@ -127,6 +145,90 @@ class OrchestratorAgent(BaseAgent):
         )
         
         return ExecutionPlan.model_validate_json(response.content)
+
+class GeneralAgent(BaseAgent):
+    """Agent that handles general capability questions without using tools."""
+    
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], config: Dict[str, Any] = None):
+        # Use worker_model from config if available, otherwise fall back to default model
+        if config and "worker_model" in config:
+            model = config["worker_model"]
+        super().__init__(client, model)
+        self.agent_name = "GeneralAgent"
+        self.tools = []  # Empty list since GeneralAgent doesn't use real tools
+        
+        # Store the complete response with agent summaries as JSON
+        self.predefined_response = GENERAL_CAPABILITIES_RESPONSE.format(
+            agent_capabilities=json.dumps(agent_summaries, indent=2)
+        )
+        
+    async def execute_task(self, task: str) -> AgentResult:
+        """Return capabilities response with proper tool structure."""
+        # Create a dummy tool call to maintain consistent structure
+        tool_call = {
+            "name": "GetCapabilities",
+            "arguments": json.dumps({"request": task})
+        }
+        
+        # Create a dummy tool result with the actual response
+        tool_result = {
+            "name": "GetCapabilities",
+            "result": self.predefined_response
+        }
+        
+        return AgentResult(
+            agent_name=self.agent_name,
+            task=task,
+            output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
+            tool_calls=[tool_call],
+            tool_results=[tool_result]
+        )
+
+class AgentPlannerResult(BaseModel):
+    """Model for storing agent planner results"""
+    thinking: List[str] = Field(..., description="Step by step thinking process")
+    function_calls: List[Dict[str, Any]] = Field(..., description="List of planned function calls")
+    needs_follow_up: bool = Field(default=False, description="Whether follow-up information is needed")
+    follow_up_question: Optional[str] = Field(default=None, description="Follow-up question if needed")
+
+class PlannerOutput(BaseModel):
+    """Model for the planner's structured output"""
+    reasoning: str = Field(..., description="Short and precise thinking process on how to solve the task")
+    execution_steps: List[Dict[str, Any]] = Field(..., description="List of concrete function calls to make, in sequential order if they depend on each other")
+    sequential: bool = Field(default=False, description="Whether the steps must be executed in sequence")
+
+class AgentPlanner(BaseAgent):
+    """Agent-specific planner that creates function calling plans for tasks."""
+    
+    def __init__(self, client: AsyncOpenAI, model: str, agent_name: str, tools: List[Dict]):
+        super().__init__(client, model)
+        self.agent_name = agent_name
+        self.tools = tools
+    
+    async def create_plan(self, task: str) -> PlannerOutput:
+        """Create a function calling plan for the given task."""
+        messages = [{
+            "role": "system",
+            "content": AGENT_PLANNER_PROMPT
+        }, {
+            "role": "user",
+            "content": f"""You are planning for the {self.agent_name}. Here are the available functions:
+{json.dumps(self.tools, indent=2)}
+
+Create a minimal, efficient function calling plan for this specific task: {task.strip()}
+
+Remember:
+1. Only include NECESSARY function calls to solve the task
+2. For sequential calls (sequential=true), use "{{previous_result}}" in arguments where needed
+3. Order sequential calls correctly and include only the minimum needed"""
+        }]
+        
+        response = await self._call_llm(
+            messages=messages,
+            guided_json=PlannerOutput.model_json_schema()
+        )
+        
+        return PlannerOutput.model_validate_json(response.content)
 
 class WorkerAgent(BaseAgent):
     def __init__(
@@ -139,23 +241,84 @@ class WorkerAgent(BaseAgent):
         internal_tools: List[Dict],
         config: Dict[str, Any] = None
     ):
-        # Use worker_model from config if available, otherwise fall back to default model
         if config and "worker_model" in config:
             model = config["worker_model"]
         super().__init__(client, model)
         self.agent_name = agent_name
         self.instructions = instructions
-        self.tools = tools  # Tools without session client for OpenAI
-        self.internal_tools = internal_tools  # Tools with session client for execution
+        self.tools = tools
+        self.internal_tools = internal_tools
+        self.planner = AgentPlanner(client, model, agent_name, tools)
 
-    async def _execute_tool_call(self, tool_call) -> str:
-        """Execute a tool call and return the result"""
+    async def execute_task(self, task: str) -> AgentResult:
+        """Execute a task using the agent's tools"""
+        logger = logging.getLogger(__name__)
+        
         try:
-            # Parse the tool call arguments
-            args = json.loads(tool_call.function.arguments)
+            # Create the tool call
+            messages = [{
+                "role": "system",
+                "content": AGENT_SYSTEM_PROMPT.format(agent_instructions=self.instructions)
+            }, {
+                "role": "user",
+                "content": task
+            }]
             
-            # Get the function name and split into agent/action if needed
-            func_name = tool_call.function.name
+            response = await self._call_llm(
+                messages=messages,
+                tools=self.tools,
+                tool_choice="auto"
+            )
+            
+            tool_calls = []
+            tool_results = []
+            output = ""
+            
+            if response.choices[0].message.tool_calls:
+                for tool_call in response.choices[0].message.tool_calls:
+                    # Create the tool call
+                    tool_call_dict = {
+                        "name": tool_call.function.name,
+                        "arguments": tool_call.function.arguments
+                    }
+                    tool_calls.append(tool_call_dict)
+                    
+                    # Execute the tool call
+                    result = await self._execute_tool_call_direct(tool_call_dict)
+                    tool_results.append({
+                        "name": tool_call.function.name,
+                        "result": result
+                    })
+                    output += f"Result from {tool_call.function.name}: {result}\n"
+            else:
+                output = response.choices[0].message.content or "No tool calls made."
+            
+            return AgentResult(
+                agent_name=self.agent_name,
+                task=task,
+                output=output.strip(),
+                tool_calls=tool_calls,
+                tool_results=tool_results,
+                needs_follow_up=False
+            )
+        
+        except Exception as e:
+            logger.error(f"Error executing function calls: {str(e)}")
+            return AgentResult(
+                agent_name=self.agent_name,
+                task=task,
+                output=f"Error executing function calls: {str(e)}",
+                tool_calls=[],
+                tool_results=[],
+                needs_follow_up=False
+            )
+
+    async def _execute_tool_call_direct(self, tool_call: Dict[str, str]) -> str:
+        """Execute a tool call directly without LLM involvement"""
+        try:
+            args = json.loads(tool_call["arguments"])
+            func_name = tool_call["name"]
+            
             if "--" in func_name:
                 agent_name, action_name = func_name.split("--", maxsplit=1)
             else:
@@ -182,78 +345,6 @@ class WorkerAgent(BaseAgent):
             return json.dumps(result, indent=2)
         except Exception as e:
             return f"Error executing tool call: {str(e)}"
-
-    async def execute_task(self, task: str) -> AgentResult:
-        """Execute a task using the agent's tools"""
-        # For tool calls, use a simple and direct system prompt
-        system_prompt = f"You are the {self.agent_name}. YOU MUST USE THE TOOLS AVAILABLE TO YOU TO COMPLETE THE TASK. DO NOT PROVIDE ANY EXPLANATIONS, JUST USE THE TOOLS."
-        
-        messages = [
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": f"Make a tool call to complete this task: {task}"
-            }
-        ]
-        
-        response = await self._call_llm(
-            messages=messages,
-            tools=self.tools,
-            tool_choice="auto"
-        )
-        
-        tool_calls = []
-        tool_results = []
-        output = ""
-        
-        try:
-            # Handle both OpenAI and vLLM response formats
-            if hasattr(response, 'tool_calls'):
-                # OpenAI format
-                tool_calls_list = response.tool_calls
-            elif hasattr(response, 'choices') and response.choices[0].message.tool_calls:
-                # vLLM format
-                tool_calls_list = response.choices[0].message.tool_calls
-            else:
-                tool_calls_list = []
-            
-            if tool_calls_list:
-                tool_calls = [
-                    {
-                        "name": tool_call.function.name,
-                        "arguments": tool_call.function.arguments
-                    }
-                    for tool_call in tool_calls_list
-                ]
-                
-                # Execute each tool call
-                for tool_call in tool_calls_list:
-                    result = await self._execute_tool_call(tool_call)
-                    tool_results.append({
-                        "name": tool_call.function.name,
-                        "result": result
-                    })
-                    # Add the tool result to the output
-                    output += f"Result from {tool_call.function.name}: {result}\n"
-            else:
-                # If no tool calls were made, use the response content as output
-                output = response.content if hasattr(response, 'content') else response.choices[0].message.content
-        
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error processing tool calls: {str(e)}")
-            output = f"Error processing tool calls: {str(e)}"
-        
-        return AgentResult(
-            agent_name=self.agent_name,
-            task=task,
-            output=output.strip(),
-            tool_calls=tool_calls,
-            tool_results=tool_results
-        )
 
 class AgentEvaluator(BaseAgent):
     async def evaluate(self, task: str, result: AgentResult) -> AgentEvaluation:
@@ -308,43 +399,6 @@ class OverallEvaluator(BaseAgent):
         )
         
         return OverallEvaluation(response.content.strip())
-
-class GeneralAgent(BaseAgent):
-    """Agent that handles general capability questions without using tools."""
-    
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], config: Dict[str, Any] = None):
-        # Use worker_model from config if available, otherwise fall back to default model
-        if config and "worker_model" in config:
-            model = config["worker_model"]
-        super().__init__(client, model)
-        self.agent_name = "GeneralAgent"
-        
-        # Store the complete response with agent summaries as JSON
-        self.predefined_response = GENERAL_CAPABILITIES_RESPONSE.format(
-            agent_capabilities=json.dumps(agent_summaries, indent=2)
-        )
-        
-    async def execute_task(self, task: str) -> AgentResult:
-        """Return capabilities response with proper tool structure."""
-        # Create a dummy tool call to maintain consistent structure
-        tool_call = {
-            "name": "GetCapabilities",
-            "arguments": json.dumps({"request": task})
-        }
-        
-        # Create a dummy tool result with the actual response
-        tool_result = {
-            "name": "GetCapabilities",
-            "result": self.predefined_response
-        }
-        
-        return AgentResult(
-            agent_name=self.agent_name,
-            task=task,
-            output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-            tool_calls=[tool_call],
-            tool_results=[tool_result]
-        )
 
 class OutputGenerator(BaseAgent):
     async def generate_output(

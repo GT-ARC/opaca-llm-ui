@@ -2,12 +2,17 @@
 export const debugColors = {
     // System
     "preparing": ["#10a37f", "#10a37f"],  // Primary green color for preparation phase
-    // Multi-Agent System
-    "Orchestrator": ["#ff6b6b", "#ff6b6b"],
-    "WorkerAgent": ["#4ecdc4", "#4ecdc4"],
-    "AgentEvaluator": ["#45b7d1", "#45b7d1"],
-    "OverallEvaluator": ["#96ceb4", "#96ceb4"],
-    "OutputGenerator": ["#ffbe0b", "#ffbe0b"],
+    // Multi-Agent System - Orchestration Level
+    "Orchestrator": ["#ff6b6b", "#ff6b6b"],  // Red for orchestration
+    // Multi-Agent System - Agent Level
+    "AgentPlanner": ["#ffd60a", "#ffd60a"],  // Bright yellow for agent planning
+    "WorkerAgent": ["#4ecdc4", "#4ecdc4"],   // Turquoise for worker execution
+    "AgentEvaluator": ["#45b7d1", "#45b7d1"], // Light blue for agent evaluation
+    // Multi-Agent System - Overall Level
+    "OverallEvaluator": ["#96ceb4", "#96ceb4"], // Sage green for overall evaluation
+    "IterationAdvisor": ["#9d4edd", "#9d4edd"],  // Purple for iteration advisor
+    // Multi-Agent System - Output Level
+    "OutputGenerator": ["#ffbe0b", "#ffbe0b"],  // Orange for output generation
     // RestGPT
     "Planner": ["#ff0000", "#9c0000"],
     "Action Selector": ["#ffff00", "#bf6e00"],
@@ -31,11 +36,16 @@ export const debugLoadingMessages = {
     GB: {
         // System
         "preparing": "Initializing the OPACA AI Agents",
-        // Multi-Agent System
-        "Orchestrator": "Planning execution strategy",
-        "WorkerAgent": "Workers are executing specialized tasks",
-        "AgentEvaluator": "Evaluating worker task completion",
-        "OverallEvaluator": "Assessing overall progress",
+        // Multi-Agent System - Orchestration Level
+        "Orchestrator": "Creating task distribution plan",
+        // Multi-Agent System - Agent Level
+        "AgentPlanner": "Planning function calls for task",
+        "WorkerAgent": "Executing function calls",
+        "AgentEvaluator": "Evaluating task completion",
+        // Multi-Agent System - Overall Level
+        "OverallEvaluator": "Assessing overall request completion",
+        "IterationAdvisor": "Analyzing results and planning next steps",
+        // Multi-Agent System - Output Level
         "OutputGenerator": "Generating final response",
         // RestGPT
         "Planner": "Analyzing your request",
@@ -53,11 +63,16 @@ export const debugLoadingMessages = {
     DE: {
         // System
         "preparing": "OPACA KI-Agenten werden initialisiert",
-        // Multi-Agent System
-        "Orchestrator": "Ausführungsstrategie wird geplant",
-        "WorkerAgent": "Arbeiter-Agenten führen spezialisierte Aufgaben aus",
-        "AgentEvaluator": "Bewerte Aufgabenabschluss der Arbeiter-Agenten",
-        "OverallEvaluator": "Bewerte Gesamtfortschritt",
+        // Multi-Agent System - Orchestration Level
+        "Orchestrator": "Erstelle Aufgabenverteilungsplan",
+        // Multi-Agent System - Agent Level
+        "AgentPlanner": "Plane Funktionsaufrufe für Aufgabe",
+        "WorkerAgent": "Führe Funktionsaufrufe aus",
+        "AgentEvaluator": "Bewerte Aufgabenabschluss",
+        // Multi-Agent System - Overall Level
+        "OverallEvaluator": "Bewerte Gesamtanfrage",
+        "IterationAdvisor": "Analysiere Ergebnisse und plane nächste Schritte",
+        // Multi-Agent System - Output Level
         "OutputGenerator": "Generiere finale Antwort",
         // RestGPT
         "Planner": "Analysiere Ihre Anfrage",

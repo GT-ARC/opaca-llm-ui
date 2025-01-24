@@ -756,7 +756,7 @@
       "type": "function",
       "function": {
         "name": "exchange-agent--GetMyUpcomingAppointments",
-        "description": "Retrieve my calendar and get a list of my own upcoming appointments.",
+        "description": "Retrieve my calendar and get a list of my own upcoming appointments (USE 7 DAYS AS DEFAULT IF NO NUMBER OF DAYS IS PROVIDED).",
         "parameters": {
           "type": "object",
           "properties": {

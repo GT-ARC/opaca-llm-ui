@@ -14,6 +14,7 @@ from .prompts import (
     OVERALL_EVALUATOR_PROMPT,
     OUTPUT_GENERATOR_PROMPT,
     ITERATION_ADVISOR_PROMPT,
+    AGENT_PLANNER_PROMPT,
 )
 
 from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage
@@ -25,8 +26,15 @@ from .agents import (
     OutputGenerator,
     GeneralAgent,
     IterationAdvisor,
+    AgentPlanner,
 )
-from .models import AgentEvaluation, OverallEvaluation, AgentResult
+from .models import (
+    AgentEvaluation, 
+    OverallEvaluation, 
+    AgentResult,
+    ChatHistory,
+    ChatMessage
+)
 
 class MultiAgentBackend(OpacaLLMBackend):
     NAME = "multi-agent"
@@ -60,21 +68,22 @@ class MultiAgentBackend(OpacaLLMBackend):
         self.current_session_id = None
         self.current_session_log = []
         self.logged_interactions = set()  # Track unique interactions to prevent duplicates
+        self.chat_history = ChatHistory()  # Initialize chat history
     
     @property
     def default_config(self) -> Dict[str, Any]:
         return {
-            "model": "Qwen25_32B_R1_Distill_FP8",  # Model for orchestration and evaluation
+            "orchestrator_model": "Qwen25_32B_R1_Distill_FP8",  # Model for orchestration and evaluation
             "worker_model": "Mistral-Small-Instruct-2409-FP8-Dynamic",  # Model for worker agents
             "temperature": 0,
             "max_rounds": 5,  # Maximum number of orchestration rounds
             "max_iterations": 3,  # Maximum iterations per agent task
             "base_url": "http://10.0.64.101:8000/v1",  # Base URL for orchestration/evaluation
             "worker_base_url": "http://10.0.64.101:8001/v1",  # Base URL for worker agents
-            #"base_url": None,  # Base URL for orchestration/evaluation
-            #"worker_base_url": None,  # Base URL for worker agents           
-            "backend_type": "vllm",  # Can be 'openai' or 'vllm'
-            "use_worker_for_output": True  # Whether to use worker model for output generation
+            "orchestrator_backend_type": "vllm",  # Can be 'openai' or 'vllm' for orchestrator
+            "worker_backend_type": "vllm",  # Can be 'openai' or 'vllm' for worker
+            "use_worker_for_output": True,  # Whether to use worker model for output generation
+            "use_agent_planner": True  # Whether to use agent planner for function planning
         }
     
     async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:
@@ -85,20 +94,20 @@ class MultiAgentBackend(OpacaLLMBackend):
             api_key = None
 
             # Determine base_url and api_key based on configuration
-            if config["backend_type"] == "vllm":
-                # For vLLM, always use VLLM_API_KEY
-                api_key = session.api_key or os.getenv("VLLM_API_KEY")
-                if is_worker:
+            if is_worker:
+                if config["worker_backend_type"] == "vllm":
+                    api_key = config.get("worker_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
                     base_url = config.get("worker_base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1"))
                 else:
-                    base_url = config.get("base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1"))
+                    api_key = config.get("worker_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
+                    base_url = config.get("worker_base_url")
             else:
-                # For OpenAI, use OPENAI_API_KEY
-                api_key = session.api_key or os.getenv("OPENAI_API_KEY")
-                if is_worker and config.get("worker_base_url"):
-                    base_url = config["worker_base_url"]
-                elif config.get("base_url"):
-                    base_url = config["base_url"]
+                if config["orchestrator_backend_type"] == "vllm":
+                    api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
+                    base_url = config.get("base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1"))
+                else:
+                    api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
+                    base_url = config.get("base_url")
             
             if not api_key:
                 raise ValueError("No API key found in session or environment")
@@ -118,12 +127,12 @@ class MultiAgentBackend(OpacaLLMBackend):
         """Create a chat completion with proper structured output handling for both OpenAI and vLLM"""
         try:
             # Check if we're using a GPT model
-            is_gpt = "gpt" in config["model"].lower()
+            is_gpt = "gpt" in config["orchestrator_model"].lower()
             self.logger.info(f"Using {'OpenAI GPT' if is_gpt else 'vLLM'} model")
             
             # Base configuration that's always included
             kwargs = {
-                "model": config["model"],
+                "model": config["orchestrator_model"],
                 "messages": messages,
                 "temperature": config["temperature"]
             }
@@ -156,6 +165,33 @@ class MultiAgentBackend(OpacaLLMBackend):
             self.logger.error(f"Error creating chat completion: {str(e)}")
             raise
 
+    async def _handle_follow_up(self, follow_up_question: str, websocket=None) -> None:
+        """Handle follow-up questions by sending them to the user"""
+        if websocket:
+            # Send the follow-up question as an agent message with role 'assistant'
+            await websocket.send_json(AgentMessage(
+                agent="assistant",
+                content=f"I need some additional information to help you better:\n\n{follow_up_question}"
+            ).model_dump_json())
+            
+            # Wait for user response
+            response = await websocket.receive_text()
+            
+            # Add to chat history
+            self.chat_history.messages.append(ChatMessage(
+                role="assistant",
+                content=follow_up_question
+            ))
+            self.chat_history.messages.append(ChatMessage(
+                role="user",
+                content=response
+            ))
+            
+            return response
+        else:
+            # For non-websocket calls, we can't get follow-up answers
+            raise ValueError("Follow-up questions require websocket connection")
+    
     async def _execute_round(
         self,
         round_tasks: List[Dict],
@@ -163,7 +199,8 @@ class MultiAgentBackend(OpacaLLMBackend):
         agent_evaluator: AgentEvaluator,
         config: Dict[str, Any],
         all_results: List[AgentResult],
-        websocket=None
+        websocket=None,
+        orchestrator_client=None
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         results = []
@@ -203,15 +240,39 @@ class MultiAgentBackend(OpacaLLMBackend):
                 current_task,
                 config,
                 agent_evaluator,
-                websocket
+                websocket,
+                orchestrator_client
             ))
         
         # Execute all tasks in parallel and gather results
         if tasks:
-            results.extend(await asyncio.gather(*tasks))
+            round_results = await asyncio.gather(*tasks)
+            
+            # Handle any follow-up questions
+            for result in round_results:
+                if result.needs_follow_up and result.follow_up_question:
+                    try:
+                        # Get follow-up answer
+                        answer = await self._handle_follow_up(result.follow_up_question, websocket)
+                        
+                        # Re-run the task with the new information
+                        new_task = f"{result.task}\n\nAdditional information: {answer}"
+                        new_result = await worker_agents[result.agent_name].execute_task(new_task)
+                        results.append(new_result)
+                    except Exception as e:
+                        self.logger.error(f"Error handling follow-up: {str(e)}")
+                        results.append(result)  # Keep original result if follow-up fails
+                else:
+                    results.append(result)
         
         return results
     
+    def _parse_bool_config(self, value: Any) -> bool:
+        """Parse a configuration value as a boolean, handling various input types."""
+        if isinstance(value, str):
+            return value.lower() in ['true', '1', 'yes', 'on']
+        return bool(value)
+
     async def _execute_single_task(
         self,
         agent_name: str,
@@ -219,35 +280,75 @@ class MultiAgentBackend(OpacaLLMBackend):
         task: str,
         config: Dict[str, Any],
         agent_evaluator: AgentEvaluator,
-        websocket=None
+        websocket=None,
+        orchestrator_client=None
     ) -> AgentResult:
         """Execute a single task with retries"""
         iterations = 0
         current_task = task
         
         while iterations < config["max_iterations"]:
-            # Send worker agent status
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="WorkerAgent",
-                    content=f"Agent {agent_name} is working on task..."
-                ).model_dump_json())
+            # Get the latest config in case it was updated
+            use_agent_planner = self._parse_bool_config(config.get("use_agent_planner", True))
+            print(f"use_agent_planner: {use_agent_planner}")
             
-            # Log task input before execution
-            agent_data = self.agents_data["agents_simple"].get(agent_name, {})
+            # Only use agent planner if configured
+            if use_agent_planner:
+                print(f"Creating agent-specific planner for {agent_name}")
+                # Create agent-specific planner
+                planner = AgentPlanner(
+                    client=orchestrator_client,
+                    model=config["orchestrator_model"],
+                    agent_name=agent_name,
+                    tools=agent.tools
+                )
+                
+                # Send planning phase status
+                if websocket:
+                    await websocket.send_json(AgentMessage(
+                        agent="AgentPlanner",
+                        content=f"Planning function calls for {agent_name}'s task..."
+                    ).model_dump_json())
+                
+                # Get function calling plan
+                plan = await planner.create_plan(current_task)
+                
+                # Log planning phase with system prompt
+                self._log_interaction(
+                    "AgentPlanner",
+                    input_content=current_task,
+                    output_content=plan,
+                    system_prompt=AGENT_PLANNER_PROMPT,
+                    include_prompts=True
+                )
+                
+                if websocket:
+                    await websocket.send_json(AgentMessage(
+                        agent="AgentPlanner",
+                        content=f"Function calling plan created:\n{plan}"
+                    ).model_dump_json())
+                    
+                    await websocket.send_json(AgentMessage(
+                        agent="AgentPlanner",
+                        content="Planning phase complete ✓"
+                    ).model_dump_json())
+                
+                # Execute task with the plan
+                result = await agent.execute_task(f"{current_task}\n\nFunction Calling Plan:\n{plan}")
+            else:
+                # Execute task directly without planner
+                result = await agent.execute_task(current_task)
+            
+            # Log the worker agent interaction BEFORE evaluation
             self._log_interaction(
-                agent_name,
+                f"{agent_name}-Input",
                 input_content=current_task,
-                system_prompt=AGENT_SYSTEM_PROMPT.format(agent_instructions=agent_data.get("instructions", "")),
+                system_prompt=AGENT_SYSTEM_PROMPT,
                 include_prompts=True
             )
             
-            # Execute task
-            result = await agent.execute_task(current_task)
-            
-            # Log the result after execution
             self._log_interaction(
-                agent_name,
+                f"{agent_name}-Output",
                 output_content=f"Output: {result.output}\nTool Calls: {json.dumps(result.tool_calls, indent=2)}\nTool Results: {json.dumps(result.tool_results, indent=2)}"
             )
             
@@ -255,7 +356,7 @@ class MultiAgentBackend(OpacaLLMBackend):
             if websocket:
                 await websocket.send_json(AgentMessage(
                     agent=agent_name,
-                    content=f"Task: {current_task}\nOutput: {result.output}"
+                    content=f"Task execution results:\n{result.output}"
                 ).model_dump_json())
                 
                 if result.tool_calls:
@@ -272,22 +373,28 @@ class MultiAgentBackend(OpacaLLMBackend):
                         content=f"Tool results:\n{tool_results_str}"
                     ).model_dump_json())
                 
-                await websocket.send_json(AgentMessage(
-                    agent="WorkerAgent",
-                    content=f"Agent {agent_name} completed task ✓"
-                ).model_dump_json())
-                await websocket.send_json(AgentMessage(
-                    agent=agent_name,
-                    content=f"Task completed ✓"
-                ).model_dump_json())
+                if use_agent_planner:
+                    await websocket.send_json(AgentMessage(
+                        agent="WorkerAgent",
+                        content=f"Agent {agent_name} completed execution ✓"
+                    ).model_dump_json())
             
             # Evaluate result
-            evaluation = await agent_evaluator.evaluate(current_task, result)
+            if websocket:
+                await websocket.send_json(AgentMessage(
+                    agent="AgentEvaluator",
+                    content=f"Evaluating {agent_name}'s task completion..."
+                ).model_dump_json())
             
-            # Log agent evaluator interaction
+            evaluation = await agent_evaluator.evaluate(
+                f"{current_task}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.", 
+                result
+            )
+            
+            # Log agent evaluator interaction with reminder
             self._log_interaction(
                 "AgentEvaluator",
-                input_content=f"Task: {current_task}\nResult: {json.dumps(result.dict(), indent=2)}",
+                input_content=f"Task: {current_task}\nResult: {json.dumps(result.dict(), indent=2)}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
                 output_content=f"Evaluation: {evaluation}",
                 system_prompt=AGENT_EVALUATOR_PROMPT,
                 include_prompts=True
@@ -305,11 +412,20 @@ class MultiAgentBackend(OpacaLLMBackend):
                     content="Task evaluation complete ✓"
                 ).model_dump_json())
             
-            if evaluation == AgentEvaluation.COMPLETE:
+            if evaluation == AgentEvaluation.FINISHED:
                 return result
             
             # Update task for next iteration
-            current_task = f"""Previous task: {current_task}
+            if use_agent_planner:
+                current_task = f"""Previous task: {current_task}
+Previous plan: {plan}
+Previous output: {result.output}
+Tool calls: {json.dumps(result.tool_calls, indent=2)}
+Tool results: {json.dumps(result.tool_results, indent=2)}
+
+Continue with the task using these results and create a new plan."""
+            else:
+                current_task = f"""Previous task: {current_task}
 Previous output: {result.output}
 Tool calls: {json.dumps(result.tool_calls, indent=2)}
 Tool results: {json.dumps(result.tool_results, indent=2)}
@@ -323,10 +439,6 @@ Continue with the task using these results."""
                     agent="WorkerAgent",
                     content=f"Agent {agent_name} starting new iteration..."
                 ).model_dump_json())
-                await websocket.send_json(AgentMessage(
-                    agent=agent_name,
-                    content=f"Starting iteration {iterations + 1} for task: {task}"
-                ).model_dump_json())
         
         # If we reach here, we've exhausted all iterations
         return result  # Return the last result even if not complete
@@ -337,6 +449,12 @@ Continue with the task using these results."""
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents"""
         try:
+            # Add message to chat history
+            self.chat_history.messages.append(ChatMessage(
+                role="user",
+                content=message
+            ))
+            
             # Log initial user message
             self._log_interaction("User", input_content=message)
             
@@ -351,10 +469,10 @@ Continue with the task using these results."""
             
             # Send initial waiting message
             if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="preparing",
-                    content="Initializing the OPACA AI Agents"
-                ).model_dump_json())
+                await websocket.send_json({
+                    "agent": "preparing",
+                    "content": "Initializing the OPACA AI Agents"
+                })
             
             # Get simplified agent summaries for the orchestrator
             agent_summaries = {
@@ -375,15 +493,16 @@ Continue with the task using these results."""
             # Initialize agents
             orchestrator = OrchestratorAgent(
                 client=orchestrator_client,
-                model=config["model"],
-                agent_summaries=agent_summaries
+                model=config["orchestrator_model"],
+                agent_summaries=agent_summaries,
+                chat_history=self.chat_history  # Pass chat history to orchestrator
             )
             
             # Initialize evaluators and output generator
-            agent_evaluator = AgentEvaluator(orchestrator_client, config["model"])
-            overall_evaluator = OverallEvaluator(orchestrator_client, config["model"])
-            output_generator = OutputGenerator(orchestrator_client, config["model"])
-            iteration_advisor = IterationAdvisor(orchestrator_client, config["model"])
+            agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
+            overall_evaluator = OverallEvaluator(orchestrator_client, config["orchestrator_model"])
+            output_generator = OutputGenerator(orchestrator_client, config["orchestrator_model"])
+            iteration_advisor = IterationAdvisor(orchestrator_client, config["orchestrator_model"])
             
             # Add GeneralAgent to available worker agents
             worker_agents = {
@@ -400,22 +519,53 @@ Continue with the task using these results."""
             
             while rounds < config["max_rounds"]:
                 # Get execution plan from orchestrator
+                if websocket:
+                    await websocket.send_json({
+                        "agent": "Planning",
+                        "content": "Creating detailed execution plan..."
+                    })
+                
                 plan = await orchestrator.create_execution_plan(message)
                 
-                # Log orchestrator's plan with system prompt
+                # Log orchestrator's plan
                 self._log_interaction(
                     "Orchestrator",
                     input_content=message,
                     output_content=f"Execution Plan:\nThinking: {plan.thinking}\nTasks: {json.dumps([task.dict() for task in plan.tasks], indent=2)}",
-                    system_prompt=ORCHESTRATOR_SYSTEM_PROMPT.format(agent_summaries=json.dumps(agent_summaries, indent=2)),
+                    system_prompt=ORCHESTRATOR_SYSTEM_PROMPT.format(agent_summaries=json.dumps(self.agents_data["agents_simple"], indent=2)),
                     include_prompts=True
                 )
                 
+                # Send orchestrator's plan via websocket
                 if websocket:
+                    # First send the thinking process
                     await websocket.send_json(AgentMessage(
                         agent="Orchestrator",
-                        content=f"Execution plan created with {len(plan.tasks)} tasks:\n{json.dumps(plan.dict(), indent=2)}"
+                        content=f"Thinking process:\n{plan.thinking}"
                     ).model_dump_json())
+                    
+                    # Then send the tasks
+                    await websocket.send_json(AgentMessage(
+                        agent="Orchestrator",
+                        content=f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.dict() for task in plan.tasks], indent=2)}"
+                    ).model_dump_json())
+                    
+                    # Mark planning phase complete
+                    await websocket.send_json(AgentMessage(
+                        agent="Planning",
+                        content="Execution plan created ✓"
+                    ).model_dump_json())
+                
+                # Handle orchestrator follow-up questions
+                if plan.needs_follow_up and plan.follow_up_question:
+                    try:
+                        # Get follow-up answer
+                        answer = await self._handle_follow_up(plan.follow_up_question, websocket)
+                        message = f"{message}\n\nAdditional information: {answer}"
+                        continue  # Restart with new information
+                    except Exception as e:
+                        self.logger.error(f"Error handling orchestrator follow-up: {str(e)}")
+                        break
                 
                 # Create worker agents for each unique agent in the plan
                 for task in plan.tasks:
@@ -452,6 +602,26 @@ Continue with the task using these results."""
                                 tool_with_client["session_client"] = session.client
                                 agent_functions.append(tool_with_client)
                         
+                        # Add RequestFollowUp tool
+                        follow_up_tool = {
+                            "function": {
+                                "name": f"{agent_name}--RequestFollowUp",
+                                "description": "Request follow-up information from the user",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "question": {
+                                            "type": "string",
+                                            "description": "The follow-up question to ask"
+                                        }
+                                    },
+                                    "required": ["question"]
+                                }
+                            }
+                        }
+                        agent_tools.append(follow_up_tool)
+                        agent_functions.append(follow_up_tool)
+                        
                         # Verify we have instructions
                         if "instructions" not in agent_data:
                             self.logger.error(f"Missing instructions for agent {agent_name}")
@@ -486,20 +656,24 @@ Continue with the task using these results."""
                         agent_evaluator,
                         config,
                         all_results,
-                        websocket
+                        websocket,
+                        orchestrator_client
                     )
                     
                     all_results.extend(round_results)
                 
                 # Evaluate overall progress
-                evaluation = await overall_evaluator.evaluate(message, all_results)
+                evaluation = await overall_evaluator.evaluate(
+                    f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
+                    all_results
+                )
                 
-                # Log evaluation with system prompt
+                # Log overall evaluation with reminder
                 self._log_interaction(
                     "OverallEvaluator",
-                    input_content=f"Request: {message}\nResults so far: {json.dumps([r.dict() for r in all_results], indent=2)}",
+                    input_content=f"Request: {message}\nResults so far: {json.dumps([r.dict() for r in all_results], indent=2)}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
                     output_content=f"Evaluation result: {evaluation}",
-                    system_prompt=AGENT_EVALUATOR_PROMPT,
+                    system_prompt=OVERALL_EVALUATOR_PROMPT,
                     include_prompts=True
                 )
                 
@@ -519,7 +693,7 @@ Continue with the task using these results."""
                         content="Overall evaluation complete ✓"
                     ).model_dump_json())
                 
-                if evaluation == OverallEvaluation.CONTINUE:
+                if evaluation == OverallEvaluation.REITERATE:
                     # Get iteration advice before continuing
                     if websocket:
                         await websocket.send_json(AgentMessage(
@@ -527,12 +701,15 @@ Continue with the task using these results."""
                             content="Analyzing results and preparing advice for next iteration..."
                         ).model_dump_json())
                     
-                    advice = await iteration_advisor.get_advice(message, all_results)
+                    advice = await iteration_advisor.get_advice(
+                        f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. Only suggest retrying if CRITICAL information is completely missing from the results.",
+                        all_results
+                    )
                     
                     # Log the iteration advice
                     self._log_interaction(
                         "IterationAdvisor",
-                        input_content=f"Request: {message}\nResults: {json.dumps([r.dict() for r in all_results], indent=2)}",
+                        input_content=f"Request: {message}\nResults: {json.dumps([r.dict() for r in all_results], indent=2)}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. Only suggest retrying if CRITICAL information is completely missing from the results.",
                         output_content=json.dumps(advice.dict(), indent=2),
                         system_prompt=ITERATION_ADVISOR_PROMPT,
                         include_prompts=True
@@ -544,12 +721,22 @@ Continue with the task using these results."""
                             content=f"Iteration Advice:\n{json.dumps(advice.dict(), indent=2)}"
                         ).model_dump_json())
                     
-                    # If advisor suggests not to retry, mark as finished
+                    # Handle follow-up questions from iteration advisor
+                    if advice.needs_follow_up and advice.follow_up_question:
+                        try:
+                            # Get follow-up answer
+                            answer = await self._handle_follow_up(advice.follow_up_question, websocket)
+                            message = f"{message}\n\nAdditional information: {answer}"
+                            continue  # Restart with new information
+                        except Exception as e:
+                            self.logger.error(f"Error handling iteration advisor follow-up: {str(e)}")
+                    
+                    # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
                         if websocket:
                             await websocket.send_json(AgentMessage(
                                 agent="IterationAdvisor",
-                                content="Advisor suggests stopping iterations - proceeding to final output"
+                                content="Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary
                             ).model_dump_json())
                         break
                     
@@ -591,8 +778,9 @@ Please address these specific improvements:
             }]
             
             # Use worker model and client if configured
-            output_client = worker_client if config.get("use_worker_for_output", True) else orchestrator_client
-            output_model = config["worker_model"] if config.get("use_worker_for_output", True) else config["model"]
+            use_worker_for_output = self._parse_bool_config(config.get("use_worker_for_output", True))
+            output_client = worker_client if use_worker_for_output else orchestrator_client
+            output_model = config["worker_model"] if use_worker_for_output else config["orchestrator_model"]
             
             # Simple streaming text request without any special constraints
             stream = await output_client.chat.completions.create(
@@ -615,6 +803,12 @@ Please address these specific improvements:
             
             # Set the complete response content after streaming
             response.content = "".join(final_output)
+            
+            # Add response to chat history
+            self.chat_history.messages.append(ChatMessage(
+                role="assistant",
+                content=response.content
+            ))
             
             # Log final response with system prompt
             self._log_interaction(
