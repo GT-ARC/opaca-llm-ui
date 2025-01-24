@@ -125,15 +125,11 @@
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <!-- Other Config Items -->
-                        <div v-for="(value, name) in backendConfig" :key="name" class="config-section">
-                            <div class="config-section-header">
-                                <strong>{{ name }}</strong>
-                            </div>
-                            <input v-model="backendConfig[name]"
-                                   class="form-control"
-                                   type="text" :placeholder="String(value)"/>
-                        </div>
+                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                                :key="name"
+                                :name="name"
+                                :value="value"
+                                v-model="backendConfig[name]"/>
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
@@ -182,13 +178,14 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
-import {sleep} from "openai/core";
+import ConfigParameter from './ConfigParameter.vue';
 
 export default {
     name: 'Sidebar',
     components: {
         DebugMessage,
-        SidebarQuestions
+        SidebarQuestions,
+        ConfigParameter
     },
     props: {
         backend: String,
@@ -203,6 +200,7 @@ export default {
             apiKey: '',
             platformActions: null,
             backendConfig: null,
+            backendConfigSchema: null,
             debugMessages: [],
             selectedLanguage: 'english',
             isConnected: false
@@ -287,10 +285,12 @@ export default {
             const backend = this.getBackend()
             const response = await sendRequest('POST', `${conf.BackendAddress}/${backend}/config/reset`);
             if (response.status === 200) {
-                this.backendConfig = response.data;
+                console.log("Response Data: ", response.data)
+                this.backendConfig = response.data.value;
+                this.backendConfigSchema = response.data.config_schema;
                 console.log('Reset backend config.');
             } else {
-                this.backendConfig = null;
+                this.backendConfig = this.backendConfigSchema = null;
                 console.error('Error resetting backend config.');
             }
         },
@@ -331,9 +331,10 @@ export default {
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
-                    this.backendConfig = response.data;
+                    this.backendConfig = response.data.value;
+                    this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = null;
+                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
@@ -703,45 +704,6 @@ export default {
 
     .accordion-collapse {
         background-color: var(--background-dark);
-    }
-}
-
-.config-section {
-    margin-bottom: 1.5rem;
-}
-
-.config-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-
-.config-section-header i {
-    color: var(--primary-light);
-    font-size: 1.125rem;
-}
-
-.config-section-header strong {
-    color: var(--text-primary-light);
-}
-
-.config-section-content {
-    padding-left: 1.5rem;
-    color: var(--text-secondary-light);
-}
-
-@media (prefers-color-scheme: dark) {
-    .config-section-header strong {
-        color: var(--text-primary-dark);
-    }
-
-    .config-section-content {
-        color: var(--text-secondary-dark);
-    }
-
-    .config-section-header i {
-        color: var(--primary-dark);
     }
 }
 
