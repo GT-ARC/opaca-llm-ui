@@ -29,14 +29,14 @@
         </template>
 
         <!-- Numbers and integers check for minimum and maximum ranges -->
-        <template v-else-if="['number', 'integer'].includes(value?.type)">
+        <template v-else-if="['number', 'integer'].includes(value.type)">
             <div class="config-section-header"><strong>{{ name }}</strong></div>
             <input v-model="localValue"
                    class="form-control"
                    type="number"
                    :min="value?.minimum"
                    :max="value.maximum"
-                   :step="value?.type === 'integer' ? 1 : 0.01"/>
+                   :step="value.type === 'integer' ? 1 : 0.01"/>
         </template>
 
         <!-- Other values are just plain text inputs -->
@@ -44,7 +44,7 @@
             <div class="config-section-header"><strong>{{ name }}</strong></div>
             <input v-model="localValue"
                    class="form-control"
-                   type="text" :placeholder="String(value)"/>
+                   type="text"/>
         </template>
     </div>
 </template>
@@ -94,6 +94,17 @@ export default {
 
 <style scoped>
 
+/* Remove number spinner for Chrome, Safari, Edge, ... */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Remove number spinner for Firefox */
+input[type="number"] {
+  appearance: textfield;
+}
 
 .config-section {
     margin-bottom: 1.5rem;
