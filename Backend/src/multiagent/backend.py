@@ -595,8 +595,12 @@ Continue with the task using these results."""
                         # Create tools list for the agent
                         for func in self.agents_data["agents_detailed"]:
                             if func["function"]["name"].startswith(f"{agent_name}--"):
-                                # Create a copy of the function for the tools list (sent to OpenAI/vLLM)
-                                agent_tools.append(func.copy())
+                                # Create a copy of the function for the tools list
+                                tool = func.copy()
+                                # Add type field only for OpenAI
+                                if config["worker_backend_type"] == "openai":
+                                    tool["type"] = "function"
+                                agent_tools.append(tool)
                                 # Create a copy with the session client for internal use
                                 tool_with_client = func.copy()
                                 tool_with_client["session_client"] = session.client
@@ -619,19 +623,26 @@ Continue with the task using these results."""
                                 }
                             }
                         }
+                        # Add type field only for OpenAI
+                        if config["worker_backend_type"] == "openai":
+                            follow_up_tool["type"] = "function"
                         agent_tools.append(follow_up_tool)
-                        agent_functions.append(follow_up_tool)
                         
-                        # Verify we have instructions
-                        if "instructions" not in agent_data:
-                            self.logger.error(f"Missing instructions for agent {agent_name}")
-                            raise ValueError(f"Agent {agent_name} is missing required instructions")
+                        # Create a copy with session client for internal use
+                        follow_up_tool_with_client = follow_up_tool.copy()
+                        follow_up_tool_with_client["session_client"] = session.client
+                        agent_functions.append(follow_up_tool_with_client)
+                        
+                        # Verify we have a summary
+                        if "summary" not in agent_data:
+                            self.logger.error(f"Missing summary for agent {agent_name}")
+                            raise ValueError(f"Agent {agent_name} is missing required summary")
                         
                         worker_agents[agent_name] = WorkerAgent(
                             client=worker_client,
                             model=config["worker_model"],
                             agent_name=agent_name,
-                            instructions=agent_data["instructions"],
+                            summary=agent_data["summary"],
                             tools=agent_tools,
                             internal_tools=agent_functions,
                             config=config

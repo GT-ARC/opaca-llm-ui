@@ -135,7 +135,13 @@ class OrchestratorAgent(BaseAgent):
             },
             {
                 "role": "user",
-                "content": f"Create an execution plan for this request:{chat_context}\n\nCurrent request: {user_request}"
+                "content": f"""Create an execution plan for this request: \n {user_request} \n\n 
+Consider the chat history if applicable: \n {chat_context} \n\n
+Keep in mind that there is an output generating LLM-Agent at the end of the chain.
+If the user request requires a summary, no seperate agent or function is needed for that, as the output generating agent will do that!
+NO NEED TO ASSIGN A TASK OR INVOKE THE AGENT. THIS ALL HAPPENS AUTOMATICALLY.
+NEVER USE AN AGENT TO SUMMARIZE INFORMATION!
+                """
             }
         ]
         
@@ -215,12 +221,7 @@ class AgentPlanner(BaseAgent):
             "content": f"""You are planning for the {self.agent_name}. Here are the available functions:
 {json.dumps(self.tools, indent=2)}
 
-Create a minimal, efficient function calling plan for this specific task: {task.strip()}
-
-Remember:
-1. Only include NECESSARY function calls to solve the task
-2. For sequential calls (sequential=true), use "{{previous_result}}" in arguments where needed
-3. Order sequential calls correctly and include only the minimum needed"""
+Create a minimal, efficient function calling plan for this specific task: {task.strip()}"""
         }]
         
         response = await self._call_llm(
@@ -236,7 +237,7 @@ class WorkerAgent(BaseAgent):
         client: AsyncOpenAI,
         model: str,
         agent_name: str,
-        instructions: str,
+        summary: str,
         tools: List[Dict],
         internal_tools: List[Dict],
         config: Dict[str, Any] = None
@@ -245,7 +246,7 @@ class WorkerAgent(BaseAgent):
             model = config["worker_model"]
         super().__init__(client, model)
         self.agent_name = agent_name
-        self.instructions = instructions
+        self.summary = summary
         self.tools = tools
         self.internal_tools = internal_tools
         self.planner = AgentPlanner(client, model, agent_name, tools)
@@ -258,7 +259,11 @@ class WorkerAgent(BaseAgent):
             # Create the tool call
             messages = [{
                 "role": "system",
-                "content": AGENT_SYSTEM_PROMPT.format(agent_instructions=self.instructions)
+                "content": AGENT_SYSTEM_PROMPT.format(
+                    agent_name=self.agent_name,
+                    agent_summary=self.summary,
+                    # tools=json.dumps(self.tools, indent=2) # Only add if we want to show the tools in the system prompt
+                )
             }, {
                 "role": "user",
                 "content": task
@@ -273,6 +278,8 @@ class WorkerAgent(BaseAgent):
             tool_calls = []
             tool_results = []
             output = ""
+            needs_follow_up = False
+            follow_up_question = None
             
             if response.choices[0].message.tool_calls:
                 for tool_call in response.choices[0].message.tool_calls:
@@ -285,6 +292,18 @@ class WorkerAgent(BaseAgent):
                     
                     # Execute the tool call
                     result = await self._execute_tool_call_direct(tool_call_dict)
+                    
+                    # Check if this is a follow-up request
+                    try:
+                        result_json = json.loads(result)
+                        if isinstance(result_json, dict) and result_json.get("needs_follow_up"):
+                            needs_follow_up = True
+                            follow_up_question = result_json.get("question")
+                            # Don't add follow-up requests to tool results
+                            continue
+                    except (json.JSONDecodeError, AttributeError):
+                        pass  # Not a JSON response or not a follow-up request
+                    
                     tool_results.append({
                         "name": tool_call.function.name,
                         "result": result
@@ -299,7 +318,8 @@ class WorkerAgent(BaseAgent):
                 output=output.strip(),
                 tool_calls=tool_calls,
                 tool_results=tool_results,
-                needs_follow_up=False
+                needs_follow_up=needs_follow_up,
+                follow_up_question=follow_up_question
             )
         
         except Exception as e:
@@ -335,7 +355,15 @@ class WorkerAgent(BaseAgent):
             if not session_client:
                 return f"Error: No session client found for tool {func_name}"
             
-            # Invoke the OPACA action
+            # Special handling for RequestFollowUp
+            if action_name == "RequestFollowUp":
+                # Return the question directly - it will be handled by the agent framework
+                return json.dumps({
+                    "question": args["question"],
+                    "needs_follow_up": True
+                })
+            
+            # Invoke the OPACA action for other tools
             result = await session_client.invoke_opaca_action(
                 action=action_name,
                 agent=agent_name,
@@ -361,7 +389,7 @@ class AgentEvaluator(BaseAgent):
                     "agent_output": result.output,
                     "tool_calls": result.tool_calls,
                     "tool_results": result.tool_results
-                }, indent=2)
+                }, indent=2) + "\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
             }
         ]
         
@@ -389,7 +417,7 @@ class OverallEvaluator(BaseAgent):
                 "content": json.dumps({
                     "original_request": original_request,
                     "current_results": [r.dict() for r in current_results]
-                }, indent=2)
+                }, indent=2) + "\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
             }
         ]
         
@@ -452,7 +480,7 @@ class IterationAdvisor(BaseAgent):
                 "content": json.dumps({
                     "original_request": original_request,
                     "current_results": [r.dict() for r in current_results]
-                }, indent=2)
+                }, indent=2) + "\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), do not suggest retrying."
             }
         ]
         

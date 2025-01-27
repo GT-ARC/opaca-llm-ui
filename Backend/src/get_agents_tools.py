@@ -32,13 +32,9 @@ Agent Name: {agent_name}
 Available Functions:
 {functions}
 
-Please structure your response in this format:
-
-Purpose: [One sentence describing the agent's main purpose]
-
-Overview: [1-2 sentences max about how the functions work together]
-
-Goals and Capabilities: [A detailed but precise description of what the agent should be used for.]
+You should only provide the summary, not the agent name or functions.
+The summary should be a single paragraph that is easy to read and understand.
+The paragraph should only contain 1-3 sentences and be extreamly precise.
 
 Keep descriptions clear, specific, and focused on their exact capabilities."""
 
@@ -239,16 +235,16 @@ async def get_agents_tools(
     ]
     
     # Process all instruction generations in parallel
-    instructions = await tqdm.gather(*instruction_tasks, desc="Generating agent instructions")
+    #instructions = await tqdm.gather(*instruction_tasks, desc="Generating agent instructions")
     
     # Convert results to dictionary
     agents_with_summaries = {
         agent_name: {
             "functions": agents_simple[agent_name],
             "summary": agent_summaries[agent_name],
-            "instructions": instruction
+            #"instructions": instruction
         }
-        for agent_name, instruction in instructions
+        for agent_name in agent_summaries.keys() #, instruction in instructions
     }
 
     result = {
