@@ -141,8 +141,11 @@
                                 <i class="fa fa-undo me-2"/>Reset to Default
                             </button>
                         </div>
-                        <div class="config-error-message text-center text-danger">
-                            {{ this.configErrorMessage }}
+                        <div
+                            v-if="!this.shouldFadeOut"
+                            class="config-error-message text-center"
+                            :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
+                            {{ this.configMessage }}
                         </div>
                     </div>
                 </div>
@@ -207,7 +210,10 @@ export default {
             debugMessages: [],
             selectedLanguage: 'english',
             isConnected: false,
-            configErrorMessage: ""
+            configMessage: "",
+            configChangeSuccess: false,
+            shouldFadeOut: false,
+            fadeTimeout: null,
         };
     },
     methods: {
@@ -280,16 +286,37 @@ export default {
             try {
                 const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
                 if (response.status === 200) {
-                console.log('Saved backend config.');
+                    console.log('Saved backend config.');
+                    this.configChangeSuccess = true
+                    this.configMessage = "Configuration Changed"
+                    this.startFadeOut()
                 } else {
                     console.error('Error saving backend config.');
+                    this.configChangeSuccess = false
+                    this.configMessage = "Unexpected Error"
+                    this.startFadeOut()
                 }
             } catch (error) {
                 if (error.response.status === 400) {
                     console.log("Invalid Configuration Values!")
-                    this.configErrorMessage = "Invalid Configuration Values!"
+                    this.configChangeSuccess = false
+                    this.configMessage = "Invalid Configuration Values"
+                    this.startFadeOut()
                 }
             }
+        },
+
+        startFadeOut() {
+            // Clear previous timeout (if the user saves the config again before fade-out could happen)
+            if (this.fadeTimeout) {
+                clearTimeout(this.fadeTimeout);
+            }
+
+            this.shouldFadeOut = false
+
+            this.fadeTimeout = setTimeout(() => {
+                this.shouldFadeOut = true;
+            }, 2000)
         },
 
         async resetBackendConfig() {
@@ -299,9 +326,15 @@ export default {
                 console.log("Response Data: ", response.data)
                 this.backendConfig = response.data.value;
                 this.backendConfigSchema = response.data.config_schema;
+                this.configChangeSuccess = true
+                this.configMessage = "Reset Configuration to default values"
+                this.startFadeOut()
                 console.log('Reset backend config.');
             } else {
                 this.backendConfig = this.backendConfigSchema = null;
+                this.configChangeSuccess = false
+                this.configMessage = "Unexpected error occurred during configuration reset"
+                this.startFadeOut()
                 console.error('Error resetting backend config.');
             }
         },
