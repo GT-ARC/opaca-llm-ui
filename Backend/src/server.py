@@ -116,8 +116,10 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = handle_session_id(request, response)
-    if not validate_config_input(conf, BACKENDS[backend].config_schema):
-        raise HTTPException(status_code=400, detail="Invalid configuration")
+    try:
+        validate_config_input(conf, BACKENDS[backend].config_schema)
+    except HTTPException as e:
+        raise e
     session.config[backend] = conf
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 

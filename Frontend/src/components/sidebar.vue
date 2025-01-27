@@ -298,9 +298,9 @@ export default {
                 }
             } catch (error) {
                 if (error.response.status === 400) {
-                    console.log("Invalid Configuration Values!")
+                    console.log("Invalid Configuration Values: ", error.response.data.detail)
                     this.configChangeSuccess = false
-                    this.configMessage = "Invalid Configuration Values"
+                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail
                     this.startFadeOut()
                 }
             }
@@ -316,7 +316,7 @@ export default {
 
             this.fadeTimeout = setTimeout(() => {
                 this.shouldFadeOut = true;
-            }, 2000)
+            }, 3000)
         },
 
         async resetBackendConfig() {
