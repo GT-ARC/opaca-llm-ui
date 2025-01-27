@@ -141,6 +141,9 @@
                                 <i class="fa fa-undo me-2"/>Reset to Default
                             </button>
                         </div>
+                        <div class="config-error-message text-center text-danger">
+                            {{ this.configErrorMessage }}
+                        </div>
                     </div>
                 </div>
 
@@ -203,7 +206,8 @@ export default {
             backendConfigSchema: null,
             debugMessages: [],
             selectedLanguage: 'english',
-            isConnected: false
+            isConnected: false,
+            configErrorMessage: ""
         };
     },
     methods: {
@@ -273,11 +277,18 @@ export default {
 
         async saveBackendConfig() {
             const backend = this.getBackend();
-            const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
-            if (response.status === 200) {
+            try {
+                const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
+                if (response.status === 200) {
                 console.log('Saved backend config.');
-            } else {
-                console.error('Error saving backend config.');
+                } else {
+                    console.error('Error saving backend config.');
+                }
+            } catch (error) {
+                if (error.response.status === 400) {
+                    console.log("Invalid Configuration Values!")
+                    this.configErrorMessage = "Invalid Configuration Values!"
+                }
             }
         },
 
