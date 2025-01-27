@@ -4,7 +4,7 @@ import jsonref
 from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from Backend.src.models import ConfigParameter
+from .models import ConfigParameter, ConfigArrayItem
 
 
 class ColorPrint:
@@ -310,3 +310,88 @@ def message_to_class(msg):
         "system": SystemMessage,
     }[msg["role"]]
     return MessageType(msg.get("content", ""))
+
+
+def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParameter]):
+    """
+    Validates the given input values against the Configuration Schema
+    :param values: The input dict of configuration parameters that was sent by the UI
+    :param schema: The schema of the selected backend that the parameters should affect
+    :return: Returns true if everything was successfully validated, false otherwise
+    """
+
+    for key, value in values.items():
+        # Check if key exist in schema
+        if key not in schema.keys():
+            return False
+
+        # Make config parameter a dict for easier checks of optional fields
+        if isinstance(schema[key], ConfigParameter):
+            config_param = schema[key].model_dump()
+        else:
+            config_param = schema[key]
+
+        # Validate type consistency
+        if (config_param["type"] == "number" and not isinstance(value, (float, int))) or \
+            (config_param["type"] == "integer" and not isinstance(value, int)) or \
+            (config_param["type"] == "string" and not isinstance(value, str)) or \
+            (config_param["type"] == "boolean" and not isinstance(value, bool)):
+            return False
+        elif config_param["type"] == "array":
+            if not isinstance(value, list):
+                return False
+            else:
+                for item in value:
+                    if not validate_array_items(item, config_param.get("array_items")):
+                        return False
+        elif config_param["type"] == "object":
+            if not isinstance(value, dict):
+                return False
+            else:
+                for k1, v1 in value.items():
+                    if k1 not in config_param["default"].keys():
+                        return False
+                    if not validate_config_input({k1: v1}, {k1: config_param["default"][k1]}):
+                        return False
+        elif config_param["type"] == "null" and value is not None:
+            return False
+
+        # Validate min/max limit
+        if config_param["type"] in ["number", "integer"]:
+            if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
+                return False
+            if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
+                return False
+
+        # Validate enum
+        if config_param.get("enum", None) and value not in schema[key].enum:
+            return False
+
+    return True
+
+
+def validate_array_items(value, array_items: ConfigArrayItem):
+    if (array_items.type == "number" and not isinstance(value, (float, int))) or \
+            (array_items.type == "integer" and not isinstance(value, int)) or \
+            (array_items.type == "string" and not isinstance(value, str)) or \
+            (array_items.type == "boolean" and not isinstance(value, bool)):
+        return False
+    elif array_items.type == "null" and value is not None:
+        return False
+    elif array_items.type == "array":
+        if not isinstance(value, list):
+            return False
+        else:
+            for item in value:
+                if not validate_array_items(item, array_items.get("array_items")):
+                    return False
+    elif array_items.type == "object":
+        if not isinstance(value, dict):
+            return False
+        else:
+            for k1, v1 in value.items():
+                if k1 not in array_items["default"].keys():
+                    return False
+                if not validate_config_input({k1: v1}, array_items["default"][k1]):
+                    return False
+    return True

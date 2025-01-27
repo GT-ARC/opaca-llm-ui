@@ -95,18 +95,18 @@ class RestGptBackend(OpacaLLMBackend):
         Declares the default configuration
         """
         config = {
-            "slim_prompts": ConfigParameter(
+            "slim_prompts": ConfigParameter(        # Use slim prompts -> cheaper
                 type="object",
                 required=True,
-                default={                       # Use slim prompts -> cheaper
+                default={
                     "planner": ConfigParameter(type="boolean", required=True, default=True),
                     "action_selector": ConfigParameter(type="boolean", required=True, default=True),
                     "evaluator": ConfigParameter(type="boolean", required=True, default=False)
                 }),
-            "examples": ConfigParameter(
+            "examples": ConfigParameter(            # How many examples are used per agent
                 type="object",
                 required=True,
-                default={                           # How many examples are used per agent
+                default={
                     "planner": ConfigParameter(type="boolean", required=True, default=False),
                     "action_selector": ConfigParameter(type="boolean", required=True, default=True),
                     "caller": ConfigParameter(type="boolean", required=True, default=True),

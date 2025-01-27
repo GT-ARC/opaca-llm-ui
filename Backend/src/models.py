@@ -3,7 +3,7 @@ Request and response models used in the FastAPI routes (and in some of the imple
 """
 import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Self
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -12,7 +12,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
     FewShotChatMessagePromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from starlette.websockets import WebSocket
 
 
@@ -62,20 +62,40 @@ class SessionData(BaseModel):
 
 class ConfigArrayItem(BaseModel):
     type: str
-    array_items: 'Optional[List[ConfigArrayItem]]' = None
+    default: Any
+    array_items: 'Optional[ConfigArrayItem]' = None
 
 class ConfigParameter(BaseModel):
     """
     A custom parameter definition for the configuration of each implemented method
+    Valid types are ["integer", "number", "string", "boolean", "array", "object", "null"]
     """
     type: str
     required: bool
     default: Any
     description: Optional[str] = None
-    array_items: Optional[List[ConfigArrayItem]] = None
+    array_items: Optional[ConfigArrayItem] = None
     minimum: Optional[int] = None
     maximum: Optional[int] = None
     enum: Optional[List[Any]] = None
+
+    @model_validator(mode='after')
+    def validate_after(self: Self) -> Self:
+        if self.type == 'array' and self.array_items is None:
+            raise ValueError(f'ConfigParameter.array_items cannot be "None" if ConfigParameter.type is "array"')
+        if self.enum is not None and self.default not in self.enum:
+            raise ValueError(f'ConfigParameter.default must be one of {self.enum}')
+        return self
+
+    # noinspection PyNestedDecorators
+    @field_validator('type', mode='after')
+    @classmethod
+    def type_validator(cls, value: str) -> str:
+        if value not in ["integer", "number", "string", "boolean", "array", "object", "null"]:
+            raise ValueError(f'Value type "{value}" is not valid')
+        return value
+
+
 
 class ConfigPayload(BaseModel):
     value: Any

@@ -5,12 +5,13 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
+from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload
 from .toolllm import *
 from .restgpt import RestGptBackend
@@ -115,6 +116,8 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = handle_session_id(request, response)
+    if not validate_config_input(conf, BACKENDS[backend].config_schema):
+        raise HTTPException(status_code=400, detail="Invalid configuration")
     session.config[backend] = conf
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
