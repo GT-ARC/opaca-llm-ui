@@ -8,12 +8,12 @@ from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
+    FewShotChatMessagePromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
-
-from .utils import build_prompt
 
 
 class Url(BaseModel):
@@ -180,7 +180,7 @@ class LLMAgent:
 
     async def ainvoke(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
         exec_time = time.time()
-        prompt = build_prompt(
+        prompt = self._build_prompt(
             system_prompt=self.system_prompt,
             examples=self.examples,
             input_variables=self.input_variables,
@@ -212,3 +212,35 @@ class LLMAgent:
         agent_message.execution_time = time.time() - exec_time
 
         return agent_message
+
+    @staticmethod
+    def _build_prompt(
+            system_prompt: str,
+            examples: List[Dict[str, str]],
+            input_variables: List[str],
+            message_template: str
+    ) -> ChatPromptTemplate:
+
+        example_prompt = ChatPromptTemplate.from_messages(
+            [
+                HumanMessagePromptTemplate.from_template("{input}"),
+                AIMessagePromptTemplate.from_template("{output}")
+            ]
+        )
+
+        few_shot_prompt = FewShotChatMessagePromptTemplate(
+            input_variables=input_variables,
+            example_prompt=example_prompt,
+            examples=examples
+        )
+
+        final_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=system_prompt),
+                few_shot_prompt,
+                MessagesPlaceholder(variable_name="history", optional=True),
+                ("human", message_template),
+            ]
+        )
+
+        return final_prompt

@@ -1,10 +1,10 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 import jsonref
 from colorama import Fore
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
-    FewShotChatMessagePromptTemplate, MessagesPlaceholder
+
+from Backend.src.models import ConfigParameter
 
 
 class ColorPrint:
@@ -310,35 +310,3 @@ def message_to_class(msg):
         "system": SystemMessage,
     }[msg["role"]]
     return MessageType(msg.get("content", ""))
-
-
-def build_prompt(
-        system_prompt: str,
-        examples: List[Dict[str, str]],
-        input_variables: List[str],
-        message_template: str
-) -> ChatPromptTemplate:
-
-    example_prompt = ChatPromptTemplate.from_messages(
-        [
-            HumanMessagePromptTemplate.from_template("{input}"),
-            AIMessagePromptTemplate.from_template("{output}")
-        ]
-    )
-
-    few_shot_prompt = FewShotChatMessagePromptTemplate(
-        input_variables=input_variables,
-        example_prompt=example_prompt,
-        examples=examples
-    )
-
-    final_prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(content=system_prompt),
-            few_shot_prompt,
-            MessagesPlaceholder(variable_name="history", optional=True),
-            ("human", message_template),
-        ]
-    )
-
-    return final_prompt
