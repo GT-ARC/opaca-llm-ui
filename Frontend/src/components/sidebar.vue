@@ -2,8 +2,8 @@
     <div class="d-flex justify-content-start">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 pt-3 gap-2"
-             style="height: calc(100vh - 50px)">
+             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
+             style="height: calc(100vh - 50px);">
 
             <i @click="selectView('connect')"
                class="fa fa-link p-2 sidebar-item"
@@ -34,8 +34,7 @@
         <!-- sidebar content -->
         <div v-show="isViewSelected()" class="mt-4">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: 400px">
+               class="container-fluid d-flex flex-column px-3">
 
                 <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">
@@ -171,7 +170,7 @@
                         @category-selected="(category) => $emit('category-selected', category)"/>
                 </div>
 
-                <div class="resizer me-1" id="resizer" />
+                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
         </div>
     </div>
@@ -182,6 +181,8 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import { useDevice } from "../useIsMobile.js";
+
 
 
 export default {
@@ -193,6 +194,10 @@ export default {
     props: {
         backend: String,
         language: String
+    },
+    setup() {
+        const { isMobile, screenWidth } = useDevice();
+        return { isMobile, screenWidth };
     },
     data() {
         return {
@@ -395,6 +400,7 @@ export default {
     min-width: 200px;
     max-width: 600px;
     position: relative;
+    z-index: 999;
 }
 
 #sidebar-menu {
@@ -425,13 +431,21 @@ export default {
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light);
+    background-color: var(--primary-light) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
     background-color: var(--secondary-light);
     color: white !important;
+}
+
+@media screen and (max-width: 768px) {
+    .sidebar-item {
+        font-size: 0.8rem;
+        width: 2rem;
+        height: 2rem;
+    }
 }
 
 .resizer {

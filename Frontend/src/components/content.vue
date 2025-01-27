@@ -22,8 +22,12 @@
 
             <!-- Chat Window -->
             <div class="d-flex flex-column flex-grow-1">
-                <div class="container-fluid flex-grow-1 px-0" id="chat1">
-                    <div class="card-body" id="chat-container"/>
+                <div class="container-fluid flex-grow-1 px-0 m-0" id="chat1">
+                    <div id="chat-container"
+                         class="overflow-y-auto card-body"
+                         style="max-height: calc(100vh - 100px);"/>
+
+                    <!-- sample questions -->
                     <div v-show="showExampleQuestions" class="sample-questions">
                         <div v-for="(question, index) in getCurrentCategoryQuestions()"
                              :key="index"
@@ -32,18 +36,19 @@
                             {{ question.icon }} <br> {{ question.question }}
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Input Area -->
                 <div class="input-container">
                     <div class="input-group">
-                    <textarea id="textInput"
-                          v-model="textInput"
-                          :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
-                          class="form-control overflow-hidden"
-                          rows="1"
-                          @input="autoResize"
-                          @keypress="textInputCallback"></textarea>
+                        <textarea id="textInput"
+                              v-model="textInput"
+                              :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
+                              class="form-control overflow-hidden"
+                              rows="1"
+                              @input="autoResize"
+                              @keypress="textInputCallback"></textarea>
 
                         <!-- user has entered text into message box -> send button available -->
                         <button type="button"
@@ -89,6 +94,8 @@ import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
+import { useDevice } from "../useIsMobile.js";
+
 export default {
     name: 'main-content',
     components: {
@@ -99,6 +106,10 @@ export default {
     props: {
         backend: String,
         language: String,
+    },
+    setup() {
+        const { isMobile, screenWidth } = useDevice()
+        return { isMobile, screenWidth };
     },
     data() {
         return {
@@ -120,7 +131,6 @@ export default {
             voiceServerConnected: false,
             statusMessages: {}, // Track status messages by messageCount
             isSidebarActive: false,
-            windowWidth: window.innerWidth,
         }
     },
     watch: {
@@ -322,7 +332,10 @@ export default {
             document.getElementById("chat-container").innerHTML = '';
             this.$refs.sidebar.debugMessages = []
             this.abortSpeaking();
-            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            if (!this.isMobile) {
+                // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
+                this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
             this.isBusy = false;
@@ -717,29 +730,23 @@ export default {
             this.isSidebarActive = (key !== 'none');
         },
 
-        isMobileView() {
-            return this.windowWidth <= 768
-        },
-
         isMainContentVisible() {
-            console.log('isMainContentVisible', !(this.isMobileView() && this.isSidebarActive));
-            return !(this.isMobileView() && this.isSidebarActive);
+            return !(this.isMobile && this.isSidebarActive);
         },
 
         isSendAvailable() {
-            console.log('isSendAvailable', !this.isMobileView(), this.textInput.length > 0);
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length > 0;
         },
 
         isSpeechRecognitionAvailable() {
             if (!this.voiceServerConnected) return false;
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
 
         isResetAvailable() {
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
     },
@@ -754,7 +761,10 @@ export default {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-        this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+
+        if (!this.isMobile) {
+            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+        }
 
         this.updateSelectedCategory(this.getConfig().DefaultQuestions);
 
@@ -851,7 +861,7 @@ export default {
 
 #chat-container {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 120ch);
     padding: 0.25rem;
     margin: 0 auto;
     position: relative;
@@ -864,7 +874,7 @@ export default {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: min(80%, 120ch);
+    width: min(95%, 120ch);
     height: 40px;
     pointer-events: none;
     z-index: 10;
@@ -935,9 +945,9 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 120ch);
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1rem;
 }
 
 .input-group .form-control {
@@ -1025,7 +1035,7 @@ export default {
 
 .sample-questions {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 120ch);
     margin: 0 auto;
     padding: 1rem;
     display: flex;
