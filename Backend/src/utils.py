@@ -321,6 +321,12 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
     :return: Returns true if everything was successfully validated, false otherwise
     """
 
+    # Check if all required parameters have been provided
+    if not all(key in values.keys() for key in schema.keys() if schema[key].required):
+        raise HTTPException(400, f'There are required configuration parameters missing!\n'
+                                 f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
+                                 f'Received: {[key for key in values.keys()]}')
+
     for key, value in values.items():
         # Check if key exist in schema
         if key not in schema.keys():
