@@ -1,7 +1,20 @@
 <template>
     <div class="config-section">
         <div v-if="isObject">
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <div v-for="(subValue, subName) in value.default" :key="subName" class="nested-config">
                 <config-parameter
                     :key="subName"
@@ -12,7 +25,20 @@
         </div>
         <!-- Boolean types create a checkbox -->
         <template v-else-if="value.type === 'boolean'">
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <input v-model="localValue"
                    class="form-check-input"
                    type="checkbox"/>
@@ -20,7 +46,20 @@
 
         <!-- Dropdown menu for enums -->
         <template v-else-if="Array.isArray(value?.enum)">
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <select v-model="localValue" class="form-control">
                 <option v-for="option in value?.enum" :key="option" :value="option">
                     {{ option }}
@@ -30,7 +69,20 @@
 
         <!-- Numbers and integers check for minimum and maximum ranges -->
         <template v-else-if="['number', 'integer'].includes(value.type)">
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <input v-model="localValue"
                    class="form-control"
                    type="number"
@@ -41,7 +93,20 @@
 
         <!-- Array type -->
         <template v-else-if="value.type === 'array'">
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <div v-for="(item, index) in localValue" :key="index" class="array-item">
                 <div class="input-with-minus">
                 <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
@@ -55,7 +120,20 @@
 
         <!-- Other values are just plain text inputs -->
         <template v-else>
-            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div class="config-section-header">
+                <strong>{{ name }}</strong>
+                <div v-if="value.description" class="tooltip-container">
+                    <button
+                        type="button"
+                        class="question-mark"
+                        @click.stop="toggleTooltip">
+                        ?
+                    </button>
+                    <div v-if="showTooltip" class="tooltip-bubble overflow-auto">
+                        {{ value.description }}
+                    </div>
+                </div>
+            </div>
             <input v-model="localValue"
                    class="form-control"
                    type="text"/>
@@ -103,6 +181,11 @@ export default {
             },
         },
     },
+    data() {
+        return {
+            showTooltip: false
+        }
+    },
     methods: {
         addItem() {
             if (Array.isArray(this.localValue)) {
@@ -132,8 +215,36 @@ export default {
             } else {
                 console.warn("Called the method 'removeItem' for a non-array type!")
             }
-        }
+        },
+
+        toggleTooltip() {
+            this.showTooltip = !this.showTooltip;
+        },
+
+        handleClickOutside(event) {
+            if (!this.$el.contains(event.target)) {
+                this.showTooltip = false;
+            }
+        },
     },
+
+    mounted() {
+        document.addEventListener("click", this.handleClickOutside);
+    },
+    beforeUnmount() {
+        document.removeEventListener("click", this.handleClickOutside);
+    },
+
+    template: `
+        <div class="tooltip-container">
+            <button type="button" class="question-mark" @click.stop="toggleTooltip">
+                ?
+            </button>
+            <div v-if="this.showTooltip" class="tooltip-bubble">
+                {{ description }}
+            </div>
+        </div>
+    `
 };
 </script>
 
@@ -185,6 +296,48 @@ input[type="number"] {
 
 .add-button {
     margin-top: 0.75rem;
+}
+
+.tooltip-container {
+    position: relative;
+    margin-left: 8px;
+}
+
+.question-mark {
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: #007bff;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 50%;
+    line-height: 1;
+    font-weight: bold;
+}
+
+.tooltip-bubble {
+    position: absolute;
+    display: block;
+    width: 200px;
+    top: 20px;
+    left: 0;
+    background-color: #333;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    word-wrap: break-word;
+    z-index: 1000;
+}
+
+.tooltip-bubble::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 10px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent transparent #333 transparent;
 }
 
 @media (prefers-color-scheme: dark) {
