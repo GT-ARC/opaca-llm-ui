@@ -84,16 +84,6 @@ For ANY task:
 - DO NOT engage in conversation
 - JUST USE THE APPROPRIATE TOOL
 
-Example tasks and responses:
-1. Task: "Get the latest 5 emails"
-   Response: Use GetEmails with numEmails=5
-
-2. Task: "Find phone number for John"
-   Response: Use FindPhoneNumber with nameQuery="John"
-
-3. Task: "Send email to team"
-   Response: Use WriteEmail with appropriate parameters
-
 REMEMBER: ALWAYS USE A TOOL, NEVER RESPOND WITH TEXT."""
 
 AGENT_EVALUATOR_PROMPT = """You are an evaluator that determines if an agent's task execution needs another iteration.

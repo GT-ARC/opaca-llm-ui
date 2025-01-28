@@ -75,38 +75,17 @@ class BaseAgent:
                 "messages": messages.copy(),  # Make a copy to avoid modifying the original
                 "temperature": 0.0  # Always use temperature 0 for deterministic outputs
             }
-            
+                
             # Handle tool calls first since they're simpler
             if tools:
-                # For non-GPT models, ensure each tool has a type field
-                if not is_gpt:
-                    tools_with_type = []
-                    for tool in tools:
-                        tool_copy = tool.copy()
-                        if "type" not in tool_copy:
-                            tool_copy["type"] = "function"
-                        if "function" not in tool_copy:
-                            # If the tool is already in function format, use it as is
-                            tool_copy["function"] = tool_copy
-                        tools_with_type.append(tool_copy)
-                    kwargs["tools"] = tools_with_type
-                else:
-                    # For GPT models, ensure tools are in the correct format
-                    gpt_tools = []
-                    for tool in tools:
-                        tool_copy = tool.copy()
-                        if "type" not in tool_copy:
-                            tool_copy["type"] = "function"
-                        gpt_tools.append(tool_copy)
-                    kwargs["tools"] = gpt_tools
-                
+                kwargs["tools"] = tools
                 kwargs["tool_choice"] = tool_choice or "auto"
-                
-                # Add tool usage guidance to system message
-                if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
-                    tools_str = json.dumps([t.get("function", t) for t in tools], indent=2)
-                    kwargs["messages"][0]["content"] = kwargs["messages"][0]["content"] + f"\n\nYou MUST use one of these tools to complete the task:\n{tools_str}"
-                
+                #return await self.client.chat.completions.create(**kwargs)
+
+                # self.logger.info("\n\n\n")
+                # self.logger.info("TOOLS: ", tools)
+                # self.logger.info("\n\n\n")
+
                 completion = await self.client.chat.completions.create(**kwargs)
                 response = completion.choices[0].message
                 
