@@ -122,7 +122,7 @@
 
                 <!-- backend config -->
                 <div v-show="isViewSelected('config')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
                         <config-parameter v-for="(value, name) in backendConfigSchema"
@@ -306,24 +306,10 @@ export default {
             }
         },
 
-        startFadeOut() {
-            // Clear previous timeout (if the user saves the config again before fade-out could happen)
-            if (this.fadeTimeout) {
-                clearTimeout(this.fadeTimeout);
-            }
-
-            this.shouldFadeOut = false
-
-            this.fadeTimeout = setTimeout(() => {
-                this.shouldFadeOut = true;
-            }, 3000)
-        },
-
         async resetBackendConfig() {
             const backend = this.getBackend()
             const response = await sendRequest('POST', `${conf.BackendAddress}/${backend}/config/reset`);
             if (response.status === 200) {
-                console.log("Response Data: ", response.data)
                 this.backendConfig = response.data.value;
                 this.backendConfigSchema = response.data.config_schema;
                 this.configChangeSuccess = true
@@ -390,7 +376,25 @@ export default {
         handleQuestionSelect(question) {
             // Send the question to the chat without closing the sidebar
             this.$emit('select-question', question);
-        }
+        },
+
+        startFadeOut() {
+            // Clear previous timeout (if the user saves the config again before fade-out could happen)
+            if (this.fadeTimeout) {
+                clearTimeout(this.fadeTimeout);
+            }
+
+            this.shouldFadeOut = false
+
+            this.fadeTimeout = setTimeout(() => {
+                this.shouldFadeOut = true;
+            }, 3000)
+        },
+
+        scrollDownConfigView() {
+            const configContainer = document.getElementById('config-display');
+            configContainer.scrollTop = configContainer.scrollHeight;
+        },
     },
     mounted() {
         this.setupResizer();
@@ -411,6 +415,9 @@ export default {
         } else {
             this.selectView('connect');
         }
+    },
+    updated() {
+        this.scrollDownConfigView()
     },
     watch: {
         backend(newValue) {
