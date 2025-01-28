@@ -37,6 +37,7 @@ from .models import (
     ChatMessage,
     AgentTask
 )
+from .config import model_config_loader
 
 class MultiAgentBackend(OpacaLLMBackend):
     NAME = "multi-agent"
@@ -75,16 +76,10 @@ class MultiAgentBackend(OpacaLLMBackend):
     @property
     def default_config(self) -> Dict[str, Any]:
         return {
-            "orchestrator_model": "Qwen25_72B_INT4",  # Model for orchestration and evaluation
-            "worker_model": "gpt-4o-mini",  # Model for worker agents
+            "model_config_name": "vllm-mixed",  # Model Config
             "temperature": 0,
             "max_rounds": 5,  # Maximum number of orchestration rounds
             "max_iterations": 3,  # Maximum iterations per agent task
-            "base_url": "http://10.20.0.224:8000/v1",  # Base URL for orchestration/evaluation
-            #"worker_base_url": "http://10.20.0.193:8001/v1",  # Base URL for worker agents
-            "worker_base_url": None,  # Base URL for worker agents
-            "orchestrator_backend_type": "vllm",  # Can be 'openai' or 'vllm' for orchestrator
-            "worker_backend_type": "openai",  # Can be 'openai' or 'vllm' for worker
             "use_worker_for_output": False,  # Whether to use worker model for output generation
             "use_agent_planner": True  # Whether to use agent planner for function planning
         }
@@ -100,17 +95,17 @@ class MultiAgentBackend(OpacaLLMBackend):
             if is_worker:
                 if config["worker_backend_type"] == "vllm":
                     api_key = config.get("worker_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config.get("worker_base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1"))
+                    base_url = config["worker_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1")
                 else:
                     api_key = config.get("worker_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config.get("worker_base_url")
+                    base_url = config["worker_base_url"]
             else:
                 if config["orchestrator_backend_type"] == "vllm":
                     api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config.get("base_url", os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1"))
+                    base_url = config["base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
                 else:
                     api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config.get("base_url")
+                    base_url = config["base_url"]
             
             if not api_key:
                 raise ValueError("No API key found in session or environment")
@@ -207,6 +202,8 @@ class MultiAgentBackend(OpacaLLMBackend):
         """Execute a single round of tasks in parallel when possible"""
         results = []
         
+        
+
         # Create agent evaluator
         agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
         
@@ -383,6 +380,7 @@ Continue with the task using these results."""
         current_task = task
         task_str = task.task if isinstance(task, AgentTask) else task
         
+        
         while iterations < config["max_iterations"]:
             # Get the latest config in case it was updated
             use_agent_planner = self._parse_bool_config(config.get("use_agent_planner", True))
@@ -405,8 +403,6 @@ Continue with the task using these results."""
                     tools=agent.tools,
                     worker_agent=agent
                 )
-                
-
                 
                 # Execute task with planning
                 result = await planner.execute_task(current_task)
@@ -494,7 +490,10 @@ Continue with the task using these results."""
             # Log initial user message
             self._log_non_llm_interaction("User", message)
             
+            # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config)
+            model_config = model_config_loader.get_model_config(config.get("model_config_name"))
+            config.update(model_config)  # Merge model config into session config
             
             # Create separate clients for orchestration and worker agents
             orchestrator_client = await self._create_openai_client(session, is_worker=False)
@@ -534,13 +533,13 @@ Continue with the task using these results."""
                 chat_history=self.chat_history  # Pass chat history to orchestrator
             )
             
-            # Initialize evaluators and output generator
+            # Initialize agents with orchestrator model from model config
             agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
             overall_evaluator = OverallEvaluator(orchestrator_client, config["orchestrator_model"])
             output_generator = OutputGenerator(orchestrator_client, config["orchestrator_model"])
             iteration_advisor = IterationAdvisor(orchestrator_client, config["orchestrator_model"])
             
-            # Add GeneralAgent to available worker agents
+            # Initialize worker agents
             worker_agents = {
                 "GeneralAgent": GeneralAgent(
                     client=worker_client,
