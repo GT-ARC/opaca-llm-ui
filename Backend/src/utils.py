@@ -368,23 +368,15 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
 
 
 def validate_array_items(value, array_items: ConfigArrayItem):
-    if (array_items.type == "number" and not isinstance(value, (float, int))) or \
-            (array_items.type == "integer" and not isinstance(value, int)) or \
-            (array_items.type == "string" and not isinstance(value, str)) or \
-            (array_items.type == "boolean" and not isinstance(value, bool)) or \
-            (array_items.type == "null" and value is not None):
-        raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items.type}"')
-    elif array_items.type == "array":
+    if (array_items["type"] == "number" and not isinstance(value, (float, int))) or \
+            (array_items["type"] == "integer" and not isinstance(value, int)) or \
+            (array_items["type"] == "string" and not isinstance(value, str)) or \
+            (array_items["type"] == "boolean" and not isinstance(value, bool)) or \
+            (array_items["type"] == "null" and value is not None):
+        raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
+    elif array_items["type"] in ["array", "object"]:
         if not isinstance(value, list):
-            raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items.type}"')
+            raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
         else:
             for item in value:
                 validate_array_items(item, array_items.get("array_items"))
-    elif array_items.type == "object":
-        if not isinstance(value, dict):
-            raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items.type}"')
-        else:
-            for k1, v1 in value.items():
-                if k1 not in array_items["default"].keys():
-                    raise HTTPException(400, f'No option named "{k1}" was found!')
-                validate_config_input({k1: v1}, array_items["default"][k1])

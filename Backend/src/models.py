@@ -62,7 +62,6 @@ class SessionData(BaseModel):
 
 class ConfigArrayItem(BaseModel):
     type: str
-    default: Any
     array_items: 'Optional[ConfigArrayItem]' = None
 
 class ConfigParameter(BaseModel):
@@ -73,8 +72,8 @@ class ConfigParameter(BaseModel):
     type: str
     required: bool
     default: Any
-    description: Optional[str] = None
     array_items: Optional[ConfigArrayItem] = None
+    description: Optional[str] = None
     minimum: Optional[int] = None
     maximum: Optional[int] = None
     enum: Optional[List[Any]] = None
@@ -83,8 +82,12 @@ class ConfigParameter(BaseModel):
     def validate_after(self: Self) -> Self:
         if self.type == 'array' and self.array_items is None:
             raise ValueError(f'ConfigParameter.array_items cannot be "None" if ConfigParameter.type is "array"')
+        if self.minimum is not None and self.maximum is not None and self.maximum < self.minimum:
+            raise ValueError(f'ConfigParameter.maximum has to be larger than ConfigParameter.minimum')
         if self.enum is not None and self.default not in self.enum:
             raise ValueError(f'ConfigParameter.default must be one of {self.enum}')
+        if (self.minimum is not None or self.maximum is not None) and self.type not in ["integer", "number"]:
+            raise ValueError(f'The fields minimum and maximum can only be set for the types "integer" or "number".')
         return self
 
     # noinspection PyNestedDecorators
@@ -94,7 +97,6 @@ class ConfigParameter(BaseModel):
         if value not in ["integer", "number", "string", "boolean", "array", "object", "null"]:
             raise ValueError(f'Value type "{value}" is not valid')
         return value
-
 
 
 class ConfigPayload(BaseModel):
