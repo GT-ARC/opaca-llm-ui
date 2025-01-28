@@ -39,6 +39,20 @@
                    :step="value.type === 'integer' ? 1 : 0.01"/>
         </template>
 
+        <!-- Array type -->
+        <template v-else-if="value.type === 'array'">
+            <div class="config-section-header"><strong>{{ name }}</strong></div>
+            <div v-for="(item, index) in localValue" :key="index" class="array-item">
+                <div class="input-with-minus">
+                <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-button" @click="removeItem(index)">
+                    &minus;
+                </button>
+            </div>
+            </div>
+            <button class="btn btn-primary btn-sm add-button" @click="addItem">Add Item</button>
+        </template>
+
         <!-- Other values are just plain text inputs -->
         <template v-else>
             <div class="config-section-header"><strong>{{ name }}</strong></div>
@@ -89,6 +103,37 @@ export default {
             },
         },
     },
+    methods: {
+        addItem() {
+            if (Array.isArray(this.localValue)) {
+                const itemType = this.value.array_items.type;
+                let newItem;
+
+                switch (itemType) {
+                    case "boolean":
+                        newItem = false;
+                        break;
+                    case "number":
+                    case "integer":
+                        newItem = 0;
+                        break;
+                    default:
+                        newItem = "";
+                }
+                this.localValue.push(newItem);
+            } else {
+                console.warn("Called the method 'addItem' for a non-array type!")
+            }
+        },
+
+        removeItem(index) {
+            if (Array.isArray(this.localValue)) {
+                this.localValue.splice(index, 1);
+            } else {
+                console.warn("Called the method 'removeItem' for a non-array type!")
+            }
+        }
+    },
 };
 </script>
 
@@ -108,11 +153,6 @@ input[type="number"] {
 
 .config-section {
     margin-bottom: 1.5rem;
-}
-
-.config-section-content {
-    padding-left: 1.5rem;
-    color: var(--text-secondary-light);
 }
 
 .config-section-header {
@@ -137,15 +177,19 @@ input[type="number"] {
   padding-left: 1em;
 }
 
+.input-with-minus {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
+.add-button {
+    margin-top: 0.75rem;
+}
 
 @media (prefers-color-scheme: dark) {
     .config-section-header strong {
         color: var(--text-primary-dark);
-    }
-
-    .config-section-content {
-        color: var(--text-secondary-dark);
     }
 
     .config-section-header i {
