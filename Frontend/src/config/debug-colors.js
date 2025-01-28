@@ -5,7 +5,7 @@ export const debugColors = {
     // Multi-Agent System - Orchestration Level
     "Orchestrator": ["#ff6b6b", "#ff6b6b"],  // Red for orchestration
     // Multi-Agent System - Agent Level
-    "AgentPlanner": ["#ffd60a", "#ffd60a"],  // Bright yellow for agent planning
+    "AgentPlanner": ["#CD34A9", "#CD34A9"],  // Bright purple for agent planning
     "WorkerAgent": ["#4ecdc4", "#4ecdc4"],   // Turquoise for worker execution
     "AgentEvaluator": ["#45b7d1", "#45b7d1"], // Light blue for agent evaluation
     // Multi-Agent System - Overall Level

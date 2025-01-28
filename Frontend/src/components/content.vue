@@ -523,8 +523,13 @@ export default {
             for (const message of agent_messages) {
                 const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
-                const content = message["agent"] + ": " + (message["tools"].length > 0 ? message["tools"] : message["content"])
-                this.addDebug(content, color, message["agent"])
+                const content = [
+                    `${message["agent"]}:`,
+                    message["tools"].length > 0 ? message["tools"].join('\n') : message["content"],
+                    `Execution time: ${message["execution_time"].toFixed(2)}s`
+                ].join('\n');
+                
+                this.addDebug(content, color, message["agent"]);
 
                 // Add the formatted debug text to the associated speech bubble
                 const messageBubble = document.getElementById(`debug-${messageCount}-text`)
@@ -533,6 +538,7 @@ export default {
                     d1.className = "bubble-debug-text"
                     d1.textContent = content
                     d1.style.color = color
+                    d1.dataset.type = message["agent"]
                     messageBubble.append(d1)
                 }
             }
