@@ -14,7 +14,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         self.method = ToolMethod.create_method(method)
 
     @property
-    def default_config(self):
+    def config_schema(self):
         return self.method.config
 
     async def query(self, message: str, session: SessionData) -> Response:
@@ -35,8 +35,8 @@ class ToolLLMBackend(OpacaLLMBackend):
         response = Response()
         response.query = message
 
-        # Set config
-        config = session.config.get(self.method.name, self.default_config)
+        # Use config set in session, if nothing was set yet, use default values
+        config = session.config.get(self.method.name, self.default_config())
 
         # Save time before execution
         total_exec_time = time.time()

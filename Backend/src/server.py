@@ -5,13 +5,14 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .models import Url, Message, Response, SessionData
+from .utils import validate_config_input
+from .models import Url, Message, Response, SessionData, ConfigPayload
 from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
@@ -106,23 +107,27 @@ async def reset_all():
     sessions.clear()
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
-async def get_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = handle_session_id(request, response)
     if backend not in session.config:
-        session.config[backend] = BACKENDS[backend].default_config
-    return session.config[backend]
+        session.config[backend] = BACKENDS[backend].default_config()
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
-async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> dict:
+async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = handle_session_id(request, response)
+    try:
+        validate_config_input(conf, BACKENDS[backend].config_schema)
+    except HTTPException as e:
+        raise e
     session.config[backend] = conf
-    return session.config[backend]
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
-async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> dict:
+async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = handle_session_id(request, response)
-    session.config[backend] = BACKENDS[backend].default_config
-    return session.config[backend]
+    session.config[backend] = BACKENDS[backend].default_config()
+    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
