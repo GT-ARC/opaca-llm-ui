@@ -117,6 +117,26 @@ question_set_local_smart_office = [
     {
         "input": "Please create an overview in the form of a table what contents are in which fridge spaces",
         "output": "The answer should include a formatted table in markdown. In this table, the fridge ids ranging from 60 to 66 should be listed alongside their contents."
+    },
+    {
+        "input": "Please schedule cleaning days for the kitchen as follows: Begin with the 1st of February 2025 and then until the end of March, schedule a cleaning day every two weeks.",
+        "output": "The answer should confirm a successful scheduling of cleaning days for the following days: 1st of February 2025, 15th of February 2025, 1st of March 2025, 15th of March 2025, and 29th of March 2025."
+    },
+    {
+        "input": "Can you check if there is any milk left in my fridge? If not, add 'milk' to my grocery list.",
+        "output": "The answer should indicate, that there was no milk found in the fridge and that the item 'milk' has been added to the list of groceries, or that 'milk' is already part of the grocery list."
+    },
+    {
+        "input": "Check the sensor battery in each room and tell me in which rooms the sensor battery is less than 30%.",
+        "output": "The answer needs to include a list of the room names, in which the sensor battery is below 30%. The room names should be given as their actual names and not called 'Room 1' or 'Room 2'."
+    },
+    {
+        "input": "What is the biggest room?",
+        "output": "There is no way to know which room is the biggest in the office. The answer should tell the user, that it is not possible to retrieve the information with the available tools."
+    },
+    {
+        "input": "Check the device health of every device in the system. If any device appears to be damaged, try to restart that device and then check its status again. Only attempt a restart once.",
+        "output": "The answer should include the status of every device in the system. In total, there are 5 devices in the system. For each device that was damaged, the answer should further indicate, that it has restarted that device and also give the updated status of that device. It might happen, that a restarted device is still damaged, but in context of correctness, this is okay as long as the answer states that it has restarted every damaged device."
     }
 ]
 
@@ -126,7 +146,7 @@ question_set_local_warehouse = [
         "output": "The answer should tell the user, that the total size of the warehouse is 5000 square meters. The answer then should give value for the monthly rent, which would be 37,500$."
     },
     {
-        "input": "Find out in which warehouse zone the curtains are and navigate the logistic robot 2 to that zone to pick up two sets of curtains.",
+        "input": "Find out in which warehouse zone the item 'curtain' is and navigate the logistic robot 2 to that zone to pick up two sets of curtains.",
         "output": "The answer should tell the user, the curtains were located in 'zone-E'. It should then have sent specifically the logistic robot number 2 to the 'zone-E' and should have made it pick up exactly 2 sets of curtains."
     },
     {
@@ -144,6 +164,10 @@ question_set_local_warehouse = [
     {
         "input": "Please move every logistics robot to 'zone-A'.",
         "output": "The answer should confirm, that the logistics robots number 1, 2, and 3 were all moved to 'zone-A'."
+    },
+    {
+        "input": "Where in the warehouse are the paints?",
+        "output": "The answer should let the user know, that the warehouse currently does not have any paints or paint canister stored and therefore, no location should be named."
     }
 ]
 
@@ -256,13 +280,13 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
         self.server_process.wait()
 
     async def testDeployment(self):
-        assert await benchmark_test(self.file_name, question_set_deployment)
+        assert await benchmark_test(f'deployment-{self.file_name}', question_set_deployment)
 
     async def testLocalSmartOffice(self):
-        assert await benchmark_test(self.file_name, question_set_local_smart_office)
+        assert await benchmark_test(f'smart-office-{self.file_name}', question_set_local_smart_office)
 
     async def testLocalWarehouse(self):
-        assert await benchmark_test(self.file_name, question_set_local_warehouse)
+        assert await benchmark_test(f'warehouse-{self.file_name}', question_set_local_warehouse)
 
 
 if __name__ == "__main__":
