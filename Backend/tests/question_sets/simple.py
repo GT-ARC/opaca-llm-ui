@@ -29,7 +29,11 @@ simple_questions = [
     },
     {
         "input": "Rent the fridge space with id 62 for 6 hours.",
-        "output": "The answer should confirm that the fridge space with the id 62 was successfully rented for a duration of 6 hours."
+        "output": "The answer should decline the request, since the available method to reserve a fridge space does only allow to specify a duration of days."
+    },
+    {
+        "input": "Rent the fridge space with id 62 for 2 days.",
+        "output": "The answer should confirm that the fridge space with the id 62 was successfully rented for a duration of 2 days."
     },
     {
         "input": "The dishwasher is once again not working... let someone know to fix this damn thing!",
@@ -97,7 +101,7 @@ simple_questions = [
     },
     {
         "input": "What is the sine of 2.857?",
-        "output": "The answer should tell the sine of 2.857, which is roughly 0.049843395. If the result is approximately this value, the answer can be seen as fulfilled."
+        "output": "The answer should tell the sine of 2.857, which is roughly 0.2807665132504996. If the result is approximately this value, the answer can be seen as fulfilled."
     },
     {
         "input": "What would I get, if I subtract twelve from one hundred and four?",

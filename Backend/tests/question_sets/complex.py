@@ -95,7 +95,7 @@ complex_questions = [
     },
     {
         "input": "Calculate the following formula: (sin(20)/cos(10)) * 0.45.",
-        "output": "The correct result for the formula is approximately 0.15628335. If the given result in the answer is somewhat close to this value, it can be considered as correct."
+        "output": "The correct result for the formula is approximately -0.489619. If the given result in the answer is somewhat close to this value, it can be considered as correct."
     },
     {
         "input": "Please create two playlists. One should be called '80s Hits' and should include the following songs: 'Africa', 'Take on Me', 'Sweet Dreams (Are Made of This)', 'Footloose', 'Maniac'. The other one should be called 'Hip-Hop Classics' and should include the following songs: 'Jump Around', 'Still D.R.E.', 'POWER', 'Hypnotize', 'In Da Club'.",
