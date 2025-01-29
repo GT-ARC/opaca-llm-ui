@@ -76,7 +76,7 @@ class MultiAgentBackend(OpacaLLMBackend):
     @property
     def default_config(self) -> Dict[str, Any]:
         return {
-            "model_config_name": "vllm-large",  # Model Config
+            "model_config_name": "vllm",  # Model Config
             "temperature": 0,
             "max_rounds": 5,  # Maximum number of orchestration rounds
             "max_iterations": 3,  # Maximum iterations per agent task
