@@ -126,14 +126,19 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
     with open(f'test_runs/{file_name}', 'a', encoding="utf-8") as f:
         try:
             for i, call in enumerate(question_set):
-                f.write(f'-------------- Question {i+1} --------------\n')
+                # Generate a response by the OPACA LLM
                 cur_time = time.time()
                 result = session.post(query_url, json={'user_query': call["input"], 'api_key': ""}).content
                 run_time = time.time() - cur_time
+
+                # Load the results and evaluate them by the JudgeLLM
                 result = json.loads(result)
                 judge_response = judge_llm.invoke({"question": call["input"], "expected_answer": call["output"], "response": result["content"]}, response_format=Metric)
                 metric = judge_response.content
-                f.write(f'Question: {call["input"]}\n'
+
+                # Write the results into a file
+                f.write(f'-------------- Question {i+1} --------------\n'
+                        f'Question: {call["input"]}\n'
                         f'Expected Answer Reference: {call["output"]}\n'
                         f'Response: {result["content"]}\n'
                         f'Iterations: {result["iterations"]}\n'
@@ -145,6 +150,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
                         f'Score: {metric.score}\n'
                         f'Reason: {metric.reason}\n\n\n')
 
+                # Save the results in memory for a summary
                 if metric.quality == "helpful":
                     helpful_counter += 1
                 total_score += metric.score
@@ -155,8 +161,8 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
 
                 # Reset the message history
                 session.post(llm_url + "/reset", json={})
-                return True
 
+            # Write a summary of all tests
             f.write(f'-------------- Summary --------------\n')
             f.write(f'Used backend: {BACKEND}\n'
                     f'Used config: {CONFIG}\n'
