@@ -23,6 +23,14 @@ model_configs:
     orchestrator_backend_type: "vllm"
     worker_backend_type: "vllm"
   
+  "vllm-large":
+    orchestrator_model: "Qwen25_72B_INT4"
+    worker_model: "watt-tool-70B"
+    base_url: "http://10.20.0.224:8000/v1"
+    worker_base_url: "http://10.20.0.193:8001/v1"
+    orchestrator_backend_type: "vllm"
+    worker_backend_type: "vllm"
+  
   "vllm-mixed":
     orchestrator_model: "Qwen25_72B_INT4"
     worker_model: "gpt-4o-mini"
