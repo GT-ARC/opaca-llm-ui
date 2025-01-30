@@ -175,7 +175,8 @@ class StreamCallbackHandler(BaseCallbackHandler):
                 {
                 'id': i,
                 'name': function["function"].get("name", ""),
-                "arguments": function["function"].get("arguments", "")}
+                'args': function["function"].get("arguments", {}),
+                'result': ""}
                 for i, function in enumerate(functions)]
         else:
             self.agent_message.content = token

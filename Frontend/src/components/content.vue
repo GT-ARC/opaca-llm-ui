@@ -503,7 +503,12 @@ export default {
             this.editAnimationSpeechBubbleAI(messageCount, true, color);
 
             if (agent_message["tools"].length > 0) {
-                this.addDebug(agent_message["tools"].join('\n'), color, agent_message["agent"] + "-Tools");
+                console.log(agent_message["tools"])
+                const tool_output = agent_message["tools"].map(tool =>
+                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${tool["result"]}`
+                ).join("\n\n")
+                console.log(tool_output)
+                this.addDebug(tool_output, color, agent_message["agent"] + "-Tools");
             } else {
                 this.addDebug(agent_message["content"], color, agent_message["agent"]);
             }
