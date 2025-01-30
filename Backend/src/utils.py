@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 import jsonref
 from colorama import Fore
+from fastapi import HTTPException
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
-    FewShotChatMessagePromptTemplate, MessagesPlaceholder
+
+from .models import ConfigParameter, ConfigArrayItem
 
 
 class ColorPrint:
@@ -312,33 +313,76 @@ def message_to_class(msg):
     return MessageType(msg.get("content", ""))
 
 
-def build_prompt(
-        system_prompt: str,
-        examples: List[Dict[str, str]],
-        input_variables: List[str],
-        message_template: str
-) -> ChatPromptTemplate:
+def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParameter]):
+    """
+    Validates the given input values against the Configuration Schema
+    :param values: The input dict of configuration parameters that was sent by the UI
+    :param schema: The schema of the selected backend that the parameters should affect
+    :return: Returns true if everything was successfully validated, false otherwise
+    """
 
-    example_prompt = ChatPromptTemplate.from_messages(
-        [
-            HumanMessagePromptTemplate.from_template("{input}"),
-            AIMessagePromptTemplate.from_template("{output}")
-        ]
-    )
+    # Check if all required parameters have been provided
+    if not all(key in values.keys() for key in schema.keys() if schema[key].required):
+        raise HTTPException(400, f'There are required configuration parameters missing!\n'
+                                 f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
+                                 f'Received: {[key for key in values.keys()]}')
 
-    few_shot_prompt = FewShotChatMessagePromptTemplate(
-        input_variables=input_variables,
-        example_prompt=example_prompt,
-        examples=examples
-    )
+    for key, value in values.items():
+        # Check if key exist in schema
+        if key not in schema.keys():
+            raise HTTPException(400, f'No option named "{key}" was found!')
 
-    final_prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(content=system_prompt),
-            few_shot_prompt,
-            MessagesPlaceholder(variable_name="history", optional=True),
-            ("human", message_template),
-        ]
-    )
+        # Make config parameter a dict for easier checks of optional fields
+        if isinstance(schema[key], ConfigParameter):
+            config_param = schema[key].model_dump()
+        else:
+            config_param = schema[key]
 
-    return final_prompt
+        # Validate type consistency
+        if (config_param["type"] == "number" and not isinstance(value, (float, int))) or \
+            (config_param["type"] == "integer" and not isinstance(value, int)) or \
+            (config_param["type"] == "string" and not isinstance(value, str)) or \
+            (config_param["type"] == "boolean" and not isinstance(value, bool)):
+            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+        elif config_param["type"] == "array":
+            if not isinstance(value, list):
+                raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            else:
+                for item in value:
+                    validate_array_items(item, config_param.get("array_items"))
+        elif config_param["type"] == "object":
+            if not isinstance(value, dict):
+                raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            else:
+                for k1, v1 in value.items():
+                    if k1 not in config_param["default"].keys():
+                        raise HTTPException(400, f'No option named "{k1}" was found!')
+                    validate_config_input({k1: v1}, {k1: config_param["default"][k1]})
+        elif config_param["type"] == "null" and value is not None:
+            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+
+        # Validate min/max limit
+        if config_param["type"] in ["number", "integer"]:
+            if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
+                raise HTTPException(400, f'Parameter "{key}" cannot be smaller than its allowed minimum ({config_param["minimum"]})')
+            if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
+                raise HTTPException(400, f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
+
+        # Validate enum
+        if config_param.get("enum", None) and value not in schema[key].enum:
+            raise HTTPException(400,f'Parameter "{key}" has to be one of "{schema[key].enum}"')
+
+
+def validate_array_items(value, array_items: ConfigArrayItem):
+    if (array_items["type"] == "number" and not isinstance(value, (float, int))) or \
+            (array_items["type"] == "integer" and not isinstance(value, int)) or \
+            (array_items["type"] == "string" and not isinstance(value, str)) or \
+            (array_items["type"] == "boolean" and not isinstance(value, bool)) or \
+            (array_items["type"] == "null" and value is not None):
+        raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
+    elif array_items["type"] in ["array", "object"]:
+        if not isinstance(value, list):
+            raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
+        else:
+            for item in value:
+                validate_array_items(item, array_items.get("array_items"))

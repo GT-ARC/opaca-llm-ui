@@ -72,6 +72,64 @@ Is used as the expected body argument in the `/connect` endpoint.
 | `user`    | `str\|None` |         | The user name to authenticate against the connected OPACA platform. Only relevant if the connected OPACA platform requires authentication. |
 | `pwd`     | `str\|None` |         | The password used in combination with the given user name. Only relevant if the connected OPACA platform requires authentication.          |
 
+### ConfigArrayItem
+
+#### Description
+
+Defines the schema of an array item. Mainly used in connection with `ConfigParameter`.
+
+#### Attributes
+
+| Attribute     | Type                        | Default | Description                                                                                                                   |
+|---------------|-----------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------|
+| `type`        | `str`                       |         | The type of all the items the array contains. (This forbids the usage of multiple types within the same array of a parameter) |
+| `array_items` | `Optional[ConfigArrayItem]` | `None`  | If the array nested (`type` is `array`) defines the data types of the items of the nested arrays.                             |
+
+### ConfigParameter
+
+#### Description
+
+Defines the schema for a configuration parameter.
+
+#### Attributes
+| Attribute     | Type                        | Default | Description                                                                   |
+|---------------|-----------------------------|---------|-------------------------------------------------------------------------------|
+| `type`        | `str`                       |         | The data type of the configuration parameter.                                 |
+| `required`    | `bool`                      |         | Whether the parameter is required or not.                                     |
+| `default`     | `Any`                       |         | The default value of the parameter.                                           |
+| `array_items` | `Optional[ConfigArrayItem]` | `None`  | Specifies the type of the array items, if `type` is set to `array`.           |
+| `description` | `Optional[str]`             | `None`  | An optional description of the parameter.                                     |
+| `minimum`     | `Optional[int]`             | `None`  | Only for types `integer` or `number`. Defines a minimum limit for the number. |
+| `maximum`     | `Optional[int]`             | `None`  | Only for types `integer` or `number`. Defines a maximum limit for the number. |
+| `enum`        | `Optional[List[Any]]`       | `None`  | If set, defines all available values the parameter can have.                  |
+
+#### Methods
+
+`validate_after(self: Self)`
+
+- Description: Uses the `@model_validator` decorator of Pydantic. Check upon initialization for the following constraints:
+  - If the type is `array`, the `array_items` field has to be set.
+  - If a `minimum` or `maximum` was set, the type has to be either `integer` or `number`.
+  - If `enum` was set, the `default` field has to be part of `enum`.
+  - If both fields `minimum` and `maximum` were set, the `maximum` value has to be larger or equal to the `minimum` value.
+
+`type_validator(value: str)`
+
+- Description: Checks if the given type is part of: `["integer", "number", "string", "boolean", "array", "object", "null"]`
+
+### ConfigPayload
+
+#### Description
+
+Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
+
+#### Attributes
+
+| Attribute       | Type                         | Default | Description                                                                                   |
+|-----------------|------------------------------|---------|-----------------------------------------------------------------------------------------------|
+| `value`         | `Any`                        |         | Should be a JSON storing the actual values of parameters in the format `{"key": value}`       |
+| `config_schema` | `Dict[str, ConfigParameter]` |         | A JSON holding the configuration schema definition. Must include the same keys as in `value`  |
+
 ### OPACALLMBackend
 
 #### Description
