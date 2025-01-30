@@ -33,7 +33,7 @@ class AgentMessage(BaseModel):
     """
     agent: str
     content: str = ''
-    tools: List[Any] = []
+    tools: List[Dict[str, Any]] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
 
@@ -172,9 +172,11 @@ class StreamCallbackHandler(BaseCallbackHandler):
 
             functions = self.tool_calls.message.additional_kwargs["tool_calls"]
             self.agent_message.tools = [
-                (f'Tool {i+1}:\n'
-                 f'Name: {function["function"].get("name", "")},\n'
-                 f'Arguments: {str(function["function"].get("arguments", ""))},\n')
+                {
+                'id': i,
+                'name': function["function"].get("name", ""),
+                'args': function["function"].get("arguments", {}),
+                'result': ""}
                 for i, function in enumerate(functions)]
         else:
             self.agent_message.content = token
