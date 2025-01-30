@@ -60,13 +60,4 @@ class ChatMessage(BaseModel):
 class ChatHistory(BaseModel):
     """Model for storing the chat history"""
     messages: List[ChatMessage] = Field(default_factory=list, description="List of chat messages")
-    context_summary: Optional[str] = Field(default=None, description="Summary of relevant context from chat history")
-
-class FunctionCall(BaseModel):
-    """Model for a single function call"""
-    function_name: str = Field(..., description="The name of the function to call. ALWAYS INCLUDE THE AGENT NAME PREFIX!")
-    requestBody: Dict[str, Any] = Field(..., description="The parameters for the function")
-
-class WorkerAgentOutput(BaseModel):
-    """Model for the worker agent's structured function calls output"""
-    function_calls: List[FunctionCall] = Field(..., description="List of function calls to execute") 
+    context_summary: Optional[str] = Field(default=None, description="Summary of relevant context from chat history") 

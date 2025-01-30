@@ -17,17 +17,9 @@ model_configs:
 
   "vllm":
     orchestrator_model: "Qwen25_32B_INT4"
-    worker_model: "Qwen25_72B_INT4"
-    base_url: "http://10.20.0.193:8000/v1"
-    worker_base_url: "http://10.20.0.224:8000/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-  
-  "vllm-one-model":
-    orchestrator_model: "Qwen25_32B_INT4"
-    worker_model: "Qwen25_32B_INT4"
+    worker_model: "watt-tool-70B"
     base_url: "http://10.20.0.224:8001/v1"
-    worker_base_url: "http://10.20.0.224:8001/v1"
+    worker_base_url: "http://10.20.0.193:8000/v1"
     orchestrator_backend_type: "vllm"
     worker_backend_type: "vllm"
   
