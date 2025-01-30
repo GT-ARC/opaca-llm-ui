@@ -202,7 +202,7 @@ class LLMAgent:
 
     def invoke(self, inputs: Dict[str, Any], response_format: Any = None):
         exec_time = time.time()
-        prompt = build_prompt(
+        prompt = self._build_prompt(
             system_prompt=self.system_prompt,
             examples=self.examples,
             input_variables=self.input_variables,

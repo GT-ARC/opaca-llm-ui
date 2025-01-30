@@ -40,6 +40,15 @@ rest_gpt_config = {
     "gpt-model": "gpt-4o-mini",
 }
 
+orchestration_config = {
+    "model_config_name": "vllm",  # Model Config
+    "temperature": 0,
+    "max_rounds": 5,  # Maximum number of orchestration rounds
+    "max_iterations": 3,  # Maximum iterations per agent task
+    "use_worker_for_output": False,  # Whether to use worker model for output generation
+    "use_agent_planner": True  # Whether to use agent planner for function planning
+}
+
 # ATTENTION this config object should match the config object within the selected method
 CONFIG = tool_llm_config
 
