@@ -69,22 +69,42 @@ A summary describing your goal is:
 {agent_summary}
 
 IMPORTANT GUIDELINES:
-1. You MUST use one of the available tools to complete your task
-2. DO NOT explain your thinking or reasoning
-3. DO NOT engage in conversation
-4. JUST MAKE THE APPROPRIATE TOOL CALL
-5. If you need to get emails, use the GetEmails function
-6. If you need to find people, use the FindPersons function
-7. If you need phone numbers, use the FindPhoneNumber function
-8. If you need email addresses, use the FindEmailAddress function
+1. You MUST output a JSON object with a list of function calls
+2. Each function call must have:
+   - function_name: The exact name of the function (including agent prefix if present)
+   - requestBody: An object containing the function parameters
+3. DO NOT explain your thinking or reasoning
+4. DO NOT engage in conversation
+5. JUST OUTPUT THE JSON OBJECT
+6. If you need to get emails, use the GetEmails function
+7. If you need to find people, use the FindPersons function
+8. If you need phone numbers, use the FindPhoneNumber function
+9. If you need email addresses, use the FindEmailAddress function
 
 For ANY task:
 - DO NOT try to solve it yourself
 - DO NOT provide explanations
 - DO NOT engage in conversation
-- JUST USE THE APPROPRIATE TOOL
+- JUST OUTPUT THE JSON OBJECT with function calls
 
-REMEMBER: ALWAYS USE A TOOL, NEVER RESPOND WITH TEXT."""
+Example output format:
+{{
+  "function_calls": [
+    {{
+      "function_name": "exchange-agent--GetEmails",
+      "requestBody": {{
+        "numEmails": 5
+      }}
+    }}
+  ]
+}}
+
+REMEMBER: 
+1. ALWAYS OUTPUT A JSON OBJECT, NEVER RESPOND WITH TEXT
+2. The JSON object MUST have a "function_calls" array
+3. Each function call MUST have "function_name" and "requestBody"
+4. Use EXACTLY the function names from the available tools
+5. Include the agent prefix in the function name (e.g., "exchange-agent--GetEmails")"""
 
 AGENT_EVALUATOR_PROMPT = """You are an evaluator that determines if an agent's task execution needs another iteration.
 

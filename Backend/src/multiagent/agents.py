@@ -10,7 +10,7 @@ import asyncio
 from ..models import AgentMessage
 from .models import (
     AgentTask, OrchestratorPlan, PlannerPlan, AgentEvaluation, 
-    OverallEvaluation, AgentResult, IterationAdvice, ChatHistory
+    OverallEvaluation, AgentResult, IterationAdvice, ChatHistory, WorkerAgentOutput, FunctionCall
 )
 from .prompts import (
     ORCHESTRATOR_SYSTEM_PROMPT,
@@ -754,93 +754,164 @@ class WorkerAgent(BaseAgent):
             self.logger.debug(f"Full messages to LLM: {json.dumps(messages, indent=2)}")
             self.logger.debug(f"Available tools: {json.dumps(self.tools, indent=2)}")
             
-            # Get function call from LLM
+            # Get function calls from LLM using guided JSON
             response = await self._call_llm(
                 messages=messages,
-                tools=self.tools,
-                tool_choice="auto"
+                guided_json=WorkerAgentOutput.model_json_schema()
             )
             
             # Log the LLM response
             self.logger.debug(f"LLM Response received for {self.agent_name}")
             self.logger.debug(f"Full LLM response: {json.dumps(response.model_dump(), indent=2)}")
             
-            if not hasattr(response, 'tool_calls') or not response.tool_calls:
-                error_msg = f"No tool call received for task: {task_str}"
+            try:
+                # Try to clean up the response if it contains markdown code blocks
+                content = response.content
+                if content.startswith("```") and content.endswith("```"):
+                    # Remove markdown code blocks
+                    content = content.strip("`").strip()
+                    # Remove language identifier if present (e.g., "json")
+                    if content.startswith("json\n"):
+                        content = content[5:]
+                    elif "\n" in content:
+                        content = content[content.find("\n")+1:]
+                
+                # Parse the response
+                output = WorkerAgentOutput.model_validate_json(content)
+            except Exception as parse_error:
+                error_msg = f"Failed to parse LLM response: {str(parse_error)}\nRaw response: {response.content}"
                 self.logger.error(error_msg)
                 return AgentResult(
                     agent_name=self.agent_name,
                     task=task_str,
                     output=error_msg,
                     tool_calls=[],
-                    tool_results=[]
+                    tool_results=[],
+                    agent_message=AgentMessage(
+                        agent=self.agent_name,
+                        content=response.content,  # Include the raw response
+                        execution_time=time.time() - start_time,
+                        status="Failed",
+                        step="JSON parsing failed"
+                    )
                 )
             
-            # Execute the tool call
-            tool_call = response.tool_calls[0]
-            tool_call_dict = {
-                "name": tool_call.function.name,
-                "arguments": tool_call.function.arguments
-            }
-            
-            # Log the tool call being made
-            self.logger.info(f"Making tool call: {tool_call.function.name}")
-            self.logger.debug(f"Tool call arguments: {tool_call.function.arguments}")
-            
-            # Parse arguments and execute the action
-            args = json.loads(tool_call.function.arguments)
-            
-            # Split function name to get action name (remove agent prefix)
-            func_name = tool_call.function.name
-            if "--" in func_name:
-                agent_name, action_name = func_name.split("--", 1)
-            else:
-                agent_name = None
-                action_name = func_name
-            
-            # Execute the action with the correct parameters
-            result = await self.session_client.invoke_opaca_action(
-                action=action_name,
-                agent=agent_name,
-                params=args.get("requestBody", {})  # Get requestBody from args
+            # Create agent message with the LLM response
+            agent_message = AgentMessage(
+                agent=self.agent_name,
+                content=response.content,  # Store the raw JSON response
+                execution_time=time.time() - start_time,
+                status="Completed",
+                step="Function calls generated"
             )
             
-            # Format the result for output
-            if isinstance(result, (dict, list)):
-                result_str = json.dumps(result, indent=2)
-            else:
-                result_str = str(result)
+            if not output.function_calls:
+                error_msg = f"No function calls received for task: {task_str}\n\nMODEL RESPONSE: {response.content}"
+                self.logger.error(error_msg)
+                return AgentResult(
+                    agent_name=self.agent_name,
+                    task=task_str,
+                    output=error_msg,
+                    tool_calls=[],
+                    tool_results=[],
+                    agent_message=agent_message
+                )
             
-            # Log the tool result
-            self.logger.info(f"Tool call completed: {action_name}")
-            self.logger.debug(f"Tool result: {result_str}")
+            # Process all function calls
+            tool_calls = []
+            tool_results = []
+            
+            for function_call in output.function_calls:
+                # Clean up function name and arguments
+                func_name = function_call.function_name.strip()
+                
+                # Create tool call record with proper format
+                tool_call = {
+                    "name": func_name,
+                    "function": {
+                        "name": func_name,
+                        "arguments": json.dumps({
+                            "requestBody": function_call.requestBody
+                        })
+                    }
+                }
+                tool_calls.append(tool_call)
+                
+                try:
+                    # Split function name to get action name (remove agent prefix)
+                    if "--" in func_name:
+                        agent_name, action_name = func_name.split("--", 1)
+                    else:
+                        agent_name = None
+                        action_name = func_name
+                    
+                    # Execute the action with the correct parameters
+                    # Pass the requestBody directly
+                    self.logger.info(f'\n\nInvoking action: {action_name} with agent: {agent_name}\n\n PARAMS: {function_call.requestBody}\n\n')
+                    result = await self.session_client.invoke_opaca_action(
+                        action=action_name,
+                        agent=agent_name.strip() if agent_name else None,  # Strip any whitespace from agent name
+                        params=function_call.requestBody  # Pass requestBody directly without wrapping
+                    )
+                    
+                    # Store the result
+                    tool_results.append({
+                        "name": func_name,
+                        "result": result
+                    })
+                except Exception as e:
+                    self.logger.error(f"Error executing function {func_name}: {str(e)}")
+                    tool_results.append({
+                        "name": func_name,
+                        "result": f"Error: {str(e)}"
+                    })
+            
+            # Create meaningful output summary
+            if tool_results:
+                output_parts = []
+                for tr in tool_results:
+                    result_str = json.dumps(tr["result"], indent=2) if isinstance(tr["result"], (dict, list)) else str(tr["result"])
+                    output_parts.append(f"Function {tr['name']}: {result_str}")
+                output_str = "\n".join(output_parts)
+            else:
+                output_str = "No results from function calls"
             
             execution_time = time.time() - start_time
             self.logger.info(f"{self.agent_name} completed task in {execution_time:.2f} seconds")
             
-            # Create a meaningful output that summarizes the action and result
-            output = f"Successfully executed {action_name} with result: {result_str}"
+            # Update agent message with final status
+            agent_message.status = "Completed"
+            agent_message.step = "All function calls executed"
+            agent_message.execution_time = execution_time
             
             return AgentResult(
                 agent_name=self.agent_name,
                 task=task_str,
-                output=output,  # Use the meaningful output summary
-                tool_calls=[tool_call_dict],
-                tool_results=[{
-                    "name": tool_call.function.name,
-                    "result": result  # Store the raw result without string conversion
-                }]
+                output=output_str,
+                tool_calls=tool_calls,
+                tool_results=tool_results,
+                agent_message=agent_message
             )
 
         except Exception as e:
             execution_time = time.time() - start_time
-            error_msg = f"Error executing task: {str(e)}"
+            error_msg = f"Error executing task: {str(e)}\nFull error: {repr(e)}"
             self.logger.error(f"{self.agent_name} failed task in {execution_time:.2f} seconds: {error_msg}")
+            
+            # Create error agent message
+            agent_message = AgentMessage(
+                agent=self.agent_name,
+                content=error_msg,
+                execution_time=execution_time,
+                status="Failed",
+                step="Error occurred"
+            )
             
             return AgentResult(
                 agent_name=self.agent_name,
                 task=task_str,
                 output=error_msg,
                 tool_calls=[],
-                tool_results=[]
+                tool_results=[],
+                agent_message=agent_message
             ) 
