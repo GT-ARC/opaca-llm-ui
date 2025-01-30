@@ -209,30 +209,29 @@ class ActionSelector(LLMAgent):
         self.message_template = scratchpad.replace("{", "{{").replace("}", "}}") + "{input}"
 
         result = await super().ainvoke({"input": inputs["plan"], "history": inputs["message_history"]}, inputs["websocket"])
-        action_plan = result.content.replace("API Call:", "").strip()
+        result.content = result.content.replace("API Call:", "").strip()
 
         # Add first agent message to responses
         responses.append(result)
 
         # Return if the input prompt is missing required parameter values
-        if self._check_missing(action_plan):
+        if self._check_missing(result.content):
             return responses
 
         correction_limit = 1
         while (err_msg := self._check_valid_action(
-                action_plan, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
-            logger.info(f'API Selector: Correction needed for request \"{action_plan}\"\nCause: {err_msg}')
+                result.content, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
+            logger.info(f'API Selector: Correction needed for request \"{result.content}\"\nCause: {err_msg}')
 
             result = await super().ainvoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]}, inputs["websocket"])
-            action_plan = result.content
+            result.content = result.content
 
             responses.append(result)
 
-            if self._check_missing(action_plan):
+            if self._check_missing(result.content):
                 return responses
             else:
-                action_plan = action_plan.replace("API Call:", "").strip()
-                responses[-1].content = action_plan
+                responses[-1].content = result.content.replace("API Call:", "").strip()
 
             correction_limit += 1
 
