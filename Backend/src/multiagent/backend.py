@@ -38,6 +38,7 @@ from .models import (
     AgentTask
 )
 from .config import model_config_loader
+from ..utils import openapi_to_functions
 
 class MultiAgentBackend(OpacaLLMBackend):
     NAME = "multi-agent"
@@ -618,17 +619,30 @@ Continue with the task using these results."""
                     
                     if agent_name not in worker_agents:
                         agent_data = self.agents_data["agents_simple"][agent_name]
-                        agent_tools = []
                         
-                        # Create tools list for the agent
-                        for func in self.agents_data["agents_detailed"]:
+                        # Get functions from platform instead of JSON file
+                        agent_tools = []
+                        actions_spec = await session.client.get_actions_with_refs()
+                        functions, error = openapi_to_functions(actions_spec, use_agent_names=True)
+                        
+                        # Filter functions for this specific agent and clean up parameters
+                        for func in functions:
                             if func["function"]["name"].startswith(f"{agent_name}--"):
-                                # Create a copy of the function for the tools list
-                                tool = func.copy()
-                                # Add type field only for OpenAI
-                                if config["worker_backend_type"] == "openai":
-                                    tool["type"] = "function"
-                                agent_tools.append(tool)
+                                # Create a cleaned version of the function
+                                cleaned_func = {
+                                    "type": "function",
+                                    "function": {
+                                        "name": func["function"]["name"],
+                                        "description": func["function"]["description"],
+                                        "parameters": {
+                                            "type": "object",
+                                            "properties": {
+                                                "requestBody": func["function"]["parameters"]["properties"]["requestBody"]
+                                            }
+                                        }
+                                    }
+                                }
+                                agent_tools.append(cleaned_func)
                         
                         # Verify we have a summary
                         if "summary" not in agent_data:
