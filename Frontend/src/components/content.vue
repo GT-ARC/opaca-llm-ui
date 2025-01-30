@@ -18,63 +18,62 @@
         />
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent" v-show="this.isMainContentVisible()">
+        <main id="mainContent"
+              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window -->
-            <div class="d-flex flex-column flex-grow-1">
-                <div class="container-fluid flex-grow-1 px-0" id="chat1">
-                    <div class="card-body" id="chat-container"/>
-                    <div v-show="showExampleQuestions" class="sample-questions">
-                        <div v-for="(question, index) in getCurrentCategoryQuestions()"
-                             :key="index"
-                             class="sample-question"
-                             @click="askChatGpt(question.question)">
-                            {{ question.icon }} <br> {{ question.question }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Input Area -->
-                <div class="input-container">
-                    <div class="input-group">
-                    <textarea id="textInput"
-                          v-model="textInput"
-                          :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
-                          class="form-control overflow-hidden"
-                          rows="1"
-                          @input="autoResize"
-                          @keypress="textInputCallback"></textarea>
-
-                        <!-- user has entered text into message box -> send button available -->
-                        <button type="button"
-                                v-if="this.isSendAvailable()"
-                                class="btn btn-primary"
-                                @click="submitText"
-                                :disabled="isBusy">
-                            <i class="fa fa-paper-plane"/>
-                        </button>
-                        <button type="button"
-                                v-if="this.isSpeechRecognitionAvailable()"
-                                class="btn btn-outline-primary"
-                                @click="startRecognition"
-                                :disabled="isBusy">
-                            <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
-                            <i v-else class="fa fa-microphone"/>
-                        </button>
-                        <button type="button"
-                                v-if="this.isResetAvailable()"
-                                class="btn btn-outline-danger"
-                                @click="resetChat"
-                                :disabled="isBusy">
-                            <i class="fa fa-refresh"/>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Simple Keyboard -->
-                <SimpleKeyboard v-if="getConfig().ShowKeyboard"
-                                @change="this.onChangeSimpleKeyboard" />
+            <div class="container-fluid flex-grow-1 px-0" id="chat1">
+            <div class="card-body" id="chat-container"/>
+            <div v-show="showExampleQuestions" class="sample-questions">
+              <div v-for="(question, index) in getCurrentCategoryQuestions()"
+                   :key="index"
+                   class="sample-question"
+                   @click="askChatGpt(question.question)">
+                {{ question.icon }} <br> {{ question.question }}
+              </div>
             </div>
+          </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+              <div class="input-group">
+                      <textarea id="textInput"
+                                v-model="textInput"
+                                :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
+                                class="form-control overflow-hidden"
+                                rows="1"
+                                @input="autoResize"
+                                @keypress="textInputCallback"></textarea>
+
+                <!-- user has entered text into message box -> send button available -->
+                <button type="button"
+                        v-if="this.isSendAvailable()"
+                        class="btn btn-primary"
+                        @click="submitText"
+                        :disabled="isBusy">
+                  <i class="fa fa-paper-plane"/>
+                </button>
+                <button type="button"
+                        v-if="this.isSpeechRecognitionAvailable()"
+                        class="btn btn-outline-primary"
+                        @click="startRecognition"
+                        :disabled="isBusy">
+                  <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
+                  <i v-else class="fa fa-microphone"/>
+                </button>
+                <button type="button"
+                        v-if="this.isResetAvailable()"
+                        class="btn btn-outline-danger"
+                        @click="resetChat"
+                        :disabled="isBusy">
+                  <i class="fa fa-refresh"/>
+                </button>
+              </div>
+            </div>
+
+            <!-- Simple Keyboard -->
+            <SimpleKeyboard v-if="getConfig().ShowKeyboard"
+                          @change="this.onChangeSimpleKeyboard" />
         </main>
     </div>
 
@@ -851,7 +850,7 @@ export default {
 
 #chat-container {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 120ch);
     padding: 0.25rem;
     margin: 0 auto;
     position: relative;
@@ -935,16 +934,16 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 200ch);
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1rem;
 }
 
 .input-group .form-control {
     box-shadow: 0 0 0 1px var(--border-light);
     background-color: var(--background-light);
     color: var(--text-primary-light);
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 1rem;
     height: 3rem;
     min-height: 3rem;
     resize: none;
@@ -1003,6 +1002,7 @@ export default {
     margin-left: -2px; /* Adjust send icon position */
 }
 
+
 @keyframes bounce {
     0%, 100% {
         transform: translateY(0);
@@ -1025,7 +1025,7 @@ export default {
 
 .sample-questions {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(90%, 120ch);
     margin: 0 auto;
     padding: 1rem;
     display: flex;
@@ -1353,6 +1353,16 @@ export default {
     padding: 0.1rem 0;
     display: flex;
     align-items: center;
+}
+
+@media screen and (max-width: 768px) {
+    #mainContent {
+        display: none;
+    }
+
+    .input-container {
+        padding: 0.5rem;
+    }
 }
 
 @keyframes move-glow {

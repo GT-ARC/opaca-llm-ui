@@ -1,12 +1,12 @@
 <template>
     <header>
         <div class="col">
-            <nav class="navbar navbar-expand-lg" type="light">
+            <nav class="navbar navbar-expand" type="light">
                 <div class="sidebar-toggle d-none"> <!-- toggleSidebar() here -->
                     <i class="fa fa-bars fs-3 my-auto p-3"/>
                 </div>
 
-                <div class="ms-5 w-auto text-start" v-if="getConfig().BackLink != null">
+                <!--div class="ms-5 w-auto text-start" v-if="getConfig().BackLink != null">
                     <a v-bind:href="getConfig().BackLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="30"/>
                     </a>
@@ -25,7 +25,7 @@
                     <a href="https://ze-ki.de/" target="blank">
                         <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="40"/>
                     </a>
-                </div>
+                </div-->
 
                 <div class="my-auto text-end w-auto ms-auto me-5">
                     <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
@@ -240,7 +240,7 @@ export default {
 header {
     background-color: var(--background-light);
     width: 100%;
-    height: auto;
+    height: 50px;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);

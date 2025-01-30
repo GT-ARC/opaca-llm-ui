@@ -392,7 +392,8 @@ export default {
 <style scoped>
 
 #sidebar {
-    min-width: 200px;
+    width: 100%;
+    min-width: 150px;
     max-width: 600px;
     position: relative;
 }
@@ -425,7 +426,7 @@ export default {
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light);
+    background-color: var(--primary-light) !important;
     color: white !important;
 }
 
@@ -817,6 +818,22 @@ export default {
 
     .resizer {
         background-color: var(--border-light);
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .resizer {
+        display: none;
+    }
+
+    #sidebar-menu {
+        padding: 0.75rem;
+    }
+
+    .sidebar-item {
+        font-size: 1rem;
+        width: 2rem;
+        height: 2rem;
     }
 }
 
