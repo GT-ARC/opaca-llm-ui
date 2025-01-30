@@ -90,7 +90,7 @@ class ToolLLMBackend(OpacaLLMBackend):
 
                 # The format should match the one in the StreamCallbackHandler
                 result.tools[i] = {
-                    'id': i,
+                    'id': len(tool_names),
                     'name': call['name'],
                     'args': call['args'],
                     'result': tool_results[-1]
