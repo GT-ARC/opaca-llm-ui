@@ -296,11 +296,13 @@ class AgentPlanner(BaseAgent):
         if previous_results:
             context = "\n\nPrevious execution results:\n"
             for i, result in enumerate(previous_results, 1):
-                context += f"\nResult {i} from {result.agent_name}:\n"
-                context += f"Task: {result.task}\n"
-                context += f"Output: {result.output}\n"
-                if result.tool_results:
-                    context += f"Tool Results: {json.dumps(result.tool_results, indent=2)}\n"
+                context += f"\n# Result {i} from {result.agent_name}:\n"
+                context += f"# Task:\n {result.task}\n"
+                context += f"# Output:\n {result.output}\n"
+
+                # No longer needed as we show the tool results in the output
+                # if result.tool_results:
+                #     context += f"# Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
         
         remark = ""
         if self.agent_name == "exchange-agent":
