@@ -18,7 +18,7 @@
         />
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent" class="mx-auto">
+        <main id="mainContent" class="mx-auto"
               v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window -->
