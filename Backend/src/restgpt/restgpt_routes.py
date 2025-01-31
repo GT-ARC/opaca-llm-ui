@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..llama_proxy import LlamaProxy
-from ..models import Response, SessionData, OpacaLLMBackend
+from ..models import Response, SessionData, OpacaLLMBackend, ConfigParameter
 from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
 
@@ -42,7 +42,7 @@ class RestGptBackend(OpacaLLMBackend):
         # Set config
         config = session.config.get(
             RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
-            self.default_config
+            self.default_config()
         )
 
         # Create response object
@@ -90,34 +90,40 @@ class RestGptBackend(OpacaLLMBackend):
         return response
 
     @property
-    def default_config(self) -> dict:
+    def config_schema(self) -> Dict[str, ConfigParameter]:
         """
         Declares the default configuration
         """
         config = {
-            "slim_prompts": {                       # Use slim prompts -> cheaper
-                "planner": True,
-                "action_selector": True,
-                "evaluator": False
-            },
-            "examples": {                           # How many examples are used per agent
-                "planner": False,
-                "action_selector": True,
-                "caller": True,
-                "evaluator": True
-            },
-            "use_agent_names": True,
+            "slim_prompts": ConfigParameter(        # Use slim prompts -> cheaper
+                type="object",
+                required=True,
+                default={
+                    "planner": ConfigParameter(type="boolean", required=True, default=True),
+                    "action_selector": ConfigParameter(type="boolean", required=True, default=True),
+                    "evaluator": ConfigParameter(type="boolean", required=True, default=False)
+                }),
+            "examples": ConfigParameter(            # How many examples are used per agent
+                type="object",
+                required=True,
+                default={
+                    "planner": ConfigParameter(type="boolean", required=True, default=False),
+                    "action_selector": ConfigParameter(type="boolean", required=True, default=True),
+                    "caller": ConfigParameter(type="boolean", required=True, default=True),
+                    "evaluator": ConfigParameter(type="boolean", required=True, default=True)
+                }),
+            "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
         }
 
         if self.use_llama:
             config.update({
-                "llama-url": "http://10.0.64.101:11000",
-                "llama-model": "llama3.1:70b",
+                "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
+                "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
             })
         else:
             config.update({
-                "temperature": 0,  # Temperature for models
-                "gpt-model": "gpt-4o-mini",
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),  # Temperature for models
+                "gpt-model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             })
 
         return config

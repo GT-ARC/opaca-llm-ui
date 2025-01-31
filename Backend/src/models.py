@@ -3,17 +3,17 @@ Request and response models used in the FastAPI routes (and in some of the imple
 """
 import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Self
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
-from pydantic import BaseModel
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
+    FewShotChatMessagePromptTemplate, MessagesPlaceholder
+from pydantic import BaseModel, field_validator, model_validator
 from starlette.websockets import WebSocket
-
-from .utils import build_prompt
 
 
 class Url(BaseModel):
@@ -33,7 +33,7 @@ class AgentMessage(BaseModel):
     """
     agent: str
     content: str = ''
-    tools: List[Any] = []
+    tools: List[Dict[str, Any]] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
 
@@ -60,14 +60,70 @@ class SessionData(BaseModel):
     api_key: str = None
 
 
+class ConfigArrayItem(BaseModel):
+    type: str
+    array_items: 'Optional[ConfigArrayItem]' = None
+
+class ConfigParameter(BaseModel):
+    """
+    A custom parameter definition for the configuration of each implemented method
+    Valid types are ["integer", "number", "string", "boolean", "array", "object", "null"]
+    """
+    type: str
+    required: bool
+    default: Any
+    array_items: Optional[ConfigArrayItem] = None
+    description: Optional[str] = None
+    minimum: Optional[int] = None
+    maximum: Optional[int] = None
+    enum: Optional[List[Any]] = None
+
+    @model_validator(mode='after')
+    def validate_after(self: Self) -> Self:
+        if self.type == 'array' and self.array_items is None:
+            raise ValueError(f'ConfigParameter.array_items cannot be "None" if ConfigParameter.type is "array"')
+        if self.minimum is not None and self.maximum is not None and self.maximum < self.minimum:
+            raise ValueError(f'ConfigParameter.maximum has to be larger than ConfigParameter.minimum')
+        if self.enum is not None and self.default not in self.enum:
+            raise ValueError(f'ConfigParameter.default must be one of {self.enum}')
+        if (self.minimum is not None or self.maximum is not None) and self.type not in ["integer", "number"]:
+            raise ValueError(f'The fields minimum and maximum can only be set for the types "integer" or "number".')
+        return self
+
+    # noinspection PyNestedDecorators
+    @field_validator('type', mode='after')
+    @classmethod
+    def type_validator(cls, value: str) -> str:
+        if value not in ["integer", "number", "string", "boolean", "array", "object", "null"]:
+            raise ValueError(f'Value type "{value}" is not valid')
+        return value
+
+
+class ConfigPayload(BaseModel):
+    value: Any
+    config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
 class OpacaLLMBackend(ABC):
     NAME: str
     llm: BaseChatModel
 
     @property
     @abstractmethod
-    def default_config(self):
+    def config_schema(self) -> Dict[str, ConfigParameter]:
         pass
+
+    def default_config(self):
+        def extract_defaults(schema):
+            # Extracts the default values of nested configurations
+            if isinstance(schema, ConfigParameter):
+                if schema.type == 'object' and isinstance(schema.default, dict):
+                    return {key: extract_defaults(value) for key, value in schema.default.items()}
+                else:
+                    return schema.default
+            else:
+                return schema
+        return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
     @abstractmethod
     async def query(self, message: str, session: SessionData) -> Response:
@@ -116,9 +172,11 @@ class StreamCallbackHandler(BaseCallbackHandler):
 
             functions = self.tool_calls.message.additional_kwargs["tool_calls"]
             self.agent_message.tools = [
-                (f'Tool {i+1}:\n'
-                 f'Name: {function["function"].get("name", "")},\n'
-                 f'Arguments: {str(function["function"].get("arguments", ""))},\n')
+                {
+                'id': i,
+                'name': function["function"].get("name", ""),
+                'args': function["function"].get("arguments", {}),
+                'result': ""}
                 for i, function in enumerate(functions)]
         else:
             self.agent_message.content = token
@@ -146,7 +204,7 @@ class LLMAgent:
 
     async def ainvoke(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
         exec_time = time.time()
-        prompt = build_prompt(
+        prompt = self._build_prompt(
             system_prompt=self.system_prompt,
             examples=self.examples,
             input_variables=self.input_variables,
@@ -178,3 +236,35 @@ class LLMAgent:
         agent_message.execution_time = time.time() - exec_time
 
         return agent_message
+
+    @staticmethod
+    def _build_prompt(
+            system_prompt: str,
+            examples: List[Dict[str, str]],
+            input_variables: List[str],
+            message_template: str
+    ) -> ChatPromptTemplate:
+
+        example_prompt = ChatPromptTemplate.from_messages(
+            [
+                HumanMessagePromptTemplate.from_template("{input}"),
+                AIMessagePromptTemplate.from_template("{output}")
+            ]
+        )
+
+        few_shot_prompt = FewShotChatMessagePromptTemplate(
+            input_variables=input_variables,
+            example_prompt=example_prompt,
+            examples=examples
+        )
+
+        final_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=system_prompt),
+                few_shot_prompt,
+                MessagesPlaceholder(variable_name="history", optional=True),
+                ("human", message_template),
+            ]
+        )
+
+        return final_prompt

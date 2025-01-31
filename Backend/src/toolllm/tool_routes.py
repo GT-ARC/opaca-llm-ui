@@ -14,7 +14,7 @@ class ToolLLMBackend(OpacaLLMBackend):
         self.method = ToolMethod.create_method(method)
 
     @property
-    def default_config(self):
+    def config_schema(self):
         return self.method.config
 
     async def query(self, message: str, session: SessionData) -> Response:
@@ -35,8 +35,8 @@ class ToolLLMBackend(OpacaLLMBackend):
         response = Response()
         response.query = message
 
-        # Set config
-        config = session.config.get(self.method.name, self.default_config)
+        # Use config set in session, if nothing was set yet, use default values
+        config = session.config.get(self.method.name, self.default_config())
 
         # Save time before execution
         total_exec_time = time.time()
@@ -89,10 +89,12 @@ class ToolLLMBackend(OpacaLLMBackend):
                     tool_results.append(str(e))
 
                 # The format should match the one in the StreamCallbackHandler
-                result.tools[i] = (f'Tool {len(tool_names)}:\n'
-                                   f'Name: {call["name"]},\n'
-                                   f'Arguments: {call["args"]},\n'
-                                   f'Results: {tool_results[-1]}\n')
+                result.tools[i] = {
+                    'id': len(tool_names),
+                    'name': call['name'],
+                    'args': call['args'],
+                    'result': tool_results[-1]
+                }
 
             # If a websocket was defined, send the tools WITH their results to the frontend
             if websocket:
