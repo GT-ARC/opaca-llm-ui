@@ -23,20 +23,20 @@
 
             <!-- Chat Window -->
             <div class="container-fluid flex-grow-1 px-0" id="chat1">
-            <div class="card-body" id="chat-container"/>
-            <div v-show="showExampleQuestions" class="sample-questions">
-              <div v-for="(question, index) in getCurrentCategoryQuestions()"
-                   :key="index"
-                   class="sample-question"
-                   @click="askChatGpt(question.question)">
-                {{ question.icon }} <br> {{ question.question }}
-              </div>
+                <div class="card-body" id="chat-container"/>
+                <div v-show="showExampleQuestions" class="sample-questions">
+                    <div v-for="(question, index) in getCurrentCategoryQuestions()"
+                         :key="index"
+                         class="sample-question"
+                         @click="askChatGpt(question.question)">
+                        {{ question.icon }} <br> {{ question.question }}
+                    </div>
+                </div>
             </div>
-          </div>
 
             <!-- Input Area -->
             <div class="input-container">
-              <div class="input-group">
+                <div class="input-group">
                       <textarea id="textInput"
                                 v-model="textInput"
                                 :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
@@ -45,36 +45,38 @@
                                 @input="autoResize"
                                 @keypress="textInputCallback"></textarea>
 
-                <!-- user has entered text into message box -> send button available -->
-                <button type="button"
-                        v-if="this.isSendAvailable()"
-                        class="btn btn-primary"
-                        @click="submitText"
-                        :disabled="isBusy">
-                  <i class="fa fa-paper-plane"/>
-                </button>
-                <button type="button"
-                        v-if="this.isSpeechRecognitionAvailable()"
-                        class="btn btn-outline-primary"
-                        @click="startRecognition"
-                        :disabled="isBusy">
-                  <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
-                  <i v-else class="fa fa-microphone"/>
-                </button>
-                <button type="button"
-                        v-if="this.isResetAvailable()"
-                        class="btn btn-outline-danger"
-                        @click="resetChat"
-                        :disabled="isBusy">
-                  <i class="fa fa-refresh"/>
-                </button>
-              </div>
+                    <!-- user has entered text into message box -> send button available -->
+                    <button type="button"
+                            v-if="this.isSendAvailable()"
+                            class="btn btn-primary"
+                            @click="submitText"
+                            :disabled="isBusy">
+                        <i class="fa fa-paper-plane"/>
+                    </button>
+                    <button type="button"
+                            v-if="this.isSpeechRecognitionAvailable()"
+                            class="btn btn-outline-primary"
+                            @click="startRecognition"
+                            :disabled="isBusy">
+                        <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
+                        <i v-else class="fa fa-microphone"/>
+                    </button>
+                    <button type="button"
+                            v-if="this.isResetAvailable()"
+                            class="btn btn-outline-danger"
+                            @click="resetChat"
+                            :disabled="isBusy">
+                        <i class="fa fa-refresh"/>
+                    </button>
+                </div>
             </div>
 
             <!-- Simple Keyboard -->
             <SimpleKeyboard v-if="getConfig().ShowKeyboard"
-                          @change="this.onChangeSimpleKeyboard" />
+                            @change="this.onChangeSimpleKeyboard" />
+
         </main>
+
     </div>
 
 </template>
@@ -88,6 +90,8 @@ import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
+import { useDevice } from "../useIsMobile.js";
+
 export default {
     name: 'main-content',
     components: {
@@ -98,6 +102,10 @@ export default {
     props: {
         backend: String,
         language: String,
+    },
+    setup() {
+        const { isMobile, screenWidth } = useDevice()
+        return { isMobile, screenWidth };
     },
     data() {
         return {
@@ -119,7 +127,6 @@ export default {
             voiceServerConnected: false,
             statusMessages: {}, // Track status messages by messageCount
             isSidebarActive: false,
-            windowWidth: window.innerWidth,
         }
     },
     watch: {
@@ -321,7 +328,10 @@ export default {
             document.getElementById("chat-container").innerHTML = '';
             this.$refs.sidebar.debugMessages = []
             this.abortSpeaking();
-            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            if (!this.isMobile) {
+                // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
+                this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
             this.isBusy = false;
@@ -716,29 +726,23 @@ export default {
             this.isSidebarActive = (key !== 'none');
         },
 
-        isMobileView() {
-            return this.windowWidth <= 768
-        },
-
         isMainContentVisible() {
-            console.log('isMainContentVisible', !(this.isMobileView() && this.isSidebarActive));
-            return !(this.isMobileView() && this.isSidebarActive);
+            return !(this.isMobile && this.isSidebarActive);
         },
 
         isSendAvailable() {
-            console.log('isSendAvailable', !this.isMobileView(), this.textInput.length > 0);
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length > 0;
         },
 
         isSpeechRecognitionAvailable() {
             if (!this.voiceServerConnected) return false;
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
 
         isResetAvailable() {
-            if (!this.isMobileView()) return true;
+            if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
     },
@@ -753,7 +757,10 @@ export default {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-        this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+
+        if (!this.isMobile) {
+            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+        }
 
         this.updateSelectedCategory(this.getConfig().DefaultQuestions);
 
@@ -863,7 +870,7 @@ export default {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: min(80%, 120ch);
+    width: min(95%, 120ch);
     height: 40px;
     pointer-events: none;
     z-index: 10;
@@ -934,7 +941,7 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(95%, 200ch);
+    max-width: min(95%, 160ch);
     margin: 0 auto;
     padding: 0 1rem;
 }
@@ -1373,6 +1380,11 @@ export default {
     .input-container {
         padding: 0.5rem;
     }
+
+    .input-group {
+        padding: 0;
+    }
+
 }
 
 @keyframes move-glow {
