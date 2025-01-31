@@ -32,7 +32,7 @@
                 </div>
 
                 <!-- options -->
-                <div class="my-auto ms-auto w-auto me-3"
+                <div class="ms-auto me-0 w-auto"
                      v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
@@ -94,12 +94,12 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown">
+                        <li class="nav-item dropdown me-0">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <span v-show="!isMobile">Voice Server</span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings" style="max-width: 300px">
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
                                 <li>
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
@@ -109,8 +109,12 @@
                                     </div>
                                 </li>
                                 <li v-if="voiceServerConnected">
-                                    <div class="dropdown-item">
-                                        <small class="text-muted">{{ deviceInfo }}</small>
+                                    <div class="dropdown-item dropdown-item-text">
+                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <div class="text-muted"
+                                             style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
+                                            {{ deviceInfo }}
+                                        </div>
                                     </div>
                                 </li>
                                 <li v-if="!voiceServerConnected">
