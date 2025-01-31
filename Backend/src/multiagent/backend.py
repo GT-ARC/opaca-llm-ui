@@ -203,8 +203,6 @@ class MultiAgentBackend(OpacaLLMBackend):
         """Execute a single round of tasks in parallel when possible"""
         results = []
         
-        
-
         # Create agent evaluator
         agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
         
@@ -233,8 +231,8 @@ class MultiAgentBackend(OpacaLLMBackend):
                     config=config
                 )
                 
-                # Create plan first
-                plan = await planner.create_plan(task)
+                # Create plan first, passing previous results
+                plan = await planner.create_plan(task, previous_results=all_results)
                 
                 # Send plan via websocket if needed
                 if websocket:

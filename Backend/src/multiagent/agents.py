@@ -287,29 +287,49 @@ class AgentPlanner(BaseAgent):
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
     
-    async def create_plan(self, task: Union[str, AgentTask]) -> PlannerPlan:
+    async def create_plan(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None) -> PlannerPlan:
         """Create a high-level task plan with rounds and dependencies."""
         task_str = task.task if isinstance(task, AgentTask) else task
+        
+        # Create context from previous results if available
+        context = ""
+        if previous_results:
+            context = "\n\nPrevious execution results:\n"
+            for i, result in enumerate(previous_results, 1):
+                context += f"\nResult {i} from {result.agent_name}:\n"
+                context += f"Task: {result.task}\n"
+                context += f"Output: {result.output}\n"
+                if result.tool_results:
+                    context += f"Tool Results: {json.dumps(result.tool_results, indent=2)}\n"
+        
+        remark = ""
+        if self.agent_name == "exchange-agent":
+            remark = """\n\nIMPORTANT: 
+- If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
+- If you need to retrieve phone numbers, always try to use email addresses where possible!
+- If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
+        
         messages = [{
             "role": "system",
-            "content": AGENT_PLANNER_PROMPT + """
+            "content": AGENT_PLANNER_PROMPT + f"""
 
-IMPORTANT GUIDELINES:
-1. DO NOT break down simple tasks that can be done in one step
-2. Only create subtasks if the task ABSOLUTELY REQUIRES multiple steps
-3. If a task can be accomplished with a single tool call, keep it as one task
-4. Focus on the MINIMAL number of steps needed
-5. Avoid creating setup or preparation tasks unless they are ABSOLUTELY necessary
+THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
+
+{json.dumps(self.tools, indent=2)}
 
 IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
         }, {
             "role": "user",
             "content": f"""Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
 
-Available functions for reference:
-{json.dumps(self.tools, indent=2)}
+{context}
 
-Remember: If this task can be done with a single tool call, DO NOT break it down into subtasks."""
+Remember: 
+1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
+2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
+3. NEVER use placeholders - always use actual values.
+
+{remark}"""
         }]
         
         response = await self._call_llm(
@@ -328,13 +348,7 @@ Remember: If this task can be done with a single tool call, DO NOT break it down
             elif "\n" in content:
                 content = content[content.find("\n")+1:]
         
-        plan = PlannerPlan.model_validate_json(content)
-        
-        # Ensure all tasks use this agent's name
-        for task in plan.tasks:
-            task.agent_name = self.agent_name
-        
-        return plan
+        return PlannerPlan.model_validate_json(content)
 
     async def execute_task(self, task: Union[str, AgentTask], existing_plan: Optional[PlannerPlan] = None) -> AgentResult:
         """Execute a task with or without planning"""
@@ -766,7 +780,7 @@ class WorkerAgent(BaseAgent):
             self.logger.debug(f"Full LLM response: {json.dumps(response.model_dump(), indent=2)}")
             
             if not hasattr(response, 'tool_calls') or not response.tool_calls:
-                error_msg = f"No tool call received for task: {task_str}"
+                error_msg = f"No tool call received for task: {task_str}.\n\n Worker Agent Output: {response.content}"
                 self.logger.error(error_msg)
                 return AgentResult(
                     agent_name=self.agent_name,
@@ -776,60 +790,79 @@ class WorkerAgent(BaseAgent):
                     tool_results=[]
                 )
             
-            # Execute the tool call
-            tool_call = response.tool_calls[0]
-            tool_call_dict = {
-                "name": tool_call.function.name,
-                "arguments": tool_call.function.arguments
-            }
-            
-            # Log the tool call being made
-            self.logger.info(f"Making tool call: {tool_call.function.name}")
-            self.logger.debug(f"Tool call arguments: {tool_call.function.arguments}")
-            
-            # Parse arguments and execute the action
-            args = json.loads(tool_call.function.arguments)
-            
-            # Split function name to get action name (remove agent prefix)
-            func_name = tool_call.function.name
-            if "--" in func_name:
-                agent_name, action_name = func_name.split("--", 1)
-            else:
-                agent_name = None
-                action_name = func_name
-            
-            # Execute the action with the correct parameters
-            result = await self.session_client.invoke_opaca_action(
-                action=action_name,
-                agent=agent_name,
-                params=args.get("requestBody", {})  # Get requestBody from args
-            )
-            
-            # Format the result for output
-            if isinstance(result, (dict, list)):
-                result_str = json.dumps(result, indent=2)
-            else:
-                result_str = str(result)
-            
-            # Log the tool result
-            self.logger.info(f"Tool call completed: {action_name}")
-            self.logger.debug(f"Tool result: {result_str}")
-            
+
+            # Iterate over all tool calls
+            # Initialize tool calls and results lists
+            tool_calls = []
+            tool_results = []
+            tool_outputs = []
+
+            for tool_call in response.tool_calls:
+
+                # Create a dictionary for each tool call
+                tool_call_dict = {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments
+                }
+                
+                # Log the tool call being made
+                self.logger.info(f"Making tool call: {tool_call.function.name}")
+                self.logger.debug(f"Tool call arguments: {tool_call.function.arguments}")
+                
+                # Parse arguments and execute the action
+                args = json.loads(tool_call.function.arguments)
+                
+                # Split function name to get action name (remove agent prefix)
+                func_name = tool_call.function.name
+                if "--" in func_name:
+                    agent_name, action_name = func_name.split("--", 1)
+                else:
+                    agent_name = None
+                    action_name = func_name
+                
+                # Execute the action with the correct parameters
+                result = await self.session_client.invoke_opaca_action(
+                    action=action_name,
+                    agent=agent_name,
+                    params=args.get("requestBody", {})  # Get requestBody from args
+                )
+
+                # Add the tool call and result to the lists
+                tool_calls.append(tool_call_dict)
+                tool_results.append({
+                    "name": tool_call.function.name,
+                    "result": result  # Store the raw result without string conversion
+                })
+
+                # Format the result for output
+                if isinstance(result, (dict, list)):
+                    result_str = json.dumps(result, indent=2)
+                else:
+                    result_str = str(result)
+                
+                # Log the tool result
+                self.logger.info(f"Tool call completed: {action_name}")
+                self.logger.debug(f"Tool result: {result_str}")
+                
+                # Add the result to the tool outputs list
+                tool_outputs.append(f"\n## Executed {tool_call.function.name}.\n\n ## Result: {result_str}")
+
+            # Join all tool outputs into a single string
+            output = "\n\n".join(tool_outputs)
+
+            # Stop the execution timer
             execution_time = time.time() - start_time
             self.logger.info(f"{self.agent_name} completed task in {execution_time:.2f} seconds")
             
             # Create a meaningful output that summarizes the action and result
-            output = f"Successfully executed {action_name} with result: {result_str}"
+            output = f"# Executed task: {task_str} \n\n {output}"
             
             return AgentResult(
                 agent_name=self.agent_name,
                 task=task_str,
-                output=output,  # Use the meaningful output summary
-                tool_calls=[tool_call_dict],
-                tool_results=[{
-                    "name": tool_call.function.name,
-                    "result": result  # Store the raw result without string conversion
-                }]
+                output=output,
+                tool_calls=tool_calls,
+                tool_results=tool_results,
             )
 
         except Exception as e:
