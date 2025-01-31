@@ -11,7 +11,7 @@
                 </div>
 
                 <!-- logos -->
-                <div class="ms-0 me-2 w-auto text-start">
+                <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
                     <a href="https://github.com/GT-ARC/opaca-core" target="blank">
                         <img v-bind:src="isMobile ? 'src/assets/opaca-logo-small.png' : 'src/assets/opaca-logo.png'"
                              class="logo" alt="Opaca Logo"

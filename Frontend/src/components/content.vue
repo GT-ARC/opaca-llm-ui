@@ -18,7 +18,7 @@
         />
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent"
+        <main id="mainContent" class="mx-auto">
               v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window -->
@@ -357,7 +357,7 @@ export default {
                 <div class="chaticon">
                     <img src="/src/assets/Icons/ai.png" alt="AI">
                 </div>
-                <div id="chatBubble" class="p-3 ms-3 small mb-0 chatbubble chat-ai">
+                <div id="chatBubble" class="p-3 small mb-0 chatbubble chat-ai">
                     <div class="d-flex flex-row justify-content-start message-content">
                         <div id="loadingContainer"><div class="loader hidden"></div></div>
                         <div id="messageContainer" class="message-text">${formattedText}</div>
@@ -1307,8 +1307,11 @@ export default {
 }
 
 /* Add margin to the first chat bubble */
+/* i dont know what this is supposed to do, but i dont think it works.
+    it just offsets the user-chat bubble down so it's lower than the user icon, which looks weird imo, especially since the same doesnt happen for the ai.
+    feel free to uncomment if this was the intention. */
 .chatbubble:first-child {
-    margin-top: 1rem;
+    /* margin-top: 1rem; */
 }
 
 /* Add margin to the last chat bubble */
@@ -1386,6 +1389,19 @@ export default {
 
     .input-group {
         padding: 0;
+    }
+
+    .chat-user {
+        margin-right: 0;
+    }
+
+    .chat-ai {
+        margin-left: 0;
+    }
+
+    .chaticon {
+        padding: 0.5rem;
+        margin: 0 0.25rem;
     }
 
 }

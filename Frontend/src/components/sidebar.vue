@@ -227,16 +227,13 @@ export default {
         },
 
         selectView(key) {
-            const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
                 this.selectedView = key;
-                mainContent?.classList.remove('mx-auto');
             } else {
                 this.selectedView = 'none';
-                mainContent?.classList.add('mx-auto');
             }
             this.$emit('on-sidebar-toggle', this.selectedView);
-            console.log('selected sidebar view:', this.selectedView);
+            // console.log('selected sidebar view:', this.selectedView);
         },
 
         isViewSelected(key) {
@@ -274,7 +271,7 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
-                this.selectView('connect');
+                // this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -408,11 +405,6 @@ export default {
             this.selectedLanguage = 'english';
         } else if (this.language === 'DE') {
             this.selectedLanguage = 'german';
-        }
-        // Ensure the main content is properly positioned
-        const mainContent = document.getElementById('mainContent');
-        if (mainContent) {
-            mainContent.classList.remove('mx-auto');
         }
 
         if (conf.AutoConnect) {
