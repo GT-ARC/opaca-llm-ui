@@ -13,6 +13,7 @@ from .models import (
     OverallEvaluation, AgentResult, IterationAdvice, ChatHistory
 )
 from .prompts import (
+    BACKGROUND_INFO,
     ORCHESTRATOR_SYSTEM_PROMPT,
     AGENT_SYSTEM_PROMPT,
     AGENT_EVALUATOR_PROMPT,
@@ -22,6 +23,8 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT,
 )
+
+
 
 class BaseAgent:
     def __init__(self, client: AsyncOpenAI, model: str):
@@ -187,9 +190,9 @@ class OrchestratorAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": ORCHESTRATOR_SYSTEM_PROMPT.format(
+                "content": BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
                     agent_summaries=json.dumps(self.agent_summaries, indent=2)
-                ) + "\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."
+                ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
             },
             {
                 "role": "user",
@@ -230,7 +233,7 @@ class GeneralAgent(BaseAgent):
         self.tools = []  # Empty list since GeneralAgent doesn't use real tools
         
         # Store the complete response with agent summaries as JSON
-        self.predefined_response = GENERAL_CAPABILITIES_RESPONSE.format(
+        self.predefined_response = BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
             agent_capabilities=json.dumps(agent_summaries, indent=2)
         )
         
@@ -313,7 +316,7 @@ class AgentPlanner(BaseAgent):
         
         messages = [{
             "role": "system",
-            "content": AGENT_PLANNER_PROMPT + f"""
+            "content": BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
 
 THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
 
@@ -362,6 +365,10 @@ Remember:
             # If planning is disabled, execute directly
             if not self.config.get("use_agent_planner", True):
                 self.logger.info("Planning disabled, executing directly with worker agent")
+                return await self.worker_agent.execute_task(task_str)
+
+            elif self.agent_name == "GeneralAgent":
+                self.logger.info("Skipping planning for GeneralAgent. Directly executing task: " + task_str)
                 return await self.worker_agent.execute_task(task_str)
             
             # Use existing plan or create new one
@@ -608,7 +615,7 @@ class OutputGenerator(BaseAgent):
             messages = [
                 {
                     "role": "system",
-                    "content": OUTPUT_GENERATOR_PROMPT
+                    "content": BACKGROUND_INFO + OUTPUT_GENERATOR_PROMPT
                 },
                 {
                     "role": "user",
@@ -752,17 +759,26 @@ class WorkerAgent(BaseAgent):
         start_time = time.time()
         task_str = task.task if isinstance(task, AgentTask) else task
         self.logger.debug(f"Executing task: {task_str}")
+
+        remark = ""
+        if self.agent_name == "exchange-agent":
+            remark = """\n\nIMPORTANT: 
+- If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
+- If you need to retrieve phone numbers, always try to use email addresses where possible!
+- If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
+
+
         try:
             # Create messages with task description and tools
             messages = [{
                 "role": "system",
-                "content": AGENT_SYSTEM_PROMPT.format(
+                "content": BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(
                     agent_name=self.agent_name,
                     agent_summary=self.summary
                 )
             }, {
                 "role": "user",
-                "content": task_str
+                "content": task_str + remark
             }]
             
             # Log the input to LLM

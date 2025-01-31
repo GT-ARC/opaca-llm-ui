@@ -1,3 +1,23 @@
+from datetime import datetime
+
+LOCATION = "Ernst-Reuter-Platz 2, 10587 Berlin\n (On the 3rd floor of the building inside one of the loud servers)"
+
+BACKGROUND_INFO = f"""
+# GENERAL INFORMATION
+
+The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.
+You are currently in the ZEKI (Zentrum für erlebbare Künstliche Intelligenz und Digitalisierung / Center for Tangible Artificial Intelligence and Digitalization) Office in Berlin.
+Your exact location is: 
+{LOCATION}
+
+You are part of a Research Center affiliated with the Technical University of Berlin (TU Berlin).
+You have access to a number of agents that provide you with live information and tools to interact with the world around you.
+
+# AGENT INSTRUCTIONS
+
+"""
+
+
 ORCHESTRATOR_SYSTEM_PROMPT = """You are an expert orchestrator agent responsible for breaking down user requests into executable tasks.
 Your role is to analyze the user's request and create a minimal execution plan using the available agents.
 
