@@ -1360,6 +1360,16 @@ export default {
         display: none;
     }
 
+    #mainContent::before {
+        background: none;
+        content: none;
+    }
+
+    #mainContent::after {
+        background: none;
+        content: none;
+    }
+
     .input-container {
         padding: 0.5rem;
     }

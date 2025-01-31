@@ -35,7 +35,7 @@
         <div v-show="isViewSelected()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: 400px">
+               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
 
                 <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">

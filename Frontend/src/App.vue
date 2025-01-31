@@ -27,7 +27,7 @@
                     </a>
                 </div-->
 
-                <div class="my-auto text-end w-auto ms-auto me-5">
+                <div class="my-auto text-end w-auto ms-auto me-1" v-bind:class="{'me-3': this.isMobile}">
                     <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
 
                         <!-- languages -->
@@ -88,12 +88,12 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown ms-3">
+                        <li class="nav-item dropdown m2-3">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <!-- Voice Server -->
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings" style="max-width: 300px">
                                 <li>
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
