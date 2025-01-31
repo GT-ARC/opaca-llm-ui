@@ -226,10 +226,6 @@ export default {
             return conf;
         },
 
-        getSidebarManager() {
-            return sm;
-        },
-
         selectView(key) {
             const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
