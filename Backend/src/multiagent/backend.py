@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List, Union
 from pathlib import Path
 
@@ -480,6 +481,9 @@ Continue with the task using these results."""
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents"""
         try:
+            # Track overall execution time
+            overall_start_time = time.time()
+            
             # Add message to chat history
             self.chat_history.messages.append(ChatMessage(
                 role="user",
@@ -816,6 +820,9 @@ Please address these specific improvements:
             # Set the complete response content after streaming
             response.content = "".join(final_output)
             
+            # Calculate total execution time
+            total_execution_time = time.time() - overall_start_time
+            
             # Add response to chat history
             self.chat_history.messages.append(ChatMessage(
                 role="assistant",
@@ -837,15 +844,20 @@ Please address these specific improvements:
                     execution_time=0.0
                 ).model_dump_json())
             
-            # Store agent messages for debug view
+            # Store agent messages for debug view and add execution time
             response.agent_messages = [
                 AgentMessage(
                     agent=result.agent_name,
                     content=result.output,
-                    execution_time=0.0
+                    execution_time=result.agent_message.execution_time if result.agent_message else 0.0
                 )
                 for result in all_results
             ]
+            
+            # Set the total execution time in the response
+            response.execution_time = total_execution_time
+
+            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {total_execution_time:.2f} seconds\n\n")
             
             return response
             
