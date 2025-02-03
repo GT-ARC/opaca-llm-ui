@@ -755,13 +755,22 @@ Please address these specific improvements:
             output_client = worker_client if use_worker_for_output else orchestrator_client
             output_model = config["worker_model"] if use_worker_for_output else config["orchestrator_model"]
             
-            # Simple streaming text request without any special constraints
-            stream = await output_client.chat.completions.create(
-                model=output_model,
-                messages=messages,
-                temperature=config["temperature"],
-                stream=True
-            )
+            if output_model == "o3-mini":
+                # Simple streaming text request without any special constraints
+                stream = await output_client.chat.completions.create(
+                    model=output_model,
+                    messages=messages,
+                    stream=True, 
+                    reasoning_effort = "medium"
+                )
+            else:
+                # Simple streaming text request without any special constraints
+                stream = await output_client.chat.completions.create(
+                    model=output_model,
+                    messages=messages,
+                    temperature=config["temperature"],
+                    stream=True
+                )
             
             final_output = []
             async for chunk in stream:

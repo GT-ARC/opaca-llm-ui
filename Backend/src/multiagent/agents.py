@@ -70,20 +70,28 @@ class BaseAgent:
             logger = logging.getLogger(__name__)
             
             # Check if we're using a GPT model
-            is_gpt = "gpt" in self.model.lower() or "o3-mini" in self.model.lower()
+            is_gpt = "gpt" in self.model.lower() or "o3" in self.model.lower()
             
-            # Base kwargs that are always included
-            kwargs = {
-                "model": self.model,
-                "messages": messages.copy(),  # Make a copy to avoid modifying the original
-                "temperature": 0.0  # Always use temperature 0 for deterministic outputs
-            }
-
             if self.model == "o3-mini":
+                # Base kwargs that are always included
+                kwargs = {
+                    "model": self.model,
+                    "messages": messages.copy(),  # Make a copy to avoid modifying the original
+                }
                 if tools: 
                     kwargs["reasoning_effort"] = "medium"
                 else:
                     kwargs["reasoning_effort"] = "high"
+
+            else:
+                # Base kwargs that are always included
+                kwargs = {
+                    "model": self.model,
+                    "messages": messages.copy(),  # Make a copy to avoid modifying the original
+                    "temperature": 0.0  # Always use temperature 0 for deterministic outputs
+                }
+
+
 
             # Handle tool calls first since they're simpler
             if tools:
@@ -631,7 +639,6 @@ class OutputGenerator(BaseAgent):
             
             response = await self._call_llm(
                 messages=messages,
-                temperature=0
             )
             
             execution_time = time.time() - start_time
@@ -642,8 +649,8 @@ class OutputGenerator(BaseAgent):
             completion_response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0
             )
+            
             if hasattr(completion_response, 'usage'):
                 response_metadata = completion_response.usage.model_dump()
             
