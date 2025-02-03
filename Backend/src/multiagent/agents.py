@@ -70,7 +70,7 @@ class BaseAgent:
             logger = logging.getLogger(__name__)
             
             # Check if we're using a GPT model
-            is_gpt = "gpt" in self.model.lower()
+            is_gpt = "gpt" in self.model.lower() or "o3-mini" in self.model.lower()
             
             # Base kwargs that are always included
             kwargs = {
