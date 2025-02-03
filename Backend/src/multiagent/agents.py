@@ -78,7 +78,13 @@ class BaseAgent:
                 "messages": messages.copy(),  # Make a copy to avoid modifying the original
                 "temperature": 0.0  # Always use temperature 0 for deterministic outputs
             }
-                
+
+            if self.model == "o3-mini":
+                if tools: 
+                    kwargs["reasoning_effort"] = "medium"
+                else:
+                    kwargs["reasoning_effort"] = "high"
+
             # Handle tool calls first since they're simpler
             if tools:
                 kwargs["tools"] = tools

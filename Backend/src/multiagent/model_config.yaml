@@ -1,4 +1,19 @@
 model_configs:
+  "o3-mini":
+    orchestrator_model: "o3-mini"
+    worker_model: "gpt-4o-2024-11-20"
+    base_url: null
+    worker_base_url: null
+    orchestrator_backend_type: "openai"
+    worker_backend_type: "openai"
+  "o3-mini-large":
+    orchestrator_model: "o3-mini"
+    worker_model: "o3-mini"
+    base_url: null
+    worker_base_url: null
+    orchestrator_backend_type: "openai"
+    worker_backend_type: "openai"
+
   "4o-mini":
     orchestrator_model: "gpt-4o-mini"
     worker_model: "gpt-4o-mini"

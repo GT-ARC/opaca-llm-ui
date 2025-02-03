@@ -123,48 +123,6 @@ class MultiAgentBackend(OpacaLLMBackend):
             self.logger.error(f"Error creating OpenAI client: {str(e)}")
             raise
 
-    async def _create_chat_completion(self, client: AsyncOpenAI, messages: List[Dict], config: Dict, stream: bool = False) -> Any:
-        """Create a chat completion with proper structured output handling for both OpenAI and vLLM"""
-        try:
-            # Check if we're using a GPT model
-            is_gpt = "gpt" in config["orchestrator_model"].lower()
-            self.logger.info(f"Using {'OpenAI GPT' if is_gpt else 'vLLM'} model")
-            
-            # Base configuration that's always included
-            kwargs = {
-                "model": config["orchestrator_model"],
-                "messages": messages,
-                "temperature": config["temperature"]
-            }
-            
-            # For tool calls, keep it extremely simple
-            if "tools" in config:
-                kwargs["tools"] = config["tools"]
-                kwargs["tool_choice"] = config.get("tool_choice", "auto")
-                return await client.chat.completions.create(**kwargs)
-            
-            # For streaming responses
-            if stream:
-                kwargs["stream"] = True
-                return await client.chat.completions.create(**kwargs)
-            
-            # For guided outputs
-            if "guided_json" in config:
-                if is_gpt:
-                    kwargs["response_format"] = {"type": "json_object"}
-                else:
-                    kwargs["extra_body"] = {"guided_json": config["guided_json"]}
-            elif "guided_choice" in config:
-                if not is_gpt:
-                    kwargs["extra_body"] = {"guided_choice": config["guided_choice"]}
-            
-            # Create the completion
-            return await client.chat.completions.create(**kwargs)
-            
-        except Exception as e:
-            self.logger.error(f"Error creating chat completion: {str(e)}")
-            raise
-
     async def _handle_follow_up(self, follow_up_question: str, websocket=None) -> None:
         """Handle follow-up questions by sending them to the user"""
         if websocket:
