@@ -63,9 +63,9 @@ var config = {
                         {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
                         {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
                         {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
-                        {"question": "I need the phone numbers of the people working with XAI from the GoKI project.", "icon": "👥"},
+                        {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "👥"},
                         {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
-                        {"question": "Find a meeting slot with the XAI team next week.", "icon": "📆"},
+                        {"question": "Find a meeting slot with the LLM team next week.", "icon": "📆"},
                         {"question": "Show my calendar for next week.", "icon": "📅"}
                     ]
                 },
@@ -102,7 +102,7 @@ var config = {
                         {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
                         {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
                         {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                        {"question": "Get Germany's energy production mix from the year 2024 and create a pie chart from it.", "icon": "⚡"},
+                        {"question": "Get Germany's energy production mix from the first half of the year 2024 and create a pie chart from it.", "icon": "⚡"},
                     ]
                 }
             ],
@@ -130,9 +130,9 @@ var config = {
                         {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
                         {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
                         {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
-                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten.", "icon": "👥"},
+                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "👥"},
                         {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
-                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche.", "icon": "📆"},
+                        {"question": "Finde einen Meetingtermin mit dem LLM-Team nächste Woche.", "icon": "📆"},
                         {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
                     ]
                 },
@@ -168,7 +168,7 @@ var config = {
                         {"question": "Erstelle eine Temperaturprognose für den Coworking Space.", "icon": "🌤️"},
                         {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
                         {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                        {"question": "Hole dir Deutschlands Strommix aus dem Jahr 2024 und erstelle von den Daten ein Kuchendiagramm.", "icon": "⚡"},
+                        {"question": "Hole dir Deutschlands Strommix aus der ersten Hälfte des Jahres 2024 und erstelle von den Daten ein Kuchendiagramm.", "icon": "⚡"},
                     ]
                 }
             ],
