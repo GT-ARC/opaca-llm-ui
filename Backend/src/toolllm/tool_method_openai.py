@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
+from ..models import ConfigParameter
 from ..toolllm.tool_method import ToolMethod
 from ..utils import openapi_to_functions
 
@@ -20,11 +21,11 @@ class ToolMethodOpenAI(ToolMethod):
         return self.NAME
     
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> Dict[str, ConfigParameter]:
         return {
-                "model": "gpt-4o-mini",
-                "temperature": 0,
-                "use_agent_names": True,
+                "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
 
     @property
@@ -41,13 +42,13 @@ class ToolMethodOpenAI(ToolMethod):
             base_url = None
         else:
             # If model does NOT start with gpt: use vllm
-            key = "Bearer " + (api_key or os.getenv("VLLM_API_KEY"))
+            key = os.getenv("VLLM_API_KEY")
             base_url = os.getenv("VLLM_BASE_URL")
         return ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
             openai_api_key=key,
-            base_url=base_url
+            openai_api_base=base_url
         )
 
     def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:

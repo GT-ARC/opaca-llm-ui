@@ -122,18 +122,14 @@
 
                 <!-- backend config -->
                 <div v-show="isViewSelected('config')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <!-- Other Config Items -->
-                        <div v-for="(value, name) in backendConfig" :key="name" class="config-section">
-                            <div class="config-section-header">
-                                <strong>{{ name }}</strong>
-                            </div>
-                            <input v-model="backendConfig[name]"
-                                   class="form-control"
-                                   type="text" :placeholder="String(value)"/>
-                        </div>
+                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                                :key="name"
+                                :name="name"
+                                :value="value"
+                                v-model="backendConfig[name]"/>
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
@@ -144,6 +140,12 @@
                             <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
                                 <i class="fa fa-undo me-2"/>Reset to Default
                             </button>
+                        </div>
+                        <div
+                            v-if="!this.shouldFadeOut"
+                            class="config-error-message text-center"
+                            :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
+                            {{ this.configMessage }}
                         </div>
                     </div>
                 </div>
@@ -183,13 +185,14 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
-import {sleep} from "openai/core";
+import ConfigParameter from './ConfigParameter.vue';
 
 export default {
     name: 'Sidebar',
     components: {
         DebugMessage,
-        SidebarQuestions
+        SidebarQuestions,
+        ConfigParameter
     },
     props: {
         backend: String,
@@ -204,9 +207,14 @@ export default {
             apiKey: '',
             platformActions: null,
             backendConfig: null,
+            backendConfigSchema: null,
             debugMessages: [],
             selectedLanguage: 'english',
-            isConnected: false
+            isConnected: false,
+            configMessage: "",
+            configChangeSuccess: false,
+            shouldFadeOut: false,
+            fadeTimeout: null,
         };
     },
     methods: {
@@ -276,11 +284,26 @@ export default {
 
         async saveBackendConfig() {
             const backend = this.getBackend();
-            const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
-            if (response.status === 200) {
-                console.log('Saved backend config.');
-            } else {
-                console.error('Error saving backend config.');
+            try {
+                const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
+                if (response.status === 200) {
+                    console.log('Saved backend config.');
+                    this.configChangeSuccess = true
+                    this.configMessage = "Configuration Changed"
+                    this.startFadeOut()
+                } else {
+                    console.error('Error saving backend config.');
+                    this.configChangeSuccess = false
+                    this.configMessage = "Unexpected Error"
+                    this.startFadeOut()
+                }
+            } catch (error) {
+                if (error.response.status === 400) {
+                    console.log("Invalid Configuration Values: ", error.response.data.detail)
+                    this.configChangeSuccess = false
+                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail
+                    this.startFadeOut()
+                }
             }
         },
 
@@ -288,10 +311,17 @@ export default {
             const backend = this.getBackend()
             const response = await sendRequest('POST', `${conf.BackendAddress}/${backend}/config/reset`);
             if (response.status === 200) {
-                this.backendConfig = response.data;
+                this.backendConfig = response.data.value;
+                this.backendConfigSchema = response.data.config_schema;
+                this.configChangeSuccess = true
+                this.configMessage = "Reset Configuration to default values"
+                this.startFadeOut()
                 console.log('Reset backend config.');
             } else {
-                this.backendConfig = null;
+                this.backendConfig = this.backendConfigSchema = null;
+                this.configChangeSuccess = false
+                this.configMessage = "Unexpected error occurred during configuration reset"
+                this.startFadeOut()
                 console.error('Error resetting backend config.');
             }
         },
@@ -332,9 +362,10 @@ export default {
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
-                    this.backendConfig = response.data;
+                    this.backendConfig = response.data.value;
+                    this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = null;
+                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
@@ -346,7 +377,25 @@ export default {
         handleQuestionSelect(question) {
             // Send the question to the chat without closing the sidebar
             this.$emit('select-question', question);
-        }
+        },
+
+        startFadeOut() {
+            // Clear previous timeout (if the user saves the config again before fade-out could happen)
+            if (this.fadeTimeout) {
+                clearTimeout(this.fadeTimeout);
+            }
+
+            this.shouldFadeOut = false
+
+            this.fadeTimeout = setTimeout(() => {
+                this.shouldFadeOut = true;
+            }, 3000)
+        },
+
+        scrollDownConfigView() {
+            const configContainer = document.getElementById('config-display');
+            configContainer.scrollTop = configContainer.scrollHeight;
+        },
     },
     mounted() {
         this.setupResizer();
@@ -367,6 +416,9 @@ export default {
         } else {
             this.selectView('connect');
         }
+    },
+    updated() {
+        this.scrollDownConfigView()
     },
     watch: {
         backend(newValue) {
@@ -704,45 +756,6 @@ export default {
 
     .accordion-collapse {
         background-color: var(--background-dark);
-    }
-}
-
-.config-section {
-    margin-bottom: 1.5rem;
-}
-
-.config-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-
-.config-section-header i {
-    color: var(--primary-light);
-    font-size: 1.125rem;
-}
-
-.config-section-header strong {
-    color: var(--text-primary-light);
-}
-
-.config-section-content {
-    padding-left: 1.5rem;
-    color: var(--text-secondary-light);
-}
-
-@media (prefers-color-scheme: dark) {
-    .config-section-header strong {
-        color: var(--text-primary-dark);
-    }
-
-    .config-section-content {
-        color: var(--text-secondary-dark);
-    }
-
-    .config-section-header i {
-        color: var(--primary-dark);
     }
 }
 

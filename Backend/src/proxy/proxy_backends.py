@@ -1,24 +1,24 @@
 import httpx
 import random
 
-from ..models import Response, SessionData, OpacaLLMBackend
+from ..models import Response, SessionData, OpacaLLMBackend, ConfigParameter
 
 
 class KnowledgeBackend(OpacaLLMBackend):
     NAME = "itdz-knowledge"
 
     @property
-    def default_config(self):
+    def config_schema(self):
         return {
-            "url": "http://10.0.4.59:8000/chat-{model}",
-            "model": "ollama",
-            "conv_id": random.randint(1000, 10000),
-            "msg_id": 0,
+            "url": ConfigParameter(type="string", required=True, default="http://10.0.4.59:8000/chat-{model}"),
+            "model": ConfigParameter(type="string", required=True, default="ollama"),
+            "conv_id": ConfigParameter(type="integer", required=True, default=random.randint(1000, 10000)),
+            "msg_id": ConfigParameter(type="integer", required=True, default=0),
         }
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.config.get(KnowledgeBackend.NAME, self.default_config)
+        config = session.config.get(KnowledgeBackend.NAME, self.default_config())
         url = config["url"].format(model=config["model"])
         json = {
             "conv_id": config["conv_id"],
@@ -40,14 +40,14 @@ class DataAnalysisBackend(OpacaLLMBackend):
     NAME = "itdz-data"
 
     @property
-    def default_config(self):
+    def config_schema(self):
         return {
-            "url": "http://10.42.6.107:3002/ask_csv",
+            "url": ConfigParameter(type="string", required=True, default="http://10.42.6.107:3002/ask_csv"),
         }
 
     async def query(self, message: str, session: SessionData) -> Response:
         print("QUERY", message)
-        config = session.config.get(DataAnalysisBackend.NAME, self.default_config)
+        config = session.config.get(DataAnalysisBackend.NAME, self.default_config())
         url = config["url"]
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json={"question": message})
