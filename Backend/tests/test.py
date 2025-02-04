@@ -19,7 +19,7 @@ from question_sets.deployment import deployment_questions
 #########################################
 ###  Set the backend that is tested   ###
 
-BACKEND = "tool-llm-openai"
+BACKEND = "simple-openai"
 
 #########################################
 ### Change configuration if necessary ###
@@ -180,7 +180,7 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
         # The compose stack should have been started and exited previously...
         print("Setup OPACA platform")
         subprocess.run(["docker", "start", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"], check=True)
-        time.sleep(7)       # Wait to let OPACA platform start
+        time.sleep(10)       # Wait to let OPACA platform start
 
         print("Deploying OPACA containers for testing...")
         for name in test_containers:
@@ -190,7 +190,7 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
 
         print("Setup OPACA-LLM")
         self.server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.dirname(os.getcwd()))
-        time.sleep(5)       # Needs to be long enough to let the server start
+        time.sleep(7)       # Needs to be long enough to let the server start
         try:
             session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
             session.put(llm_url + f'/{BACKEND}/config', json=BACKENDS[BACKEND])

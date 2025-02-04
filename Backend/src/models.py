@@ -224,8 +224,6 @@ class LLMAgent:
 
         result = chain.invoke(inputs, config=inputs.get('config', {}))
 
-        print(f'Model result: {result}')
-
         # Check if the response type matches the expected AIMessage
         if isinstance(result, AIMessage):
             agent_message.response_metadata = result.response_metadata.get("token_usage", {})
