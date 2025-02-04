@@ -2,8 +2,8 @@
     <div class="d-flex justify-content-start">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 pt-3 gap-2"
-             style="height: calc(100vh - 50px)">
+             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
+             style="height: calc(100vh - 50px);">
 
             <i @click="selectView('connect')"
                class="fa fa-link p-2 sidebar-item"
@@ -35,7 +35,7 @@
         <div v-show="isViewSelected()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: 400px">
+               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
 
                 <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">
@@ -173,7 +173,7 @@
                         @category-selected="(category) => $emit('category-selected', category)"/>
                 </div>
 
-                <div class="resizer me-1" id="resizer" />
+                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
         </div>
     </div>
@@ -184,6 +184,7 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 
 export default {
@@ -196,6 +197,10 @@ export default {
     props: {
         backend: String,
         language: String
+    },
+    setup() {
+        const { isMobile, screenWidth } = useDevice();
+        return { isMobile, screenWidth };
     },
     data() {
         return {
@@ -222,16 +227,13 @@ export default {
         },
 
         selectView(key) {
-            const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
                 this.selectedView = key;
-                mainContent?.classList.remove('mx-auto');
             } else {
                 this.selectedView = 'none';
-                mainContent?.classList.add('mx-auto');
             }
-            this.$emit('onSidebarToggle', this.selectedView);
-            console.log('selected sidebar view:', this.selectedView);
+            this.$emit('on-sidebar-toggle', this.selectedView);
+            // console.log('selected sidebar view:', this.selectedView);
         },
 
         isViewSelected(key) {
@@ -269,7 +271,7 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
-                this.selectView('connect');
+                // this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -404,11 +406,6 @@ export default {
         } else if (this.language === 'DE') {
             this.selectedLanguage = 'german';
         }
-        // Ensure the main content is properly positioned
-        const mainContent = document.getElementById('mainContent');
-        if (mainContent) {
-            mainContent.classList.remove('mx-auto');
-        }
 
         if (conf.AutoConnect) {
             this.initRpConnection();
@@ -440,9 +437,11 @@ export default {
 <style scoped>
 
 #sidebar {
-    min-width: 200px;
+    width: 100%;
+    min-width: 150px;
     max-width: 600px;
     position: relative;
+    z-index: 999;
 }
 
 #sidebar-menu {
@@ -473,13 +472,21 @@ export default {
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light);
+    background-color: var(--primary-light) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
     background-color: var(--secondary-light);
     color: white !important;
+}
+
+@media screen and (max-width: 768px) {
+    .sidebar-item {
+        font-size: 0.8rem;
+        width: 2rem;
+        height: 2rem;
+    }
 }
 
 .resizer {
@@ -826,6 +833,22 @@ export default {
 
     .resizer {
         background-color: var(--border-light);
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .resizer {
+        display: none;
+    }
+
+    #sidebar-menu {
+        padding: 0.75rem;
+    }
+
+    .sidebar-item {
+        font-size: 1rem;
+        width: 2rem;
+        height: 2rem;
     }
 }
 
