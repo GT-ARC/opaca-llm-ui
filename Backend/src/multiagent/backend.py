@@ -18,7 +18,9 @@ from .prompts import (
     AGENT_PLANNER_PROMPT,
 )
 
-from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage
+from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage, ConfigParameter
+
+
 from .agents import (
     BaseAgent,
     OrchestratorAgent,
@@ -76,14 +78,59 @@ class MultiAgentBackend(OpacaLLMBackend):
         self.chat_history = ChatHistory()  # Initialize chat history
     
     @property
-    def default_config(self) -> Dict[str, Any]:
+    def name(self):
+        return self.NAME
+
+    @property
+    def config_schema(self) -> Dict[str, ConfigParameter]:
         return {
-            "model_config_name": "vllm",  # Model Config
-            "temperature": 0,
-            "max_rounds": 5,  # Maximum number of orchestration rounds
-            "max_iterations": 3,  # Maximum iterations per agent task
-            "use_worker_for_output": False,  # Whether to use worker model for output generation
-            "use_agent_planner": True  # Whether to use agent planner for function planning
+            # Which model to use for the orchestrator and worker agents
+            "model_config_name": ConfigParameter(
+                type="string", 
+                required=True, 
+                default="vllm", 
+                enum=["vllm", "vllm-qwen", "vllm-mixed", 
+                      "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
+                description="Which model to use for the orchestrator and worker agents"),
+            # Temperature for the orchestrator and worker agents
+            "temperature": ConfigParameter(
+                type="number", 
+                required=True, 
+                default=0.0, 
+                minimum=0.0, 
+                maximum=2.0,
+                enum=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
+                description="Temperature for the orchestrator and worker agents"),
+            # Maximum number of orchestration and worker rounds
+            "max_rounds": ConfigParameter(
+                type="integer", 
+                required=True, 
+                default=5, 
+                minimum=1, 
+                maximum=10,
+                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                description="Maximum number of orchestration and worker rounds"),
+            # Maximum number of re-iterations (retries after failed attempts)
+            "max_iterations": ConfigParameter(
+                type="integer", 
+                required=True, 
+                default=3, 
+                minimum=1, 
+                maximum=10,
+                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                description="Maximum number of re-iterations (retries after failed attempts)"),
+            # Whether to use the worker model for output generation
+            "use_worker_for_output": ConfigParameter(
+                type="boolean", 
+                required=True, 
+                default=False,
+                description="Whether to use the worker model for output generation"),
+            # Whether to use the planner agent or not
+            "use_agent_planner": ConfigParameter(
+                type="boolean", 
+                required=True, 
+                default=True,
+                description="Whether to use the planner agent or not"),
         }
     
     async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:

@@ -59,7 +59,7 @@ BACKENDS = {
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
     # multi-agent backend
-    "multi-agent": MultiAgentBackend(),
+    MultiAgentBackend.NAME: MultiAgentBackend(),
 }
 
 BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
