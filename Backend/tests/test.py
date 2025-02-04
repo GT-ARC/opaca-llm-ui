@@ -173,6 +173,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
 class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
 
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    container_ids = []
 
     def setUp(self):
         # Start the OPACA platform
@@ -183,7 +184,8 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
 
         print("Deploying OPACA containers for testing...")
         for name in test_containers:
-            requests.post(opaca_url + "/containers", json={"image": {"imageName": f"rkader2811/{name}"}})
+            response = requests.post(opaca_url + "/containers", json={"image": {"imageName": f"rkader2811/{name}"}})
+            self.container_ids.append(response.content.decode('ascii'))
             print(f"Deployed {name}!")
 
         print("Setup OPACA-LLM")
@@ -202,6 +204,13 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
     def tearDown(self):
         self.server_process.terminate()
         self.server_process.wait()
+        print(f'Tear down OPACA-LLM')
+        for container_id in self.container_ids:
+            requests.delete(opaca_url + f'/containers/{container_id}', json={})
+            print(f'Removed container {container_id}')
+        subprocess.run(["docker", "stop", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"])
+        print(f'Stopping OPACA platform')
+
 
     async def testDeployment(self):
         assert await benchmark_test(f'deployment-{self.file_name}', deployment_questions)
