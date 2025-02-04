@@ -14,84 +14,69 @@ from pydantic import BaseModel
 from Backend.src.models import LLMAgent
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
+from question_sets.deployment import deployment_questions
 
-BACKEND = "tool-llm-openai"             # Which backend is used
+#########################################
+###  Set the backend that is tested   ###
 
-tool_llm_config = {
-    "model": "gpt-4o-mini",             # Which model is used
-    "temperature": 0,
-    "use_agent_names": True,
-}
+BACKEND = "tool-llm-openai"
 
-rest_gpt_config = {
-    "slim_prompts": {                       # Use slim prompts -> cheaper
-        "planner": True,
-        "action_selector": True,
-        "evaluator": False
+#########################################
+### Change configuration if necessary ###
+
+BACKENDS = {
+    "simple-openai": {
+        "model": "gpt-4o-mini",
+        "temperature": 1.0,
+        "ask_policy": 0,
     },
-    "examples": {                           # How many examples are used per agent
-        "planner": False,
-        "action_selector": True,
-        "caller": True,
-        "evaluator": True
+    "simple-llama": {
+        "api-url": "http://10.0.64.101:11000",
+        "model": "gpt-4o-mini",
+        "temperature": 1.0,
+        "ask_policy": 0,
     },
-    "use_agent_names": True,
-    "temperature": 0,  # Temperature for models
-    "gpt-model": "gpt-4o-mini",
+    "rest-gpt-openai" : {
+        "slim_prompts": {
+            "planner": True,
+            "action_selector": True,
+            "evaluator": False
+        },
+        "examples": {
+            "planner": False,
+            "action_selector": True,
+            "caller": True,
+            "evaluator": True
+        },
+        "use_agent_names": True,
+        "temperature": 0,
+        "gpt-model": "gpt-4o-mini",
+    },
+    "tool-llm-openai": {
+        "model": "gpt-4o-mini",
+        "temperature": 0,
+        "use_agent_names": True,
+    },
+    "multi-agent": {
+        "model_config_name": "vllm",  # Model Config
+        "temperature": 0,
+        "max_rounds": 5,  # Maximum number of orchestration rounds
+        "max_iterations": 3,  # Maximum iterations per agent task
+        "use_worker_for_output": False,  # Whether to use worker model for output generation
+        "use_agent_planner": True  # Whether to use agent planner for function planning
+    }
 }
-
-orchestration_config = {
-    "model_config_name": "vllm",  # Model Config
-    "temperature": 0,
-    "max_rounds": 5,  # Maximum number of orchestration rounds
-    "max_iterations": 3,  # Maximum iterations per agent task
-    "use_worker_for_output": False,  # Whether to use worker model for output generation
-    "use_agent_planner": True  # Whether to use agent planner for function planning
-}
-
-# ATTENTION this config object should match the config object within the selected method
-CONFIG = tool_llm_config
+#########################################
+###     Change connection settings    ###
 
 opaca_url = "http://localhost:8000"
 llm_url = "http://localhost:3001"
 query_url = f"http://localhost:3001/{BACKEND}/query"
+
+#########################################
+
 session = requests.Session()
-
-question_set_deployment = [
-    {
-        "input": "What is the current weather condition in Berlin?",
-        "output": "Answer should include a hint for the current day, the temperature, the general condition, the precipitation, and humidity."
-    },
-    {
-        "input": "When is the next federal election in germany?",
-        "output": "Answer should give an exact date of the next election, which is the 23rd of February 2025."
-    },
-    {
-        "input": "Give me the contact details about someone from go-KI who knows about LLM.",
-        "output": "The answer should include the name of a person familiar with the LLM topic and include its phone number and email address."
-    },
-    {
-        "input": "Get me the current stock prices for Amazon, Apple and Microsoft. Also try to find out when these stocks had their all time high.",
-        "output": "The answer should include the current stock prices of all the three companies: Amazon, Apple, and Microsoft. Further, for each of the stocks, the answer should include the all time high value and the date when this value was reached."
-    },
-    {
-        "input": "Please summarize my latest 5 emails",
-        "output": "The answer should include an overview of exactly the last 5 emails."
-    },
-    {
-        "input": "I want you to give me the temperature data for each available sensor with an even id and give me the CO2 value for each sensor with an odd id.",
-        "output": "The answer should include a lot of well structured sensor data. Make sure that the temperature data should only be given for sensors with an even id, while the CO2 value should only be given for sensors with an odd id."
-    },
-    {
-        "input": "What is the Co2 value in the kitchen, and is that value considered normal? What ranges are considered dangerous?",
-        "output": "The answer should include the current Co2 value in the kitchen. The answer should also tell the user whether the received value lies in a normal range of Co2. Finally the answer should give an explanation including a range of values for Co2 levels that are considered dangerous."
-    },
-    {
-        "input": "Please plot the saved temperature data for the kitchen and show the plot to me.",
-        "output": "The answer should include an image file in markdown language, which is linking to the generated image file. The image should be directly shown within the message, meaning it should start with an exclamation mark (!). The answer should make it clear, that the displayed data concerns the captured temperature data of the kitchen room"
-    }
-]
-
+test_containers = ["smart-office", "warehouse", "music-platform", "calculator"]
 
 judge_llm = LLMAgent(
     name="Judge LLM",
@@ -174,7 +159,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
             # Write a summary of all tests
             f.write(f'-------------- Summary --------------\n')
             f.write(f'Used backend: {BACKEND}\n'
-                    f'Used config: {CONFIG}\n'
+                    f'Used config: {BACKENDS[BACKEND]}\n'
                     f'Total Execution time: {total_time}\n'
                     f'Avg Execution time per iteration: {np.average(np.array(execution_times) / np.array(iterations))}\n'
                     f'Helpful answers: {helpful_counter}/{len(question_set)}\n'
@@ -190,12 +175,23 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
 
     def setUp(self):
-        print("In setup")
+        # Start the OPACA platform
+        # The compose stack should have been started and exited previously...
+        print("Setup OPACA platform")
+        subprocess.run(["docker", "start", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"], check=True)
+        time.sleep(7)       # Wait to let OPACA platform start
+
+        print("Deploying OPACA containers for testing...")
+        for name in test_containers:
+            requests.post(opaca_url + "/containers", json={"image": {"imageName": f"rkader2811/{name}"}})
+            print(f"Deployed {name}!")
+
+        print("Setup OPACA-LLM")
         self.server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.dirname(os.getcwd()))
         time.sleep(5)       # Needs to be long enough to let the server start
         try:
             session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
-            session.put(llm_url + f'/{BACKEND}/config', json=CONFIG)
+            session.put(llm_url + f'/{BACKEND}/config', json=BACKENDS[BACKEND])
         except Exception as e:
             print(f'Unable to establish a connection: {str(e)}')
             self.server_process.terminate()
@@ -208,7 +204,7 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
         self.server_process.wait()
 
     async def testDeployment(self):
-        assert await benchmark_test(f'deployment-{self.file_name}', question_set_deployment)
+        assert await benchmark_test(f'deployment-{self.file_name}', deployment_questions)
 
     async def testSimpleQuestionSet(self):
         assert await benchmark_test(f'simple-{self.file_name}', simple_questions)
