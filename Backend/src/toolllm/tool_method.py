@@ -136,7 +136,8 @@ class ToolMethod(metaclass=ToolMethodRegistry):
                              "The results were {results}\n"
                              "Generate a response explaining the result to a user. Decide if the user request "
                              "requires further tools by outputting 'CONTINUE' or 'FINISHED' at the end of your "
-                             "response.",
+                             "response. If your response includes links to images, show the images directly "
+                             "to the user using markdown. NEVER generate any tools yourself.",
         )
 
     @abstractmethod
