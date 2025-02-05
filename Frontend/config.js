@@ -99,10 +99,10 @@ var config = {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
-                        {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
+                        {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
                         {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
                         {"question": "Get Germany's energy production mix from the first half of the year 2024 and create a pie chart from it.", "icon": "⚡"},
+                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
                     ]
                 }
             ],
@@ -165,10 +165,10 @@ var config = {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space.", "icon": "🌤️"},
-                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
+                        {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
                         {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
                         {"question": "Hole dir Deutschlands Strommix aus der ersten Hälfte des Jahres 2024 und erstelle von den Daten ein Kuchendiagramm.", "icon": "⚡"},
+                        {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
                     ]
                 }
             ],
