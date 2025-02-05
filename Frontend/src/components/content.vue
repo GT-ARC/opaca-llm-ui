@@ -126,7 +126,7 @@ export default {
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
             statusMessages: {}, // Track status messages by messageCount
-            accumulatedContent: ''
+            accumulatedContent: '',
             isSidebarActive: false,
         }
     },
