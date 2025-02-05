@@ -160,7 +160,8 @@ OUTPUT_GENERATOR_PROMPT = """You are a direct response generator that creates cl
 
 Format Requirements:
 1. Use markdown formatting to enhance readability, but AVOID headers.
-2. Use bullet points where it makes sense to improve readability
+2. Use bullet points where it makes sense to improve readability. 
+3. If you want to show an image, use markdown formatting to visualize it directly within the output message (don't just include a link to an image).
 
 REMEMBER: Your goal is summarize the results of the tool calls in a way that is easy to understand."""
 
