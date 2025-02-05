@@ -71,7 +71,6 @@ BACKENDS = {
 
 opaca_url = "http://localhost:8000"
 llm_url = "http://localhost:3001"
-query_url = f"http://localhost:3001/{BACKEND}/query"
 
 #########################################
 
@@ -122,7 +121,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]]) -> 
             for i, call in enumerate(question_set):
                 # Generate a response by the OPACA LLM
                 cur_time = time.time()
-                result = session.post(query_url, json={'user_query': call["input"], 'api_key': ""}).content
+                result = session.post(f'{llm_url}/{BACKEND}/query', json={'user_query': call["input"], 'api_key': ""}).content
                 run_time = time.time() - cur_time
 
                 # Load the results and evaluate them by the JudgeLLM
@@ -189,7 +188,7 @@ class TestOpacaLLM(unittest.IsolatedAsyncioTestCase):
             print(f"Deployed {name}!")
 
         print("Setup OPACA-LLM")
-        self.server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.dirname(os.getcwd()))
+        self.server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.join(os.path.dirname(os.getcwd()), "Backend"))
         time.sleep(7)       # Needs to be long enough to let the server start
         try:
             session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
