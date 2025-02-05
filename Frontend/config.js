@@ -45,6 +45,7 @@ var config = {
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
+
     translations:{
         GB: {
             name: "English",
@@ -55,13 +56,6 @@ var config = {
             unreachable: 'Please connect to a running OPACA platform.',
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
-            // Left in for now as a fallback for the sample questions
-            sampleQuestions: [
-                {"question": "How can you assist me?", "icon": "❓"}, 
-                {"question": "Please fetch and summarize my latest e-mails.", "icon": "✉️"}, 
-                {"question": "Please find a route from Munich to Berlin.", "icon": "🚗"},
-                {"question": "Please find me someone from Go-KI who knows about LLM.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
                     "header": "Task Automation",
@@ -100,7 +94,6 @@ var config = {
                         {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
                         {"question": "Open the shelf in which I can store a glass.", "icon": "🥃"},
                         {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
-                        {"question": "It is too noisy in the kitchen. Could you compare the noise level in the kitchen to the noise level in the co-working space?", "icon": "🔊"},
 
                     ]
                 },
@@ -108,10 +101,10 @@ var config = {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
+                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
                         {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
                         {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
                         {"question": "Get Germany's energy production mix from the first half of the year 2024 and create a pie chart from it.", "icon": "⚡"},
-                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
                     ]
                 }
             ],
@@ -130,13 +123,6 @@ var config = {
             unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
             unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
             none: 'Keine',
-            // Left in for now as a fallback for the sample questions
-            sampleQuestions: [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"}, 
-                {"question": "Bitte ruf meine letzen E-Mails ab und fasse sie zusammen.", "icon": "✉️"},
-                {"question": "Berechne eine Route von München nach Berlin.", "icon": "🚗"},
-                {"question": "Finde finde jemanden aus Go-KI der sich mit LLM auskennt.", "icon": "🧑"}
-            ],
             sidebarQuestions: [
                 {
                     "header": "Task Automation",
@@ -195,6 +181,7 @@ var config = {
         },
     },
 }
+
 
 function parseQueryParams() {
     const urlParams = {};

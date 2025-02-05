@@ -31,7 +31,7 @@ model_configs:
     orchestrator_backend_type: "openai"
     worker_backend_type: "openai"
 
-  "vllm":
+  "vllm-fast":
     orchestrator_model: "Mistral-Small-Instruct-INT4"
     worker_model: "Mistral-Small-Instruct"
     base_url: "http://10.20.0.224:8000/v1"
@@ -39,7 +39,7 @@ model_configs:
     orchestrator_backend_type: "vllm"
     worker_backend_type: "vllm"
   
-  "vllm-qwen":
+  "vllm":
     orchestrator_model: "Qwen25_32B_INT4"
     worker_model: "Mistral-Small-Instruct"
     base_url: "http://10.20.0.224:8001/v1"

@@ -327,6 +327,15 @@ class AgentPlanner(BaseAgent):
 - If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
 - If you need to retrieve phone numbers, always try to use email addresses where possible!
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
+        elif self.agent_name == "DataVisAgent":
+            remark = """\n\nIMPORTANT: 
+- THE VALUES FOR THE X AND Y AXIS MUST BE NUMERIC!
+- At the moment you cannot pass string labels for the x or y axis!
+- Since there can never be labels for the x-axis, you have to include information about which element in the chart belongs to which label.
+
+EXAMPLE: 
+- If the user asks for a visualization of temperature in kitchen and coworking space, the x values should be 0 and 1.
+- The title of this chart should be 'Temperature in kitchen (left) and coworking space (right)' or Temperature in kitchen (0) and coworking space (1)."""
         
         messages = [{
             "role": "system",
@@ -347,6 +356,7 @@ Remember:
 1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
 2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
 3. NEVER use placeholders - always use actual values.
+4. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
 
 {remark}"""
         }]
@@ -779,6 +789,15 @@ class WorkerAgent(BaseAgent):
 - If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
 - If you need to retrieve phone numbers, always try to use email addresses where possible!
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
+        elif self.agent_name == "DataVisAgent":
+            remark = """\n\nIMPORTANT: 
+- THE VALUES FOR THE X AND Y AXIS MUST BE NUMERIC!
+- At the moment you cannot pass string labels for the x or y axis!
+- Since there can never be labels for the x-axis, you have to include information about which element in the chart belongs to which label.
+
+EXAMPLE: 
+- If the user asks for a visualization of temperature in kitchen and coworking space, the x values should be 0 and 1.
+- The title of this chart should be 'Temperature in kitchen (left) and coworking space (right)' or Temperature in kitchen (0) and coworking space (1)."""
 
 
         try:
@@ -791,7 +810,14 @@ class WorkerAgent(BaseAgent):
                 )
             }, {
                 "role": "user",
-                "content": task_str + remark
+                "content": f"""\nSolve the following task with the tools available to you: 
+
+{task_str}
+
+Remember: 
+1. NEVER use placeholders - always use actual values.
+2. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
+{remark}"""
             }]
             
             # Log the input to LLM
