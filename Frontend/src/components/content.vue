@@ -5,7 +5,8 @@
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"/>
+                 @api-key-change="(newValue) => this.apiKey = newValue"
+                 @on-sidebar-toggle="this.onSidebarToggle"/>
 
         <!-- Recording Popup -->
         <RecordingPopup
@@ -17,7 +18,8 @@
         />
 
         <!-- Main Container: Chat Window, Text Input -->
-        <main id="mainContent" class="d-flex flex-column flex-grow-1">
+        <main id="mainContent" class="mx-auto"
+              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window -->
             <div class="container-fluid flex-grow-1 px-0" id="chat1">
@@ -35,30 +37,32 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
-                    <textarea id="textInput"
-                           :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
-                           class="form-control"
-                           rows="1"
-                           @input="autoResize"
-                           @keypress="textInputCallback"></textarea>
+                      <textarea id="textInput"
+                                v-model="textInput"
+                                :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
+                                class="form-control overflow-hidden"
+                                rows="1"
+                                @input="autoResize"
+                                @keypress="textInputCallback"></textarea>
 
+                    <!-- user has entered text into message box -> send button available -->
                     <button type="button"
+                            v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
                             :disabled="isBusy">
                         <i class="fa fa-paper-plane"/>
                     </button>
-
-                    <button v-if="voiceServerConnected"
-                            type="button"
+                    <button type="button"
+                            v-if="this.isSpeechRecognitionAvailable()"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
                             :disabled="isBusy">
                         <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
                         <i v-else class="fa fa-microphone"/>
                     </button>
-
                     <button type="button"
+                            v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
                             :disabled="isBusy">
@@ -70,7 +74,9 @@
             <!-- Simple Keyboard -->
             <SimpleKeyboard v-if="getConfig().ShowKeyboard"
                             @change="this.onChangeSimpleKeyboard" />
+
         </main>
+
     </div>
 
 </template>
@@ -84,6 +90,8 @@ import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 
+import { useDevice } from "../useIsMobile.js";
+
 export default {
     name: 'main-content',
     components: {
@@ -95,9 +103,14 @@ export default {
         backend: String,
         language: String,
     },
+    setup() {
+        const { isMobile, screenWidth } = useDevice()
+        return { isMobile, screenWidth };
+    },
     data() {
         return {
             apiKey: '',
+            textInput: '',
             recognition: null,
             lastMessage: null,
             messageCount: 0,
@@ -114,6 +127,7 @@ export default {
             voiceServerConnected: false,
             statusMessages: {}, // Track status messages by messageCount
             accumulatedContent: ''
+            isSidebarActive: false,
         }
     },
     watch: {
@@ -140,7 +154,7 @@ export default {
         },
 
         onChangeSimpleKeyboard(input) {
-            document.getElementById("textInput").value = input;
+            this.textInput = input;
         },
 
         async textInputCallback(event) {
@@ -151,9 +165,9 @@ export default {
         },
 
         async submitText() {
-            const userInput = document.getElementById("textInput").value;
-            document.getElementById("textInput").value = "";
-            if (userInput != null && userInput !== "") {
+            const userInput = this.textInput;
+            if (this.textInput) {
+                this.textInput = '';
                 await this.askChatGpt(userInput);
             }
         },
@@ -319,13 +333,13 @@ export default {
 
         handleTranscriptionComplete(text) {
             if (text) {
-                document.getElementById("textInput").value = text;
+                this.textInput = text;
             }
         },
 
         handleSendMessage(text) {
             if (text) {
-                document.getElementById("textInput").value = "";
+                this.textInput = "";
                 this.askChatGpt(text);
             }
         },
@@ -349,7 +363,10 @@ export default {
             document.getElementById("chat-container").innerHTML = '';
             this.$refs.sidebar.debugMessages = []
             this.abortSpeaking();
-            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            if (!this.isMobile) {
+                // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
+                this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
             this.isBusy = false;
@@ -375,7 +392,7 @@ export default {
                 <div class="chaticon">
                     <img src="/src/assets/Icons/ai.png" alt="AI">
                 </div>
-                <div id="chatBubble" class="p-3 ms-3 small mb-0 chatbubble chat-ai">
+                <div id="chatBubble" class="p-3 small mb-0 chatbubble chat-ai">
                     <div class="d-flex flex-row justify-content-start message-content">
                         <div id="loadingContainer"><div class="loader hidden"></div></div>
                         <div id="messageContainer" class="message-text">${formattedText}</div>
@@ -750,9 +767,39 @@ export default {
         updateSelectedCategory(category) {
             this.selectedCategory = category;
         },
+
+        updateWidth() {
+            this.windowWidth = window.innerWidth;
+        },
+
+        onSidebarToggle(key) {
+            this.isSidebarActive = (key !== 'none');
+        },
+
+        isMainContentVisible() {
+            return !(this.isMobile && this.isSidebarActive);
+        },
+
+        isSendAvailable() {
+            if (!this.isMobile) return true;
+            return this.textInput.length > 0;
+        },
+
+        isSpeechRecognitionAvailable() {
+            if (!this.voiceServerConnected) return false;
+            if (!this.isMobile) return true;
+            return this.textInput.length === 0;
+        },
+
+        isResetAvailable() {
+            if (!this.isMobile) return true;
+            return this.textInput.length === 0;
+        },
     },
 
     async mounted() {
+        window.addEventListener('resize', this.updateWidth);
+
         // Initialize the selected language from the sidebar if available
         if (this.$refs.sidebar) {
             this.selectedLanguage = this.$refs.sidebar.selectedLanguage;
@@ -760,7 +807,10 @@ export default {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-        this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+
+        if (!this.isMobile) {
+            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+        }
 
         this.updateSelectedCategory(this.getConfig().DefaultQuestions);
 
@@ -779,6 +829,10 @@ export default {
             this.voiceServerConnected = false;
         }
     },
+
+    beforeUnmount() {
+        window.removeEventListener('resize', this.updateWidth);
+    }
 }
 
 </script>
@@ -853,8 +907,8 @@ export default {
 
 #chat-container {
     width: 100%;
-    max-width: min(80%, 120ch);
-    padding: 1rem;
+    max-width: min(95%, 120ch);
+    padding: 0.25rem;
     margin: 0 auto;
     position: relative;
 }
@@ -866,11 +920,11 @@ export default {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: min(80%, 120ch);
+    width: min(95%, 120ch);
     height: 40px;
     pointer-events: none;
     z-index: 10;
-    max-width: calc(100% - 4rem); /* Account for padding */
+    max-width: calc(100% - 2rem); /* Account for padding */
 }
 
 /* Top fade */
@@ -937,16 +991,16 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(95%, 160ch);
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1rem;
 }
 
 .input-group .form-control {
     box-shadow: 0 0 0 1px var(--border-light);
     background-color: var(--background-light);
     color: var(--text-primary-light);
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 1rem;
     height: 3rem;
     min-height: 3rem;
     resize: none;
@@ -1005,6 +1059,7 @@ export default {
     margin-left: -2px; /* Adjust send icon position */
 }
 
+
 @keyframes bounce {
     0%, 100% {
         transform: translateY(0);
@@ -1027,7 +1082,7 @@ export default {
 
 .sample-questions {
     width: 100%;
-    max-width: min(80%, 120ch);
+    max-width: min(90%, 120ch);
     margin: 0 auto;
     padding: 1rem;
     display: flex;
@@ -1299,8 +1354,11 @@ export default {
 }
 
 /* Add margin to the first chat bubble */
+/* i dont know what this is supposed to do, but i dont think it works.
+    it just offsets the user-chat bubble down so it's lower than the user icon, which looks weird imo, especially since the same doesnt happen for the ai.
+    feel free to uncomment if this was the intention. */
 .chatbubble:first-child {
-    margin-top: 1rem;
+    /* margin-top: 1rem; */
 }
 
 /* Add margin to the last chat bubble */
@@ -1355,6 +1413,44 @@ export default {
     padding: 0.1rem 0;
     display: flex;
     align-items: center;
+}
+
+@media screen and (max-width: 768px) {
+    #mainContent {
+        display: none;
+    }
+
+    #mainContent::before {
+        background: none;
+        content: none;
+    }
+
+    #mainContent::after {
+        background: none;
+        content: none;
+    }
+
+    .input-container {
+        padding: 0.5rem;
+    }
+
+    .input-group {
+        padding: 0;
+    }
+
+    .chat-user {
+        margin-right: 0;
+    }
+
+    .chat-ai {
+        margin-left: 0;
+    }
+
+    .chaticon {
+        padding: 0.5rem;
+        margin: 0 0.25rem;
+    }
+
 }
 
 @keyframes move-glow {
