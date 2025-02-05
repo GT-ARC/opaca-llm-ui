@@ -66,7 +66,7 @@ class RestGPT:
         return ["result"]
 
     def _should_continue(self, iterations: int, time_elapsed: float) -> bool:
-        if self.max_iterations is not None and iterations >= self.max_iterations:
+        if self.max_iterations is not None and iterations > self.max_iterations:
             return False
         if (
                 self.max_execution_time is not None
@@ -111,7 +111,7 @@ class RestGPT:
         action_selector_history: List[Tuple[str, str, str]] = []
         eval_input = f'User query: {query}\n'
         final_answer = ''
-        iterations = 0
+        iterations = 1
         time_elapsed = 0.0
         start_time = time.time()
         response = inputs['response']
@@ -133,7 +133,7 @@ class RestGPT:
 
             plan = planner_response.content
             logger.info(f"Planner: {plan}")
-            eval_input += f'Plan step {iterations + 1}: {plan}\n'
+            eval_input += f'Plan step {iterations}: {plan}\n'
 
             if self._should_abort(plan):
                 final_answer = re.sub("STOP[^a-zA-Z0-9]*", "", plan).strip()
@@ -157,7 +157,7 @@ class RestGPT:
                 iterations += 1
                 continue
 
-            eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
+            eval_input += f'API call {iterations}: http://localhost:8000/invoke/{api_plan}\n'
 
             # CALLER
             c_time = time.time()
@@ -165,6 +165,7 @@ class RestGPT:
                                                          "actions": self.action_spec,
                                                          "config": config,
                                                          "client": inputs["client"],
+                                                         "iterations": iterations,
                                                          "websocket": inputs['websocket'],
                                                          })
             caller_response.execution_time = time.time() - c_time
@@ -172,7 +173,7 @@ class RestGPT:
             response.agent_messages.append(caller_response)
             logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
-            eval_input += f'API response {iterations + 1}: {execution_res}\n'
+            eval_input += f'API response {iterations}: {execution_res}\n'
             planner_history.append((plan, execution_res))
 
             # EVALUATOR

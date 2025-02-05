@@ -39,6 +39,8 @@ class RestGptBackend(OpacaLLMBackend):
 
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
+        total_time = time.time()
+
         # Set config
         config = session.config.get(
             RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
@@ -69,7 +71,6 @@ class RestGptBackend(OpacaLLMBackend):
         rest_gpt = RestGPT(self.llm, action_spec)
 
         try:
-            total_time = time.time()
             result = await rest_gpt.ainvoke({
                 "query": message,
                 "history": session.messages,
@@ -78,16 +79,16 @@ class RestGptBackend(OpacaLLMBackend):
                 "client": session.client,
                 "websocket": websocket,
             })
-            response.execution_time = time.time() - total_time
+            session.messages.append(HumanMessage(message))
+            session.messages.append(AIMessage(result.content))
+            result.error = response.error
+            result.execution_time = time.time() - total_time
+            return result
         except openai.AuthenticationError as e:
             response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                                 "api key and try again.")
             response.error = str(e)
             return response
-        session.messages.append(HumanMessage(message))
-        session.messages.append(AIMessage(result.content))
-
-        return response
 
     @property
     def config_schema(self) -> Dict[str, ConfigParameter]:
