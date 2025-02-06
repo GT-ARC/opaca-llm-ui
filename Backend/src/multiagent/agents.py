@@ -329,13 +329,7 @@ class AgentPlanner(BaseAgent):
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
-- THE VALUES FOR THE X AND Y AXIS MUST BE NUMERIC!
-- At the moment you cannot pass string labels for the x or y axis!
-- Since there can never be labels for the x-axis, you have to include information about which element in the chart belongs to which label.
-
-EXAMPLE: 
-- If the user asks for a visualization of temperature in kitchen and coworking space, the x values should be 0 and 1.
-- The title of this chart should be 'Temperature in kitchen (left) and coworking space (right)' or Temperature in kitchen (0) and coworking space (1)."""
+- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!"""
         
         messages = [{
             "role": "system",
@@ -584,7 +578,7 @@ class OverallEvaluator(BaseAgent):
                     "role": "user",
                     "content": json.dumps({
                         "original_request": original_request,
-                        "current_results": [r.dict() for r in current_results]
+                        "current_results": [r.model_dump() for r in current_results]
                     }, indent=2)
                 }
             ]
@@ -633,7 +627,7 @@ class OutputGenerator(BaseAgent):
             # Create input data for logging
             input_data = {
                 "original_request": original_request,
-                "execution_results": [r.dict() for r in execution_results]
+                "execution_results": [r.model_dump() for r in execution_results]
             }
             
             messages = [
@@ -709,7 +703,7 @@ class IterationAdvisor(BaseAgent):
                     "role": "user",
                     "content": json.dumps({
                         "original_request": original_request,
-                        "current_results": [r.dict() for r in current_results]
+                        "current_results": [r.model_dump() for r in current_results]
                     }, indent=2) + "\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), do not suggest retrying."
                 }
             ]
@@ -791,13 +785,7 @@ class WorkerAgent(BaseAgent):
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
-- THE VALUES FOR THE X AND Y AXIS MUST BE NUMERIC!
-- At the moment you cannot pass string labels for the x or y axis!
-- Since there can never be labels for the x-axis, you have to include information about which element in the chart belongs to which label.
-
-EXAMPLE: 
-- If the user asks for a visualization of temperature in kitchen and coworking space, the x values should be 0 and 1.
-- The title of this chart should be 'Temperature in kitchen (left) and coworking space (right)' or Temperature in kitchen (0) and coworking space (1)."""
+- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!"""
 
 
         try:

@@ -1,7 +1,6 @@
 import json
 import os
 import logging
-import asyncio
 import time
 from typing import Dict, Any, List, Union
 from pathlib import Path
@@ -9,13 +8,7 @@ from pathlib import Path
 from openai import AsyncOpenAI
 
 from .prompts import (
-    ORCHESTRATOR_SYSTEM_PROMPT,
-    AGENT_SYSTEM_PROMPT,
-    AGENT_EVALUATOR_PROMPT,
-    OVERALL_EVALUATOR_PROMPT,
-    OUTPUT_GENERATOR_PROMPT,
-    ITERATION_ADVISOR_PROMPT,
-    AGENT_PLANNER_PROMPT,
+    OUTPUT_GENERATOR_PROMPT
 )
 
 from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage, ConfigParameter
@@ -137,8 +130,6 @@ class MultiAgentBackend(OpacaLLMBackend):
         """Create OpenAI client with appropriate configuration"""
         try:
             config = session.config.get(self.NAME, self.default_config)
-            base_url = None
-            api_key = None
 
             # Determine base_url and api_key based on configuration
             if is_worker:
