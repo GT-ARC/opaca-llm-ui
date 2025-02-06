@@ -2,6 +2,7 @@ import argparse
 import datetime
 import json
 import os
+import socket
 from typing import Dict, List
 import logging
 
@@ -25,10 +26,10 @@ logger = logging.getLogger(__name__)
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
+    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--backend", type=str, default="tool-llm-openai", help="Specify the backend that should be used.")
-    parser.add_argument("-o", "--opaca-url", type=str, default="http://localhost:8000", help="Where the OPACA platform is running.")
-    parser.add_argument("-l", "--llm-url", type=str, default="http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
+    parser.add_argument("-o", "--opaca-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:8000", help="Where the OPACA platform is running.")
+    parser.add_argument("-l", "--llm-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -132,6 +133,8 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     helpful_counter = 0
     total_score = 0.0
 
+    logging.info(f'question set: {question_set}')
+
     with open(f'test_runs/{file_name}', 'a', encoding="utf-8") as f:
         try:
             for i, call in enumerate(question_set):
@@ -168,6 +171,8 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
                 iterations.append(result["iterations"])
                 number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
 
+                logging.info(f'Question {i+1}: {metric.quality}')
+
                 # Reset the message history
                 session.post(llm_url + "/reset", json={})
 
@@ -180,7 +185,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
                     f'Helpful answers: {helpful_counter}/{len(question_set)}\n'
                     f'Avg Score: {total_score / len(question_set)}\n')
         except Exception as e:
-            f.write(f'EXCEPTION: {str(e)}\n\n\n')
+            raise RuntimeError(str(e))
 
 
 def setUp(opaca_url: str, llm_url: str, backend: str):
@@ -203,31 +208,37 @@ def setUp(opaca_url: str, llm_url: str, backend: str):
         logging.info(f"Deployed {name}!")
 
     logging.info("Setup OPACA-LLM")
-    server_process = subprocess.Popen(['python', '-m', 'src.server'], cwd=os.path.join(os.path.dirname(os.getcwd()), "Backend"))
-    time.sleep(7)       # Needs to be long enough to let the server start
+    try:
+        subprocess.run(['docker', 'build', '-t', 'opaca-llm-test-backend', '../Backend'], check=True)
+        subprocess.run(['docker', 'run', '-d', '-p', '3001:3001', '--name', 'opaca-llm-test-backend', 'opaca-llm-test-backend'], check=True)
+        time.sleep(7)       # Needs to be long enough to let the server start
+    except Exception as e:
+        logging.error(f'Unable to start OPACA-LLM: {str(e)}')
+        tearDown(opaca_url, container_ids)
+        raise RuntimeError(str(e))
+
+    logging.info("Trying to connect to OPACA LLM...")
     try:
         # Make the OPACA-LLM connect with the OPACA platform and use the config defined in CONFIGS for the given method
         session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
         session.put(llm_url + f'/{backend}/config', json=CONFIGS[backend])
     except Exception as e:
         logging.error(f'Unable to establish a connection: {str(e)}')
-        server_process.terminate()
-        server_process.wait()
+        tearDown(opaca_url, container_ids)
         raise RuntimeError(str(e))
     logging.info("Setup finished")
-    return server_process, container_ids
+    return container_ids
 
 
-def tearDown(opaca_url, server_process, container_ids):
+def tearDown(opaca_url, container_ids):
     """
     Cleans up the testing environment. Deletes the created containers from the specified OPACA platform,
     """
-    server_process.terminate()
-    server_process.wait()
     logging.info(f'Tear down OPACA-LLM')
     for container_id in container_ids:
         requests.delete(opaca_url + f'/containers/{container_id}', json={})
         logging.info(f'Removed container {container_id}')
+    subprocess.run(['docker', 'rm', '-f', 'opaca-llm-test-backend'])
     subprocess.run(["docker", "stop", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"])
     logging.info(f'Stopping OPACA platform')
 
@@ -251,24 +262,32 @@ def main():
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
 
     # Setup the OPACA platform
-    opaca_llm_process, container_ids = setUp(opaca_url, llm_url, backend)
+    container_ids = setUp(opaca_url, llm_url, backend)
 
     # Run the specified scenario
-    match scenario:
-        case "simple":
-            benchmark_test(f'simple-{file_name}', simple_questions, llm_url, backend)
-        case "complex":
-            benchmark_test(f'complex-{file_name}', complex_questions, llm_url, backend)
-        case "deployment":
-            benchmark_test(f'deployment-{file_name}', deployment_questions, llm_url, backend)
-        case "all":
-            benchmark_test(f'simple-{file_name}', simple_questions, llm_url, backend)
-            benchmark_test(f'complex-{file_name}', complex_questions, llm_url, backend)
-            benchmark_test(f'deployment-{file_name}', deployment_questions, llm_url, backend)
-        case _:
-            logging.error(f"There is no such test scenario: '{scenario}'")
-            tearDown(opaca_url, opaca_llm_process, container_ids)
-            return
+    try:
+        match scenario:
+            case "simple":
+                questions = simple_questions
+            case "complex":
+                questions = complex_questions
+            case "deployment":
+                questions = deployment_questions
+            case "simple-complex":
+                questions = simple_questions
+                questions.extend(complex_questions)
+            case "all":
+                questions = simple_questions
+                questions.extend(complex_questions)
+                questions.extend(deployment_questions)
+            case _:
+                logging.error(f"There is no such test scenario: '{scenario}'")
+                tearDown(opaca_url, container_ids)
+                return
+        benchmark_test(f'{scenario}-{file_name}', questions, llm_url, backend)
+    except Exception as e:
+        logging.error(str(e))
+        tearDown(opaca_url, container_ids)
 
 
 if __name__ == "__main__":
