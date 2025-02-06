@@ -133,8 +133,6 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     helpful_counter = 0
     total_score = 0.0
 
-    logging.info(f'question set: {question_set}')
-
     with open(f'test_runs/{file_name}', 'a', encoding="utf-8") as f:
         try:
             for i, call in enumerate(question_set):
@@ -180,10 +178,10 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             f.write(f'-------------- Summary --------------\n')
             f.write(f'Used backend: {backend}\n'
                     f'Used config: {CONFIGS[backend]}\n'
-                    f'Total Execution time: {total_time}\n'
-                    f'Avg Execution time per iteration: {np.average(np.array(execution_times) / np.array(iterations))}\n'
                     f'Helpful answers: {helpful_counter}/{len(question_set)}\n'
-                    f'Avg Score: {total_score / len(question_set)}\n')
+                    f'Avg Score: {total_score / len(question_set)}\n'
+                    f'Total Execution time: {total_time}\n'
+                    f'Avg Execution time per iteration: {np.average(np.array(execution_times) / np.array(iterations))}\n')
         except Exception as e:
             raise RuntimeError(str(e))
 
@@ -209,8 +207,10 @@ def setUp(opaca_url: str, llm_url: str, backend: str):
 
     logging.info("Setup OPACA-LLM")
     try:
-        subprocess.run(['docker', 'build', '-t', 'opaca-llm-test-backend', '../Backend'], check=True)
-        subprocess.run(['docker', 'run', '-d', '-p', '3001:3001', '--name', 'opaca-llm-test-backend', 'opaca-llm-test-backend'], check=True)
+        # subprocess.run(['docker', 'build', '-t', 'opaca-llm-test-backend', '../Backend'], check=True)
+        subprocess.run(['docker', 'run', '-d',
+                        '-e', 'OPENAI_API_KEY', '-e', 'VLLM_BASE_URL', '-e', 'VLLM_API_KEY',
+                        '-p', '3001:3001', '--name', 'opaca-llm-test-backend', 'opaca-llm-test-backend'], check=True)
         time.sleep(7)       # Needs to be long enough to let the server start
     except Exception as e:
         logging.error(f'Unable to start OPACA-LLM: {str(e)}')
@@ -262,7 +262,11 @@ def main():
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
 
     # Setup the OPACA platform
-    container_ids = setUp(opaca_url, llm_url, backend)
+    try:
+        container_ids = setUp(opaca_url, llm_url, backend)
+    except Exception as e:
+        logging.error(f'Failed to setup the test environment: {str(e)}')
+        return
 
     # Run the specified scenario
     try:
@@ -287,7 +291,8 @@ def main():
         benchmark_test(f'{scenario}-{file_name}', questions, llm_url, backend)
     except Exception as e:
         logging.error(str(e))
-        tearDown(opaca_url, container_ids)
+
+    tearDown(opaca_url, container_ids)
 
 
 if __name__ == "__main__":
