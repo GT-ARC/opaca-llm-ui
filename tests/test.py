@@ -28,6 +28,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--backend", type=str, default="tool-llm-openai", help="Specify the backend that should be used.")
+    parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
     parser.add_argument("-o", "--opaca-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:8000", help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
@@ -61,7 +62,7 @@ CONFIGS = {
         },
         "use_agent_names": True,
         "temperature": 0,
-        "gpt-model": "gpt-4o-mini",
+        "model": "gpt-4o-mini",
     },
     "tool-llm-openai": {
         "model": "gpt-4o-mini",
@@ -186,7 +187,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             raise RuntimeError(str(e))
 
 
-def setUp(opaca_url: str, llm_url: str, backend: str):
+def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
     Also starts the OPACA-LLM. Returns the object for the server process of the OPACA-LLM (so it can be terminated
@@ -221,7 +222,12 @@ def setUp(opaca_url: str, llm_url: str, backend: str):
     try:
         # Make the OPACA-LLM connect with the OPACA platform and use the config defined in CONFIGS for the given method
         session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
-        session.put(llm_url + f'/{backend}/config', json=CONFIGS[backend])
+        config = CONFIGS[backend]
+        if backend == "multi-agent":
+            config["model_config_name"] = model
+        else:
+            config["model"] = model
+        session.put(llm_url + f'/{backend}/config', json=config)
     except Exception as e:
         logging.error(f'Unable to establish a connection: {str(e)}')
         tearDown(opaca_url, container_ids)
@@ -249,6 +255,7 @@ def main():
     # Extract arguments
     scenario = args.scenario
     backend = args.backend
+    model = args.model
     opaca_url = args.opaca_url
     llm_url = args.llm_url
     # Set the logging level
@@ -263,7 +270,7 @@ def main():
 
     # Setup the OPACA platform
     try:
-        container_ids = setUp(opaca_url, llm_url, backend)
+        container_ids = setUp(opaca_url, llm_url, backend, model)
     except Exception as e:
         logging.error(f'Failed to setup the test environment: {str(e)}')
         return

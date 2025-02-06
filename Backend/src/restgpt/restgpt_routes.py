@@ -124,7 +124,7 @@ class RestGptBackend(OpacaLLMBackend):
         else:
             config.update({
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),  # Temperature for models
-                "gpt-model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+                "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             })
 
         return config
