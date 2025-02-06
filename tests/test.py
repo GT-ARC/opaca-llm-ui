@@ -36,51 +36,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# Define the default configuration for every method
-CONFIGS = {
-    "simple-openai": {
-        "model": "gpt-4o-mini",
-        "temperature": 1.0,
-        "ask_policy": 0,
-    },
-    "simple-llama": {
-        "api-url": "http://10.0.64.101:11000",
-        "model": "gpt-4o-mini",
-        "temperature": 1.0,
-        "ask_policy": 0,
-    },
-    "rest-gpt-openai" : {
-        "slim_prompts": {
-            "planner": True,
-            "action_selector": True,
-            "evaluator": False
-        },
-        "examples": {
-            "planner": False,
-            "action_selector": True,
-            "caller": True,
-            "evaluator": True
-        },
-        "use_agent_names": True,
-        "temperature": 0,
-        "model": "gpt-4o-mini",
-    },
-    "tool-llm-openai": {
-        "model": "gpt-4o-mini",
-        "temperature": 0,
-        "use_agent_names": True,
-    },
-    "multi-agent": {
-        "model_config_name": "vllm",  # Model Config
-        "temperature": 0,
-        "max_rounds": 5,  # Maximum number of orchestration rounds
-        "max_iterations": 3,  # Maximum iterations per agent task
-        "use_worker_for_output": False,  # Whether to use worker model for output generation
-        "use_agent_planner": True  # Whether to use agent planner for function planning
-    }
-}
-
-
 # Create a unique session for requests
 session = requests.Session()
 
@@ -134,7 +89,7 @@ def invoke_judge(question, expected_answer, response):
     return response.choices[0].message.parsed
 
 
-def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, backend: str) -> None:
+def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, backend: str, config: Dict) -> None:
     """
     Test a scenario. Will iterate through every pair of (question, expected_answer) pairs. Will print
     its results to the given file_name in the same directory.
@@ -161,9 +116,9 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
 
                 # Load the results and evaluate them by the JudgeLLM
                 result = json.loads(result)
-                judge_response = invoke_judge(call["input"], call["output"], result["content"])
-                metric = judge_response.content
+                metric = invoke_judge(call["input"], call["output"], result["content"])
 
+                # TODO write as JSON
                 # Write the results into a file
                 f.write(f'-------------- Question {i+1} --------------\n'
                         f'Question: {call["input"]}\n'
@@ -196,7 +151,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             # TODO capture time per agent
             f.write(f'-------------- Summary --------------\n')
             f.write(f'Used backend: {backend}\n'
-                    f'Used config: {CONFIGS[backend]}\n'
+                    f'Used config: {config}\n'
                     f'Helpful answers: {helpful_counter}/{len(question_set)}\n'
                     f'Avg Score: {total_score / len(question_set)}\n'
                     f'Total Execution time: {total_time}\n'
@@ -211,11 +166,20 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
     Also starts the OPACA-LLM. Returns the object for the server process of the OPACA-LLM (so it can be terminated
     afterwards) and a list of the created container ids.
     """
+    # Login to docker registry
+    try:
+        subprocess.run(["docker", "login", "registry.gitlab.dai-labor.de"], check=True)
+    except Exception as e:
+        raise Exception("Unable to login to gitlab.dai-labor.de")
+
+    with open(".env", "w", encoding="utf-8") as f:
+        f.write(f'OPACA_URL="{opaca_url}"\n')
+
     # Start the OPACA platform
     # The compose stack should have been started and exited previously...
     logging.info("Setup OPACA platform")
-    subprocess.run(["docker", "start", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"], check=True)
-    time.sleep(10)       # Wait to let OPACA platform start
+    subprocess.run(["docker", "compose", "up", "-d", "--build"])
+    time.sleep(10)       # Wait to let OPACA platform start TODO instead try to get /info from platform
     container_ids = []
 
     logging.info("Deploying OPACA containers for testing...")
@@ -224,47 +188,38 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
         container_ids.append(response.content.decode('ascii'))
         logging.info(f"Deployed {name}!")
 
-    logging.info("Setup OPACA-LLM")
-    try:
-        # subprocess.run(['docker', 'build', '-t', 'opaca-llm-test-backend', '../Backend'], check=True)
-        subprocess.run(['docker', 'run', '-d',
-                        '-e', 'OPENAI_API_KEY', '-e', 'VLLM_BASE_URL', '-e', 'VLLM_API_KEY',
-                        '-p', '3001:3001', '--name', 'opaca-llm-test-backend', 'opaca-llm-test-backend'], check=True)
-        time.sleep(7)       # Needs to be long enough to let the server start
-    except Exception as e:
-        logging.error(f'Unable to start OPACA-LLM: {str(e)}')
-        tearDown(opaca_url, container_ids)
-        raise RuntimeError(str(e))
-
     logging.info("Trying to connect to OPACA LLM...")
     try:
         # Make the OPACA-LLM connect with the OPACA platform and use the config defined in CONFIGS for the given method
         session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
-        config = CONFIGS[backend]
+
+        # Get default config and overwrite the model
+        config = json.loads(session.get(llm_url + f'/{backend}/config').content)
         if backend == "multi-agent":
             config["model_config_name"] = model
         else:
             config["model"] = model
         session.put(llm_url + f'/{backend}/config', json=config)
+
     except Exception as e:
         logging.error(f'Unable to establish a connection: {str(e)}')
         tearDown(opaca_url, container_ids)
         raise RuntimeError(str(e))
     logging.info("Setup finished")
-    return container_ids
+    return container_ids, config
 
 
 def tearDown(opaca_url, container_ids):
     """
     Cleans up the testing environment. Deletes the created containers from the specified OPACA platform,
     """
-    logging.info(f'Tear down OPACA-LLM')
+    logging.info(f'Tearing down benchmark environment...')
     for container_id in container_ids:
         requests.delete(opaca_url + f'/containers/{container_id}', json={})
         logging.info(f'Removed container {container_id}')
-    subprocess.run(['docker', 'rm', '-f', 'opaca-llm-test-backend'])
-    subprocess.run(["docker", "stop", "opaca-platform-opaca-platform-userdb-1", "opaca-platform-opaca-platform-1"])
-    logging.info(f'Stopping OPACA platform')
+    subprocess.run(["docker", "compose", "rm", "-s", "-f"])
+    os.remove(".env")
+    logging.info(f'Teardown finished!')
 
 
 def main():
@@ -283,16 +238,12 @@ def main():
         stream=sys.stdout,
     )
 
-    # Check that the provided backend name exists
-    if not backend in CONFIGS.keys():
-        raise RuntimeError(f"Your selected backend ({backend}) does not exist!")
-
     # Create a unique file name for the results
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
 
     # Setup the OPACA platform
     try:
-        container_ids = setUp(opaca_url, llm_url, backend, model)
+        container_ids, config = setUp(opaca_url, llm_url, backend, model)
     except Exception as e:
         logging.error(f'Failed to setup the test environment: {str(e)}')
         return
@@ -317,7 +268,7 @@ def main():
                 logging.error(f"There is no such test scenario: '{scenario}'")
                 tearDown(opaca_url, container_ids)
                 return
-        benchmark_test(f'{scenario}-{file_name}', questions, llm_url, backend)
+        benchmark_test(f'{scenario}-{file_name}', questions, llm_url, backend, config)
     except Exception as e:
         logging.error(str(e))
 
