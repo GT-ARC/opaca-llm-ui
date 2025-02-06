@@ -3,17 +3,18 @@ import datetime
 import json
 import os
 import socket
+import sys
 from typing import Dict, List
 import logging
 
 import numpy as np
 import subprocess
 import time
+
 import requests
-from langchain_openai import ChatOpenAI
+from openai import OpenAI
 from pydantic import BaseModel
 
-from Backend.src.models import LLMAgent
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
 from question_sets.deployment import deployment_questions
@@ -88,26 +89,20 @@ session = requests.Session()
 test_containers = ["smart-office", "warehouse", "music-platform", "calculator"]
 
 
-# Create the JudgeLLM using gpt-4o
-judge_llm = LLMAgent(
-    name="Judge LLM",
-    llm=ChatOpenAI(
-            model="gpt-4o",
-            temperature=0,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
-        ),
-    system_prompt="Given a question, expected answer, and response. Evaluate if the response was helpful and "
+# Instruct the Judge LLM
+judge_system_message = ("Given a question, expected answer, and response. Evaluate if the response was helpful and "
                   "included the information that were mentioned in the expected answer. Helpful responses include "
                   "all the expected information. Unhelpful responses include errors or a missing vital parts "
                   "of the expected information. Decide the quality by using the keywords 'helpful' or 'unhelpful'. "
                   "Further give the answer a score between 0.0 and 1.0, in which 0.0 is very unhelpful with no "
                   "information and 1.0 is very helpful and every required information present."
-                  "Always provide a reason for your decision.",
-    input_variables=["question", "expected_answer", "response"],
-    message_template="A user had the following question: {question}\n\n"
-                     "The expected answer for this question: {expected_answer}\n\n"
-                     "This was the generated response: {response}"
-)
+                  "Always provide a reason for your decision.")
+
+
+# Message template for the Judge LLM
+judge_template = ("A user had the following question: {question}\n\n"
+                  "The expected answer for this question: {expected_answer}\n\n"
+                  "This was the generated response: {response}")
 
 
 # Structured output how the JudgeLLM should answer
@@ -115,6 +110,28 @@ class Metric(BaseModel):
     quality: str
     reason: str
     score: float
+
+
+# Method to invoke the Judge LLM
+def invoke_judge(question, expected_answer, response):
+    formatted_message = judge_template.format(
+        question=question, expected_answer=expected_answer, response=response
+    )
+
+    messages =  [
+        {"role": "system", "content": judge_system_message},
+        {"role": "user", "content": formatted_message}
+    ]
+
+    client = OpenAI()
+    response = client.beta.chat.completions.parse(
+        model="gpt-4o",
+        messages=messages,
+        temperature=0,
+        response_format=Metric
+    )
+
+    return response.choices[0].message.parsed
 
 
 def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, backend: str) -> None:
@@ -144,7 +161,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
 
                 # Load the results and evaluate them by the JudgeLLM
                 result = json.loads(result)
-                judge_response = judge_llm.invoke({"question": call["input"], "expected_answer": call["output"], "response": result["content"]}, response_format=Metric)
+                judge_response = invoke_judge(call["input"], call["output"], result["content"])
                 metric = judge_response.content
 
                 # Write the results into a file
@@ -176,6 +193,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
                 session.post(llm_url + "/reset", json={})
 
             # Write a summary of all tests
+            # TODO capture time per agent
             f.write(f'-------------- Summary --------------\n')
             f.write(f'Used backend: {backend}\n'
                     f'Used config: {CONFIGS[backend]}\n'
@@ -259,7 +277,11 @@ def main():
     opaca_url = args.opaca_url
     llm_url = args.llm_url
     # Set the logging level
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), logging.INFO),
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        stream=sys.stdout,
+    )
 
     # Check that the provided backend name exists
     if not backend in CONFIGS.keys():
