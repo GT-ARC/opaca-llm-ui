@@ -215,23 +215,29 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
         container_ids.append(response.content.decode('ascii'))
         logging.info(f"Deployed {name}!")
 
+    # Make the OPACA-LLM connect with the OPACA platform
     logging.info("Trying to connect to OPACA LLM...")
     try:
-        # Make the OPACA-LLM connect with the OPACA platform
         session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
+    except Exception as e:
+        logging.error(f'Unable to establish a connection to the OPACA platform: {str(e)}')
+        tearDown(opaca_url, container_ids)
+        raise RuntimeError(str(e))
 
-        # Get default config and overwrite the model
+
+    # Get default config and overwrite the model
+    try:
         config = json.loads(session.get(llm_url + f'/{backend}/config').content)
         if backend == "multi-agent":
             config["model_config_name"] = model
         else:
             config["model"] = model
         session.put(llm_url + f'/{backend}/config', json=config)
-
     except Exception as e:
-        logging.error(f'Unable to establish a connection: {str(e)}')
+        logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
         tearDown(opaca_url, container_ids)
         raise RuntimeError(str(e))
+
     logging.info("Setup finished")
     return container_ids, config
 
