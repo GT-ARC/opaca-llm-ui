@@ -42,7 +42,7 @@ session = requests.Session()
 
 
 # Define the test container names (should all be located in docker hub repo "rkader2811")
-test_containers = ["smart-office", "warehouse", "music-platform", "calculator"]
+test_containers = ["rkader2811/smart-office", "rkader2811/warehouse", "rkader2811/music-platform", "rkader2811/calculator"]
 
 
 # Instruct the Judge LLM
@@ -170,7 +170,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
 
         # Write results into json file
         with open(f'test_runs/{file_name}', "a") as f:
-            f.write(json.dumps(result_json) + "\n")
+            json.dump(result_json, f, indent=2)
 
     except Exception as e:
         raise RuntimeError(str(e))
@@ -212,7 +212,7 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
     container_ids = []
     logging.info("Deploying OPACA containers for testing...")
     for name in test_containers:
-        response = requests.post(opaca_url + "/containers", json={"image": {"imageName": f"rkader2811/{name}"}})
+        response = requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
         container_ids.append(response.content.decode('ascii'))
         logging.info(f"Deployed {name}!")
 
