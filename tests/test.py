@@ -205,7 +205,8 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
                 logging.info("OPACA platform and OPACA-LLM successfully started.")
                 break
         except requests.RequestException as e:
-            time.sleep(1)
+            pass    # OPACA platform not started yet
+        time.sleep(1)
 
     # Deploy containers to OPACA platform
     container_ids = []
@@ -227,7 +228,7 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
 
     # Get default config and overwrite the model
     try:
-        config = json.loads(session.get(llm_url + f'/{backend}/config').content)
+        config = json.loads(session.get(llm_url + f'/{backend}/config').content)["value"]
         if backend == "multi-agent":
             config["model_config_name"] = model
         else:
