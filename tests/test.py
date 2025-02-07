@@ -31,8 +31,8 @@ def parse_arguments():
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--backend", type=str, default="tool-llm-openai", help="Specify the backend that should be used.")
     parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
-    parser.add_argument("-o", "--opaca-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:8000", help="Where the OPACA platform is running.")
-    parser.add_argument("-l", "--llm-url", type=str, default=f"http://{socket.gethostbyname(socket.gethostname())}:3001", help="Where the OPACA-LLM Backend is running.")
+    parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
+    parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -271,6 +271,12 @@ def main():
         format="%(asctime)s - %(levelname)s - %(message)s",
         stream=sys.stdout,
     )
+
+    if opaca_url is None:
+        opaca_url = f"http://{socket.gethostbyname(socket.gethostname())}:8000"
+        if "127.0" in opaca_url:
+            logging.error("Unable to determine own IP. Please provide full OPACA Platform URL using -o parameter.")
+            exit(1)
 
     # Define question sets for scenarios
     questions = {
