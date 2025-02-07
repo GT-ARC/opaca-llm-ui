@@ -6,6 +6,7 @@ import socket
 import sys
 from typing import Dict, List
 import logging
+from collections import defaultdict
 
 import numpy as np
 import subprocess
@@ -99,65 +100,80 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     if not os.path.exists('test_runs'):
         os.makedirs('test_runs')
 
-    total_time = .0
     iterations = []
     execution_times = []
     number_tools = 0
     helpful_counter = 0
     total_score = 0.0
+    total_time = .0
+    agent_time = defaultdict(float)
+    total_server_time = time.time()
 
-    with open(f'test_runs/{file_name}', 'a', encoding="utf-8") as f:
-        try:
-            for i, call in enumerate(question_set):
-                # Generate a response by the OPACA LLM
-                cur_time = time.time()
-                result = session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}).content
-                run_time = time.time() - cur_time
+    result_json = {"questions": {}, "summary": {}}
 
-                # Load the results and evaluate them by the JudgeLLM
-                result = json.loads(result)
-                metric = invoke_judge(call["input"], call["output"], result["content"])
+    try:
+        for i, call in enumerate(question_set):
+            # Generate a response by the OPACA LLM
+            server_time = time.time()
+            result = session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}).content
+            server_time = time.time() - server_time
 
-                # TODO write as JSON
-                # Write the results into a file
-                f.write(f'-------------- Question {i+1} --------------\n'
-                        f'Question: {call["input"]}\n'
-                        f'Expected Answer Reference: {call["output"]}\n'
-                        f'Response: {result["content"]}\n'
-                        f'Iterations: {result["iterations"]}\n'
-                        f'Time: {result["execution_time"]}(Test side: {run_time})\n'
-                        f'Tools called: {sum(len(message["tools"]) for message in result["agent_messages"])}\n'
-                        f'Tools: {[message["tools"] for message in result["agent_messages"] if message["tools"]]}\n'
-                        f'Judge Results:\n'
-                        f'Quality: {metric.quality}\n'
-                        f'Score: {metric.score}\n'
-                        f'Reason: {metric.reason}\n\n\n')
+            # Load the results and evaluate them by the JudgeLLM
+            result = json.loads(result)
+            metric = invoke_judge(call["input"], call["output"], result["content"])
 
-                # Save the results in memory for a summary
-                if metric.quality == "helpful":
-                    helpful_counter += 1
-                total_score += metric.score
-                total_time += result["execution_time"]
-                execution_times.append(result["execution_time"])
-                iterations.append(result["iterations"])
-                number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
+            # Write the results into a file
+            result_json["questions"][f'question_{i+1}'] = {
+                "question": call["input"],
+                "expected_answer": call["output"],
+                "response": result["content"],
+                "iterations": result["iterations"],
+                "time": result["execution_time"],
+                "server_time": server_time,
+                "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
+                "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
+                "quality": metric.quality,
+                "score": metric.score,
+                "reason": metric.reason,
+            }
 
-                logging.info(f'Question {i+1}: {metric.quality}')
+            # Accumulate the time of each agent
+            for agent_message in result["agent_messages"]:
+                agent_time[f'{agent_message["agent"]}'] += agent_message["execution_time"]
 
-                # Reset the message history
-                session.post(llm_url + "/reset", json={})
+            # Save the results in memory for a summary
+            if metric.quality == "helpful":
+                helpful_counter += 1
+            total_score += metric.score
+            total_time += result["execution_time"]
+            execution_times.append(result["execution_time"])
+            iterations.append(result["iterations"])
+            number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
 
-            # Write a summary of all tests
-            # TODO capture time per agent
-            f.write(f'-------------- Summary --------------\n')
-            f.write(f'Used backend: {backend}\n'
-                    f'Used config: {config}\n'
-                    f'Helpful answers: {helpful_counter}/{len(question_set)}\n'
-                    f'Avg Score: {total_score / len(question_set)}\n'
-                    f'Total Execution time: {total_time}\n'
-                    f'Avg Execution time per iteration: {np.average(np.array(execution_times) / np.array(iterations))}\n')
-        except Exception as e:
-            raise RuntimeError(str(e))
+            logging.info(f'Question {i+1}: {metric.quality}')
+
+            # Reset the message history
+            session.post(llm_url + "/reset", json={})
+
+        # Write a summary of all tests
+        result_json["summary"] = {
+            "backend": backend,
+            "config": config,
+            "questions": len(question_set),
+            "helpful": helpful_counter,
+            "average_score": total_score / len(question_set),
+            "total_time": total_time,
+            "total_server_time": time.time() - total_server_time,
+            "agent_time": agent_time,
+            "avg_execution_time_per_iteration": np.average(np.array(execution_times) / np.array(iterations)),
+        }
+
+        # Write results into json file
+        with open(f'test_runs/{file_name}', "a") as f:
+            f.write(json.dumps(result_json) + "\n")
+
+    except Exception as e:
+        raise RuntimeError(str(e))
 
 
 def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
@@ -177,11 +193,22 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
 
     # Start the OPACA platform
     # The compose stack should have been started and exited previously...
-    logging.info("Setup OPACA platform")
+    logging.info("Starting OPACA platform and OPACA-LLM...")
     subprocess.run(["docker", "compose", "up", "-d", "--build"])
-    time.sleep(10)       # Wait to let OPACA platform start TODO instead try to get /info from platform
-    container_ids = []
 
+    # Wait until OPACA platform has started, set timeout to 15 seconds
+    start_time = time.time()
+    while time.time() - start_time < 15:
+        try:
+            response = session.get(opaca_url + "/info")
+            if response.status_code == 200:
+                logging.info("OPACA platform and OPACA-LLM successfully started.")
+                break
+        except requests.RequestException as e:
+            time.sleep(1)
+
+    # Deploy containers to OPACA platform
+    container_ids = []
     logging.info("Deploying OPACA containers for testing...")
     for name in test_containers:
         response = requests.post(opaca_url + "/containers", json={"image": {"imageName": f"rkader2811/{name}"}})
@@ -190,7 +217,7 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
 
     logging.info("Trying to connect to OPACA LLM...")
     try:
-        # Make the OPACA-LLM connect with the OPACA platform and use the config defined in CONFIGS for the given method
+        # Make the OPACA-LLM connect with the OPACA platform
         session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
 
         # Get default config and overwrite the model
@@ -238,8 +265,22 @@ def main():
         stream=sys.stdout,
     )
 
+    # Define question sets for scenarios
+    questions = {
+        "simple": simple_questions,
+        "complex": complex_questions,
+        "deployment": deployment_questions,
+        "simple-complex": simple_questions + complex_questions,
+        "all": simple_questions + complex_questions + deployment_questions,
+    }
+
+    # Check if selected scenario is available
+    if not scenario in questions.keys():
+        logging.error(f'The scenario "{scenario}" is not supported.')
+        return -1
+
     # Create a unique file name for the results
-    file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
@@ -248,30 +289,10 @@ def main():
         logging.error(f'Failed to setup the test environment: {str(e)}')
         return
 
-    # Run the specified scenario
-    try:
-        match scenario:
-            case "simple":
-                questions = simple_questions
-            case "complex":
-                questions = complex_questions
-            case "deployment":
-                questions = deployment_questions
-            case "simple-complex":
-                questions = simple_questions
-                questions.extend(complex_questions)
-            case "all":
-                questions = simple_questions
-                questions.extend(complex_questions)
-                questions.extend(deployment_questions)
-            case _:
-                logging.error(f"There is no such test scenario: '{scenario}'")
-                tearDown(opaca_url, container_ids)
-                return
-        benchmark_test(f'{scenario}-{file_name}', questions, llm_url, backend, config)
-    except Exception as e:
-        logging.error(str(e))
+    # Run the benchmark test
+    benchmark_test(f'{scenario}-{file_name}', questions[scenario], llm_url, backend, config)
 
+    # Cleanup the test environment
     tearDown(opaca_url, container_ids)
 
 
