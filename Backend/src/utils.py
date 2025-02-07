@@ -357,7 +357,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
                 for k1, v1 in value.items():
                     if k1 not in config_param["default"].keys():
                         raise HTTPException(400, f'No option named "{k1}" was found!')
-                    validate_config_input({k1: v1}, {k1: config_param["default"][k1]})
+                    validate_config_input({k1: v1}, {k1: ConfigParameter.model_validate(config_param["default"][k1])})
         elif config_param["type"] == "null" and value is not None:
             raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
 

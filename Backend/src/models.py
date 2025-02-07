@@ -202,6 +202,41 @@ class LLMAgent:
         self.message_template = kwargs.get('message_template', '')
         self.tools = kwargs.get('tools', [])
 
+    def invoke(self, inputs: Dict[str, Any], response_format: Any = None):
+        exec_time = time.time()
+        prompt = self._build_prompt(
+            system_prompt=self.system_prompt,
+            examples=self.examples,
+            input_variables=self.input_variables,
+            message_template=self.message_template,
+        )
+
+        agent_message = AgentMessage(
+            agent=self.name,
+            content='',
+            tools=[],
+        )
+
+        if response_format:
+            chain = prompt | (
+                self.llm.bind_tools(tools=self.tools) if len(self.tools) > 0 else self.llm).with_structured_output(
+                response_format)
+        else:
+            chain = prompt | (self.llm.bind_tools(tools=self.tools) if len(self.tools) > 0 else self.llm)
+
+        result = chain.invoke(inputs, config=inputs.get('config', {}))
+
+        # Check if the response type matches the expected AIMessage
+        if isinstance(result, AIMessage):
+            agent_message.response_metadata = result.response_metadata.get("token_usage", {})
+            agent_message.tools = result.tool_calls
+            agent_message.content = result.content
+        else:
+            agent_message.content = result
+        agent_message.execution_time = time.time() - exec_time
+
+        return agent_message
+
     async def ainvoke(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
         exec_time = time.time()
         prompt = self._build_prompt(

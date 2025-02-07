@@ -1,3 +1,5 @@
+import time
+
 import openai
 import json
 import httpx
@@ -50,6 +52,7 @@ class SimpleBackend(OpacaLLMBackend):
         self.config = self.default_config()
 
     async def query(self, message: str, session: SessionData) -> Response:
+        exec_time = time.time()
         print("QUERY", message)
         result = Response(query=message)
 
@@ -68,6 +71,7 @@ class SimpleBackend(OpacaLLMBackend):
             result.iterations += 1
             response = await self._query_internal(session.api_key, session)
             self.messages.append({"role": "assistant", "content": response})
+            result.agent_messages.append(AgentMessage(agent="assistant", content=response))
 
             print("RESPONSE:", repr(response))
             try:
@@ -79,6 +83,13 @@ class SimpleBackend(OpacaLLMBackend):
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
+                result.agent_messages.append(AgentMessage(
+                    agent="system",
+                    content=response,
+                    tools=[{"id": result.iterations,
+                            "name": f'{d["agentId"]}--{d["action"]}',
+                            "args": d["params"],
+                            "result": action_result}]))
             except json.JSONDecodeError as e:
                 print("Not JSON", type(e), e)
                 break
@@ -86,12 +97,13 @@ class SimpleBackend(OpacaLLMBackend):
                 print("ERROR", type(e), e)
                 response = f"There was an error: {e}"
                 self.messages.append({"role": "system", "content": response})
+                result.agent_messages.append(AgentMessage(agent="system", content=response))
                 result.error = str(e)
                 break
 
         result.content = response
-        result.agent_messages = [AgentMessage(agent=msg["role"], content=msg["content"]) for msg in self.messages[last_msg:]]
         session.messages.extend([message_to_class(msg) for msg in self.messages[last_msg:]])
+        result.execution_time = time.time() - exec_time
         return result
 
     @property

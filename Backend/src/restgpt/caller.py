@@ -91,5 +91,15 @@ class Caller(LLMAgent):
         self.message_template = ("API Call: {api_call}\nDescription: {description}\n" 
                                  "Parameter: {params}\nResult: {response}")
 
-        return await super().ainvoke({"api_call": action_name, "description": description,
+        result = await super().ainvoke({"api_call": action_name, "description": description,
                                       "params": params, "response": response}, inputs["websocket"])
+
+        return AgentMessage(
+            agent="Caller",
+            content=result.content,
+            tools=[{"id": inputs["iterations"],
+                    "name": action_name,
+                    "args": params,
+                    "result": response}],
+            response_metadata=result.response_metadata,
+        )
