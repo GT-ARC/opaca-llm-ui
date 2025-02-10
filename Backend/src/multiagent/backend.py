@@ -76,7 +76,7 @@ class MultiAgentBackend(OpacaLLMBackend):
             self.agents_data = json.load(f)
         
         # Initialize logging settings
-        self.log_to_file = True
+        self.log_to_file = False
         self.log_file = "agents.log"
         
         # Clear the log file at startup
@@ -507,7 +507,8 @@ Continue with the task using these results."""
             ))
             
             # Log initial user message
-            self._log_non_llm_interaction("User", message)
+            if self.log_to_file:
+                self._log_non_llm_interaction("User", message)
             
             # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config)
@@ -909,45 +910,6 @@ Please address these specific improvements:
         """Disable logging to file"""
         self.log_to_file = False
         self.log_file = None
-
-    def _log_interaction(self, agent: str, input_content: str = None, output_content: str = None, system_prompt: str = None, include_prompts: bool = False):
-        """Log an agent's interaction to the current session log"""
-        # Create a unique identifier for this interaction
-        interaction_id = f"{agent}_{hash(str(input_content))}{hash(str(output_content))}"
-        
-        # Skip if this exact interaction was already logged
-        if interaction_id in self.logged_interactions:
-            return
-        
-        self.logged_interactions.add(interaction_id)
-        
-        # Only add agent header if this is a new interaction (has input or system prompt)
-        if input_content is not None or (include_prompts and system_prompt):
-            log_entry = f"\n{'=' * 35} {agent} {'=' * 35}\n\n"
-        else:
-            log_entry = ""  # No header for output-only entries
-        
-        if include_prompts and system_prompt:
-            log_entry += f"{'-' * 35} System Prompt {'-' * 35}\n\n"
-            log_entry += f"{system_prompt}\n\n\n\n"
-        
-        if input_content is not None:
-            log_entry += f"{'-' * 35} Input {'-' * 35}\n\n"
-            log_entry += f"{input_content}\n\n\n\n"
-        
-        if output_content is not None:
-            log_entry += f"{'-' * 35} Output {'-' * 35}\n\n"
-            log_entry += f"{output_content}\n\n\n\n"
-        
-        self.current_session_log.append(log_entry)
-        
-        # Write to file if enabled
-        if self.log_to_file and self.log_file:
-            try:
-                with open(self.log_file, 'a') as f:
-                    f.write(log_entry)
-            except Exception as e:
-                self.logger.error(f"Error writing to log file: {str(e)}")
 
     def _save_session_log(self):
         """Save the complete session log to file if logging is enabled"""

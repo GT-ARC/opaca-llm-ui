@@ -37,36 +37,38 @@ class BaseAgent:
     def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
         """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
         try:
-            with open(self.log_file, 'a') as f:
-                # Write agent header with more context for evaluators
-                if "Evaluator" in agent_name:
-                    f.write(f"\n{'=' * 35} {agent_name} Evaluation {'=' * 35}\n\n")
-                else:
-                    f.write(f"\n{'=' * 35} {agent_name} LLM Call {'=' * 35}\n\n")
+            if self.log_to_file:
+                with open(self.log_file, 'a') as f:
+                    # Write agent header with more context for evaluators
+                    if "Evaluator" in agent_name:
+                        f.write(f"\n{'=' * 35} {agent_name} Evaluation {'=' * 35}\n\n")
+                    else:
+                        f.write(f"\n{'=' * 35} {agent_name} LLM Call {'=' * 35}\n\n")
                 
-                # Write messages in order
-                for msg in messages:
-                    role = msg["role"].upper()
-                    f.write(f"{'-' * 35} {role} MESSAGE {'-' * 35}\n\n")
-                    f.write(f"{msg['content']}\n\n")
+                    # Write messages in order
+                    for msg in messages:
+                        role = msg["role"].upper()
+                        f.write(f"{'-' * 35} {role} MESSAGE {'-' * 35}\n\n")
+                        f.write(f"{msg['content']}\n\n")
 
-                    if role == "USER":
-                        if output_structure:
-                            f.write(f"\n\n{'-' * 5} Expected Response Format {'-' * 5}\n\n")
-                            f.write(f"{output_structure}\n\n\n")
+                        if role == "USER":
+                            if output_structure:
+                                f.write(f"\n\n{'-' * 5} Expected Response Format {'-' * 5}\n\n")
+                                f.write(f"{output_structure}\n\n\n")
                 
-                # Write response with context for evaluators
-                if "Evaluator" in agent_name:
-                    f.write(f"{'-' * 35} EVALUATION RESULT {'-' * 35}\n\n")
-                else:
-                    f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
-                f.write(f"{response_content}\n\n\n")
+                    # Write response with context for evaluators
+                    if "Evaluator" in agent_name:
+                        f.write(f"{'-' * 35} EVALUATION RESULT {'-' * 35}\n\n")
+                    else:
+                        f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
+                    f.write(f"{response_content}\n\n\n")
+                    
+                    # Write separator
+                    f.write(f"{'=' * 90}\n\n")
 
                 # Log the message to the logger in debug mode
                 self.logger.debug(f"=== [{agent_name}] - [LLM RESPONSE]=== \n Message: {response_content}\n\n")
-                
-                # Write separator
-                f.write(f"{'=' * 90}\n\n")
+
         except Exception as e:
             self.logger.error(f"Error writing to log file: {str(e)}")
 
