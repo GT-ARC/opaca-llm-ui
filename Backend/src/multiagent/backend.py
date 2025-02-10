@@ -185,10 +185,7 @@ class MultiAgentBackend(OpacaLLMBackend):
         """Handle follow-up questions by sending them to the user"""
         if websocket:
             # Send the follow-up question as an agent message with role 'assistant'
-            await websocket.send_json(AgentMessage(
-                agent="assistant",
-                content=f"I need some additional information to help you better:\n\n{follow_up_question}"
-            ).model_dump_json())
+            await send_to_websocket(websocket, "assistant", f"I need some additional information to help you better:\n\n{follow_up_question}", 0.0)
             
             # Wait for user response
             response = await websocket.receive_text()
@@ -232,12 +229,7 @@ class MultiAgentBackend(OpacaLLMBackend):
             
             # Create planner if enabled
             if self._parse_bool_config(config.get("use_agent_planner", True)):
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="AgentPlanner",
-                        content=f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n", 0.0)
                 
                 planner = AgentPlanner(
                     client=orchestrator_client,
@@ -252,80 +244,38 @@ class MultiAgentBackend(OpacaLLMBackend):
                 plan = await planner.create_plan(task, previous_results=all_results)
                 
                 # Send plan via websocket if needed
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="AgentPlanner",
-                        content=f"Generated plan:\n{json.dumps(plan.dict(), indent=2)}\n\n",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "AgentPlanner", f"Generated plan:\n{json.dumps(plan.model_dump(), indent=2)}\n\n", 0.0)
 
-                    await websocket.send_json(AgentMessage(
-                        agent="WorkerAgent",
-                        content=f"Executing function calls.\n\n",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n", 0.0)
                 
                 # Execute task with planning
                 result = await planner.execute_task(task, existing_plan=plan)
                 
                 # Send only tool calls and results via websocket
-                if websocket:
-                    if result.tool_calls:
-                        await websocket.send_json(AgentMessage(
-                            agent=f"WorkerAgent",
-                            content=f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}",
-                            execution_time=0.0
-                        ).model_dump_json())
-                    
-                    if result.tool_results:
-                        await websocket.send_json(AgentMessage(
-                            agent="WorkerAgent",
-                            content=f"Tool results:\n{json.dumps(result.tool_results, indent=2)}",
-                            execution_time=0.0
-                        ).model_dump_json())
+                if result.tool_calls:
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}", 0.0)
+                
+                if result.tool_results:
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", 0.0)
             else:
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="WorkerAgent",
-                        content=f"Executing function calls.\n\n",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n", 0.0)
                 # Execute task directly
                 result = await agent.execute_task(task)
                 
                 # Send only tool calls and results via websocket
-                if websocket:
-                    if result.tool_calls:
-                        await websocket.send_json(AgentMessage(
-                            agent=f"WorkerAgent",
-                            content=f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}",
-                            execution_time=0.0
-                        ).model_dump_json())
-                    
-                    if result.tool_results:
-                        await websocket.send_json(AgentMessage(
-                            agent="WorkerAgent",
-                            content=f"Tool results:\n{json.dumps(result.tool_results, indent=2)}",
-                            execution_time=0.0
-                        ).model_dump_json())
+                if result.tool_calls:
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}", 0.0)
+                
+                if result.tool_results:
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", 0.0)
             
             # Now evaluate the result after we have it
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="AgentEvaluator",
-                    content=f"Evaluating {task.agent_name}'s task completion...",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...", 0.0)
             
             evaluation = await agent_evaluator.evaluate(task_str, result)
             
             # Send evaluation results via websocket
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="AgentEvaluator",
-                    content=f"Evaluation result for {task.agent_name}: {evaluation}",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}", 0.0)
             
             # If evaluation indicates we need to retry, do so
             if evaluation == AgentEvaluation.REITERATE:
@@ -337,12 +287,7 @@ Tool results: {json.dumps(result.tool_results, indent=2)}
 
 Continue with the task using these results."""
                 
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="WorkerAgent",
-                        content=f"Retrying task...",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "WorkerAgent", f"Retrying task...", 0.0)
                 
                 # Execute retry
                 retry_result = await agent.execute_task(retry_task)
@@ -351,29 +296,6 @@ Continue with the task using these results."""
             results.append(result)
         
         return results
-
-    async def _send_results_to_websocket(self, results: List[AgentResult], websocket) -> None:
-        """Send execution results to websocket"""
-        for result in results:
-            await websocket.send_json(AgentMessage(
-                agent="WorkerAgent",
-                content=f"Task execution results:\n{result.output}",
-                execution_time=0.0
-            ).model_dump_json())
-            
-            if result.tool_calls:
-                await websocket.send_json(AgentMessage(
-                    agent=f"WorkerAgent",
-                    content=f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}",
-                    execution_time=0.0
-                ).model_dump_json())
-            
-            if result.tool_results:
-                await websocket.send_json(AgentMessage(
-                    agent="WorkerAgent",
-                    content=f"Tool results:\n{json.dumps(result.tool_results, indent=2)}",
-                    execution_time=0.0
-                ).model_dump_json())
 
     def _parse_bool_config(self, value: Any) -> bool:
         """Parse a configuration value as a boolean, handling various input types."""
@@ -404,12 +326,7 @@ Continue with the task using these results."""
             # Execute task with or without planner
             if use_agent_planner:
                 # Send planning phase status
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="AgentPlanner",
-                        content=f"Planning function calls for {agent_name}'s task...",
-                        execution_time=0.0
-                    ).model_dump_json())
+                await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {agent_name}'s task...", 0.0)
                 
                 # Create agent-specific planner
                 planner = AgentPlanner(
@@ -427,46 +344,23 @@ Continue with the task using these results."""
                 result = await agent.execute_task(current_task)
             
             # Send results via websocket
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="WorkerAgent",
-                    content=f"Task execution results:\n{result.output}",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "WorkerAgent", f"Task execution results:\n{result.output}", 0.0)
                 
-                if result.tool_calls:
-                    tool_calls_str = json.dumps(result.tool_calls, indent=2)
-                    await websocket.send_json(AgentMessage(
-                        agent="WorkerAgent",
-                        content=f"Tool calls:\n{tool_calls_str}",
-                        execution_time=0.0
-                    ).model_dump_json())
-                
-                if result.tool_results:
-                    tool_results_str = json.dumps(result.tool_results, indent=2)
-                    await websocket.send_json(AgentMessage(
-                        agent="WorkerAgent",
-                        content=f"Tool results:\n{tool_results_str}",
-                        execution_time=0.0
-                    ).model_dump_json())
+            if result.tool_calls:
+                tool_calls_str = json.dumps(result.tool_calls, indent=2)
+                await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{tool_calls_str}", 0.0)
+            
+            if result.tool_results:
+                tool_results_str = json.dumps(result.tool_results, indent=2)
+                await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{tool_results_str}", 0.0)
             
             # Evaluate result
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="AgentEvaluator",
-                    content=f"Evaluating {agent_name}'s task completion...",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {agent_name}'s task completion...", 0.0)
             
             evaluation = await agent_evaluator.evaluate(task_str, result)
             
             # Send evaluation results via websocket
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="AgentEvaluator",
-                    content=f"Evaluation result for {agent_name}: {evaluation}",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {agent_name}: {evaluation}", 0.0)
             
             if evaluation == AgentEvaluation.FINISHED:
                 return result
@@ -481,12 +375,8 @@ Continue with the task using these results."""
             
             iterations += 1
             
-            if websocket and iterations < config["max_iterations"]:
-                await websocket.send_json(AgentMessage(
-                    agent="WorkerAgent",
-                    content=f"Agent {agent_name} starting new iteration...",
-                    execution_time=0.0
-                ).model_dump_json())
+            if iterations < config["max_iterations"]:
+                await send_to_websocket(websocket, "WorkerAgent", f"Agent {agent_name} starting new iteration...", 0.0)
         
         # If we reach here, we've exhausted all iterations
         return result
@@ -524,11 +414,7 @@ Continue with the task using these results."""
             response = Response(query=message)
             
             # Send initial waiting message
-            if websocket:
-                await websocket.send_json({
-                    "agent": "preparing",
-                    "content": "Initializing the OPACA AI Agents"
-                })
+            await send_to_websocket(websocket, "preparing", "Initializing the OPACA AI Agents", 0.0)
             
             # Get simplified agent summaries for the orchestrator
             agent_summaries = {
@@ -574,36 +460,19 @@ Continue with the task using these results."""
             
             while rounds < config["max_rounds"]:
                 # Get execution plan from orchestrator
-                if websocket:
-                    await websocket.send_json({
-                        "agent": "Planning",
-                        "content": "Creating detailed execution plan..."
-                    })
+                await send_to_websocket(websocket, "Planning", "Creating detailed execution plan...", 0.0)
                 
                 plan = await orchestrator.create_execution_plan(message)
                 
-                # Send orchestrator's plan via websocket
-                if websocket:
-                    # First send the thinking process
-                    await websocket.send_json(AgentMessage(
-                        agent="Orchestrator",
-                        content=f"Thinking process:\n{plan.thinking}",
-                        execution_time=0.0
-                    ).model_dump_json())
-                    
-                    # Then send the tasks
-                    await websocket.send_json(AgentMessage(
-                        agent="Orchestrator",
-                        content=f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.dict() for task in plan.tasks], indent=2)}\n",
-                        execution_time=0.0
-                    ).model_dump_json())
-                    
-                    # Mark planning phase complete
-                    await websocket.send_json(AgentMessage(
-                        agent="Orchestrator",
-                        content="Execution plan created ✓\n\n",
-                        execution_time=0.0
-                    ).model_dump_json())
+
+                # First send the thinking process
+                await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}", 0.0)
+                
+                # Then send the tasks
+                await send_to_websocket(websocket, "Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.dict() for task in plan.tasks], indent=2)}\n", 0.0)
+                
+                # Mark planning phase complete
+                await send_to_websocket(websocket, "Orchestrator", "Execution plan created ✓\n\n", 0.0)
                 
                 # Handle orchestrator follow-up questions
                 if plan.needs_follow_up and plan.follow_up_question:
@@ -686,12 +555,7 @@ Continue with the task using these results."""
                 
                 # Execute each round
                 for round_num in sorted(tasks_by_round.keys()):
-                    if websocket:
-                        await websocket.send_json(AgentMessage(
-                            agent="Orchestrator",
-                            content=f"Starting execution round {round_num}",
-                            execution_time=0.0
-                        ).model_dump_json())
+                    await send_to_websocket(websocket, "Orchestrator", f"Starting execution round {round_num}", 0.0)
                     
                     round_results = await self._execute_round(
                         tasks_by_round[round_num],
@@ -703,52 +567,27 @@ Continue with the task using these results."""
                     )
                     
                     all_results.extend(round_results)
-                
+
+                await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation...", 0.0)
                 # Evaluate overall progress
                 evaluation = await overall_evaluator.evaluate(
                     f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
                     all_results
                 )
-                
-                if websocket:
-                    await websocket.send_json(AgentMessage(
-                        agent="OverallEvaluator",
-                        content="Overall evaluation...",
-                        execution_time=0.0
-                    ).model_dump_json())
 
-                    await websocket.send_json(AgentMessage(
-                        agent="OverallEvaluator",
-                        content=f"Overall evaluation result: {evaluation}",
-                        execution_time=0.0
-                    ).model_dump_json())
-                    
-                    await websocket.send_json(AgentMessage(
-                        agent="OverallEvaluator",
-                        content="Overall evaluation complete ✓",
-                        execution_time=0.0
-                    ).model_dump_json())
-                
+                await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}", 0.0)
+                await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation complete ✓", 0.0)
+                            
                 if evaluation == OverallEvaluation.REITERATE:
                     # Get iteration advice before continuing
-                    if websocket:
-                        await websocket.send_json(AgentMessage(
-                            agent="IterationAdvisor",
-                            content="Analyzing results and preparing advice for next iteration...",
-                            execution_time=0.0
-                        ).model_dump_json())
+                    await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...", 0.0)
                     
                     advice = await iteration_advisor.get_advice(
                         f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. Only suggest retrying if CRITICAL information is completely missing from the results.",
                         all_results
                     )
                     
-                    if websocket:
-                        await websocket.send_json(AgentMessage(
-                            agent="IterationAdvisor",
-                            content=f"Iteration Advice:\n{json.dumps(advice.dict(), indent=2)}",
-                            execution_time=0.0
-                        ).model_dump_json())
+                    await send_to_websocket(websocket, "IterationAdvisor", f"Iteration Advice:\n{json.dumps(advice.dict(), indent=2)}", 0.0)
                     
                     # Handle follow-up questions from iteration advisor
                     if advice.needs_follow_up and advice.follow_up_question:
@@ -762,12 +601,7 @@ Continue with the task using these results."""
                     
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
-                        if websocket:
-                            await websocket.send_json(AgentMessage(
-                                agent="IterationAdvisor",
-                                content="Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary,
-                                execution_time=0.0
-                            ).model_dump_json())
+                        await send_to_websocket(websocket, "IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary, 0.0)
                         break
                     
                     # Add the advice to the message for the next iteration
@@ -781,24 +615,14 @@ Issues identified:
 Please address these specific improvements:
 {chr(10).join(f'- {step}' for step in advice.improvement_steps)}"""
                     
-                    if websocket:
-                        await websocket.send_json(AgentMessage(
-                            agent="IterationAdvisor",
-                            content="Proceeding with next iteration using provided advice ✓",
-                            execution_time=0.0
-                        ).model_dump_json())
+                    await send_to_websocket(websocket, "IterationAdvisor", "Proceeding with next iteration using provided advice ✓", 0.0)
                 else:
                     break
                 
                 rounds += 1
             
             # Generate final output with streaming
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="OutputGenerator",
-                    content="Generating final response...",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "OutputGenerator", "Generating final response...", 0.0)
             
             # Stream the final response
             messages = [{
@@ -836,12 +660,7 @@ Please address these specific improvements:
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
                     final_output.append(content)
-                    if websocket:
-                        await websocket.send_json(AgentMessage(
-                            agent="assistant",
-                            content=content,
-                            execution_time=0.0
-                        ).model_dump_json())
+                    await send_to_websocket(websocket, "assistant", content, 0.0)
             
             # Set the complete response content after streaming
             response.content = "".join(final_output)
@@ -863,12 +682,7 @@ Please address these specific improvements:
             )
             
             # Send completion message for output generator
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="OutputGenerator",
-                    content="Final response generated ✓",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "OutputGenerator", "Final response generated ✓", 0.0)
             
             # Store agent messages for debug view and add execution time
             response.agent_messages = [
@@ -890,12 +704,7 @@ Please address these specific improvements:
         except Exception as e:
             self.logger.error(f"Error in query_stream: {str(e)}", exc_info=True)
             response.error = str(e)
-            if websocket:
-                await websocket.send_json(AgentMessage(
-                    agent="system",
-                    content=f"Error: {str(e)}",
-                    execution_time=0.0
-                ).model_dump_json())
+            await send_to_websocket(websocket, "system", f"Error: {str(e)}", 0.0)
             # Log error
             self._log_non_llm_interaction("System", f"Error: {str(e)}")
             return response
@@ -969,3 +778,12 @@ class ModelConfigLoader:
         """List all available model configurations"""
         config_data = self._load_config()
         return list(config_data.get('model_configs', {}).keys())
+
+
+async def send_to_websocket(websocket=None, agent="DEFAULT AGENT", message="NO MESSAGE", execution_time=0.0): 
+    if websocket:
+        await websocket.send_json(AgentMessage(
+            agent=agent,
+            content=message,
+            execution_time=execution_time
+        ).model_dump_json())
