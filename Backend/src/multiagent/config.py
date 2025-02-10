@@ -19,20 +19,16 @@ class ModelConfigLoader:
         
         return self._config_data
     
-    def get_model_config(self, config_name: Optional[str] = None) -> Dict[str, Any]:
+    def get_model_config(self, config_name: str = "vllm") -> Dict[str, Any]:
         """Get model configuration by name, merged with default config"""
         config_data = self._load_config()
-        
-        # Start with default configuration
-        result = config_data.get('default_config', {}).copy()
         
         if config_name:
             # If a specific configuration is requested, merge it with defaults
             if config_name not in config_data.get('model_configs', {}):
                 raise ValueError(f"Model configuration '{config_name}' not found")
             
-            model_config = config_data['model_configs'][config_name]
-            result.update(model_config)
+            result = config_data['model_configs'][config_name]
         
         return result
     
