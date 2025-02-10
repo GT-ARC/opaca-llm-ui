@@ -9,7 +9,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from ..llama_proxy import LlamaProxy
 from ..models import Response, SessionData, OpacaLLMBackend, ConfigParameter
 from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
@@ -27,12 +26,7 @@ class Action(BaseModel):
 
 class RestGptBackend(OpacaLLMBackend):
     NAME_OPENAI = "rest-gpt-openai"
-    NAME_LLAMA = "rest-gpt-llama"
-    use_llama: bool
     llm: BaseChatModel | ChatOpenAI
-
-    def __init__(self, use_llama: bool):
-        self.use_llama = use_llama
 
     async def query(self, message: str, session: SessionData) -> Response:
         return await self.query_stream(message, session, None)
@@ -43,7 +37,7 @@ class RestGptBackend(OpacaLLMBackend):
 
         # Set config
         config = session.config.get(
-            RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
+            RestGptBackend.NAME_OPENAI,
             self.default_config()
         )
 
@@ -114,35 +108,20 @@ class RestGptBackend(OpacaLLMBackend):
                     "evaluator": ConfigParameter(type="boolean", required=True, default=True)
                 }),
             "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
+            "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),  # Temperature for models
+            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
         }
-
-        if self.use_llama:
-            config.update({
-                "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
-                "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
-            })
-        else:
-            config.update({
-                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),  # Temperature for models
-                "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
-            })
 
         return config
 
     def init_model(self, api_key: str, config: dict):
         api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
-        if self.use_llama:
-            self.llm = LlamaProxy(
-                url=config['llama-url'],
-                model=config['llama-model']
-            )
-        else:
-            self.check_for_key(api_key)
-            self.llm = ChatOpenAI(
-                model=config["gpt-model"],
-                temperature=float(config["temperature"]),
-                openai_api_key=api_key
-            )
+        self.check_for_key(api_key)
+        self.llm = ChatOpenAI(
+            model=config["model"],
+            temperature=float(config["temperature"]),
+            openai_api_key=api_key
+        )
 
     @staticmethod
     def check_for_key(api_key: str):
