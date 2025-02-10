@@ -34,6 +34,11 @@ class ColoredFormatter(logging.Formatter):
         "Tool Generator": "\x1b[31;20m",  # Dim Red
         "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
 
+        # Simple Roles
+        "system": "\x1b[93m",  # Light Yellow
+        "assistant": "\x1b[94m",  # Light Blue
+        "user": "\x1b[97m",  # Light White
+
         # Default
         "Default": "\x1b[38;20m",  # Dim White
     }
@@ -55,7 +60,7 @@ class ColoredFormatter(logging.Formatter):
 
 
 # Define a logger
-logger = logging.getLogger("Agentlogger")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 console_handler = logging.StreamHandler()

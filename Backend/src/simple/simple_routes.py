@@ -1,3 +1,4 @@
+import logging
 import time
 
 import openai
@@ -45,6 +46,8 @@ ask_policies = [
     "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation."
 ]
 
+logger = logging.getLogger("src.models")
+
 class SimpleBackend(OpacaLLMBackend):
 
     def __init__(self):
@@ -53,7 +56,7 @@ class SimpleBackend(OpacaLLMBackend):
 
     async def query(self, message: str, session: SessionData) -> Response:
         exec_time = time.time()
-        print("QUERY", message)
+        logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)
 
         # initialize messages with system prompt and previous messages
@@ -73,13 +76,13 @@ class SimpleBackend(OpacaLLMBackend):
             self.messages.append({"role": "assistant", "content": response})
             result.agent_messages.append(AgentMessage(agent="assistant", content=response))
 
-            print("RESPONSE:", repr(response))
+            logger.info(repr(response), extra={"agent_name": "assistant"})
             try:
                 d = json.loads(response.strip("`json\n")) # strip markdown, if included
                 if type(d) is not dict or any(x not in d for x in ("action", "agentId", "params")):
-                    print("JSON, but not an action call...")
+                    logger.info("JSON, but not an action call...")
                     break
-                print("Successfully parsed as JSON, calling service...")
+                logger.info("Successfully parsed as JSON, calling service...")
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
                 self.messages.append({"role": "system", "content": response})
@@ -90,14 +93,16 @@ class SimpleBackend(OpacaLLMBackend):
                             "name": f'{d["agentId"]}--{d["action"]}',
                             "args": d["params"],
                             "result": action_result}]))
+                logger.info(response, extra={"agent_name": "system"})
             except json.JSONDecodeError as e:
-                print("Not JSON", type(e), e)
+                logger.info(f"Not JSON: {type(e)}, {e}")
                 break
             except Exception as e:
-                print("ERROR", type(e), e)
+                logger.info(f"ERROR: {type(e)}, {e}")
                 response = f"There was an error: {e}"
                 self.messages.append({"role": "system", "content": response})
                 result.agent_messages.append(AgentMessage(agent="system", content=response))
+                logger.info(response, extra={"agent_name": "system"})
                 result.error = str(e)
                 break
 
@@ -124,7 +129,6 @@ class SimpleOpenAIBackend(SimpleBackend):
         }
 
     async def _query_internal(self, api_key: str, session: SessionData) -> str:
-        print("Calling GPT...")
         # Set config
         self.config = session.config.get(SimpleOpenAIBackend.NAME, self.default_config())
         self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
@@ -151,7 +155,6 @@ class SimpleLlamaBackend(SimpleBackend):
         }
 
     async def _query_internal(self, api_key: str, session: SessionData) -> str:
-        print("Calling LLAMA...")
         # Set config
         self.config = session.config.get(SimpleLlamaBackend.NAME, self.default_config())
 
