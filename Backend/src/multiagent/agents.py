@@ -46,10 +46,16 @@ class BaseAgent:
                     role = msg["role"].upper()
                     f.write(f"{'-' * 35} {role} MESSAGE {'-' * 35}\n\n")
                     f.write(f"{msg['content']}\n\n")
+
+                    # Log the message to the logger in debug mode
+                    self.logger.debug(f"=== [{agent_name}] - [{role}]=== \n Message: {msg['content']}\n\n")
                 
                 # Write response
                 f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
                 f.write(f"{response_content}\n\n\n")
+
+                # Log the message to the logger in debug mode
+                self.logger.debug(f"=== [{agent_name}] - [LLM RESPONSE]=== \n Message: {response_content}\n\n")
                 
                 # Write separator
                 f.write(f"{'=' * 90}\n\n")
@@ -67,7 +73,7 @@ class BaseAgent:
         """Generic method to call the LLM with various guidance options"""
         start_time = time.time()
         try:
-            logger = logging.getLogger(__name__)
+            #logger = logging.getLogger(__name__)
             
             # Check if we're using a GPT model
             is_gpt = "gpt" in self.model.lower() or "o3" in self.model.lower()
