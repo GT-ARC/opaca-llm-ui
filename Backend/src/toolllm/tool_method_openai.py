@@ -61,11 +61,20 @@ class ToolMethodOpenAI(ToolMethod):
         return self.tools, error
 
     async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = "", websocket=None):
-        result = await self.generator_agent.ainvoke({
-            'input': message,
-            'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
-            'history': session.messages
-        }, websocket)
+        # VLLM has problems streaming tool outputs, disable streaming for vllm models
+        if config["model"].startswith("gpt"):
+            result = await self.generator_agent.ainvoke({
+                'input': message,
+                'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
+                'history': session.messages
+            }, websocket)
+        else:
+            result = self.generator_agent.invoke({
+                'input': message,
+                'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,
+                # scratchpad contains ai responses
+                'history': session.messages
+            })
 
         for action in result.tools:
             # Fix the parameter types based on the action definition
