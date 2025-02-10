@@ -40,20 +40,36 @@ class MultiAgentBackend(OpacaLLMBackend):
     NAME = "multi-agent"
     
     def __init__(self, agents_file: str = "agents_tools.json"):
-        # Look for the file in the Backend directory
-        self.agents_file = Path(__file__).parent.parent.parent / agents_file
-        if not self.agents_file.exists():
-            raise FileNotFoundError(
-                f"Agents file not found: {self.agents_file}. "
-                "Please run get_agents_tools.py first."
-            )
-        
-        with open(self.agents_file) as f:
-            self.agents_data = json.load(f)
-        
         # Set up logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
+
+        # Look for the file in the Backend directory
+        self.agents_file = Path(__file__).parent.parent.parent / agents_file
+        
+        # Look for the file in the src directory
+        self.agents_file_src = Path(__file__).parent.parent / agents_file
+
+        if not self.agents_file.exists():
+            self.logger.info(f"Agents file not found at: {self.agents_file}.\nChecking src directory..."
+            )
+        if not self.agents_file_src.exists():
+            self.logger.info(f"Agents file not found at: {self.agents_file_src}."
+            )
+
+        if not self.agents_file.exists() and not self.agents_file_src.exists():
+            raise FileNotFoundError(
+                f"Agents file not found: {self.agents_file} or {self.agents_file_src}. "
+                "Please run get_agents_tools.py first."
+            )
+
+        # if file in src directory exists, use it
+        if self.agents_file_src.exists():
+            self.agents_file = self.agents_file_src
+        
+        
+        with open(self.agents_file) as f:
+            self.agents_data = json.load(f)
         
         # Initialize logging settings
         self.log_to_file = True
