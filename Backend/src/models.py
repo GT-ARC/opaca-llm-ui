@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union, Self
 from uuid import UUID
 
-import colorama
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
@@ -17,9 +16,6 @@ from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplat
 from pydantic import BaseModel, field_validator, model_validator
 from starlette.websockets import WebSocket
 
-
-# Initialize colorama
-colorama.init(autoreset=True)
 
 class ColoredFormatter(logging.Formatter):
     """
@@ -38,11 +34,6 @@ class ColoredFormatter(logging.Formatter):
         "Tool Generator": "\x1b[31;20m",  # Dim Red
         "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
 
-        # Simple Roles
-        "system": "\x1b[93m",  # Light Yellow
-        "assistant": "\x1b[94m",  # Light Blue
-        "user": "\x1b[97m",  # Light White
-
         # Default
         "Default": "\x1b[38;20m",  # Dim White
     }
@@ -58,7 +49,7 @@ class ColoredFormatter(logging.Formatter):
         message = record.getMessage().replace("\n", f"\n{' ' * (len(timestamp) + len(agent_name) + len(record.levelname) + 7)}")
 
         # Format log entry
-        log_entry = f"{timestamp} [{record.levelname}] {agent_name} - {message}"
+        log_entry = f"{timestamp} [{record.levelname}] {agent_name} - {message.strip()}"
 
         return f"{color}{log_entry}\x1b[0m"
 
