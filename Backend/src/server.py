@@ -42,7 +42,7 @@ app.add_middleware(
 
 
 BACKENDS = {
-    RestGptBackend.NAME_OPENAI: RestGptBackend(),
+    RestGptBackend.NAME: RestGptBackend(),
     SimpleBackend.NAME: SimpleBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),

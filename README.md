@@ -43,7 +43,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
 
-The different LLM clients provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta.
+The different approaches provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **vLLM** to use locally deployed models (e.g. Mistral, Llama, ...)
 
 ### Sessions, Message History and Configuration
 

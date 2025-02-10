@@ -25,7 +25,7 @@ class Action(BaseModel):
 
 
 class RestGptBackend(OpacaLLMBackend):
-    NAME_OPENAI = "rest-gpt"
+    NAME = "rest-gpt"
     llm: BaseChatModel
 
     async def query(self, message: str, session: SessionData) -> Response:
@@ -37,7 +37,7 @@ class RestGptBackend(OpacaLLMBackend):
 
         # Set config
         config = session.config.get(
-            RestGptBackend.NAME_OPENAI,
+            RestGptBackend.NAME,
             self.default_config()
         )
 
@@ -45,7 +45,7 @@ class RestGptBackend(OpacaLLMBackend):
         response = Response()
         response.query = message
 
-        # Model initialization here since openai requires api key in constructor
+        # Model initialization
         try:
             self.init_model(session.api_key, config)
         except ValueError as e:
@@ -54,6 +54,7 @@ class RestGptBackend(OpacaLLMBackend):
             response.error = str(e)
             return response
 
+        # Get actions from OPACA platform
         try:
             action_spec = get_reduced_action_spec(await session.client.get_actions_with_refs())
         except Exception as e:
@@ -62,8 +63,8 @@ class RestGptBackend(OpacaLLMBackend):
             response.error = str(e)
             return response
 
+        # Start the Rest-GPT chain
         rest_gpt = RestGPT(self.llm, action_spec)
-
         try:
             result = await rest_gpt.ainvoke({
                 "query": message,
