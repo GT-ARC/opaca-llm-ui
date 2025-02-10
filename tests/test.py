@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
-    parser.add_argument("-b", "--backend", type=str, default="tool-llm-openai", help="Specify the backend that should be used.")
+    parser.add_argument("-b", "--backend", type=str, default="tool-llm", help="Specify the backend that should be used.")
     parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")

@@ -179,7 +179,7 @@ export default {
             const debugMessageLength = this.$refs.sidebar.debugMessages.length;
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm-openai', 'rest-gpt-openai'].includes(this.getBackend())) {
+                if (['tool-llm', 'rest-gpt'].includes(this.getBackend())) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');
