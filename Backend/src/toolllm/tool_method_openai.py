@@ -10,7 +10,7 @@ from ..utils import openapi_to_functions
 
 
 class ToolMethodOpenAI(ToolMethod):
-    NAME = 'tool-llm-openai'
+    NAME = 'tool-llm'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

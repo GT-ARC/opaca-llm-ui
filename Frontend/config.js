@@ -2,17 +2,14 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-openai",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
             subBackends: {
-                "simple-openai": "Simple Prompt",
-                "simple-llama": "Simple Prompt (LLAMA)",
-                "rest-gpt-openai": "RestGPT",
-                "rest-gpt-llama": "RestGPT (LLAMA)",
-                "tool-llm-openai": "Tool LLM",
-                "tool-llm-llama": "Tool LLM (LLAMA)"
+                "simple": "Simple Prompt",
+                "rest-gpt": "RestGPT",
+                "tool-llm": "Tool LLM",
             }
         },
         "itdz-knowledge": "Knowledge Assistant",

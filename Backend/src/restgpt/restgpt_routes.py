@@ -25,7 +25,7 @@ class Action(BaseModel):
 
 
 class RestGptBackend(OpacaLLMBackend):
-    NAME_OPENAI = "rest-gpt-openai"
+    NAME_OPENAI = "rest-gpt"
     llm: BaseChatModel | ChatOpenAI
 
     async def query(self, message: str, session: SessionData) -> Response:
