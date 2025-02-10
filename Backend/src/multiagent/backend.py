@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Dict, Any, List, Union
 from pathlib import Path
+import yaml
 
 from openai import AsyncOpenAI
 
@@ -33,16 +34,19 @@ from .models import (
     ChatMessage,
     AgentTask
 )
-from .config import model_config_loader
 from ..utils import openapi_to_functions
+
+
 
 class MultiAgentBackend(OpacaLLMBackend):
     NAME = "multi-agent"
+
     
     def __init__(self, agents_file: str = "agents_tools.json"):
         # Set up logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
+        
 
         # Look for the file in the Backend directory
         self.agents_file = Path(__file__).parent.parent.parent / agents_file
@@ -507,6 +511,7 @@ Continue with the task using these results."""
             
             # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config)
+            model_config_loader = ModelConfigLoader() 
             model_config = model_config_loader.get_model_config(config.get("model_config_name"))
             config.update(model_config)  # Merge model config into session config
             
@@ -968,3 +973,38 @@ Please address these specific improvements:
                 f.write(f"{'=' * 90}\n\n")
         except Exception as e:
             self.logger.error(f"Error writing to log file: {str(e)}") 
+
+
+class ModelConfigLoader:
+    def __init__(self):
+        self.config_path = Path(__file__).parent / "model_config.yaml"
+        self._config_data = None
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """Load configuration from YAML file"""
+        if not self._config_data:
+            if not self.config_path.exists():
+                raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
+            
+            with open(self.config_path, 'r') as f:
+                self._config_data = yaml.safe_load(f)
+        
+        return self._config_data
+    
+    def get_model_config(self, config_name: str = "vllm") -> Dict[str, Any]:
+        """Get model configuration by name, merged with default config"""
+        config_data = self._load_config()
+        
+        if config_name:
+            # If a specific configuration is requested, merge it with defaults
+            if config_name not in config_data.get('model_configs', {}):
+                raise ValueError(f"Model configuration '{config_name}' not found")
+            
+            result = config_data['model_configs'][config_name]
+        
+        return result
+    
+    def list_available_configs(self) -> list:
+        """List all available model configurations"""
+        config_data = self._load_config()
+        return list(config_data.get('model_configs', {}).keys())
