@@ -149,7 +149,7 @@ class MultiAgentBackend(OpacaLLMBackend):
     async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:
         """Create OpenAI client with appropriate configuration"""
         try:
-            config = session.config.get(self.NAME, self.default_config)
+            config = session.config.get(self.NAME, self.default_config())
 
             # Determine base_url and api_key based on configuration
             if is_worker:
@@ -511,7 +511,7 @@ Continue with the task using these results."""
                 self._log_non_llm_interaction("User", message)
             
             # Get base config and merge with model config
-            config = session.config.get(self.NAME, self.default_config)
+            config = session.config.get(self.NAME, self.default_config())
             model_config_loader = ModelConfigLoader() 
             model_config = model_config_loader.get_model_config(config.get("model_config_name"))
             config.update(model_config)  # Merge model config into session config
