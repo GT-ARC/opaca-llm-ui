@@ -555,7 +555,6 @@ Continue with the task using these results."""
             )
             
             # Initialize agents with orchestrator model from model config
-            agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
             overall_evaluator = OverallEvaluator(orchestrator_client, config["orchestrator_model"])
             output_generator = OutputGenerator(orchestrator_client, config["orchestrator_model"])
             iteration_advisor = IterationAdvisor(orchestrator_client, config["orchestrator_model"])
