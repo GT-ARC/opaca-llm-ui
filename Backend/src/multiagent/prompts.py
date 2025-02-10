@@ -163,6 +163,10 @@ Format Requirements:
 2. Use bullet points where it makes sense to improve readability. 
 3. If you want to show an image, use markdown formatting to visualize it directly within the output message (don't just include a link to an image).
 
+IMPORTANT FOR TASKS INVOLVING NOISE DATA: 
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
+- Noise levels should never be outputted with the unit 'dB'!"
+
 REMEMBER: Your goal is summarize the results of the tool calls in a way that is easy to understand."""
 
 AGENT_PLANNER_PROMPT = """You are a specialized planning agent that breaks down tasks into logical subtasks. You work in a trio with a worker agent and an evaluator agent.

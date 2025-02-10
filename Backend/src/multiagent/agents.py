@@ -329,7 +329,12 @@ class AgentPlanner(BaseAgent):
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
-- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!"""
+- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!"""
+        elif self.agent_name == "home-assistant-agent":
+            remark = """\n\nIMPORTANT: 
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
+- Noise levels should never be outputted with the unit 'dB'!"""
         
         messages = [{
             "role": "system",
@@ -785,7 +790,12 @@ class WorkerAgent(BaseAgent):
 - If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
-- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!"""
+- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!"""
+        elif self.agent_name == "home-assistant-agent":
+            remark = """\n\nIMPORTANT: 
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
+- Noise levels should never be outputted with the unit 'dB'!"""
 
 
         try:
