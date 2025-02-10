@@ -26,7 +26,7 @@ class Action(BaseModel):
 
 class RestGptBackend(OpacaLLMBackend):
     NAME_OPENAI = "rest-gpt"
-    llm: BaseChatModel | ChatOpenAI
+    llm: BaseChatModel
 
     async def query(self, message: str, session: SessionData) -> Response:
         return await self.query_stream(message, session, None)
@@ -115,12 +115,18 @@ class RestGptBackend(OpacaLLMBackend):
         return config
 
     def init_model(self, api_key: str, config: dict):
-        api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
+        if config["model"].startswith("gpt"):
+            api_key = api_key or os.getenv("OPENAI_API_KEY")  # if empty, use from Env
+            base_url = None
+        else:
+            api_key = os.getenv("VLLM_API_KEY")
+            base_url = os.getenv("VLLM_BASE_URL")
         self.check_for_key(api_key)
         self.llm = ChatOpenAI(
             model=config["model"],
             temperature=float(config["temperature"]),
-            openai_api_key=api_key
+            openai_api_key=api_key,
+            base_url=base_url
         )
 
     @staticmethod

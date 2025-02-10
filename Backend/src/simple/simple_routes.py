@@ -1,3 +1,4 @@
+import os
 import time
 
 import openai
@@ -84,9 +85,9 @@ class SimpleBackend(OpacaLLMBackend):
                 print("Successfully parsed as JSON, calling service...")
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
-                self.messages.append({"role": "system", "content": response})
+                self.messages.append({"role": "assistant", "content": response})
                 result.agent_messages.append(AgentMessage(
-                    agent="system",
+                    agent="assistant",
                     content=response,
                     tools=[{"id": result.iterations,
                             "name": f'{d["agentId"]}--{d["action"]}',
@@ -121,7 +122,10 @@ class SimpleBackend(OpacaLLMBackend):
         print("Calling GPT...")
         # Set config
         self.config = session.config.get(self.NAME, self.default_config())
-        self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
+        if self.config["model"].startswith("gpt"):
+            self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
+        else:
+            self.client = openai.AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
 
         completion = await self.client.chat.completions.create(
             model=self.config["model"],
