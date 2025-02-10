@@ -165,7 +165,8 @@ Format Requirements:
 
 IMPORTANT FOR TASKS INVOLVING NOISE DATA: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- Noise levels should never be outputted with the unit 'dB'!"
+- Noise levels should never be outputted with the unit 'dB'!
+- Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)
 
 REMEMBER: Your goal is summarize the results of the tool calls in a way that is easy to understand."""
 

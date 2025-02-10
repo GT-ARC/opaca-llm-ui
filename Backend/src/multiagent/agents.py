@@ -34,12 +34,15 @@ class BaseAgent:
         self.chat_history = None
         self.log_file = "agents.log"  # Default log file path
 
-    def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str) -> None:
+    def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
         """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
         try:
             with open(self.log_file, 'a') as f:
-                # Write agent header
-                f.write(f"\n{'=' * 35} {agent_name} LLM Call {'=' * 35}\n\n")
+                # Write agent header with more context for evaluators
+                if "Evaluator" in agent_name:
+                    f.write(f"\n{'=' * 35} {agent_name} Evaluation {'=' * 35}\n\n")
+                else:
+                    f.write(f"\n{'=' * 35} {agent_name} LLM Call {'=' * 35}\n\n")
                 
                 # Write messages in order
                 for msg in messages:
@@ -47,11 +50,16 @@ class BaseAgent:
                     f.write(f"{'-' * 35} {role} MESSAGE {'-' * 35}\n\n")
                     f.write(f"{msg['content']}\n\n")
 
-                    # Log the message to the logger in debug mode
-                    self.logger.debug(f"=== [{agent_name}] - [{role}]=== \n Message: {msg['content']}\n\n")
+                    if role == "USER":
+                        if output_structure:
+                            f.write(f"\n\n{'-' * 5} Expected Response Format {'-' * 5}\n\n")
+                            f.write(f"{output_structure}\n\n\n")
                 
-                # Write response
-                f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
+                # Write response with context for evaluators
+                if "Evaluator" in agent_name:
+                    f.write(f"{'-' * 35} EVALUATION RESULT {'-' * 35}\n\n")
+                else:
+                    f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
                 f.write(f"{response_content}\n\n\n")
 
                 # Log the message to the logger in debug mode
@@ -72,11 +80,11 @@ class BaseAgent:
     ) -> Any:
         """Generic method to call the LLM with various guidance options"""
         start_time = time.time()
+        output_structure = ""
         try:
-            #logger = logging.getLogger(__name__)
             
             # Check if we're using a GPT model
-            is_gpt = "gpt" in self.model.lower() or "o3" in self.model.lower()
+            is_gpt = "gpt" in self.model.lower() or "o3" in self.model.lower() or "4o" in self.model.lower()
             
             if self.model == "o3-mini":
                 # Base kwargs that are always included
@@ -105,10 +113,6 @@ class BaseAgent:
                 kwargs["tool_choice"] = tool_choice or "auto"
                 #return await self.client.chat.completions.create(**kwargs)
 
-                # self.logger.info("\n\n\n")
-                # self.logger.info("TOOLS: ", tools)
-                # self.logger.info("\n\n\n")
-
                 completion = await self.client.chat.completions.create(**kwargs)
                 response = completion.choices[0].message
                 
@@ -128,6 +132,9 @@ class BaseAgent:
                     if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
                         options_str = ", ".join(guided_choice)
                         kwargs["messages"][0]["content"] = kwargs["messages"][0]["content"] + f"\nPlease choose exactly one of these options: {options_str}"
+                    if kwargs["messages"] and kwargs["messages"][1]["role"] == "user":
+                        kwargs["messages"][1]["content"] = kwargs["messages"][1]["content"] + f"You MUST select one AND ONLY ONE of these choices to answer the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!"
+                    output_structure = f"You MUST select one of these choices to answer the request:\n\n {json.dumps(guided_choice, indent=2)}"
                 else:
                     # For vLLM, keep original system prompt and add choice options
                     system_msg = kwargs["messages"][0]["content"] if kwargs["messages"] else ""
@@ -135,7 +142,7 @@ class BaseAgent:
                     system_msg = f"{system_msg}\n\nYou must choose exactly one of these options: {options_str}"
                     
                     # Move everything except the actual task/query to system message
-                    user_msg = kwargs["messages"][-1]["content"] if len(kwargs["messages"]) > 1 else ""
+                    user_msg = kwargs["messages"][1]["content"] if len(kwargs["messages"]) > 1 else ""
                     
                     kwargs["messages"] = [
                         {
@@ -148,18 +155,34 @@ class BaseAgent:
                         }
                     ]
                     kwargs["extra_body"] = {"guided_choice": guided_choice}
+
+                    output_structure = f"You MUST select one of these choices to answer the request:\n {json.dumps(guided_choice, indent=2)}"
             elif guided_json:
+                guided_json = transform_schema(guided_json)
+
                 if is_gpt:
-                    # For OpenAI, use json_object mode and add schema to system message
-                    kwargs["response_format"] = {"type": "json_object"}
+                    # For OpenAI, use json_schema mode and add schema to system message
+                    kwargs["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": guided_json
+                    }
                     if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
                         schema_str = json.dumps(guided_json, indent=2)
-                        kwargs["messages"][0]["content"] = kwargs["messages"][0]["content"] + f"\nPlease provide your response in JSON format following this schema:\n{schema_str}"
+                        kwargs["messages"][0]["content"] = (
+                            kwargs["messages"][0]["content"] + 
+                            f"\n\nYou MUST provide your response as a JSON object that follows this schema. Your response must include ALL required fields.\n\nSchema:\n{schema_str}\n\n" +
+                            "DO NOT return the schema itself. Return a valid JSON object matching the schema."
+                        )
                 else:
                     # For vLLM, keep original system prompt and add JSON schema
                     system_msg = kwargs["messages"][0]["content"] if kwargs["messages"] else ""
                     schema_str = json.dumps(guided_json, indent=2)
-                    system_msg = f"{system_msg}\n\nYou must provide your response in JSON format following this schema:\n{schema_str}"
+                    system_msg = system_msg + f"""\n
+You MUST provide your response as a JSON object that follows this schema.
+Your response must include ALL required fields.\n\n
+Schema:\n
+{schema_str}\n
+DO NOT return the schema itself. Return a valid JSON object matching the schema."""
                     
                     # Move everything except the actual task/query to system message
                     user_msg = kwargs["messages"][-1]["content"] if len(kwargs["messages"]) > 1 else ""
@@ -175,14 +198,21 @@ class BaseAgent:
                         }
                     ]
                     kwargs["extra_body"] = {"guided_json": guided_json}
+                
+                output_structure = f"You MUST provide your response as a JSON object that follows this schema: {json.dumps(guided_json, indent=2)}"
             
             response = await self.client.chat.completions.create(**kwargs)
             
-            # Log the LLM interaction
+            # Log the LLM interaction with the actual agent name
+            agent_name = self.__class__.__name__
+            if hasattr(self, 'agent_name'):
+                agent_name = self.agent_name
+            
             self._log_llm_interaction(
-                self.__class__.__name__,  # Use the class name as agent name
+                agent_name,  # Use the actual agent name
                 kwargs["messages"],
-                response.choices[0].message.content
+                response.choices[0].message.content, 
+                output_structure
             )
             
             return response.choices[0].message
@@ -340,7 +370,8 @@ class AgentPlanner(BaseAgent):
         elif self.agent_name == "home-assistant-agent":
             remark = """\n\nIMPORTANT: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- Noise levels should never be outputted with the unit 'dB'!"""
+- Noise levels should never be outputted with the unit 'dB'!
+- Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)"""
         
         messages = [{
             "role": "system",
@@ -801,7 +832,8 @@ class WorkerAgent(BaseAgent):
         elif self.agent_name == "home-assistant-agent":
             remark = """\n\nIMPORTANT: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- Noise levels should never be outputted with the unit 'dB'!"""
+- Noise levels should never be outputted with the unit 'dB'!
+- Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)"""
 
 
         try:
@@ -895,18 +927,23 @@ Remember:
                     "result": result  # Store the raw result without string conversion
                 })
 
+
+                # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
                 # Format the result for output
                 if isinstance(result, (dict, list)):
                     result_str = json.dumps(result, indent=2)
                 else:
                     result_str = str(result)
                 
+                # Limit the result string to 250 characters
+                result_str = result_str[:250] + "..." if len(result_str) > 250 else result_str
+                
                 # Log the tool result
                 self.logger.info(f"Tool call completed: {action_name}")
                 self.logger.debug(f"Tool result: {result_str}")
                 
                 # Add the result to the tool outputs list
-                tool_outputs.append(f"\n## Executed {tool_call.function.name}.\n\n ## Result: {result_str}")
+                tool_outputs.append(f"\n- Executed {tool_call.function.name}.") # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
 
             # Join all tool outputs into a single string
             output = "\n\n".join(tool_outputs)
@@ -938,3 +975,105 @@ Remember:
                 tool_calls=[],
                 tool_results=[]
             ) 
+
+def transform_schema(schema):
+    """Transform a JSON schema to meet OpenAI's requirements.
+    
+    This function:
+    1. Resolves $ref references from $defs
+    2. Adds additionalProperties: False to all object types
+    3. Removes unnecessary fields like title and default
+    4. Flattens and simplifies the schema structure
+    5. Adds required name field for OpenAI compatibility
+    """
+    def resolve_ref(ref, defs):
+        """Resolve a $ref reference by getting the schema from $defs"""
+        if not ref.startswith('#/$defs/'):
+            return None
+        def_name = ref.split('/')[-1]
+        return defs.get(def_name, {})
+
+    def clean_schema(s):
+        """Remove unnecessary fields and add additionalProperties: False to objects"""
+        if not isinstance(s, dict):
+            return s
+
+        # Start with a new dict to only keep what we want
+        cleaned = {}
+        
+        # Copy essential fields
+        if 'type' in s:
+            cleaned['type'] = s['type']
+        if 'description' in s:
+            cleaned['description'] = s['description']
+        if 'properties' in s:
+            cleaned['properties'] = {
+                k: clean_schema(v) for k, v in s['properties'].items()
+            }
+        if 'items' in s:
+            cleaned['items'] = clean_schema(s['items'])
+        if 'required' in s:
+            cleaned['required'] = s['required']
+        if 'enum' in s:
+            cleaned['enum'] = s['enum']
+        
+        # Add additionalProperties: False to objects
+        if s.get('type') == 'object':
+            cleaned['additionalProperties'] = False
+            
+        # Handle anyOf/allOf/oneOf
+        for field in ['anyOf', 'allOf', 'oneOf']:
+            if field in s:
+                cleaned[field] = [clean_schema(item) for item in s[field]]
+        
+        return cleaned
+
+    def process_schema(s, defs):
+        """Process schema by resolving refs and cleaning"""
+        if not isinstance(s, dict):
+            return s
+        
+        # Create a new dict to store processed schema
+        processed = {}
+        
+        # Handle $ref first
+        if '$ref' in s:
+            ref_schema = resolve_ref(s['$ref'], defs)
+            if ref_schema:
+                # Merge the resolved schema with any additional properties
+                processed = process_schema(ref_schema, defs)
+                # Add any additional fields from the original schema
+                for k, v in s.items():
+                    if k != '$ref':
+                        processed[k] = process_schema(v, defs)
+                return processed
+        
+        # Process each field
+        for k, v in s.items():
+            if k == '$defs':
+                continue  # Skip $defs as we handle them separately
+            elif isinstance(v, dict):
+                processed[k] = process_schema(v, defs)
+            elif isinstance(v, list):
+                processed[k] = [process_schema(item, defs) for item in v]
+            else:
+                processed[k] = v
+        
+        return processed
+
+    # Extract $defs if present
+    defs = schema.get('$defs', {})
+    
+    # Process the main schema
+    processed_schema = process_schema(schema, defs)
+    
+    # Clean the processed schema
+    cleaned_schema = clean_schema(processed_schema)
+    
+    # Create the final schema with the required name field
+    final_schema = {
+        "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
+        "schema": cleaned_schema
+    }
+    
+    return final_schema
