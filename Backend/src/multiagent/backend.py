@@ -93,7 +93,7 @@ class MultiAgentBackend(OpacaLLMBackend):
                 type="string", 
                 required=True, 
                 default="vllm", 
-                enum=["vllm", "vllm-large", "vllm-fast", "vllm-superfast", "vllm-mixed",
+                enum=["vllm", "vllm-large", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
             # Temperature for the orchestrator and worker agents

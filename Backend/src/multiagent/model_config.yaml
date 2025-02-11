@@ -55,7 +55,7 @@ model_configs:
     evaluator_backend_type: "openai"
     generator_backend_type: "openai"
 
-  "vllm-fast":
+  "vllm-faster":
     orchestrator_model: "Qwen25_32B_INT4"
     worker_model: "Mistral-Small-Instruct"
     evaluator_model: "Qwen25_7B_INT4"
@@ -77,6 +77,20 @@ model_configs:
     base_url: "http://10.20.0.224:8000/v1"
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.51:8000/v1"
+    generator_base_url: "http://10.20.0.224:8001/v1"
+    orchestrator_backend_type: "vllm"
+    worker_backend_type: "vllm"
+    evaluator_backend_type: "vllm"
+    generator_backend_type: "vllm"
+
+  "vllm-fast":
+    orchestrator_model: "Qwen25_32B_INT4"
+    worker_model: "Mistral-Small-Instruct"
+    evaluator_model: "Qwen25_32B_INT4"
+    generator_model: "Mistral-Small-Instruct-INT4"
+    base_url: "http://10.20.0.224:8000/v1"
+    worker_base_url: "http://10.20.0.193:8000/v1"
+    evaluator_base_url: "http://10.20.0.224:8000/v1"
     generator_base_url: "http://10.20.0.224:8001/v1"
     orchestrator_backend_type: "vllm"
     worker_backend_type: "vllm"
