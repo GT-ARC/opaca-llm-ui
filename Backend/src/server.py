@@ -4,6 +4,7 @@ Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import uuid
+from typing import List, Dict, Any
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
@@ -71,7 +72,7 @@ async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     return await session.client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
-async def actions(request: Request, response: FastAPIResponse) -> dict[str, list[str]]:
+async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = handle_session_id(request, response)
     return await session.client.get_actions()
 
