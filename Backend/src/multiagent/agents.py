@@ -385,7 +385,8 @@ class AgentPlanner(BaseAgent):
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
 - IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!"""
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
+- ALWAYS PROVIDE AXIS LABELS FOR THE X and Y AXIS!"""
         elif self.agent_name == "home-assistant-agent":
             remark = """\n\nIMPORTANT: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
@@ -410,14 +411,17 @@ IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown c
 Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
 
 
-
 Remember: 
 1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
 2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
 3. NEVER use placeholders - always use actual values.
 4. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
 
-{remark}"""
+{remark}
+
+YOU ABSOLUTELY HAVE TO PROVIDE ALL THE REQUIRED FUNCTION ARGUMENTS AND ALL THE INFORMATION NECESSARY FOR THE WORKER AGENT INTO THE TASK FIELD.
+EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!
+DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
         }]
         
         response = await self._call_llm(
@@ -900,7 +904,8 @@ class WorkerAgent(BaseAgent):
         elif self.agent_name == "DataVisAgent":
             remark = """\n\nIMPORTANT: 
 - IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!"""
+- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
+- IF IT IS POSSIBLE, PROVIDE AXIS LABELS FOR THE X and Y AXIS!"""
         elif self.agent_name == "home-assistant-agent":
             remark = """\n\nIMPORTANT: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
