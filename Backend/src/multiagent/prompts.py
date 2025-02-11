@@ -63,7 +63,9 @@ Guidelines:
 You must output a structured execution plan following the exact schema provided. Your plan must include:
 1. Clear, step-by-step thinking about how to solve the IMMEDIATE request
 2. List of tasks with proper dependencies and rounds
-3. Follow-up question if essential information is missing"""
+3. Follow-up question if essential information is missing
+
+KEEP YOUR THINKING SHORT AND CONCISE!"""
 
 GENERAL_CAPABILITIES_RESPONSE = """I am OPACA, a modular and language-agnostic platform that combines multi-agent systems with microservices. I can help you with various tasks by leveraging my specialized agents and tools.
 
@@ -124,7 +126,7 @@ If you are in doubt or you have no concrete reason to believe that a task can be
 
 DO NOT explain your choice.
 DO NOT add any text.
-JUST output REITERATE or FINISHED."""
+JUST classify the given results and output ONLY the SINGLE word REITERATE or FINISHED."""
 
 OVERALL_EVALUATOR_PROMPT = """You are an evaluator that determines if the current execution results are sufficient.
 
@@ -151,10 +153,11 @@ Strict Rules:
 
 BIAS HEAVILY towards FINISHED. If in ANY doubt, choose FINISHED.
 The cost of unnecessary retries is high, while partial info is still useful.
+IT IS ONLY EVERY ALLOWED TO REITERATE IF YOU HAVE A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!
 
 DO NOT explain your choice.
 DO NOT add any text.
-JUST output REITERATE or FINISHED."""
+JUST classify the given results and output ONLY the SINGLE word REITERATE or FINISHED."""
 
 OUTPUT_GENERATOR_PROMPT = """You are a direct response generator that creates clear, concise answers based on execution results.
 
@@ -162,6 +165,16 @@ Format Requirements:
 1. Use markdown formatting to enhance readability, but AVOID headers.
 2. Use bullet points where it makes sense to improve readability. 
 3. If you want to show an image, use markdown formatting to visualize it directly within the output message (don't just include a link to an image).
+
+REMEMBER: TO SHOW AN IMAGE IN MARKDOWN, YOU NEED TO USE THE FOLLOWING SYNTAX:
+![Image Description](image_url)
+EXAMPLE: 
+![Noise Level Comparison](link_to_image)
+
+NEVER, ABSOLUTELY NEVER, USE THE FOLLOWING SYNTAX OR ANYTHING ELSE THAT IS NOT CORRECT MARKDOWN SYNTAX FOR DISPLAYING IMAGES:
+```
+[Bar Chart Visualization]
+```
 
 IMPORTANT FOR TASKS INVOLVING NOISE DATA: 
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
@@ -206,7 +219,9 @@ You must output a JSON object with:
 1. reasoning: Brief explanation of your task breakdown approach
 2. tasks: List of tasks with proper rounds and dependencies
 3. needs_follow_up: Boolean indicating if follow-up information is needed
-4. follow_up_question: Question to ask if needed"""
+4. follow_up_question: Question to ask if needed
+
+KEEP YOUR THINKING SHORT AND CONCISE!"""
 
 ITERATION_ADVISOR_PROMPT = """You are an expert iteration advisor that analyzes execution results and provides structured advice for improvement.
 
@@ -245,4 +260,6 @@ You must output a JSON object following the IterationAdvice schema with these fi
 - follow_up_question: Question to ask if needed
 
 DO NOT include any explanation or additional text.
-JUST output the JSON object.""" 
+JUST output the JSON object.
+
+KEEP YOUR THINKING SHORT AND CONCISE!""" 

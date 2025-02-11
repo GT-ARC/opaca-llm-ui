@@ -93,7 +93,7 @@ class MultiAgentBackend(OpacaLLMBackend):
                 type="string", 
                 required=True, 
                 default="vllm", 
-                enum=["vllm", "vllm-large", "vllm-fast" "vllm-mixed", 
+                enum=["vllm", "vllm-large", "vllm-fast", "vllm-superfast", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
             # Temperature for the orchestrator and worker agents
@@ -137,20 +137,34 @@ class MultiAgentBackend(OpacaLLMBackend):
                 description="Whether to use the planner agent or not"),
         }
     
-    async def _create_openai_client(self, session: SessionData, is_worker: bool = False) -> AsyncOpenAI:
+    async def _create_openai_client(self, session: SessionData, agent_type: str = "worker") -> AsyncOpenAI:
         """Create OpenAI client with appropriate configuration"""
         try:
             config = session.config.get(self.NAME, self.default_config())
 
             # Determine base_url and api_key based on configuration
-            if is_worker:
+            if agent_type == "worker":
                 if config["worker_backend_type"] == "vllm":
                     api_key = config.get("worker_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
                     base_url = config["worker_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1")
                 else:
                     api_key = config.get("worker_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
                     base_url = config["worker_base_url"]
-            else:
+            elif agent_type == "generator":
+                if config["generator_backend_type"] == "vllm":
+                    api_key = config.get("generator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
+                    base_url = config["generator_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
+                else:
+                    api_key = config.get("generator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
+                    base_url = config["generator_base_url"]
+            elif agent_type == "evaluator":
+                if config["evaluator_backend_type"] == "vllm":
+                    api_key = config.get("evaluator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
+                    base_url = config["evaluator_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
+                else:
+                    api_key = config.get("evaluator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
+                    base_url = config["evaluator_base_url"]
+            else:  # orchestrator
                 if config["orchestrator_backend_type"] == "vllm":
                     api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
                     base_url = config["base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
@@ -203,13 +217,14 @@ class MultiAgentBackend(OpacaLLMBackend):
         config: Dict[str, Any],
         all_results: List[AgentResult],
         websocket=None,
-        orchestrator_client=None
+        evaluator_client=None, 
+        planner_client=None,
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         results = []
         
         # Create agent evaluator
-        agent_evaluator = AgentEvaluator(orchestrator_client, config["orchestrator_model"])
+        agent_evaluator = AgentEvaluator(evaluator_client, config["evaluator_model"])
         
         for task in round_tasks:
             agent = worker_agents[task.agent_name]
@@ -223,7 +238,7 @@ class MultiAgentBackend(OpacaLLMBackend):
                 await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n", 0.0)
                 
                 planner = AgentPlanner(
-                    client=orchestrator_client,
+                    client=planner_client,
                     model=config["orchestrator_model"],
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -293,87 +308,9 @@ Continue with the task using these results."""
         if isinstance(value, str):
             return value.lower() in ['true', '1', 'yes', 'on']
         return bool(value)
-
-    async def _execute_single_task(
-        self,
-        agent_name: str,
-        agent: WorkerAgent,
-        task: Union[str, AgentTask],
-        config: Dict[str, Any],
-        agent_evaluator: AgentEvaluator,
-        websocket=None,
-        orchestrator_client=None
-    ) -> AgentResult:
-        """Execute a single task with retries"""
-        iterations = 0
-        current_task = task
-        task_str = task.task if isinstance(task, AgentTask) else task
-        
-        
-        while iterations < config["max_iterations"]:
-            # Get the latest config in case it was updated
-            use_agent_planner = self._parse_bool_config(config.get("use_agent_planner", True))
-            
-            # Execute task with or without planner
-            if use_agent_planner:
-                # Send planning phase status
-                await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {agent_name}'s task...\n\n", 0.0)
-                
-                # Create agent-specific planner
-                planner = AgentPlanner(
-                    client=orchestrator_client,
-                    model=config["orchestrator_model"],
-                    agent_name=agent_name,
-                    tools=agent.tools,
-                    worker_agent=agent
-                )
-                
-                # Execute task with planning
-                result = await planner.execute_task(current_task)
-            else:
-                # Execute task directly
-                result = await agent.execute_task(current_task)
-            
-            # Send results via websocket
-            await send_to_websocket(websocket, "WorkerAgent", f"Task execution results:\n{result.output}\n\n", 0.0)
-                
-            if result.tool_calls:
-                tool_calls_str = json.dumps(result.tool_calls, indent=2)
-                await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{tool_calls_str}\n\n", 0.0)
-            
-            if result.tool_results:
-                tool_results_str = json.dumps(result.tool_results, indent=2)
-                await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{tool_results_str}", 0.0)
-            
-            # Evaluate result
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {agent_name}'s task completion...\n\n", 0.0)
-            
-            evaluation = await agent_evaluator.evaluate(task_str, result)
-            
-            # Send evaluation results via websocket
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {agent_name}: {evaluation}", 0.0)
-            
-            if evaluation == AgentEvaluation.FINISHED:
-                return result
-            
-            # Update task for next iteration if needed
-            current_task = f"""Previous task: {task_str}
-Previous output: {result.output}
-Tool calls: {json.dumps(result.tool_calls, indent=2)}
-Tool results: {json.dumps(result.tool_results, indent=2)}
-
-Continue with the task using these results."""
-            
-            iterations += 1
-            
-            if iterations < config["max_iterations"]:
-                await send_to_websocket(websocket, "WorkerAgent", f"Agent {agent_name} starting new iteration...\n\n", 0.0)
-        
-        # If we reach here, we've exhausted all iterations
-        return result
-
+    
     async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
+        return await self.query_stream(message, session)   
     
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents"""
@@ -398,8 +335,10 @@ Continue with the task using these results."""
             config.update(model_config)  # Merge model config into session config
             
             # Create separate clients for orchestration and worker agents
-            orchestrator_client = await self._create_openai_client(session, is_worker=False)
-            worker_client = await self._create_openai_client(session, is_worker=True)
+            orchestrator_client = await self._create_openai_client(session, agent_type="orchestrator")
+            worker_client = await self._create_openai_client(session, agent_type="worker")
+            generator_client = await self._create_openai_client(session, agent_type="generator")
+            evaluator_client = await self._create_openai_client(session, agent_type="evaluator")
             
             # Initialize response
             response = Response(query=message)
@@ -431,9 +370,13 @@ Continue with the task using these results."""
                 chat_history=self.chat_history  # Pass chat history to orchestrator
             )
             
-            # Initialize agents with orchestrator model from model config
-            overall_evaluator = OverallEvaluator(orchestrator_client, config["orchestrator_model"])
-            output_generator = OutputGenerator(orchestrator_client, config["orchestrator_model"])
+            # Initialize evaluators with evaluator model
+            overall_evaluator = OverallEvaluator(evaluator_client, config["evaluator_model"])
+            
+            # Initialize output generator with generator model
+            output_generator = OutputGenerator(generator_client, config["generator_model"])
+            
+            # Initialize iteration advisor with orchestrator model (since it's part of orchestration)
             iteration_advisor = IterationAdvisor(orchestrator_client, config["orchestrator_model"])
             
             # Initialize worker agents
@@ -554,6 +497,7 @@ Continue with the task using these results."""
                         config,
                         all_results,
                         websocket,
+                        evaluator_client,
                         orchestrator_client
                     )
                     
@@ -562,7 +506,7 @@ Continue with the task using these results."""
                 await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation...\n\n", 0.0)
                 # Evaluate overall progress
                 evaluation = await overall_evaluator.evaluate(
-                    f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
+                    f"{message}",
                     all_results
                 )
 
@@ -574,7 +518,7 @@ Continue with the task using these results."""
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n", 0.0)
                     
                     advice = await iteration_advisor.get_advice(
-                        f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. Only suggest retrying if CRITICAL information is completely missing from the results.",
+                        f"{message}",
                         all_results
                     )
                     
@@ -624,10 +568,9 @@ Please address these specific improvements:
                 "content": f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.dict() for r in all_results], indent=2)}"
             }]
             
-            # Use worker model and client if configured
-            use_worker_for_output = self._parse_bool_config(config.get("use_worker_for_output", True))
-            output_client = worker_client if use_worker_for_output else orchestrator_client
-            output_model = config["worker_model"] if use_worker_for_output else config["orchestrator_model"]
+            # Use generator model and client
+            output_client = generator_client
+            output_model = config["generator_model"]
             
             if output_model == "o3-mini":
                 # Simple streaming text request without any special constraints

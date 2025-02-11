@@ -270,7 +270,10 @@ class OrchestratorAgent(BaseAgent):
                 "content": f"""Create an execution plan for this request: \n {user_request} \n\n 
 Consider the chat history if applicable: \n {chat_context} \n\n
 Keep in mind that there is an output generating LLM-Agent at the end of the chain.
-If the user request requires a summary, no seperate agent or function is needed for that, as the output generating agent will do that!"""
+If the user request requires a summary, no seperate agent or function is needed for that, as the output generating agent will do that!
+
+YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
+THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
             }
         ]
         
@@ -617,7 +620,8 @@ class AgentEvaluator(BaseAgent):
                         "agent_output": result.output,
                         "tool_calls": result.tool_calls,
                         "tool_results": result.tool_results
-                    }, indent=2)
+                    }, indent=2) + "\n\n" + "NOW: EVALUATE IF THE TASK HAS BEEN COMPLETED WITH THE GIVEN TOOL RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                    "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
                 }
             ]
             
@@ -697,7 +701,10 @@ class OverallEvaluator(BaseAgent):
                     "content": json.dumps({
                         "original_request": original_request,
                         "current_results": [r.model_dump() for r in current_results]
-                    }, indent=2)
+                    }, indent=2) +
+                    "\n\n" + "NOW: EVALUATE IF THE USER REQUEST CAN BE ANSWERED WITH THE GIVEN RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                    "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED." +
+                    "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
                 }
             ]
             
@@ -822,7 +829,10 @@ class IterationAdvisor(BaseAgent):
                     "content": json.dumps({
                         "original_request": original_request,
                         "current_results": [r.model_dump() for r in current_results]
-                    }, indent=2) + "\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), do not suggest retrying."
+                    }, indent=2) +
+                    "\n\n" + "NOW: Create a concrete improvement plan for the given user request! CONSIDER THAT YOU ARE ALLOWED AND ALSO EXPECTED TO VETO THE REITERATION IF THERE IS NO CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                    "\n\n" + "If you have doubts or wish to not reiterate, set 'should_retry' to false. YOU ARE EXPECTED TO HAVE A STRONG REASON TO BELIEVE THE RESULTS CAN BE IMPROVED WITH A REITERATION IF YOU CHOOSE TO RETRY." +
+                    "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
                 }
             ]
             
