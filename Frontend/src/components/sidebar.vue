@@ -90,31 +90,50 @@
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start" id="agents-accordion">
-                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
+                            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
 
                                 <!-- header -->
-                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
-                                    <button class="accordion-button" :class="{collapsed: index > 0}"
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
+                                    <button class="accordion-button collapsed"
                                             type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
-                                            :aria-controls="'accordion-body-' + index">
+                                            :data-bs-target="'#accordion-body-' + agentIndex"
+                                            aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + agentIndex">
                                         <i class="fa fa-user me-3"/>
                                         <strong>{{ agent }}</strong>
                                     </button>
                                 </h2>
 
                                 <!-- body -->
-                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
-                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
-                                    <div class="accordion-body p-0 ps-4">
-                                        <ul class="list-group list-group-flush">
-                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
-                                                {{ action }}
-                                            </li>
-                                        </ul>
+                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"  :class="{show: agentIndex === 0}"
+                                     :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
+                                    <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
+                                        <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
+
+                                            <!-- header -->
+                                            <h2 class="accordion-item m-0" :id="'action-header-' + agentIndex + '-' +actionIndex">
+                                                <button class="accordion-button collapsed"
+                                                        type="button" data-bs-toggle="collapse"
+                                                        :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                        aria-expanded="false"
+                                                        :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                    <i class="fa fa-wrench me-3"/>
+                                                    <strong>{{ action.name }}</strong>
+                                                </button>
+                                            </h2>
+
+                                            <!-- action body -->
+                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse" :class="{show: actionIndex === 0}"
+                                                 :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
+                                                <div class="accordion-body">
+                                                    <p><strong>Description:</strong> {{ action.description }}</p>
+                                                    <p><strong>Input Parameters:</strong> {{ action.parameters }}</p>
+                                                    <p><strong>Result:</strong> {{ action.result }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
