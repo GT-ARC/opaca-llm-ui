@@ -372,11 +372,9 @@ class AgentPlanner(BaseAgent):
             for i, result in enumerate(previous_results, 1):
                 context += f"\n## Result {i} from {result.agent_name}:\n"
                 context += f"### Task:\n {result.task}\n"
-                context += f"### Output:\n {result.output}\n"
-
-                # No longer needed as we show the tool results in the output
-                # if result.tool_results:
-                #     context += f"# Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
+                context += f"### Worker Agent Output:\n {result.output}\n"
+                if result.tool_results:
+                    context += f"### Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
 
         remark = ""
         if self.agent_name == "exchange-agent":
@@ -463,19 +461,15 @@ Remember:
                     
                     # Process tool results by round
                     if result.tool_results:
-                        current_round = 1
                         round_tool_results = {}
-                        
+
                         # Group tool results by round based on their sequence
-                        for tr in result.tool_results:
-                            if "GetSensorId" in tr["name"]:
-                                round_tool_results[1] = tr
-                            elif "GetValue" in tr["name"]:
-                                round_tool_results[2] = tr
+                        for i, tr in enumerate(result.tool_results, 0):
+                            round_tool_results[i] = tr
                         
                         # Output tool results by round
                         for round_num, tr in sorted(round_tool_results.items()):
-                            orchestrator_context += f"\nRound {round_num} Tool Results:\n"
+                            orchestrator_context += f"\n### Tool Results:\n"
                             orchestrator_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
                 
                 # Add the context to the task
@@ -554,13 +548,6 @@ Remember:
                     all_tool_calls.extend(result.tool_calls)
                     all_tool_results.extend(result.tool_results)
                     combined_output.append(result.output)
-                    
-                    # Add tool results immediately after the output
-                    if result.tool_results:
-                        tool_results_output = f"Round {round_num} Tool Results:\n"
-                        for tr in result.tool_results:
-                            tool_results_output += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
-                        combined_output.append(tool_results_output)
                 
                 # Log completion of round with detailed information
                 self.logger.debug(f"Round {round_num} results: {json.dumps([r.dict() for r in round_results], indent=2)}")
@@ -1028,7 +1015,7 @@ Remember:
                 self.logger.debug(f"Tool result: {result_str}")
                 
                 # Add the result to the tool outputs list
-                tool_outputs.append(f"\n- Executed {tool_call.function.name}.") # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
+                tool_outputs.append(f"\n- Worker Agent Executed: {tool_call.function.name}.") # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
 
             # Join all tool outputs into a single string
             output = "\n\n".join(tool_outputs)
@@ -1036,9 +1023,7 @@ Remember:
             # Stop the execution timer
             execution_time = time.time() - start_time
             self.logger.info(f"{self.agent_name} completed task in {execution_time:.2f} seconds")
-            
-            # Create a meaningful output that summarizes the action and result
-            output = f"# Executed task: {task_str} \n\n {output}"
+        
             
             return AgentResult(
                 agent_name=self.agent_name,
