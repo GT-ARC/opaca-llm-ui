@@ -37,7 +37,7 @@ export const debugLoadingMessages = {
         // System
         "preparing": "Initializing the OPACA AI Agents",
         // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Creating task distribution plan",
+        "Orchestrator": "Creating detailed orchestration plan",
         // Multi-Agent System - Agent Level
         "AgentPlanner": "Planning function calls for task",
         "WorkerAgent": "Executing function calls",
@@ -64,9 +64,9 @@ export const debugLoadingMessages = {
         // System
         "preparing": "OPACA KI-Agenten werden initialisiert",
         // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Erstelle Aufgabenverteilungsplan",
+        "Orchestrator": "Erstelle Plan zur Aufgabenverteilung",
         // Multi-Agent System - Agent Level
-        "AgentPlanner": "Plane Funktionsaufrufe für Aufgabe",
+        "AgentPlanner": "Plane Funktionsaufrufe für die Aufgabe",
         "WorkerAgent": "Führe Funktionsaufrufe aus",
         "AgentEvaluator": "Bewerte Aufgabenabschluss",
         // Multi-Agent System - Overall Level

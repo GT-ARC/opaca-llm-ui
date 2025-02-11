@@ -27,18 +27,21 @@ from .prompts import (
 
 
 class BaseAgent:
+    # Static class variables for logging configuration
+    LOG_FILE = "agents.log"  # Default log file path
+    LOG_TO_FILE = False  # Default logging state - disabled by default
+    
     def __init__(self, client: AsyncOpenAI, model: str):
         self.client = client
         self.model = model
         self.logger = logging.getLogger(__name__)
         self.chat_history = None
-        self.log_file = "agents.log"  # Default log file path
 
     def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
         """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
         try:
-            if self.log_to_file:
-                with open(self.log_file, 'a') as f:
+            if BaseAgent.LOG_TO_FILE:
+                with open(BaseAgent.LOG_FILE, 'a') as f:
                     # Write agent header with more context for evaluators
                     if "Evaluator" in agent_name:
                         f.write(f"\n{'=' * 35} {agent_name} Evaluation {'=' * 35}\n\n")
@@ -71,6 +74,22 @@ class BaseAgent:
 
         except Exception as e:
             self.logger.error(f"Error writing to log file: {str(e)}")
+
+    @classmethod
+    def enable_file_logging(cls, log_file_path: Optional[str] = None):
+        """Enable logging to a file for all agents"""
+        cls.LOG_TO_FILE = True
+        if log_file_path:
+            cls.LOG_FILE = log_file_path
+        
+        # Clear the log file when enabling logging
+        with open(cls.LOG_FILE, 'w') as f:
+            f.write(f"\n{'=' * 35} New Session Started {'=' * 35}\n\n\n\n")
+
+    @classmethod
+    def disable_file_logging(cls):
+        """Disable logging to file for all agents"""
+        cls.LOG_TO_FILE = False
 
     async def _call_llm(
         self,
@@ -349,16 +368,16 @@ class AgentPlanner(BaseAgent):
         # Create context from previous results if available
         context = ""
         if previous_results:
-            context = "\n\nPrevious execution results:\n"
+            context = "# Context \n\n Consider the following context and previous execution results when creating your execution plan:\n"
             for i, result in enumerate(previous_results, 1):
-                context += f"\n# Result {i} from {result.agent_name}:\n"
-                context += f"# Task:\n {result.task}\n"
-                context += f"# Output:\n {result.output}\n"
+                context += f"\n## Result {i} from {result.agent_name}:\n"
+                context += f"### Task:\n {result.task}\n"
+                context += f"### Output:\n {result.output}\n"
 
                 # No longer needed as we show the tool results in the output
                 # if result.tool_results:
                 #     context += f"# Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
-        
+
         remark = ""
         if self.agent_name == "exchange-agent":
             remark = """\n\nIMPORTANT: 
@@ -374,7 +393,7 @@ class AgentPlanner(BaseAgent):
 - The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
 - Noise levels should never be outputted with the unit 'dB'!
 - Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)"""
-        
+
         messages = [{
             "role": "system",
             "content": BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
@@ -386,9 +405,13 @@ THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
 IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
         }, {
             "role": "user",
-            "content": f"""Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
+            "content": f"""{context}
 
-{context}
+# YOUR TASK:
+
+Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
+
+
 
 Remember: 
 1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
@@ -417,12 +440,46 @@ Remember:
         
         return PlannerPlan.model_validate_json(content)
 
-    async def execute_task(self, task: Union[str, AgentTask], existing_plan: Optional[PlannerPlan] = None) -> AgentResult:
+    async def execute_task(self, task: Union[str, AgentTask], existing_plan: Optional[PlannerPlan] = None, previous_results: Optional[List[AgentResult]] = None) -> AgentResult:
         """Execute a task with or without planning"""
         try:
             # Extract task string if AgentTask object is passed
             task_str = task.task if isinstance(task, AgentTask) else task
             self.logger.info(f"AgentPlanner executing task: {task_str}")
+            
+            # Create context from previous orchestrator round results if available
+            orchestrator_context = ""
+            if previous_results:
+                orchestrator_context = "\n\nPrevious orchestrator round results:\n"
+                for i, result in enumerate(previous_results, 1):
+                    orchestrator_context += f"\n# Result {i} from {result.agent_name}:\n"
+                    orchestrator_context += f"Task: {result.task}\n"
+                    
+                    # Split the output by rounds and process each round
+                    round_outputs = result.output.split("\n\n")
+                    for round_output in round_outputs:
+                        if round_output.strip():
+                            orchestrator_context += f"{round_output}\n"
+                    
+                    # Process tool results by round
+                    if result.tool_results:
+                        current_round = 1
+                        round_tool_results = {}
+                        
+                        # Group tool results by round based on their sequence
+                        for tr in result.tool_results:
+                            if "GetSensorId" in tr["name"]:
+                                round_tool_results[1] = tr
+                            elif "GetValue" in tr["name"]:
+                                round_tool_results[2] = tr
+                        
+                        # Output tool results by round
+                        for round_num, tr in sorted(round_tool_results.items()):
+                            orchestrator_context += f"\nRound {round_num} Tool Results:\n"
+                            orchestrator_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+                
+                # Add the context to the task
+                task_str = f"{task_str}\n\n{orchestrator_context}"
             
             # If planning is disabled, execute directly
             if not self.config.get("use_agent_planner", True):
@@ -436,62 +493,88 @@ Remember:
             # Use existing plan or create new one
             plan = existing_plan if existing_plan else await self.create_plan(task_str)
             
-            # Execute tasks by round
+            # Initialize results storage
             all_results = []
-            round_results_by_num = {}  # Store results by round number
+            all_tool_calls = []
+            all_tool_results = []
+            combined_output = []
             
             # Group tasks by round
             tasks_by_round = {}
             for subtask in plan.tasks:
                 tasks_by_round.setdefault(subtask.round, []).append(subtask)
             
-            # Execute each round in sequence
+            # Execute rounds sequentially
             for round_num in sorted(tasks_by_round.keys()):
                 self.logger.info(f"AgentPlanner executing round {round_num}")
                 round_tasks = tasks_by_round[round_num]
                 
-                # Execute tasks in this round in parallel
-                tasks = []
+                # Add context from previous planner rounds if needed
+                round_context = ""
+                if round_num > 1 and all_results:
+                    round_context = "\n\nPrevious planner round results:\n"
+                    for prev_result in all_results:
+                        round_context += f"\nTask: {prev_result.task}\n"
+                        round_context += f"Output: {prev_result.output}\n"
+                        if prev_result.tool_results:
+                            round_context += f"Tool Results:\n"
+                            for tr in prev_result.tool_results:
+                                round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+                
+                # Execute tasks in this round (potentially in parallel if they don't depend on each other)
+                round_results = []
                 for subtask in round_tasks:
                     current_task = subtask.task
-                    self.logger.info(f"AgentPlanner preparing subtask: {current_task}")
                     
-                    # Add context from all previous rounds
-                    if round_num > 1:
-                        context = "\n\nPrevious round results:\n"
-                        for prev_round in range(1, round_num):
-                            if prev_round in round_results_by_num:
-                                context += f"\nResults from round {prev_round}:\n"
-                                for prev_result in round_results_by_num[prev_round]:
-                                    context += f"\nAgent {prev_result.agent_name}:\n"
-                                    context += f"Task: {prev_result.task}\n"
-                                    context += f"Output: {prev_result.output}\n"
-                        current_task = current_task + context
+                    # Build comprehensive context that includes:
+                    # 1. Previous orchestrator rounds
+                    # 2. Previous planner rounds
+                    # 3. Current round context
+                    task_context = []
                     
-                    # Pass the task to the worker agent
-                    tasks.append(self.worker_agent.execute_task(current_task))
+                    if orchestrator_context:
+                        task_context.append(orchestrator_context)
+                    if round_context:
+                        task_context.append(round_context)
+                    
+                    # Combine all contexts with proper separation
+                    if task_context:
+                        current_task = f"{current_task}\n\n{''.join(task_context)}"
+                    
+                    self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+                    result = await self.worker_agent.execute_task(current_task)
+                    
+                    # Add the round number to the result output for better context
+                    result.output = f"Round {round_num}: {result.output}"
+                    round_results.append(result)
                 
-                # Execute all tasks in this round
-                if tasks:
-                    round_results = await asyncio.gather(*tasks)
-                    all_results.extend(round_results)
-                    round_results_by_num[round_num] = round_results
-                    self.logger.debug(f"AgentPlanner completed round {round_num} with {len(round_results)} results")
+                # Process round results
+                for result in round_results:
+                    all_results.append(result)
+                    all_tool_calls.extend(result.tool_calls)
+                    all_tool_results.extend(result.tool_results)
+                    combined_output.append(result.output)
+                    
+                    # Add tool results immediately after the output
+                    if result.tool_results:
+                        tool_results_output = f"Round {round_num} Tool Results:\n"
+                        for tr in result.tool_results:
+                            tool_results_output += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+                        combined_output.append(tool_results_output)
+                
+                # Log completion of round with detailed information
+                self.logger.debug(f"Round {round_num} results: {json.dumps([r.dict() for r in round_results], indent=2)}")
             
-            # Combine all results
-            combined_output = "\n".join(r.output for r in all_results)
-            combined_tool_calls = [tc for r in all_results for tc in r.tool_calls]
-            combined_tool_results = [tr for r in all_results for tr in r.tool_results]
-            
-            self.logger.debug(f"AgentPlanner completed all rounds with {len(all_results)} total results")
+            # Create final combined result with clear round separation
+            final_output = "\n\n".join(combined_output)
             
             # Create a result that includes both planner and worker information
             result = AgentResult(
                 agent_name=self.worker_agent.agent_name,  # Use worker agent's name for proper attribution
                 task=task_str,  # Use the original task string
-                output=combined_output,
-                tool_calls=combined_tool_calls,
-                tool_results=combined_tool_results
+                output=final_output,
+                tool_calls=all_tool_calls,
+                tool_results=all_tool_results
             )
             
             return result
@@ -499,8 +582,8 @@ Remember:
         except Exception as e:
             self.logger.error(f"Error in planner execution: {str(e)}")
             return AgentResult(
-                agent_name=self.worker_agent.agent_name,  # Use worker agent's name for proper attribution
-                task=task_str,  # Use the original task string
+                agent_name=self.worker_agent.agent_name,
+                task=task_str,
                 output=f"Error in planner execution: {str(e)}",
                 tool_calls=[],
                 tool_results=[]

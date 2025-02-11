@@ -75,15 +75,6 @@ class MultiAgentBackend(OpacaLLMBackend):
         with open(self.agents_file) as f:
             self.agents_data = json.load(f)
         
-        # Initialize logging settings
-        self.log_to_file = False
-        self.log_file = "agents.log"
-        
-        # Clear the log file at startup
-        if self.log_to_file:
-            with open(self.log_file, 'w') as f:
-                f.write(f"\n{'=' * 35} New Session Started {'=' * 35}\n\n\n\n")
-        
         # Initialize session tracking
         self.current_session_id = None
         self.current_session_log = []
@@ -253,7 +244,7 @@ class MultiAgentBackend(OpacaLLMBackend):
                 
                 # Send only tool calls and results via websocket
                 if result.tool_calls:
-                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}", 0.0)
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}\n\n", 0.0)
                 
                 if result.tool_results:
                     await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", 0.0)
@@ -264,13 +255,13 @@ class MultiAgentBackend(OpacaLLMBackend):
                 
                 # Send only tool calls and results via websocket
                 if result.tool_calls:
-                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}", 0.0)
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}\n\n", 0.0)
                 
                 if result.tool_results:
                     await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", 0.0)
             
             # Now evaluate the result after we have it
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...", 0.0)
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n", 0.0)
             
             evaluation = await agent_evaluator.evaluate(task_str, result)
             
@@ -287,7 +278,7 @@ Tool results: {json.dumps(result.tool_results, indent=2)}
 
 Continue with the task using these results."""
                 
-                await send_to_websocket(websocket, "WorkerAgent", f"Retrying task...", 0.0)
+                await send_to_websocket(websocket, "WorkerAgent", f"Retrying task...\n\n", 0.0)
                 
                 # Execute retry
                 retry_result = await agent.execute_task(retry_task)
@@ -326,7 +317,7 @@ Continue with the task using these results."""
             # Execute task with or without planner
             if use_agent_planner:
                 # Send planning phase status
-                await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {agent_name}'s task...", 0.0)
+                await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {agent_name}'s task...\n\n", 0.0)
                 
                 # Create agent-specific planner
                 planner = AgentPlanner(
@@ -344,18 +335,18 @@ Continue with the task using these results."""
                 result = await agent.execute_task(current_task)
             
             # Send results via websocket
-            await send_to_websocket(websocket, "WorkerAgent", f"Task execution results:\n{result.output}", 0.0)
+            await send_to_websocket(websocket, "WorkerAgent", f"Task execution results:\n{result.output}\n\n", 0.0)
                 
             if result.tool_calls:
                 tool_calls_str = json.dumps(result.tool_calls, indent=2)
-                await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{tool_calls_str}", 0.0)
+                await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{tool_calls_str}\n\n", 0.0)
             
             if result.tool_results:
                 tool_results_str = json.dumps(result.tool_results, indent=2)
                 await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{tool_results_str}", 0.0)
             
             # Evaluate result
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {agent_name}'s task completion...", 0.0)
+            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {agent_name}'s task completion...\n\n", 0.0)
             
             evaluation = await agent_evaluator.evaluate(task_str, result)
             
@@ -376,7 +367,7 @@ Continue with the task using these results."""
             iterations += 1
             
             if iterations < config["max_iterations"]:
-                await send_to_websocket(websocket, "WorkerAgent", f"Agent {agent_name} starting new iteration...", 0.0)
+                await send_to_websocket(websocket, "WorkerAgent", f"Agent {agent_name} starting new iteration...\n\n", 0.0)
         
         # If we reach here, we've exhausted all iterations
         return result
@@ -397,7 +388,7 @@ Continue with the task using these results."""
             ))
             
             # Log initial user message
-            if self.log_to_file:
+            if BaseAgent.LOG_TO_FILE:
                 self._log_non_llm_interaction("User", message)
             
             # Get base config and merge with model config
@@ -460,16 +451,16 @@ Continue with the task using these results."""
             
             while rounds < config["max_rounds"]:
                 # Get execution plan from orchestrator
-                await send_to_websocket(websocket, "Planning", "Creating detailed execution plan...", 0.0)
+                await send_to_websocket(websocket, "Orchestrator", "Creating detailed orchestration plan...\n\n", 0.0)
                 
                 plan = await orchestrator.create_execution_plan(message)
                 
 
                 # First send the thinking process
-                await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}", 0.0)
+                await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}\n\n", 0.0)
                 
                 # Then send the tasks
-                await send_to_websocket(websocket, "Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.dict() for task in plan.tasks], indent=2)}\n", 0.0)
+                await send_to_websocket(websocket, "Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}\n\n", 0.0)
                 
                 # Mark planning phase complete
                 await send_to_websocket(websocket, "Orchestrator", "Execution plan created ✓\n\n", 0.0)
@@ -555,7 +546,7 @@ Continue with the task using these results."""
                 
                 # Execute each round
                 for round_num in sorted(tasks_by_round.keys()):
-                    await send_to_websocket(websocket, "Orchestrator", f"Starting execution round {round_num}", 0.0)
+                    await send_to_websocket(websocket, "Orchestrator", f"Starting execution round {round_num}\n\n", 0.0)
                     
                     round_results = await self._execute_round(
                         tasks_by_round[round_num],
@@ -568,26 +559,26 @@ Continue with the task using these results."""
                     
                     all_results.extend(round_results)
 
-                await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation...", 0.0)
+                await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation...\n\n", 0.0)
                 # Evaluate overall progress
                 evaluation = await overall_evaluator.evaluate(
                     f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED.",
                     all_results
                 )
 
-                await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}", 0.0)
+                await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}\n\n", 0.0)
                 await send_to_websocket(websocket, "OverallEvaluator", "Overall evaluation complete ✓", 0.0)
                             
                 if evaluation == OverallEvaluation.REITERATE:
                     # Get iteration advice before continuing
-                    await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...", 0.0)
+                    await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n", 0.0)
                     
                     advice = await iteration_advisor.get_advice(
                         f"{message}\n\nKeep in mind: The OutputGenerator will summarize all results at the end of the pipeline. Only suggest retrying if CRITICAL information is completely missing from the results.",
                         all_results
                     )
                     
-                    await send_to_websocket(websocket, "IterationAdvisor", f"Iteration Advice:\n{json.dumps(advice.dict(), indent=2)}", 0.0)
+                    await send_to_websocket(websocket, "IterationAdvisor", f"Iteration Advice:\n{json.dumps(advice.model_dump(), indent=2)}\n\n", 0.0)
                     
                     # Handle follow-up questions from iteration advisor
                     if advice.needs_follow_up and advice.follow_up_question:
@@ -622,7 +613,7 @@ Please address these specific improvements:
                 rounds += 1
             
             # Generate final output with streaming
-            await send_to_websocket(websocket, "OutputGenerator", "Generating final response...", 0.0)
+            await send_to_websocket(websocket, "OutputGenerator", "Generating final response...\n\n", 0.0)
             
             # Stream the final response
             messages = [{
@@ -704,26 +695,17 @@ Please address these specific improvements:
         except Exception as e:
             self.logger.error(f"Error in query_stream: {str(e)}", exc_info=True)
             response.error = str(e)
-            await send_to_websocket(websocket, "system", f"Error: {str(e)}", 0.0)
+            await send_to_websocket(websocket, "system", f"\n\nError: {str(e)}\n\n", 0.0)
             # Log error
             self._log_non_llm_interaction("System", f"Error: {str(e)}")
             return response
 
-    def enable_file_logging(self, log_file_path: str):
-        """Enable logging to a file for multi-agent interactions"""
-        self.log_to_file = True
-        self.log_file = log_file_path
-
-    def disable_file_logging(self):
-        """Disable logging to file"""
-        self.log_to_file = False
-        self.log_file = None
-
     def _save_session_log(self):
         """Save the complete session log to file if logging is enabled"""
-        if self.log_to_file and self.log_file and self.current_session_log:
+        from .agents import BaseAgent
+        if BaseAgent.LOG_TO_FILE and BaseAgent.LOG_FILE and self.current_session_log:
             try:
-                with open(self.log_file, 'a') as f:
+                with open(BaseAgent.LOG_FILE, 'a') as f:
                     f.write("\n" + "="*50 + "\n")
                     f.write("End of Session\n")
                     f.write("="*50 + "\n\n\n\n")
@@ -736,11 +718,13 @@ Please address these specific improvements:
 
     def _log_non_llm_interaction(self, agent: str, content: str) -> None:
         """Log non-LLM interactions like user inputs or system messages"""
+        from .agents import BaseAgent
         try:
-            with open(self.log_file, 'a') as f:
-                f.write(f"\n{'=' * 35} {agent} {'=' * 35}\n\n")
-                f.write(f"{content}\n\n")
-                f.write(f"{'=' * 90}\n\n")
+            if BaseAgent.LOG_TO_FILE:
+                with open(BaseAgent.LOG_FILE, 'a') as f:
+                    f.write(f"\n{'=' * 35} {agent} {'=' * 35}\n\n")
+                    f.write(f"{content}\n\n")
+                    f.write(f"{'=' * 90}\n\n")
         except Exception as e:
             self.logger.error(f"Error writing to log file: {str(e)}") 
 
