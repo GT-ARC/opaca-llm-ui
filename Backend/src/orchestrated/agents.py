@@ -257,10 +257,12 @@ class OrchestratorAgent(BaseAgent):
         chat_context = ""
         if self.chat_history and self.chat_history.messages:
             # Get last 5 messages for context
-            recent_messages = self.chat_history.messages[-5:]
-            chat_context = "\n\nRecent chat history:\n"
+            recent_messages = self.chat_history.messages[-4:]
+            chat_context = "Consider the chat history if applicable: \n\nRecent chat history:\n\n"
             for msg in recent_messages:
                 chat_context += f"{msg.role}: {msg.content}\n"
+            
+            chat_context = chat_context + """\n\n IF YOU UTILIZE INFORMATION FROM THE CHAT HISTORY, YOU MUST ALWAYS INCLUDE IT WITHIN YOUR TASKS. YOU ARE THE ONLY AGENT IN THE WHOLE CHAIN THAT HAS ACCESS TO THE CHAT HISTORY!"""
   
         messages = [
             {
@@ -272,9 +274,11 @@ class OrchestratorAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"""Create an execution plan for this request: \n {user_request} \n\n 
-Consider the chat history if applicable: \n {chat_context} \n\n
+{chat_context} \n\n
 Keep in mind that there is an output generating LLM-Agent at the end of the chain.
 If the user request requires a summary, no seperate agent or function is needed for that, as the output generating agent will do that!
+
+REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
 
 YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
 THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
@@ -417,6 +421,8 @@ Remember:
 2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
 3. NEVER use placeholders - always use actual values.
 4. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
+5. YOU ABSOLUTELY HAVE TO REMEBER THAT THE WORKER AGENTS ONLY HAVE ACCESS TO THE TASK FIELD YOU CREATE. ALL THE INFORMATION WITHIN THE THINKING PROCESS IS NOT AVAILABLE FOR THE WORKER AGENTS!
+6. Put all the information needed to execute the task into the task field.
 
 {remark}
 

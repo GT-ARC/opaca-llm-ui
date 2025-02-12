@@ -20,7 +20,7 @@ class OrchestratorPlan(BaseModel):
 
 class PlannerPlan(BaseModel):
     """Model for the planner's execution plan"""
-    thinking: str = Field(..., description="Step by step reasoning about how to break down and solve the task")
+    thinking: str = Field(..., description="Short and precise step by step reasoning about how to break down and solve the task")
     tasks: List[AgentTask] = Field(..., description="List of tasks to be executed")
 
 class AgentEvaluation(str, Enum):
