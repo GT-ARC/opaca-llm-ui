@@ -117,15 +117,17 @@
                                                     aria-expanded="false"
                                                     :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
                                                 <i class="fa fa-wrench me-3"/>
-                                                <strong>{{ action.name }}</strong>
+                                                {{ action.name }}
                                             </button>
 
                                             <!-- action body -->
                                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
                                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
                                                 <p><strong>Description:</strong> {{ action.description }}</p>
-                                                <p><strong>Input Parameters:</strong> {{ action.parameters }}</p>
-                                                <p><strong>Result:</strong> {{ action.result }}</p>
+                                                <strong>Input Parameters:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
+                                                <strong>Result:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                             </div>
                                         </div>
                                     </div>
@@ -412,6 +414,10 @@ export default {
             const configContainer = document.getElementById('config-display');
             configContainer.scrollTop = configContainer.scrollHeight;
         },
+
+        formatJSON(obj) {
+            return JSON.stringify(obj, null, 2)
+        }
     },
     mounted() {
         this.setupResizer();
@@ -672,10 +678,13 @@ export default {
     display: none;
 }
 
-.list-group-item:hover,
-.list-group-item:hover .action-header-button:hover,
-.list-group-item:hover .accordion-collapse {
-    background-color: var(--surface-light)
+.json-box {
+    background-color: var(--bs-gray-200);
+    color: var(--text-primary-light);
+    padding: 0.75rem;
+    border-radius: var(--border-radius-md);
+    white-space: pre-wrap; /* Ensures line breaks */
+    font-family: monospace;
 }
 
 /* Dark mode styles */
@@ -712,10 +721,6 @@ export default {
         color: var(--text-primary-dark);
     }
 
-    .accordion-button:hover {
-        background-color: var(--secondary-dark)
-    }
-
     .accordion-button:not(.collapsed) {
         background-color: var(--primary-dark);
         color: var(--text-primary-dark);
@@ -731,11 +736,10 @@ export default {
         filter: invert(1);
     }
 
-    .list-group-item:hover,
-    .list-group-item:hover .action-header-button:hover,
-    .list-group-item:hover .accordion-collapse {
-        background-color: var(--surface-dark)
-    }
+    .json-box {
+    background-color: var(--surface-dark);
+    color: var(--text-primary-dark);
+}
 
     .form-control {
         background-color: var(--input-dark);
