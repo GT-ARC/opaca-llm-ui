@@ -38,8 +38,8 @@ from ..utils import openapi_to_functions
 
 
 
-class MultiAgentBackend(OpacaLLMBackend):
-    NAME = "multi-agent"
+class SelfOrchestratedBackend(OpacaLLMBackend):
+    NAME = "self-orchestrated"
 
     
     def __init__(self, agents_file: str = "agents_tools.json"):

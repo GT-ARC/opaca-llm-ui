@@ -26,7 +26,7 @@ from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import OpacaClient
 from .proxy import KnowledgeBackend, DataAnalysisBackend
-from .multiagent import MultiAgentBackend
+from .orchestrated import SelfOrchestratedBackend
 
 
 app = FastAPI(
@@ -59,7 +59,7 @@ BACKENDS = {
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
     # multi-agent backend
-    MultiAgentBackend.NAME: MultiAgentBackend(),
+    SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
 }
 
 BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}

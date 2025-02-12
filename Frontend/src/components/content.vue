@@ -181,7 +181,7 @@ export default {
             this.accumulatedContent = ''; // Reset accumulated content for new message
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm-openai', 'rest-gpt-openai', 'multi-agent'].includes(this.getBackend())) {
+                if (['tool-llm-openai', 'rest-gpt-openai', 'self-orchestrated'].includes(this.getBackend())) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');

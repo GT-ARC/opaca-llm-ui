@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/multi-agent",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
@@ -13,7 +13,7 @@ var config = {
                 "rest-gpt-llama": "RestGPT (LLAMA)",
                 "tool-llm-openai": "Tool LLM",
                 "tool-llm-llama": "Tool LLM (LLAMA)",
-                "multi-agent": "Multi-Agent System"
+                "self-orchestrated": "Self-Orchestrated"
             }
         },
         "itdz-knowledge": "Knowledge Assistant",
