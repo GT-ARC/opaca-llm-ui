@@ -1,11 +1,8 @@
-from datetime import datetime
-
 LOCATION = "Ernst-Reuter-Platz 2, 10587 Berlin\n (On the 3rd floor of the building inside one of the loud servers)"
 
 BACKGROUND_INFO = f"""
 # GENERAL INFORMATION
 
-The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.
 You are currently in the ZEKI (Zentrum für erlebbare Künstliche Intelligenz und Digitalisierung / Center for Tangible Artificial Intelligence and Digitalization) Office in Berlin.
 Your exact location is: 
 {LOCATION}

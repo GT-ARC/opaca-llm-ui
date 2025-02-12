@@ -6,6 +6,8 @@ import logging
 from pydantic import BaseModel, Field
 import time
 import asyncio
+from datetime import datetime
+
 
 from ..models import AgentMessage
 from .models import (
@@ -257,11 +259,11 @@ class OrchestratorAgent(BaseAgent):
             chat_context = "\n\nRecent chat history:\n"
             for msg in recent_messages:
                 chat_context += f"{msg.role}: {msg.content}\n"
-        
+  
         messages = [
             {
                 "role": "system",
-                "content": BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
+                "content": get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
                     agent_summaries=json.dumps(self.agent_summaries, indent=2)
                 ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
             },
@@ -307,7 +309,7 @@ class GeneralAgent(BaseAgent):
         self.tools = []  # Empty list since GeneralAgent doesn't use real tools
         
         # Store the complete response with agent summaries as JSON
-        self.predefined_response = BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
+        self.predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
             agent_capabilities=json.dumps(agent_summaries, indent=2)
         )
         
@@ -366,8 +368,7 @@ class AgentPlanner(BaseAgent):
     
     async def create_plan(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None) -> PlannerPlan:
         """Create a high-level task plan with rounds and dependencies."""
-        task_str = task.task if isinstance(task, AgentTask) else task
-        
+        task_str = task.task if isinstance(task, AgentTask) else task       
         # Create context from previous results if available
         context = ""
         if previous_results:
@@ -398,7 +399,7 @@ class AgentPlanner(BaseAgent):
 
         messages = [{
             "role": "system",
-            "content": BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
+            "content": get_current_time() + BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
 
 THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
 
@@ -758,7 +759,7 @@ class OutputGenerator(BaseAgent):
             messages = [
                 {
                     "role": "system",
-                    "content": BACKGROUND_INFO + OUTPUT_GENERATOR_PROMPT
+                    "content": get_current_time() + BACKGROUND_INFO + OUTPUT_GENERATOR_PROMPT
                 },
                 {
                     "role": "user",
@@ -927,7 +928,7 @@ class WorkerAgent(BaseAgent):
             # Create messages with task description and tools
             messages = [{
                 "role": "system",
-                "content": BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(
+                "content": get_current_time() + BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(
                     agent_name=self.agent_name,
                     agent_summary=self.summary
                 )
@@ -1162,3 +1163,11 @@ def transform_schema(schema):
     }
     
     return final_schema
+
+def get_current_time():
+    return f"""
+# CURRENT TIME 
+
+The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.
+
+"""

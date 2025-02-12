@@ -356,11 +356,16 @@ Continue with the task using these results."""
             agent_summaries["GeneralAgent"] = """**Purpose:** The GeneralAgent is designed to handle general queries about system capabilities and provide overall assistance.
 
 **Overview:** This agent can explain the system's features, available agents, and their capabilities. It serves as the primary point of contact for general inquiries and capability questions.
+**Note:** If you believe that the Output Generator LLM would be able to answer the question directly, USE THIS AGENT! This agent has absolutely no latency and retrieves context very fast. Therefore, it is the best choice for very simple questions or questions that are related to the system's capabilities.
+**Expected Output from this agent:** An immediate summary of the system containing the current time, location, and capabilities.
 
 **Goals and Capabilities:** The GeneralAgent can:
 1. Explain what the system can do
 2. Provide information about available agents and their capabilities
-3. Answer general questions about the system"""
+3. Answer general questions about the system
+4. Answer very simple questions
+5. Retrieve the current time
+6. Retrieve the current location"""
             
             # Initialize agents
             orchestrator = OrchestratorAgent(
