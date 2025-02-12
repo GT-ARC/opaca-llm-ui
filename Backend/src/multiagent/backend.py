@@ -234,7 +234,7 @@ class MultiAgentBackend(OpacaLLMBackend):
             self.logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
-            if self._parse_bool_config(config.get("use_agent_planner", True)):
+            if self._parse_bool_config(config.get("use_agent_planner", True)) and task.agent_name != "GeneralAgent":
                 await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n", 0.0)
                 
                 planner = AgentPlanner(
