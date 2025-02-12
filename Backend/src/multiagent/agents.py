@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 import time
 import asyncio
 from datetime import datetime
+import pytz
 
 
 from ..models import AgentMessage
@@ -1165,9 +1166,13 @@ def transform_schema(schema):
     return final_schema
 
 def get_current_time():
+    location = "Europe/Berlin"
+    berlin_tz = pytz.timezone(location)
     return f"""
 # CURRENT TIME 
 
-The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.
+The current date and time in ({location}) is {datetime.now(berlin_tz).strftime("%A, %d %B %Y (currently in Calender Week %-W), %H:%M:%S (%p), (in Time Zone %Z)")}.
+YOU ARE ALLOWED AND ABSOLUTELY ENCOURAGED TO REDUCE THE INFORMATION TO A SHORTER FORMAT (eg. leaving out seconds, leaving out AM/PM or the calendar week) IF IT IS NOT NECESSARY!
+
 
 """

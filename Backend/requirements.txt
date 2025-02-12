@@ -8,3 +8,4 @@ uvicorn
 colorama
 jsonref
 websockets
+pytz

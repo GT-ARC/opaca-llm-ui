@@ -162,6 +162,7 @@ Format Requirements:
 1. Use markdown formatting to enhance readability, but AVOID headers.
 2. Use bullet points where it makes sense to improve readability. 
 3. If you want to show an image, use markdown formatting to visualize it directly within the output message (don't just include a link to an image).
+4. ALWAYS answer using the first person singular (eg. "I"). If the user asks you something, you should always answer using "I" and not "You".
 
 REMEMBER: TO SHOW AN IMAGE IN MARKDOWN, YOU NEED TO USE THE FOLLOWING SYNTAX:
 ![Image Description](image_url)

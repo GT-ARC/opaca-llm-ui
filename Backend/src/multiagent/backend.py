@@ -135,6 +135,12 @@ class MultiAgentBackend(OpacaLLMBackend):
                 required=True, 
                 default=True,
                 description="Whether to use the planner agent or not"),
+            # Whether to use the agent evaluator or not
+            "use_agent_evaluator": ConfigParameter(
+                type="boolean", 
+                required=True, 
+                default=True,
+                description="Whether to use the agent evaluator or not"),
         }
     
     async def _create_openai_client(self, session: SessionData, agent_type: str = "worker") -> AsyncOpenAI:
@@ -222,9 +228,9 @@ class MultiAgentBackend(OpacaLLMBackend):
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         results = []
-        
+
         # Create agent evaluator
-        agent_evaluator = AgentEvaluator(evaluator_client, config["evaluator_model"])
+        agent_evaluator = AgentEvaluator(evaluator_client, config["evaluator_model"]) if self._parse_bool_config(config.get("use_agent_evaluator", True)) else None
         
         for task in round_tasks:
             agent = worker_agents[task.agent_name]
@@ -275,16 +281,19 @@ class MultiAgentBackend(OpacaLLMBackend):
                 if result.tool_results:
                     await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", 0.0)
             
-            # Now evaluate the result after we have it
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n", 0.0)
+            if agent_evaluator and task.agent_name != "GeneralAgent":
+                # Now evaluate the result after we have it
+                await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n", 0.0)
+                
+                evaluation = await agent_evaluator.evaluate(task_str, result)
             
-            evaluation = await agent_evaluator.evaluate(task_str, result)
-            
-            # Send evaluation results via websocket
-            await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}", 0.0)
+                # Send evaluation results via websocket
+                await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}", 0.0)
+            else: 
+                evaluation = None
             
             # If evaluation indicates we need to retry, do so
-            if evaluation == AgentEvaluation.REITERATE:
+            if evaluation and evaluation == AgentEvaluation.REITERATE:
                 # Update task for retry
                 retry_task = f"""Previous task: {task_str}
 Previous output: {result.output}
@@ -365,7 +374,9 @@ Continue with the task using these results."""
 3. Answer general questions about the system
 4. Answer very simple questions
 5. Retrieve the current time
-6. Retrieve the current location"""
+6. Retrieve the current location
+
+**IMPORTANT:** This agent only has one function to call. Therefore, you MUST be extreamly short with your task for this agent to reduce latency!"""
             
             # Initialize agents
             orchestrator = OrchestratorAgent(
