@@ -453,7 +453,7 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
             elif content.startswith("markdown"):
                 content = content[8:]
             elif "\n" in content:
-                content = content[content.find("\n")+1:]
+                content = content.strip()
         
         return PlannerPlan.model_validate_json(content)
 
