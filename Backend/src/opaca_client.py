@@ -34,10 +34,7 @@ class OpacaClient:
         
     async def get_actions(self) -> dict[str, List[Dict[str, Any]]]:
         return {
-            agent["agentId"]: [
-                {"name": action["name"], "description": action["description"],
-                 "parameters": action["parameters"], "result": action["result"]} for action in agent["actions"]
-            ] for agent in self.actions_dict
+            agent["agentId"]: agent["actions"] for agent in self.actions_dict
         }
     
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
