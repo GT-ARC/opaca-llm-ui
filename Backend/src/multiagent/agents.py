@@ -289,12 +289,22 @@ THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
         content = response.content
         if content.startswith("```") and content.endswith("```"):
             # Remove markdown code blocks
-            content = content.strip("`").strip()
+            content = content[3:-3].strip()
             # Remove language identifier if present (e.g., "json")
-            if content.startswith("json\n"):
-                content = content[5:]
+            if content.startswith("json"):
+                content = content[4:]
+            elif content.startswith("python"):
+                content = content[6:]
+            elif content.startswith("bash"):
+                content = content[4:]
+            elif content.startswith("sh"):
+                content = content[2:]
+            elif content.startswith("text"):
+                content = content[4:]
+            elif content.startswith("markdown"):
+                content = content[8:]
             elif "\n" in content:
-                content = content[content.find("\n")+1:]
+                content = content.strip()
         
         return OrchestratorPlan.model_validate_json(content)
 
