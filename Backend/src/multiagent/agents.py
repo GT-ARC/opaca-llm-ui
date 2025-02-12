@@ -8,6 +8,7 @@ import time
 import asyncio
 from datetime import datetime
 import pytz
+import re
 
 
 from ..models import AgentMessage
@@ -289,22 +290,7 @@ THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
         content = response.content
         if content.startswith("```") and content.endswith("```"):
             # Remove markdown code blocks
-            content = content[3:-3].strip()
-            # Remove language identifier if present (e.g., "json")
-            if content.startswith("json"):
-                content = content[4:]
-            elif content.startswith("python"):
-                content = content[6:]
-            elif content.startswith("bash"):
-                content = content[4:]
-            elif content.startswith("sh"):
-                content = content[2:]
-            elif content.startswith("text"):
-                content = content[4:]
-            elif content.startswith("markdown"):
-                content = content[8:]
-            elif "\n" in content:
-                content = content.strip()
+            content = re.sub(r"^```\w*\n|```\s*$", "", content).strip()
         
         return OrchestratorPlan.model_validate_json(content)
 
@@ -448,22 +434,7 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
         content = response.content
         if content.startswith("```") and content.endswith("```"):
             # Remove markdown code blocks
-            content = content[3:-3].strip()
-            # Remove language identifier if present (e.g., "json")
-            if content.startswith("json"):
-                content = content[4:]
-            elif content.startswith("python"):
-                content = content[6:]
-            elif content.startswith("bash"):
-                content = content[4:]
-            elif content.startswith("sh"):
-                content = content[2:]
-            elif content.startswith("text"):
-                content = content[4:]
-            elif content.startswith("markdown"):
-                content = content[8:]
-            elif "\n" in content:
-                content = content.strip()
+            content = re.sub(r"^```\w*\n|```\s*$", "", content).strip()
         
         return PlannerPlan.model_validate_json(content)
 
@@ -493,8 +464,7 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
                         round_tool_results = {}
 
                         # Group tool results by round based on their sequence
-                        for i, tr in enumerate(result.tool_results, 0):
-                            round_tool_results[i] = tr
+                        round_tool_results = dict(enumerate(result.tool_results))
                         
                         # Output tool results by round
                         for round_num, tr in sorted(round_tool_results.items()):
@@ -1033,7 +1003,7 @@ Remember:
                 tool_calls.append(tool_call_dict)
                 tool_results.append({
                     "name": tool_call.function.name,
-                    "result": result  # Store the raw result without string conversion
+                    "result": result
                 })
 
 
