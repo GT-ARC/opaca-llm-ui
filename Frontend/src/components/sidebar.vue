@@ -105,31 +105,27 @@
                                 </h2>
 
                                 <!-- body -->
-                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"  :class="{show: agentIndex === 0}"
+                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
                                      :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
                                     <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
                                         <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
 
                                             <!-- header -->
-                                            <h2 class="accordion-item m-0" :id="'action-header-' + agentIndex + '-' +actionIndex">
-                                                <button class="accordion-button collapsed"
-                                                        type="button" data-bs-toggle="collapse"
-                                                        :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
-                                                        aria-expanded="false"
-                                                        :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
-                                                    <i class="fa fa-wrench me-3"/>
-                                                    <strong>{{ action.name }}</strong>
-                                                </button>
-                                            </h2>
+                                            <button class="action-header-button collapsed"
+                                                    type="button" data-bs-toggle="collapse"
+                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                    aria-expanded="false"
+                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                <i class="fa fa-wrench me-3"/>
+                                                <strong>{{ action.name }}</strong>
+                                            </button>
 
                                             <!-- action body -->
-                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse" :class="{show: actionIndex === 0}"
+                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
                                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                                <div class="accordion-body">
-                                                    <p><strong>Description:</strong> {{ action.description }}</p>
-                                                    <p><strong>Input Parameters:</strong> {{ action.parameters }}</p>
-                                                    <p><strong>Result:</strong> {{ action.result }}</p>
-                                                </div>
+                                                <p><strong>Description:</strong> {{ action.description }}</p>
+                                                <p><strong>Input Parameters:</strong> {{ action.parameters }}</p>
+                                                <p><strong>Result:</strong> {{ action.result }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -632,6 +628,10 @@ export default {
     box-shadow: none;
 }
 
+.accordion-button:hover {
+    background-color: var(--secondary-light)
+}
+
 .accordion-button:focus {
     box-shadow: none;
     border-color: transparent;
@@ -651,6 +651,31 @@ export default {
 
 .accordion-collapse {
     background-color: var(--background-light);
+}
+
+.action-header-button {
+    background-color: transparent;
+    color: inherit;
+    padding: 0.5rem 0;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    width: 100%;
+    font-weight: bold;
+}
+
+.action-header-button:focus {
+    outline: none;
+}
+
+.action-header-button::after {
+    display: none;
+}
+
+.list-group-item:hover,
+.list-group-item:hover .action-header-button:hover,
+.list-group-item:hover .accordion-collapse {
+    background-color: var(--surface-light)
 }
 
 /* Dark mode styles */
@@ -687,6 +712,10 @@ export default {
         color: var(--text-primary-dark);
     }
 
+    .accordion-button:hover {
+        background-color: var(--secondary-dark)
+    }
+
     .accordion-button:not(.collapsed) {
         background-color: var(--primary-dark);
         color: var(--text-primary-dark);
@@ -700,6 +729,12 @@ export default {
 
     .accordion-button::after {
         filter: invert(1);
+    }
+
+    .list-group-item:hover,
+    .list-group-item:hover .action-header-button:hover,
+    .list-group-item:hover .accordion-collapse {
+        background-color: var(--surface-dark)
     }
 
     .form-control {
@@ -754,10 +789,6 @@ export default {
     transition: all 0.2s ease;
 }
 
-.list-group-item:hover {
-    background-color: var(--surface-light);
-}
-
 .list-group-flush .list-group-item {
     border-right: 0;
     border-left: 0;
@@ -769,10 +800,6 @@ export default {
     .list-group-item {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
-    }
-
-    .list-group-item:hover {
-        background-color: var(--surface-dark);
     }
 
     .accordion-body {
