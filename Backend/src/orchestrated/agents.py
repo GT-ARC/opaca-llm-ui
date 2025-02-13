@@ -290,12 +290,20 @@ THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
             },
             {
                 "role": "user",
-                "content": f"""Create an execution plan for this request: \n {user_request} \n\n 
+                "content": f"""
 {chat_context} \n\n
+
+{REMARK}
+
 Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
 If the user request requires a summary, NO seperate agent or function is needed for that, as the output generating agent will do that!
- 
-{REMARK}"""
+NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TAKS! 
+IF YOU SHOULD RETRIEVE AND SUMMARIZE INFORMATION, ONLY CREATE A TASK FOR THE RETRIEVAL, NOT FOR THE SUMMARIZATION!
+THE SUMMARIZATION HAPPENS AUTOMATICALLY AND NO ACTION FROM YOUR SIDE IS REQUIRED FOR THAT!!
+
+NOW, Create an execution plan for this request: \n 
+{user_request}
+"""
             }
         ]
         

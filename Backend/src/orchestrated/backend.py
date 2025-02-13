@@ -94,7 +94,7 @@ class SelfOrchestratedBackend(OpacaLLMBackend):
                 type="string", 
                 required=True, 
                 default="vllm", 
-                enum=["vllm", "vllm-large", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-mixed",
+                enum=["vllm", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-large", "vllm-superlarge", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
             # Temperature for the orchestrator and worker agents
@@ -744,6 +744,18 @@ Please address these specific improvements:
             response.execution_time = total_execution_time
 
             self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {total_execution_time:.2f} seconds\n\n")
+
+            # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
+            execution_times = {msg.agent: f"{msg.execution_time:.2f} seconds" for msg in agent_messages if msg.execution_time is not None}
+            
+
+
+            # Send the execution times in a final websocket message from system agent
+            await send_to_websocket(websocket, "system", f"⏱️ Execution Times:\n\n", 0.0)
+            await send_to_websocket(websocket, "system", f"Total Execution Time: {total_execution_time:.2f} seconds\n {json.dumps(execution_times, indent=2)}\n", 0.0)
+
+            # Send the final message from the system agent
+            await send_to_websocket(websocket, "system", "Execution complete ✓", 0.0)
             
             return response
             
