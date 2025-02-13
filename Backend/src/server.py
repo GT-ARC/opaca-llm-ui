@@ -3,6 +3,7 @@ FastAPI Server providing HTTP/REST routes to be used by the Frontend.
 Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
+import os
 import uuid
 
 from fastapi import FastAPI, Request, HTTPException
@@ -27,9 +28,7 @@ app = FastAPI(
 
 # Configure CORS settings
 origins = [
-    "*",
-    "http://localhost",
-    "http://localhost:5173",  # Assuming Vue app is running on this port
+    f"{os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')}",
 ]
 
 app.add_middleware(
