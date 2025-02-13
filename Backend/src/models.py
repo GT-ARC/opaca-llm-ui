@@ -12,7 +12,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
     FewShotChatMessagePromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, Field
 from starlette.websockets import WebSocket
 
 
@@ -36,6 +36,8 @@ class AgentMessage(BaseModel):
     tools: List[Dict[str, Any]] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
+    status: str = Field(default="", description="Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')")
+    step: str = Field(default="", description="Current step being executed")
 
 
 class Response(BaseModel):
