@@ -4,12 +4,21 @@ Provides a list of available "backends", or LLM clients that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import uuid
+from typing import List, Dict, Any
+import logging
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload
@@ -18,6 +27,7 @@ from .restgpt import RestGptBackend
 from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
 from .opaca_client import OpacaClient
 from .proxy import KnowledgeBackend, DataAnalysisBackend
+from .orchestrated import SelfOrchestratedBackend
 
 
 app = FastAPI(
@@ -49,6 +59,8 @@ BACKENDS = {
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
+    # multi-agent backend
+    SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
 }
 
 BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
@@ -71,7 +83,7 @@ async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     return await session.client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
-async def actions(request: Request, response: FastAPIResponse) -> dict[str, list[str]]:
+async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = handle_session_id(request, response)
     return await session.client.get_actions()
 

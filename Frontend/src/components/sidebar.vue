@@ -90,31 +90,48 @@
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start" id="agents-accordion">
-                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
+                            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
 
                                 <!-- header -->
-                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
-                                    <button class="accordion-button" :class="{collapsed: index > 0}"
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
+                                    <button class="accordion-button collapsed"
                                             type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
-                                            :aria-controls="'accordion-body-' + index">
+                                            :data-bs-target="'#accordion-body-' + agentIndex"
+                                            aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + agentIndex">
                                         <i class="fa fa-user me-3"/>
                                         <strong>{{ agent }}</strong>
                                     </button>
                                 </h2>
 
                                 <!-- body -->
-                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
-                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
-                                    <div class="accordion-body p-0 ps-4">
-                                        <ul class="list-group list-group-flush">
-                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
-                                                {{ action }}
-                                            </li>
-                                        </ul>
+                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
+                                     :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
+                                    <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
+                                        <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
+
+                                            <!-- header -->
+                                            <button class="action-header-button collapsed"
+                                                    type="button" data-bs-toggle="collapse"
+                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                    aria-expanded="false"
+                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                <i class="fa fa-wrench me-3"/>
+                                                {{ action.name }}
+                                            </button>
+
+                                            <!-- action body -->
+                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                                                 :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
+                                                <p><strong>Description:</strong> {{ action.description }}</p>
+                                                <strong>Input Parameters:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
+                                                <strong>Result:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -159,7 +176,8 @@
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :color="debugMessage.color"
-                            :data-type="debugMessage.type"
+                            :type="debugMessage.type"
+                            :execution-time="debugMessage.execution_time"
                         />
                     </div>
                 </div>
@@ -397,6 +415,10 @@ export default {
             const configContainer = document.getElementById('config-display');
             configContainer.scrollTop = configContainer.scrollHeight;
         },
+
+        formatJSON(obj) {
+            return JSON.stringify(obj, null, 2)
+        }
     },
     mounted() {
         this.setupResizer();
@@ -613,6 +635,10 @@ export default {
     box-shadow: none;
 }
 
+.accordion-button:hover {
+    background-color: var(--secondary-light)
+}
+
 .accordion-button:focus {
     box-shadow: none;
     border-color: transparent;
@@ -632,6 +658,34 @@ export default {
 
 .accordion-collapse {
     background-color: var(--background-light);
+}
+
+.action-header-button {
+    background-color: transparent;
+    color: inherit;
+    padding: 0.5rem 0;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    width: 100%;
+    font-weight: bold;
+}
+
+.action-header-button:focus {
+    outline: none;
+}
+
+.action-header-button::after {
+    display: none;
+}
+
+.json-box {
+    background-color: var(--bs-gray-200);
+    color: var(--text-primary-light);
+    padding: 0.75rem;
+    border-radius: var(--border-radius-md);
+    white-space: pre-wrap; /* Ensures line breaks */
+    font-family: monospace;
 }
 
 /* Dark mode styles */
@@ -682,6 +736,11 @@ export default {
     .accordion-button::after {
         filter: invert(1);
     }
+
+    .json-box {
+    background-color: var(--surface-dark);
+    color: var(--text-primary-dark);
+}
 
     .form-control {
         background-color: var(--input-dark);
@@ -735,10 +794,6 @@ export default {
     transition: all 0.2s ease;
 }
 
-.list-group-item:hover {
-    background-color: var(--surface-light);
-}
-
 .list-group-flush .list-group-item {
     border-right: 0;
     border-left: 0;
@@ -750,10 +805,6 @@ export default {
     .list-group-item {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
-    }
-
-    .list-group-item:hover {
-        background-color: var(--surface-dark);
     }
 
     .accordion-body {
