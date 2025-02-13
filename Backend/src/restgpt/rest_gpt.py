@@ -1,6 +1,5 @@
 import time
 import re
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 from langchain_core.language_models import BaseChatModel
 
@@ -9,8 +8,6 @@ from .action_selector import ActionSelector
 from .caller import Caller
 from .evaluator import Evaluator
 from ..models import Response
-
-logger = logging.getLogger()
 
 
 class RestGPT:
@@ -116,8 +113,6 @@ class RestGPT:
         start_time = time.time()
         response = inputs['response']
 
-        logger.info(f'Query: {query}')
-
         while self._should_continue(iterations, time_elapsed):
 
             # PLANNER
@@ -132,7 +127,6 @@ class RestGPT:
             response.agent_messages.append(planner_response)
 
             plan = planner_response.content
-            logger.info(f"Planner: {plan}")
             eval_input += f'Plan step {iterations}: {plan}\n'
 
             if self._should_abort(plan):
@@ -150,7 +144,6 @@ class RestGPT:
                                                               })
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
             response.agent_messages.extend(as_response)  # Add all action selector messages
-            logger.info(f'API Selector: {api_plan}')
 
             if self._is_missing(api_plan):
                 planner_history.append((plan, api_plan))
@@ -171,7 +164,6 @@ class RestGPT:
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
             response.agent_messages.append(caller_response)
-            logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
             eval_input += f'API response {iterations}: {execution_res}\n'
             planner_history.append((plan, execution_res))
@@ -194,5 +186,4 @@ class RestGPT:
         response.content = final_answer
         response.iterations = iterations
 
-        logger.info(f'Final Answer: {final_answer}')
         return response
