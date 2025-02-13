@@ -5,6 +5,7 @@ import time
 from typing import Dict, Any, List, Union
 from pathlib import Path
 import yaml
+import asyncio
 
 from openai import AsyncOpenAI
 
@@ -139,8 +140,16 @@ class SelfOrchestratedBackend(OpacaLLMBackend):
             "use_agent_evaluator": ConfigParameter(
                 type="boolean", 
                 required=True, 
-                default=True,
+                default=False,
                 description="Whether to use the agent evaluator or not"),
+
+            # Whether to use the orchestrator without thinking
+            "disable_orchestrator_thinking": ConfigParameter(
+                type="boolean", 
+                required=True, 
+                default=True,
+                description="Whether to disable the thinking process of the orchestrator"
+            )
         }
     
     async def _create_openai_client(self, session: SessionData, agent_type: str = "worker") -> AsyncOpenAI:
@@ -228,12 +237,10 @@ class SelfOrchestratedBackend(OpacaLLMBackend):
         agent_messages: List[AgentMessage] = []
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
-        results = []
-
         # Create agent evaluator
         agent_evaluator = AgentEvaluator(evaluator_client, config["evaluator_model"]) if self._parse_bool_config(config.get("use_agent_evaluator", True)) else None
-        
-        for task in round_tasks:
+
+        async def execute_single_task(task: AgentTask):
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
             
@@ -370,7 +377,10 @@ Now, using the tools available to you and the previous results, continue with yo
                 else:
                     agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"No tool results for the task...", execution_time=worker_time))
             
-            results.append(result)
+            return result
+
+        # Execute all tasks in parallel using asyncio.gather
+        results = await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
         
         return results, agent_messages
 
@@ -447,7 +457,8 @@ Now, using the tools available to you and the previous results, continue with yo
                 client=orchestrator_client,
                 model=config["orchestrator_model"],
                 agent_summaries=agent_summaries,
-                chat_history=self.chat_history  # Pass chat history to orchestrator
+                chat_history=self.chat_history,  # Pass chat history to orchestrator
+                disable_thinking=self._parse_bool_config(config.get("disable_orchestrator_thinking", False))
             )
             
             # Initialize evaluators with evaluator model
@@ -486,7 +497,8 @@ Now, using the tools available to you and the previous results, continue with yo
                 orchestration_time = time.time() - orchestration_time
                 
                 # First send the thinking process
-                await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}\n\n", 0.0)
+                if not self._parse_bool_config(config.get("disable_orchestrator_thinking", False)):
+                    await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}\n\n", 0.0)
                 
                 # Then send the tasks
                 agent_messages.append(await send_to_websocket(websocket, "Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}\n\n", execution_time=orchestration_time))

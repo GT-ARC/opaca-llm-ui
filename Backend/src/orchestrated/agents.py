@@ -13,12 +13,13 @@ import re
 
 from ..models import AgentMessage
 from .models import (
-    AgentTask, OrchestratorPlan, PlannerPlan, AgentEvaluation, 
+    AgentTask, OrchestratorPlan, OrchestratorPlan_no_thinking, PlannerPlan, AgentEvaluation, 
     OverallEvaluation, AgentResult, IterationAdvice, ChatHistory
 )
 from .prompts import (
     BACKGROUND_INFO,
     ORCHESTRATOR_SYSTEM_PROMPT,
+    ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING,
     AGENT_SYSTEM_PROMPT,
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
@@ -246,10 +247,11 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
             self.logger.debug(f"LLM call took {execution_time:.2f} seconds")
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[ChatHistory] = None):
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[ChatHistory] = None, disable_thinking: bool = False):
         super().__init__(client, model)
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history
+        self.disable_thinking = disable_thinking
     
     async def create_execution_plan(self, user_request: str) -> OrchestratorPlan:
         """Create an execution plan for the user's request"""
@@ -263,31 +265,43 @@ class OrchestratorAgent(BaseAgent):
                 chat_context += f"{msg.role}: {msg.content}\n"
             
             chat_context = chat_context + """\n\n IF YOU UTILIZE INFORMATION FROM THE CHAT HISTORY, YOU MUST ALWAYS INCLUDE IT WITHIN YOUR TASKS. YOU ARE THE ONLY AGENT IN THE WHOLE CHAIN THAT HAS ACCESS TO THE CHAT HISTORY!"""
-  
+
+        if self.disable_thinking:
+            REMARK = """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
+THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+            SYSTEM_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING.format(
+                agent_summaries=json.dumps(self.agent_summaries, indent=2)
+            )
+            schema = OrchestratorPlan_no_thinking.model_json_schema()
+        
+        else:
+            REMARK = """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
+YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
+THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+            SYSTEM_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT.format(
+                agent_summaries=json.dumps(self.agent_summaries, indent=2)
+            )
+            schema = OrchestratorPlan.model_json_schema()
+        
         messages = [
             {
                 "role": "system",
-                "content": get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
-                    agent_summaries=json.dumps(self.agent_summaries, indent=2)
-                ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
+                "content": get_current_time() + BACKGROUND_INFO + SYSTEM_PROMPT + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
             },
             {
                 "role": "user",
                 "content": f"""Create an execution plan for this request: \n {user_request} \n\n 
 {chat_context} \n\n
-Keep in mind that there is an output generating LLM-Agent at the end of the chain.
-If the user request requires a summary, no seperate agent or function is needed for that, as the output generating agent will do that!
-
-REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-
-YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
-THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
+If the user request requires a summary, NO seperate agent or function is needed for that, as the output generating agent will do that!
+ 
+{REMARK}"""
             }
         ]
         
         response = await self._call_llm(
             messages=messages,
-            guided_json=OrchestratorPlan.model_json_schema()
+            guided_json=schema
         )
         
         # Clean up the response if it's wrapped in markdown code blocks
@@ -296,7 +310,10 @@ THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
             # Remove markdown code blocks
             content = re.sub(r"^```\w*\n|```\s*$", "", content).strip()
         
-        return OrchestratorPlan.model_validate_json(content)
+        if self.disable_thinking:
+            return OrchestratorPlan_no_thinking.model_validate_json(content)
+        else:
+            return OrchestratorPlan.model_validate_json(content)
 
 class GeneralAgent(BaseAgent):
     """Agent that handles general capability questions without using tools."""
@@ -519,10 +536,8 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
                             round_context += f"Tool Results:\n"
                             for tr in prev_result.tool_results:
                                 round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
-                
-                # Execute tasks in this round (potentially in parallel if they don't depend on each other)
-                round_results = []
-                for subtask in round_tasks:
+
+                async def execute_round_task(subtask):
                     current_task = subtask.task
                     
                     # Build comprehensive context that includes:
@@ -545,7 +560,10 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
                     
                     # Add the round number to the result output for better context
                     result.output = f"Round {round_num}: {result.output}"
-                    round_results.append(result)
+                    return result
+                
+                # Execute all tasks in this round in parallel
+                round_results = await asyncio.gather(*[execute_round_task(subtask) for subtask in round_tasks])
                 
                 # Process round results
                 for result in round_results:
@@ -1069,7 +1087,10 @@ def transform_schema(schema):
     4. Flattens and simplifies the schema structure
     5. Adds required name field for OpenAI compatibility
     """
-    def resolve_ref(ref, defs):
+    # Extract $defs if present
+    defs = schema.get('$defs', {})
+    
+    def resolve_ref(ref):
         """Resolve a $ref reference by getting the schema from $defs"""
         if not ref.startswith('#/$defs/'):
             return None
@@ -1111,7 +1132,7 @@ def transform_schema(schema):
         
         return cleaned
 
-    def process_schema(s, defs):
+    def process_schema(s):
         """Process schema by resolving refs and cleaning"""
         if not isinstance(s, dict):
             return s
@@ -1121,14 +1142,14 @@ def transform_schema(schema):
         
         # Handle $ref first
         if '$ref' in s:
-            ref_schema = resolve_ref(s['$ref'], defs)
+            ref_schema = resolve_ref(s['$ref'])
             if ref_schema:
                 # Merge the resolved schema with any additional properties
-                processed = process_schema(ref_schema, defs)
+                processed = process_schema(ref_schema)
                 # Add any additional fields from the original schema
                 for k, v in s.items():
                     if k != '$ref':
-                        processed[k] = process_schema(v, defs)
+                        processed[k] = process_schema(v)
                 return processed
         
         # Process each field
@@ -1136,19 +1157,16 @@ def transform_schema(schema):
             if k == '$defs':
                 continue  # Skip $defs as we handle them separately
             elif isinstance(v, dict):
-                processed[k] = process_schema(v, defs)
+                processed[k] = process_schema(v)
             elif isinstance(v, list):
-                processed[k] = [process_schema(item, defs) for item in v]
+                processed[k] = [process_schema(item) for item in v]
             else:
                 processed[k] = v
         
         return processed
-
-    # Extract $defs if present
-    defs = schema.get('$defs', {})
     
     # Process the main schema
-    processed_schema = process_schema(schema, defs)
+    processed_schema = process_schema(schema)
     
     # Clean the processed schema
     cleaned_schema = clean_schema(processed_schema)
