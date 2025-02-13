@@ -159,7 +159,8 @@
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :color="debugMessage.color"
-                            :data-type="debugMessage.type"
+                            :type="debugMessage.type"
+                            :execution-time="debugMessage.execution_time"
                         />
                     </div>
                 </div>
