@@ -45,8 +45,7 @@ class SelfOrchestratedBackend(OpacaLLMBackend):
     
     def __init__(self, agents_file: str = "agents_tools.json"):
         # Set up logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        self.logger = logging.getLogger("src.models")
         
 
         # Look for the file in the Backend directory
