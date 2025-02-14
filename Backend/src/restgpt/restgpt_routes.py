@@ -139,7 +139,7 @@ class RestGptBackend(OpacaLLMBackend):
         else:
             self.check_for_key(api_key)
             self.llm = ChatOpenAI(
-                model=config["gpt-model"],
+                model=config["model"],
                 temperature=float(config["temperature"]),
                 openai_api_key=api_key
             )
