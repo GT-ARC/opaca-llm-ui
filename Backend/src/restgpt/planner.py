@@ -1,10 +1,7 @@
-import logging
 import re
 from typing import Any, Dict, List, Tuple
 
 from ..models import AgentMessage, LLMAgent
-
-logger = logging.getLogger()
 
 examples = [
     {"input": "Book me the desk with id 6.", "output": """
