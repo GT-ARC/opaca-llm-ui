@@ -554,13 +554,13 @@ export default {
             this.editTextSpeechBubbleAI(statusMessage, messageCount);
             this.editAnimationSpeechBubbleAI(messageCount, true, color);
 
-            if (agent_message["tools"] && agent_message["tools"].length > 0) {
+            if (agent_message["tools"].length > 0) {
                 const tool_output = agent_message["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${tool["result"]}`
                 ).join("\n\n")
                 this.addDebug(tool_output, color, agent_message["agent"] + "-Tools");
 
-            } else {
+            } else if (agent_message["content"] !== "") {
                 this.addDebug(agent_message["content"], color, agent_message["agent"]);
             }
         },
@@ -608,7 +608,7 @@ export default {
             const debugMessages = this.$refs.sidebar.debugMessages;
 
             // If the message includes tools, the message needs to be replaced instead of appended
-            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && text) {
+            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && type === "Tool Generator-Tools" && text) {
                 debugMessages[debugMessages.length - 1] = {
                     text: text,
                     color: color,
