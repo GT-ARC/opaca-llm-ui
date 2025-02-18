@@ -9,7 +9,7 @@ import functools
 import httpx
 import jsonref
 from requests.exceptions import ConnectionError, HTTPError
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 
 class OpacaClient:
@@ -32,16 +32,15 @@ class OpacaClient:
             print("COULD NOT CONNECT", e)
             return e.response.status_code if e.response is not None else 400
         
-    async def get_actions(self) -> dict[str, list[str]]:
+    async def get_actions(self) -> dict[str, List[Dict[str, Any]]]:
         return {
-            agent["agentId"]: [action["name"] for action in agent["actions"]]
-            for agent in self.actions_dict
+            agent["agentId"]: agent["actions"] for agent in self.actions_dict
         }
     
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers())
+            res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
         res.raise_for_status()
         return res.json()
 

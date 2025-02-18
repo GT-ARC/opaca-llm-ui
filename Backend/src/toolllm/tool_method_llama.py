@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple, List, Optional
 
 from ..llama_proxy import LlamaProxy
+from ..models import ConfigParameter
 from ..toolllm.tool_method import ToolMethod
 from ..utils import openapi_to_llama
 
@@ -17,13 +18,13 @@ class ToolMethodLlama(ToolMethod):
         return self.NAME
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> Dict[str, ConfigParameter]:
         return {
-                "llama-url": "http://10.0.64.101:11000",
-                "llama-model": "llama3.1:70b",
-                "temperature": 0,
-                "use_agent_names": True,
-                "max_iterations": 5
+                "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
+                "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
+                "max_iterations": ConfigParameter(type="integer", required=True, default=5, minimum=1)
                }
 
     @property
@@ -45,14 +46,29 @@ class ToolMethodLlama(ToolMethod):
         self.tools = [{"type": "function", "function": tool} for tool in tools]
         return self.tools, error
 
-    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_message: str = ""):
+    async def invoke_generator(
+            self,
+            session,
+            message,
+            tool_responses,
+            config: Optional[Dict[str, Any]],
+            correction_message: str = "",
+            websocket=None
+    ):
         return await self.generator_agent.ainvoke({
             'input': message + correction_message,
             'config': config,
             'history': session.messages,
         })
 
-    async def invoke_evaluator(self, message, tool_names, tool_parameters, tool_results):
+    async def invoke_evaluator(
+            self,
+            message,
+            tool_names,
+            tool_parameters,
+            tool_results,
+            websocket=None
+    ):
         return await self.evaluator_agent.ainvoke({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far

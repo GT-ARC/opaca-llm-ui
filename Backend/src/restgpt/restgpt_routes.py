@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from ..llama_proxy import LlamaProxy
-from ..models import Response, SessionData, OpacaLLMBackend
+from ..models import Response, SessionData, OpacaLLMBackend, ConfigParameter
 from ..utils import get_reduced_action_spec
 from .rest_gpt import RestGPT
 
@@ -35,11 +35,16 @@ class RestGptBackend(OpacaLLMBackend):
         self.use_llama = use_llama
 
     async def query(self, message: str, session: SessionData) -> Response:
+        return await self.query_stream(message, session, None)
+
+    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
+
+        total_time = time.time()
 
         # Set config
         config = session.config.get(
             RestGptBackend.NAME_LLAMA if self.use_llama else RestGptBackend.NAME_OPENAI,
-            self.default_config
+            self.default_config()
         )
 
         # Create response object
@@ -66,54 +71,60 @@ class RestGptBackend(OpacaLLMBackend):
         rest_gpt = RestGPT(self.llm, action_spec)
 
         try:
-            total_time = time.time()
             result = await rest_gpt.ainvoke({
                 "query": message,
                 "history": session.messages,
                 "config": config,
                 "response": response,
                 "client": session.client,
+                "websocket": websocket,
             })
-            response.execution_time = time.time() - total_time
+            session.messages.append(HumanMessage(message))
+            session.messages.append(AIMessage(result.content))
+            result.error = response.error
+            result.execution_time = time.time() - total_time
+            return result
         except openai.AuthenticationError as e:
             response.content = ("I am sorry, but your provided api key seems to be invalid. Please provide a valid "
                                 "api key and try again.")
             response.error = str(e)
             return response
-        session.messages.append(HumanMessage(message))
-        session.messages.append(AIMessage(result.content))
-
-        return response
 
     @property
-    def default_config(self) -> dict:
+    def config_schema(self) -> Dict[str, ConfigParameter]:
         """
         Declares the default configuration
         """
         config = {
-            "slim_prompts": {                       # Use slim prompts -> cheaper
-                "planner": True,
-                "action_selector": True,
-                "evaluator": False
-            },
-            "examples": {                           # How many examples are used per agent
-                "planner": False,
-                "action_selector": True,
-                "caller": True,
-                "evaluator": True
-            },
-            "use_agent_names": True,
+            "slim_prompts": ConfigParameter(        # Use slim prompts -> cheaper
+                type="object",
+                required=True,
+                default={
+                    "planner": ConfigParameter(type="boolean", required=True, default=True),
+                    "action_selector": ConfigParameter(type="boolean", required=True, default=True),
+                    "evaluator": ConfigParameter(type="boolean", required=True, default=False)
+                }),
+            "examples": ConfigParameter(            # How many examples are used per agent
+                type="object",
+                required=True,
+                default={
+                    "planner": ConfigParameter(type="boolean", required=True, default=False),
+                    "action_selector": ConfigParameter(type="boolean", required=True, default=True),
+                    "caller": ConfigParameter(type="boolean", required=True, default=True),
+                    "evaluator": ConfigParameter(type="boolean", required=True, default=True)
+                }),
+            "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
         }
 
         if self.use_llama:
             config.update({
-                "llama-url": "http://10.0.64.101:11000",
-                "llama-model": "llama3.1:70b",
+                "llama-url": ConfigParameter(type="string", required=True, default="http://10.0.64.101:11000"),
+                "llama-model": ConfigParameter(type="string", required=True, default="llama3.1:70b"),
             })
         else:
             config.update({
-                "temperature": 0,  # Temperature for models
-                "gpt-model": "gpt-4o-mini",
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),  # Temperature for models
+                "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             })
 
         return config
@@ -128,7 +139,7 @@ class RestGptBackend(OpacaLLMBackend):
         else:
             self.check_for_key(api_key)
             self.llm = ChatOpenAI(
-                model=config["gpt-model"],
+                model=config["model"],
                 temperature=float(config["temperature"]),
                 openai_api_key=api_key
             )

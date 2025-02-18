@@ -2,8 +2,8 @@
     <div class="d-flex justify-content-start">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 pt-3 gap-2"
-             style="height: calc(100vh - 50px)">
+             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
+             style="height: calc(100vh - 50px);">
 
             <i @click="selectView('connect')"
                class="fa fa-link p-2 sidebar-item"
@@ -35,7 +35,7 @@
         <div v-show="isViewSelected()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: 400px">
+               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
 
                 <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">
@@ -90,31 +90,48 @@
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start" id="agents-accordion">
-                            <div v-for="(actions, agent, index) in platformActions" class="accordion-item" :key="index">
+                            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
 
                                 <!-- header -->
-                                <h2 class="accordion-header m-0" :id="'accordion-header-' + index">
-                                    <button class="accordion-button" :class="{collapsed: index > 0}"
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
+                                    <button class="accordion-button collapsed"
                                             type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#accordion-body-' + index" aria-expanded="false"
-                                            :aria-controls="'accordion-body-' + index">
+                                            :data-bs-target="'#accordion-body-' + agentIndex"
+                                            aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + agentIndex">
                                         <i class="fa fa-user me-3"/>
                                         <strong>{{ agent }}</strong>
                                     </button>
                                 </h2>
 
                                 <!-- body -->
-                                <div :id="'accordion-body-' + index" class="accordion-collapse collapse" :class="{show: index === 0}"
-                                     :aria-labelledby="'accordion-header-' + index" data-bs-parent="#agents-accordion">
-                                    <div class="accordion-body p-0 ps-4">
-                                        <ul class="list-group list-group-flush">
-                                            <li v-for="(action, index) in actions" :key="index" class="list-group-item">
-                                                {{ action }}
-                                            </li>
-                                        </ul>
+                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
+                                     :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
+                                    <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
+                                        <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
+
+                                            <!-- header -->
+                                            <button class="action-header-button collapsed"
+                                                    type="button" data-bs-toggle="collapse"
+                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                    aria-expanded="false"
+                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                <i class="fa fa-wrench me-3"/>
+                                                {{ action.name }}
+                                            </button>
+
+                                            <!-- action body -->
+                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                                                 :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
+                                                <p><strong>Description:</strong> {{ action.description }}</p>
+                                                <strong>Input Parameters:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
+                                                <strong>Result:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -122,18 +139,14 @@
 
                 <!-- backend config -->
                 <div v-show="isViewSelected('config')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <!-- Other Config Items -->
-                        <div v-for="(value, name) in backendConfig" :key="name" class="config-section">
-                            <div class="config-section-header">
-                                <strong>{{ name }}</strong>
-                            </div>
-                            <input v-model="backendConfig[name]"
-                                   class="form-control"
-                                   type="text" :placeholder="String(value)"/>
-                        </div>
+                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                                :key="name"
+                                :name="name"
+                                :value="value"
+                                v-model="backendConfig[name]"/>
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
@@ -144,6 +157,12 @@
                             <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
                                 <i class="fa fa-undo me-2"/>Reset to Default
                             </button>
+                        </div>
+                        <div
+                            v-if="!this.shouldFadeOut"
+                            class="config-error-message text-center"
+                            :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
+                            {{ this.configMessage }}
                         </div>
                     </div>
                 </div>
@@ -157,6 +176,8 @@
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :color="debugMessage.color"
+                            :type="debugMessage.type"
+                            :execution-time="debugMessage.execution_time"
                         />
                     </div>
                 </div>
@@ -164,13 +185,13 @@
                 <!-- sample questions -->
                 <div v-show="isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions 
+                    <SidebarQuestions
                         :questions="getConfig().translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
                         @category-selected="(category) => $emit('category-selected', category)"/>
                 </div>
 
-                <div class="resizer me-1" id="resizer" />
+                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
         </div>
     </div>
@@ -181,42 +202,42 @@ import conf from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
+import { useDevice } from "../useIsMobile.js";
+import ConfigParameter from './ConfigParameter.vue';
 
 export default {
     name: 'Sidebar',
     components: {
         DebugMessage,
-        SidebarQuestions
+        SidebarQuestions,
+        ConfigParameter
     },
     props: {
         backend: String,
         language: String
     },
+    setup() {
+        const { isMobile, screenWidth } = useDevice();
+        return { isMobile, screenWidth };
+    },
     data() {
         return {
-            selectedView: 'connect',
+            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
             apiKey: '',
             platformActions: null,
             backendConfig: null,
+            backendConfigSchema: null,
             debugMessages: [],
             selectedLanguage: 'english',
-            isConnected: false
+            isConnected: false,
+            configMessage: "",
+            configChangeSuccess: false,
+            shouldFadeOut: false,
+            fadeTimeout: null,
         };
-    },
-    created() {
-        // Initialize the sidebar with the connection view open
-        this.selectedView = 'connect';
-        // Ensure the main content is properly positioned on startup
-        this.$nextTick(() => {
-            const mainContent = document.getElementById('mainContent');
-            if (mainContent) {
-                mainContent.classList.remove('mx-auto');
-            }
-            this.$emit('onSidebarToggle', this.selectedView);
-        });
     },
     methods: {
         getConfig() {
@@ -224,16 +245,13 @@ export default {
         },
 
         selectView(key) {
-            const mainContent = document.getElementById('mainContent');
             if (this.selectedView !== key) {
                 this.selectedView = key;
-                mainContent?.classList.remove('mx-auto');
             } else {
                 this.selectedView = 'none';
-                mainContent?.classList.add('mx-auto');
             }
-            this.$emit('onSidebarToggle', this.selectedView);
-            console.log('selected sidebar view:', this.selectedView);
+            this.$emit('on-sidebar-toggle', this.selectedView);
+            // console.log('selected sidebar view:', this.selectedView);
         },
 
         isViewSelected(key) {
@@ -257,7 +275,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView('questions');
+                    this.selectView(this.getConfig().DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -271,6 +289,7 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
+                // this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -284,11 +303,26 @@ export default {
 
         async saveBackendConfig() {
             const backend = this.getBackend();
-            const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
-            if (response.status === 200) {
-                console.log('Saved backend config.');
-            } else {
-                console.error('Error saving backend config.');
+            try {
+                const response = await sendRequest('PUT', `${conf.BackendAddress}/${backend}/config`, this.backendConfig);
+                if (response.status === 200) {
+                    console.log('Saved backend config.');
+                    this.configChangeSuccess = true
+                    this.configMessage = "Configuration Changed"
+                    this.startFadeOut()
+                } else {
+                    console.error('Error saving backend config.');
+                    this.configChangeSuccess = false
+                    this.configMessage = "Unexpected Error"
+                    this.startFadeOut()
+                }
+            } catch (error) {
+                if (error.response.status === 400) {
+                    console.log("Invalid Configuration Values: ", error.response.data.detail)
+                    this.configChangeSuccess = false
+                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail
+                    this.startFadeOut()
+                }
             }
         },
 
@@ -296,10 +330,17 @@ export default {
             const backend = this.getBackend()
             const response = await sendRequest('POST', `${conf.BackendAddress}/${backend}/config/reset`);
             if (response.status === 200) {
-                this.backendConfig = response.data;
+                this.backendConfig = response.data.value;
+                this.backendConfigSchema = response.data.config_schema;
+                this.configChangeSuccess = true
+                this.configMessage = "Reset Configuration to default values"
+                this.startFadeOut()
                 console.log('Reset backend config.');
             } else {
-                this.backendConfig = null;
+                this.backendConfig = this.backendConfigSchema = null;
+                this.configChangeSuccess = false
+                this.configMessage = "Unexpected error occurred during configuration reset"
+                this.startFadeOut()
                 console.error('Error resetting backend config.');
             }
         },
@@ -340,9 +381,10 @@ export default {
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
-                    this.backendConfig = response.data;
+                    this.backendConfig = response.data.value;
+                    this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = null;
+                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
@@ -354,6 +396,28 @@ export default {
         handleQuestionSelect(question) {
             // Send the question to the chat without closing the sidebar
             this.$emit('select-question', question);
+        },
+
+        startFadeOut() {
+            // Clear previous timeout (if the user saves the config again before fade-out could happen)
+            if (this.fadeTimeout) {
+                clearTimeout(this.fadeTimeout);
+            }
+
+            this.shouldFadeOut = false
+
+            this.fadeTimeout = setTimeout(() => {
+                this.shouldFadeOut = true;
+            }, 3000)
+        },
+
+        scrollDownConfigView() {
+            const configContainer = document.getElementById('config-display');
+            configContainer.scrollTop = configContainer.scrollHeight;
+        },
+
+        formatJSON(obj) {
+            return JSON.stringify(obj, null, 2)
         }
     },
     mounted() {
@@ -364,11 +428,15 @@ export default {
         } else if (this.language === 'DE') {
             this.selectedLanguage = 'german';
         }
-        // Ensure the main content is properly positioned
-        const mainContent = document.getElementById('mainContent');
-        if (mainContent) {
-            mainContent.classList.remove('mx-auto');
+
+        if (conf.AutoConnect) {
+            this.initRpConnection();
+        } else {
+            this.selectView('connect');
         }
+    },
+    updated() {
+        this.scrollDownConfigView()
     },
     watch: {
         backend(newValue) {
@@ -391,9 +459,11 @@ export default {
 <style scoped>
 
 #sidebar {
-    min-width: 200px;
+    width: 100%;
+    min-width: 150px;
     max-width: 600px;
     position: relative;
+    z-index: 999;
 }
 
 #sidebar-menu {
@@ -424,13 +494,21 @@ export default {
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light);
+    background-color: var(--primary-light) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
     background-color: var(--secondary-light);
     color: white !important;
+}
+
+@media screen and (max-width: 768px) {
+    .sidebar-item {
+        font-size: 0.8rem;
+        width: 2rem;
+        height: 2rem;
+    }
 }
 
 .resizer {
@@ -557,6 +635,10 @@ export default {
     box-shadow: none;
 }
 
+.accordion-button:hover {
+    background-color: var(--secondary-light)
+}
+
 .accordion-button:focus {
     box-shadow: none;
     border-color: transparent;
@@ -576,6 +658,34 @@ export default {
 
 .accordion-collapse {
     background-color: var(--background-light);
+}
+
+.action-header-button {
+    background-color: transparent;
+    color: inherit;
+    padding: 0.5rem 0;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    width: 100%;
+    font-weight: bold;
+}
+
+.action-header-button:focus {
+    outline: none;
+}
+
+.action-header-button::after {
+    display: none;
+}
+
+.json-box {
+    background-color: var(--bs-gray-200);
+    color: var(--text-primary-light);
+    padding: 0.75rem;
+    border-radius: var(--border-radius-md);
+    white-space: pre-wrap; /* Ensures line breaks */
+    font-family: monospace;
 }
 
 /* Dark mode styles */
@@ -626,6 +736,11 @@ export default {
     .accordion-button::after {
         filter: invert(1);
     }
+
+    .json-box {
+    background-color: var(--surface-dark);
+    color: var(--text-primary-dark);
+}
 
     .form-control {
         background-color: var(--input-dark);
@@ -679,10 +794,6 @@ export default {
     transition: all 0.2s ease;
 }
 
-.list-group-item:hover {
-    background-color: var(--surface-light);
-}
-
 .list-group-flush .list-group-item {
     border-right: 0;
     border-left: 0;
@@ -696,55 +807,12 @@ export default {
         color: var(--text-primary-dark);
     }
 
-    .list-group-item:hover {
-        background-color: var(--surface-dark);
-    }
-
     .accordion-body {
         background-color: var(--background-dark);
     }
 
     .accordion-collapse {
         background-color: var(--background-dark);
-    }
-}
-
-.config-section {
-    margin-bottom: 1.5rem;
-}
-
-.config-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-
-.config-section-header i {
-    color: var(--primary-light);
-    font-size: 1.125rem;
-}
-
-.config-section-header strong {
-    color: var(--text-primary-light);
-}
-
-.config-section-content {
-    padding-left: 1.5rem;
-    color: var(--text-secondary-light);
-}
-
-@media (prefers-color-scheme: dark) {
-    .config-section-header strong {
-        color: var(--text-primary-dark);
-    }
-
-    .config-section-content {
-        color: var(--text-secondary-dark);
-    }
-
-    .config-section-header i {
-        color: var(--primary-dark);
     }
 }
 
@@ -816,6 +884,22 @@ export default {
 
     .resizer {
         background-color: var(--border-light);
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .resizer {
+        display: none;
+    }
+
+    #sidebar-menu {
+        padding: 0.75rem;
+    }
+
+    .sidebar-item {
+        font-size: 1rem;
+        width: 2rem;
+        height: 2rem;
     }
 }
 

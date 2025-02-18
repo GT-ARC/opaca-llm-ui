@@ -1,9 +1,7 @@
-import logging
+import re
 from typing import Any, Dict, List, Tuple
 
 from ..models import AgentMessage, LLMAgent
-
-logger = logging.getLogger()
 
 examples = [
     {"input": "Book me the desk with id 6.", "output": """
@@ -163,6 +161,6 @@ class Planner(LLMAgent):
                               else PLANNER_PROMPT) + action_list
         self.examples = examples if inputs['config']['examples']['planner'] else []
         self.input_variables = ['input']
-        self.message_template = '{input}' + scratchpad
+        self.message_template = '{input}' + re.sub(r"([{}])", r"\1\1", scratchpad)
 
-        return await super().ainvoke({"input": inputs["input"], "history": inputs["message_history"]})
+        return await super().ainvoke({"input": inputs["input"], "history": inputs["message_history"]}, inputs["websocket"])

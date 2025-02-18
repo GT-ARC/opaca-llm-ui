@@ -28,6 +28,8 @@ services:
       - "3001:3001"
     environment:
       OPENAI_API_KEY:
+      VLLM_BASE_URL:
+      VLLM_API_KEY:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:

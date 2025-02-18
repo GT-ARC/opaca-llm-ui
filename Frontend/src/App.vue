@@ -1,40 +1,46 @@
 <template>
     <header>
         <div class="col">
-            <nav class="navbar navbar-expand-lg" type="light">
-                <div class="sidebar-toggle d-none"> <!-- toggleSidebar() here -->
-                    <i class="fa fa-bars fs-3 my-auto p-3"/>
-                </div>
+            <nav class="navbar navbar-expand" type="light">
 
-                <div class="ms-5 w-auto text-start" v-if="getConfig().BackLink != null">
+                <!-- backlink -->
+                <div class="ms-1 w-auto text-start" v-if="getConfig().BackLink != null">
                     <a v-bind:href="getConfig().BackLink">
-                        <img src="./assets/Icons/back.png" class="logo" alt="Back" height="30"/>
-                    </a>
-                </div>
-                <div class="ms-5 w-auto text-start">
-                    <a href="https://github.com/GT-ARC/opaca-core" target="blank">
-                        <img src="./assets/opaca-logo.png" class="logo" alt="Opaca Logo" height="50"/>
-                    </a>
-                </div>
-                <div class="ms-5 w-auto text-start">
-                    <a href="https://go-ki.org/" target="blank">
-                        <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo" height="50"/>
-                    </a>
-                </div>
-                <div class="ms-5 w-auto text-start">
-                    <a href="https://ze-ki.de/" target="blank">
-                        <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo" height="50"/>
+                        <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
 
-                <div class="my-auto text-end w-auto ms-auto me-5">
-                    <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll">
+                <!-- logos -->
+                <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
+                    <a href="https://github.com/GT-ARC/opaca-core" target="blank">
+                        <img v-bind:src="isMobile ? 'src/assets/opaca-logo-small.png' : 'src/assets/opaca-logo.png'"
+                             class="logo" alt="Opaca Logo"
+                             v-bind:height="isMobile ? 24 : 40"/>
+                    </a>
+                </div>
+                <div class="me-2 w-auto text-start">
+                    <a href="https://go-ki.org/" target="blank">
+                        <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo"
+                             v-bind:height="isMobile ? 24 : 40"/>
+                    </a>
+                </div>
+                <div class="me-2 w-auto text-start">
+                    <a href="https://ze-ki.de/" target="blank">
+                        <img src="./assets/zeki-logo.png" class="logo" alt="ZEKI Logo"
+                             v-bind:height="isMobile ? 24 : 40"/>
+                    </a>
+                </div>
+
+                <!-- options -->
+                <div class="ms-auto me-0 w-auto"
+                     v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
+                    <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
                         <!-- languages -->
-                        <li class="nav-item dropdown me-3">
+                        <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-globe me-1"/>
-                                {{ getConfig().translations[this.language].name}}
+                                <span v-show="!isMobile">{{ getConfig().translations[this.language].name}}</span>
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
                                 <li v-for="(value, key) in getConfig().translations" @click="this.setLanguage(key)">
@@ -48,10 +54,10 @@
                         </li>
 
                         <!-- backends -->
-                        <li class="nav-item dropdown">
+                        <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-server me-1"/>
-                                {{ getBackendName(backend) }}
+                                <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
                                 <li v-for="(value, key) in getConfig().Backends"
@@ -88,10 +94,10 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown ms-3">
+                        <li class="nav-item dropdown me-0">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
-                                Voice Server
+                                <span v-show="!isMobile">Voice Server</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
                                 <li>
@@ -103,8 +109,12 @@
                                     </div>
                                 </li>
                                 <li v-if="voiceServerConnected">
-                                    <div class="dropdown-item">
-                                        <small class="text-muted">{{ deviceInfo }}</small>
+                                    <div class="dropdown-item dropdown-item-text">
+                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <div class="text-muted"
+                                             style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
+                                            {{ deviceInfo }}
+                                        </div>
                                     </div>
                                 </li>
                                 <li v-if="!voiceServerConnected">
@@ -130,9 +140,15 @@
 import conf from '../config.js'
 import MainContent from './components/content.vue'
 
+import { useDevice } from "./useIsMobile.js";
+
 export default {
     name: 'App',
     components: {MainContent},
+    setup() {
+        const { isMobile, screenWidth } = useDevice();
+        return { isMobile, screenWidth };
+    },
     data() {
         return {
             language: 'GB',
@@ -240,7 +256,7 @@ export default {
 header {
     background-color: var(--background-light);
     width: 100%;
-    height: 60px;
+    height: 50px;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);

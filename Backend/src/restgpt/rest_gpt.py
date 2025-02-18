@@ -1,6 +1,5 @@
 import time
 import re
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 from langchain_core.language_models import BaseChatModel
 
@@ -9,8 +8,6 @@ from .action_selector import ActionSelector
 from .caller import Caller
 from .evaluator import Evaluator
 from ..models import Response
-
-logger = logging.getLogger()
 
 
 class RestGPT:
@@ -37,10 +34,11 @@ class RestGPT:
         self.evaluator = Evaluator(llm=llm)
         self.action_spec = action_spec
 
-    async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict):
+    async def _finished(self, eval_input: str, history: List[Tuple[str, str]], config: Dict, websocket=None):
         return await self.evaluator.ainvoke({"input": eval_input,
                                              "history": history,
                                              "config": config,
+                                             "websocket": websocket,
                                              })
 
     @property
@@ -65,7 +63,7 @@ class RestGPT:
         return ["result"]
 
     def _should_continue(self, iterations: int, time_elapsed: float) -> bool:
-        if self.max_iterations is not None and iterations >= self.max_iterations:
+        if self.max_iterations is not None and iterations > self.max_iterations:
             return False
         if (
                 self.max_execution_time is not None
@@ -110,12 +108,10 @@ class RestGPT:
         action_selector_history: List[Tuple[str, str, str]] = []
         eval_input = f'User query: {query}\n'
         final_answer = ''
-        iterations = 0
+        iterations = 1
         time_elapsed = 0.0
         start_time = time.time()
         response = inputs['response']
-
-        logger.info(f'Query: {query}')
 
         while self._should_continue(iterations, time_elapsed):
 
@@ -126,12 +122,12 @@ class RestGPT:
                                                            "message_history": inputs['history'],
                                                            "config": config,
                                                            "response": response,
+                                                           "websocket": inputs['websocket'],
                                                            })
             response.agent_messages.append(planner_response)
 
             plan = planner_response.content
-            logger.info(f"Planner: {plan}")
-            eval_input += f'Plan step {iterations + 1}: {plan}\n'
+            eval_input += f'Plan step {iterations}: {plan}\n'
 
             if self._should_abort(plan):
                 final_answer = re.sub("STOP[^a-zA-Z0-9]*", "", plan).strip()
@@ -144,17 +140,17 @@ class RestGPT:
                                                               "action_history": action_selector_history,
                                                               "message_history": inputs["history"],
                                                               "config": config,
+                                                              "websocket": inputs['websocket'],
                                                               })
             api_plan = as_response[-1].content  # Get the last message of the action selector as input for caller
             response.agent_messages.extend(as_response)  # Add all action selector messages
-            logger.info(f'API Selector: {api_plan}')
 
             if self._is_missing(api_plan):
                 planner_history.append((plan, api_plan))
                 iterations += 1
                 continue
 
-            eval_input += f'API call {iterations + 1}: http://localhost:8000/invoke/{api_plan}\n'
+            eval_input += f'API call {iterations}: http://localhost:8000/invoke/{api_plan}\n'
 
             # CALLER
             c_time = time.time()
@@ -162,18 +158,19 @@ class RestGPT:
                                                          "actions": self.action_spec,
                                                          "config": config,
                                                          "client": inputs["client"],
+                                                         "iterations": iterations,
+                                                         "websocket": inputs['websocket'],
                                                          })
             caller_response.execution_time = time.time() - c_time
             execution_res = caller_response.content
             response.agent_messages.append(caller_response)
-            logger.info(f'Caller: {execution_res}')
             action_selector_history.append((plan, api_plan, execution_res))
-            eval_input += f'API response {iterations + 1}: {execution_res}\n'
+            eval_input += f'API response {iterations}: {execution_res}\n'
             planner_history.append((plan, execution_res))
 
             # EVALUATOR
             e_time = time.time()
-            eval_response = await self._finished(eval_input, inputs['history'], config)
+            eval_response = await self._finished(eval_input, inputs['history'], config, inputs['websocket'])
             eval_response.execution_time = time.time() - e_time
             response.agent_messages.append(eval_response)
             if re.match(r"FINISHED", eval_response.content):
@@ -189,5 +186,4 @@ class RestGPT:
         response.content = final_answer
         response.iterations = iterations
 
-        logger.info(f'Final Answer: {final_answer}')
         return response

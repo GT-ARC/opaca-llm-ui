@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
+from ..models import ConfigParameter
 from ..toolllm.tool_method import ToolMethod
 from ..utils import openapi_to_functions
 
@@ -20,11 +21,11 @@ class ToolMethodOpenAI(ToolMethod):
         return self.NAME
     
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> Dict[str, ConfigParameter]:
         return {
-                "gpt_model": "gpt-4o-mini",
-                "temperature": 0,
-                "use_agent_names": True,
+                "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
+                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
 
     @property
@@ -36,10 +37,18 @@ class ToolMethodOpenAI(ToolMethod):
         return 'Human: {input}{scratchpad}'
 
     def init_model(self, config: Dict[str, Any], api_key: str = None):
+        if config["model"].startswith("gpt"):
+            key = api_key or os.getenv("OPENAI_API_KEY")
+            base_url = None
+        else:
+            # If model does NOT start with gpt: use vllm
+            key = os.getenv("VLLM_API_KEY")
+            base_url = os.getenv("VLLM_BASE_URL")
         return ChatOpenAI(
-            model=config["gpt_model"],
+            model=config["model"],
             temperature=float(config["temperature"]),
-            openai_api_key=api_key or os.getenv("OPENAI_API_KEY"),
+            openai_api_key=key,
+            openai_api_base=base_url
         )
 
     def transform_tools(self, tools_openapi: Dict[str, Any], config: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
@@ -51,20 +60,31 @@ class ToolMethodOpenAI(ToolMethod):
                       f"of 128. All tools after index 128 will be ignored!\n")
         return self.tools, error
 
-    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = ""):
-        return await self.generator_agent.ainvoke({
+    async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = "", websocket=None):
+        result = await self.generator_agent.ainvoke({
             'input': message,
             'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
             'history': session.messages
-        })
+        }, websocket)
 
-    async def invoke_evaluator(self, message, tool_names, tool_params, tool_results):
+        for action in result.tools:
+            # Fix the parameter types based on the action definition
+            used_function = {}
+            for a in self.tools:
+                if a["function"]["name"] == action["name"]:
+                    used_function = a["function"]
+            parameters = self._fix_type(used_function.get("parameters", {}).get("properties", {}).get("requestBody", {}).get("properties", {}), action["args"].get("requestBody", {}))
+            action["args"]["requestBody"] = parameters
+
+        return result
+
+    async def invoke_evaluator(self, message, tool_names, tool_params, tool_results, websocket=None):
         return await self.evaluator_agent.ainvoke({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far
             'parameters': tool_params,  # ALL the parameters used for the tools
             'results': tool_results  # ALL the results from the opaca action calls
-        })
+        }, websocket)
 
     @staticmethod
     def build_scratchpad(messages: List[AIMessage]) -> str:
@@ -119,3 +139,37 @@ class ToolMethodOpenAI(ToolMethod):
                             f'definition.\n')
 
         return err_out
+
+    @staticmethod
+    def _fix_type(action: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Given the correct action definition, iterates through the list of generated parameters
+        and checks if the parameter types matches the type in the definition. If it does not,
+        this function attempts to cast the generated value to the expected value.
+        :param action: Reference definition of the OPACA action
+        :param parameters: Generated parameter list by the LLM
+        :return: The parameter list with potential type fixes
+        """
+        out = parameters
+        for key, value in parameters.items():
+            for a_key in action.keys():
+                try:
+                    if key == a_key:
+                        match action[a_key]["type"]:
+                            case 'string':
+                                out[key] = str(value)
+                            case 'number':
+                                out[key] = float(value)
+                            case 'integer':
+                                out[key] = int(value)
+                            case 'boolean':
+                                out[key] = bool(value)
+                            case _:
+                                out[key] = value
+                except Exception as e:
+                    # This is pretty ugly
+                    # The idea is that if an invalid value was found, it should not try to cast this value but skip it
+                    # The Evaluator will then receive the error encountered during the action invocation
+                    print(e)
+                    continue
+        return out
