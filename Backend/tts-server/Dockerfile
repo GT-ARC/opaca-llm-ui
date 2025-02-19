@@ -18,14 +18,9 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 # Install requirements
 RUN pip install --no-cache-dir -r requirements.txt
-# Install piper-tts without dependencies
-RUN pip install piper-tts --no-deps
 
 # Copy the rest of the application
 COPY . .
-
-# Create voices directory
-RUN mkdir -p voices
 
 # Expose the port (matching docker-compose)
 EXPOSE 7431

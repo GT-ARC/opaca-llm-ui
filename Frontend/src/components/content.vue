@@ -373,7 +373,6 @@ export default {
         },
 
         createSpeechBubbleAI(text, id, isPreformatted = false) {
-            this.lastMessage = text;
             const chat = document.getElementById("chat-container");
             let d1 = document.createElement("div");
             let debugId = `debug-${id}`;
@@ -392,18 +391,30 @@ export default {
                 <div class="chaticon">
                     <img src="/src/assets/Icons/ai.png" alt="AI">
                 </div>
-                <div id="chatBubble" class="p-3 small mb-0 chatbubble chat-ai">
-                    <div class="d-flex flex-row justify-content-start message-content">
-                        <div id="loadingContainer"><div class="loader hidden"></div></div>
-                        <div id="messageContainer" class="message-text">${formattedText}</div>
+                <div class="chat-content">
+                    <div id="chatBubble" class="p-3 small mb-2 chatbubble chat-ai">
+                        <div class="d-flex flex-row justify-content-start message-content">
+                            <div id="loadingContainer"><div class="loader hidden"></div></div>
+                            <div id="messageContainer" class="message-text">${formattedText}</div>
+                        </div>
+                        <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                            <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                            debug
+                        </div>
+                        <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                        <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
                     </div>
-                    <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                        <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                        debug
-                    </div>
-                    <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                    <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
                 </div>
+                ${this.voiceServerConnected ? `
+                <div class="audio-actions">
+                    <div class="message-actions">
+                        <button class="generate-audio-btn" data-message-id="${id}">
+                            <i class="fa fa-volume-up"></i> Generate Audio
+                        </button>
+                    </div>
+                    <div class="audio-container"></div>
+                </div>
+                ` : ''}
             </div>`;
 
             this.isBusy = false;
@@ -430,6 +441,17 @@ export default {
                     icon.style.transform = 'none'
                 }
             })
+
+            // After creating the element, add the event listener
+            const audioButton = d1.querySelector('.generate-audio-btn');
+            if (audioButton) {
+                audioButton.addEventListener('click', () => {
+                    const messageId = audioButton.dataset.messageId;
+                    const messageContainer = document.getElementById(messageId).querySelector("#messageContainer");
+                    const messageText = messageContainer.textContent.trim();
+                    this.generateAudioForMessage(messageId, messageText);
+                });
+            }
         },
 
         createSpeechBubbleUser(text) {
@@ -795,6 +817,72 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
+
+        async generateAudioForMessage(messageId, text) {
+            try {
+                const messageBubble = document.getElementById(messageId);
+                if (!messageBubble) {
+                    console.error('Message bubble not found:', messageId);
+                    return;
+                }
+
+                // Get the containers
+                const actionContainer = messageBubble.querySelector(".message-actions");
+                const audioContainer = messageBubble.querySelector(".audio-container");
+                
+                if (!audioContainer) return;
+                
+                // Show loading state in place of the button
+                actionContainer.innerHTML = `
+                    <div class="audio-loading">
+                        <div class="loader"></div>
+                        <span>Generating audio...</span>
+                    </div>
+                `;
+
+                // Make API call
+                const response = await fetch(`${this.getConfig().VoiceServerAddress}/generate_audio?${new URLSearchParams({
+                    text: text,
+                    voice: 'alloy'
+                })}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error:', response.status, errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Get audio blob
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+
+                // Create audio player
+                const audioPlayer = `
+                    <audio controls class="custom-audio-player">
+                        <source src="${audioUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                `;
+
+                // Remove the action container and update audio container
+                actionContainer.remove();
+                audioContainer.innerHTML = audioPlayer;
+
+            } catch (error) {
+                console.error('Error generating audio:', error);
+                const actionContainer = messageBubble.querySelector(".message-actions");
+                if (actionContainer) {
+                    actionContainer.innerHTML = `
+                        <div class="audio-error">
+                            <i class="fa fa-exclamation-circle"></i>
+                            Error generating audio
+                        </div>
+                    `;
+                }
+            }
+        },
     },
 
     async mounted() {
@@ -828,10 +916,16 @@ export default {
             this.deviceInfo = 'Speech recognition device not available';
             this.voiceServerConnected = false;
         }
+
+        document.addEventListener('generateAudio', (event) => {
+            const { messageId, text } = event.detail;
+            this.generateAudioForMessage(messageId, text);
+        });
     },
 
     beforeUnmount() {
         window.removeEventListener('resize', this.updateWidth);
+        document.removeEventListener('generateAudio', this.generateAudioForMessage);
     }
 }
 
@@ -1459,6 +1553,103 @@ export default {
     }
     50% {
         box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
+    }
+}
+
+.chat-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    max-width: calc(100% - 4rem);
+}
+
+.message-actions {
+    margin: 0.25rem 0;
+    display: flex;
+    gap: 0.5rem;
+    padding-left: 0.6rem;  /* Increase padding to align with chat bubble */
+}
+
+.generate-audio-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary-light);
+    background-color: transparent;
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.generate-audio-btn:hover {
+    color: var(--primary-light);
+    border-color: var(--primary-light);
+    background-color: var(--primary-light-10);
+}
+
+.audio-container {
+    padding-left: 0.6rem;  
+    margin-top: 0.25rem;
+    max-width: 300px;
+}
+
+.custom-audio-player {
+    width: 100%;
+    height: 32px;
+    border-radius: 0.5rem;
+    background-color: var(--surface-light);
+}
+
+.audio-actions {
+    display: flex;
+    flex-direction: column;
+    padding-left: 0.6rem;
+}
+
+.audio-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary-light);
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+}
+
+.audio-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--error-light);
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    .generate-audio-btn {
+        color: var(--text-secondary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .generate-audio-btn:hover {
+        color: var(--primary-dark);
+        border-color: var(--primary-dark);
+        background-color: var(--primary-dark-10);
+    }
+
+    .custom-audio-player {
+        background-color: var(--surface-dark);
+    }
+
+    .audio-loading {
+        color: var(--text-secondary-dark);
+    }
+
+    .audio-error {
+        color: var(--error-dark);
     }
 }
 

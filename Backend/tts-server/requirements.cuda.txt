@@ -4,3 +4,7 @@ python-multipart==0.0.20
 transformers==4.47.1
 numpy==1.26.4
 accelerate==1.2.1
+pydub
+nltk
+tqdm
+openai
