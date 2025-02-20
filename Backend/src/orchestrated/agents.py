@@ -39,7 +39,7 @@ class BaseAgent:
     def __init__(self, client: AsyncOpenAI, model: str):
         self.client = client
         self.model = model
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("src.models")
         self.chat_history = None
 
     def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
@@ -390,7 +390,7 @@ class AgentPlanner(BaseAgent):
         self.tools = tools
         self.worker_agent = worker_agent
         self.config = config or {}
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("src.models")
     
     async def create_plan(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None) -> PlannerPlan:
         """Create a high-level task plan with rounds and dependencies."""
@@ -921,7 +921,7 @@ class WorkerAgent(BaseAgent):
         self.summary = summary
         self.tools = tools
         self.session_client = session_client
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("src.models")
 
     async def execute_task(self, task: Union[str, AgentTask]) -> AgentResult:
         """Execute a task using the agent's tools"""
@@ -1193,7 +1193,7 @@ def get_current_time():
     return f"""
 # CURRENT TIME 
 
-The current date and time in ({location}) is {datetime.now(berlin_tz).strftime("%A, %d %B %Y (currently in Calender Week %-W), %H:%M:%S (%p), (in Time Zone %Z)")}.
+The current date and time in ({location}) is {datetime.now(berlin_tz).strftime("%A, %d %B %Y (currently in Calender Week %W), %H:%M:%S (%p), (in Time Zone %Z)")}.
 YOU ARE ALLOWED AND ABSOLUTELY ENCOURAGED TO REDUCE THE INFORMATION TO A SHORTER FORMAT (eg. leaving out seconds, leaving out AM/PM or the calendar week) IF IT IS NOT NECESSARY!
 
 

@@ -1,12 +1,9 @@
 import json
-import logging
 from typing import Dict, Any
 
 from langchain_core.language_models import BaseChatModel
 
 from ..models import AgentMessage, LLMAgent
-
-logger = logging.getLogger(__name__)
 
 examples = [
     {"input": """
@@ -65,20 +62,14 @@ class Caller(LLMAgent):
 
         try:
             if inputs['config']['use_agent_names']:
-                logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{agent_name}/{action_name} '
-                            f'with parameters: {params}')
                 response = await inputs["client"].invoke_opaca_action(action_name, agent_name, json.loads(params))
             else:
-                logger.info(f'Caller: Attempting to call http://localhost:8000/invoke/{action_name} '
-                            f'with parameters: {params}')
                 response = await inputs["client"].invoke_opaca_action(action_name, None, json.loads(params))
         except Exception as e:
             return AgentMessage(
                 agent="Caller",
                 content=f'ERROR: Unable to call the connected opaca platform\nCause: {e}'
                 )
-
-        logger.info(f'Caller: Received response: {response}')
 
         description = ""
         # Get description from action list

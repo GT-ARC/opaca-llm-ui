@@ -1,13 +1,10 @@
 import json
 from typing import Any, Dict, List, Tuple
 import re
-import logging
 
 from langchain_core.language_models import BaseChatModel
 
 from ..models import AgentMessage, LLMAgent
-
-logger = logging.getLogger()
 
 examples = [
     {"input": "Instruction: Book the desk with id 5.", "output": """
@@ -221,7 +218,6 @@ class ActionSelector(LLMAgent):
         correction_limit = 1
         while (err_msg := self._check_valid_action(
                 result.content, inputs["actions"], inputs["config"]["use_agent_names"])) != "" and correction_limit < 3:
-            logger.info(f'API Selector: Correction needed for request \"{result.content}\"\nCause: {err_msg}')
 
             result = await super().ainvoke({"input": inputs["plan"] + err_msg, "history": inputs["message_history"]}, inputs["websocket"])
             result.content = result.content
