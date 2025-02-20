@@ -43,7 +43,10 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
 
+* Orchestration: A two-staged approach, were an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
+
 The different approaches provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **vLLM** to use locally deployed models (e.g. Mistral, Llama, ...)
+
 
 ### Sessions, Message History and Configuration
 
@@ -88,6 +91,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
 * `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
 * `VLLM_API_KEY`: API key for the vLLM API, if any.
+* `FRONTEND_BASE_URL`: The URL of the frontend, analogous to `VITE_BACKEND_BASE_URL` (may be needed for CORS; defaults to localhost)
 
 
 ## Getting Started

@@ -2,20 +2,28 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
+    Backends: {
+        "simple": "Simple Prompt",
+        "rest-gpt": "RestGPT",
+        "tool-llm": "Tool LLM",
+        "self-orchestrated": "Self-Orchestrated"
+    },
+    /*
+    // reminder, because it's currently not used: define one level of "sub-backends" like this:
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
             subBackends: {
                 "simple": "Simple Prompt",
-                "rest-gpt": "RestGPT",
-                "tool-llm": "Tool LLM",
-                "self-orchestrated": "Self-Orchestrated"
+                ...
             }
         },
         "itdz-knowledge": "Knowledge Assistant",
-        "itdz-data": "Data Analysis",
+        ...
     },
+    */
 
     BackLink: import.meta.env.VITE_BACKLINK ?? null,
 
