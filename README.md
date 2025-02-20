@@ -43,7 +43,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
 
-The different LLM clients provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **Llama-3** (llama3.1:70b) by Meta.
+The different approaches provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **vLLM** to use locally deployed models (e.g. Mistral, Llama, ...)
 
 ### Sessions, Message History and Configuration
 
@@ -129,7 +129,7 @@ To run the tests/benchmark, simply execute the `test.py` script in the `test` di
 For example, a call to the test script my look like this (substitute the backend and model to use, as well as your IP if necessary):
 
 ```
-python3 test.py -s simple -b simple-openai -m gpt-4o-mini -o http://192.168.178.24:8000
+python3 test.py -s simple -b simple -m gpt-4o-mini -o http://192.168.178.24:8000
 ```
 
 Following is an overview of the latest results. It presents the amount of questions in a question set that were deemed "helpful" by the Judge-LLM. The method is given with the model that was used for all agents within that model. The only exception being the _orchestration-method_, which can uses different models for the Orchestrator Agent and Worker Agent.

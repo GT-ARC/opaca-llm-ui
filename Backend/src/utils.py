@@ -72,11 +72,6 @@ class Action:
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
-    def llama_str(self, agentName: bool = False):
-        return (f'{{"name": "{(self.agent_name + "--" + self.action_name) if agentName else self.action_name}", '
-                f'"description": {self.description}, "parameters": {self.params_in}, '
-                f'"custom types": {self.custom_params}}}')
-
 
 def add_dicts(d1: dict, d2: dict) -> dict:
     result = {}
@@ -143,63 +138,6 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
         action_list.append(action)
     return action_list
-
-
-def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
-    functions = []
-    error_msg = ""
-
-    for path, methods in openapi_spec["paths"].items():
-        for method, spec_with_ref in methods.items():
-            # 1. Resolve JSON references.
-            try:
-                spec = jsonref.replace_refs(spec_with_ref)
-            except Exception as e:
-                error_msg += f'Error while replacing references for unknown action. Cause: {str(e)}\n'
-                continue
-
-            # 2. Extract a name for the functions
-            try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
-                container_id, agent_name, function_name = spec.get("operationId").split(';')
-            except Exception as e:
-                error_msg += (f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
-                              f'Cause: {str(e)}\n')
-                continue
-
-            # 3. Extract a description and parameters.
-            try:
-                # OpenAI only allows up to 1024 characters in the description field
-                desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
-            except Exception as e:
-                error_msg += (f'Error while getting description for operation ({agent_name}--{function_name}). '
-                              f'Cause: {str(e)}\n')
-                continue
-
-            req_body = (
-                spec.get("requestBody", {})
-                .get("content", {})
-                .get("application/json", {})
-                .get("schema")
-            )
-
-            required_params = req_body.get("required", [])
-            params = {}
-            for key, value in req_body.get("properties", {}).items():
-                params[key] = {
-                    "param_type": value.get("type"),
-                    "required": True if key in required_params else False
-                }
-
-            functions.append(
-                {
-                    "name": agent_name + '--' + function_name if use_agent_names else function_name,
-                    "description": desc,
-                    "parameters": params
-                }
-            )
-
-    return functions, error_msg
 
 
 def openapi_to_functions(openapi_spec, use_agent_names: bool = False):

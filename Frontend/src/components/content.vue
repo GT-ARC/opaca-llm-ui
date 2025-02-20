@@ -181,7 +181,7 @@ export default {
             this.accumulatedContent = ''; // Reset accumulated content for new message
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm-openai', 'rest-gpt-openai', 'self-orchestrated'].includes(this.getBackend())) {
+                if (['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend())) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');
@@ -580,7 +580,7 @@ export default {
                     message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
                     `Execution time: ${message["execution_time"].toFixed(2)}s`
                 ].join('\n');
-                
+
                 this.addDebug(content, color, message["agent"]);
 
                 // Add the formatted debug text to the associated speech bubble
@@ -699,7 +699,7 @@ export default {
             } else {
                 // Use the pre-formatted content or parse markdown as needed
                 messageContainer.innerHTML = isPreformatted ? text : marked.parse(text);
-                
+
                 // Hide loading indicator only if we should update loading
                 if (updateLoading) {
                     const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");

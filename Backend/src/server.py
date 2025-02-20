@@ -17,7 +17,7 @@ from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload
 from .toolllm import *
 from .restgpt import RestGptBackend
-from .simple import SimpleOpenAIBackend, SimpleLlamaBackend
+from .simple import SimpleBackend
 from .opaca_client import OpacaClient
 from .proxy import KnowledgeBackend, DataAnalysisBackend
 from .orchestrated import SelfOrchestratedBackend
@@ -43,10 +43,8 @@ app.add_middleware(
 
 
 BACKENDS = {
-    RestGptBackend.NAME_OPENAI: RestGptBackend(use_llama=False),
-    RestGptBackend.NAME_LLAMA: RestGptBackend(use_llama=True),
-    SimpleOpenAIBackend.NAME: SimpleOpenAIBackend(),
-    SimpleLlamaBackend.NAME: SimpleLlamaBackend(),
+    RestGptBackend.NAME: RestGptBackend(),
+    SimpleBackend.NAME: SimpleBackend(),
     # special backends
     KnowledgeBackend.NAME: KnowledgeBackend(),
     DataAnalysisBackend.NAME: DataAnalysisBackend(),
