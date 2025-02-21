@@ -1,14 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100">
 
-        <Sidebar :backend="backend" :language="language" ref="sidebar"
-                 @language-change="handleLanguageChange"
-                 @select-question="askChatGpt"
-                 @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"
-                 @on-sidebar-toggle="this.onSidebarToggle"/>
-
-        <!-- Recording Popup -->
+        <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
             :language="selectedLanguage"
@@ -16,6 +9,13 @@
             @send-message="handleSendMessage"
             @error="handleRecordingError"
         />
+
+        <Sidebar :backend="backend" :language="language" ref="sidebar"
+                 @language-change="handleLanguageChange"
+                 @select-question="askChatGpt"
+                 @category-selected="updateSelectedCategory"
+                 @api-key-change="(newValue) => this.apiKey = newValue"
+                 @on-sidebar-toggle="this.onSidebarToggle"/>
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
@@ -54,7 +54,7 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.isSpeechRecognitionAvailable()"
+                            v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
                             :disabled="isBusy">
@@ -264,7 +264,11 @@ export default {
                             this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
                         }
                         console.log("WebSocket connection closed");
-                        speakLastMessage();
+                        // Get the final accumulated content and message ID for speech
+                        if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                            this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
+                            this.autoSpeakNextMessage = false;
+                        }
                     };
 
                     socket.onerror = (error) => {
@@ -272,7 +276,6 @@ export default {
                             this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
                         }
                         console.log("Received error: ", error);
-                        speakLastMessage();
                     }
                 } else {
                     this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
@@ -293,7 +296,12 @@ export default {
                     this.scrollDown(false);
                     this.processDebugInput(result.data.agent_messages, currentMessageCount);
                     this.scrollDown(true);
-                    this.speakLastMessage();
+                    
+                    // Generate audio for the response if needed
+                    if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                        this.generateAudioForMessage(currentMessageCount, answer);
+                        this.autoSpeakNextMessage = false;
+                    }
                 }
             } catch (error) {
                 console.error(error);
@@ -318,6 +326,7 @@ export default {
         handleSendMessage(text) {
             if (text) {
                 this.textInput = "";
+                this.autoSpeakNextMessage = true; // Set this flag when message comes from voice input
                 this.askChatGpt(text);
             }
         },
@@ -489,19 +498,6 @@ export default {
                     ? document.getElementById('debug-console')
                     : document.getElementById('chat1');
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        },
-
-        speakLastMessage() {
-            alert("in speak last");
-            if (this.autoSpeakNextMessage && this.isSpeechRecognitionAvailable()) {
-
-                // TODO update this method
-                console.log("TRYING TO SPEAK THE LAST MESSAGE...")
-
-                alert("speaking!!!!")
-
-                this.autoSpeakNextMessage = false;
-            }
         },
 
         getDebugColor(agentName, darkScheme) {
@@ -771,12 +767,6 @@ export default {
             return this.textInput.length > 0;
         },
 
-        isSpeechRecognitionAvailable() {
-            if (!this.voiceServerConnected) return false;
-            if (!this.isMobile) return true;
-            return this.textInput.length === 0;
-        },
-
         isResetAvailable() {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
@@ -821,10 +811,21 @@ export default {
                 // Get audio blob
                 const audioBlob = await response.blob();
                 const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Use this to get around the blocking of autoplay by browsers (based on https://stackoverflow.com/questions/50490304/how-to-make-audio-autoplay-on-chrome)
+                // This works for chromium based browsers, but not for firefox and safari. 
+                // Safari will autoplay the audio if the user clicked on the generate button (as the user initiated that) 
+                // But if we automatically generate audio, it will not play automatically
+                const silenceUrl = `
+                <iframe src="../assets/silence.mp3" allow="autoplay" id="audio" style="display: none"></iframe>
+                `;
+                
+                actionContainer.remove();
+                actionContainer.innerHTML = silenceUrl;
 
                 // Create audio player
                 const audioPlayer = `
-                    <audio controls class="custom-audio-player">
+                    <audio controls autoplay>
                         <source src="${audioUrl}" type="audio/mpeg">
                         Your browser does not support the audio element.
                     </audio>
@@ -1560,13 +1561,6 @@ export default {
     max-width: 300px;
 }
 
-.custom-audio-player {
-    width: 100%;
-    height: 32px;
-    border-radius: 0.5rem;
-    background-color: var(--surface-light);
-}
-
 .audio-actions {
     display: flex;
     flex-direction: column;
@@ -1604,10 +1598,6 @@ export default {
         background-color: var(--primary-dark-10);
     }
 
-    .custom-audio-player {
-        background-color: var(--surface-dark);
-    }
-
     .audio-loading {
         color: var(--text-secondary-dark);
     }
@@ -1615,6 +1605,17 @@ export default {
     .audio-error {
         color: var(--error-dark);
     }
+}
+
+/* Add these styles at the end of your existing styles */
+.fixed {
+    position: fixed !important;
+}
+
+/* Ensure proper stacking context for the main container */
+.d-flex.justify-content-start.flex-grow-1.w-100 {
+    position: relative;
+    z-index: 1;
 }
 
 </style>
