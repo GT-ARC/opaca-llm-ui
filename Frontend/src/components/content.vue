@@ -240,6 +240,9 @@ export default {
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount);
                             this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
+                            // Put the final response into the accumulated content
+                            this.accumulatedContent = result.content;
+
                             // Hide loading indicator
                             const aiBubble = document.getElementById(`${currentMessageCount}`);
                             if (aiBubble) {
@@ -266,8 +269,10 @@ export default {
                         console.log("WebSocket connection closed");
                         // Get the final accumulated content and message ID for speech
                         if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                            this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
-                            this.autoSpeakNextMessage = false;
+                            if (this.accumulatedContent) {
+                                this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
+                                this.autoSpeakNextMessage = false;
+                            }
                         }
                     };
 
