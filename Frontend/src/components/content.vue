@@ -264,13 +264,15 @@ export default {
                             this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
                         }
                         console.log("WebSocket connection closed");
+                        speakLastMessage();
                     };
 
                     socket.onerror = (error) => {
                         if (!this.isFinished) {
                             this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
                         }
-                        console.log("Received error: ", error)
+                        console.log("Received error: ", error);
+                        speakLastMessage();
                     }
                 } else {
                     this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
@@ -291,21 +293,20 @@ export default {
                     this.scrollDown(false);
                     this.processDebugInput(result.data.agent_messages, currentMessageCount);
                     this.scrollDown(true);
+                    this.speakLastMessage();
                 }
             } catch (error) {
                 console.error(error);
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
-            }
-            if (this.autoSpeakNextMessage) {
                 this.speakLastMessage();
-                this.autoSpeakNextMessage = false;
             }
         },
 
         async startRecognition() {
             this.showRecordingPopup = true;
+            this.speakLastMessage = true;
         },
 
         handleTranscriptionComplete(text) {
@@ -491,9 +492,15 @@ export default {
         },
 
         speakLastMessage() {
-            if (this.isSpeechRecognitionAvailable()) {
+            alert("in speak last");
+            if (this.autoSpeakNextMessage && this.isSpeechRecognitionAvailable()) {
+
                 // TODO update this method
                 console.log("TRYING TO SPEAK THE LAST MESSAGE...")
+
+                alert("speaking!!!!")
+
+                this.autoSpeakNextMessage = false;
             }
         },
 
