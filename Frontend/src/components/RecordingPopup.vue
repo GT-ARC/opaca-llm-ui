@@ -1,6 +1,6 @@
 <template>
     <div v-if="show" 
-         class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
+         class="recording-popup-overlay fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center"
          @keydown.esc="closePopup" 
          tabindex="0"
          ref="modal">
@@ -444,6 +444,28 @@ export default {
 </script>
 
 <style scoped>
+.recording-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+#sidebar {
+    position: relative;
+    z-index: 999;
+}
+
+.sidebar-menu {
+    position: relative;
+    z-index: 999;
+}
+
 .fixed {
     position: fixed;
     top: 0;

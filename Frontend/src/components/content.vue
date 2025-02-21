@@ -1,14 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100">
 
-        <Sidebar :backend="backend" :language="language" ref="sidebar"
-                 @language-change="handleLanguageChange"
-                 @select-question="askChatGpt"
-                 @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"
-                 @on-sidebar-toggle="this.onSidebarToggle"/>
-
-        <!-- Recording Popup -->
+        <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
             :language="selectedLanguage"
@@ -16,6 +9,13 @@
             @send-message="handleSendMessage"
             @error="handleRecordingError"
         />
+
+        <Sidebar :backend="backend" :language="language" ref="sidebar"
+                 @language-change="handleLanguageChange"
+                 @select-question="askChatGpt"
+                 @category-selected="updateSelectedCategory"
+                 @api-key-change="(newValue) => this.apiKey = newValue"
+                 @on-sidebar-toggle="this.onSidebarToggle"/>
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
@@ -54,7 +54,7 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.isSpeechRecognitionAvailable()"
+                            v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
                             :disabled="isBusy">
@@ -114,7 +114,6 @@ export default {
             recognition: null,
             lastMessage: null,
             messageCount: 0,
-            speechSynthesis: window.SpeechSynthesis,
             isRecording: false,
             isBusy: false,
             showExampleQuestions: true,
@@ -241,6 +240,9 @@ export default {
                             this.editTextSpeechBubbleAI(result.content, currentMessageCount);
                             this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
+                            // Put the final response into the accumulated content
+                            this.accumulatedContent = result.content;
+
                             // Hide loading indicator
                             const aiBubble = document.getElementById(`${currentMessageCount}`);
                             if (aiBubble) {
@@ -265,13 +267,20 @@ export default {
                             this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
                         }
                         console.log("WebSocket connection closed");
+                        // Get the final accumulated content and message ID for speech
+                        if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                            if (this.accumulatedContent) {
+                                this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
+                                this.autoSpeakNextMessage = false;
+                            }
+                        }
                     };
 
                     socket.onerror = (error) => {
                         if (!this.isFinished) {
                             this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
                         }
-                        console.log("Received error: ", error)
+                        console.log("Received error: ", error);
                     }
                 } else {
                     this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
@@ -292,43 +301,25 @@ export default {
                     this.scrollDown(false);
                     this.processDebugInput(result.data.agent_messages, currentMessageCount);
                     this.scrollDown(true);
+                    
+                    // Generate audio for the response if needed
+                    if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                        this.generateAudioForMessage(currentMessageCount, answer);
+                        this.autoSpeakNextMessage = false;
+                    }
                 }
             } catch (error) {
                 console.error(error);
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
-            }
-            if (this.autoSpeakNextMessage) {
                 this.speakLastMessage();
-                this.autoSpeakNextMessage = false;
             }
-        },
-
-        isSpeechRecognitionSupported() {
-            // very hacky check if the user is using the (full) google chrome browser
-            const isGoogleChrome = window.chrome !== undefined
-                    && window.navigator.userAgentData !== undefined
-                    && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
-                    && window.navigator.vendor === "Google Inc."
-                    && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
-            if (!isGoogleChrome) {
-                alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
-                return false;
-            }
-            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-                alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
-                return false;
-            }
-            if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
-                return false;
-            }
-            return true;
         },
 
         async startRecognition() {
             this.showRecordingPopup = true;
+            this.speakLastMessage = true;
         },
 
         handleTranscriptionComplete(text) {
@@ -340,6 +331,7 @@ export default {
         handleSendMessage(text) {
             if (text) {
                 this.textInput = "";
+                this.autoSpeakNextMessage = true; // Set this flag when message comes from voice input
                 this.askChatGpt(text);
             }
         },
@@ -362,7 +354,6 @@ export default {
         async resetChat() {
             document.getElementById("chat-container").innerHTML = '';
             this.$refs.sidebar.debugMessages = []
-            this.abortSpeaking();
             if (!this.isMobile) {
                 // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
                 this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
@@ -373,7 +364,6 @@ export default {
         },
 
         createSpeechBubbleAI(text, id, isPreformatted = false) {
-            this.lastMessage = text;
             const chat = document.getElementById("chat-container");
             let d1 = document.createElement("div");
             let debugId = `debug-${id}`;
@@ -392,18 +382,30 @@ export default {
                 <div class="chaticon">
                     <img src="/src/assets/Icons/ai.png" alt="AI">
                 </div>
-                <div id="chatBubble" class="p-3 small mb-0 chatbubble chat-ai">
-                    <div class="d-flex flex-row justify-content-start message-content">
-                        <div id="loadingContainer"><div class="loader hidden"></div></div>
-                        <div id="messageContainer" class="message-text">${formattedText}</div>
+                <div class="chat-content">
+                    <div id="chatBubble" class="p-3 small mb-2 chatbubble chat-ai">
+                        <div class="d-flex flex-row justify-content-start message-content">
+                            <div id="loadingContainer"><div class="loader hidden"></div></div>
+                            <div id="messageContainer" class="message-text">${formattedText}</div>
+                        </div>
+                        <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
+                            <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
+                            debug
+                        </div>
+                        <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
+                        <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
                     </div>
-                    <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                        <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                        debug
-                    </div>
-                    <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                    <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
                 </div>
+                ${this.voiceServerConnected ? `
+                <div class="audio-actions">
+                    <div class="message-actions">
+                        <button class="generate-audio-btn" data-message-id="${id}">
+                            <i class="fa fa-volume-up"></i> Generate Audio
+                        </button>
+                    </div>
+                    <div class="audio-container"></div>
+                </div>
+                ` : ''}
             </div>`;
 
             this.isBusy = false;
@@ -430,6 +432,17 @@ export default {
                     icon.style.transform = 'none'
                 }
             })
+
+            // After creating the element, add the event listener
+            const audioButton = d1.querySelector('.generate-audio-btn');
+            if (audioButton) {
+                audioButton.addEventListener('click', () => {
+                    const messageId = audioButton.dataset.messageId;
+                    const messageContainer = document.getElementById(messageId).querySelector("#messageContainer");
+                    const messageText = messageContainer.textContent.trim();
+                    this.generateAudioForMessage(messageId, messageText);
+                });
+            }
         },
 
         createSpeechBubbleUser(text) {
@@ -490,31 +503,6 @@ export default {
                     ? document.getElementById('debug-console')
                     : document.getElementById('chat1');
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        },
-
-        speakLastMessage() {
-            if (speechSynthesis) {
-                this.abortSpeaking();
-                console.log("Speaking message: " + this.lastMessage);
-                const utterance = new SpeechSynthesisUtterance(this.lastMessage);
-                utterance.lang = conf.languages[this.language];
-                utterance.onstart = () => {
-                    console.log("Speaking started.");
-                }
-                utterance.onend = () => {
-                    console.log("Speaking ended.");
-                }
-                utterance.onerror = (error) => {
-                    console.error(error);
-                }
-                speechSynthesis.speak(utterance);
-            }
-        },
-
-        abortSpeaking() {
-            if (speechSynthesis && speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-            }
         },
 
         getDebugColor(agentName, darkScheme) {
@@ -784,15 +772,86 @@ export default {
             return this.textInput.length > 0;
         },
 
-        isSpeechRecognitionAvailable() {
-            if (!this.voiceServerConnected) return false;
+        isResetAvailable() {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
 
-        isResetAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length === 0;
+        async generateAudioForMessage(messageId, text) {
+            try {
+                const messageBubble = document.getElementById(messageId);
+                if (!messageBubble) {
+                    console.error('Message bubble not found:', messageId);
+                    return;
+                }
+
+                // Get the containers
+                const actionContainer = messageBubble.querySelector(".message-actions");
+                const audioContainer = messageBubble.querySelector(".audio-container");
+                
+                if (!audioContainer) return;
+                
+                // Show loading state in place of the button
+                actionContainer.innerHTML = `
+                    <div class="audio-loading">
+                        <div class="loader"></div>
+                        <span>Generating audio...</span>
+                    </div>
+                `;
+
+                // Make API call
+                const response = await fetch(`${this.getConfig().VoiceServerAddress}/generate_audio?${new URLSearchParams({
+                    text: text,
+                    voice: 'alloy'
+                })}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error:', response.status, errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Get audio blob
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Use this to get around the blocking of autoplay by browsers (based on https://stackoverflow.com/questions/50490304/how-to-make-audio-autoplay-on-chrome)
+                // This works for chromium based browsers, but not for firefox and safari. 
+                // Safari will autoplay the audio if the user clicked on the generate button (as the user initiated that) 
+                // But if we automatically generate audio, it will not play automatically
+                const silenceUrl = `
+                <iframe src="../assets/silence.mp3" allow="autoplay" id="audio" style="display: none"></iframe>
+                `;
+                
+                actionContainer.remove();
+                actionContainer.innerHTML = silenceUrl;
+
+                // Create audio player
+                const audioPlayer = `
+                    <audio controls autoplay>
+                        <source src="${audioUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                `;
+
+                // Remove the action container and update audio container
+                actionContainer.remove();
+                audioContainer.innerHTML = audioPlayer;
+
+            } catch (error) {
+                console.error('Error generating audio:', error);
+                const actionContainer = messageBubble.querySelector(".message-actions");
+                if (actionContainer) {
+                    actionContainer.innerHTML = `
+                        <div class="audio-error">
+                            <i class="fa fa-exclamation-circle"></i>
+                            Error generating audio
+                        </div>
+                    `;
+                }
+            }
         },
     },
 
@@ -827,10 +886,16 @@ export default {
             this.deviceInfo = 'Speech recognition device not available';
             this.voiceServerConnected = false;
         }
+
+        document.addEventListener('generateAudio', (event) => {
+            const { messageId, text } = event.detail;
+            this.generateAudioForMessage(messageId, text);
+        });
     },
 
     beforeUnmount() {
         window.removeEventListener('resize', this.updateWidth);
+        document.removeEventListener('generateAudio', this.generateAudioForMessage);
     }
 }
 
@@ -1459,6 +1524,103 @@ export default {
     50% {
         box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
     }
+}
+
+.chat-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    max-width: calc(100% - 4rem);
+}
+
+.message-actions {
+    margin: 0.25rem 0;
+    display: flex;
+    gap: 0.5rem;
+    padding-left: 0.6rem;  /* Increase padding to align with chat bubble */
+}
+
+.generate-audio-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary-light);
+    background-color: transparent;
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.generate-audio-btn:hover {
+    color: var(--primary-light);
+    border-color: var(--primary-light);
+    background-color: var(--primary-light-10);
+}
+
+.audio-container {
+    padding-left: 0.6rem;  
+    margin-top: 0.25rem;
+    max-width: 300px;
+}
+
+.audio-actions {
+    display: flex;
+    flex-direction: column;
+    padding-left: 0.6rem;
+}
+
+.audio-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary-light);
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+}
+
+.audio-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--error-light);
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    .generate-audio-btn {
+        color: var(--text-secondary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .generate-audio-btn:hover {
+        color: var(--primary-dark);
+        border-color: var(--primary-dark);
+        background-color: var(--primary-dark-10);
+    }
+
+    .audio-loading {
+        color: var(--text-secondary-dark);
+    }
+
+    .audio-error {
+        color: var(--error-dark);
+    }
+}
+
+/* Add these styles at the end of your existing styles */
+.fixed {
+    position: fixed !important;
+}
+
+/* Ensure proper stacking context for the main container */
+.d-flex.justify-content-start.flex-grow-1.w-100 {
+    position: relative;
+    z-index: 1;
 }
 
 </style>
