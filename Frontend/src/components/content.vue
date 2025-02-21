@@ -181,7 +181,7 @@ export default {
             this.accumulatedContent = ''; // Reset accumulated content for new message
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm-openai', 'rest-gpt-openai', 'self-orchestrated'].includes(this.getBackend())) {
+                if (['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend())) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');
@@ -576,13 +576,13 @@ export default {
             this.editTextSpeechBubbleAI(statusMessage, messageCount);
             this.editAnimationSpeechBubbleAI(messageCount, true, color);
 
-            if (agent_message["tools"] && agent_message["tools"].length > 0) {
+            if (agent_message["tools"].length > 0) {
                 const tool_output = agent_message["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${tool["result"]}`
+                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n")
                 this.addDebug(tool_output, color, agent_message["agent"] + "-Tools");
 
-            } else {
+            } else if (agent_message["content"] !== "") {
                 this.addDebug(agent_message["content"], color, agent_message["agent"]);
             }
         },
@@ -599,11 +599,10 @@ export default {
                 const color = this.getDebugColor(message["agent"], this.isDarkScheme);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = [
-                    `${message["agent"]}:`,
-                    message["tools"].length > 0 ? message["tools"].join('\n') : message["content"],
+                    message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
                     `Execution time: ${message["execution_time"].toFixed(2)}s`
                 ].join('\n');
-                
+
                 this.addDebug(content, color, message["agent"]);
 
                 // Add the formatted debug text to the associated speech bubble
@@ -630,7 +629,7 @@ export default {
             const debugMessages = this.$refs.sidebar.debugMessages;
 
             // If the message includes tools, the message needs to be replaced instead of appended
-            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && text) {
+            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && type === "Tool Generator-Tools" && text) {
                 debugMessages[debugMessages.length - 1] = {
                     text: text,
                     color: color,
@@ -644,7 +643,7 @@ export default {
             // If the message has a new type, assume it is the beginning of a new agent message
             else {
                 debugMessages.push({
-                    text: type + ":\n" + text,
+                    text: text,
                     color: color,
                     type: type,
                 });
@@ -722,7 +721,7 @@ export default {
             } else {
                 // Use the pre-formatted content or parse markdown as needed
                 messageContainer.innerHTML = isPreformatted ? text : marked.parse(text);
-                
+
                 // Hide loading indicator only if we should update loading
                 if (updateLoading) {
                     const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
