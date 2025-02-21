@@ -114,7 +114,6 @@ export default {
             recognition: null,
             lastMessage: null,
             messageCount: 0,
-            speechSynthesis: window.SpeechSynthesis,
             isRecording: false,
             isBusy: false,
             showExampleQuestions: true,
@@ -305,28 +304,6 @@ export default {
             }
         },
 
-        isSpeechRecognitionSupported() {
-            // very hacky check if the user is using the (full) google chrome browser
-            const isGoogleChrome = window.chrome !== undefined
-                    && window.navigator.userAgentData !== undefined
-                    && window.navigator.userAgentData.brands.some(b => b.brand === 'Google Chrome')
-                    && window.navigator.vendor === "Google Inc."
-                    && Array.from(window.navigator.plugins).some(plugin => plugin.name === "Chrome PDF Viewer");
-            if (!isGoogleChrome) {
-                alert('At the moment, speech recognition is only supported in the Google Chrome browser.');
-                return false;
-            }
-            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-                alert("Please enable 'SpeechRecognition' and 'webkitSpeechRecognition' in your browser's config.");
-                return false;
-            }
-            if (location.protocol !== 'https' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                alert('Speech recognition is only supported using a secure connection (HTTPS) or when hosted locally.');
-                return false;
-            }
-            return true;
-        },
-
         async startRecognition() {
             this.showRecordingPopup = true;
         },
@@ -362,7 +339,6 @@ export default {
         async resetChat() {
             document.getElementById("chat-container").innerHTML = '';
             this.$refs.sidebar.debugMessages = []
-            this.abortSpeaking();
             if (!this.isMobile) {
                 // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
                 this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
@@ -515,27 +491,9 @@ export default {
         },
 
         speakLastMessage() {
-            if (speechSynthesis) {
-                this.abortSpeaking();
-                console.log("Speaking message: " + this.lastMessage);
-                const utterance = new SpeechSynthesisUtterance(this.lastMessage);
-                utterance.lang = conf.languages[this.language];
-                utterance.onstart = () => {
-                    console.log("Speaking started.");
-                }
-                utterance.onend = () => {
-                    console.log("Speaking ended.");
-                }
-                utterance.onerror = (error) => {
-                    console.error(error);
-                }
-                speechSynthesis.speak(utterance);
-            }
-        },
-
-        abortSpeaking() {
-            if (speechSynthesis && speechSynthesis.speaking) {
-                speechSynthesis.cancel();
+            if (this.isSpeechRecognitionAvailable()) {
+                // TODO update this method
+                console.log("TRYING TO SPEAK THE LAST MESSAGE...")
             }
         },
 
