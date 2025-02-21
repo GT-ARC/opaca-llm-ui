@@ -127,6 +127,7 @@ export default {
             statusMessages: {}, // Track status messages by messageCount
             accumulatedContent: '',
             isSidebarActive: false,
+            randomSampleQuestions: null,
         }
     },
     watch: {
@@ -728,11 +729,14 @@ export default {
 
         getRandomSampleQuestions(num_questions = 3) {
             function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
-            let questions = [];
-            this.getConfig().translations[this.language].sidebarQuestions
-                .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
-            shuffleArray(questions);
-            return questions.slice(0, num_questions);
+            if (this.randomSampleQuestions == null) {
+                let questions = [];
+                this.getConfig().translations[this.language].sidebarQuestions
+                    .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
+                shuffleArray(questions);
+                this.randomSampleQuestions = questions.slice(0, num_questions);    
+            }
+            return this.randomSampleQuestions;
         },
 
         getCurrentCategoryQuestions() {
@@ -742,6 +746,8 @@ export default {
             if (!currentCategory) {
                 // If no category is selected, show random sample questions
                 return this.getRandomSampleQuestions();
+            } else {
+                this.randomSampleQuestions = null; // roll a new sample next time
             }
 
             // Take first 3 questions and use their individual icons
