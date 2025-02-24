@@ -55,6 +55,10 @@ export default {
                 this.expandedSection = index;
                 this.$emit('category-selected', this.questions[index].header);
             }
+        },
+        toggleSectionByHeader(header) {
+            const index = this.questions.findIndex(section => section.header === header);
+            this.toggleSection(index);
         }
     }
 }

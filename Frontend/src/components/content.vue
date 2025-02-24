@@ -765,7 +765,9 @@ export default {
             this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
         }
 
-        this.updateSelectedCategory(this.getConfig().DefaultQuestions);
+        const questions = this.getConfig().DefaultQuestions;
+        this.updateSelectedCategory(questions);
+        this.$refs.sidebar.$refs.sidebar_questions.toggleSectionByHeader(questions);
 
         // Check voice server connection
         try {
