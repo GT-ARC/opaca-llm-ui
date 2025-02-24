@@ -1,29 +1,10 @@
 from typing import Dict, List, Optional, Any
 
 import jsonref
-from colorama import Fore
 from fastapi import HTTPException
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from .models import ConfigParameter, ConfigArrayItem
-
-
-class ColorPrint:
-    def __init__(self):
-        self.color_mapping = {
-            "Planner": Fore.RED,
-            "API Selector": Fore.YELLOW,
-            "Caller": Fore.BLUE,
-            "Final Answer": Fore.GREEN,
-            "Code": Fore.WHITE,
-        }
-
-    def write(self, data):
-        module = data.split(':')[0]
-        if module not in self.color_mapping:
-            print(data, end="")
-        else:
-            print(self.color_mapping[module] + data + Fore.RESET, end="")
 
 
 class Parameter:
@@ -91,11 +72,6 @@ class Action:
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
-    def llama_str(self, agentName: bool = False):
-        return (f'{{"name": "{(self.agent_name + "--" + self.action_name) if agentName else self.action_name}", '
-                f'"description": {self.description}, "parameters": {self.params_in}, '
-                f'"custom types": {self.custom_params}}}')
-
 
 def add_dicts(d1: dict, d2: dict) -> dict:
     result = {}
@@ -162,63 +138,6 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
         action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
         action_list.append(action)
     return action_list
-
-
-def openapi_to_llama(openapi_spec, use_agent_names: bool = False):
-    functions = []
-    error_msg = ""
-
-    for path, methods in openapi_spec["paths"].items():
-        for method, spec_with_ref in methods.items():
-            # 1. Resolve JSON references.
-            try:
-                spec = jsonref.replace_refs(spec_with_ref)
-            except Exception as e:
-                error_msg += f'Error while replacing references for unknown action. Cause: {str(e)}\n'
-                continue
-
-            # 2. Extract a name for the functions
-            try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
-                container_id, agent_name, function_name = spec.get("operationId").split(';')
-            except Exception as e:
-                error_msg += (f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
-                              f'Cause: {str(e)}\n')
-                continue
-
-            # 3. Extract a description and parameters.
-            try:
-                # OpenAI only allows up to 1024 characters in the description field
-                desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
-            except Exception as e:
-                error_msg += (f'Error while getting description for operation ({agent_name}--{function_name}). '
-                              f'Cause: {str(e)}\n')
-                continue
-
-            req_body = (
-                spec.get("requestBody", {})
-                .get("content", {})
-                .get("application/json", {})
-                .get("schema")
-            )
-
-            required_params = req_body.get("required", [])
-            params = {}
-            for key, value in req_body.get("properties", {}).items():
-                params[key] = {
-                    "param_type": value.get("type"),
-                    "required": True if key in required_params else False
-                }
-
-            functions.append(
-                {
-                    "name": agent_name + '--' + function_name if use_agent_names else function_name,
-                    "description": desc,
-                    "parameters": params
-                }
-            )
-
-    return functions, error_msg
 
 
 def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
@@ -357,7 +276,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
                 for k1, v1 in value.items():
                     if k1 not in config_param["default"].keys():
                         raise HTTPException(400, f'No option named "{k1}" was found!')
-                    validate_config_input({k1: v1}, {k1: config_param["default"][k1]})
+                    validate_config_input({k1: v1}, {k1: ConfigParameter.model_validate(config_param["default"][k1])})
         elif config_param["type"] == "null" and value is not None:
             raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
 

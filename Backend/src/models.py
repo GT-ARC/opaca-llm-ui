@@ -1,6 +1,7 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+import logging
 import time
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union, Self
@@ -12,8 +13,60 @@ from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
     FewShotChatMessagePromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, Field
 from starlette.websockets import WebSocket
+
+
+class ColoredFormatter(logging.Formatter):
+    """
+    Custom logging formatter that logs output colorful
+    """
+
+    # Define agent-specific colors
+    AGENT_COLORS = {
+        # Rest-GPT
+        "Planner": "\x1b[31;1m",  # Bright Red
+        "Action Selector": "\x1b[33;1m",  # Bright Yellow
+        "Caller": "\x1b[34;1m",  # Bright Blue
+        "Evaluator": "\x1b[32;1m",  # Bright Green
+
+        # Tool-llm
+        "Tool Generator": "\x1b[31;20m",  # Dim Red
+        "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
+
+        # Simple Roles
+        "system": "\x1b[93m",  # Light Yellow
+        "assistant": "\x1b[94m",  # Light Blue
+        "user": "\x1b[97m",  # Light White
+
+        # Default
+        "Default": "\x1b[38;20m",  # Dim White
+    }
+
+    def format(self, record):
+        agent_name = getattr(record, "agent_name", "Default")
+        color = self.AGENT_COLORS.get(agent_name, self.AGENT_COLORS["Default"])
+
+        # Get formatted timestamp
+        timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
+
+        # Indent multi-line messages
+        message = record.getMessage().replace("\n", f"\n{' ' * (len(timestamp) + len(agent_name) + len(record.levelname) + 7)}")
+
+        # Format log entry
+        log_entry = f"{timestamp} [{record.levelname}] {agent_name} - {message.strip()}"
+
+        return f"{color}{log_entry}\x1b[0m"
+
+
+# Define a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(ColoredFormatter())
+logger.addHandler(console_handler)
 
 
 class Url(BaseModel):
@@ -36,6 +89,8 @@ class AgentMessage(BaseModel):
     tools: List[Dict[str, Any]] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
+    status: str = Field(default="", description="Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')")
+    step: str = Field(default="", description="Current step being executed")
 
 
 class Response(BaseModel):
@@ -202,6 +257,43 @@ class LLMAgent:
         self.message_template = kwargs.get('message_template', '')
         self.tools = kwargs.get('tools', [])
 
+    def invoke(self, inputs: Dict[str, Any], response_format: Any = None):
+        exec_time = time.time()
+        prompt = self._build_prompt(
+            system_prompt=self.system_prompt,
+            examples=self.examples,
+            input_variables=self.input_variables,
+            message_template=self.message_template,
+        )
+
+        agent_message = AgentMessage(
+            agent=self.name,
+            content='',
+            tools=[],
+        )
+
+        if response_format:
+            chain = prompt | (
+                self.llm.bind_tools(tools=self.tools) if len(self.tools) > 0 else self.llm).with_structured_output(
+                response_format)
+        else:
+            chain = prompt | (self.llm.bind_tools(tools=self.tools) if len(self.tools) > 0 else self.llm)
+
+        result = chain.invoke(inputs, config=inputs.get('config', {}))
+
+        # Check if the response type matches the expected AIMessage
+        if isinstance(result, AIMessage):
+            agent_message.response_metadata = result.response_metadata.get("token_usage", {})
+            agent_message.tools = result.tool_calls
+            agent_message.content = result.content
+        else:
+            agent_message.content = result
+        agent_message.execution_time = time.time() - exec_time
+
+        logger.info(agent_message.content or agent_message.tools, extra={"agent_name": self.name})
+
+        return agent_message
+
     async def ainvoke(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
         exec_time = time.time()
         prompt = self._build_prompt(
@@ -234,6 +326,8 @@ class LLMAgent:
         else:
             agent_message.content = result
         agent_message.execution_time = time.time() - exec_time
+
+        logger.info(agent_message.content or agent_message.tools, extra={"agent_name": self.name})
 
         return agent_message
 

@@ -2,22 +2,28 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/tool-llm-openai",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
+    Backends: {
+        "simple": "Simple Prompt",
+        "rest-gpt": "RestGPT",
+        "tool-llm": "Tool LLM",
+        "self-orchestrated": "Self-Orchestrated"
+    },
+    /*
+    // reminder, because it's currently not used: define one level of "sub-backends" like this:
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
     Backends: {
         "opaca": {
             name: "OPACA LLM",
             subBackends: {
-                "simple-openai": "Simple Prompt",
-                "simple-llama": "Simple Prompt (LLAMA)",
-                "rest-gpt-openai": "RestGPT",
-                "rest-gpt-llama": "RestGPT (LLAMA)",
-                "tool-llm-openai": "Tool LLM",
-                "tool-llm-llama": "Tool LLM (LLAMA)"
+                "simple": "Simple Prompt",
+                ...
             }
         },
         "itdz-knowledge": "Knowledge Assistant",
-        "itdz-data": "Data Analysis",
+        ...
     },
+    */
 
     BackLink: import.meta.env.VITE_BACKLINK ?? null,
 
@@ -44,6 +50,7 @@ var config = {
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
+
     translations:{
         GB: {
             name: "English",
@@ -55,6 +62,20 @@ var config = {
             unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
             none: 'None',
             sidebarQuestions: [
+                {
+                    "header": "Task Automation",
+                    "icon": "🤖",
+                    "questions": [
+                        {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
+                        {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
+                        {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
+                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
+                        {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "👥"},
+                        {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
+                        {"question": "Find a meeting slot with the LLM team next week.", "icon": "📆"},
+                        {"question": "Show my calendar for next week.", "icon": "📅"}
+                    ]
+                },
                 {
                     "header": "Information & Upskilling",
                     "icon": "📚",
@@ -74,35 +95,22 @@ var config = {
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
-                        //{"question": "How is the temperature in the kitchen?", "icon": "🌡️"},
                         {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
                         {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
-                        {"question": "Open the shelf in that stores the glasses.", "icon": "🥃"},
+                        {"question": "Open the shelf in which I can store a glass.", "icon": "🥃"},
                         {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
 
-                    ]
-                },
-                {
-                    "header": "Task Automation",
-                    "icon": "🤖",
-                    "questions": [
-                        {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
-                        {"question": "Summarize my upcoming meetings for the next week.", "icon": "📅"},
-                        {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
-                        {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
-                        {"question": "I need the phone numbers of the people working with XAI from the GoKI project.", "icon": "👥"},
-                        {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
-                        {"question": "Find a meeting slot with the XAI team next week.", "icon": "📆"},
-                        {"question": "Show my calendar for next week.", "icon": "📅"}
                     ]
                 },
                 {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Create a forecast of the temperature in the Coworking Space.", "icon": "🌤️"},
-                        {"question": "Plot the past noise levels in the ZEKI kitchen.", "icon": "📈"},
-                        {"question": "Give me a detailed step by step route from Munich to Berlin.", "icon": "🚗"}
+                        {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
+                        {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                        {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
+
                     ]
                 }
             ],
@@ -123,6 +131,20 @@ var config = {
             none: 'Keine',
             sidebarQuestions: [
                 {
+                    "header": "Task Automation",
+                    "icon": "🤖",
+                    "questions": [
+                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
+                        {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
+                        {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
+                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
+                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "👥"},
+                        {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
+                        {"question": "Finde einen Meetingtermin mit dem LLM-Team nächste Woche.", "icon": "📆"},
+                        {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
+                    ]
+                },
+                {
                     "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
@@ -141,35 +163,20 @@ var config = {
                     "header": "Smart Office",
                     "icon": "🏢",
                     "questions": [
-                        {"question": "Wie ist der CO2-Wert im Konferenzraum?", "icon": "🌡️"},
                         {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
                         {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
-                        {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "☕"},
+                        {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "🥃"},
                         {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
-                        {"question": "Wie ist die Temperatur in der Küche?", "icon": "🌡️"}
-                    ]
-                },
-                {
-                    "header": "Task Automation",
-                    "icon": "🤖",
-                    "questions": [
-                        {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
-                        {"question": "Fasse mir meine nächsten Termine für die zusammen.", "icon": "📅"},
-                        {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
-                        {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
-                        {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die an XAI arbeiten.", "icon": "👥"},
-                        {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
-                        {"question": "Finde einen Meetingtermin mit dem XAI-Team nächste Woche.", "icon": "📆"},
-                        {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
                     ]
                 },
                 {
                     "header": "Data Analysis",
                     "icon": "📊",
                     "questions": [
-                        {"question": "Erstelle eine Temperaturprognose für den Coworking Space.", "icon": "🌤️"},
-                        {"question": "Stelle die Geräuschlevel in der ZEKI-Küche dar.", "icon": "📈"},
-                        {"question": "Visualisiere eine Route von München nach Berlin mit UTF-8 Zeichen.", "icon": "🚗"}
+                        {"question": "Visualisiere den aktuellen Strommix von Deutschland auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                        {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                        {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                        {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
                     ]
                 }
             ],
@@ -180,6 +187,7 @@ var config = {
         },
     },
 }
+
 
 function parseQueryParams() {
     const urlParams = {};

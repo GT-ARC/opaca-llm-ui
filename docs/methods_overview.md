@@ -26,3 +26,10 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 
 - Only 1 agent per iteration
 - If agent outputs JSON, assume an action call was formatted. Otherwise, return output to user. 
+
+## Orchestration
+
+- Two layers: outer Orchestration-layer, and inner "execution trios" for each OPACA agent
+- Orchestrator only knows summaries of different agents, selects the execution-trio that best fits the request
+- Execution-trio has full knowledge of the agent's actions, executes them, return the result to the outer layer
+- More complex and potentially slower, but scales better for high number of agents and actions

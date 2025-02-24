@@ -30,6 +30,7 @@ services:
       OPENAI_API_KEY:
       VLLM_BASE_URL:
       VLLM_API_KEY:
+      FRONTEND_BASE_URL:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:
