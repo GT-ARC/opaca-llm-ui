@@ -188,7 +188,8 @@
                     <SidebarQuestions
                         :questions="getConfig().translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"/>
+                        @category-selected="(category) => $emit('category-selected', category)"
+                        ref="sidebar_questions" />
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
