@@ -872,7 +872,7 @@ export default {
 
         const questions = this.getConfig().DefaultQuestions;
         this.updateSelectedCategory(questions);
-        this.$refs.sidebar.$refs.sidebar_questions.toggleSectionByHeader(questions);
+        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         // Check voice server connection
         try {
