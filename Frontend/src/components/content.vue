@@ -110,8 +110,6 @@ export default {
         return {
             apiKey: '',
             textInput: '',
-            recognition: null,
-            lastMessage: null,
             messageCount: 0,
             isFinished: true,
             showExampleQuestions: true,
@@ -312,13 +310,11 @@ export default {
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
-                this.speakLastMessage();
             }
         },
 
         async startRecognition() {
             this.showRecordingPopup = true;
-            this.speakLastMessage = true;
         },
 
         handleTranscriptionComplete(text) {
