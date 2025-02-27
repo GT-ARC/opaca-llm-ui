@@ -87,10 +87,8 @@ import Sidebar from "./sidebar.vue";
 import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
-import sm from "../SidebarManager";
-
 import { useDevice } from "../useIsMobile.js";
-import SidebarManager from "../SidebarManager.js";
+import sm from "../SidebarManager";
 
 export default {
     name: 'main-content',
