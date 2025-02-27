@@ -14,8 +14,7 @@
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"
-                 @on-sidebar-toggle="this.onSidebarToggle"/>
+                 @api-key-change="(newValue) => this.apiKey = newValue" />
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
@@ -88,8 +87,10 @@ import Sidebar from "./sidebar.vue";
 import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
+import sm from "../SidebarManager";
 
 import { useDevice } from "../useIsMobile.js";
+import SidebarManager from "../SidebarManager.js";
 
 export default {
     name: 'main-content',
@@ -104,7 +105,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { isMobile, screenWidth };
+        return { sm, isMobile, screenWidth };
     },
     data() {
         return {
@@ -122,7 +123,6 @@ export default {
             voiceServerConnected: false,
             statusMessages: {}, // Track status messages by messageCount
             accumulatedContent: '',
-            isSidebarActive: false,
             randomSampleQuestions: null,
         }
     },
@@ -753,16 +753,8 @@ export default {
             this.selectedCategory = category;
         },
 
-        updateWidth() {
-            this.windowWidth = window.innerWidth;
-        },
-
-        onSidebarToggle(key) {
-            this.isSidebarActive = (key !== 'none');
-        },
-
         isMainContentVisible() {
-            return !(this.isMobile && this.isSidebarActive);
+            return !(this.isMobile && sm.isSidebarOpen());
         },
 
         isSendAvailable() {

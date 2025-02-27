@@ -4,8 +4,8 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="getConfig().BackLink != null">
-                    <a v-bind:href="getConfig().BackLink">
+                <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
+                    <a v-bind:href="conf.BackLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -40,10 +40,10 @@
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-globe me-1"/>
-                                <span v-show="!isMobile">{{ getConfig().translations[this.language].name}}</span>
+                                <span v-show="!isMobile">{{ conf.translations[this.language].name}}</span>
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                                <li v-for="(value, key) in getConfig().translations" @click="this.setLanguage(key)">
+                                <li v-for="(value, key) in conf.translations" @click="this.setLanguage(key)">
                                     <a class="dropdown-item">
                                         <p v-bind:style= "[this.language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
                                             {{ value.name }}
@@ -60,7 +60,7 @@
                                 <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in getConfig().Backends"
+                                <li v-for="(value, key) in conf.Backends"
                                     @click="setBackend(key)">
 
                                     <!-- top-level item/group -->
@@ -147,7 +147,7 @@ export default {
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { isMobile, screenWidth };
+        return { conf, isMobile, screenWidth };
     },
     data() {
         return {
@@ -159,10 +159,6 @@ export default {
         }
     },
     methods: {
-        getConfig() {
-            return conf;
-        },
-
         setLanguage(lang){
             this.language = lang;
         },
