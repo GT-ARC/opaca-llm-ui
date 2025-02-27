@@ -50,14 +50,14 @@
                             v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
-                            :disabled="isBusy">
+                            :disabled="isBusy || !isFinished">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
-                            :disabled="isBusy">
+                            :disabled="isBusy || !isFinished">
                         <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
                         <i v-else class="fa fa-microphone"/>
                     </button>
@@ -65,7 +65,7 @@
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="isBusy">
+                            :disabled="isBusy || !isFinished">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
@@ -116,6 +116,7 @@ export default {
             messageCount: 0,
             isRecording: false,
             isBusy: false,
+            isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
             isDarkScheme: false,
