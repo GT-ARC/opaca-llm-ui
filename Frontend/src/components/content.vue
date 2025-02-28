@@ -50,22 +50,21 @@
                             v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
-                            :disabled="isBusy">
+                            :disabled="!isFinished">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
-                            :disabled="isBusy">
-                        <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
-                        <i v-else class="fa fa-microphone"/>
+                            :disabled="!isFinished">
+                        <i class="fa fa-microphone"/>
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="isBusy">
+                            :disabled="!isFinished">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
@@ -111,11 +110,8 @@ export default {
         return {
             apiKey: '',
             textInput: '',
-            recognition: null,
-            lastMessage: null,
             messageCount: 0,
-            isRecording: false,
-            isBusy: false,
+            isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
             isDarkScheme: false,
@@ -314,13 +310,11 @@ export default {
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
-                this.speakLastMessage();
             }
         },
 
         async startRecognition() {
             this.showRecordingPopup = true;
-            this.speakLastMessage = true;
         },
 
         handleTranscriptionComplete(text) {
@@ -361,7 +355,6 @@ export default {
             }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-            this.isBusy = false;
         },
 
         createSpeechBubbleAI(text, id, isPreformatted = false) {
@@ -409,7 +402,6 @@ export default {
                 ` : ''}
             </div>`;
 
-            this.isBusy = false;
             chat.appendChild(d1);
 
             const debugToggle = document.getElementById(`${debugId}-toggle`);
