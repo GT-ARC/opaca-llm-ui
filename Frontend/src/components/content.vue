@@ -50,22 +50,21 @@
                             v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
-                            :disabled="isBusy">
+                            :disabled="!isFinished">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="startRecognition"
-                            :disabled="isBusy">
-                        <i v-if="isRecording" class="fa fa-spinner fa-spin"/>
-                        <i v-else class="fa fa-microphone"/>
+                            :disabled="!isFinished">
+                        <i class="fa fa-microphone"/>
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="isBusy">
+                            :disabled="!isFinished">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
@@ -111,11 +110,8 @@ export default {
         return {
             apiKey: '',
             textInput: '',
-            recognition: null,
-            lastMessage: null,
             messageCount: 0,
-            isRecording: false,
-            isBusy: false,
+            isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
             isDarkScheme: false,
@@ -127,6 +123,7 @@ export default {
             statusMessages: {}, // Track status messages by messageCount
             accumulatedContent: '',
             isSidebarActive: false,
+            randomSampleQuestions: null,
         }
     },
     watch: {
@@ -313,13 +310,11 @@ export default {
                 this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
                 this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDown(false);
-                this.speakLastMessage();
             }
         },
 
         async startRecognition() {
             this.showRecordingPopup = true;
-            this.speakLastMessage = true;
         },
 
         handleTranscriptionComplete(text) {
@@ -360,7 +355,6 @@ export default {
             }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-            this.isBusy = false;
         },
 
         createSpeechBubbleAI(text, id, isPreformatted = false) {
@@ -408,7 +402,6 @@ export default {
                 ` : ''}
             </div>`;
 
-            this.isBusy = false;
             chat.appendChild(d1);
 
             const debugToggle = document.getElementById(`${debugId}-toggle`);
@@ -728,11 +721,14 @@ export default {
 
         getRandomSampleQuestions(num_questions = 3) {
             function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
-            let questions = [];
-            this.getConfig().translations[this.language].sidebarQuestions
-                .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
-            shuffleArray(questions);
-            return questions.slice(0, num_questions);
+            if (this.randomSampleQuestions == null) {
+                let questions = [];
+                this.getConfig().translations[this.language].sidebarQuestions
+                    .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
+                shuffleArray(questions);
+                this.randomSampleQuestions = questions.slice(0, num_questions);    
+            }
+            return this.randomSampleQuestions;
         },
 
         getCurrentCategoryQuestions() {
@@ -742,6 +738,8 @@ export default {
             if (!currentCategory) {
                 // If no category is selected, show random sample questions
                 return this.getRandomSampleQuestions();
+            } else {
+                this.randomSampleQuestions = null; // roll a new sample next time
             }
 
             // Take first 3 questions and use their individual icons
@@ -872,7 +870,7 @@ export default {
 
         const questions = this.getConfig().DefaultQuestions;
         this.updateSelectedCategory(questions);
-        this.$refs.sidebar.$refs.sidebar_questions.toggleSectionByHeader(questions);
+        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         // Check voice server connection
         try {

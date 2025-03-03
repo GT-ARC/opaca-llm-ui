@@ -24,7 +24,7 @@ Similar to the Evaluator in the Rest-GPT method, the Tool Evaluator will decide,
 
 ## Architecture
 
-![Tool LLM Architecture](../../resources/tool-llm-architecture.png)
+![Tool LLM Architecture](../img/tool-llm-architecture.png)
 
 ## Configuration
 

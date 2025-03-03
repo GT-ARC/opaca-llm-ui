@@ -51,7 +51,7 @@ The Evaluator is tasked to always output one of two keywords: `CONTINUE` to let 
 
 ## Architecture
 
-![Rest-GPT Architecture](../../resources/rest-gpt-architecture.png)
+![Rest-GPT Architecture](../img/rest-gpt-architecture.png)
 
 ## Configuration
 
