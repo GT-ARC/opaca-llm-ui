@@ -4,7 +4,7 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="getConfig().BackLink != null">
+                <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
                     <a v-bind:href="getConfig().BackLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
@@ -147,7 +147,7 @@ export default {
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { isMobile, screenWidth };
+        return { conf, isMobile, screenWidth };
     },
     data() {
         return {

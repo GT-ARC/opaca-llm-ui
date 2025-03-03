@@ -1,7 +1,7 @@
 <template>
 
     <!-- user bubble -->
-    <div v-if="this.isUser" :id="this.id"
+    <div v-if="this.isUser" :id="this.elementId"
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user">
@@ -14,22 +14,34 @@
 
 
     <!-- ai bubble -->
-    <div v-else :id="this.id"
+    <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start mb-4">
 
         <!-- ai icon -->
-        <div v-if="!this.isUser" class="chaticon">
+        <div class="chaticon">
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
-        <!-- chat content -->
         <div class="chat-content">
             <div id="chatBubble" class="p-3 small mb-2 chatbubble chatbubble-ai">
                 <div class="d-flex flex-row justify-content-start message-content">
-                    <div id="loadingContainer"><div class="loader hidden"></div></div>
-                    <div id="messageContainer" class="message-text">
-                        {{ this.content }}
+                    <!-- loading spinner -->
+                    <div id="loadingContainer">
+                        <div v-if="this.isLoading()" class="loader"></div>
                     </div>
+
+                    <!-- content -->
+                    <div id="messageContainer" class="message-text">
+                        <div v-if="this.isStatusMessage()">
+                            <div v-for="line in this.getFormattedContent()" :key="line">
+                                {{ line }}
+                            </div>
+                        </div>
+                        <div v-else>
+                            {{ this.getFormattedContent() }}
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- footer: debug messages, generate audio, ... -->
@@ -44,7 +56,7 @@
                 </div>
                 <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;">
                     <i class="fa fa-volume-up" />
-                    Generate Audio
+                    Generate Audio (todo)
                 </div>
                 <hr id="${debugId}-separator"
                     v-show="this.isDebugExpanded"
@@ -55,22 +67,20 @@
 
             </div>
         </div>
-
-        <!-- user icon -->
-        <div v-if="this.isUser" class="chaticon">
-            <img src="/src/assets/Icons/nutzer.png" alt="User">
-        </div>
-
     </div>`
 </template>
 
 <script>
+import { marked } from "marked";
+import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
+
 export default {
     name: 'chatbubble',
     props: {
-        id: String,
+        elementId: String,
         isUser: Boolean,
         isVoiceServerConnected: Boolean,
+        isDarkScheme: Boolean,
     },
     data() {
         return {
@@ -83,7 +93,28 @@ export default {
         addDebugMsg(text, options = null) {
             // todo
         },
-    }
+        getFormattedContent() {
+            if (this.isStatusMessage()) {
+                return this.content.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => !!line);
+            } else {
+                return marked.parse(this.content);
+            }
+        },
+        setContent(newContent) {
+            this.content = newContent;
+        },
+        getDebugColor(colorKey) {
+            return (debugColors[colorKey] ?? defaultDebugColors)[this.isDarkScheme ? 1 : 0];
+        },
+        isLoading() {
+            return this.content.includes('...');
+        },
+        isStatusMessage() {
+            return this.isLoading() || this.content.includes('✓');
+        },
+    },
 }
 </script>
 
@@ -109,7 +140,7 @@ export default {
     white-space: normal;
 }
 
-.chatubble-user {
+.chatbubble-user {
     background-color: var(--chat-user-light);
     margin-left: auto;
     margin-right: 1rem;
