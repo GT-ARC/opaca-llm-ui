@@ -5,7 +5,6 @@ var config = {
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
     Backends: {
         "simple": "Simple Prompt",
-        "rest-gpt": "RestGPT",
         "tool-llm": "Tool LLM",
         "self-orchestrated": "Self-Orchestrated"
     },

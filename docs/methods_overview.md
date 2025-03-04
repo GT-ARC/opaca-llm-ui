@@ -13,19 +13,6 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 
 [read more...](methods/tool_llm.md)
 
-## Rest-GPT
-
-- Based on the paper [RestGPT](https://github.com/Yifan-Song793/RestGPT)
-- 4 LLM Agents:
-  - Planner: Outputs the next concrete step in natural language to solve the user query.
-  - Action Selector: Based on the Planner's step, generates an Action call consisting of an action name and the action parameters.
-  - Caller: After invoking the generated action call, summarizes the results based on the associated action definition.
-  - Evaluator: Decides whether another iteration is necessary or generates the response to the user.
-- Actions are given within the system prompt in a formatted style
-- Only one action call per iteration
-
-[read more...](methods/rest_gpt.md)
-
 ## Simple
 
 - Only 1 agent per iteration

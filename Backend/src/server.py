@@ -16,7 +16,6 @@ from starlette.websockets import WebSocket
 from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload
 from .toolllm import *
-from .restgpt import RestGptBackend
 from .simple import SimpleBackend
 from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
@@ -42,9 +41,7 @@ app.add_middleware(
 
 
 BACKENDS = {
-    RestGptBackend.NAME: RestGptBackend(),
     SimpleBackend.NAME: SimpleBackend(),
-    # multi-agent backend
     SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
 }
 
