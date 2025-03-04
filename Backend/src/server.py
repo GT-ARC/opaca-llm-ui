@@ -19,7 +19,6 @@ from .toolllm import *
 from .restgpt import RestGptBackend
 from .simple import SimpleBackend
 from .opaca_client import OpacaClient
-from .proxy import KnowledgeBackend, DataAnalysisBackend
 from .orchestrated import SelfOrchestratedBackend
 
 
@@ -45,9 +44,6 @@ app.add_middleware(
 BACKENDS = {
     RestGptBackend.NAME: RestGptBackend(),
     SimpleBackend.NAME: SimpleBackend(),
-    # special backends
-    KnowledgeBackend.NAME: KnowledgeBackend(),
-    DataAnalysisBackend.NAME: DataAnalysisBackend(),
     # multi-agent backend
     SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
 }
