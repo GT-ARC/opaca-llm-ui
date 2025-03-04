@@ -1,7 +1,9 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+import json
 import logging
+import os
 import time
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union, Self
@@ -13,6 +15,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import GenerationChunk, ChatGenerationChunk
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, AIMessagePromptTemplate, \
     FewShotChatMessagePromptTemplate, MessagesPlaceholder
+from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field
 from starlette.websockets import WebSocket
 
@@ -24,12 +27,6 @@ class ColoredFormatter(logging.Formatter):
 
     # Define agent-specific colors
     AGENT_COLORS = {
-        # Rest-GPT
-        "Planner": "\x1b[31;1m",  # Bright Red
-        "Action Selector": "\x1b[33;1m",  # Bright Yellow
-        "Caller": "\x1b[34;1m",  # Bright Blue
-        "Evaluator": "\x1b[32;1m",  # Bright Green
-
         # Tool-llm
         "Tool Generator": "\x1b[31;20m",  # Dim Red
         "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
@@ -129,8 +126,8 @@ class ConfigParameter(BaseModel):
     default: Any
     array_items: Optional[ConfigArrayItem] = None
     description: Optional[str] = None
-    minimum: Optional[int] = None
-    maximum: Optional[int] = None
+    minimum: Optional[int | float] = None
+    maximum: Optional[int | float] = None
     enum: Optional[List[Any]] = None
 
     @model_validator(mode='after')
@@ -256,6 +253,72 @@ class LLMAgent:
         self.input_variables = kwargs.get('input_variables', [])
         self.message_template = kwargs.get('message_template', '')
         self.tools = kwargs.get('tools', [])
+
+    async def ainvoke_no_langchain(self, inputs: Dict[str, Any], websocket: WebSocket = None) -> AgentMessage:
+        exec_time = time.time()
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        tool_call_buffers = {}
+        content = ""
+
+        agent_message = AgentMessage(
+            agent=self.name,
+            content='',
+            tools=[],
+        )
+
+        kwargs = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": self.message_template.format(**inputs)}
+            ],
+            "temperature": 0.0,
+            "tools": self.tools,
+            "tool_choice": "auto",
+            "stream": True,
+        }
+
+        completion = await client.chat.completions.create(**kwargs)
+        async for chunk in completion:
+            print(chunk)
+
+            choice = chunk.choices[0].delta
+            tool_calls = choice.tool_calls
+
+            if tool_calls:
+                for tool_call in tool_calls:
+                    tool_call_id = tool_call.id
+
+                    if tool_call_id:
+                        tool_call_buffers[tool_call_id] = {
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments or "",
+                        }
+                    else:
+                        last_tool_call = next(reversed(tool_call_buffers.values()), None)
+                        if last_tool_call:
+                            last_tool_call["arguments"] += tool_call.function.arguments or ""
+
+
+                agent_message.tools = [
+                    {
+                        'id': i,
+                        'name': function["name"],
+                        'args': function["arguments"],
+                        'result': ""}
+                    for i, function in enumerate(tool_call_buffers.values())]
+            else:
+                agent_message.content = choice.content or ""
+                content += choice.content or ""
+            await websocket.send_json(agent_message.model_dump_json())
+
+        for i in range (len(agent_message.tools)):
+            agent_message.tools[i]["args"] = json.loads(agent_message.tools[i]["args"])
+
+        agent_message.execution_time = time.time() - exec_time
+        agent_message.content = content
+
+        return agent_message
 
     def invoke(self, inputs: Dict[str, Any], response_format: Any = None):
         exec_time = time.time()
