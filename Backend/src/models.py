@@ -247,11 +247,17 @@ class LLMAgent:
             "tools": self.tools,
             "tool_choice": "auto",
             "stream": True,
+            "stream_options": {"include_usage": True}
         }
 
         completion = await client.chat.completions.create(**kwargs)
         async for chunk in completion:
             print(chunk)
+
+            # If the final chunk has been received, break from the loop
+            if usage := chunk.usage:
+                agent_message.response_metadata = usage.to_dict()
+                break
 
             choice = chunk.choices[0].delta
             tool_calls = choice.tool_calls
@@ -281,12 +287,19 @@ class LLMAgent:
             else:
                 agent_message.content = choice.content or ""
                 content += choice.content or ""
-            await websocket.send_json(agent_message.model_dump_json())
+            if websocket:
+                await websocket.send_json(agent_message.model_dump_json())
 
-        for i in range (len(agent_message.tools)):
-            agent_message.tools[i]["args"] = json.loads(agent_message.tools[i]["args"])
+        for tool in agent_message.tools:
+            tool["args"] = json.loads(tool["args"])
 
         agent_message.execution_time = time.time() - exec_time
+
+        # Final stream to transmit execution time and response metadata
+        if websocket:
+            agent_message.content = ""
+            await websocket.send_json(agent_message.model_dump_json())
+
         agent_message.content = content
 
         return agent_message
