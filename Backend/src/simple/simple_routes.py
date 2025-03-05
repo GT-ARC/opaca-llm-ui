@@ -4,9 +4,11 @@ import time
 
 import openai
 import json
-import httpx
 
-from ..models import Response, AgentMessage, SessionData, OpacaLLMBackend, ConfigParameter
+from starlette.websockets import WebSocket
+
+from ..abstract_method import AbstractMethod
+from ..models import Response, AgentMessage, SessionData, ConfigParameter
 from ..utils import message_to_dict, message_to_class
 
 system_prompt = """
@@ -49,7 +51,7 @@ ask_policies = [
 
 logger = logging.getLogger("src.models")
 
-class SimpleBackend(OpacaLLMBackend):
+class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
 
@@ -57,7 +59,7 @@ class SimpleBackend(OpacaLLMBackend):
         self.messages = []
         self.config = self.default_config()
 
-    async def query(self, message: str, session: SessionData) -> Response:
+    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)

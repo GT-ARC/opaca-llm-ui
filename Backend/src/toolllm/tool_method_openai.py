@@ -63,7 +63,7 @@ class ToolMethodOpenAI(ToolMethod):
     async def invoke_generator(self, session, message, tool_responses, config: Optional[Dict[str, Any]], correction_messages: str = "", websocket=None):
         # VLLM has problems streaming tool outputs, disable streaming for vllm models
         if config["model"].startswith("gpt"):
-            result = await self.generator_agent.ainvoke({
+            result = await self.generator_agent.ainvoke_no_langchain({
                 'input': message,
                 'scratchpad': self.build_scratchpad(tool_responses) + correction_messages,  # scratchpad contains ai responses
                 'history': session.messages
@@ -88,7 +88,7 @@ class ToolMethodOpenAI(ToolMethod):
         return result
 
     async def invoke_evaluator(self, message, tool_names, tool_params, tool_results, websocket=None):
-        return await self.evaluator_agent.ainvoke({
+        return await self.evaluator_agent.ainvoke_no_langchain({
             'query': message,  # Original user query
             'tool_names': tool_names,  # ALL the tools used so far
             'parameters': tool_params,  # ALL the parameters used for the tools

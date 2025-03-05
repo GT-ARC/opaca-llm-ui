@@ -4,10 +4,11 @@ import time
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .tool_method import ToolMethod
-from ..models import Response, SessionData, OpacaLLMBackend
+from ..abstract_method import AbstractMethod
+from ..models import Response, SessionData
 
 
-class ToolLLMBackend(OpacaLLMBackend):
+class ToolLLMBackend(AbstractMethod):
     max_iter: int = 5
 
     def __init__(self, method: str):
@@ -16,9 +17,6 @@ class ToolLLMBackend(OpacaLLMBackend):
     @property
     def config_schema(self):
         return self.method.config
-
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session, None)
 
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 

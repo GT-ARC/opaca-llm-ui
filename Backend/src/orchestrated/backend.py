@@ -12,8 +12,9 @@ from openai import AsyncOpenAI
 from .prompts import (
     OUTPUT_GENERATOR_PROMPT
 )
+from ..abstract_method import AbstractMethod
 
-from ..models import OpacaLLMBackend, Response, SessionData, AgentMessage, ConfigParameter
+from ..models import Response, SessionData, AgentMessage, ConfigParameter
 
 
 from .agents import (
@@ -39,7 +40,7 @@ from ..utils import openapi_to_functions
 
 
 
-class SelfOrchestratedBackend(OpacaLLMBackend):
+class SelfOrchestratedBackend(AbstractMethod):
     NAME = "self-orchestrated"
 
     
