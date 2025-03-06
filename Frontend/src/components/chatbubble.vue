@@ -58,12 +58,22 @@
                     <i class="fa fa-volume-up" />
                     Generate Audio (todo)
                 </div>
-                <hr id="${debugId}-separator"
-                    v-show="this.isDebugExpanded"
-                    class="debug-separator">
-                <div id="${debugId}-text"
-                     v-show="this.isDebugExpanded"
-                     class="bubble-debug-text"/>
+                <div v-show="this.isDebugExpanded">
+                    <hr class="debug-separator">
+                    <div class="bubble-debug-text">
+                        <div v-for="{ content, mode } in this.debugMessages">
+                            <div v-if="mode === 'normal'">
+                                {{ content }}
+                            </div>
+                            <div v-if="mode === 'pending'">
+                                {{ content }}...
+                            </div>
+                            <div v-if="mode === 'done'">
+                                {{ content }}✓
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -93,22 +103,20 @@ export default {
     },
 
     methods: {
-        /**
-         * @param text {string}
-         * @param mode {string} Any of 'normal', 'pending' or 'done'
-         * @param options {Object}
-         */
-        addDebugMsg(text, mode = 'normal', options = null) {
+        addStatusMessage(text, mode = 'normal', options = null) {
             text = text.trim();
-            if (text) {
-                this.debugMessages.push({content: text, mode: mode, options: options});
-            } else {
-                console.warn('Tried to add empty debug message.');
+            if (!text) return;
+            if (mode !== 'normal') {
+                this.markStatusMessagesDone();
             }
+            const msg = {content: text, mode: mode, options: options};
+            this.statusMessages.push(msg);
+            this.debugMessages.push(msg);
         },
-        addStatusMessage(text, options = null) {
-            text = text.trim();
-            if (text) this.statusMessages.push([text, options]);
+        markStatusMessagesDone() {
+            [...this.statusMessages, ...this.debugMessages]
+                .filter(msg => msg.mode === 'pending')
+                .forEach(msg => msg.mode = 'done');
         },
         getFormattedContent() {
             try {
@@ -123,11 +131,8 @@ export default {
         },
 
         toggleLoading(value = null) {
-            if (value === null) {
-                this.isLoading = !this.isLoading;
-            } else {
-                this.isLoading = value;
-            }
+            this.isLoading = value !== null
+                ? value : !this.isLoading;
         },
         clear() {
             this.content = '';

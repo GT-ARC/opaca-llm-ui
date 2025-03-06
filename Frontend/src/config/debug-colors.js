@@ -99,11 +99,11 @@ export function getDebugColor(key, isDarkScheme) {
     }
 }
 
-export function getDebugLoadingMessage(key) {
-    if (debugLoadingMessages[key]) {
-        return debugLoadingMessages[key];
+export function getDebugLoadingMessage(language, key) {
+    if (debugLoadingMessages[language]?.[key]) {
+        return debugLoadingMessages[language][key];
     } else {
-        console.error(`Debug loading message ${key} not found.`);
+        console.error(`Debug loading message ${key} not found for language ${language}.`);
         return 'Unknown debug message';
     }
 }
