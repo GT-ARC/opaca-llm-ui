@@ -88,3 +88,22 @@ export const debugLoadingMessages = {
         "system": "",
     }
 }
+
+export function getDebugColor(key, isDarkScheme) {
+    const darkSchemeId = isDarkScheme ? 1 : 0;
+    if (debugColors[key]) {
+        return debugColors[key][darkSchemeId];
+    } else {
+        console.warn(`Debug color ${key} not found.`);
+        return defaultDebugColors[key][darkSchemeId];
+    }
+}
+
+export function getDebugLoadingMessage(key) {
+    if (debugLoadingMessages[key]) {
+        return debugLoadingMessages[key];
+    } else {
+        console.error(`Debug loading message ${key} not found.`);
+        return 'Unknown debug message';
+    }
+}

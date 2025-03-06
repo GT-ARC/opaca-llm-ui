@@ -15,7 +15,7 @@
 
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
-         class="d-flex flex-row justify-content-start mb-4">
+         class="d-flex flex-row justify-content-start mb-4 w-100">
 
         <!-- ai icon -->
         <div class="chaticon">
@@ -27,13 +27,13 @@
                 <div class="d-flex flex-row justify-content-start message-content">
                     <!-- loading spinner -->
                     <div id="loadingContainer">
-                        <div v-if="this.isLoading()" class="loader"></div>
+                        <div v-show="this.isLoading" class="loader"></div>
                     </div>
 
-                    <!-- content -->
+                    <!-- content, either status messages or actual response -->
                     <div id="messageContainer" class="message-text">
-                        <div v-if="this.isStatusMessage()">
-                            <div v-for="line in this.getFormattedContent()" :key="line">
+                        <div v-if="this.isLoading">
+                            <div v-for="line in this.statusMessages" :key="line">
                                 {{ line }}
                             </div>
                         </div>
@@ -72,7 +72,7 @@
 
 <script>
 import { marked } from "marked";
-import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
+import { getDebugColor } from '../config/debug-colors.js';
 
 export default {
     name: 'chatbubble',
@@ -85,36 +85,61 @@ export default {
     data() {
         return {
             content: '',
+            statusMessages: [],
             debugMessages: [],
             isDebugExpanded: false,
+            isLoading: false,
         }
     },
+
     methods: {
-        addDebugMsg(text, options = null) {
-            // todo
+        /**
+         * @param text {string}
+         * @param mode {string} Any of 'normal', 'pending' or 'done'
+         * @param options {Object}
+         */
+        addDebugMsg(text, mode = 'normal', options = null) {
+            text = text.trim();
+            if (text) {
+                this.debugMessages.push({content: text, mode: mode, options: options});
+            } else {
+                console.warn('Tried to add empty debug message.');
+            }
+        },
+        addStatusMessage(text, options = null) {
+            text = text.trim();
+            if (text) this.statusMessages.push([text, options]);
         },
         getFormattedContent() {
-            if (this.isStatusMessage()) {
-                return this.content.split('\n')
-                    .map(line => line.trim())
-                    .filter(line => !!line);
-            } else {
+            try {
                 return marked.parse(this.content);
+            } catch (e) {
+                console.error('Failed to parse chat bubble content:', e);
+                return this.content;
             }
         },
         setContent(newContent) {
             this.content = newContent;
         },
-        getDebugColor(colorKey) {
-            return (debugColors[colorKey] ?? defaultDebugColors)[this.isDarkScheme ? 1 : 0];
+
+        toggleLoading(value = null) {
+            if (value === null) {
+                this.isLoading = !this.isLoading;
+            } else {
+                this.isLoading = value;
+            }
         },
-        isLoading() {
-            return this.content.includes('...');
-        },
-        isStatusMessage() {
-            return this.isLoading() || this.content.includes('✓');
-        },
+        clear() {
+            this.content = '';
+            this.statusMessages = [];
+            this.debugMessages = [];
+            this.isDebugExpanded = false;
+            this.isLoading = false;
+        }
     },
+    onmounted() {
+        this.isLoading = true;
+    }
 }
 </script>
 
