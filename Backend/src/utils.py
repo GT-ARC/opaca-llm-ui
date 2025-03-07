@@ -1,10 +1,17 @@
+import json
+import logging
+import time
 from typing import Dict, List, Optional, Any
 
 import jsonref
 from fastapi import HTTPException
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from openai import AsyncOpenAI
+from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, ConfigArrayItem
+from .models import ConfigParameter, ConfigArrayItem, ChatMessage, AgentMessage
+
+logger = logging.getLogger("src.models")
 
 
 class Parameter:
@@ -305,3 +312,109 @@ def validate_array_items(value, array_items: ConfigArrayItem):
         else:
             for item in value:
                 validate_array_items(item, array_items.get("array_items"))
+
+
+async def call_llm(
+        model: str,
+        agent: str,
+        system_prompt: str,
+        messages: List[ChatMessage],
+        temperature: Optional[float] = .0,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        websocket: WebSocket = None
+) -> AgentMessage:
+    """
+    Calls an LLM with given parameters. Optionally streams intermediate results
+    via the provided websocket. Returns the complete response as an AgentMessage.
+
+    Args:
+        model (str): The name of the model to call.
+        agent (str): The name of the agent which got invoked.
+        system_prompt (str): The system prompt for the model.
+        messages (List[ChatMessage]): The list of messages to call the model with.
+        temperature (float): The temperature to pass to the model
+        tools (List[Dict[str, Any]]): The list of tools to pass to the model
+        websocket (WebSocket): The websocket to use for streaming intermediate results.
+
+    Returns:
+        AgentMessage: The AgentMessage instance representing the response.
+    """
+
+    # Initialize variables
+    exec_time = time.time()
+    client = AsyncOpenAI()
+    tool_call_buffers = {}
+    content = ''
+
+    # Initialize agent message
+    agent_message = AgentMessage(
+        agent=agent,
+        content='',
+        tools=[]
+    )
+
+    # Set settings for model invocation
+    kwargs = {
+        'model': model,
+        'messages': [{"role": "system", "content": system_prompt}] + messages,
+        'temperature': temperature,
+        'tools': tools or [],
+        'tool_choice': 'auto',
+        'stream': True if websocket else None,
+        'stream_options': {'include_usage': True}
+    }
+
+    #
+    completion = await client.chat.completions.create(**kwargs)
+    async for chunk in completion:
+        if usage := chunk.usage:
+            agent_message.response_metadata = usage.to_dict()
+            break
+
+        choice = chunk.choices[0].delta
+        tool_calls = choice.tool_calls
+
+        if tool_calls:
+            for tool_call in tool_calls:
+                tool_call_id = tool_call.id
+
+                if tool_call_id:
+                    tool_call_buffers[tool_call_id] = {
+                        'name': tool_call.function.name,
+                        'arguments': tool_call.function.arguments or '',
+                    }
+                else:
+                    last_tool_call = next(reversed(tool_call_buffers.values()), None)
+                    if last_tool_call:
+                        last_tool_call['arguments'] += tool_call.function.arguments or ''
+
+            agent_message.tools = [
+                {
+                    'id': i,
+                    'name': function['name'],
+                    'args': function['arguments'],
+                    'result': '',
+                }
+                for i, function in enumerate(tool_call_buffers.values())
+            ]
+        else:
+            agent_message.content = choice.content or ''
+            content += choice.content or ''
+        if websocket:
+            await websocket.send_json(agent_message.model_dump_json())
+
+    for tool in agent_message.tools:
+        tool['args'] = json.loads(tool['args'])
+
+    agent_message.execution_time = time.time() - exec_time
+
+    # Final stream to transmit execution time and response metadata
+    if websocket:
+        agent_message.content = ''
+        await websocket.send_json(agent_message.model_dump_json())
+
+    agent_message.content = content
+
+    logger.info(agent_message.content or agent_message.tools, extra={"agent_name": agent})
+
+    return agent_message

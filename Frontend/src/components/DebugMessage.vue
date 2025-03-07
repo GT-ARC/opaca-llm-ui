@@ -7,7 +7,7 @@
             Execution time: {{ executionTime.toFixed(2) }}s
         </div>
         <div v-if="!responseMetadata.length" class="debug-execution-time">
-            Tokens (Prompt, Complete): {{responseMetadata.total_tokens}} ({{responseMetadata.completion_tokens}}, {{responseMetadata.prompt_tokens}})
+            Tokens (Prompt, Complete): {{responseMetadata.total_tokens}} ({{responseMetadata.prompt_tokens}}, {{responseMetadata.completion_tokens}})
         </div>
     </div>
 </template>

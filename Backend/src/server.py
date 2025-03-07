@@ -43,9 +43,8 @@ app.add_middleware(
 BACKENDS = {
     SimpleBackend.NAME: SimpleBackend(),
     SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
+    ToolLLMBackend.NAME: ToolLLMBackend(),
 }
-
-BACKENDS |= {method: ToolLLMBackend(method) for method in ToolMethodRegistry.registry.keys()}
 
 
 # Simple dict to store session data
