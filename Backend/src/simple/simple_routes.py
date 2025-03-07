@@ -8,8 +8,8 @@ import json
 from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
-from ..models import Response, AgentMessage, SessionData, ConfigParameter
-from ..utils import message_to_dict, message_to_class
+from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
+from ..utils import call_llm
 
 system_prompt = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -64,24 +64,29 @@ class SimpleBackend(AbstractMethod):
         logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)
 
-        # initialize messages with system prompt and previous messages
+        # initialize messages
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
         actions = session.client.actions if session.client else "(No services, not connected yet.)"
-        self.messages = [
-            {"role": "system", "content": system_prompt % (policy, actions)},
-            *map(message_to_dict, session.messages)
-        ]
+        self.messages = session.messages
+
         # new conversation starts here
         last_msg = len(self.messages)
-        self.messages.append({"role": "user", "content": message})
+        self.messages.append(ChatMessage(role="user", content=message))
 
         while True:
             result.iterations += 1
-            response = await self._query_internal(session.api_key, session)
-            self.messages.append({"role": "assistant", "content": response})
+            response = await call_llm(
+                model=self.config["model"],
+                agent="assistant",
+                system_prompt=system_prompt % (policy, actions),
+                messages=self.messages,
+                temperature=self.config["temperature"],
+                tool_choice="none",
+            )
+            response = response.content
+            self.messages.append(ChatMessage(role="assistant", content=response))
             result.agent_messages.append(AgentMessage(agent="assistant", content=response))
 
-            logger.info(repr(response), extra={"agent_name": "assistant"})
             try:
                 d = json.loads(response.strip("`json\n")) # strip markdown, if included
                 if type(d) is not dict or any(x not in d for x in ("action", "agentId", "params")):
@@ -90,29 +95,36 @@ class SimpleBackend(AbstractMethod):
                 logger.info("Successfully parsed as JSON, calling service...")
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 response = f"The result of this step was: {repr(action_result)}"
-                self.messages.append({"role": "assistant", "content": response})
+                self.messages.append(ChatMessage(role="assistant", content=response))
                 result.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=response,
                     tools=[{"id": result.iterations,
                             "name": f'{d["agentId"]}--{d["action"]}',
                             "args": d["params"],
-                            "result": action_result}]))
+                            "result": action_result}])
+                )
                 logger.info(response, extra={"agent_name": "system"})
+                if websocket:
+                    await websocket.send_json(result.agent_messages[-1].model_dump_json())
             except json.JSONDecodeError as e:
                 logger.info(f"Not JSON: {type(e)}, {e}")
+                if websocket:
+                    await websocket.send_json(result.agent_messages[-1].model_dump_json())
                 break
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
                 response = f"There was an error: {e}"
-                self.messages.append({"role": "system", "content": response})
+                self.messages.append(ChatMessage(role="system", content=response))
                 result.agent_messages.append(AgentMessage(agent="system", content=response))
                 logger.info(response, extra={"agent_name": "system"})
                 result.error = str(e)
+                if websocket:
+                    await websocket.send_json(result.agent_messages[-1].model_dump_json())
                 break
 
         result.content = response
-        session.messages.extend([message_to_class(msg) for msg in self.messages[last_msg:]])
+        session.messages.extend([msg for msg in self.messages[last_msg:]])
         result.execution_time = time.time() - exec_time
         return result
 
@@ -124,18 +136,3 @@ class SimpleBackend(AbstractMethod):
             "ask_policy": ConfigParameter(type="integer", required=True, default=0,
                                           enum=[*range(0, len(ask_policies))]),
         }
-
-    async def _query_internal(self, api_key: str, session: SessionData) -> str:
-        # Set config
-        self.config = session.config.get(self.NAME, self.default_config())
-        if self.config["model"].startswith("gpt"):
-            self.client = openai.AsyncOpenAI(api_key=api_key or None)  # use if provided, else from Env
-        else:
-            self.client = openai.AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
-
-        completion = await self.client.chat.completions.create(
-            model=self.config["model"],
-            messages=self.messages,
-            temperature=float(self.config["temperature"]),
-        )
-        return completion.choices[0].message.content
