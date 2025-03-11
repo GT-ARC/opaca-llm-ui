@@ -21,7 +21,6 @@ Following is an overview of the latest results. It presents the amount of questi
 | Tool-Method (gpt-4o-mini)                                       | **22/24** (141.32s) | 12/23 (431.8s)     |
 | Tool-Method (Mistral-Small-Instruct)                            | 18/24 (189.02s)     | 13/23 (375.52s)    |
 | Orchestration-Method (Qwen25_32B_INT4 & Mistral-Small-Instruct) | **22/24** (202.23s) | 16/23 (764.45s)    |
-| Rest-Gpt (gpt-4o-mini)                                          | 13/24 (120.77s)     | 9/23   (343.75s)   |
 | Simple (gpt-4o-mini)                                            | 16/24 (n/a)         | **18/23** (n/a)    |
 
 Please keep in mind, these results are only preliminary and the quality of each question has been measured by another LLM (gpt-4o). Therefore, the performance overview only provides a rough estimate of the actual performance of each method.

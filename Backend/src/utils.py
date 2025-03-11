@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from typing import Dict, List, Optional, Any
 
@@ -319,9 +320,14 @@ async def call_llm(
 
     # Initialize variables
     exec_time = time.time()
-    client = AsyncOpenAI()
     tool_call_buffers = {}
     content = ''
+
+    # Initialize either OpenAI model or vllm model
+    if model.startswith(("gpt", "o1", "o3")):
+        client = AsyncOpenAI()      # Uses api key stored in OPENAI_API_KEY
+    else:
+        client = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
 
     # Initialize agent message
     agent_message = AgentMessage(
@@ -363,7 +369,13 @@ async def call_llm(
                 else:
                     last_tool_call = next(reversed(tool_call_buffers.values()), None)
                     if last_tool_call:
-                        last_tool_call['arguments'] += tool_call.function.arguments or ''
+                        # If the full arguments were generated (happens in mistral models)
+                        # then set the arguments rather than append to them
+                        try:
+                            json.loads(tool_call.function.arguments)
+                            last_tool_call['arguments'] = tool_call.function.arguments
+                        except json.JSONDecodeError:
+                            last_tool_call['arguments'] += tool_call.function.arguments or ''
 
             agent_message.tools = [
                 {

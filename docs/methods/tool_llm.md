@@ -20,7 +20,7 @@ Once the Tool Generator has formulated a tool call and the types were checked an
 
 After the invocation of the generated OPACA action calls, the Tool Evaluator will receive the original user query, a list of invoked actions, a list of used parameters, and a list of received responses for each of the generated actions during the current user request.
 
-Similar to the Evaluator in the Rest-GPT method, the Tool Evaluator will decide, whether the original user query has been fulfilled and can be answered completely with the given tool calls and their results. In either case, the Tool Evaluator will output a summary of the steps taken up to this point and will finally output either the keyword `CONTINUE`, if another iteration is necessary, or `FINISHED`, if the user query has been fulfilled. In the latter case, the generated summary is used as the response returned to the user.
+The Tool Evaluator will decide, whether the original user query has been fulfilled and can be answered completely with the given tool calls and their results. In either case, the Tool Evaluator will output a summary of the steps taken up to this point and will finally output either the keyword `CONTINUE`, if another iteration is necessary, or `FINISHED`, if the user query has been fulfilled. In the latter case, the generated summary is used as the response returned to the user.
 
 ## Architecture
 
