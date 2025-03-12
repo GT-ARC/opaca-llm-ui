@@ -33,8 +33,10 @@
                     <!-- content, either status messages or actual response -->
                     <div id="messageContainer" class="message-text">
                         <div v-if="this.isLoading">
-                            <div v-for="line in this.statusMessages" :key="line">
-                                {{ line }}
+                            <div v-for="{ content, mode } in this.statusMessages" :key="line">
+                                <div v-if="mode === 'normal'">{{ content }}</div>
+                                <div v-if="mode === 'pending'">{{ content }}...</div>
+                                <div v-if="mode === 'done'">{{ content }}✓</div>
                             </div>
                         </div>
                         <div v-else>
@@ -62,15 +64,9 @@
                     <hr class="debug-separator">
                     <div class="bubble-debug-text">
                         <div v-for="{ content, mode } in this.debugMessages">
-                            <div v-if="mode === 'normal'">
-                                {{ content }}
-                            </div>
-                            <div v-if="mode === 'pending'">
-                                {{ content }}...
-                            </div>
-                            <div v-if="mode === 'done'">
-                                {{ content }}✓
-                            </div>
+                            <div v-if="mode === 'normal'">{{ content }}</div>
+                            <div v-if="mode === 'pending'">{{ content }}...</div>
+                            <div v-if="mode === 'done'">{{ content }}✓</div>
                         </div>
                     </div>
                 </div>
@@ -91,10 +87,11 @@ export default {
         isUser: Boolean,
         isVoiceServerConnected: Boolean,
         isDarkScheme: Boolean,
+        initialContent: String,
     },
     data() {
         return {
-            content: '',
+            content: this.initialContent ?? '',
             statusMessages: [],
             debugMessages: [],
             isDebugExpanded: false,
@@ -104,7 +101,7 @@ export default {
 
     methods: {
         addStatusMessage(text, mode = 'normal', options = null) {
-            text = text.trim();
+        text = text.trim();
             if (!text) return;
             if (mode !== 'normal') {
                 this.markStatusMessagesDone();
@@ -114,7 +111,7 @@ export default {
             this.debugMessages.push(msg);
         },
         markStatusMessagesDone() {
-            [...this.statusMessages, ...this.debugMessages]
+            this.statusMessages
                 .filter(msg => msg.mode === 'pending')
                 .forEach(msg => msg.mode = 'done');
         },
