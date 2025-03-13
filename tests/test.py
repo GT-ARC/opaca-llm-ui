@@ -108,6 +108,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     total_time = .0
     agent_time = defaultdict(float)
     total_server_time = time.time()
+    total_token_usage = 0
 
     result_json = {"questions": {}, "summary": {}}
 
@@ -129,6 +130,11 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
                 "response": result["content"],
                 "iterations": result["iterations"],
                 "time": result["execution_time"],
+                "response_metadata": {
+                    "prompt_tokens": sum([message["response_metadata"].get("prompt_tokens", 0) for message in result["agent_messages"]]),
+                    "completion_tokens": sum([message["response_metadata"].get("completion_tokens", 0) for message in result["agent_messages"]]),
+                    "total_tokens": sum([message["response_metadata"].get("total_tokens", 0) for message in result["agent_messages"]]),
+                },
                 "server_time": server_time,
                 "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
                 "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
@@ -149,6 +155,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             execution_times.append(result["execution_time"])
             iterations.append(result["iterations"])
             number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
+            total_token_usage += result_json["questions"][f'question_{i+1}']['response_metadata']['total_tokens'] or 0
 
             logging.info(f'Question {i+1}: {metric.quality}')
 
@@ -166,6 +173,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             "total_server_time": time.time() - total_server_time,
             "agent_time": agent_time,
             "avg_execution_time_per_iteration": np.average(np.array(execution_times) / np.array(iterations)),
+            "total_token_usage": total_token_usage,
         }
 
         # Write results into json file

@@ -59,6 +59,9 @@ class SimpleBackend(AbstractMethod):
         self.messages = []
         self.config = self.default_config()
 
+    async def query(self, message: str, session: SessionData) -> Response:
+        return await self.query_stream(message, session)
+
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
@@ -83,12 +86,16 @@ class SimpleBackend(AbstractMethod):
                 temperature=self.config["temperature"],
                 tool_choice="none",
             )
-            response = response.content
-            self.messages.append(ChatMessage(role="assistant", content=response))
-            result.agent_messages.append(AgentMessage(agent="assistant", content=response))
+            self.messages.append(ChatMessage(role="assistant", content=response.content))
+            result.agent_messages.append(AgentMessage(
+                agent="assistant",
+                content=response.content,
+                response_metadata=response.response_metadata,
+                execution_time=response.execution_time,
+            ))
 
             try:
-                d = json.loads(response.strip("`json\n")) # strip markdown, if included
+                d = json.loads(response.content.strip("`json\n")) # strip markdown, if included
                 if type(d) is not dict or any(x not in d for x in ("action", "agentId", "params")):
                     logger.info("JSON, but not an action call...")
                     break
