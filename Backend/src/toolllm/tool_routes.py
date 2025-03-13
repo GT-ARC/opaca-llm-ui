@@ -2,7 +2,7 @@ import re
 import time
 from typing import List
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_PROMPT
+from .prompts import GENERATOR_PROMPT, EVALUATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
 from ..utils import call_llm, openapi_to_functions
@@ -19,6 +19,9 @@ class ToolLLMBackend(AbstractMethod):
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
+
+    async def query(self, message: str, session: SessionData) -> Response:
+        return await self.query_stream(message, session)
 
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
@@ -38,6 +41,7 @@ class ToolLLMBackend(AbstractMethod):
         # Use config set in session, if nothing was set yet, use default values
         config = session.config.get(self.NAME, self.default_config())
 
+        # Get tools and transform them into the OpenAI Function Schema
         tools, error = openapi_to_functions(await session.client.get_actions_with_refs(), config['use_agent_names'])
         if len(tools) > 128:
             tools = tools[:128]
@@ -71,7 +75,7 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
-                    messages=session.messages + [message] + tool_responses + [{"role": "user", "content": full_err}],
+                    messages=session.messages + [{"role": "user", "content": message}] + tool_responses + [{"role": "user", "content": full_err}],
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
@@ -118,8 +122,8 @@ class ToolLLMBackend(AbstractMethod):
                 result = await call_llm(
                     model=config['model'],
                     agent='Tool Evaluator',
-                    system_prompt="",
-                    messages=[ChatMessage(role="user", content=EVALUATOR_PROMPT.format(
+                    system_prompt=EVALUATOR_PROMPT,
+                    messages=[ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                         message=message,
                         tool_names=tool_names,
                         tool_params=tool_params,
@@ -127,6 +131,7 @@ class ToolLLMBackend(AbstractMethod):
                     ))],
                     temperature=config['temperature'],
                     tools=tools,
+                    tool_choice="none",
                     websocket=websocket,
                 )
                 response.agent_messages.append(result)
@@ -151,6 +156,7 @@ class ToolLLMBackend(AbstractMethod):
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it
         response.content = result.content
+        response.error = error
         return response
 
     @staticmethod
@@ -162,8 +168,8 @@ class ToolLLMBackend(AbstractMethod):
         for call in calls:
 
             # Get the generated name and parameters
-            action = call['name']
-            args = call['args'].get('requestBody', {})
+            action = call.get('name', '')
+            args = call.get('args', {}).get('requestBody', {})
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
