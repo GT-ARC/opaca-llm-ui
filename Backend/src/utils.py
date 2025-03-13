@@ -340,12 +340,15 @@ async def call_llm(
     kwargs = {
         'model': model,
         'messages': [{"role": "system", "content": system_prompt}] + messages,
-        'temperature': temperature,
         'tools': tools or [],
         'tool_choice': tool_choice,
         'stream': True,
         'stream_options': {'include_usage': True}
     }
+
+    # o1/o3 don't support temperature param
+    if not model.startswith(("o1", "o3")):
+        kwargs['temperature'] = temperature
 
     #
     completion = await client.chat.completions.create(**kwargs)
@@ -371,11 +374,14 @@ async def call_llm(
                     if last_tool_call:
                         # If the full arguments were generated (happens in mistral models)
                         # then set the arguments rather than append to them
-                        try:
-                            json.loads(tool_call.function.arguments)
-                            last_tool_call['arguments'] = tool_call.function.arguments
-                        except json.JSONDecodeError:
+                        if model.startswith(('gpt', 'o1', 'o3')):
                             last_tool_call['arguments'] += tool_call.function.arguments or ''
+                        else:
+                            try:
+                                json.loads(tool_call.function.arguments)
+                                last_tool_call['arguments'] = tool_call.function.arguments
+                            except json.JSONDecodeError:
+                                last_tool_call['arguments'] += tool_call.function.arguments or ''
 
             agent_message.tools = [
                 {
@@ -393,7 +399,10 @@ async def call_llm(
             await websocket.send_json(agent_message.model_dump_json())
 
     for tool in agent_message.tools:
-        tool['args'] = json.loads(tool['args'])
+        try:
+            tool['args'] = json.loads(tool['args'])
+        except json.JSONDecodeError:
+            tool['args'] = {}
 
     agent_message.execution_time = time.time() - exec_time
 

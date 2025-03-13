@@ -1,6 +1,8 @@
 openai>=1.61.0
+requests
 fastapi
 uvicorn
 jsonref
 websockets
 pytz
+pyyaml
