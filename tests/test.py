@@ -237,7 +237,7 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
     # Get default config and overwrite the model
     try:
         config = json.loads(session.get(llm_url + f'/{backend}/config').content)["value"]
-        if backend == "multi-agent":
+        if backend == "self-orchestrated":
             config["model_config_name"] = model
         else:
             config["model"] = model
