@@ -343,7 +343,7 @@ async def call_llm(
         'tools': tools or [],
         'tool_choice': tool_choice,
         'stream': True,
-        'stream_options': {'include_usage': True}
+        'stream_options': {'include_usage': True},
     }
 
     # o1/o3 don't support temperature param
@@ -353,6 +353,8 @@ async def call_llm(
     #
     completion = await client.chat.completions.create(**kwargs)
     async for chunk in completion:
+
+        # Usage is present in the last chunk so break once it is available
         if usage := chunk.usage:
             agent_message.response_metadata = usage.to_dict()
             break
@@ -398,6 +400,7 @@ async def call_llm(
         if websocket:
             await websocket.send_json(agent_message.model_dump_json())
 
+    # Transform generated arguments into JSON
     for tool in agent_message.tools:
         try:
             tool['args'] = json.loads(tool['args'])

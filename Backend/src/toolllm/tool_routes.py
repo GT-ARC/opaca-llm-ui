@@ -42,7 +42,12 @@ class ToolLLMBackend(AbstractMethod):
         config = session.config.get(self.NAME, self.default_config())
 
         # Get tools and transform them into the OpenAI Function Schema
-        tools, error = openapi_to_functions(await session.client.get_actions_with_refs(), config['use_agent_names'])
+        try:
+            tools, error = openapi_to_functions(await session.client.get_actions_with_refs(), config['use_agent_names'])
+        except AttributeError as e:
+            response.error = str(e)
+            response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
+            return response
         if len(tools) > 128:
             tools = tools[:128]
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
