@@ -207,7 +207,7 @@ export default {
                             this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
                         }
 
-                        if (result.agent === 'assistant') {
+                        if (result.agent === 'output_generator') {
                             // Accumulate content for streaming without coloring
                             if (!this.accumulatedContent) {
                                 this.accumulatedContent = '';
@@ -510,43 +510,12 @@ export default {
 
             if (agent_message["tools"].length > 0) {
                 const tool_output = agent_message["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}\n`
                 ).join("\n\n")
                 this.addDebug(tool_output, color, agent_message["agent"] + "-Tools", agent_message["response_metadata"], agent_message["execution_time"]);
 
             } else if (agent_message["content"] !== "" || agent_message["response_metadata"] !== null) {
                 this.addDebug(agent_message["content"], color, agent_message["agent"], agent_message["response_metadata"], agent_message["execution_time"]);
-            }
-        },
-
-        processDebugInput(agent_messages, messageCount) {
-            if (agent_messages.length > 0) {
-                // if at least one debug message was found, let the "debug" button appear on the speech bubble
-                const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
-                debugToggle.style.display = 'block';
-            }
-
-            // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-            for (const message of agent_messages) {
-                const color = this.getDebugColor(message["agent"], this.isDarkScheme);
-                // if tools have been generated, display the tools (no message was generated in that case)
-                const content = [
-                    message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
-                    `Execution time: ${message["execution_time"].toFixed(2)}s`
-                ].join('\n');
-
-                this.addDebug(content, color, message["agent"]);
-
-                // Add the formatted debug text to the associated speech bubble
-                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-                if (messageBubble) {
-                    let d1 = document.createElement("div")
-                    d1.className = "bubble-debug-text"
-                    d1.textContent = content
-                    d1.style.color = color
-                    d1.dataset.type = message["agent"]
-                    messageBubble.append(d1)
-                }
             }
         },
 
@@ -577,7 +546,7 @@ export default {
                 debugMessages[debugMessages.length - 1].executionTime = executionTime;
             }
             // If the message has a new type, assume it is the beginning of a new agent message
-            else {
+            else if (text){
                 debugMessages.push({
                     text: text,
                     color: color,

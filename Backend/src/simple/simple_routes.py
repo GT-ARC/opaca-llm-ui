@@ -84,6 +84,7 @@ class SimpleBackend(AbstractMethod):
                 messages=self.messages,
                 temperature=self.config["temperature"],
                 tool_choice="none",
+                websocket=websocket,
             )
             self.messages.append(ChatMessage(role="assistant", content=response.content))
             result.agent_messages.append(AgentMessage(
@@ -100,23 +101,23 @@ class SimpleBackend(AbstractMethod):
                     break
                 logger.info("Successfully parsed as JSON, calling service...")
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
-                response = f"The result of this step was: {repr(action_result)}"
-                self.messages.append(ChatMessage(role="assistant", content=response))
+                tool_result_response = f"The result of this step was: {repr(action_result)}"
+                self.messages.append(ChatMessage(role="assistant", content=tool_result_response))
                 result.agent_messages.append(AgentMessage(
                     agent="assistant",
-                    content=response,
+                    content=tool_result_response,
                     tools=[{"id": result.iterations,
                             "name": f'{d["agentId"]}--{d["action"]}',
                             "args": d["params"],
                             "result": action_result}])
                 )
                 logger.info(response, extra={"agent_name": "system"})
+
+                # Stream tool results
                 if websocket:
                     await websocket.send_json(result.agent_messages[-1].model_dump_json())
             except json.JSONDecodeError as e:
                 logger.info(f"Not JSON: {type(e)}, {e}")
-                if websocket:
-                    await websocket.send_json(result.agent_messages[-1].model_dump_json())
                 break
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
@@ -125,8 +126,6 @@ class SimpleBackend(AbstractMethod):
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 logger.info(error, extra={"agent_name": "system"})
                 result.error = str(e)
-                if websocket:
-                    await websocket.send_json(result.agent_messages[-1].model_dump_json())
                 break
 
         result.content = response.content

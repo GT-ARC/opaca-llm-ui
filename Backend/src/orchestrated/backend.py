@@ -702,7 +702,7 @@ Please address these specific improvements:
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
                     final_output.append(content)
-                    await send_to_websocket(websocket, "assistant", content, 0.0)
+                    await send_to_websocket(websocket, "output_generator", content, 0.0)
             
             # Set the complete response content after streaming
             response.content = "".join(final_output)
