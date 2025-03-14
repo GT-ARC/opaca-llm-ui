@@ -2,7 +2,7 @@ import re
 import time
 from typing import List
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_PROMPT, EVALUATOR_TEMPLATE
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
 from ..utils import call_llm, openapi_to_functions
@@ -122,7 +122,7 @@ class ToolLLMBackend(AbstractMethod):
                 result = await call_llm(
                     model=config['model'],
                     agent='Tool Evaluator',
-                    system_prompt=EVALUATOR_PROMPT,
+                    system_prompt='',
                     messages=[ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                         message=message,
                         tool_names=tool_names,
