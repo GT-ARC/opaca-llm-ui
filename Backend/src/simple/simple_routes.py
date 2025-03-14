@@ -1,4 +1,3 @@
-import os
 import logging
 import time
 
@@ -72,7 +71,6 @@ class SimpleBackend(AbstractMethod):
         self.messages = session.messages.copy()
 
         # new conversation starts here
-        last_msg = len(self.messages)
         self.messages.append(ChatMessage(role="user", content=message))
 
         while True:

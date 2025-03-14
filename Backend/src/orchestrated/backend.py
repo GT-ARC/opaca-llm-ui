@@ -2,7 +2,7 @@ import json
 import os
 import logging
 import time
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List
 from pathlib import Path
 import yaml
 import asyncio

@@ -496,8 +496,6 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
                     
                     # Process tool results by round
                     if result.tool_results:
-                        round_tool_results = {}
-
                         # Group tool results by round based on their sequence
                         round_tool_results = dict(enumerate(result.tool_results))
                         
