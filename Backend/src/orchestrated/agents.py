@@ -41,6 +41,7 @@ class BaseAgent:
         self.model = model
         self.logger = logging.getLogger("src.models")
         self.chat_history = None
+        self.response_metadata = {}
 
     def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
         """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
@@ -148,6 +149,7 @@ class BaseAgent:
                     kwargs["messages"],
                     json.dumps(response.model_dump(), indent=2)
                 )
+                self.response_metadata = completion.usage.to_dict()
                 
                 return response
                 
@@ -240,6 +242,8 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
                 response.choices[0].message.content, 
                 output_structure
             )
+
+            self.response_metadata = response.usage.to_dict()
             
             return response.choices[0].message
         finally:
