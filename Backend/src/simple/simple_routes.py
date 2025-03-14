@@ -2,7 +2,6 @@ import os
 import logging
 import time
 
-import openai
 import json
 
 from starlette.websockets import WebSocket
@@ -70,7 +69,7 @@ class SimpleBackend(AbstractMethod):
         # initialize messages
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
         actions = session.client.actions if session.client else "(No services, not connected yet.)"
-        self.messages = session.messages
+        self.messages = session.messages.copy()
 
         # new conversation starts here
         last_msg = len(self.messages)
@@ -121,17 +120,18 @@ class SimpleBackend(AbstractMethod):
                 break
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
-                response = f"There was an error: {e}"
-                self.messages.append(ChatMessage(role="system", content=response))
-                result.agent_messages.append(AgentMessage(agent="system", content=response))
-                logger.info(response, extra={"agent_name": "system"})
+                error = f"There was an error: {e}"
+                self.messages.append(ChatMessage(role="system", content=error))
+                result.agent_messages.append(AgentMessage(agent="system", content=error))
+                logger.info(error, extra={"agent_name": "system"})
                 result.error = str(e)
                 if websocket:
                     await websocket.send_json(result.agent_messages[-1].model_dump_json())
                 break
 
-        result.content = response
-        session.messages.extend([msg for msg in self.messages[last_msg:]])
+        result.content = response.content
+        session.messages.append(ChatMessage(role="user", content=message))
+        session.messages.append(ChatMessage(role="assistant", content=response.content))
         result.execution_time = time.time() - exec_time
         return result
 

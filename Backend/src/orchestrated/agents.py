@@ -11,10 +11,10 @@ import pytz
 import re
 
 
-from ..models import AgentMessage
+from ..models import AgentMessage, ChatMessage
 from .models import (
     AgentTask, OrchestratorPlan, OrchestratorPlan_no_thinking, PlannerPlan, AgentEvaluation, 
-    OverallEvaluation, AgentResult, IterationAdvice, ChatHistory
+    OverallEvaluation, AgentResult, IterationAdvice
 )
 from .prompts import (
     BACKGROUND_INFO,
@@ -247,19 +247,19 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
             self.logger.debug(f"LLM call took {execution_time:.2f} seconds")
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[ChatHistory] = None, disable_thinking: bool = False):
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
         super().__init__(client, model)
         self.agent_summaries = agent_summaries
-        self.chat_history = chat_history
+        self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
     
-    async def create_execution_plan(self, user_request: str) -> OrchestratorPlan:
+    async def create_execution_plan(self, user_request: str) -> OrchestratorPlan_no_thinking | OrchestratorPlan:
         """Create an execution plan for the user's request"""
         # Prepare chat history context if available
         chat_context = ""
-        if self.chat_history and self.chat_history.messages:
+        if self.chat_history:
             # Get last 5 messages for context
-            recent_messages = self.chat_history.messages[-4:]
+            recent_messages = self.chat_history[-4:]
             chat_context = "Consider the chat history if applicable: \n\nRecent chat history:\n\n"
             for msg in recent_messages:
                 chat_context += f"{msg.role}: {msg.content}\n"

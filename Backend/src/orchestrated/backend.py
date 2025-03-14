@@ -32,7 +32,6 @@ from .models import (
     AgentEvaluation, 
     OverallEvaluation, 
     AgentResult,
-    ChatHistory,
     ChatMessage,
     AgentTask
 )
@@ -80,7 +79,6 @@ class SelfOrchestratedBackend(AbstractMethod):
         self.current_session_id = None
         self.current_session_log = []
         self.logged_interactions = set()  # Track unique interactions to prevent duplicates
-        self.chat_history = ChatHistory()  # Initialize chat history
     
     @property
     def name(self):
@@ -201,7 +199,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             self.logger.error(f"Error creating OpenAI client: {str(e)}")
             raise
 
-    async def _handle_follow_up(self, follow_up_question: str, websocket=None) -> None:
+    async def _handle_follow_up(self, follow_up_question: str, session: SessionData, websocket=None) -> None:
         """Handle follow-up questions by sending them to the user"""
         if websocket:
             # Send the follow-up question as an agent message with role 'assistant'
@@ -211,11 +209,11 @@ class SelfOrchestratedBackend(AbstractMethod):
             response = await websocket.receive_text()
             
             # Add to chat history
-            self.chat_history.messages.append(ChatMessage(
+            session.messages.append(ChatMessage(
                 role="assistant",
                 content=follow_up_question
             ))
-            self.chat_history.messages.append(ChatMessage(
+            session.messages.append(ChatMessage(
                 role="user",
                 content=response
             ))
@@ -395,17 +393,15 @@ Now, using the tools available to you and the previous results, continue with yo
     
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents"""
+
+        # Initialize response
+        response = Response(query=message)
+
         try:
             # Track overall execution time
             overall_start_time = time.time()
 
             agent_messages = []
-            
-            # Add message to chat history
-            self.chat_history.messages.append(ChatMessage(
-                role="user",
-                content=message
-            ))
             
             # Log initial user message
             if BaseAgent.LOG_TO_FILE:
@@ -422,9 +418,6 @@ Now, using the tools available to you and the previous results, continue with yo
             worker_client = await self._create_openai_client(session, agent_type="worker")
             generator_client = await self._create_openai_client(session, agent_type="generator")
             evaluator_client = await self._create_openai_client(session, agent_type="evaluator")
-            
-            # Initialize response
-            response = Response(query=message)
             
             # Send initial waiting message
             await send_to_websocket(websocket, "preparing", "Initializing the OPACA AI Agents", 0.0)
@@ -457,7 +450,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 client=orchestrator_client,
                 model=config["orchestrator_model"],
                 agent_summaries=agent_summaries,
-                chat_history=self.chat_history,  # Pass chat history to orchestrator
+                chat_history=session.messages,  # Pass chat history to orchestrator
                 disable_thinking=self._parse_bool_config(config.get("disable_orchestrator_thinking", False))
             )
             
@@ -510,7 +503,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 if plan.needs_follow_up and plan.follow_up_question:
                     try:
                         # Get follow-up answer
-                        answer = await self._handle_follow_up(plan.follow_up_question, websocket)
+                        answer = await self._handle_follow_up(plan.follow_up_question, session, websocket)
                         message = f"{message}\n\nAdditional information: {answer}"
                         continue  # Restart with new information
                     except Exception as e:
@@ -640,7 +633,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     if advice.needs_follow_up and advice.follow_up_question:
                         try:
                             # Get follow-up answer
-                            answer = await self._handle_follow_up(advice.follow_up_question, websocket)
+                            answer = await self._handle_follow_up(advice.follow_up_question, session, websocket)
                             message = f"{message}\n\nAdditional information: {answer}"
                             continue  # Restart with new information
                         except Exception as e:
@@ -721,8 +714,12 @@ Please address these specific improvements:
             # Calculate total execution time
             total_execution_time = time.time() - overall_start_time
             
-            # Add response to chat history
-            self.chat_history.messages.append(ChatMessage(
+            # Add original message and response to chat history
+            session.messages.append(ChatMessage(
+                role="user",
+                content=message
+            ))
+            session.messages.append(ChatMessage(
                 role="assistant",
                 content=response.content
             ))
