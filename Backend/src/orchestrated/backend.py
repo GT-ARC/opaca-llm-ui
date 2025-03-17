@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import time
+from collections import defaultdict
 from typing import Dict, Any, List
 from pathlib import Path
 import yaml
@@ -286,9 +287,9 @@ class SelfOrchestratedBackend(AbstractMethod):
                     await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}\n\n", 0.0)
                 
                 if result.tool_results:
-                    agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", execution_time=worker_time, response_metadata=planner.response_metadata))
+                    agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", execution_time=worker_time, response_metadata=agent.response_metadata))
                 else:
-                    agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"No tool results for the task...", execution_time=worker_time, response_metadata=planner.response_metadata))
+                    agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"No tool results for the task...", execution_time=worker_time, response_metadata=agent.response_metadata))
             else:
                 await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n", 0.0)
 
@@ -749,12 +750,17 @@ Please address these specific improvements:
 
             # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
             execution_times = {msg.agent: f"{msg.execution_time:.2f} seconds" for msg in agent_messages if msg.execution_time is not None}
-            token_usage = {msg.agent: f"{msg.response_metadata.get('total_tokens', 0)} ({msg.response_metadata.get('prompt_tokens', 0)}, {msg.response_metadata.get('completion_tokens', 0)})" for msg in agent_messages}
+
+            token_usage = {msg.agent: {'total_tokens': 0, 'prompt_tokens': 0, 'completion_tokens': 0} for msg in agent_messages}
+            for msg in agent_messages:
+                token_usage[msg.agent]['total_tokens'] += msg.response_metadata.get('total_tokens', 0)
+                token_usage[msg.agent]['prompt_tokens'] += msg.response_metadata.get('prompt_tokens', 0)
+                token_usage[msg.agent]['completion_tokens'] += msg.response_metadata.get('completion_tokens', 0)
+            token_usage = {agent: f"{usage['total_tokens']} ({usage['prompt_tokens']}, {usage['completion_tokens']})" for agent, usage in token_usage.items()}
             
 
 
             # Send the execution times in a final websocket message from system agent
-            await send_to_websocket(websocket, "system", f"⏱️ Execution Times:\n\n", 0.0)
             await send_to_websocket(websocket, "system", f"⏱️ Execution Times:\n\nTotal Execution Time: {total_execution_time:.2f} seconds\n {json.dumps(execution_times, indent=2)}\n"
                                                          f"Total Tokens used: {sum([msg.response_metadata.get('total_tokens', 0) for msg in agent_messages])}\nTotal (Prompt, Complete)\n{json.dumps(token_usage, indent=2)}\n", 0.0)
 
