@@ -13,14 +13,73 @@ For example, a call to the test script my look like this (substitute the backend
 python3 test.py -s simple -b simple -m gpt-4o-mini -o http://192.168.178.24:8000
 ```
 
-Following is an overview of the latest results. It presents the amount of questions in a question set that were deemed "helpful" by the Judge-LLM. The method is given with the model that was used for all agents within that model. The only exception being the _orchestration-method_, which can uses different models for the Orchestrator Agent and Worker Agent.
+Following is an overview of the latest results. It presents the amount of questions in a question set that were deemed "helpful" by the Judge-LLM. The method is given with the model that was used for all agents within that model. The orchestration method uses a combination of multiple models when using the vllm framework. Here are the details for the four special configuration settings:
 
-| Method (model)                                                  | _simple_ (_time_)   | _complex_ (_time_) |
-|-----------------------------------------------------------------|---------------------|--------------------|
-| Tool-Method (gpt-4o)                                            | **22/24** (158.27s) | 16/23 (418.36s)    |
-| Tool-Method (gpt-4o-mini)                                       | **22/24** (141.32s) | 12/23 (431.8s)     |
-| Tool-Method (Mistral-Small-Instruct)                            | 18/24 (189.02s)     | 13/23 (375.52s)    |
-| Orchestration-Method (Qwen25_32B_INT4 & Mistral-Small-Instruct) | **22/24** (202.23s) | 16/23 (764.45s)    |
-| Simple (gpt-4o-mini)                                            | 16/24 (n/a)         | **18/23** (n/a)    |
+- vllm:
+  - orchestrator_model: "Qwen25_32B_INT4"
+  - worker_model: "Mistral-Small-Instruct"
+  - evaluator_model: "Qwen25_32B_INT4"
+  - generator_model: "Mistral-Small-Instruct-INT4"
+- vllm-fast:
+  - orchestrator_model: "Qwen25_32B_INT4"
+  - worker_model: "Mistral-Small-Instruct"
+  - evaluator_model: "Qwen25_32B_INT4"
+  - generator_model: "Mistral-Small-Instruct-INT4"
+- vllm-faster:
+  - orchestrator_model: "Qwen25_32B_INT4"
+  - worker_model: "Mistral-Small-Instruct"
+  - evaluator_model: "Qwen25_7B_INT4"
+  - generator_model: "Qwen25_7B_INT4"
+- vllm-superfast:
+  - orchestrator_model: "Mistral-Small-Instruct-INT4"
+  - worker_model: "Mistral-Small-Instruct"
+  - evaluator_model: "Qwen25_7B_INT4"
+  - generator_model: "Qwen25_7B_INT4"
+
+### Simple Use-Cases
+
+The _simple_ questions contain requests to the OPACA-LLM, which result in a single action call.
+
+| Method (model)                                                  |  Result   |   Time    | Token Usage (total) |
+|-----------------------------------------------------------------|:---------:|:---------:|:-------------------:|
+| Simple (gpt-4o-mini)                                            |   15/24   | **64.6s** |       287046        |
+| Simple (Mistral-Small-Instruct)                                 |   16/24   |   66.7s   |       293422        |
+| Tool-LLM (gpt-4o-mini)                                          | **24/24** |  145.7s   |       308134        |
+| Tool-LLM (gpt-4o)                                               |   22/24   |  163.9s   |       368223        |
+| Tool-LLM (o3-mini)                                              |   20/24   |  271.3s   |       304185        |
+| Tool-LLM (Mistral-Small-Instruct)                               |   15/24   |   85.5s   |       465965        |
+| Orchestration (gpt-4o-mini)                                     |   18/24   |  208.8s   |       242081        |
+| Orchestration (gpt-4o)                                          |   20/24   |  202.3s   |       210487        |
+| Orchestration (vllm)                                            |   18/24   |  177.1s   |       274727        |
+| Orchestration (vllm-fast)                                       |   19/24   |  198.1s   |       239636        |
+| Orchestration (vllm-faster)                                     |   17/24   |  182.1s   |       223442        |
+| Orchestration (vllm-superfast)                                  |   13/24   |  159.9s   |       200792        |
+
+![Simple Benchmark Comparison](img/Simple_Benchmark_Comparison.png)
+![Simple Benchmark Comparison Time](img/Simple_Benchmark_Comparison_Time.png)
+
+### Complex Use-Cases
+
+The _complex_ questions contain requests to the OPACA-LLM, which will always require multiple action calls. The requests either result in multiple action calls which can be executed in parallel, or which are dependent on each other.
+
+| Method (model)                                                  |  Result   |    Time    | Token Usage (total) |
+|-----------------------------------------------------------------|:---------:|:----------:|:-------------------:|
+| Simple (gpt-4o-mini)                                            |   13/23   | **146.5s** |       576450        |
+| Simple (Mistral-Small-Instruct)                                 |   15/23   |   180.4s   |       554301        |
+| Tool-LLM (gpt-4o-mini)                                          |   14/23   |   332.8s   |       504813        |
+| Tool-LLM (gpt-4o)                                               | **17/23** |   395.4s   |       725644        |
+| Tool-LLM (o3-mini)                                              |   8/23    |   613.5s   |       476272        |
+| Tool-LLM (Mistral-Small-Instruct)                               |   9/23    |   271.8s   |       830405        |
+| Orchestration (gpt-4o-mini)                                     |   14/23   |   291.0s   |       300090        |
+| Orchestration (gpt-4o)                                          |   16/23   |   383.6s   |       316553        |
+| Orchestration (vllm)                                            |   14/23   |   423.8s   |       426375        |
+| Orchestration (vllm-fast)                                       |   11/23   |   389.7s   |       382549        |
+| Orchestration (vllm-faster)                                     |   13/23   |   355.3s   |       348786        |
+| Orchestration (vllm-superfast)                                  |   13/23   |   300.0s   |       317818        |
+
+![Complex Benchmark Comparison](img/Complex_Benchmark_Comparison.png)
+![Complex Benchmark Comparison Time](img/Complex_Benchmark_Comparison_Time.png)
 
 Please keep in mind, these results are only preliminary and the quality of each question has been measured by another LLM (gpt-4o). Therefore, the performance overview only provides a rough estimate of the actual performance of each method.
+ 
+Last update: 17.03.2025
