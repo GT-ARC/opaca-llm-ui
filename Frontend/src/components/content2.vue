@@ -13,7 +13,7 @@
         <Sidebar :backend="backend" :language="language" ref="sidebar"
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
-                 @category-selected="updateSelectedCategory"
+                 @category-selected="newCategory => this.selectedCategory = newCategory"
                  @api-key-change="(newValue) => this.apiKey = newValue"
                  @on-sidebar-toggle="this.onSidebarToggle"/>
 
@@ -54,9 +54,9 @@
                                 v-model="textInput"
                                 :placeholder="conf.translations[language].inputPlaceholder || 'Send a message...'"
                                 class="form-control overflow-hidden"
+                                style="resize: none; height: auto; max-height: 300px;"
                                 rows="1"
-                                @input="autoResize"
-                                @keypress="textInputCallback"></textarea>
+                                @input="textInputCallback"></textarea>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
@@ -288,7 +288,6 @@ export default {
                     }
                 } else {
                     this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
-                    this.toggleLoadingSymbol(currentMessageCount);
                     this.scrollDown(false)
 
                     const result = await sendRequest(
@@ -300,7 +299,6 @@ export default {
                     if (result.data.error) {
                         this.addDebug(result.data.error)
                     }
-                    this.toggleLoadingSymbol(currentMessageCount)
                     this.editTextSpeechBubbleAI(answer, currentMessageCount)
                     this.scrollDown(false);
                     this.processDebugInput(result.data.agent_messages, currentMessageCount);
@@ -613,16 +611,6 @@ export default {
             }
         },
 
-        toggleLoadingSymbol(id) {
-            const aiBubble = document.getElementById(`${id}`);
-            if (!aiBubble) return;
-
-            const loadingContainer = aiBubble.querySelector("#loadingContainer");
-            if (!loadingContainer) return;
-
-            loadingContainer.classList.toggle("loader");
-        },
-
         getBackend() {
             const parts = this.backend.split('/');
             return parts[parts.length - 1];
@@ -633,12 +621,6 @@ export default {
             const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
-        },
-
-        autoResize(event) {
-            const textarea = event.target;
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight) + 'px';
         },
 
         getRandomSampleQuestions(num_questions = 3) {
@@ -669,14 +651,6 @@ export default {
                 question: q.question,
                 icon: q.icon || currentCategory.icon // Fallback to category icon if question has no icon
             }));
-        },
-
-        updateSelectedCategory(category) {
-            this.selectedCategory = category;
-        },
-
-        updateWidth() {
-            this.windowWidth = window.innerWidth;
         },
 
         onSidebarToggle(key) {
@@ -776,8 +750,6 @@ export default {
     },
 
     async mounted() {
-        window.addEventListener('resize', this.updateWidth);
-
         // Initialize the selected language from the sidebar if available
         if (this.$refs.sidebar) {
             this.selectedLanguage = this.$refs.sidebar.selectedLanguage;
@@ -791,7 +763,7 @@ export default {
         }
 
         const questions = conf.DefaultQuestions;
-        this.updateSelectedCategory(questions);
+        this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         // Check voice server connection
@@ -808,79 +780,13 @@ export default {
             this.deviceInfo = 'Speech recognition device not available';
             this.voiceServerConnected = false;
         }
-
-        document.addEventListener('generateAudio', (event) => {
-            const { messageId, text } = event.detail;
-            this.generateAudioForMessage(messageId, text);
-        });
     },
 
-    beforeUnmount() {
-        window.removeEventListener('resize', this.updateWidth);
-        document.removeEventListener('generateAudio', this.generateAudioForMessage);
-    }
 }
 
 </script>
 
 <style>
-.chatbubble {
-    border-radius: 1.25rem;
-    text-align: left;
-    position: relative;
-    transition: all 0.2s ease;
-    width: fit-content;
-    max-width: 800px;
-}
-
-.message-content {
-    align-items: flex-start;
-    gap: 0.75rem;
-}
-
-.message-text {
-    flex: 1;
-    min-width: 0;
-    padding-right: 0.5rem;
-    white-space: normal;
-}
-
-.chat-user {
-    background-color: var(--chat-user-light);
-    margin-left: auto;
-    margin-right: 1rem;
-    padding: 0.75rem 1.25rem;
-    width: auto !important; /* Override any width constraints */
-}
-
-.chat-ai {
-    background-color: var(--chat-ai-light);
-    margin-left: 1rem;
-    margin-right: auto;
-    width: calc(100% - 4rem) !important;
-    will-change: box-shadow;
-    transition: box-shadow 0.3s ease;
-}
-
-.chaticon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    background-color: white;
-    border-radius: 50%;
-    border: 1px solid var(--border-light);
-    padding: 0.5rem;
-    margin: 0 0.5rem;
-}
-
-.chaticon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
 #chat1 {
     flex: 1;
     overflow-y: auto;
@@ -897,54 +803,6 @@ export default {
     padding: 0.25rem;
     margin: 0 auto;
     position: relative;
-}
-
-/* Move fade effects to mainContent */
-#mainContent::before,
-#mainContent::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(95%, 120ch);
-    height: 40px;
-    pointer-events: none;
-    z-index: 10;
-    max-width: calc(100% - 2rem); /* Account for padding */
-}
-
-/* Top fade */
-#mainContent::before {
-    top: 0;
-    background: linear-gradient(to bottom,
-    var(--background-light) 0%,
-    var(--background-light) 40%,
-    transparent 100%);
-}
-
-/* Bottom fade */
-#mainContent::after {
-    bottom: 88px; /* Input container height + padding */
-    background: linear-gradient(to top,
-    var(--background-light) 0%,
-    var(--background-light) 40%,
-    transparent 100%);
-}
-
-@media (prefers-color-scheme: dark) {
-    #mainContent::before {
-        background: linear-gradient(to bottom,
-        var(--background-dark) 0%,
-        var(--background-dark) 40%,
-        transparent 100%);
-    }
-
-    #mainContent::after {
-        background: linear-gradient(to top,
-        var(--background-dark) 0%,
-        var(--background-dark) 40%,
-        transparent 100%);
-    }
 }
 
 /* Responsive widths for larger screens */

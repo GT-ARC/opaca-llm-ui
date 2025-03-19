@@ -100,8 +100,12 @@ export default {
     },
 
     methods: {
+        getElement() {
+            return document.getElementById(this.elementId);
+        },
+
         addStatusMessage(text, mode = 'normal', options = null) {
-        text = text.trim();
+            text = text.trim();
             if (!text) return;
             if (mode !== 'normal') {
                 this.markStatusMessagesDone();
