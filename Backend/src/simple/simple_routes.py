@@ -7,7 +7,6 @@ from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
 from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
-from ..utils import call_llm
 
 system_prompt = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -54,7 +53,6 @@ class SimpleBackend(AbstractMethod):
     NAME = "simple"
 
     def __init__(self):
-        self.messages = []
         self.config = self.default_config()
 
     async def query(self, message: str, session: SessionData) -> Response:
@@ -68,23 +66,23 @@ class SimpleBackend(AbstractMethod):
         # initialize messages
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
         actions = session.client.actions if session.client else "(No services, not connected yet.)"
-        self.messages = session.messages.copy()
+        messages = session.messages.copy()
 
         # new conversation starts here
-        self.messages.append(ChatMessage(role="user", content=message))
+        messages.append(ChatMessage(role="user", content=message))
 
         while True:
             result.iterations += 1
-            response = await call_llm(
+            response = await self.call_llm(
                 model=self.config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy, actions),
-                messages=self.messages,
+                messages=messages,
                 temperature=self.config["temperature"],
                 tool_choice="none",
                 websocket=websocket,
             )
-            self.messages.append(ChatMessage(role="assistant", content=response.content))
+            messages.append(ChatMessage(role="assistant", content=response.content))
             result.agent_messages.append(AgentMessage(
                 agent="assistant",
                 content=response.content,
@@ -100,7 +98,7 @@ class SimpleBackend(AbstractMethod):
                 logger.info("Successfully parsed as JSON, calling service...")
                 action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 tool_result_response = f"The result of this step was: {repr(action_result)}"
-                self.messages.append(ChatMessage(role="assistant", content=tool_result_response))
+                messages.append(ChatMessage(role="assistant", content=tool_result_response))
                 result.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=tool_result_response,
@@ -120,15 +118,13 @@ class SimpleBackend(AbstractMethod):
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
                 error = f"There was an error: {e}"
-                self.messages.append(ChatMessage(role="system", content=error))
+                messages.append(ChatMessage(role="system", content=error))
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 logger.info(error, extra={"agent_name": "system"})
                 result.error = str(e)
                 break
 
         result.content = response.content
-        session.messages.append(ChatMessage(role="user", content=message))
-        session.messages.append(ChatMessage(role="assistant", content=response.content))
         result.execution_time = time.time() - exec_time
         return result
 

@@ -200,7 +200,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             self.logger.error(f"Error creating OpenAI client: {str(e)}")
             raise
 
-    async def _handle_follow_up(self, follow_up_question: str, session: SessionData, websocket=None) -> None:
+    async def _handle_follow_up(self, follow_up_question: str, websocket=None) -> None:
         """Handle follow-up questions by sending them to the user"""
         if websocket:
             # Send the follow-up question as an agent message with role 'assistant'
@@ -208,16 +208,6 @@ class SelfOrchestratedBackend(AbstractMethod):
             
             # Wait for user response
             response = await websocket.receive_text()
-            
-            # Add to chat history
-            session.messages.append(ChatMessage(
-                role="assistant",
-                content=follow_up_question
-            ))
-            session.messages.append(ChatMessage(
-                role="user",
-                content=response
-            ))
             
             return response
         else:
@@ -504,7 +494,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 if plan.needs_follow_up and plan.follow_up_question:
                     try:
                         # Get follow-up answer
-                        answer = await self._handle_follow_up(plan.follow_up_question, session, websocket)
+                        answer = await self._handle_follow_up(plan.follow_up_question, websocket)
                         message = f"{message}\n\nAdditional information: {answer}"
                         continue  # Restart with new information
                     except Exception as e:
@@ -634,7 +624,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     if advice.needs_follow_up and advice.follow_up_question:
                         try:
                             # Get follow-up answer
-                            answer = await self._handle_follow_up(advice.follow_up_question, session, websocket)
+                            answer = await self._handle_follow_up(advice.follow_up_question, websocket)
                             message = f"{message}\n\nAdditional information: {answer}"
                             continue  # Restart with new information
                         except Exception as e:
@@ -719,16 +709,6 @@ Please address these specific improvements:
             
             # Calculate total execution time
             total_execution_time = time.time() - overall_start_time
-            
-            # Add original message and response to chat history
-            session.messages.append(ChatMessage(
-                role="user",
-                content=message
-            ))
-            session.messages.append(ChatMessage(
-                role="assistant",
-                content=response.content
-            ))
             
             # Log the final output using the output generator's logging method
             output_generator._log_llm_interaction(

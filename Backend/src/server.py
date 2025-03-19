@@ -14,7 +14,7 @@ from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input
-from .models import Url, Message, Response, SessionData, ConfigPayload
+from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
 from .toolllm import *
 from .simple import SimpleBackend
 from .opaca_client import OpacaClient
@@ -71,7 +71,10 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = handle_session_id(request, response)
-    return await BACKENDS[backend].query(message.user_query, session)
+    result = await BACKENDS[backend].query(message.user_query, session)
+    session.messages.extend([ChatMessage(role="user", content=message.user_query),
+                             ChatMessage(role="assistant", content=result.content)])
+    return result
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
@@ -80,8 +83,10 @@ async def query_stream(websocket: WebSocket, backend: str):
     try:
         data = await websocket.receive_json()
         message = Message(**data)
-        response = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-        await websocket.send_json(response.model_dump_json())
+        result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
+        session.messages.extend([ChatMessage(role="user", content=message.user_query),
+                                 ChatMessage(role="assistant", content=result.content)])
+        await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
 

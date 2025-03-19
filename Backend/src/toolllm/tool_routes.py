@@ -5,7 +5,7 @@ from typing import List
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
-from ..utils import call_llm, openapi_to_functions
+from ..utils import openapi_to_functions
 
 
 class ToolLLMBackend(AbstractMethod):
@@ -58,7 +58,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-            result = await call_llm(
+            result = await self.call_llm(
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
@@ -76,7 +76,7 @@ class ToolLLMBackend(AbstractMethod):
             full_err = '\n'
             while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
                 full_err += err_msg
-                result = await call_llm(
+                result = await self.call_llm(
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
@@ -124,7 +124,7 @@ class ToolLLMBackend(AbstractMethod):
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
-                result = await call_llm(
+                result = await self.call_llm(
                     model=config['model'],
                     agent='Tool Evaluator',
                     system_prompt='',
@@ -153,10 +153,6 @@ class ToolLLMBackend(AbstractMethod):
                 should_continue = False
 
             c_it += 1
-
-        # Add query and final response to global message history
-        session.messages.append(ChatMessage(role="user", content=message))
-        session.messages.append(ChatMessage(role="assistant", content=result.content))
 
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it
