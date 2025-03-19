@@ -6,6 +6,9 @@
         <div v-if="executionTime" class="debug-execution-time">
             Execution time: {{ executionTime.toFixed(2) }}s
         </div>
+        <div v-if="responseMetadata.total_tokens > 0" class="debug-execution-time">
+            Tokens (Prompt, Complete): {{responseMetadata.total_tokens}} ({{responseMetadata.prompt_tokens}}, {{responseMetadata.completion_tokens}})
+        </div>
     </div>
 </template>
 
@@ -27,6 +30,10 @@ export default {
         },
         executionTime: {
             type: Number,
+            default: null
+        },
+        responseMetadata: {
+            type: Object,
             default: null
         }
     }

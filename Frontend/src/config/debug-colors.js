@@ -13,11 +13,6 @@ export const debugColors = {
     "IterationAdvisor": ["#9d4edd", "#9d4edd"],  // Purple for iteration advisor
     // Multi-Agent System - Output Level
     "OutputGenerator": ["#ffbe0b", "#ffbe0b"],  // Orange for output generation
-    // RestGPT
-    "Planner": ["#ff0000", "#9c0000"],
-    "Action Selector": ["#ffff00", "#bf6e00"],
-    "Caller": ["#5151ff", "#0000b1"],
-    "Evaluator": ["#00ff00", "#007300"],
     // Tools
     "Tool Generator": ["#ff0000", "#9c0000"],
     "Tool Generator-Tools": ["#ff0000", "#9c0000"],     // Special class needed for streaming
@@ -47,11 +42,6 @@ export const debugLoadingMessages = {
         "IterationAdvisor": "Analyzing results and planning next steps",
         // Multi-Agent System - Output Level
         "OutputGenerator": "Generating final response",
-        // RestGPT
-        "Planner": "Analyzing your request",
-        "Action Selector": "Determining best approach",
-        "Caller": "Calling the OPACA platform",
-        "Evaluator": "Processing results",
         // Tools
         "Tool Generator": "Calling the required tools",
         "Tool Evaluator": "Validating tool calls",
@@ -74,11 +64,6 @@ export const debugLoadingMessages = {
         "IterationAdvisor": "Analysiere Ergebnisse und plane nächste Schritte",
         // Multi-Agent System - Output Level
         "OutputGenerator": "Generiere finale Antwort",
-        // RestGPT
-        "Planner": "Analysiere Ihre Anfrage",
-        "Action Selector": "Ermittle beste Vorgehensweise",
-        "Caller": "Aufrufen der OPACA-Plattform",
-        "Evaluator": "Verarbeite Ergebnisse",
         // Tools
         "Tool Generator": "Aufrufen der benötigten Tools",
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",

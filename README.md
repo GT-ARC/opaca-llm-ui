@@ -5,8 +5,6 @@ Copyright 2024 - 2025, GT-ARC & DAI-Labor, TU Berlin
 * Main Contributors: Robert Strehlow, Daniel Wetzel, Tobias Küster
 * Further contributions by: Oskar Kupke, Abdullah Kiwan, Benjamin Acar
 
-Part of the code in this repository is based on [RestGPT](https://github.com/Yifan-Song793/RestGPT).
-
 This (https://github.com/gt-arc/opaca-llm-ui/) is the public repository of the OPACA LLM UI project. Feel free to create issues if you have any suggestions, or improve things yourself with a fork and pull request. The main development work still happens in the internal/private repository at https://gitlab.dai-labor.de, including most (internal) tickets, development branches, merge requests, build pipelines, etc.
 
 This repository includes software developed in the course of the project "Offenes Innovationslabor KI zur Förderung gemeinwohlorientierter KI-Anwendungen" (aka Go-KI, https://go-ki.org/) funded by the German Federal Ministry of Labour and Social Affairs (BMAS) under the funding reference number DKI.00.00032.21.
@@ -41,9 +39,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * Simple: Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.
 
-* RestGPT: Based on [RestGPT](https://github.com/Yifan-Song793/RestGPT); using LangChain with four agents (Planner, Action Selector, Caller, Evaluator) to determine what to do, which actions to call, and evaluate the result.
-
-* ToolLLM: Also using LangChain, but with just two agents, and using the built-in "tools" parameter of newer models.
+* ToolLLM: Two agents using the built-in "tools" parameter of newer models.
 
 * Orchestration: A two-staged approach, were an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
 
@@ -138,6 +134,5 @@ Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and
 * [Session Handling](docs/session_handling.md)
 * [LLM Communication Methods](docs/methods_overview.md)
   * [Simple](docs/methods/simple.md)
-  * [REST-GPT](docs/methods/rest_gpt.md)
   * [Tool-LLM](docs/methods/tool_llm.md)
   * [Orchestration](docs/methods/orchestration.md)
