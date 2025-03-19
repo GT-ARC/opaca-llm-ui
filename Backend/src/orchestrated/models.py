@@ -6,23 +6,23 @@ from ..models import AgentMessage
 
 class AgentTask(BaseModel):
     """Model for tasks assigned to agents by the orchestrator or planner"""
-    agent_name: str = Field(..., description="Name of the agent to execute the task")
-    task: str = Field(..., description="Description of the task to be executed")
-    round: int = Field(..., description="Execution round number for ordering/parallelization")
-    dependencies: List[str] = Field(default=[], description="List of task IDs that must complete before this one")
+    agent_name: str = Field(description="Name of the agent to execute the task")
+    task: str = Field(description="Detailed description of the task to be executed with all relevant parameter information")
+    round: int = Field(description="Execution round number for ordering/parallelization")
+    dependencies: List[str] = Field(description="List of task IDs that must complete before this one")
 
 class OrchestratorPlan(BaseModel):
     """Model for the orchestrator's execution plan"""
-    thinking: str = Field(..., description="Step by step reasoning about how to break down and solve the task")
-    tasks: List[AgentTask] = Field(..., description="List of tasks to be executed")
-    needs_follow_up: bool = Field(default=False, description="Whether the orchestrator needs follow-up information")
-    follow_up_question: Optional[str] = Field(default=None, description="Follow-up question to ask the user if needed")
+    thinking: str = Field(description="Step by step reasoning about how to break down and solve the task")
+    tasks: List[AgentTask] = Field(description="List of tasks to be executed")
+    needs_follow_up: bool = Field(description="Whether the orchestrator needs follow-up information")
+    follow_up_question: str = Field(description="Follow-up question to ask the user if needed")
 
 class OrchestratorPlan_no_thinking(BaseModel):
     """Model for the orchestrator's execution plan"""
-    tasks: List[AgentTask] = Field(..., description="List of tasks to be executed")
-    needs_follow_up: bool = Field(default=False, description="Whether the orchestrator needs follow-up information")
-    follow_up_question: Optional[str] = Field(default=None, description="Follow-up question to ask the user if needed")
+    tasks: List[AgentTask] = Field(description="List of tasks to be executed")
+    needs_follow_up: bool = Field(description="Whether the orchestrator needs follow-up information")
+    follow_up_question: str = Field(description="Follow-up question to ask the user if needed")
 
 class PlannerPlan(BaseModel):
     """Model for the planner's execution plan"""

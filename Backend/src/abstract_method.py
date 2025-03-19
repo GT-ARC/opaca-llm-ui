@@ -3,9 +3,10 @@ import logging
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Type
 
 from openai import AsyncOpenAI
+from openai.lib import ResponseFormatT
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage
@@ -49,7 +50,8 @@ class AbstractMethod(ABC):
             tool_choice: Optional[str] = "auto",
             vllm_api_key: Optional[str] = os.getenv("VLLM_API_KEY"),
             vllm_base_url: Optional[str] = os.getenv("VLLM_BASE_URL"),
-            websocket: Optional[WebSocket] = None
+            response_format: Optional[Type[ResponseFormatT]] = None,
+            websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters. Optionally streams intermediate results
@@ -65,6 +67,7 @@ class AbstractMethod(ABC):
             tool_choice (Optional[str]): Set the behavior of tool generation.
             vllm_api_key (Optional[str]): An optional vllm API key when using models within the vllm framework.
             vllm_base_url (Optional[str]): An optional vllm base URL when using models within the vllm framework.
+            response_format (Optional[Dict]): An optional output schema the model should answer in.
             websocket (WebSocket): The websocket to use for streaming intermediate results.
 
         Returns:
@@ -95,63 +98,71 @@ class AbstractMethod(ABC):
             'messages': [{"role": "system", "content": system_prompt}] + messages,
             'tools': tools or [],
             'tool_choice': tool_choice,
-            'stream': True,
-            'stream_options': {'include_usage': True},
         }
 
         # o1/o3 don't support temperature param
         if not model.startswith(("o1", "o3")):
             kwargs['temperature'] = temperature
 
-        #
-        completion = await client.chat.completions.create(**kwargs)
-        async for chunk in completion:
+        # There is currently no token streaming available when using built-in response format
+        if response_format:
+            completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
+            agent_message.formatted_output = completion.choices[0].message.parsed
+            agent_message.response_metadata = completion.usage.to_dict()
+            print(f'agent_message: {agent_message}')
+        else:
+            # Enable streaming and include token usage
+            kwargs['stream'] = True
+            kwargs['stream_options'] = {'include_usage': True}
 
-            # Usage is present in the last chunk so break once it is available
-            if usage := chunk.usage:
-                agent_message.response_metadata = usage.to_dict()
-                break
+            completion = await client.chat.completions.create(**kwargs)
+            async for chunk in completion:
 
-            choice = chunk.choices[0].delta
-            tool_calls = choice.tool_calls
+                # Usage is present in the last chunk so break once it is available
+                if usage := chunk.usage:
+                    agent_message.response_metadata = usage.to_dict()
+                    break
 
-            if tool_calls:
-                for tool_call in tool_calls:
-                    tool_call_id = tool_call.id
+                choice = chunk.choices[0].delta
+                tool_calls = choice.tool_calls
 
-                    if tool_call_id:
-                        tool_call_buffers[tool_call_id] = {
-                            'name': tool_call.function.name,
-                            'arguments': tool_call.function.arguments or '',
-                        }
-                    else:
-                        last_tool_call = next(reversed(tool_call_buffers.values()), None)
-                        if last_tool_call:
-                            # If the full arguments were generated (happens in mistral models)
-                            # then set the arguments rather than append to them
-                            if model.startswith(('gpt', 'o1', 'o3')):
-                                last_tool_call['arguments'] += tool_call.function.arguments or ''
-                            else:
-                                try:
-                                    json.loads(tool_call.function.arguments)
-                                    last_tool_call['arguments'] = tool_call.function.arguments
-                                except json.JSONDecodeError:
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        tool_call_id = tool_call.id
+
+                        if tool_call_id:
+                            tool_call_buffers[tool_call_id] = {
+                                'name': tool_call.function.name,
+                                'arguments': tool_call.function.arguments or '',
+                            }
+                        else:
+                            last_tool_call = next(reversed(tool_call_buffers.values()), None)
+                            if last_tool_call:
+                                # If the full arguments were generated (happens in mistral models)
+                                # then set the arguments rather than append to them
+                                if model.startswith(('gpt', 'o1', 'o3')):
                                     last_tool_call['arguments'] += tool_call.function.arguments or ''
+                                else:
+                                    try:
+                                        json.loads(tool_call.function.arguments)
+                                        last_tool_call['arguments'] = tool_call.function.arguments
+                                    except json.JSONDecodeError:
+                                        last_tool_call['arguments'] += tool_call.function.arguments or ''
 
-                agent_message.tools = [
-                    {
-                        'id': i,
-                        'name': function['name'],
-                        'args': function['arguments'],
-                        'result': '',
-                    }
-                    for i, function in enumerate(tool_call_buffers.values())
-                ]
-            else:
-                agent_message.content = choice.content or ''
-                content += choice.content or ''
-            if websocket:
-                await websocket.send_json(agent_message.model_dump_json())
+                    agent_message.tools = [
+                        {
+                            'id': i,
+                            'name': function['name'],
+                            'args': function['arguments'],
+                            'result': '',
+                        }
+                        for i, function in enumerate(tool_call_buffers.values())
+                    ]
+                else:
+                    agent_message.content = choice.content or ''
+                    content += choice.content or ''
+                if websocket:
+                    await websocket.send_json(agent_message.model_dump_json())
 
         # Transform generated arguments into JSON
         for tool in agent_message.tools:

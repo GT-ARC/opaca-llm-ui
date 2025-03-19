@@ -27,7 +27,7 @@ from .agents import (
     OutputGenerator,
     GeneralAgent,
     IterationAdvisor,
-    AgentPlanner,
+    AgentPlanner, get_current_time,
 )
 from .models import (
     AgentEvaluation, 
@@ -437,7 +437,21 @@ Now, using the tools available to you and the previous results, continue with yo
                 orchestration_time = time.time()
                 
                 # Create orchestration plan
-                plan = await orchestrator.create_execution_plan(message)
+                # plan = await orchestrator.create_execution_plan(message)
+
+                #####
+                plan = await self.call_llm(
+                    model=config["orchestrator_model"],
+                    agent="Orchestrator",
+                    system_prompt=orchestrator.system_prompt,
+                    messages=orchestrator.messages(message),
+                    temperature=config["temperature"],
+                    vllm_api_key=os.getenv("VLLM_API_KEY"),
+                    vllm_base_url=config["base_url"],
+                    response_format=orchestrator.schema,
+                )
+                plan = plan.formatted_output
+                #####
                 
                 # Calculate orchestration time
                 orchestration_time = time.time() - orchestration_time

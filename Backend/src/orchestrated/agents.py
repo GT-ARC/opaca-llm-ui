@@ -256,10 +256,25 @@ class OrchestratorAgent(BaseAgent):
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
-    
-    async def create_execution_plan(self, user_request: str) -> OrchestratorPlan_no_thinking | OrchestratorPlan:
-        """Create an execution plan for the user's request"""
-        # Prepare chat history context if available
+
+    @property
+    def remark(self):
+        if self.disable_thinking:
+            return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
+THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+        return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
+YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
+THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+
+    @property
+    def system_prompt(self):
+        prompt = get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
+                agent_summaries=json.dumps(self.agent_summaries, indent=2)
+            ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
+        print(f'orchestrator prompt: {prompt}')
+        return prompt
+
+    def messages(self, user_request: str):
         chat_context = ""
         if self.chat_history:
             # Get last 5 messages for context
@@ -267,65 +282,40 @@ class OrchestratorAgent(BaseAgent):
             chat_context = "Consider the chat history if applicable: \n\nRecent chat history:\n\n"
             for msg in recent_messages:
                 chat_context += f"{msg.role}: {msg.content}\n"
-            
+
             chat_context = chat_context + """\n\n IF YOU UTILIZE INFORMATION FROM THE CHAT HISTORY, YOU MUST ALWAYS INCLUDE IT WITHIN YOUR TASKS. YOU ARE THE ONLY AGENT IN THE WHOLE CHAIN THAT HAS ACCESS TO THE CHAT HISTORY!"""
 
-        if self.disable_thinking:
-            REMARK = """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
-            SYSTEM_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING.format(
-                agent_summaries=json.dumps(self.agent_summaries, indent=2)
-            )
-            schema = OrchestratorPlan_no_thinking.model_json_schema()
-        
-        else:
-            REMARK = """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
-THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
-            SYSTEM_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT.format(
-                agent_summaries=json.dumps(self.agent_summaries, indent=2)
-            )
-            schema = OrchestratorPlan.model_json_schema()
-        
-        messages = [
-            {
-                "role": "system",
-                "content": get_current_time() + BACKGROUND_INFO + SYSTEM_PROMPT + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
-            },
+        return [
             {
                 "role": "user",
                 "content": f"""
-{chat_context} \n\n
+        {chat_context} \n\n
 
-{REMARK}
+        {self.remark}
 
-Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
-If the user request requires a summary, NO seperate agent or function is needed for that, as the output generating agent will do that!
-NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TAKS! 
-IF YOU SHOULD RETRIEVE AND SUMMARIZE INFORMATION, ONLY CREATE A TASK FOR THE RETRIEVAL, NOT FOR THE SUMMARIZATION!
-THE SUMMARIZATION HAPPENS AUTOMATICALLY AND NO ACTION FROM YOUR SIDE IS REQUIRED FOR THAT!!
+        Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
+        If the user request requires a summary, NO seperate agent or function is needed for that, as the output generating agent will do that!
+        NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TAKS! 
+        IF YOU SHOULD RETRIEVE AND SUMMARIZE INFORMATION, ONLY CREATE A TASK FOR THE RETRIEVAL, NOT FOR THE SUMMARIZATION!
+        THE SUMMARIZATION HAPPENS AUTOMATICALLY AND NO ACTION FROM YOUR SIDE IS REQUIRED FOR THAT!!
 
-NOW, Create an execution plan for this request: \n 
-{user_request}
-"""
+        NOW, Create an execution plan for this request: \n 
+        {user_request}
+        """
             }
         ]
-        
-        response = await self._call_llm(
-            messages=messages,
-            guided_json=schema
-        )
-        
-        # Clean up the response if it's wrapped in markdown code blocks
-        content = response.content
-        if content.startswith("```") and content.endswith("```"):
-            # Remove markdown code blocks
-            content = re.sub(r"^```\w*\n|```\s*$", "", content).strip()
-        
+
+    def validate_output(self, content):
         if self.disable_thinking:
             return OrchestratorPlan_no_thinking.model_validate_json(content)
-        else:
-            return OrchestratorPlan.model_validate_json(content)
+        return OrchestratorPlan.model_validate_json(content)
+
+    @property
+    def schema(self):
+        if self.disable_thinking:
+            return OrchestratorPlan_no_thinking
+        return OrchestratorPlan
+
 
 class GeneralAgent(BaseAgent):
     """Agent that handles general capability questions without using tools."""
@@ -931,24 +921,6 @@ class WorkerAgent(BaseAgent):
         task_str = task.task if isinstance(task, AgentTask) else task
         self.logger.debug(f"Executing task: {task_str}")
 
-        remark = ""
-        if self.agent_name == "exchange-agent":
-            remark = """\n\nIMPORTANT: 
-- If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
-- If you need to retrieve phone numbers, always try to use email addresses where possible!
-- If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
-        elif self.agent_name == "DataVisAgent":
-            remark = """\n\nIMPORTANT: 
-- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- IF IT IS POSSIBLE, PROVIDE AXIS LABELS FOR THE X and Y AXIS!"""
-        elif self.agent_name == "home-assistant-agent":
-            remark = """\n\nIMPORTANT: 
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- Noise levels should never be outputted with the unit 'dB'!
-- Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)"""
-
-
         try:
             # Create messages with task description and tools
             messages = [{
@@ -965,8 +937,7 @@ class WorkerAgent(BaseAgent):
 
 Remember: 
 1. NEVER use placeholders - always use actual values.
-2. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
-{remark}"""
+2. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!"""
             }]
             
             # Log the input to LLM

@@ -40,7 +40,10 @@ class OpacaClient:
     async def get_agent_details(self) -> Dict[str, Dict[str, Any]]:
         await self._update_opaca_actions()
         return {
-            agent["agentId"]: {"description": agent["description"], "actions": agent["actions"]}
+            agent["agentId"]:
+                {
+                    "description": agent["description"],
+                    "functions": [action["name"] for action in agent["actions"]]}
             for agent in self.actions_dict
         }
     
