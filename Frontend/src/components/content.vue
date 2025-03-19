@@ -177,133 +177,106 @@ export default {
             this.accumulatedContent = ''; // Reset accumulated content for new message
             this.createSpeechBubbleUser(userText);
             try {
-                if (['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend())) {
-                    // Initialize with preparing message
-                    this.statusMessages[currentMessageCount] = new Map();
-                    const systemMessage = this.getDebugLoadingMessage('preparing');
-                    this.statusMessages[currentMessageCount].set('preparing', systemMessage + ' ...');
-                    this.editTextSpeechBubbleAI(Array.from(this.statusMessages[currentMessageCount].values()).join('\n'), currentMessageCount);
-                    
-                    // Show loading indicator for initial message
-                    const aiBubble = document.getElementById(`${currentMessageCount}`);
-                    if (aiBubble) {
-                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                        if (loadingContainer) {
-                            loadingContainer.classList.remove('hidden');
-                        }
+                // Initialize with preparing message
+                this.statusMessages[currentMessageCount] = new Map();
+                const systemMessage = this.getDebugLoadingMessage('preparing');
+                this.statusMessages[currentMessageCount].set('preparing', systemMessage + ' ...');
+                this.editTextSpeechBubbleAI(Array.from(this.statusMessages[currentMessageCount].values()).join('\n'), currentMessageCount);
+
+                // Show loading indicator for initial message
+                const aiBubble = document.getElementById(`${currentMessageCount}`);
+                if (aiBubble) {
+                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                    if (loadingContainer) {
+                        loadingContainer.classList.remove('hidden');
                     }
-                    
-                    const preparingColor = this.getDebugColor('preparing', this.isDarkScheme);
-                    this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
-                    this.scrollDown(false);
+                }
 
-                    const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
+                const preparingColor = this.getDebugColor('preparing', this.isDarkScheme);
+                this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
+                this.scrollDown(false);
 
-                    socket.onmessage = (event) => {
-                        const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-                        if (result.hasOwnProperty("agent")) {
-                            // Mark system preparation as complete on first agent message
-                            if (this.statusMessages[currentMessageCount].has('preparing')) {
-                                const preparingMessage = this.getDebugLoadingMessage('preparing');
-                                this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
-                            }
+                const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
 
-                            if (result.agent === 'assistant') {
-                                // Accumulate content for streaming without coloring
-                                if (!this.accumulatedContent) {
-                                    this.accumulatedContent = '';
-                                    // Hide loading indicator on first chunk
-                                    const aiBubble = document.getElementById(`${currentMessageCount}`);
-                                    if (aiBubble) {
-                                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                                        if (loadingContainer) {
-                                            loadingContainer.classList.add('hidden');
-                                        }
+                socket.onmessage = (event) => {
+                    const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+                    if (result.hasOwnProperty("agent")) {
+                        // Mark system preparation as complete on first agent message
+                        if (this.statusMessages[currentMessageCount].has('preparing')) {
+                            const preparingMessage = this.getDebugLoadingMessage('preparing');
+                            this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
+                        }
+
+                        if (result.agent === 'output_generator') {
+                            // Accumulate content for streaming without coloring
+                            if (!this.accumulatedContent) {
+                                this.accumulatedContent = '';
+                                // Hide loading indicator on first chunk
+                                const aiBubble = document.getElementById(`${currentMessageCount}`);
+                                if (aiBubble) {
+                                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                                    if (loadingContainer) {
+                                        loadingContainer.classList.add('hidden');
                                     }
                                 }
-                                this.accumulatedContent += result.content;
-                                // Apply markdown parsing to the entire accumulated content
-                                const formattedContent = marked.parse(this.accumulatedContent);
-                                this.editTextSpeechBubbleAI(formattedContent, currentMessageCount, true, false); // Pass false to prevent loading indicator changes
-                                // Remove any active glow animation for assistant content
-                                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                            } else {
-                                // Agent messages are intermediate results
-                                this.addDebugToken(result, currentMessageCount);
                             }
-                            this.scrollDown(true);
-                        } else {
-                            // Last message received should be final response
-                            this.editTextSpeechBubbleAI(result.content, currentMessageCount);
+                            this.accumulatedContent += result.content;
+                            // Apply markdown parsing to the entire accumulated content
+                            const formattedContent = marked.parse(this.accumulatedContent);
+                            this.editTextSpeechBubbleAI(formattedContent, currentMessageCount, true, false); // Pass false to prevent loading indicator changes
+                            // Remove any active glow animation for assistant content
                             this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-
-                            // Put the final response into the accumulated content
-                            this.accumulatedContent = result.content;
-
-                            // Hide loading indicator
-                            const aiBubble = document.getElementById(`${currentMessageCount}`);
-                            if (aiBubble) {
-                                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                                if (loadingContainer) {
-                                    loadingContainer.classList.add('hidden');
-                                }
-                            }
-
-                            // Handle Debug Message in Chat Bubble
-                            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
+                        } else {
+                            // Agent messages are intermediate results
+                            this.addDebugToken(result, currentMessageCount);
                         }
-                    };
+                        this.scrollDown(true);
+                    } else {
+                        // Last message received should be final response
+                        this.editTextSpeechBubbleAI(result.content, currentMessageCount);
+                        this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
-                    socket.onopen = () => {
-                        const inputData = {user_query: userText, api_key: this.apiKey};
-                        socket.send(JSON.stringify(inputData));
-                    };
+                        // Put the final response into the accumulated content
+                        this.accumulatedContent = result.content;
 
-                    socket.onclose = () => {
-                        if (!this.isFinished) {
-                            this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
-                        }
-                        console.log("WebSocket connection closed");
-                        // Get the final accumulated content and message ID for speech
-                        if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                            if (this.accumulatedContent) {
-                                this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
-                                this.autoSpeakNextMessage = false;
+                        // Hide loading indicator
+                        const aiBubble = document.getElementById(`${currentMessageCount}`);
+                        if (aiBubble) {
+                            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
+                            if (loadingContainer) {
+                                loadingContainer.classList.add('hidden');
                             }
                         }
-                    };
 
-                    socket.onerror = (error) => {
-                        if (!this.isFinished) {
-                            this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
-                        }
-                        console.log("Received error: ", error);
+                        // Handle Debug Message in Chat Bubble
+                        this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
                     }
-                } else {
-                    this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
-                    this.toggleLoadingSymbol(currentMessageCount);
-                    this.scrollDown(false)
+                };
 
-                    const result = await sendRequest(
-                        "POST",
-                        `${conf.BackendAddress}/${this.getBackend()}/query`,
-                        {user_query: userText, api_key: this.apiKey},
-                        null);
-                    const answer = result.data.content;
-                    if (result.data.error) {
-                        this.addDebug(result.data.error)
+                socket.onopen = () => {
+                    const inputData = {user_query: userText, api_key: this.apiKey};
+                    socket.send(JSON.stringify(inputData));
+                };
+
+                socket.onclose = () => {
+                    if (!this.isFinished) {
+                        this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
                     }
-                    this.toggleLoadingSymbol(currentMessageCount)
-                    this.editTextSpeechBubbleAI(answer, currentMessageCount)
-                    this.scrollDown(false);
-                    this.processDebugInput(result.data.agent_messages, currentMessageCount);
-                    this.scrollDown(true);
-                    
-                    // Generate audio for the response if needed
+                    console.log("WebSocket connection closed");
+                    // Get the final accumulated content and message ID for speech
                     if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                        this.generateAudioForMessage(currentMessageCount, answer);
-                        this.autoSpeakNextMessage = false;
+                        if (this.accumulatedContent) {
+                            this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
+                            this.autoSpeakNextMessage = false;
+                        }
                     }
+                };
+
+                socket.onerror = (error) => {
+                    if (!this.isFinished) {
+                        this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
+                    }
+                    console.log("Received error: ", error);
                 }
             } catch (error) {
                 console.error(error);
@@ -537,43 +510,12 @@ export default {
 
             if (agent_message["tools"].length > 0) {
                 const tool_output = agent_message["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}\n`
                 ).join("\n\n")
-                this.addDebug(tool_output, color, agent_message["agent"] + "-Tools");
+                this.addDebug(tool_output, color, agent_message["agent"] + "-Tools", agent_message["response_metadata"], agent_message["execution_time"]);
 
-            } else if (agent_message["content"] !== "") {
-                this.addDebug(agent_message["content"], color, agent_message["agent"]);
-            }
-        },
-
-        processDebugInput(agent_messages, messageCount) {
-            if (agent_messages.length > 0) {
-                // if at least one debug message was found, let the "debug" button appear on the speech bubble
-                const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
-                debugToggle.style.display = 'block';
-            }
-
-            // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-            for (const message of agent_messages) {
-                const color = this.getDebugColor(message["agent"], this.isDarkScheme);
-                // if tools have been generated, display the tools (no message was generated in that case)
-                const content = [
-                    message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
-                    `Execution time: ${message["execution_time"].toFixed(2)}s`
-                ].join('\n');
-
-                this.addDebug(content, color, message["agent"]);
-
-                // Add the formatted debug text to the associated speech bubble
-                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-                if (messageBubble) {
-                    let d1 = document.createElement("div")
-                    d1.className = "bubble-debug-text"
-                    d1.textContent = content
-                    d1.style.color = color
-                    d1.dataset.type = message["agent"]
-                    messageBubble.append(d1)
-                }
+            } else if (agent_message["content"] !== "" || agent_message["response_metadata"] !== null) {
+                this.addDebug(agent_message["content"], color, agent_message["agent"], agent_message["response_metadata"], agent_message["execution_time"]);
             }
         },
 
@@ -584,7 +526,7 @@ export default {
             });
         },
 
-        addDebug(text, color, type) {
+        addDebug(text, color, type, responseMetadata = null, executionTime = null) {
             const debugMessages = this.$refs.sidebar.debugMessages;
 
             // If the message includes tools, the message needs to be replaced instead of appended
@@ -593,18 +535,24 @@ export default {
                     text: text,
                     color: color,
                     type: "Tool Generator-Tools",
+                    executionTime: executionTime,
+                    responseMetadata: responseMetadata,
                 }
             }
             // If the message has the same type as before but is not a tool, append the token to the text
             else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
                 debugMessages[debugMessages.length - 1].text += `${text}`
+                debugMessages[debugMessages.length - 1].responseMetadata = responseMetadata;
+                debugMessages[debugMessages.length - 1].executionTime = executionTime;
             }
             // If the message has a new type, assume it is the beginning of a new agent message
-            else {
+            else if (text){
                 debugMessages.push({
                     text: text,
                     color: color,
                     type: type,
+                    executionTime: executionTime,
+                    responseMetadata: responseMetadata,
                 });
             }
         },

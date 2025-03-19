@@ -11,10 +11,10 @@ import pytz
 import re
 
 
-from ..models import AgentMessage
+from ..models import AgentMessage, ChatMessage
 from .models import (
     AgentTask, OrchestratorPlan, OrchestratorPlan_no_thinking, PlannerPlan, AgentEvaluation, 
-    OverallEvaluation, AgentResult, IterationAdvice, ChatHistory
+    OverallEvaluation, AgentResult, IterationAdvice
 )
 from .prompts import (
     BACKGROUND_INFO,
@@ -41,6 +41,7 @@ class BaseAgent:
         self.model = model
         self.logger = logging.getLogger("src.models")
         self.chat_history = None
+        self.response_metadata = {}
 
     def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
         """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
@@ -148,6 +149,7 @@ class BaseAgent:
                     kwargs["messages"],
                     json.dumps(response.model_dump(), indent=2)
                 )
+                self.response_metadata = completion.usage.to_dict()
                 
                 return response
                 
@@ -240,6 +242,8 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
                 response.choices[0].message.content, 
                 output_structure
             )
+
+            self.response_metadata = response.usage.to_dict()
             
             return response.choices[0].message
         finally:
@@ -247,19 +251,19 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
             self.logger.debug(f"LLM call took {execution_time:.2f} seconds")
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[ChatHistory] = None, disable_thinking: bool = False):
+    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
         super().__init__(client, model)
         self.agent_summaries = agent_summaries
-        self.chat_history = chat_history
+        self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
     
-    async def create_execution_plan(self, user_request: str) -> OrchestratorPlan:
+    async def create_execution_plan(self, user_request: str) -> OrchestratorPlan_no_thinking | OrchestratorPlan:
         """Create an execution plan for the user's request"""
         # Prepare chat history context if available
         chat_context = ""
-        if self.chat_history and self.chat_history.messages:
+        if self.chat_history:
             # Get last 5 messages for context
-            recent_messages = self.chat_history.messages[-4:]
+            recent_messages = self.chat_history[-4:]
             chat_context = "Consider the chat history if applicable: \n\nRecent chat history:\n\n"
             for msg in recent_messages:
                 chat_context += f"{msg.role}: {msg.content}\n"
@@ -492,8 +496,6 @@ DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
                     
                     # Process tool results by round
                     if result.tool_results:
-                        round_tool_results = {}
-
                         # Group tool results by round based on their sequence
                         round_tool_results = dict(enumerate(result.tool_results))
                         

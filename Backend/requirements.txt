@@ -1,10 +1,8 @@
 openai>=1.61.0
-langchain>=0.3,<0.4
-langchain-community>=0.3,<0.4
-langchain-core>=0.3,<0.4
-langchain-openai>=0.2,<0.3
+requests
 fastapi
 uvicorn
 jsonref
 websockets
 pytz
+pyyaml

@@ -177,7 +177,8 @@
                             :text="debugMessage.text"
                             :color="debugMessage.color"
                             :type="debugMessage.type"
-                            :execution-time="debugMessage.execution_time"
+                            :execution-time="debugMessage.executionTime"
+                            :response-metadata="debugMessage.responseMetadata"
                         />
                     </div>
                 </div>
