@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 from pathlib import Path
 from tqdm.asyncio import tqdm
 
@@ -63,7 +63,6 @@ Be as short and as precise as possible while still providing ALL the necessary i
 async def analyze_agent_with_gpt(
     client: AsyncOpenAI,
     agent_name: str,
-    functions: List[Dict],
     detailed_functions: List[Dict],
     model: str = DEFAULT_MODEL
 ) -> tuple[str, str]:
@@ -114,7 +113,6 @@ async def generate_agent_instructions(
     client: AsyncOpenAI,
     agent_name: str,
     summary: str,
-    functions: List[Dict],
     detailed_functions: List[Dict],
     model: str = DEFAULT_MODEL
 ) -> tuple[str, str]:
@@ -221,30 +219,13 @@ async def get_agents_tools(
     
     print(f"\nGenerating detailed instructions for each agent")
     
-    # Create tasks for parallel processing of instructions
-    instruction_tasks = [
-        generate_agent_instructions(
-            openai_client,
-            agent_name,
-            agent_summaries[agent_name],
-            agents_simple[agent_name],
-            functions,
-            model
-        )
-        for agent_name in agents_simple.keys()
-    ]
-    
-    # Process all instruction generations in parallel
-    #instructions = await tqdm.gather(*instruction_tasks, desc="Generating agent instructions")
-    
     # Convert results to dictionary
     agents_with_summaries = {
         agent_name: {
             "functions": agents_simple[agent_name],
             "summary": agent_summaries[agent_name],
-            #"instructions": instruction
         }
-        for agent_name in agent_summaries.keys() #, instruction in instructions
+        for agent_name in agent_summaries.keys()
     }
 
     result = {
@@ -266,7 +247,7 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Generate summaries of OPACA agents and their functions")
-    parser.add_argument("--url", default="http://10.42.6.107:8000", help="OPACA platform URL")
+    parser.add_argument("--url", default="http://localhost:8000", help="OPACA platform URL")
     parser.add_argument("--user", help="Username for authentication")
     parser.add_argument("--pwd", help="Password for authentication")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="OpenAI model to use for analysis")

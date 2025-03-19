@@ -62,8 +62,3 @@ class ChatMessage(BaseModel):
     role: str = Field(..., description="Role of the message sender (user/assistant)")
     content: str = Field(..., description="Content of the message")
     timestamp: Optional[str] = Field(default=None, description="Timestamp of the message")
-
-class ChatHistory(BaseModel):
-    """Model for storing the chat history"""
-    messages: List[ChatMessage] = Field(default_factory=list, description="List of chat messages")
-    context_summary: Optional[str] = Field(default=None, description="Summary of relevant context from chat history") 
