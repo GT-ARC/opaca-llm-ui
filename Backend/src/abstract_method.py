@@ -47,7 +47,9 @@ class AbstractMethod(ABC):
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
-            websocket: WebSocket = None
+            vllm_api_key: Optional[str] = os.getenv("VLLM_API_KEY"),
+            vllm_base_url: Optional[str] = os.getenv("VLLM_BASE_URL"),
+            websocket: Optional[WebSocket] = None
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters. Optionally streams intermediate results
@@ -61,6 +63,8 @@ class AbstractMethod(ABC):
             temperature (float): The temperature to pass to the model
             tools (List[Dict[str, Any]]): The list of tools to pass to the model
             tool_choice (Optional[str]): Set the behavior of tool generation.
+            vllm_api_key (Optional[str]): An optional vllm API key when using models within the vllm framework.
+            vllm_base_url (Optional[str]): An optional vllm base URL when using models within the vllm framework.
             websocket (WebSocket): The websocket to use for streaming intermediate results.
 
         Returns:
@@ -76,7 +80,7 @@ class AbstractMethod(ABC):
         if model.startswith(("gpt", "o1", "o3")):
             client = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
         else:
-            client = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
+            client = AsyncOpenAI(api_key=vllm_api_key, base_url=vllm_base_url)
 
         # Initialize agent message
         agent_message = AgentMessage(

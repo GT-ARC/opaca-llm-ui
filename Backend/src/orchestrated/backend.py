@@ -2,7 +2,7 @@ import json
 import os
 import logging
 import time
-from collections import defaultdict
+import traceback
 from typing import Dict, Any, List
 from pathlib import Path
 import yaml
@@ -33,57 +33,22 @@ from .models import (
     AgentEvaluation, 
     OverallEvaluation, 
     AgentResult,
-    ChatMessage,
     AgentTask
 )
 from ..utils import openapi_to_functions
 
 
-
 class SelfOrchestratedBackend(AbstractMethod):
     NAME = "self-orchestrated"
 
-    
     def __init__(self, agents_file: str = "agents_tools.json"):
         # Set up logging
         self.logger = logging.getLogger("src.models")
-        
-
-        # Look for the file in the Backend directory
-        self.agents_file = Path(__file__).parent.parent.parent / agents_file
-        
-        # Look for the file in the src directory
-        self.agents_file_src = Path(__file__).parent.parent / agents_file
-
-        if not self.agents_file.exists():
-            self.logger.info(f"Agents file not found at: {self.agents_file}.\nChecking src directory..."
-            )
-        if not self.agents_file_src.exists():
-            self.logger.info(f"Agents file not found at: {self.agents_file_src}."
-            )
-
-        if not self.agents_file.exists() and not self.agents_file_src.exists():
-            raise FileNotFoundError(
-                f"Agents file not found: {self.agents_file} or {self.agents_file_src}. "
-                "Please run get_agents_tools.py first."
-            )
-
-        # if file in src directory exists, use it
-        if self.agents_file_src.exists():
-            self.agents_file = self.agents_file_src
-        
-        
-        with open(self.agents_file) as f:
-            self.agents_data = json.load(f)
         
         # Initialize session tracking
         self.current_session_id = None
         self.current_session_log = []
         self.logged_interactions = set()  # Track unique interactions to prevent duplicates
-    
-    @property
-    def name(self):
-        return self.NAME
 
     @property
     def config_schema(self) -> Dict[str, ConfigParameter]:
@@ -223,7 +188,7 @@ class SelfOrchestratedBackend(AbstractMethod):
         websocket=None,
         evaluator_client=None, 
         planner_client=None,
-        agent_messages: List[AgentMessage] = []
+        agent_messages: List[AgentMessage] = None
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
@@ -414,13 +379,10 @@ Now, using the tools available to you and the previous results, continue with yo
             await send_to_websocket(websocket, "preparing", "Initializing the OPACA AI Agents", 0.0)
             
             # Get simplified agent summaries for the orchestrator
-            agent_summaries = {
-                name: data["summary"]
-                for name, data in self.agents_data["agents_simple"].items()
-            }
+            agent_details = await session.client.get_agent_details()
             
             # Add GeneralAgent summary
-            agent_summaries["GeneralAgent"] = """**Purpose:** The GeneralAgent is designed to handle general queries about system capabilities and provide overall assistance.
+            agent_details["GeneralAgent"] = {"description": """"**Purpose:** The GeneralAgent is designed to handle general queries about system capabilities and provide overall assistance.
 
 **Overview:** This agent can explain the system's features, available agents, and their capabilities. It serves as the primary point of contact for general inquiries and capability questions.
 **Note:** If you believe that the Output Generator LLM would be able to answer the question directly, USE THIS AGENT! This agent has absolutely no latency and retrieves context very fast. Therefore, it is the best choice for very simple questions or questions that are related to the system's capabilities.
@@ -434,13 +396,13 @@ Now, using the tools available to you and the previous results, continue with yo
 5. Retrieve the current time
 6. Retrieve the current location
 
-**IMPORTANT:** This agent only has one function to call. Therefore, you MUST be extreamly short with your task for this agent to reduce latency!"""
+**IMPORTANT:** This agent only has one function to call. Therefore, you MUST be extremely short with your task for this agent to reduce latency!""", "actions": []}
             
             # Initialize agents
             orchestrator = OrchestratorAgent(
                 client=orchestrator_client,
                 model=config["orchestrator_model"],
-                agent_summaries=agent_summaries,
+                agent_summaries=agent_details,
                 chat_history=session.messages,  # Pass chat history to orchestrator
                 disable_thinking=self._parse_bool_config(config.get("disable_orchestrator_thinking", False))
             )
@@ -459,7 +421,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 "GeneralAgent": GeneralAgent(
                     client=worker_client,
                     model=config["worker_model"],
-                    agent_summaries=agent_summaries,
+                    agent_summaries=agent_details,
                     config=config
                 )
             }
@@ -504,25 +466,11 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Create worker agents for each unique agent in the plan
                 for task in plan.tasks:
                     agent_name = task.agent_name
-                    
-                    # Try to normalize agent name if it doesn't exist
-                    if agent_name not in worker_agents and agent_name not in self.agents_data["agents_simple"]:
-                        # Try case-insensitive match
-                        normalized_name = next(
-                            (name for name in self.agents_data["agents_simple"].keys() 
-                             if name.lower() == agent_name.lower()),
-                            None
-                        )
-                        if normalized_name:
-                            self.logger.warning(f"Normalized agent name from {agent_name} to {normalized_name}")
-                            agent_name = normalized_name
-                            task.agent_name = normalized_name
-                        else:
-                            self.logger.error(f"Unknown agent: {agent_name}")
-                            raise ValueError(f"Unknown agent: {agent_name}")
+
+                    print(f'task: {task}')
                     
                     if agent_name not in worker_agents:
-                        agent_data = self.agents_data["agents_simple"][agent_name]
+                        agent_data = agent_details[agent_name]["description"]
                         
                         # Get functions from platform instead of JSON file
                         agent_tools = []
@@ -548,17 +496,12 @@ Now, using the tools available to you and the previous results, continue with yo
                                 }
                                 agent_tools.append(cleaned_func)
                         
-                        # Verify we have a summary
-                        if "summary" not in agent_data:
-                            self.logger.error(f"Missing summary for agent {agent_name}")
-                            raise ValueError(f"Agent {agent_name} is missing required summary")
-                        
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
                             client=worker_client,
                             model=config["worker_model"],
                             agent_name=agent_name,
-                            summary=agent_data["summary"],
+                            summary=agent_data,
                             tools=agent_tools,
                             session_client=session.client,
                             config=config
@@ -750,7 +693,7 @@ Please address these specific improvements:
             return response
             
         except Exception as e:
-            self.logger.error(f"Error in query_stream: {str(e)}", exc_info=True)
+            self.logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
             response.error = str(e)
             await send_to_websocket(websocket, "system", f"\n\nError: {str(e)}\n\n", 0.0)
             # Log error

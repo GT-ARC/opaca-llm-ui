@@ -36,6 +36,13 @@ class OpacaClient:
         return {
             agent["agentId"]: agent["actions"] for agent in self.actions_dict
         }
+
+    async def get_agent_details(self) -> Dict[str, Dict[str, Any]]:
+        await self._update_opaca_actions()
+        return {
+            agent["agentId"]: {"description": agent["description"], "actions": agent["actions"]}
+            for agent in self.actions_dict
+        }
     
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         agent = f"/{agent}" if agent else ""
