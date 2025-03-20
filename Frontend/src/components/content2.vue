@@ -19,19 +19,21 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
+              style="max-width: 1000px">
 
             <!-- Chat Window -->
-            <div class="container-fluid flex-grow-1 px-0" id="chat1">
+            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-2': !isMobile}">
 
                 <!-- chat bubbles -->
-                <div v-for="{ content, elementId, isUser } in self.messages">
+                <div v-for="{ content, elementId, isUser } in this.messages">
                     <Chatbubble
                         :element-id="elementId"
                         :is-user="isUser"
                         :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
+                        :ref="elementId"
                     />
                 </div>
 
@@ -123,6 +125,8 @@ export default {
     },
     data() {
         return {
+            messages: [],
+
             apiKey: '',
             textInput: '',
             messageCount: 0,
@@ -155,7 +159,6 @@ export default {
     },
     methods: {
         updateTheme() {
-            // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
             this.updateDebugColors(this.isDarkScheme)
         },
@@ -175,6 +178,16 @@ export default {
             }
         },
 
+        getLastBubble() {
+            if (this.messages.length === 0) return null;
+            const refId = this.messages[this.messages.length - 1].elementId;
+            return this.$refs[refId];
+        },
+
+        isStreamingBackend() {
+            return ['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend());
+        },
+
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
@@ -182,9 +195,9 @@ export default {
             this.messageCount++;
             const debugMessageLength = this.$refs.sidebar.debugMessages.length;
             this.accumulatedContent = ''; // Reset accumulated content for new message
-            this.createSpeechBubbleUser(userText);
+            this.addChatBubble(userText, true);
             try {
-                if (['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend())) {
+                if (this.isStreamingBackend()) {
                     // Initialize with preparing message
                     this.statusMessages[currentMessageCount] = new Map();
                     const systemMessage = this.getDebugLoadingMessage('preparing');
@@ -287,7 +300,7 @@ export default {
                         console.log("Received error: ", error);
                     }
                 } else {
-                    this.createSpeechBubbleAI(`Generating your answer`, currentMessageCount);
+                    this.addChatBubble('Generating your answer...', false); // todo: translation
                     this.scrollDown(false)
 
                     const result = await sendRequest(
@@ -356,20 +369,22 @@ export default {
             this.$refs.sidebar.debugMessages = []
             if (!this.isMobile) {
                 // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
-                this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+                this.addChatBubble(conf.translations[this.language].welcome, false);
             }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
         },
 
         createSpeechBubbleAI(content) {
-            const message = { content: content, elementId: 'todo', isUser: false };
+            const elementId = `chatbubble-${this.messages.length}-ai`;
+            const message = { content: content, elementId: elementId, isUser: false };
             this.messages.push(message);
             this.scrollDown(false);
         },
 
-        createSpeechBubbleUser(content) {
-            const message = { content: content, elementId: 'todo', isUser: true };
+        addChatBubble(content, isUser = false) {
+            const elementId = `chatbubble-${this.messages.length}`;
+            const message = { content: content, elementId: elementId, isUser: isUser };
             this.messages.push(message);
             this.scrollDown(false);
         },
@@ -529,8 +544,8 @@ export default {
             }
         },
 
-        editAnimationSpeechBubbleAI(id, active, color) {
-            const aiBubble = document.getElementById(`${id}`);
+        editAnimationSpeechBubbleAI(active, color) {
+            const aiBubble = this.getLastBubble().getElement();
             if (!aiBubble) return;
 
             if (!document.querySelector(`#move-glow`)) {
@@ -568,59 +583,20 @@ export default {
             }
         },
 
-        editTextSpeechBubbleAI(text, id, isPreformatted = false, updateLoading = true) {
-            const aiBubble = document.getElementById(`${id}`);
-            if (!aiBubble) {
-                // If the bubble doesn't exist yet, create it
-                this.createSpeechBubbleAI(text, id);
-                return;
-            }
-
-            const messageContainer = aiBubble.querySelector("#messageContainer");
-            if (!messageContainer) return;
-
-            // Check if this is a status message (contains checkmarks or ellipsis)
-            const isStatusMessage = text.includes('...') || text.includes('✓');
-
-            if (isStatusMessage) {
-                // Format status messages with clean line breaks
-                const formattedText = text.split('\n')
-                    .filter(line => line.trim() !== '')
-                    .map(line => `<div class="status-line">${line}</div>`)
-                    .join('');
-                messageContainer.innerHTML = formattedText;
-
-                // Show loading indicator for active status only if we should update loading
-                if (updateLoading) {
-                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                    if (loadingContainer) {
-                        loadingContainer.classList.toggle('hidden', !text.includes('...'));
-                    }
-                }
+        editTextSpeechBubbleAI(text, isStatusMessage = false) {
+            const lastBubble = this.getLastBubble();
+            if (!lastBubble) {
+                this.addChatBubble(text, false);
+            } else if (isStatusMessage) {
+                lastBubble.addStatusMessage(text);
             } else {
-                // Use the pre-formatted content or parse markdown as needed
-                messageContainer.innerHTML = isPreformatted ? text : marked.parse(text);
-
-                // Hide loading indicator only if we should update loading
-                if (updateLoading) {
-                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                    if (loadingContainer) {
-                        loadingContainer.classList.add('hidden');
-                    }
-                }
+                lastBubble.setContent(text);
             }
         },
 
         getBackend() {
             const parts = this.backend.split('/');
             return parts[parts.length - 1];
-        },
-
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
         },
 
         getRandomSampleQuestions(num_questions = 3) {
@@ -747,6 +723,29 @@ export default {
                 }
             }
         },
+
+        setupTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+        },
+
+        async initVoiceServerConnection() {
+            try {
+                const response = await fetch(`${conf.VoiceServerAddress}/info`);
+                if (!response.ok) {
+                    const data = await response.json();
+                    this.deviceInfo = `${data.model} on ${data.device}`;
+                    this.voiceServerConnected = true;
+                } else {
+                    this.deviceInfo = 'Speech recognition device not available';
+                    this.voiceServerConnected = false;
+                }
+            } catch (error) {
+                console.error('Error fetching device info:', error);
+            }
+        }
     },
 
     async mounted() {
@@ -759,27 +758,14 @@ export default {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
         if (!this.isMobile) {
-            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
+            this.addChatBubble(conf.translations[this.language].welcome, false);
         }
 
         const questions = conf.DefaultQuestions;
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        // Check voice server connection
-        try {
-            const response = await fetch(`${conf.VoiceServerAddress}/info`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch device info');
-            }
-            const data = await response.json();
-            this.deviceInfo = `${data.model} on ${data.device}`;
-            this.voiceServerConnected = true;
-        } catch (error) {
-            console.error('Error fetching device info:', error);
-            this.deviceInfo = 'Speech recognition device not available';
-            this.voiceServerConnected = false;
-        }
+        await this.initVoiceServerConnection();
     },
 
 }
@@ -1044,10 +1030,6 @@ export default {
         background-color: var(--surface-dark);
         border-color: var(--border-dark);
     }
-
-    .chaticon img {
-        filter: invert(1);
-    }
 }
 
 #chatDebug {
@@ -1074,22 +1056,6 @@ export default {
     .bubble-debug-text {
         background-color: var(--surface-dark);
         color: var(--text-secondary-dark);
-    }
-}
-
-@media (min-width: 1400px) {
-    #chat-container,
-    .input-group,
-    .sample-questions {
-        max-width: min(70%, 160ch);
-    }
-}
-
-@media (min-width: 1800px) {
-    #chat-container,
-    .input-group,
-    .sample-questions {
-        max-width: min(60%, 180ch);
     }
 }
 
@@ -1121,10 +1087,7 @@ export default {
     padding: 0.25rem;
 }
 
-.debug-toggle:hover {
-    color: var(--primary-light);
-}
-
+/* todo: remove in favor of fa spinner? */
 .loader {
     border: 2px solid transparent;
     border-top: 2px solid #3498db;
@@ -1135,130 +1098,28 @@ export default {
     margin-right: 8px;
 }
 
-.hidden {
-    display: none;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-@media (max-width: 400px) {
-    .opaca-credentials {
-        flex-direction: column;
+@media (min-width: 1400px) {
+    #chat-container,
+    .input-group,
+    .sample-questions {
+        max-width: min(70%, 160ch);
     }
 }
 
-.debug-toggle img {
-    width: 10px;
-    height: 10px;
-    opacity: 0.6;
-    transition: all 0.2s ease;
-    margin-right: 0.25rem;
-}
-
-.debug-toggle:hover img {
-    opacity: 1;
-}
-
-.debug-separator {
-    border: 0;
-    margin: 0.5rem 0;
-    border-top: 1px solid var(--border-light);
-    opacity: 0.2;
-}
-
-@media (prefers-color-scheme: dark) {
-    .debug-text {
-        /* Remove empty style */
-    }
-
-    .debug-toggle {
-        color: var(--text-secondary-dark);
-    }
-
-    .debug-toggle:hover {
-        color: var(--primary-dark);
-    }
-
-    .bubble-debug-text {
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .debug-separator {
-        border-color: var(--border-dark);
+@media (min-width: 1800px) {
+    #chat-container,
+    .input-group,
+    .sample-questions {
+        max-width: min(60%, 180ch);
     }
 }
 
-.bubble-debug-text::before {
-    content: attr(data-agent);
-    margin-right: 0.75rem;
-}
-
-/* Add margin to the first chat bubble */
-/* i dont know what this is supposed to do, but i dont think it works.
-    it just offsets the user-chat bubble down so it's lower than the user icon, which looks weird imo, especially since the same doesnt happen for the ai.
-    feel free to uncomment if this was the intention. */
-.chatbubble:first-child {
-    /* margin-top: 1rem; */
-}
-
-/* Add margin to the last chat bubble */
-.chatbubble:last-child {
-    margin-bottom: 1rem;
-}
-
-.chat-ai.waiting {
-    opacity: 0.7;
-}
-
-/* Remove the static dots */
-.chat-ai.waiting::after {
-    display: none;
-}
-
-.chat-ai.waiting span {
-    display: inline-block;
-    animation: wave 1s infinite;
-    margin: 0 1px;
-}
-
-.chat-ai.waiting span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.chat-ai.waiting span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes wave {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
-#waitBubble {
-    opacity: 0.7;
-}
-
-/* Remove the bubble bounce animation */
-#waitBubble .chat-ai {
-    animation: none;
-}
-
-.status-line {
-    margin: 0;
-    line-height: 1.4;
-    padding: 0.1rem 0;
-    display: flex;
-    align-items: center;
-}
-
+/* mobile layout style changes */
 @media screen and (max-width: 768px) {
     #mainContent {
         display: none;
@@ -1297,107 +1158,12 @@ export default {
 
 }
 
-@keyframes move-glow {
-    0%, 100% {
-        box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
-    }
-    50% {
-        box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
-    }
-}
+/* ??? */
 
-.chat-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    max-width: calc(100% - 4rem);
-}
-
-.message-actions {
-    margin: 0.25rem 0;
-    display: flex;
-    gap: 0.5rem;
-    padding-left: 0.6rem;  /* Increase padding to align with chat bubble */
-}
-
-.generate-audio-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary-light);
-    background-color: transparent;
-    border: 1px solid var(--border-light);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.generate-audio-btn:hover {
-    color: var(--primary-light);
-    border-color: var(--primary-light);
-    background-color: var(--primary-light-10);
-}
-
-.audio-container {
-    padding-left: 0.6rem;
-    margin-top: 0.25rem;
-    max-width: 300px;
-}
-
-.audio-actions {
-    display: flex;
-    flex-direction: column;
-    padding-left: 0.6rem;
-}
-
-.audio-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary-light);
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
-}
-
-.audio-error {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--error-light);
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
-    .generate-audio-btn {
-        color: var(--text-secondary-dark);
-        border-color: var(--border-dark);
-    }
-
-    .generate-audio-btn:hover {
-        color: var(--primary-dark);
-        border-color: var(--primary-dark);
-        background-color: var(--primary-dark-10);
-    }
-
-    .audio-loading {
-        color: var(--text-secondary-dark);
-    }
-
-    .audio-error {
-        color: var(--error-dark);
-    }
-}
-
-/* Add these styles at the end of your existing styles */
 .fixed {
     position: fixed !important;
 }
 
-/* Ensure proper stacking context for the main container */
 .d-flex.justify-content-start.flex-grow-1.w-100 {
     position: relative;
     z-index: 1;

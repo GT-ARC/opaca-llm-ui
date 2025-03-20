@@ -4,8 +4,8 @@
     <div v-if="this.isUser" :id="this.elementId"
          class="d-flex flex-row justify-content-end mb-4">
 
-        <div class="chatbubble chatbubble-user">
-            {{ this.content }}
+        <div class="chatbubble chatbubble-user ms-auto me-2 p-3 mb-2">
+            <div v-html="this.content" />
         </div>
         <div class="chaticon">
             <img src="/src/assets/Icons/nutzer.png" alt="User">
@@ -22,43 +22,47 @@
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
-        <div class="chat-content">
-            <div id="chatBubble" class="p-3 small mb-2 chatbubble chatbubble-ai">
-                <div class="d-flex flex-row justify-content-start message-content">
+        <div>
+            <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2">
+                <div class="d-flex justify-content-start">
                     <!-- loading spinner -->
                     <div id="loadingContainer">
                         <div v-show="this.isLoading" class="loader"></div>
                     </div>
 
                     <!-- content, either status messages or actual response -->
-                    <div id="messageContainer" class="message-text">
+                    <div class="message-text">
                         <div v-if="this.isLoading">
-                            <div v-for="{ content, mode } in this.statusMessages" :key="line">
+                            <div v-for="{ content, mode } in this.statusMessages" :key="content">
                                 <div v-if="mode === 'normal'">{{ content }}</div>
                                 <div v-if="mode === 'pending'">{{ content }}...</div>
                                 <div v-if="mode === 'done'">{{ content }}✓</div>
                             </div>
                         </div>
                         <div v-else>
-                            {{ this.getFormattedContent() }}
+                            <div v-html="this.getFormattedContent()" />
                         </div>
                     </div>
 
                 </div>
 
                 <!-- footer: debug messages, generate audio, ... -->
-                <div class="debug-toggle w-auto"
-                     style="cursor: pointer; font-size: 10px;"
-                     @click="this.isDebugExpanded = !this.isDebugExpanded">
-                    <img src=/src/assets/Icons/double_down_icon.png
-                         class="double-down-icon"
-                         alt=">>" width="10px" height="10px"
-                         :style="this.isDebugExpanded ? 'transform: rotate(180deg)' : ''"/>
-                    debug
-                </div>
-                <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;">
-                    <i class="fa fa-volume-up" />
-                    Generate Audio (todo)
+                <div class="row ps-2">
+                    <div class="debug-toggle w-auto me-2"
+                         style="cursor: pointer; font-size: 10px"
+                         @click="this.isDebugExpanded = !this.isDebugExpanded">
+                        <img src="/src/assets/Icons/double_down_icon.png"
+                             alt=">>" height="10px" width="10px"
+                             class="m-0 p-0 w-auto"
+                             :style="this.isDebugExpanded ? 'transform: rotate(180deg)' : ''"
+                        />
+                        Debug
+                    </div>
+                    <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;">
+                        <i v-if="!this.isAudioPlaying" class="fa fa-volume-up" />
+                        <i v-else class="fa fa-spin fa-spinner" />
+                        Generate Audio (todo)
+                    </div>
                 </div>
                 <div v-show="this.isDebugExpanded">
                     <hr class="debug-separator">
@@ -79,6 +83,7 @@
 <script>
 import { marked } from "marked";
 import { getDebugColor } from '../config/debug-colors.js';
+import conf from "../../config.js";
 
 export default {
     name: 'chatbubble',
@@ -96,6 +101,7 @@ export default {
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: false,
+            isAudioPlaying: false,
         }
     },
 
@@ -114,19 +120,24 @@ export default {
             this.statusMessages.push(msg);
             this.debugMessages.push(msg);
         },
+
         markStatusMessagesDone() {
             this.statusMessages
                 .filter(msg => msg.mode === 'pending')
                 .forEach(msg => msg.mode = 'done');
         },
+
         getFormattedContent() {
             try {
-                return marked.parse(this.content);
+                const ft = marked.parse(this.content);
+                console.log(ft)
+                return ft;
             } catch (e) {
                 console.error('Failed to parse chat bubble content:', e);
                 return this.content;
             }
         },
+
         setContent(newContent) {
             this.content = newContent;
         },
@@ -135,6 +146,7 @@ export default {
             this.isLoading = value !== null
                 ? value : !this.isLoading;
         },
+
         clear() {
             this.content = '';
             this.statusMessages = [];
@@ -151,12 +163,26 @@ export default {
 
 <style scoped>
 .chatbubble {
+    background-color: var(--chat-ai-light);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
     transition: all 0.2s ease;
     width: fit-content;
     max-width: 800px;
+}
+
+.chatbubble-user {
+    margin-left: auto;
+    margin-right: 1rem;
+    padding: 0.75rem 1.25rem;
+    width: auto !important; /* Override any width constraints */
+}
+
+.chatbubble-ai {
+    width: 100%;
+    will-change: box-shadow;
+    transition: box-shadow 0.3s ease;
 }
 
 .message-content {
@@ -169,23 +195,6 @@ export default {
     min-width: 0;
     padding-right: 0.5rem;
     white-space: normal;
-}
-
-.chatbubble-user {
-    background-color: var(--chat-user-light);
-    margin-left: auto;
-    margin-right: 1rem;
-    padding: 0.75rem 1.25rem;
-    width: auto !important; /* Override any width constraints */
-}
-
-.chatbubble-ai {
-    background-color: var(--chat-ai-light);
-    margin-left: 1rem;
-    margin-right: auto;
-    width: calc(100% - 4rem) !important;
-    will-change: box-shadow;
-    transition: box-shadow 0.3s ease;
 }
 
 .chaticon {
@@ -205,6 +214,46 @@ export default {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+
+.debug-toggle {
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary-light);
+    transition: color 0.2s ease;
+    padding: 0.25rem;
+}
+
+.debug-toggle:hover {
+    color: var(--primary-light);
+}
+
+.debug-toggle img {
+    filter: invert(100%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .debug-toggle {
+        color: var(--text-secondary-dark);
+    }
+
+    .debug-toggle:hover {
+        color: var(--text-primary-dark);
+    }
+
+    .bubble-debug-text {
+        background-color: var(--surface-dark);
+        color: var(--text-secondary-dark);
+    }
+
+    .chatbubble {
+        background: var(--chat-ai-dark);
+        color: var(--text-primary-dark);
+    }
 }
 
 </style>

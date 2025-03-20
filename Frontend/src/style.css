@@ -1,5 +1,6 @@
 :root {
   /* Border Radius */
+  /* why not use the bootstrap classes rounded-x for this? */
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 16px;
@@ -30,6 +31,10 @@
   --chat-user-dark: #2a2a3c;
   --chat-ai-dark: #313145;
   --input-dark: #252535;
+
+  /* additional colors */
+  --glow-color-1: var(--primary-light) 40;
+  --glow-color-2: var(--primary-light) 90;
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -169,4 +174,11 @@ h2{
     /* color: rgba(16, 163, 127, 0.8) !important; */
 }
 
-
+@keyframes move-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
+  }
+  50% {
+    box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
+  }
+}
