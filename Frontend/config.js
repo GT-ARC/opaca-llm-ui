@@ -5,7 +5,6 @@ var config = {
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
     Backends: {
         "simple": "Simple Prompt",
-        "rest-gpt": "RestGPT",
         "tool-llm": "Tool LLM",
         "self-orchestrated": "Self-Orchestrated"
     },
@@ -44,7 +43,7 @@ var config = {
     AutoConnect: false,
 
     // which set of questions is shown within the chat window on startup.
-    DefaultQuestions: 'Information & Upskilling',
+    DefaultQuestions: 'Task Automation',
 
     // which sidebar view is shown by default.
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
@@ -77,6 +76,17 @@ var config = {
                     ]
                 },
                 {
+                    "header": "Data Analysis",
+                    "icon": "📊",
+                    "questions": [
+                        {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
+                        {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                        {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
+
+                    ]
+                },
+                {
                     "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
@@ -102,17 +112,6 @@ var config = {
 
                     ]
                 },
-                {
-                    "header": "Data Analysis",
-                    "icon": "📊",
-                    "questions": [
-                        {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
-                        {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
-                        {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                        {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
-
-                    ]
-                }
             ],
             speechRecognition: 'Speak' ,
             readLastMessage: 'Read Last',
@@ -145,6 +144,16 @@ var config = {
                     ]
                 },
                 {
+                    "header": "Data Analysis",
+                    "icon": "📊",
+                    "questions": [
+                        {"question": "Visualisiere den aktuellen Strommix von Deutschland auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                        {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                        {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                        {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
+                    ]
+                },
+                {
                     "header": "Information & Upskilling",
                     "icon": "📚",
                     "questions": [
@@ -169,16 +178,6 @@ var config = {
                         {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
                     ]
                 },
-                {
-                    "header": "Data Analysis",
-                    "icon": "📊",
-                    "questions": [
-                        {"question": "Visualisiere den aktuellen Strommix von Deutschland auf eine sinnvolle Art und Weise.", "icon": "⚡"},
-                        {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
-                        {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                        {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
-                    ]
-                }
             ],
             speechRecognition: 'Sprechen' ,
             readLastMessage: 'Vorlesen',

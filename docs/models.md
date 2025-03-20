@@ -85,6 +85,20 @@ Defines the schema of an array item. Mainly used in connection with `ConfigParam
 | `type`        | `str`                       |         | The type of all the items the array contains. (This forbids the usage of multiple types within the same array of a parameter) |
 | `array_items` | `Optional[ConfigArrayItem]` | `None`  | If the array nested (`type` is `array`) defines the data types of the items of the nested arrays.                             |
 
+### ChatMessage
+
+#### Description
+
+Represents single messages that are generated during the invocation of the OPACA-LLM. Can be stored as a list to be given as messages to a model during invocation.
+
+#### Attributes
+
+| Attribute | Type  | Default | Description                                                                                      |
+|-----------|-------|---------|--------------------------------------------------------------------------------------------------|
+| `role`    | `str` |         | Role for the message. Can be 'system', 'assistant', 'user', 'function', 'tool', and 'developer'. |
+| `content` | `str` |         | The content of the message.                                                                      |
+
+
 ### ConfigParameter
 
 #### Description
@@ -129,105 +143,3 @@ Stores the actual values of a given configuration and the schema that is defined
 |-----------------|------------------------------|---------|-----------------------------------------------------------------------------------------------|
 | `value`         | `Any`                        |         | Should be a JSON storing the actual values of parameters in the format `{"key": value}`       |
 | `config_schema` | `Dict[str, ConfigParameter]` |         | A JSON holding the configuration schema definition. Must include the same keys as in `value`  |
-
-### OPACALLMBackend
-
-#### Description
-
-A super class for every implemented backend. Defines the necessary functions and inherits from `ABC`, the Abstract Base Class, to define abstract methods with a decorator.
-
-#### Attributes
-| Attribute | Type            | Default | Description                                                                                        |
-|-----------|-----------------|---------|----------------------------------------------------------------------------------------------------|
-| `NAME`    | `str`           |         | A specific name for the individual backend.                                                        |
-| `llm`     | `BaseChatModel` |         | The used llm instance. Should be of type `BaseChatModel` to be used within the LangChain framework |
-
-#### Methods
-
-`default_config()`
-
-- Description: Returns the default configuration for the specific backend/method.
-
-`query(message: str, session: SessionData) -> Response`
-
-- Description: Based on the given user message and the associated session data, generates a llm response.
-- Parameters:
-  - `message`: The message that should be answered by the selected method
-  - `session`: The current session data that was retrieved in the `server.py`
-- Returns: A `Response` object including the final response to the user
-
-_async_ `query_stream(message: str, session: SessionData, websocket: starlette.websocket) -> Response`
-
-- Description: Based on the given user message and the associated session data, will stream every new chunk that was generated.
-- Parameters:
-  - `message`: The message that should be answered by the selected method
-  - `session`: The current session data that was retrieved in the `server.py`
-  - `websocket`: The websocket used to transmit each new chunk
-- Returns: During the message generation `AgentMessage`, as a final object a `Response`
-
-### StreamCallbackHandler
-
-#### Description
-
-This callback handler will be bind to the llm instance and will execute a specific function, every time a new token has been generated. This method is mainly used in combination with `query_stream()`.
-
-#### Attributes
-| Attribute       | Type                  | Default | Description                                                                                                                                                                                       |
-|-----------------|-----------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `agent_message` | `AgentMessage`        |         | A reference to the current agent message for which the llm generation is taking place.                                                                                                            |
-| `websocket`     | `starlette.Websocket` |         | The websocket used to transmit each new chunk.                                                                                                                                                    |
-| `tool_calls`    | `GenerationChunk`     | `None`  | If tools were generated, this parameter holds the currently constructed tool call.                                                                                                                |
-| `first`         | `Boolean`             | `True`  | An indicator to check whether the generated tool call was the first chunk. If it was, `tool_calls` will be set, otherwise an addition will be performed to combine the `GenerationChunk` objects. |
-
-#### Methods
-
-`__init__(agent_message: AgentMessage, websocket: starlette.Websocket)`
-
-- Description: Will initialize the `StreamCallbackhandler`
-- Parameters:
-  - `agent_message`: A reference to the current agent message for which the llm generation is taking place
-  - `websocket`: The websocket used to transmit each new chunk
-
-_async_ `on_llm_new_token(token: str, *, chunk: Optional[Union[GenerationChunk, ChatGenerationChunk]] = None, run_id: UUID, parent_run_id: Optional[UUID] = None, **kwargs: Any) -> Any`
-
-- Description: This method is called every time a new chunk has been generated by the LLM. Will immediately transmit the generated chunk via the given websocket. While each normal text output is sent per token, the tool calls instead are always sent as a whole, each time with new characters added to the formatted JSON object.
-- Parameters:
-  - `token`: The extracted string content of the newly generated Chunk
-  - `chunk`: The complete chunk that was just generated
-  - `run_id`: The individual run id associated with the current LLM run
-  - `parent_run_id`: An optional parent run id
-
-### LLMAgent
-
-#### Description
-
-Defines a standardized agent class that can be used throughout OPACA LLM when defining new agents within the LangChain framework. This simplifies the initial setup that would be necessary to create a new method within OPACA LLM.
-
-#### Attributes
-| Attribute          | Type            | Default | Description                                                                                                                                                                                       |
-|--------------------|-----------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`             | `str`           |         | A reference to the current agent message for which the llm generation is taking place.                                                                                                            |
-| `llm`              | `BaseChatModel` |         | The websocket used to transmit each new chunk.                                                                                                                                                    |
-| `system_prompt`    | `str`           |         | If tools were generated, this parameter holds the currently constructed tool call.                                                                                                                |
-| `examples`         | `List`          | `[]`    | An indicator to check whether the generated tool call was the first chunk. If it was, `tool_calls` will be set, otherwise an addition will be performed to combine the `GenerationChunk` objects. |
-| `input_variables`  | `List[str]`     | `[]`    | The websocket used to transmit each new chunk.                                                                                                                                                    |
-| `message_template` | `str`           | `""`    | If tools were generated, this parameter holds the currently constructed tool call.                                                                                                                |
-| `tools`            | `List`          | `[]`    | An indicator to check whether the generated tool call was the first chunk. If it was, `tool_calls` will be set, otherwise an addition will be performed to combine the `GenerationChunk` objects. |
-
-#### Methods
-
-`__init__(name: str, llm: BaseChatModel, system_prompt: str, **kwargs)`
-
-- Description: Initializes a new instance of the LLMAgent
-- Parameters:
-  - `name`: The name that will be given to this agent
-  - `llm`: An already initialized llm instance that will be used to generate output
-  - `system_prompt`: The system prompt that will be used in the LLM
-
-async `ainvoke(inputs: Dict[str, Any], websocket: starlette.Websocket = None) -> AgentMessage`
-
-- Description: Will invoke the llm with the given inputs. Will optionally sent each generated chunk via the provided websocket.
-- Parameters:
-  - `inputs`: A dictionary which will be given to the llm as an input
-  - `websocket`: An optional websocket to stream each generated chunk
-- Returns: A single `AgentMessage`

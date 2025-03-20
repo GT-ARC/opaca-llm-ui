@@ -11,21 +11,14 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 - Only available for models supporting tool calling
 - Can formulate more than one action call per iteration
 
-## Rest-GPT
-
-- Based on the paper [RestGPT](https://github.com/Yifan-Song793/RestGPT)
-- 4 LLM Agents:
-  - Planner: Outputs the next concrete step in natural language to solve the user query.
-  - Action Selector: Based on the Planner's step, generates an Action call consisting of an action name and the action parameters.
-  - Caller: After invoking the generated action call, summarizes the results based on the associated action definition.
-  - Evaluator: Decides whether another iteration is necessary or generates the response to the user.
-- Actions are given within the system prompt in a formatted style
-- Only one action call per iteration
+[read more...](methods/tool_llm.md)
 
 ## Simple
 
 - Only 1 agent per iteration
 - If agent outputs JSON, assume an action call was formatted. Otherwise, return output to user. 
+
+[read more...](methods/simple.md)
 
 ## Orchestration
 
@@ -33,3 +26,10 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 - Orchestrator only knows summaries of different agents, selects the execution-trio that best fits the request
 - Execution-trio has full knowledge of the agent's actions, executes them, return the result to the outer layer
 - More complex and potentially slower, but scales better for high number of agents and actions
+
+[read more...](methods/orchestration.md)
+
+
+## Performance
+
+See [Benchmarks](benchmarks.md) for some performance evaluations.
