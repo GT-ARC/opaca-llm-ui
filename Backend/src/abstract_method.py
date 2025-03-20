@@ -10,6 +10,7 @@ from openai.lib import ResponseFormatT
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage
+from .utils import transform_schema
 
 logger = logging.getLogger("src.models")
 
@@ -39,8 +40,9 @@ class AbstractMethod(ABC):
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         pass
 
-    @staticmethod
+
     async def call_llm(
+            self,
             model: str,
             agent: str,
             system_prompt: str,
@@ -80,7 +82,7 @@ class AbstractMethod(ABC):
         content = ''
 
         # Initialize either OpenAI model or vllm model
-        if model.startswith(("gpt", "o1", "o3")):
+        if self._is_gpt(model):
             client = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
         else:
             client = AsyncOpenAI(api_key=vllm_api_key, base_url=vllm_base_url)
@@ -101,15 +103,26 @@ class AbstractMethod(ABC):
         }
 
         # o1/o3 don't support temperature param
-        if not model.startswith(("o1", "o3")):
+        if not model.startswith(('o1', 'o3')):
             kwargs['temperature'] = temperature
 
         # There is currently no token streaming available when using built-in response format
         if response_format:
-            completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
-            agent_message.formatted_output = completion.choices[0].message.parsed
+            if self._is_gpt(model):
+                completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
+                agent_message.content = completion.choices[0].message.content
+                agent_message.formatted_output = completion.choices[0].message.parsed
+            else:
+                guided_json = transform_schema(response_format.model_json_schema())
+                kwargs['extra_body'] = {'guided_json': guided_json}
+                kwargs['messages'][0]['content'] += (f"\nYou MUST provide your response as a JSON object that follows "
+                                                  f"this schema. Your response must include ALL required fields.\n\n"
+                                                  f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
+                                                  f"the schema itself. Return a valid JSON object matching the schema.")
+                completion = await client.chat.completions.create(**kwargs)
+                agent_message.content = completion.choices[0].message.content
+                agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
             agent_message.response_metadata = completion.usage.to_dict()
-            print(f'agent_message: {agent_message}')
         else:
             # Enable streaming and include token usage
             kwargs['stream'] = True
@@ -183,3 +196,7 @@ class AbstractMethod(ABC):
         logger.info(agent_message.content or agent_message.tools, extra={"agent_name": agent})
 
         return agent_message
+
+    @staticmethod
+    def _is_gpt(model: str):
+        return True if model.startswith(('o1', 'o3', 'gpt')) else False
