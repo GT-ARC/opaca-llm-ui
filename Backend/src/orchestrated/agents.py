@@ -252,8 +252,8 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
             self.logger.debug(f"LLM call took {execution_time:.2f} seconds")
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
-        super().__init__(client, model)
+    def __init__(self, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
+        super().__init__(None, None)
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
@@ -622,6 +622,28 @@ class AgentEvaluator(BaseAgent):
             return AgentEvaluation.FINISHED
 
 class OverallEvaluator(BaseAgent):
+
+    def system_prompt(self):
+        return OVERALL_EVALUATOR_PROMPT
+
+    def messages(self, original_request: str, current_results: List[AgentResult]):
+        return [
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "original_request": original_request,
+                    "current_results": [r.model_dump() for r in current_results]
+                }, indent=2) +
+                           "\n\n" + "NOW: EVALUATE IF THE USER REQUEST CAN BE ANSWERED WITH THE GIVEN RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                           "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED." +
+                           "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
+            }
+        ]
+
+    @property
+    def guided_choice(self):
+        return [e.value for e in OverallEvaluation]
+
     async def evaluate(
         self,
         original_request: str,
@@ -776,6 +798,29 @@ class OutputGenerator(BaseAgent):
 
 class IterationAdvisor(BaseAgent):
     """Agent that provides structured advice for improving the next iteration"""
+
+    @staticmethod
+    def system_prompt():
+        return ITERATION_ADVISOR_PROMPT
+
+    @staticmethod
+    def messages(original_request: str, current_results: List[AgentResult]):
+        return [
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "original_request": original_request,
+                    "current_results": [r.model_dump() for r in current_results]
+                }, indent=2) +
+                           "\n\n" + "NOW: Create a concrete improvement plan for the given user request! CONSIDER THAT YOU ARE ALLOWED AND ALSO EXPECTED TO VETO THE REITERATION IF THERE IS NO CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                           "\n\n" + "If you have doubts or wish to not reiterate, set 'should_retry' to false. YOU ARE EXPECTED TO HAVE A STRONG REASON TO BELIEVE THE RESULTS CAN BE IMPROVED WITH A REITERATION IF YOU CHOOSE TO RETRY." +
+                           "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
+            }
+        ]
+
+    @property
+    def schema(self):
+        return IterationAdvice
     
     async def get_advice(
         self,

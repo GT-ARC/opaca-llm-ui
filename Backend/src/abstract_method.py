@@ -53,6 +53,7 @@ class AbstractMethod(ABC):
             vllm_api_key: Optional[str] = os.getenv("VLLM_API_KEY"),
             vllm_base_url: Optional[str] = os.getenv("VLLM_BASE_URL"),
             response_format: Optional[Type[ResponseFormatT]] = None,
+            guided_choice: Optional[List[str]] = None,
             websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
@@ -69,7 +70,8 @@ class AbstractMethod(ABC):
             tool_choice (Optional[str]): Set the behavior of tool generation.
             vllm_api_key (Optional[str]): An optional vllm API key when using models within the vllm framework.
             vllm_base_url (Optional[str]): An optional vllm base URL when using models within the vllm framework.
-            response_format (Optional[Dict]): An optional output schema the model should answer in.
+            response_format (Optional[Dict]): The output schema the model should answer in.
+            guided_choice (Optional[List[str]]): A list of choices the LLM should choose between.
             websocket (WebSocket): The websocket to use for streaming intermediate results.
 
         Returns:
@@ -124,6 +126,15 @@ class AbstractMethod(ABC):
                 agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
             agent_message.response_metadata = completion.usage.to_dict()
         else:
+            if guided_choice:
+                if self._is_gpt(model):
+                    kwargs['messages'][0]['content'] += (
+                        f"\nYou MUST select one AND ONLY ONE of these choices to answer "
+                        f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
+                        f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
+                else:
+                    kwargs["extra_body"] = {"guided_choice": guided_choice}
+
             # Enable streaming and include token usage
             kwargs['stream'] = True
             kwargs['stream_options'] = {'include_usage': True}

@@ -5,7 +5,7 @@ import time
 import traceback
 from typing import Dict, Any, List
 from pathlib import Path
-import yaml
+from yaml import load, CLoader as Loader
 import asyncio
 
 from openai import AsyncOpenAI
@@ -356,7 +356,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Send only tool calls and results via websocket
                 if result.tool_calls:
-                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(retry_result.tool_calls, indent=2)}\n\n", 0.0)
+                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}\n\n", 0.0)
                     
                 if result.tool_results:
                     agent_messages.append(await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}", execution_time=worker_time, response_metadata=agent.response_metadata))
@@ -391,15 +391,11 @@ Now, using the tools available to you and the previous results, continue with yo
 
             agent_messages = []
             
-            # Log initial user message
-            if BaseAgent.LOG_TO_FILE:
-                self._log_non_llm_interaction("User", message)
-            
             # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config())
-            model_config_loader = ModelConfigLoader() 
-            model_config = model_config_loader.get_model_config(config.get("model_config_name"))
-            config.update(model_config)  # Merge model config into session config
+            with open(f'{Path(__file__).parent}/model_config.yaml', 'r') as f:
+                data = load(f, Loader=Loader)
+                config.update(data['model_configs'][config.get('model_config_name')])
             
             # Create separate clients for orchestration and worker agents
             orchestrator_client = await self._create_openai_client(session, agent_type="orchestrator")
@@ -432,8 +428,6 @@ Now, using the tools available to you and the previous results, continue with yo
             
             # Initialize agents
             orchestrator = OrchestratorAgent(
-                client=orchestrator_client,
-                model=config["orchestrator_model"],
                 agent_summaries=agent_details,
                 chat_history=session.messages,  # Pass chat history to orchestrator
                 disable_thinking=self._parse_bool_config(config.get("disable_orchestrator_thinking", False))
@@ -581,10 +575,23 @@ Now, using the tools available to you and the previous results, continue with yo
                 evaluator_start_time = time.time()
 
                 # Evaluate overall progress
-                evaluation = await overall_evaluator.evaluate(
-                    f"{message}",
-                    all_results
+                #evaluation = await overall_evaluator.evaluate(
+                #    f"{message}",
+                #    all_results
+                #)
+                # TODO Manual evaluation check
+                evaluation = await self.call_llm(
+                    agent="OverallEvaluator",
+                    model=config["evaluator_model"],
+                    system_prompt=overall_evaluator.system_prompt(),
+                    messages=overall_evaluator.messages(message, all_results),
+                    temperature=config["temperature"],
+                    vllm_api_key=os.getenv("VLLM_API_KEY"),
+                    vllm_base_url=config["evaluator_base_url"],
+                    guided_choice=overall_evaluator.guided_choice,
                 )
+                evaluation = evaluation.content
+                print(f'Evaluation results: {evaluation}')
 
                 # Calculate evaluator time
                 evaluator_time = time.time() - evaluator_start_time
@@ -598,11 +605,18 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # Start IterationAdvisor timer
                     advisor_start_time = time.time()
-                    
-                    advice = await iteration_advisor.get_advice(
-                        f"{message}",
-                        all_results
+
+                    advice = await self.call_llm(
+                        agent="IterationAdvisor",
+                        model=config["orchestrator_model"],
+                        system_prompt=iteration_advisor.system_prompt(),
+                        messages=iteration_advisor.messages(message, all_results),
+                        temperature=config["temperature"],
+                        vllm_api_key=os.getenv("VLLM_API_KEY"),
+                        vllm_base_url=config["base_url"],
+                        response_format=iteration_advisor.schema
                     )
+                    advice = advice.formatted_output
 
                     # Calculate advisor time
                     advisor_time = time.time() - advisor_start_time
@@ -772,42 +786,7 @@ Please address these specific improvements:
                     f.write(f"{content}\n\n")
                     f.write(f"{'=' * 90}\n\n")
         except Exception as e:
-            self.logger.error(f"Error writing to log file: {str(e)}") 
-
-
-class ModelConfigLoader:
-    def __init__(self):
-        self.config_path = Path(__file__).parent / "model_config.yaml"
-        self._config_data = None
-    
-    def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from YAML file"""
-        if not self._config_data:
-            if not self.config_path.exists():
-                raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
-            
-            with open(self.config_path, 'r') as f:
-                self._config_data = yaml.safe_load(f)
-        
-        return self._config_data
-    
-    def get_model_config(self, config_name: str = "vllm") -> Dict[str, Any]:
-        """Get model configuration by name, merged with default config"""
-        config_data = self._load_config()
-        
-        if config_name:
-            # If a specific configuration is requested, merge it with defaults
-            if config_name not in config_data.get('model_configs', {}):
-                raise ValueError(f"Model configuration '{config_name}' not found")
-            
-            result = config_data['model_configs'][config_name]
-        
-        return result
-    
-    def list_available_configs(self) -> list:
-        """List all available model configurations"""
-        config_data = self._load_config()
-        return list(config_data.get('model_configs', {}).keys())
+            self.logger.error(f"Error writing to log file: {str(e)}")
 
 
 async def send_to_websocket(websocket=None, agent="DEFAULT AGENT", message="NO MESSAGE", execution_time=0.0, response_metadata = None):
