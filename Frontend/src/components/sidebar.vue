@@ -5,40 +5,40 @@
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="sm.toggleView('connect')"
+            <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Connection"
-               v-bind:class="{'sidebar-item-select': sm.isViewSelected('connect')}" />
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
-            <i @click="sm.toggleView('questions')"
+            <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Prompt Library"
-               v-bind:class="{'sidebar-item-select': sm.isViewSelected('questions')}" />
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
-            <i @click="sm.toggleView('agents')"
+            <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Agents & Actions"
-               v-bind:class="{'sidebar-item-select': sm.isViewSelected('agents')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
-            <i @click="sm.toggleView('config')"
+            <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Configuration"
-               v-bind:class="{'sidebar-item-select': sm.isViewSelected('config')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
-            <i @click="sm.toggleView('debug')"
+            <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Logging"
-               v-bind:class="{'sidebar-item-select': sm.isViewSelected('debug')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
         <!-- sidebar content -->
-        <div v-show="sm.isSidebarOpen()" class="mt-4">
+        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
                style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
 
                 <!-- connection settings -->
-                <div v-show="sm.isViewSelected('connect')">
+                <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
 
@@ -85,7 +85,7 @@
                 </div>
 
                 <!-- agents/actions overview -->
-                <div v-show="sm.isViewSelected('agents')"
+                <div v-show="SidebarManager.isViewSelected('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
@@ -138,7 +138,7 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="sm.isViewSelected('config')"
+                <div v-show="SidebarManager.isViewSelected('config')"
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
@@ -168,7 +168,7 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="sm.isViewSelected('debug')" id="chatDebug"
+                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                     <div id="debug-console" class="text-start">
                         <DebugMessage
@@ -184,7 +184,7 @@
                 </div>
 
                 <!-- sample questions -->
-                <div v-show="sm.isViewSelected('questions')"
+                <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
                         :questions="conf.translations[language].sidebarQuestions"
@@ -206,7 +206,7 @@ import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
-import sm from "../SidebarManager.js";
+import SidebarManager from "../SidebarManager.js";
 
 export default {
     name: 'Sidebar',
@@ -221,7 +221,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { sm, conf, isMobile, screenWidth};
+        return { SidebarManager, conf, isMobile, screenWidth};
     },
     data() {
         return {
@@ -256,7 +256,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    sm.selectView(conf.DefaultSidebarView);
+                    SidebarManager.selectView(conf.DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -377,6 +377,11 @@ export default {
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
+        },
+
+        async fetchBackendConfig() {
+            /* todo: called in various places, but was never defined?
+                also not sure what exactly it should do. */
         }
     },
     mounted() {
@@ -391,7 +396,7 @@ export default {
         if (conf.AutoConnect) {
             this.initRpConnection();
         } else {
-            sm.selectView('connect');
+            SidebarManager.selectView('connect');
         }
     },
     updated() {
