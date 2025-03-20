@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import traceback
 from typing import Dict, Any, List, Optional, Union
 from openai import AsyncOpenAI
 import logging
@@ -28,7 +29,7 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT,
 )
-
+from ..utils import transform_schema
 
 
 class BaseAgent:
@@ -261,17 +262,16 @@ class OrchestratorAgent(BaseAgent):
     def remark(self):
         if self.disable_thinking:
             return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+                      THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
         return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
-THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
+                    YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
+                    THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
 
-    @property
+
     def system_prompt(self):
         prompt = get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
                 agent_summaries=json.dumps(self.agent_summaries, indent=2)
             ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
-        print(f'orchestrator prompt: {prompt}')
         return prompt
 
     def messages(self, user_request: str):
@@ -304,11 +304,6 @@ THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
         """
             }
         ]
-
-    def validate_output(self, content):
-        if self.disable_thinking:
-            return OrchestratorPlan_no_thinking.model_validate_json(content)
-        return OrchestratorPlan.model_validate_json(content)
 
     @property
     def schema(self):
@@ -354,19 +349,6 @@ class GeneralAgent(BaseAgent):
             tool_results=[tool_result]
         )
 
-class AgentPlannerResult(BaseModel):
-    """Model for storing agent planner results"""
-    thinking: List[str] = Field(..., description="Step by step thinking process")
-    function_calls: List[Dict[str, Any]] = Field(..., description="List of planned function calls")
-    needs_follow_up: bool = Field(default=False, description="Whether follow-up information is needed")
-    follow_up_question: Optional[str] = Field(default=None, description="Follow-up question if needed")
-
-class PlannerOutput(BaseModel):
-    """Model for the planner's structured output"""
-    reasoning: str = Field(..., description="Short and precise thinking process on how to solve the task")
-    execution_steps: List[Dict[str, Any]] = Field(..., description="List of concrete function calls to make, in sequential order if they depend on each other")
-    sequential: bool = Field(default=False, description="Whether the steps must be executed in sequence")
-
 class AgentPlanner(BaseAgent):
     """Agent-specific planner that creates high-level task plans."""
     
@@ -385,10 +367,18 @@ class AgentPlanner(BaseAgent):
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger("src.models")
-    
-    async def create_plan(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None) -> PlannerPlan:
-        """Create a high-level task plan with rounds and dependencies."""
-        task_str = task.task if isinstance(task, AgentTask) else task       
+
+    def system_prompt(self):
+        return get_current_time() + BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
+            THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
+            
+            {json.dumps(self.tools, indent=2)}
+            
+            IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
+
+    @staticmethod
+    def messages(task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
+        task_str = task.task if isinstance(task, AgentTask) else task
         # Create context from previous results if available
         context = ""
         if previous_results:
@@ -400,68 +390,29 @@ class AgentPlanner(BaseAgent):
                 if result.tool_results:
                     context += f"### Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
 
-        remark = ""
-        if self.agent_name == "exchange-agent":
-            remark = """\n\nIMPORTANT: 
-- If you need to retrieve the next meeting info, retrieve my upcoming appointments for the next 7 days!
-- If you need to retrieve phone numbers, always try to use email addresses where possible!
-- If you need to retrieve email addresses, always use 'umlauts' in the name (like 'ä', 'ö', 'ü' - Tobias Kuester would be Tobias Küster in that case)!"""
-        elif self.agent_name == "DataVisAgent":
-            remark = """\n\nIMPORTANT: 
-- IF THE USER DID NOT REQUEST A SPECIFIC COLOR, DON'T USE ANY COLOR!
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- ALWAYS PROVIDE AXIS LABELS FOR THE X and Y AXIS!"""
-        elif self.agent_name == "home-assistant-agent":
-            remark = """\n\nIMPORTANT: 
-- The extracted noise levels from our mutlimeter sensor are not in decibels, but a different arbitrary unit. It is completely normal that those values are above 100 or even 200!
-- Noise levels should never be outputted with the unit 'dB'!
-- Every other sensor value uses their common metric unit (e.g. temperature in °C, humidity in %, etc.)"""
+        return [{"role": "user", "content": f"""{context}
 
-        messages = [{
-            "role": "system",
-            "content": get_current_time() + BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
-
-THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
-
-{json.dumps(self.tools, indent=2)}
-
-IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
-        }, {
-            "role": "user",
-            "content": f"""{context}
-
-# YOUR TASK:
-
-Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
-
-
-Remember: 
-1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
-2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
-3. NEVER use placeholders - always use actual values.
-4. Be extreamly careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
-5. YOU ABSOLUTELY HAVE TO REMEBER THAT THE WORKER AGENTS ONLY HAVE ACCESS TO THE TASK FIELD YOU CREATE. ALL THE INFORMATION WITHIN THE THINKING PROCESS IS NOT AVAILABLE FOR THE WORKER AGENTS!
-6. Put all the information needed to execute the task into the task field.
-
-{remark}
-
-YOU ABSOLUTELY HAVE TO PROVIDE ALL THE REQUIRED FUNCTION ARGUMENTS AND ALL THE INFORMATION NECESSARY FOR THE WORKER AGENT INTO THE TASK FIELD.
-EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!
-DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
+            # YOUR TASK:
+            
+            Create a plan that breaks down this task into subtasks ONLY if necessary: {task_str.strip()}
+            
+            
+            Remember: 
+            1. If this task can be done with a single tool call, DO NOT break it down into subtasks.
+            2. If you have results from previous tasks, use the CONCRETE VALUES from those results in your task descriptions.
+            3. NEVER use placeholders - always use actual values.
+            4. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!
+            5. YOU ABSOLUTELY HAVE TO REMEMBER THAT THE WORKER AGENTS ONLY HAVE ACCESS TO THE TASK FIELD YOU CREATE. ALL THE INFORMATION WITHIN THE THINKING PROCESS IS NOT AVAILABLE FOR THE WORKER AGENTS!
+            6. Put all the information needed to execute the task into the task field.
+            
+            YOU ABSOLUTELY HAVE TO PROVIDE ALL THE REQUIRED FUNCTION ARGUMENTS AND ALL THE INFORMATION NECESSARY FOR THE WORKER AGENT INTO THE TASK FIELD.
+            EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!
+            DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
         }]
-        
-        response = await self._call_llm(
-            messages=messages,
-            guided_json=PlannerPlan.model_json_schema()
-        )
-        
-        # Clean up the response if it's wrapped in markdown code blocks
-        content = response.content
-        if content.startswith("```") and content.endswith("```"):
-            # Remove markdown code blocks
-            content = re.sub(r"^```\w*\n|```\s*$", "", content).strip()
-        
-        return PlannerPlan.model_validate_json(content)
+
+    @property
+    def schema(self):
+        return PlannerPlan
 
     async def execute_task(self, task: Union[str, AgentTask], existing_plan: Optional[PlannerPlan] = None, previous_results: Optional[List[AgentResult]] = None) -> AgentResult:
         """Execute a task with or without planning"""
@@ -915,6 +866,28 @@ class WorkerAgent(BaseAgent):
         self.session_client = session_client
         self.logger = logging.getLogger("src.models")
 
+    def system_prompt(self):
+        return get_current_time() + BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(
+            agent_name=self.agent_name,
+            agent_summary=self.summary
+        )
+
+    @staticmethod
+    def messages(task: Union[str, AgentTask]):
+        task_str = task.task if isinstance(task, AgentTask) else task
+        return [
+            {
+                "role": "user",
+                "content": f"""\nSolve the following task with the tools available to you: 
+
+        {task_str}
+
+        Remember: 
+        1. NEVER use placeholders - always use actual values.
+        2. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!"""
+            }
+        ]
+
     async def execute_task(self, task: Union[str, AgentTask]) -> AgentResult:
         """Execute a task using the agent's tools"""
         start_time = time.time()
@@ -1047,7 +1020,7 @@ Remember:
 
         except Exception as e:
             execution_time = time.time() - start_time
-            error_msg = f"Error executing task: {str(e)}"
+            error_msg = f"Error executing task: {str(e)}\n{traceback.format_exc()}"
             self.logger.error(f"{self.agent_name} failed task in {execution_time:.2f} seconds: {error_msg}")
             
             return AgentResult(
@@ -1056,109 +1029,7 @@ Remember:
                 output=error_msg,
                 tool_calls=[],
                 tool_results=[]
-            ) 
-
-def transform_schema(schema):
-    """Transform a JSON schema to meet OpenAI's requirements.
-    
-    This function:
-    1. Resolves $ref references from $defs
-    2. Adds additionalProperties: False to all object types
-    3. Removes unnecessary fields like title and default
-    4. Flattens and simplifies the schema structure
-    5. Adds required name field for OpenAI compatibility
-    """
-    # Extract $defs if present
-    defs = schema.get('$defs', {})
-    
-    def resolve_ref(ref):
-        """Resolve a $ref reference by getting the schema from $defs"""
-        if not ref.startswith('#/$defs/'):
-            return None
-        def_name = ref.split('/')[-1]
-        return defs.get(def_name, {})
-
-    def clean_schema(s):
-        """Remove unnecessary fields and add additionalProperties: False to objects"""
-        if not isinstance(s, dict):
-            return s
-
-        # Start with a new dict to only keep what we want
-        cleaned = {}
-        
-        # Copy essential fields
-        if 'type' in s:
-            cleaned['type'] = s['type']
-        if 'description' in s:
-            cleaned['description'] = s['description']
-        if 'properties' in s:
-            cleaned['properties'] = {
-                k: clean_schema(v) for k, v in s['properties'].items()
-            }
-        if 'items' in s:
-            cleaned['items'] = clean_schema(s['items'])
-        if 'required' in s:
-            cleaned['required'] = s['required']
-        if 'enum' in s:
-            cleaned['enum'] = s['enum']
-        
-        # Add additionalProperties: False to objects
-        if s.get('type') == 'object':
-            cleaned['additionalProperties'] = False
-            
-        # Handle anyOf/allOf/oneOf
-        for field in ['anyOf', 'allOf', 'oneOf']:
-            if field in s:
-                cleaned[field] = [clean_schema(item) for item in s[field]]
-        
-        return cleaned
-
-    def process_schema(s):
-        """Process schema by resolving refs and cleaning"""
-        if not isinstance(s, dict):
-            return s
-        
-        # Create a new dict to store processed schema
-        processed = {}
-        
-        # Handle $ref first
-        if '$ref' in s:
-            ref_schema = resolve_ref(s['$ref'])
-            if ref_schema:
-                # Merge the resolved schema with any additional properties
-                processed = process_schema(ref_schema)
-                # Add any additional fields from the original schema
-                for k, v in s.items():
-                    if k != '$ref':
-                        processed[k] = process_schema(v)
-                return processed
-        
-        # Process each field
-        for k, v in s.items():
-            if k == '$defs':
-                continue  # Skip $defs as we handle them separately
-            elif isinstance(v, dict):
-                processed[k] = process_schema(v)
-            elif isinstance(v, list):
-                processed[k] = [process_schema(item) for item in v]
-            else:
-                processed[k] = v
-        
-        return processed
-    
-    # Process the main schema
-    processed_schema = process_schema(schema)
-    
-    # Clean the processed schema
-    cleaned_schema = clean_schema(processed_schema)
-    
-    # Create the final schema with the required name field
-    final_schema = {
-        "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
-        "schema": cleaned_schema
-    }
-    
-    return final_schema
+            )
 
 def get_current_time():
     location = "Europe/Berlin"

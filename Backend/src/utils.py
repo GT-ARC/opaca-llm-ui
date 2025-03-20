@@ -280,3 +280,106 @@ def validate_array_items(value, array_items: ConfigArrayItem):
         else:
             for item in value:
                 validate_array_items(item, array_items.get("array_items"))
+
+
+def transform_schema(schema):
+    """Transform a JSON schema to meet OpenAI's requirements.
+
+    This function:
+    1. Resolves $ref references from $defs
+    2. Adds additionalProperties: False to all object types
+    3. Removes unnecessary fields like title and default
+    4. Flattens and simplifies the schema structure
+    5. Adds required name field for OpenAI compatibility
+    """
+    # Extract $defs if present
+    defs = schema.get('$defs', {})
+
+    def resolve_ref(ref):
+        """Resolve a $ref reference by getting the schema from $defs"""
+        if not ref.startswith('#/$defs/'):
+            return None
+        def_name = ref.split('/')[-1]
+        return defs.get(def_name, {})
+
+    def clean_schema(s):
+        """Remove unnecessary fields and add additionalProperties: False to objects"""
+        if not isinstance(s, dict):
+            return s
+
+        # Start with a new dict to only keep what we want
+        cleaned = {}
+
+        # Copy essential fields
+        if 'type' in s:
+            cleaned['type'] = s['type']
+        if 'description' in s:
+            cleaned['description'] = s['description']
+        if 'properties' in s:
+            cleaned['properties'] = {
+                k: clean_schema(v) for k, v in s['properties'].items()
+            }
+        if 'items' in s:
+            cleaned['items'] = clean_schema(s['items'])
+        if 'required' in s:
+            cleaned['required'] = s['required']
+        if 'enum' in s:
+            cleaned['enum'] = s['enum']
+
+        # Add additionalProperties: False to objects
+        if s.get('type') == 'object':
+            cleaned['additionalProperties'] = False
+
+        # Handle anyOf/allOf/oneOf
+        for field in ['anyOf', 'allOf', 'oneOf']:
+            if field in s:
+                cleaned[field] = [clean_schema(item) for item in s[field]]
+
+        return cleaned
+
+    def process_schema(s):
+        """Process schema by resolving refs and cleaning"""
+        if not isinstance(s, dict):
+            return s
+
+        # Create a new dict to store processed schema
+        processed = {}
+
+        # Handle $ref first
+        if '$ref' in s:
+            ref_schema = resolve_ref(s['$ref'])
+            if ref_schema:
+                # Merge the resolved schema with any additional properties
+                processed = process_schema(ref_schema)
+                # Add any additional fields from the original schema
+                for k, v in s.items():
+                    if k != '$ref':
+                        processed[k] = process_schema(v)
+                return processed
+
+        # Process each field
+        for k, v in s.items():
+            if k == '$defs':
+                continue  # Skip $defs as we handle them separately
+            elif isinstance(v, dict):
+                processed[k] = process_schema(v)
+            elif isinstance(v, list):
+                processed[k] = [process_schema(item) for item in v]
+            else:
+                processed[k] = v
+
+        return processed
+
+    # Process the main schema
+    processed_schema = process_schema(schema)
+
+    # Clean the processed schema
+    cleaned_schema = clean_schema(processed_schema)
+
+    # Create the final schema with the required name field
+    final_schema = {
+        "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
+        "schema": cleaned_schema
+    }
+
+    return final_schema

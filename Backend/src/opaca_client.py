@@ -43,7 +43,7 @@ class OpacaClient:
             agent["agentId"]:
                 {
                     "description": agent["description"],
-                    "functions": [action["name"] for action in agent["actions"]]}
+                    "functions": [{"name": action["name"], "description": action["description"]}for action in agent["actions"]]}
             for agent in self.actions_dict
         }
     

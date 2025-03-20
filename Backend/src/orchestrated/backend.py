@@ -218,7 +218,19 @@ class SelfOrchestratedBackend(AbstractMethod):
                 )
                 
                 # Create plan first, passing previous results
-                plan = await planner.create_plan(task, previous_results=all_results)
+                #plan = await planner.create_plan(task, previous_results=all_results)
+
+                plan = await self.call_llm(
+                    model=config["orchestrator_model"],
+                    agent="AgentPlanner",
+                    system_prompt=planner.system_prompt(),
+                    messages=planner.messages(task, previous_results=all_results),
+                    temperature=config["temperature"],
+                    vllm_api_key=os.getenv("VLLM_API_KEY"),
+                    vllm_base_url=config["base_url"],
+                    response_format=planner.schema,
+                )
+                plan = plan.formatted_output
                 
                 # Calculate planner time
                 planner_time = time.time() - planner_start_time
@@ -252,7 +264,18 @@ class SelfOrchestratedBackend(AbstractMethod):
                 worker_start_time = time.time()
 
                 # Execute task directly
-                result = await agent.execute_task(task)
+                #result = await agent.execute_task(task)
+                result = await self.call_llm(
+                    agent="WorkerAgent",
+                    model=config["worker_model"],
+                    system_prompt=agent.system_prompt(),
+                    messages=agent.messages(task),
+                    temperature=config["temperature"],
+                    vllm_api_key=os.getenv("VLLM_API_KEY"),
+                    vllm_base_url=config["worker_base_url"],
+                )
+
+                print(f'Worker result: {result}')
 
                 # Calculate worker time
                 worker_time = time.time() - worker_start_time
@@ -316,8 +339,17 @@ Now, using the tools available to you and the previous results, continue with yo
                 worker_start_time = time.time()
                 
                 # Execute retry
-                retry_result = await agent.execute_task(retry_task)
-                result = retry_result  # Use the retry result
+                #retry_result = await agent.execute_task(retry_task)
+                #result = retry_result  # Use the retry result
+                result = await self.call_llm(
+                    agent="WorkerAgent",
+                    model=config["worker_model"],
+                    system_prompt=agent.system_prompt(),
+                    messages=agent.messages(retry_task),
+                    temperature=config["temperature"],
+                    vllm_api_key=os.getenv("VLLM_API_KEY"),
+                    vllm_base_url=config["worker_base_url"],
+                )
 
                 # Calculate worker time
                 worker_time = time.time() - worker_start_time
@@ -443,7 +475,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 plan = await self.call_llm(
                     model=config["orchestrator_model"],
                     agent="Orchestrator",
-                    system_prompt=orchestrator.system_prompt,
+                    system_prompt=orchestrator.system_prompt(),
                     messages=orchestrator.messages(message),
                     temperature=config["temperature"],
                     vllm_api_key=os.getenv("VLLM_API_KEY"),
