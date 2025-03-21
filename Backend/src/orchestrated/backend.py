@@ -5,6 +5,8 @@ import time
 import traceback
 from typing import Dict, Any, List
 from pathlib import Path
+
+from setuptools.package_index import user_agent
 from yaml import load, CLoader as Loader
 import asyncio
 
@@ -166,11 +168,11 @@ class SelfOrchestratedBackend(AbstractMethod):
         """Handle follow-up questions by sending them to the user"""
         if websocket:
             # Send the follow-up question as an agent message with role 'assistant'
-            await send_to_websocket(websocket, "assistant", f"I need some additional information to help you better:\n\n{follow_up_question}", 0.0)
-            
+            await send_to_websocket(websocket, "follow-up-assistant", f"I need some additional information to help you better:\n\n{follow_up_question}", 0.0)
+
             # Wait for user response
             response = await websocket.receive_text()
-            
+
             return response
         else:
             # For non-websocket calls, we can't get follow-up answers
@@ -271,16 +273,6 @@ class SelfOrchestratedBackend(AbstractMethod):
 
                 # Start Worker timer
                 worker_start_time = time.time()
-                
-                # Execute task with planning
-                #result = await planner.execute_task(task, existing_plan=plan)
-                ########
-                if not config.get("use_agent_planner", True):
-                    self.logger.info("Planning disabled, executing directly with worker agent")
-                    return await planner.worker_agent.execute_task(planner.get_task_str(task))
-                elif planner.agent_name == "GeneralAgent":
-                    self.logger.info("Skipping planning for GeneralAgent. Directly executing task: " + task_str)
-                    return await planner.worker_agent.execute_task(planner.get_task_str(task))
 
                 # Initialize results storage
                 ex_results = []
@@ -296,7 +288,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # Execute rounds sequentially
                 for round_num in sorted(tasks_by_round.keys()):
                     self.logger.info(f"AgentPlanner executing round {round_num}")
-                    round_tasks = tasks_by_round[round_num]
+                    current_tasks = tasks_by_round[round_num]
 
                     # Add context from previous planner rounds if needed
                     round_context = ""
@@ -310,7 +302,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                                 for tr in prev_result.tool_results:
                                     round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
 
-                    round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in round_tasks])
+                    round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in current_tasks])
 
                     # Process round results
                     for result in round_results:
@@ -328,7 +320,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                     tool_calls=ex_tool_calls,
                     tool_results=ex_tool_results
                 )
-                ########
                 
                 # Calculate worker time
                 worker_time = time.time() - worker_start_time
@@ -348,18 +339,20 @@ class SelfOrchestratedBackend(AbstractMethod):
                 worker_start_time = time.time()
 
                 # Execute task directly
-                #result = await agent.execute_task(task)
-                result = await self.call_llm(
-                    agent="WorkerAgent",
-                    model=config["worker_model"],
-                    system_prompt=agent.system_prompt(),
-                    messages=agent.messages(task),
-                    temperature=config["temperature"],
-                    vllm_api_key=os.getenv("VLLM_API_KEY"),
-                    vllm_base_url=config["worker_base_url"],
-                    tools=agent.tools,
-                )
-                result = await agent.invoke_tools(task.task, result.tools)
+                if agent.agent_name == "GeneralAgent":
+                    result = await agent.execute_task(task)
+                else:
+                    result = await self.call_llm(
+                        agent="WorkerAgent",
+                        model=config["worker_model"],
+                        system_prompt=agent.system_prompt(),
+                        messages=agent.messages(task),
+                        temperature=config["temperature"],
+                        vllm_api_key=os.getenv("VLLM_API_KEY"),
+                        vllm_base_url=config["worker_base_url"],
+                        tools=agent.tools,
+                    )
+                    result = await agent.invoke_tools(task.task, result.tools)
 
                 print(f'Worker result: {result}')
 
@@ -582,17 +575,12 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Mark planning phase complete
                 await send_to_websocket(websocket, "Orchestrator", "Execution plan created ✓\n\n", execution_time=orchestration_time, response_metadata=orchestrator.response_metadata)
-                
+
                 # Handle orchestrator follow-up questions
                 if plan.needs_follow_up and plan.follow_up_question:
-                    try:
-                        # Get follow-up answer
-                        answer = await self._handle_follow_up(plan.follow_up_question, websocket)
-                        message = f"{message}\n\nAdditional information: {answer}"
-                        continue  # Restart with new information
-                    except Exception as e:
-                        self.logger.error(f"Error handling orchestrator follow-up: {str(e)}")
-                        break
+                    response.content = plan.follow_up_question
+                    # TODO probably need to set more information in response
+                    return response
                 
                 # Create worker agents for each unique agent in the plan
                 for task in plan.tasks:
@@ -709,16 +697,12 @@ Now, using the tools available to you and the previous results, continue with yo
                     advisor_time = time.time() - advisor_start_time
 
                     agent_messages.append(await send_to_websocket(websocket, "IterationAdvisor", f"Iteration Advice:\n{json.dumps(advice.model_dump(), indent=2)}\n\n", execution_time=advisor_time, response_metadata=iteration_advisor.response_metadata))
-                    
+
                     # Handle follow-up questions from iteration advisor
                     if advice.needs_follow_up and advice.follow_up_question:
-                        try:
-                            # Get follow-up answer
-                            answer = await self._handle_follow_up(advice.follow_up_question, websocket)
-                            message = f"{message}\n\nAdditional information: {answer}"
-                            continue  # Restart with new information
-                        except Exception as e:
-                            self.logger.error(f"Error handling iteration advisor follow-up: {str(e)}")
+                        response.content = advice.follow_up_question#
+                        # TODO Here some more response contents as well
+                        return response
                     
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
