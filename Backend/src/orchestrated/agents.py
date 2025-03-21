@@ -4,12 +4,10 @@ import traceback
 from typing import Dict, Any, List, Optional, Union
 from openai import AsyncOpenAI
 import logging
-from pydantic import BaseModel, Field
 import time
 import asyncio
 from datetime import datetime
 import pytz
-import re
 
 
 from ..models import AgentMessage, ChatMessage
@@ -33,9 +31,6 @@ from ..utils import transform_schema
 
 
 class BaseAgent:
-    # Static class variables for logging configuration
-    LOG_FILE = "agents.log"  # Default log file path
-    LOG_TO_FILE = False  # Default logging state - disabled by default
     
     def __init__(self, client: AsyncOpenAI, model: str):
         self.client = client
@@ -43,60 +38,6 @@ class BaseAgent:
         self.logger = logging.getLogger("src.models")
         self.chat_history = None
         self.response_metadata = {}
-
-    def _log_llm_interaction(self, agent_name: str, messages: List[Dict[str, str]], response_content: str, output_structure: Optional[str] = "") -> None:
-        """Log an LLM interaction to the log file with clear separation of system prompt, user input, and response"""
-        try:
-            if BaseAgent.LOG_TO_FILE:
-                with open(BaseAgent.LOG_FILE, 'a') as f:
-                    # Write agent header with more context for evaluators
-                    if "Evaluator" in agent_name:
-                        f.write(f"\n{'=' * 35} {agent_name} Evaluation {'=' * 35}\n\n")
-                    else:
-                        f.write(f"\n{'=' * 35} {agent_name} LLM Call {'=' * 35}\n\n")
-                
-                    # Write messages in order
-                    for msg in messages:
-                        role = msg["role"].upper()
-                        f.write(f"{'-' * 35} {role} MESSAGE {'-' * 35}\n\n")
-                        f.write(f"{msg['content']}\n\n")
-
-                        if role == "USER":
-                            if output_structure:
-                                f.write(f"\n\n{'-' * 5} Expected Response Format {'-' * 5}\n\n")
-                                f.write(f"{output_structure}\n\n\n")
-                
-                    # Write response with context for evaluators
-                    if "Evaluator" in agent_name:
-                        f.write(f"{'-' * 35} EVALUATION RESULT {'-' * 35}\n\n")
-                    else:
-                        f.write(f"{'-' * 35} ASSISTANT RESPONSE {'-' * 35}\n\n")
-                    f.write(f"{response_content}\n\n\n")
-                    
-                    # Write separator
-                    f.write(f"{'=' * 90}\n\n")
-
-                # Log the message to the logger in debug mode
-                self.logger.debug(f"=== [{agent_name}] - [LLM RESPONSE]=== \n Message: {response_content}\n\n")
-
-        except Exception as e:
-            self.logger.error(f"Error writing to log file: {str(e)}")
-
-    @classmethod
-    def enable_file_logging(cls, log_file_path: Optional[str] = None):
-        """Enable logging to a file for all agents"""
-        cls.LOG_TO_FILE = True
-        if log_file_path:
-            cls.LOG_FILE = log_file_path
-        
-        # Clear the log file when enabling logging
-        with open(cls.LOG_FILE, 'w') as f:
-            f.write(f"\n{'=' * 35} New Session Started {'=' * 35}\n\n\n\n")
-
-    @classmethod
-    def disable_file_logging(cls):
-        """Disable logging to file for all agents"""
-        cls.LOG_TO_FILE = False
 
     async def _call_llm(
         self,
@@ -106,6 +47,8 @@ class BaseAgent:
         tools: Optional[List[Dict]] = None,
         tool_choice: Optional[str] = None
     ) -> Any:
+        self.logger.debug("CALLING OLD LLM METHOD")
+        print('CALLING OLD LLM METHOD')
         """Generic method to call the LLM with various guidance options"""
         start_time = time.time()
         output_structure = ""
@@ -143,13 +86,6 @@ class BaseAgent:
 
                 completion = await self.client.chat.completions.create(**kwargs)
                 response = completion.choices[0].message
-                
-                # Log the LLM interaction
-                self._log_llm_interaction(
-                    self.__class__.__name__,  # Use the class name as agent name
-                    kwargs["messages"],
-                    json.dumps(response.model_dump(), indent=2)
-                )
                 self.response_metadata = completion.usage.to_dict()
                 
                 return response
@@ -227,22 +163,8 @@ DO NOT return the schema itself. Return a valid JSON object matching the schema.
                         }
                     ]
                     kwargs["extra_body"] = {"guided_json": guided_json}
-                
-                output_structure = f"You MUST provide your response as a JSON object that follows this schema: {json.dumps(guided_json, indent=2)}"
             
             response = await self.client.chat.completions.create(**kwargs)
-            
-            # Log the LLM interaction with the actual agent name
-            agent_name = self.__class__.__name__
-            if hasattr(self, 'agent_name'):
-                agent_name = self.agent_name
-            
-            self._log_llm_interaction(
-                agent_name,  # Use the actual agent name
-                kwargs["messages"],
-                response.choices[0].message.content, 
-                output_structure
-            )
 
             self.response_metadata = response.usage.to_dict()
             
@@ -269,10 +191,13 @@ class OrchestratorAgent(BaseAgent):
 
 
     def system_prompt(self):
-        prompt = get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
+        if self.disable_thinking:
+            return get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING.format(
                 agent_summaries=json.dumps(self.agent_summaries, indent=2)
             ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
-        return prompt
+        return get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
+                agent_summaries=json.dumps(self.agent_summaries, indent=2)
+            ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
 
     def messages(self, user_request: str):
         chat_context = ""
@@ -414,6 +339,42 @@ class AgentPlanner(BaseAgent):
     def schema(self):
         return PlannerPlan
 
+    @staticmethod
+    def get_orchestrator_context(previous_results: Optional[List[AgentResult]] = None):
+        # Create context from previous orchestrator round results if available
+        orchestrator_context = ""
+        if previous_results:
+            orchestrator_context = "\n\nPrevious orchestrator round results:\n"
+            for i, result in enumerate(previous_results, 1):
+                orchestrator_context += f"\n# Result {i} from {result.agent_name}:\n"
+                orchestrator_context += f"Task: {result.task}\n"
+
+                # Split the output by rounds and process each round
+                round_outputs = result.output.split("\n\n")
+                for round_output in round_outputs:
+                    if round_output.strip():
+                        orchestrator_context += f"{round_output}\n"
+
+                # Process tool results by round
+                if result.tool_results:
+                    # Group tool results by round based on their sequence
+                    round_tool_results = dict(enumerate(result.tool_results))
+
+                    # Output tool results by round
+                    for round_num, tr in sorted(round_tool_results.items()):
+                        orchestrator_context += f"\n### Tool Results:\n"
+                        orchestrator_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+        return orchestrator_context
+
+    def get_task_str(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
+        # Extract task string if AgentTask object is passed
+        task_str = task.task if isinstance(task, AgentTask) else task
+        self.logger.info(f"AgentPlanner executing task: {task_str}")
+        if previous_results:
+            # Add the context to the task
+            return f"{task_str}\n\n{self.get_orchestrator_context(previous_results)}"
+        return task_str
+
     async def execute_task(self, task: Union[str, AgentTask], existing_plan: Optional[PlannerPlan] = None, previous_results: Optional[List[AgentResult]] = None) -> AgentResult:
         """Execute a task with or without planning"""
         try:
@@ -551,82 +512,59 @@ class AgentPlanner(BaseAgent):
             )
 
 class AgentEvaluator(BaseAgent):
-    async def evaluate(self, task: Union[str, AgentTask], result: AgentResult) -> AgentEvaluation:
-        """Evaluate if an agent's execution needs another iteration"""
-        start_time = time.time()
+    @staticmethod
+    def system_prompt():
+        return AGENT_EVALUATOR_PROMPT
+
+    @staticmethod
+    def messages(task: Union[str, AgentTask], result: AgentResult):
         task_str = task.task if isinstance(task, AgentTask) else task
-        self.logger.info(f"AgentEvaluator starting evaluation for {result.agent_name}")
-        try:
-            # Check for failed tool calls that might need retrying
-            for tool_result in result.tool_results:
-                if isinstance(tool_result.get("result"), str) and (
-                    "error" in tool_result["result"].lower() or 
+        return [
+            {
+                "role": "user",
+                "content": json.dumps({
+                    "task": task_str,
+                    "agent_output": result.output,
+                    "tool_calls": result.tool_calls,
+                    "tool_results": result.tool_results
+                },
+                    indent=2) + "\n\n" + "NOW: EVALUATE IF THE TASK HAS BEEN COMPLETED WITH THE GIVEN TOOL RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
+                           "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
+            }
+        ]
+
+    @staticmethod
+    def guided_choice():
+        return [e.value for e in AgentEvaluation]
+
+    def evaluate_results(self, result: AgentResult) -> AgentEvaluation | None:
+        for tool_result in result.tool_results:
+            if isinstance(tool_result.get("result"), str) and (
+                    "error" in tool_result["result"].lower() or
                     "failed" in tool_result["result"].lower() or
                     "502" in tool_result["result"]
-                ):
-                    self.logger.info(f"Found failed tool call: {tool_result}")
+            ):
+                self.logger.info(f"Found failed tool call: {tool_result}")
+                return AgentEvaluation.REITERATE
+
+        # Check for incomplete sequential operations
+        # If we have multiple tool calls and one uses a placeholder that wasn't replaced
+        if len(result.tool_calls) > 1:
+            for tool_call in result.tool_calls:
+                if '<' in tool_call["arguments"] and '>' in tool_call["arguments"]:
+                    self.logger.info("Found unresolved placeholder in tool call")
                     return AgentEvaluation.REITERATE
+        return None
 
-            # Check for incomplete sequential operations
-            # If we have multiple tool calls and one uses a placeholder that wasn't replaced
-            if len(result.tool_calls) > 1:
-                for tool_call in result.tool_calls:
-                    if '<' in tool_call["arguments"] and '>' in tool_call["arguments"]:
-                        self.logger.info("Found unresolved placeholder in tool call")
-                        return AgentEvaluation.REITERATE
-
-            messages = [
-                {
-                    "role": "system",
-                    "content": AGENT_EVALUATOR_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps({
-                        "task": task_str,
-                        "agent_output": result.output,
-                        "tool_calls": result.tool_calls,
-                        "tool_results": result.tool_results
-                    }, indent=2) + "\n\n" + "NOW: EVALUATE IF THE TASK HAS BEEN COMPLETED WITH THE GIVEN TOOL RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                    "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
-                }
-            ]
-            
-            response = await self._call_llm(
-                messages=messages,
-                guided_choice=[e.value for e in AgentEvaluation]
-            )
-            
-            execution_time = time.time() - start_time
-            self.logger.info(f"AgentEvaluator completed evaluation in {execution_time:.2f} seconds")
-            
-            result.agent_message = AgentMessage(
-                agent="AgentEvaluator",
-                content=f"Evaluating {result.agent_name}'s task completion...\nEvaluation result: {response.content.strip()}",
-                execution_time=execution_time,
-                status="Completed",
-                step="Evaluation complete"
-            )
-            
-            return AgentEvaluation(response.content.strip())
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(f"AgentEvaluator failed in {execution_time:.2f} seconds: {str(e)}")
-            result.agent_message = AgentMessage(
-                agent="AgentEvaluator",
-                content=f"Error evaluating: {str(e)}",
-                execution_time=execution_time,
-                status="Failed",
-                step="Error occurred"
-            )
-            return AgentEvaluation.FINISHED
 
 class OverallEvaluator(BaseAgent):
 
-    def system_prompt(self):
+    @staticmethod
+    def system_prompt():
         return OVERALL_EVALUATOR_PROMPT
 
-    def messages(self, original_request: str, current_results: List[AgentResult]):
+    @staticmethod
+    def messages(original_request: str, current_results: List[AgentResult]):
         return [
             {
                 "role": "user",
@@ -644,157 +582,34 @@ class OverallEvaluator(BaseAgent):
     def guided_choice(self):
         return [e.value for e in OverallEvaluation]
 
-    async def evaluate(
-        self,
-        original_request: str,
-        current_results: List[AgentResult]
-    ) -> OverallEvaluation:
-        """Evaluate if the current results are sufficient"""
-        start_time = time.time()
-        self.logger.info("OverallEvaluator starting evaluation")
-        try:
-            # First check for any failed or incomplete operations
-            for result in current_results:
-                # Check for errors in tool results
-                for tool_result in result.tool_results:
-                    if isinstance(tool_result.get("result"), str) and (
-                        "error" in tool_result["result"].lower() or 
+    def evaluate_results(self, current_results: List[AgentResult]) -> OverallEvaluation | None:
+        for result in current_results:
+            # Check for errors in tool results
+            for tool_result in result.tool_results:
+                if isinstance(tool_result.get("result"), str) and (
+                        "error" in tool_result["result"].lower() or
                         "failed" in tool_result["result"].lower() or
                         "502" in tool_result["result"]
-                    ):
-                        self.logger.info(f"Found failed tool call in {result.agent_name}: {tool_result}")
+                ):
+                    self.logger.info(f"Found failed tool call in {result.agent_name}: {tool_result}")
+                    return OverallEvaluation.REITERATE
+
+            # Check for incomplete sequential operations
+            if len(result.tool_calls) > 1:
+                # Look for unresolved placeholders
+                for tool_call in result.tool_calls:
+                    if '<' in tool_call["arguments"] and '>' in tool_call["arguments"]:
+                        self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
                         return OverallEvaluation.REITERATE
 
-                # Check for incomplete sequential operations
-                if len(result.tool_calls) > 1:
-                    # Look for unresolved placeholders
-                    for tool_call in result.tool_calls:
-                        if '<' in tool_call["arguments"] and '>' in tool_call["arguments"]:
-                            self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
-                            return OverallEvaluation.REITERATE
+                # Check if we have all necessary results for sequential operations
+                tool_names = [tc["name"] for tc in result.tool_calls]
+                result_names = [tr["name"] for tr in result.tool_results]
+                if not all(tn in result_names for tn in tool_names):
+                    self.logger.info(f"Missing tool results in {result.agent_name}")
+                    return OverallEvaluation.REITERATE
+        return None
 
-                    # Check if we have all necessary results for sequential operations
-                    tool_names = [tc["name"] for tc in result.tool_calls]
-                    result_names = [tr["name"] for tr in result.tool_results]
-                    if not all(tn in result_names for tn in tool_names):
-                        self.logger.info(f"Missing tool results in {result.agent_name}")
-                        return OverallEvaluation.REITERATE
-
-            messages = [
-                {
-                    "role": "system",
-                    "content": OVERALL_EVALUATOR_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps({
-                        "original_request": original_request,
-                        "current_results": [r.model_dump() for r in current_results]
-                    }, indent=2) +
-                    "\n\n" + "NOW: EVALUATE IF THE USER REQUEST CAN BE ANSWERED WITH THE GIVEN RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                    "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED." +
-                    "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
-                }
-            ]
-            
-            response = await self._call_llm(
-                messages=messages,
-                guided_choice=[e.value for e in OverallEvaluation]
-            )
-            
-            execution_time = time.time() - start_time
-            self.logger.info(f"OverallEvaluator completed evaluation in {execution_time:.2f} seconds")
-            
-            if current_results:
-                current_results[-1].agent_message = AgentMessage(
-                    agent="OverallEvaluator",
-                    content=f"Overall evaluation...\nOverall evaluation result: {response.content.strip()}",
-                    execution_time=execution_time,
-                    status="Completed",
-                    step="Evaluation complete"
-                )
-            
-            return OverallEvaluation(response.content.strip())
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(f"OverallEvaluator failed in {execution_time:.2f} seconds: {str(e)}")
-            if current_results:
-                current_results[-1].agent_message = AgentMessage(
-                    agent="OverallEvaluator",
-                    content=f"Error evaluating: {str(e)}",
-                    execution_time=execution_time,
-                    status="Failed",
-                    step="Error occurred"
-                )
-            return OverallEvaluation.FINISHED
-
-class OutputGenerator(BaseAgent):
-    async def generate_output(
-        self,
-        original_request: str,
-        execution_results: List[AgentResult]
-    ) -> str:
-        """Generate the final response to the user"""
-        start_time = time.time()
-        self.logger.info("OutputGenerator starting output generation")
-        try:
-            # Create input data for logging
-            input_data = {
-                "original_request": original_request,
-                "execution_results": [r.model_dump() for r in execution_results]
-            }
-            
-            messages = [
-                {
-                    "role": "system",
-                    "content": get_current_time() + BACKGROUND_INFO + OUTPUT_GENERATOR_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(input_data, indent=2)
-                }
-            ]
-            
-            response = await self._call_llm(
-                messages=messages,
-            )
-            
-            execution_time = time.time() - start_time
-            self.logger.info(f"OutputGenerator completed generation in {execution_time:.2f} seconds")
-            
-            # Get response metadata from the completion response
-            response_metadata = {}
-            completion_response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-            )
-            
-            if hasattr(completion_response, 'usage'):
-                response_metadata = completion_response.usage.model_dump()
-            
-            if execution_results:
-                execution_results[-1].agent_message = AgentMessage(
-                    agent="OutputGenerator",
-                    content=response.content,
-                    response_metadata=response_metadata,
-                    execution_time=execution_time,
-                    status="Completed",
-                    step="Final response generated"
-                )
-            
-            return response.content
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(f"OutputGenerator failed in {execution_time:.2f} seconds: {str(e)}")
-            if execution_results:
-                execution_results[-1].agent_message = AgentMessage(
-                    agent="OutputGenerator",
-                    content=f"Error generating output: {str(e)}",
-                    execution_time=execution_time,
-                    status="Failed",
-                    step="Error occurred"
-                )
-            return str(e)
 
 class IterationAdvisor(BaseAgent):
     """Agent that provides structured advice for improving the next iteration"""
@@ -821,75 +636,7 @@ class IterationAdvisor(BaseAgent):
     @property
     def schema(self):
         return IterationAdvice
-    
-    async def get_advice(
-        self,
-        original_request: str,
-        current_results: List[AgentResult]
-    ) -> IterationAdvice:
-        """Analyze current results and provide structured advice"""
-        start_time = time.time()
-        self.logger.info("IterationAdvisor starting analysis")
-        try:
-            messages = [
-                {
-                    "role": "system",
-                    "content": ITERATION_ADVISOR_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps({
-                        "original_request": original_request,
-                        "current_results": [r.model_dump() for r in current_results]
-                    }, indent=2) +
-                    "\n\n" + "NOW: Create a concrete improvement plan for the given user request! CONSIDER THAT YOU ARE ALLOWED AND ALSO EXPECTED TO VETO THE REITERATION IF THERE IS NO CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                    "\n\n" + "If you have doubts or wish to not reiterate, set 'should_retry' to false. YOU ARE EXPECTED TO HAVE A STRONG REASON TO BELIEVE THE RESULTS CAN BE IMPROVED WITH A REITERATION IF YOU CHOOSE TO RETRY." +
-                    "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
-                }
-            ]
-            
-            response = await self._call_llm(
-                messages=messages,
-                guided_json=IterationAdvice.model_json_schema()
-            )
-            
-            execution_time = time.time() - start_time
-            self.logger.info(f"IterationAdvisor completed analysis in {execution_time:.2f} seconds")
-            
-            # Get response metadata from the completion response
-            response_metadata = {}
-            completion_response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0
-            )
-            if hasattr(completion_response, 'usage'):
-                response_metadata = completion_response.usage.model_dump()
-            
-            if current_results:
-                current_results[-1].agent_message = AgentMessage(
-                    agent="IterationAdvisor",
-                    content=response.content,
-                    response_metadata=response_metadata,
-                    execution_time=execution_time
-                )
-            
-            return IterationAdvice.model_validate_json(response.content)
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(f"IterationAdvisor failed in {execution_time:.2f} seconds: {str(e)}")
-            if current_results:
-                current_results[-1].agent_message = AgentMessage(
-                    agent="IterationAdvisor",
-                    content=f"Error getting advice: {str(e)}",
-                    execution_time=execution_time
-                )
-            return IterationAdvice(
-                issues=["Error getting advice"],
-                improvement_steps=["Try again"],
-                context_summary="Error occurred",
-                should_retry=False
-            )
+
 
 class WorkerAgent(BaseAgent):
     def __init__(
@@ -932,6 +679,71 @@ class WorkerAgent(BaseAgent):
         2. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!"""
             }
         ]
+
+    async def invoke_tools(self, task_str, _tool_calls) -> AgentResult:
+        # Iterate over all tool calls
+        # Initialize tool calls and results lists
+        tool_calls = []
+        tool_results = []
+        tool_outputs = []
+
+        for tool_call in _tool_calls:
+            print(f'Received tool call: {tool_call}')
+
+            # Log the tool call being made
+            self.logger.info(f"Making tool call: {tool_call['name']}")
+            self.logger.debug(f"Tool call arguments: {tool_call['args']}")
+
+            # Split function name to get action name (remove agent prefix)
+            func_name = tool_call["name"]
+            if "--" in func_name:
+                agent_name, action_name = func_name.split("--", 1)
+            else:
+                agent_name = None
+                action_name = func_name
+
+            # Execute the action with the correct parameters
+            result = await self.session_client.invoke_opaca_action(
+                action=action_name,
+                agent=agent_name,
+                params=tool_call["args"].get("requestBody", {})  # Get requestBody from args
+            )
+
+            # Add the tool call and result to the lists
+            tool_calls.append(tool_call)
+            tool_results.append({
+                "name": tool_call["name"],
+                "result": result
+            })
+
+            # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
+            # Format the result for output
+            if isinstance(result, (dict, list)):
+                result_str = json.dumps(result, indent=2)
+            else:
+                result_str = str(result)
+
+            # Limit the result string to 250 characters
+            result_str = result_str[:250] + "..." if len(result_str) > 250 else result_str
+
+            # Log the tool result
+            self.logger.info(f"Tool call completed: {action_name}")
+            self.logger.debug(f"Tool result: {result_str}")
+
+            # Add the result to the tool outputs list
+            tool_outputs.append(
+                f"\n- Worker Agent Executed: {tool_call['name']}.")  # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
+
+        # Join all tool outputs into a single string
+        output = "\n\n".join(tool_outputs)
+
+        return AgentResult(
+            agent_name=self.agent_name,
+            task=task_str,
+            output=output,
+            tool_calls=tool_calls,
+            tool_results=tool_results,
+        )
 
     async def execute_task(self, task: Union[str, AgentTask]) -> AgentResult:
         """Execute a task using the agent's tools"""

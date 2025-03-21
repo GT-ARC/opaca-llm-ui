@@ -101,7 +101,7 @@ class AbstractMethod(ABC):
             'model': model,
             'messages': [{"role": "system", "content": system_prompt}] + messages,
             'tools': tools or [],
-            'tool_choice': tool_choice,
+            'tool_choice': tool_choice if tools else 'none',
         }
 
         # o1/o3 don't support temperature param
