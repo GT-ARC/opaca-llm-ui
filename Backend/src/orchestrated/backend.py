@@ -3,17 +3,14 @@ import os
 import logging
 import time
 import traceback
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from pathlib import Path
 
-from setuptools.package_index import user_agent
 from yaml import load, CLoader as Loader
 import asyncio
 
-from openai import AsyncOpenAI
-
 from .prompts import (
-    OUTPUT_GENERATOR_PROMPT
+    OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE
 )
 from ..abstract_method import AbstractMethod
 
@@ -24,9 +21,8 @@ from .agents import (
     WorkerAgent,
     AgentEvaluator,
     OverallEvaluator,
-    GeneralAgent,
     IterationAdvisor,
-    AgentPlanner
+    AgentPlanner, get_current_time
 )
 from .models import (
     AgentEvaluation, 
@@ -114,69 +110,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 description="Whether to disable the thinking process of the orchestrator"
             )
         }
-    
-    async def _create_openai_client(self, session: SessionData, agent_type: str = "worker") -> AsyncOpenAI:
-        """Create OpenAI client with appropriate configuration"""
-        try:
-            config = session.config.get(self.NAME, self.default_config())
-
-            # Determine base_url and api_key based on configuration
-            if agent_type == "worker":
-                if config["worker_backend_type"] == "vllm":
-                    api_key = config.get("worker_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config["worker_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8001/v1")
-                else:
-                    api_key = config.get("worker_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config["worker_base_url"]
-            elif agent_type == "generator":
-                if config["generator_backend_type"] == "vllm":
-                    api_key = config.get("generator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config["generator_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
-                else:
-                    api_key = config.get("generator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config["generator_base_url"]
-            elif agent_type == "evaluator":
-                if config["evaluator_backend_type"] == "vllm":
-                    api_key = config.get("evaluator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config["evaluator_base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
-                else:
-                    api_key = config.get("evaluator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config["evaluator_base_url"]
-            else:  # orchestrator
-                if config["orchestrator_backend_type"] == "vllm":
-                    api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("VLLM_API_KEY")
-                    base_url = config["base_url"] or os.getenv("VLLM_BASE_URL", "http://10.0.64.101:8000/v1")
-                else:
-                    api_key = config.get("orchestrator_api_key") or session.api_key or os.getenv("OPENAI_API_KEY")
-                    base_url = config["base_url"]
-            
-            if not api_key:
-                raise ValueError("No API key found in session or environment")
-            
-            # Initialize kwargs with api_key
-            kwargs = {"api_key": api_key}
-            if base_url:
-                kwargs["base_url"] = base_url
-
-            client = AsyncOpenAI(**kwargs)
-            return client
-        except Exception as e:
-            self.logger.error(f"Error creating OpenAI client: {str(e)}")
-            raise
-
-    async def _handle_follow_up(self, follow_up_question: str, websocket=None) -> None:
-        """Handle follow-up questions by sending them to the user"""
-        if websocket:
-            # Send the follow-up question as an agent message with role 'assistant'
-            await send_to_websocket(websocket, "follow-up-assistant", f"I need some additional information to help you better:\n\n{follow_up_question}", 0.0)
-
-            # Wait for user response
-            response = await websocket.receive_text()
-
-            return response
-        else:
-            # For non-websocket calls, we can't get follow-up answers
-            raise ValueError("Follow-up questions require websocket connection")
 
     async def execute_round_task(self, worker_agent, config, subtask, orchestrator_context, round_context, round_num):
         current_task = subtask.task
@@ -218,14 +151,13 @@ class SelfOrchestratedBackend(AbstractMethod):
         worker_agents: Dict[str, WorkerAgent],
         config: Dict[str, Any],
         all_results: List[AgentResult],
+        agent_summaries: Dict[str, Any],
         websocket=None,
-        evaluator_client=None, 
-        planner_client=None,
         agent_messages: List[AgentMessage] = None
-    ) -> List[AgentResult]:
+    ) -> Tuple[List[AgentResult], List[AgentMessage]]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
-        agent_evaluator = AgentEvaluator(evaluator_client, config["evaluator_model"]) if self._parse_bool_config(config.get("use_agent_evaluator", True)) else None
+        agent_evaluator = AgentEvaluator() if self._parse_bool_config(config.get("use_agent_evaluator", True)) else None
 
         async def execute_single_task(task: AgentTask):
             agent = worker_agents[task.agent_name]
@@ -242,8 +174,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n", 0.0)
                 
                 planner = AgentPlanner(
-                    client=planner_client,
-                    model=config["orchestrator_model"],
                     agent_name=task.agent_name,
                     tools=agent.tools,
                     worker_agent=agent,
@@ -340,7 +270,7 @@ class SelfOrchestratedBackend(AbstractMethod):
 
                 # Execute task directly
                 if agent.agent_name == "GeneralAgent":
-                    result = await agent.execute_task(task)
+                    result = await self.get_general_agent_response(task_str, agent_summaries)
                 else:
                     result = await self.call_llm(
                         agent="WorkerAgent",
@@ -488,12 +418,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 data = load(f, Loader=Loader)
                 config.update(data['model_configs'][config.get('model_config_name')])
             
-            # Create separate clients for orchestration and worker agents
-            orchestrator_client = await self._create_openai_client(session, agent_type="orchestrator")
-            worker_client = await self._create_openai_client(session, agent_type="worker")
-            generator_client = await self._create_openai_client(session, agent_type="generator")
-            evaluator_client = await self._create_openai_client(session, agent_type="evaluator")
-            
             # Send initial waiting message
             await send_to_websocket(websocket, "preparing", "Initializing the OPACA AI Agents", 0.0)
             
@@ -525,19 +449,14 @@ Now, using the tools available to you and the previous results, continue with yo
             )
             
             # Initialize evaluators with evaluator model
-            overall_evaluator = OverallEvaluator(evaluator_client, config["evaluator_model"])
+            overall_evaluator = OverallEvaluator()
             
             # Initialize iteration advisor with orchestrator model (since it's part of orchestration)
-            iteration_advisor = IterationAdvisor(orchestrator_client, config["orchestrator_model"])
+            iteration_advisor = IterationAdvisor()
             
             # Initialize worker agents
             worker_agents = {
-                "GeneralAgent": GeneralAgent(
-                    client=worker_client,
-                    model=config["worker_model"],
-                    agent_summaries=agent_details,
-                    config=config
-                )
+                "GeneralAgent": WorkerAgent("GeneralAgent", "", [], None),
             }
             
             all_results = []
@@ -617,13 +536,10 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
-                            client=worker_client,
-                            model=config["worker_model"],
                             agent_name=agent_name,
                             summary=agent_data,
                             tools=agent_tools,
                             session_client=session.client,
-                            config=config
                         )
                 
                 # Group tasks by round
@@ -640,9 +556,8 @@ Now, using the tools available to you and the previous results, continue with yo
                         worker_agents,
                         config,
                         all_results,
+                        agent_details,
                         websocket,
-                        evaluator_client,
-                        orchestrator_client, 
                         agent_messages
                     )
                     
@@ -734,7 +649,7 @@ Please address these specific improvements:
                 agent="output_generator",
                 model=config["generator_model"],
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
-                messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.dict() for r in all_results], indent=2)}")],
+                messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config["temperature"],
                 vllm_api_key=os.getenv("VLLM_API_KEY"),
                 vllm_base_url=config["generator_base_url"],
@@ -781,6 +696,18 @@ Please address these specific improvements:
             response.error = str(e)
             await send_to_websocket(websocket, "system", f"\n\nError: {str(e)}\n\n", 0.0)
             return response
+
+    async def get_general_agent_response(self, task_str, agent_summaries):
+        predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
+            agent_capabilities=json.dumps(agent_summaries, indent=2)
+        )
+        return AgentResult(
+            agent_name="GeneralAgent",
+            task=task_str,
+            output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
+            tool_calls=[{"name": "GetCapabilities", "args": "{}"}],
+            tool_results=[{"name": "GetCapabilities", "result": predefined_response}]
+        )
 
 
 async def send_to_websocket(websocket=None, agent: str = "", message: str = "", execution_time=0.0, response_metadata = None):

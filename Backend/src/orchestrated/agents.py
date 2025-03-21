@@ -1,10 +1,7 @@
 from __future__ import annotations
 import json
-import traceback
 from typing import Dict, Any, List, Optional, Union
-from openai import AsyncOpenAI
 import logging
-import time
 from datetime import datetime
 import pytz
 
@@ -21,159 +18,21 @@ from .prompts import (
     AGENT_SYSTEM_PROMPT,
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
-    GENERAL_CAPABILITIES_RESPONSE,
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT,
 )
-from ..utils import transform_schema
 
 
 class BaseAgent:
     
-    def __init__(self, client: AsyncOpenAI, model: str):
-        self.client = client
-        self.model = model
+    def __init__(self):
         self.logger = logging.getLogger("src.models")
         self.chat_history = None
         self.response_metadata = {}
 
-    async def _call_llm(
-        self,
-        messages: List[Dict[str, str]],
-        guided_choice: Optional[List[str]] = None,
-        guided_json: Optional[Dict] = None,
-        tools: Optional[List[Dict]] = None,
-        tool_choice: Optional[str] = None
-    ) -> Any:
-        self.logger.debug("CALLING OLD LLM METHOD")
-        print('CALLING OLD LLM METHOD')
-        """Generic method to call the LLM with various guidance options"""
-        start_time = time.time()
-        output_structure = ""
-        try:
-            
-            # Check if we're using a GPT model
-            is_gpt = "gpt" in self.model.lower() or "o3" in self.model.lower() or "4o" in self.model.lower()
-            
-            if self.model == "o3-mini":
-                # Base kwargs that are always included
-                kwargs = {
-                    "model": self.model,
-                    "messages": messages.copy(),  # Make a copy to avoid modifying the original
-                }
-                if tools: 
-                    kwargs["reasoning_effort"] = "medium"
-                else:
-                    kwargs["reasoning_effort"] = "high"
-
-            else:
-                # Base kwargs that are always included
-                kwargs = {
-                    "model": self.model,
-                    "messages": messages.copy(),  # Make a copy to avoid modifying the original
-                    "temperature": 0.0  # Always use temperature 0 for deterministic outputs
-                }
-
-
-
-            # Handle tool calls first since they're simpler
-            if tools:
-                kwargs["tools"] = tools
-                kwargs["tool_choice"] = tool_choice or "auto"
-                #return await self.client.chat.completions.create(**kwargs)
-
-                completion = await self.client.chat.completions.create(**kwargs)
-                response = completion.choices[0].message
-                self.response_metadata = completion.usage.to_dict()
-                
-                return response
-                
-            # Handle guided outputs for non-tool calls
-            if guided_choice:
-                if is_gpt:
-                    # For OpenAI, add instruction to choose from options
-                    if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
-                        options_str = ", ".join(guided_choice)
-                        kwargs["messages"][0]["content"] = kwargs["messages"][0]["content"] + f"\nPlease choose exactly one of these options: {options_str}"
-                    if kwargs["messages"] and kwargs["messages"][1]["role"] == "user":
-                        kwargs["messages"][1]["content"] = kwargs["messages"][1]["content"] + f"You MUST select one AND ONLY ONE of these choices to answer the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!"
-                    output_structure = f"You MUST select one of these choices to answer the request:\n\n {json.dumps(guided_choice, indent=2)}"
-                else:
-                    # For vLLM, keep original system prompt and add choice options
-                    system_msg = kwargs["messages"][0]["content"] if kwargs["messages"] else ""
-                    options_str = ", ".join(guided_choice)
-                    system_msg = f"{system_msg}\n\nYou must choose exactly one of these options: {options_str}"
-                    
-                    # Move everything except the actual task/query to system message
-                    user_msg = kwargs["messages"][1]["content"] if len(kwargs["messages"]) > 1 else ""
-                    
-                    kwargs["messages"] = [
-                        {
-                            "role": "system",
-                            "content": system_msg
-                        },
-                        {
-                            "role": "user",
-                            "content": user_msg
-                        }
-                    ]
-                    kwargs["extra_body"] = {"guided_choice": guided_choice}
-
-                    output_structure = f"You MUST select one of these choices to answer the request:\n {json.dumps(guided_choice, indent=2)}"
-            elif guided_json:
-                guided_json = transform_schema(guided_json)
-
-                if is_gpt:
-                    # For OpenAI, use json_schema mode and add schema to system message
-                    kwargs["response_format"] = {
-                        "type": "json_schema",
-                        "json_schema": guided_json
-                    }
-                    if kwargs["messages"] and kwargs["messages"][0]["role"] == "system":
-                        schema_str = json.dumps(guided_json, indent=2)
-                        kwargs["messages"][0]["content"] = (
-                            kwargs["messages"][0]["content"] + 
-                            f"\n\nYou MUST provide your response as a JSON object that follows this schema. Your response must include ALL required fields.\n\nSchema:\n{schema_str}\n\n" +
-                            "DO NOT return the schema itself. Return a valid JSON object matching the schema."
-                        )
-                else:
-                    # For vLLM, keep original system prompt and add JSON schema
-                    system_msg = kwargs["messages"][0]["content"] if kwargs["messages"] else ""
-                    schema_str = json.dumps(guided_json, indent=2)
-                    system_msg = system_msg + f"""\n
-You MUST provide your response as a JSON object that follows this schema.
-Your response must include ALL required fields.\n\n
-Schema:\n
-{schema_str}\n
-DO NOT return the schema itself. Return a valid JSON object matching the schema."""
-                    
-                    # Move everything except the actual task/query to system message
-                    user_msg = kwargs["messages"][-1]["content"] if len(kwargs["messages"]) > 1 else ""
-                    
-                    kwargs["messages"] = [
-                        {
-                            "role": "system",
-                            "content": system_msg
-                        },
-                        {
-                            "role": "user",
-                            "content": user_msg
-                        }
-                    ]
-                    kwargs["extra_body"] = {"guided_json": guided_json}
-            
-            response = await self.client.chat.completions.create(**kwargs)
-
-            self.response_metadata = response.usage.to_dict()
-            
-            return response.choices[0].message
-        finally:
-            execution_time = time.time() - start_time
-            self.logger.debug(f"LLM call took {execution_time:.2f} seconds")
-
 class OrchestratorAgent(BaseAgent):
     def __init__(self, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
-        super().__init__(None, None)
+        super().__init__()
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
@@ -234,57 +93,17 @@ class OrchestratorAgent(BaseAgent):
             return OrchestratorPlan_no_thinking
         return OrchestratorPlan
 
-
-class GeneralAgent(BaseAgent):
-    """Agent that handles general capability questions without using tools."""
-    
-    def __init__(self, client: AsyncOpenAI, model: str, agent_summaries: Dict[str, Any], config: Dict[str, Any] = None):
-        # Use worker_model from config if available, otherwise fall back to default model
-        if config and "worker_model" in config:
-            model = config["worker_model"]
-        super().__init__(client, model)
-        self.agent_name = "GeneralAgent"
-        self.tools = []  # Empty list since GeneralAgent doesn't use real tools
-        
-        # Store the complete response with agent summaries as JSON
-        self.predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
-            agent_capabilities=json.dumps(agent_summaries, indent=2)
-        )
-        
-    async def execute_task(self, task: Union[str, AgentTask]) -> AgentResult:
-        """Execute a task by returning predefined capabilities"""
-        task_str = task.task if isinstance(task, AgentTask) else task
-        tool_call = {
-            "name": "GetCapabilities",
-            "args": "{}"
-        }
-        
-        tool_result = {
-            "name": "GetCapabilities",
-            "result": self.predefined_response
-        }
-        
-        return AgentResult(
-            agent_name=self.agent_name,
-            task=task_str,
-            output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-            tool_calls=[tool_call],
-            tool_results=[tool_result]
-        )
-
 class AgentPlanner(BaseAgent):
     """Agent-specific planner that creates high-level task plans."""
     
     def __init__(
         self,
-        client: AsyncOpenAI,
-        model: str,
         agent_name: str,
         tools: List[Dict],
         worker_agent: "WorkerAgent",
         config: Dict[str, Any] = None
     ):
-        super().__init__(client, model)
+        super().__init__()
         self.agent_name = agent_name
         self.tools = tools
         self.worker_agent = worker_agent
@@ -504,17 +323,12 @@ class IterationAdvisor(BaseAgent):
 class WorkerAgent(BaseAgent):
     def __init__(
         self,
-        client: AsyncOpenAI,
-        model: str,
         agent_name: str,
         summary: str,
         tools: List[Dict],
         session_client: Any,
-        config: Dict[str, Any] = None
     ):
-        if config and "worker_model" in config:
-            model = config["worker_model"]
-        super().__init__(client, model)
+        super().__init__()
         self.agent_name = agent_name
         self.summary = summary
         self.tools = tools
@@ -616,149 +430,6 @@ class WorkerAgent(BaseAgent):
             tool_calls=tool_calls,
             tool_results=tool_results,
         )
-
-    async def execute_task(self, task: Union[str, AgentTask]) -> AgentResult:
-        """Execute a task using the agent's tools"""
-        start_time = time.time()
-        task_str = task.task if isinstance(task, AgentTask) else task
-        self.logger.debug(f"Executing task: {task_str}")
-
-        try:
-            # Create messages with task description and tools
-            messages = [{
-                "role": "system",
-                "content": get_current_time() + BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(
-                    agent_name=self.agent_name,
-                    agent_summary=self.summary
-                )
-            }, {
-                "role": "user",
-                "content": f"""\nSolve the following task with the tools available to you: 
-
-{task_str}
-
-Remember: 
-1. NEVER use placeholders - always use actual values.
-2. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!"""
-            }]
-            
-            # Log the input to LLM
-            self.logger.debug(f"Sending to LLM - Task: {task_str}")
-            self.logger.debug(f"Full messages to LLM: {json.dumps(messages, indent=2)}")
-            self.logger.debug(f"Available tools: {json.dumps(self.tools, indent=2)}")
-            
-            # Get function call from LLM
-            response = await self._call_llm(
-                messages=messages,
-                tools=self.tools,
-                tool_choice="auto"
-            )
-            
-            # Log the LLM response
-            self.logger.debug(f"LLM Response received for {self.agent_name}")
-            self.logger.debug(f"Full LLM response: {json.dumps(response.model_dump(), indent=2)}")
-            
-            if not hasattr(response, 'tool_calls') or not response.tool_calls:
-                error_msg = f"No tool call received for task: {task_str}.\n\n Worker Agent Output: {response.content}"
-                self.logger.error(error_msg)
-                return AgentResult(
-                    agent_name=self.agent_name,
-                    task=task_str,
-                    output=error_msg,
-                    tool_calls=[],
-                    tool_results=[]
-                )
-            
-
-            # Iterate over all tool calls
-            # Initialize tool calls and results lists
-            tool_calls = []
-            tool_results = []
-            tool_outputs = []
-
-            for tool_call in response.tool_calls:
-
-                # Create a dictionary for each tool call
-                tool_call_dict = {
-                    "name": tool_call.function.name,
-                    "arguments": tool_call.function.arguments
-                }
-                
-                # Log the tool call being made
-                self.logger.info(f"Making tool call: {tool_call.function.name}")
-                self.logger.debug(f"Tool call arguments: {tool_call.function.arguments}")
-                
-                # Parse arguments and execute the action
-                args = json.loads(tool_call.function.arguments)
-                
-                # Split function name to get action name (remove agent prefix)
-                func_name = tool_call.function.name
-                if "--" in func_name:
-                    agent_name, action_name = func_name.split("--", 1)
-                else:
-                    agent_name = None
-                    action_name = func_name
-                
-                # Execute the action with the correct parameters
-                result = await self.session_client.invoke_opaca_action(
-                    action=action_name,
-                    agent=agent_name,
-                    params=args.get("requestBody", {})  # Get requestBody from args
-                )
-
-                # Add the tool call and result to the lists
-                tool_calls.append(tool_call_dict)
-                tool_results.append({
-                    "name": tool_call.function.name,
-                    "result": result
-                })
-
-
-                # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
-                # Format the result for output
-                if isinstance(result, (dict, list)):
-                    result_str = json.dumps(result, indent=2)
-                else:
-                    result_str = str(result)
-                
-                # Limit the result string to 250 characters
-                result_str = result_str[:250] + "..." if len(result_str) > 250 else result_str
-                
-                # Log the tool result
-                self.logger.info(f"Tool call completed: {action_name}")
-                self.logger.debug(f"Tool result: {result_str}")
-                
-                # Add the result to the tool outputs list
-                tool_outputs.append(f"\n- Worker Agent Executed: {tool_call.function.name}.") # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
-
-            # Join all tool outputs into a single string
-            output = "\n\n".join(tool_outputs)
-
-            # Stop the execution timer
-            execution_time = time.time() - start_time
-            self.logger.info(f"{self.agent_name} completed task in {execution_time:.2f} seconds")
-        
-            
-            return AgentResult(
-                agent_name=self.agent_name,
-                task=task_str,
-                output=output,
-                tool_calls=tool_calls,
-                tool_results=tool_results,
-            )
-
-        except Exception as e:
-            execution_time = time.time() - start_time
-            error_msg = f"Error executing task: {str(e)}\n{traceback.format_exc()}"
-            self.logger.error(f"{self.agent_name} failed task in {execution_time:.2f} seconds: {error_msg}")
-            
-            return AgentResult(
-                agent_name=self.agent_name,
-                task=task_str,
-                output=error_msg,
-                tool_calls=[],
-                tool_results=[]
-            )
 
 def get_current_time():
     location = "Europe/Berlin"
