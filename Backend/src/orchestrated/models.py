@@ -56,22 +56,3 @@ class IterationAdvice(BaseModel):
     should_retry: bool = Field(..., description="Whether retrying would be beneficial")
     needs_follow_up: bool = Field(default=False, description="Whether follow-up information is needed")
     follow_up_question: Optional[str] = Field(default=None, description="Follow-up question if needed")
-
-class ChatMessage(BaseModel):
-    """Model for storing chat history messages"""
-    role: str = Field(..., description="Role of the message sender (user/assistant)")
-    content: str = Field(..., description="Content of the message")
-    timestamp: Optional[str] = Field(default=None, description="Timestamp of the message")
-
-class AgentPlannerResult(BaseModel):
-    """Model for storing agent planner results"""
-    thinking: List[str] = Field(..., description="Step by step thinking process")
-    function_calls: List[Dict[str, Any]] = Field(..., description="List of planned function calls")
-    needs_follow_up: bool = Field(default=False, description="Whether follow-up information is needed")
-    follow_up_question: Optional[str] = Field(default=None, description="Follow-up question if needed")
-
-class PlannerOutput(BaseModel):
-    """Model for the planner's structured output"""
-    reasoning: str = Field(..., description="Short and precise thinking process on how to solve the task")
-    execution_steps: List[Dict[str, Any]] = Field(..., description="List of concrete function calls to make, in sequential order if they depend on each other")
-    sequential: bool = Field(default=False, description="Whether the steps must be executed in sequence")
