@@ -19,20 +19,21 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
+              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
               style="max-width: 1000px">
 
             <!-- Chat Window -->
-            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-2': !isMobile}">
+            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-3': !isMobile}">
 
                 <!-- chat bubbles -->
-                <div v-for="{ content, elementId, isUser } in this.messages">
+                <div v-for="{ elementId, isUser, content, isLoading } in this.messages">
                     <Chatbubble
                         :element-id="elementId"
                         :is-user="isUser"
                         :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
+                        :initial-loading="isLoading"
                         :ref="elementId"
                     />
                 </div>
@@ -96,6 +97,7 @@
 </template>
 
 <script>
+import {nextTick} from "vue";
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
@@ -160,7 +162,7 @@ export default {
     methods: {
         updateTheme() {
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.updateDebugColors(this.isDarkScheme)
+            this.updateDebugColors();
         },
 
         async textInputCallback(event) {
@@ -178,10 +180,13 @@ export default {
             }
         },
 
+        /** todo: check if ai bubble? */
         getLastBubble() {
-            if (this.messages.length === 0) return null;
+            if (this.messages.length === 0) {
+                throw Error('Tried to get the last chat bubble when none exist. This should not happen.');
+            }
             const refId = this.messages[this.messages.length - 1].elementId;
-            return this.$refs[refId];
+            return this.$refs[refId][0];
         },
 
         isStreamingBackend() {
@@ -193,115 +198,24 @@ export default {
             this.showExampleQuestions = false;
             const currentMessageCount = this.messageCount;
             this.messageCount++;
-            const debugMessageLength = this.$refs.sidebar.debugMessages.length;
             this.accumulatedContent = ''; // Reset accumulated content for new message
-            this.addChatBubble(userText, true);
+            await this.addChatBubble(userText, true, false);
             try {
                 if (this.isStreamingBackend()) {
-                    // Initialize with preparing message
-                    this.statusMessages[currentMessageCount] = new Map();
-                    const systemMessage = this.getDebugLoadingMessage('preparing');
-                    this.statusMessages[currentMessageCount].set('preparing', systemMessage + ' ...');
-                    this.editTextSpeechBubbleAI(Array.from(this.statusMessages[currentMessageCount].values()).join('\n'), currentMessageCount);
+                    await this.addChatBubble('', false, true);
 
-                    // Show loading indicator for initial message
-                    const aiBubble = document.getElementById(`${currentMessageCount}`);
-                    if (aiBubble) {
-                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                        if (loadingContainer) {
-                            loadingContainer.classList.remove('hidden');
-                        }
-                    }
+                    // await this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
+                    this.scrollDownChat();
 
-                    const preparingColor = this.getDebugColor('preparing', this.isDarkScheme);
-                    this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
-                    this.scrollDown(false);
-
+                    // create websocket
                     const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
-
-                    socket.onmessage = (event) => {
-                        const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-                        if (result.hasOwnProperty("agent")) {
-                            // Mark system preparation as complete on first agent message
-                            if (this.statusMessages[currentMessageCount].has('preparing')) {
-                                const preparingMessage = this.getDebugLoadingMessage('preparing');
-                                this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
-                            }
-
-                            if (result.agent === 'assistant') {
-                                // Accumulate content for streaming without coloring
-                                if (!this.accumulatedContent) {
-                                    this.accumulatedContent = '';
-                                    // Hide loading indicator on first chunk
-                                    const aiBubble = document.getElementById(`${currentMessageCount}`);
-                                    if (aiBubble) {
-                                        const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                                        if (loadingContainer) {
-                                            loadingContainer.classList.add('hidden');
-                                        }
-                                    }
-                                }
-                                this.accumulatedContent += result.content;
-                                // Apply markdown parsing to the entire accumulated content
-                                const formattedContent = marked.parse(this.accumulatedContent);
-                                this.editTextSpeechBubbleAI(formattedContent, currentMessageCount, true, false); // Pass false to prevent loading indicator changes
-                                // Remove any active glow animation for assistant content
-                                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                            } else {
-                                // Agent messages are intermediate results
-                                this.addDebugToken(result, currentMessageCount);
-                            }
-                            this.scrollDown(true);
-                        } else {
-                            // Last message received should be final response
-                            this.editTextSpeechBubbleAI(result.content, currentMessageCount);
-                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-
-                            // Put the final response into the accumulated content
-                            this.accumulatedContent = result.content;
-
-                            // Hide loading indicator
-                            const aiBubble = document.getElementById(`${currentMessageCount}`);
-                            if (aiBubble) {
-                                const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                                if (loadingContainer) {
-                                    loadingContainer.classList.add('hidden');
-                                }
-                            }
-
-                            // Handle Debug Message in Chat Bubble
-                            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-                        }
-                    };
-
-                    socket.onopen = () => {
-                        const inputData = {user_query: userText, api_key: this.apiKey};
-                        socket.send(JSON.stringify(inputData));
-                    };
-
-                    socket.onclose = () => {
-                        if (!this.isFinished) {
-                            this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
-                        }
-                        console.log("WebSocket connection closed");
-                        // Get the final accumulated content and message ID for speech
-                        if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                            if (this.accumulatedContent) {
-                                this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
-                                this.autoSpeakNextMessage = false;
-                            }
-                        }
-                    };
-
-                    socket.onerror = (error) => {
-                        if (!this.isFinished) {
-                            this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
-                        }
-                        console.log("Received error: ", error);
-                    }
+                    socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
+                    socket.onmessage = event => this.handleStreamingSocketMessage(event, currentMessageCount);
+                    socket.onclose   = ()    => this.handleStreamingSocketClose(currentMessageCount);
+                    socket.onerror   = error => this.handleStreamingSocketError(error, currentMessageCount);
                 } else {
-                    this.addChatBubble('Generating your answer...', false); // todo: translation
-                    this.scrollDown(false)
+                    await this.addChatBubble('Generating your answer...', false, true); // todo: translation
+                    this.scrollDownChat()
 
                     const result = await sendRequest(
                         "POST",
@@ -312,23 +226,92 @@ export default {
                     if (result.data.error) {
                         this.addDebug(result.data.error)
                     }
-                    this.editTextSpeechBubbleAI(answer, currentMessageCount)
-                    this.scrollDown(false);
+                    await this.editTextSpeechBubbleAI(answer, false);
+                    this.scrollDownChat();
+
                     this.processDebugInput(result.data.agent_messages, currentMessageCount);
-                    this.scrollDown(true);
+                    this.scrollDownDebug();
 
                     // Generate audio for the response if needed
                     if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                        this.generateAudioForMessage(currentMessageCount, answer);
+                        await this.generateAudioForMessage(currentMessageCount, answer);
                         this.autoSpeakNextMessage = false;
                     }
                 }
             } catch (error) {
                 console.error(error);
-                this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
-                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                this.scrollDown(false);
+                const aiBubble = this.getLastBubble();
+                aiBubble.toggleLoading(false);
+                aiBubble.toggleError(true);
+                await this.editTextSpeechBubbleAI("Error while fetching data: " + error, false);
+                await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+                this.scrollDownChat();
             }
+        },
+
+        async handleStreamingSocketOpen(socket, userText) {
+            const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
+            socket.send(inputData);
+        },
+
+        async handleStreamingSocketMessage(event, currentMessageCount) {
+            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+            const aiBubble = this.getLastBubble();
+
+            console.log('socket message result', result);
+
+            if (result.hasOwnProperty("agent")) {
+                if (result.agent === 'assistant') {
+                    aiBubble.toggleLoading(false);
+                    const formattedContent = marked.parse(result.content);
+                    await this.editTextSpeechBubbleAI(formattedContent, true);
+
+                    // Remove any active glow animation for assistant content
+                    // await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+                } else {
+                    // Agent messages are intermediate results
+                    await this.addDebugToken(result, currentMessageCount);
+                }
+                this.scrollDownDebug();
+            } else {
+                // Last message received should be final response
+                aiBubble.toggleError(!!result.error);
+                const content = result.error ?? result.content;
+                await this.editTextSpeechBubbleAI(content, false);
+                await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+                aiBubble.toggleLoading(false);
+
+                // todo: needed? Put the final response into the accumulated content
+                this.accumulatedContent = result.content;
+            }
+        },
+
+        async handleStreamingSocketClose(currentMessageCount) {
+            console.log("WebSocket connection closed", this.isFinished);
+            if (!this.isFinished) {
+                const message = "It seems there was a problem during the response generation...";
+                await this.handleUnexpectedConnectionClosed(message, currentMessageCount);
+            }
+            // Get the final accumulated content and message ID for speech
+            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                if (this.accumulatedContent) {
+                    await this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
+                    this.autoSpeakNextMessage = false;
+                }
+            }
+
+            this.isFinished = true;
+        },
+
+        async handleStreamingSocketError(error, currentMessageCount) {
+            if (!this.isFinished) {
+                const message = "I encountered the following error during the response generation: " + error.toString();
+                await this.handleUnexpectedConnectionClosed(message, currentMessageCount);
+            }
+            console.log("Received error: ", error);
+
+            // todo: does this also close the socket?
+            this.isFinished = true;
         },
 
         async startRecognition() {
@@ -369,72 +352,50 @@ export default {
             this.$refs.sidebar.debugMessages = []
             if (!this.isMobile) {
                 // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
-                this.addChatBubble(conf.translations[this.language].welcome, false);
+                await this.addChatBubble(conf.translations[this.language].welcome, false, false);
             }
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
         },
 
-        createSpeechBubbleAI(content) {
-            const elementId = `chatbubble-${this.messages.length}-ai`;
-            const message = { content: content, elementId: elementId, isUser: false };
-            this.messages.push(message);
-            this.scrollDown(false);
-        },
-
-        addChatBubble(content, isUser = false) {
+        /**
+         * @param content {string} initial chatbubble content
+         * @param isUser {boolean} whether the message is by the user or the AI
+         * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
+         * later (streaming responses etc.)
+         */
+        async addChatBubble(content, isUser = false, isLoading = false) {
             const elementId = `chatbubble-${this.messages.length}`;
-            const message = { content: content, elementId: elementId, isUser: isUser };
+            const message = { elementId: elementId, isUser: isUser, content: content, isLoading: isLoading };
             this.messages.push(message);
-            this.scrollDown(false);
+
+            // wait for the next rendering tick so that the component is mounted
+            await nextTick();
+            this.scrollDownChat();
         },
 
-        bindDebugMsgToBubble(currentMessageCount, debugMessageLength) {
-            // Append the debug messages generated during this request to the ai message bubble
-            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
-            const debugMessages = this.$refs.sidebar.debugMessages;
-            if (aiBubble) {
-                for (let i = debugMessageLength; i < debugMessages.length; i++) {
-                    let d1 = document.createElement("div");
-                    d1.className = "bubble-debug-text";
-                    d1.textContent = debugMessages.at(i).text;
-                    d1.style.color = debugMessages.at(i).color;
-                    d1.dataset.type = debugMessages.at(i).type;
-                    aiBubble.append(d1);
-                }
-            }
+        async handleUnexpectedConnectionClosed(message, currentMessageCount) {
+            console.log('Connection closed unexpectedly', message, currentMessageCount);
+            await this.editTextSpeechBubbleAI(message, false);
+            await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
-            // Make expand debug button appear
-            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
-            debugToggle.style.display = 'block';
-            this.scrollDown(false);
-            this.isFinished = true
+            const aiBubble = this.getLastBubble();
+            aiBubble.toggleLoading(false);
+            aiBubble.toggleError(true);
         },
 
-        handleUnexpectedConnectionClosed(message, currentMessageCount, debugMessageLength) {
-            this.editTextSpeechBubbleAI(message, currentMessageCount);
-            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-
-            const aiBubble = document.getElementById(`${currentMessageCount}`);
-            const messageContainer = aiBubble.querySelector("#messageContainer");
-            messageContainer.style.color = "red"
-
-            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-            if (loadingContainer) {
-                loadingContainer.classList.add('hidden');
-            }
+        scrollDownChat() {
+            const div = document.getElementById('chat1');
+            div.scrollTop = div.scrollHeight;
+        },
+        
+        scrollDownDebug() {
+            const div = document.getElementById('debug-console');
+            div.scrollTop = div.scrollHeight;
         },
 
-        scrollDown(debug) {
-            const chatDiv = debug
-                ? document.getElementById('debug-console')
-                : document.getElementById('chat1');
-            chatDiv.scrollTop = chatDiv.scrollHeight;
-        },
-
-        getDebugColor(agentName, darkScheme) {
-            return (debugColors[agentName] ?? defaultDebugColors)[darkScheme ? 0 : 1];
+        getDebugColor(agentName) {
+            return (debugColors[agentName] ?? defaultDebugColors)[this.isDarkScheme ? 0 : 1];
         },
 
         getDebugLoadingMessage(agentName) {
@@ -442,42 +403,34 @@ export default {
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
-        addDebugToken(agent_message, messageCount) {
-            const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
-            const message = this.getDebugLoadingMessage(agent_message["agent"]);
+        async addDebugToken(agent_message) {
+            const aiBubble = this.getLastBubble();
+            const agentName = agent_message.agent;
+            const color = this.getDebugColor(agentName);
+            const message = this.getDebugLoadingMessage(agentName);
 
-            // Initialize status messages for this messageCount if not exists
-            if (!this.statusMessages[messageCount]) {
-                this.statusMessages[messageCount] = new Map();
-            }
-
-            // Update status message for this agent
+            // add debug token as status message (also adds as debug message)
             if (message) {
-                // Mark previous agent's message as completed
-                for (const [agent, status] of this.statusMessages[messageCount].entries()) {
-                    if (status.endsWith('...')) {
-                        this.statusMessages[messageCount].set(agent, status.replace('...', '✓'));
-                    }
-                }
-                // Set current agent's message
-                this.statusMessages[messageCount].set(agent_message["agent"], message + ' ...');
+                aiBubble.addStatusMessage(message, 'pending', {color: color});
+                // await this.editAnimationSpeechBubbleAI(messageCount, true, color);
+            } else if (agentName === 'system') {
+                aiBubble.addDebugMessage(agent_message.content.trim(), {color: color});
             }
 
-            // Build cumulative status message from all agents
-            const statusMessage = Array.from(this.statusMessages[messageCount].values()).join('\n');
-
-            // Change the loading message and color depending on the currently received agent message
-            this.editTextSpeechBubbleAI(statusMessage, messageCount);
-            this.editAnimationSpeechBubbleAI(messageCount, true, color);
-
+            // log tool output
             if (agent_message["tools"].length > 0) {
                 const tool_output = agent_message["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
-                ).join("\n\n")
-                this.addDebug(tool_output, color, agent_message["agent"] + "-Tools");
+                ).join("\n\n");
+                const type = agent_message["agent"] + "-Tools"
+                this.addDebug(tool_output, color, type);
+            }
 
-            } else if (agent_message["content"] !== "") {
-                this.addDebug(agent_message["content"], color, agent_message["agent"]);
+            // log agent message
+            if (agent_message["content"] !== "") {
+                const text = agent_message["content"];
+                const type = agent_message["agent"];
+                this.addDebug(text, color, type);
             }
         },
 
@@ -490,7 +443,7 @@ export default {
 
             // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
             for (const message of agent_messages) {
-                const color = this.getDebugColor(message["agent"], this.isDarkScheme);
+                const color = this.getDebugColor(message["agent"]);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = [
                     message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
@@ -512,39 +465,20 @@ export default {
             }
         },
 
-        updateDebugColors(darkScheme) {
+        updateDebugColors() {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
             debugElements.forEach((element) => {
-                element.style.color = this.getDebugColor(element.dataset.type ?? "", darkScheme);
+                element.style.color = this.getDebugColor(element.dataset.type ?? "");
             });
         },
 
         addDebug(text, color, type) {
-            const debugMessages = this.$refs.sidebar.debugMessages;
-
-            // If the message includes tools, the message needs to be replaced instead of appended
-            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && type === "Tool Generator-Tools" && text) {
-                debugMessages[debugMessages.length - 1] = {
-                    text: text,
-                    color: color,
-                    type: "Tool Generator-Tools",
-                }
-            }
-            // If the message has the same type as before but is not a tool, append the token to the text
-            else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
-                debugMessages[debugMessages.length - 1].text += `${text}`
-            }
-            // If the message has a new type, assume it is the beginning of a new agent message
-            else {
-                debugMessages.push({
-                    text: text,
-                    color: color,
-                    type: type,
-                });
-            }
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(text, color, type);
         },
 
-        editAnimationSpeechBubbleAI(active, color) {
+        // todo: recreate effect? does not currently do anything with new chatbubble component
+        async editAnimationSpeechBubbleAI(active, color) {
             const aiBubble = this.getLastBubble().getElement();
             if (!aiBubble) return;
 
@@ -583,14 +517,14 @@ export default {
             }
         },
 
-        editTextSpeechBubbleAI(text, isStatusMessage = false) {
-            const lastBubble = this.getLastBubble();
-            if (!lastBubble) {
-                this.addChatBubble(text, false);
+        async editTextSpeechBubbleAI(text, isStatusMessage = false) {
+            const aiBubble = this.getLastBubble();
+            if (!aiBubble) {
+                await this.addChatBubble(text, false, true);
             } else if (isStatusMessage) {
-                lastBubble.addStatusMessage(text);
+                aiBubble.addStatusMessage(text);
             } else {
-                lastBubble.setContent(text);
+                aiBubble.setContent(text);
             }
         },
 
@@ -758,7 +692,7 @@ export default {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
         if (!this.isMobile) {
-            this.addChatBubble(conf.translations[this.language].welcome, false);
+            await this.addChatBubble(conf.translations[this.language].welcome, false, false);
         }
 
         const questions = conf.DefaultQuestions;
@@ -962,16 +896,6 @@ export default {
         background-color: var(--background-dark);
     }
 
-    .chat-user {
-        background-color: var(--chat-user-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .chat-ai {
-        background-color: var(--chat-ai-dark);
-        color: var(--text-primary-dark);
-    }
-
     .input-container {
         background-color: var(--background-dark);
         border-color: var(--border-dark);
@@ -1026,37 +950,6 @@ export default {
         border-color: var(--primary-dark);
     }
 
-    .chaticon {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-}
-
-#chatDebug {
-    background-color: var(--surface-light);
-    border-radius: var(--border-radius-lg);
-    padding: 1rem;
-    box-shadow: var(--shadow-md);
-}
-
-@media (prefers-color-scheme: dark) {
-    #chatDebug {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .debug-toggle {
-        color: var(--text-secondary-dark);
-    }
-
-    .debug-toggle:hover {
-        color: var(--text-primary-dark);
-    }
-
-    .bubble-debug-text {
-        background-color: var(--surface-dark);
-        color: var(--text-secondary-dark);
-    }
 }
 
 /* Override any Bootstrap input group border radius styles */
@@ -1065,37 +958,6 @@ export default {
 .input-group > .form-control:not(:last-child),
 .input-group > .form-control:not(:first-child) {
     border-radius: 1.5rem !important;
-}
-
-.bubble-debug-text {
-    font-size: 0.875rem;
-    color: var(--text-secondary-light);
-    padding: 0.5rem 0.75rem;
-    margin-top: 0.5rem;
-    background-color: transparent;
-}
-
-.debug-toggle {
-    cursor: pointer;
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--text-secondary-light);
-    transition: color 0.2s ease;
-    padding: 0.25rem;
-}
-
-/* todo: remove in favor of fa spinner? */
-.loader {
-    border: 2px solid transparent;
-    border-top: 2px solid #3498db;
-    border-radius: 50%;
-    width: 14px;
-    height: 14px;
-    animation: spin 1s linear infinite;
-    margin-right: 8px;
 }
 
 @keyframes spin {

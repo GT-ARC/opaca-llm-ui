@@ -46,7 +46,7 @@
                         <input id="opacaUrlInput" type="text"
                                class="form-control m-0"
                                v-model="opacaRuntimePlatform"
-                               :placeholder="getConfig().translations[language].opacaLocation" />
+                               :placeholder="conf.translations[language].opacaLocation" />
                     </div>
 
                     <div class="py-2 text-start">
@@ -67,7 +67,7 @@
 
                     </div>
 
-                    <div class="py-2 text-start" v-if="getConfig().ShowApiKey">
+                    <div class="py-2 text-start" v-if="conf.ShowApiKey">
                         <input id="apiKey" type="password"
                                class="form-control m-0"
                                placeholder="OpenAI API Key"
@@ -187,7 +187,7 @@
                 <div v-show="isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
-                        :questions="getConfig().translations[language].sidebarQuestions"
+                        :questions="conf.translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
                         @category-selected="(category) => $emit('category-selected', category)"
                         ref="sidebar_questions" />
@@ -220,7 +220,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { isMobile, screenWidth };
+        return { conf, isMobile, screenWidth };
     },
     data() {
         return {
@@ -242,10 +242,6 @@ export default {
         };
     },
     methods: {
-        getConfig() {
-            return conf;
-        },
-
         selectView(key) {
             if (this.selectedView !== key) {
                 this.selectedView = key;
@@ -277,7 +273,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView(this.getConfig().DefaultSidebarView);
+                    this.selectView(conf.DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -420,6 +416,29 @@ export default {
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
+        },
+
+        addDebugMessage(text, color, type) {
+            if (!text) return;
+            const message = {text: text, color: color, type: type};
+
+            // if there are no messages yet, just push the new one
+            if (this.debugMessages.length === 0) {
+                this.debugMessages.push(message);
+                return;
+            }
+
+            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
+            if (lastMessage.type === type && type === 'Tool Generator-Tools') {
+                // If the message includes tools, the message needs to be replaced instead of appended
+                this.debugMessages[this.debugMessages.length - 1] = message;
+            } else if (lastMessage.type === type) {
+                // If the message has the same type as before but is not a tool, append the token to the text
+                lastMessage.text += text;
+            } else {
+                // new message type
+                this.debugMessages.push(message);
+            }
         }
     },
     mounted() {

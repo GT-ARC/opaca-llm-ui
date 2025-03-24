@@ -26,22 +26,25 @@
             <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2">
                 <div class="d-flex justify-content-start">
                     <!-- loading spinner -->
-                    <div id="loadingContainer">
-                        <div v-show="this.isLoading" class="loader"></div>
+                    <div v-show="this.isLoading">
+                        <i class="fa fa-spin fa-circle-o-notch me-1" />
+                    </div>
+
+                    <!-- error indicator -->
+                    <div v-show="this.isError">
+                        <i class="fa fa-exclamation-circle text-danger me-1" />
                     </div>
 
                     <!-- content, either status messages or actual response -->
-                    <div class="message-text">
-                        <div v-if="this.isLoading">
-                            <div v-for="{ content, mode } in this.statusMessages" :key="content">
-                                <div v-if="mode === 'normal'">{{ content }}</div>
-                                <div v-if="mode === 'pending'">{{ content }}...</div>
-                                <div v-if="mode === 'done'">{{ content }}✓</div>
-                            </div>
+                    <div v-if="this.isLoading" class="message-text" :class="{'text-danger': isError}">
+                        <div v-for="{ content, mode } in this.statusMessages" :key="content">
+                            <div v-if="mode === 'normal'">{{ content }}</div>
+                            <div v-if="mode === 'pending'">{{ content }} ...</div>
+                            <div v-if="mode === 'done'">{{ content }} ✓</div>
                         </div>
-                        <div v-else>
-                            <div v-html="this.getFormattedContent()" />
-                        </div>
+                    </div>
+                    <div v-else class="message-text" :class="{'text-danger': isError}">
+                        <div v-html="this.getFormattedContent()" />
                     </div>
 
                 </div>
@@ -67,10 +70,11 @@
                 <div v-show="this.isDebugExpanded">
                     <hr class="debug-separator">
                     <div class="bubble-debug-text">
-                        <div v-for="{ content, mode } in this.debugMessages">
+                        <div v-for="{ content, mode, options } in this.debugMessages"
+                             :style="{ color: (options && options.color) ? options.color : null }">
                             <div v-if="mode === 'normal'">{{ content }}</div>
-                            <div v-if="mode === 'pending'">{{ content }}...</div>
-                            <div v-if="mode === 'done'">{{ content }}✓</div>
+                            <div v-if="mode === 'pending'">{{ content }} ...</div>
+                            <div v-if="mode === 'done'">{{ content }} ✓</div>
                         </div>
                     </div>
                 </div>
@@ -93,6 +97,7 @@ export default {
         isVoiceServerConnected: Boolean,
         isDarkScheme: Boolean,
         initialContent: String,
+        initialLoading: Boolean,
     },
     data() {
         return {
@@ -100,8 +105,9 @@ export default {
             statusMessages: [],
             debugMessages: [],
             isDebugExpanded: false,
-            isLoading: false,
+            isLoading: this.initialLoading ?? false,
             isAudioPlaying: false,
+            isError: false
         }
     },
 
@@ -110,9 +116,14 @@ export default {
             return document.getElementById(this.elementId);
         },
 
+        /**
+         * @param text {string}
+         * @param mode {string} any of 'normal', 'pending' or 'done'
+         * @param options {Object}
+         */
         addStatusMessage(text, mode = 'normal', options = null) {
+            if (!text || !text.trim()) return;
             text = text.trim();
-            if (!text) return;
             if (mode !== 'normal') {
                 this.markStatusMessagesDone();
             }
@@ -121,17 +132,30 @@ export default {
             this.debugMessages.push(msg);
         },
 
+        /**
+         * add non-status debug message
+         * @param text {string}
+         * @param options {Object}
+         */
+        addDebugMessage(text, options = null) {
+            if (!text || !text.trim()) return;
+            text = text.trim();
+            const msg = {content: text, mode: 'normal', options: options};
+            this.debugMessages.push(msg);
+        },
+
+        /**
+         * mark _all_ pending status and debug messages done
+         */
         markStatusMessagesDone() {
-            this.statusMessages
+            [...this.statusMessages, ...this.debugMessages]
                 .filter(msg => msg.mode === 'pending')
                 .forEach(msg => msg.mode = 'done');
         },
 
         getFormattedContent() {
             try {
-                const ft = marked.parse(this.content);
-                console.log(ft)
-                return ft;
+                return marked.parse(this.content);
             } catch (e) {
                 console.error('Failed to parse chat bubble content:', e);
                 return this.content;
@@ -147,16 +171,20 @@ export default {
                 ? value : !this.isLoading;
         },
 
+        toggleError(value = null) {
+            this.isError = value !== null
+                ? value : !this.isError;
+        },
+
         clear() {
             this.content = '';
             this.statusMessages = [];
             this.debugMessages = [];
             this.isDebugExpanded = false;
             this.isLoading = false;
+            this.isAudioPlaying = false;
+            this.isError = false;
         }
-    },
-    onmounted() {
-        this.isLoading = true;
     }
 }
 </script>
@@ -183,11 +211,6 @@ export default {
     width: 100%;
     will-change: box-shadow;
     transition: box-shadow 0.3s ease;
-}
-
-.message-content {
-    align-items: flex-start;
-    gap: 0.75rem;
 }
 
 .message-text {
@@ -222,7 +245,7 @@ export default {
     margin-top: 0.5rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.25rem;
     color: var(--text-secondary-light);
     transition: color 0.2s ease;
     padding: 0.25rem;
@@ -253,6 +276,21 @@ export default {
     .chatbubble {
         background: var(--chat-ai-dark);
         color: var(--text-primary-dark);
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .chatbubble-user {
+        margin-right: 0;
+    }
+
+    .chatbubble-ai {
+        margin-left: 0;
+    }
+
+    .chaticon {
+        padding: 0.5rem;
+        margin: 0 0.25rem;
     }
 }
 

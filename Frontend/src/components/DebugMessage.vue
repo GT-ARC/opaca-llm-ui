@@ -1,12 +1,12 @@
 <!-- Debug Message Component -->
 <template>
-    <div class="debug-text" :style="{ color: color }" :data-type="type">
+    <div class="debug-text" :style="{ color: this.color }" :data-type="type">
         <div class="debug-header">{{ type }}</div>
         <div class="debug-content">{{ text }}</div>
         <div v-if="executionTime" class="debug-execution-time">
             Execution time: {{ executionTime.toFixed(2) }}s
         </div>
-        <div v-if="responseMetadata.total_tokens > 0" class="debug-execution-time">
+        <div v-if="responseMetadata && responseMetadata.total_tokens > 0" class="debug-execution-time">
             Tokens (Prompt, Complete): {{responseMetadata.total_tokens}} ({{responseMetadata.prompt_tokens}}, {{responseMetadata.completion_tokens}})
         </div>
     </div>

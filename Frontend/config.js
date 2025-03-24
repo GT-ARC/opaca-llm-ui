@@ -32,7 +32,7 @@ var config = {
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
-    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
+    ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? true,
 
     languages: {
         GB: 'en-GB',
@@ -50,7 +50,7 @@ var config = {
     DefaultSidebarView: 'questions',
 
 
-    translations:{
+    translations: {
         GB: {
             name: "English",
             language: 'Language',
