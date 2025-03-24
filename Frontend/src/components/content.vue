@@ -542,8 +542,9 @@ export default {
             // If the message has the same type as before but is not a tool, append the token to the text
             else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
                 debugMessages[debugMessages.length - 1].text += `${text}`
-                debugMessages[debugMessages.length - 1].responseMetadata = responseMetadata;
-                debugMessages[debugMessages.length - 1].executionTime = executionTime;
+                debugMessages[debugMessages.length - 1].executionTime += executionTime;
+                debugMessages[debugMessages.length - 1].responseMetadata = this.sumObjectsByKey(debugMessages[debugMessages.length - 1].responseMetadata, responseMetadata);
+
             }
             // If the message has a new type, assume it is the beginning of a new agent message
             else if (text){
@@ -695,6 +696,17 @@ export default {
                 question: q.question,
                 icon: q.icon || currentCategory.icon // Fallback to category icon if question has no icon
             }));
+        },
+
+        sumObjectsByKey(...objs) {
+            // Helper function to add values of two dicts together
+            return objs.reduce((a, b) => {
+                for (let k in b) {
+                    if (b.hasOwnProperty(k))
+                    a[k] = (a[k] || 0) + b[k];
+                }
+            return a;
+            }, {});
         },
 
         updateSelectedCategory(category) {
