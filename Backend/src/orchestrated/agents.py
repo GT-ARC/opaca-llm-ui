@@ -357,14 +357,14 @@ class WorkerAgent(BaseAgent):
             }
         ]
 
-    async def invoke_tools(self, task_str, _tool_calls) -> AgentResult:
+    async def invoke_tools(self, task_str, message) -> AgentResult:
         # Iterate over all tool calls
         # Initialize tool calls and results lists
         tool_calls = []
         tool_results = []
         tool_outputs = []
 
-        for tool_call in _tool_calls:
+        for tool_call in message.tools:
             print(f'Received tool call: {tool_call}')
 
             # Log the tool call being made
@@ -393,6 +393,7 @@ class WorkerAgent(BaseAgent):
                     "name": tool_call["name"],
                     "result": str(e)
                 })
+                tool_call["result"] = str(e)
                 continue
 
             # Add the tool call and result to the lists
@@ -401,6 +402,7 @@ class WorkerAgent(BaseAgent):
                 "name": tool_call["name"],
                 "result": result
             })
+            tool_call["result"] = result
 
             # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
             # Format the result for output
