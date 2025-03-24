@@ -660,7 +660,7 @@ export default {
 
         setupTooltips() {
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
         },
@@ -1004,20 +1004,6 @@ export default {
     .input-group {
         padding: 0;
     }
-
-    .chat-user {
-        margin-right: 0;
-    }
-
-    .chat-ai {
-        margin-left: 0;
-    }
-
-    .chaticon {
-        padding: 0.5rem;
-        margin: 0 0.25rem;
-    }
-
 }
 
 /* ??? */
