@@ -3,6 +3,7 @@ import os
 import logging
 import time
 import traceback
+from collections import defaultdict
 from typing import Dict, Any, List, Tuple
 from pathlib import Path
 
@@ -36,7 +37,7 @@ from ..utils import openapi_to_functions
 class SelfOrchestratedBackend(AbstractMethod):
     NAME = "self-orchestrated"
 
-    def __init__(self, agents_file: str = "agents_tools.json"):
+    def __init__(self):
         # Set up logging
         self.logger = logging.getLogger("src.models")
         
@@ -111,7 +112,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             )
         }
 
-    async def execute_round_task(self, worker_agent, config, subtask, orchestrator_context, round_context, round_num, agent_messages):
+    async def execute_round_task(self, worker_agent, config, subtask, orchestrator_context, round_context, round_num, agent_messages, websocket):
         current_task = subtask.task
 
         # Build comprehensive context that includes:
@@ -130,7 +131,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             current_task = f"{current_task}\n\n{''.join(task_context)}"
 
         self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
-        result = await self.call_llm(
+        worker_message = await self.call_llm(
             agent="WorkerAgent",
             model=config["worker_model"],
             system_prompt=worker_agent.system_prompt(),
@@ -140,8 +141,9 @@ class SelfOrchestratedBackend(AbstractMethod):
             vllm_base_url=config["worker_base_url"],
             tools=worker_agent.tools
         )
-        agent_result = await worker_agent.invoke_tools(current_task, result)
-        agent_messages.append(result)
+        agent_result = await worker_agent.invoke_tools(current_task, worker_message)
+        agent_messages.append(worker_message)
+        await send_to_websocket(websocket, agent_message=worker_message)
         return agent_result
     
     async def _execute_round(
@@ -224,7 +226,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                                 for tr in prev_result.tool_results:
                                     round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
 
-                    round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num, agent_messages) for subtask in current_tasks])
+                    round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num, agent_messages, websocket) for subtask in current_tasks])
 
                     # Process round results
                     for result in round_results:
@@ -242,15 +244,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                     tool_calls=ex_tool_calls,
                     tool_results=ex_tool_results
                 )
-                
-                # Send only tool calls and results via websocket
-                if result.tool_calls:
-                    await send_to_websocket(websocket, "WorkerAgent", f"Tool calls:\n{json.dumps(result.tool_calls, indent=2)}\n\n")
-                
-                if result.tool_results:
-                    await send_to_websocket(websocket, "WorkerAgent", f"Tool results:\n{json.dumps(result.tool_results, indent=2)}")
-                else:
-                    await send_to_websocket(websocket, "WorkerAgent", f"No tool results for the task...")
             else:
                 await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n")
 
@@ -541,7 +534,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         response_format=iteration_advisor.schema
                     )
                     advice = advisor_message.formatted_output
-                    response.agent_message.append(advisor_message)
+                    response.agent_messages.append(advisor_message)
 
                     await send_to_websocket(websocket, agent_message=advisor_message)
 
@@ -587,7 +580,9 @@ Please address these specific improvements:
                 vllm_base_url=config["generator_base_url"],
                 websocket=websocket,
             )
+            final_output.agent = "OutputGenerator"
             response.agent_messages.append(final_output)
+            await send_to_websocket(websocket, agent_message=final_output)
 
             # Set the complete response content after streaming
             response.content = final_output.content
@@ -601,17 +596,16 @@ Please address these specific improvements:
             self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {response.execution_time:.2f} seconds\n\n")
 
             # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
-            execution_times = {msg.agent: f"{msg.execution_time:.2f} seconds" for msg in response.agent_messages if msg.execution_time is not None}
-
-            # Extract token usage from each agent message
+            execution_times_data = defaultdict(int)
             token_usage = {msg.agent: {'total_tokens': 0, 'prompt_tokens': 0, 'completion_tokens': 0} for msg in response.agent_messages}
             for msg in response.agent_messages:
+                execution_times_data[msg.agent] += msg.execution_time
                 token_usage[msg.agent]['total_tokens'] += msg.response_metadata.get('total_tokens', 0)
                 token_usage[msg.agent]['prompt_tokens'] += msg.response_metadata.get('prompt_tokens', 0)
                 token_usage[msg.agent]['completion_tokens'] += msg.response_metadata.get('completion_tokens', 0)
-            token_usage = {agent: f"{usage['total_tokens']} ({usage['prompt_tokens']}, {usage['completion_tokens']})" for agent, usage in token_usage.items()}
-            
 
+            execution_times = {agent: f"{data:.2f} seconds" for agent, data in execution_times_data.items()}
+            token_usage = {agent: f"{usage['total_tokens']} ({usage['prompt_tokens']}, {usage['completion_tokens']})" for agent, usage in token_usage.items()}
 
             # Send the execution times in a final websocket message from system agent
             await send_to_websocket(websocket, "system", f"⏱️ Execution Times:\n\nTotal Execution Time: {response.execution_time:.2f} seconds\n {json.dumps(execution_times, indent=2)}\n"
@@ -626,7 +620,7 @@ Please address these specific improvements:
             return response
 
     @staticmethod
-    async def get_general_agent_response(agent_summaries):
+    def get_general_agent_response(agent_summaries):
         return get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
             agent_capabilities=json.dumps(agent_summaries, indent=2)
         )

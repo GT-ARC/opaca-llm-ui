@@ -365,8 +365,6 @@ class WorkerAgent(BaseAgent):
         tool_outputs = []
 
         for tool_call in message.tools:
-            print(f'Received tool call: {tool_call}')
-
             # Log the tool call being made
             self.logger.info(f"Making tool call: {tool_call['name']}")
             self.logger.debug(f"Tool call arguments: {tool_call['args']}")
