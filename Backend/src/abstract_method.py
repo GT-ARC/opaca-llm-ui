@@ -112,7 +112,7 @@ class AbstractMethod(ABC):
         if response_format:
             if self._is_gpt(model):
                 completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
-                agent_message.content = completion.choices[0].message.content
+                content = completion.choices[0].message.content
                 agent_message.formatted_output = completion.choices[0].message.parsed
             else:
                 guided_json = transform_schema(response_format.model_json_schema())
@@ -122,7 +122,7 @@ class AbstractMethod(ABC):
                                                   f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
                 completion = await client.chat.completions.create(**kwargs)
-                agent_message.content = completion.choices[0].message.content
+                content = completion.choices[0].message.content
                 agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
             agent_message.response_metadata = completion.usage.to_dict()
         else:
@@ -204,7 +204,7 @@ class AbstractMethod(ABC):
 
         agent_message.content = content
 
-        logger.info(agent_message.content or agent_message.tools, extra={"agent_name": agent})
+        logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
 

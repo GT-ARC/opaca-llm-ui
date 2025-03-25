@@ -439,7 +439,15 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Iterate through every generated plan and add needed agents as worker agents
                 for task in plan.tasks:
-                    agent_name = task.agent_name
+                    # Match the generated agent name with all existing agents
+                    try:
+                        task.agent_name = agent_name = next(_name for _name in agent_details.keys() if _name in task.agent_name)
+                    except StopIteration:
+                        # If the generated agent name is invalid, assign the general agent to it
+                        task.task = (f"You have been given a task which was assigned to the agent {task.agent_name}. "
+                                     f"This agent does not exist however. Check if the task could be solved by the "
+                                     f"current environment. This was the original task:\n\n{task.task}")
+                        task.agent_name = agent_name = "GeneralAgent"
 
                     if agent_name not in worker_agents:
                         agent_data = agent_details[agent_name]["description"]
