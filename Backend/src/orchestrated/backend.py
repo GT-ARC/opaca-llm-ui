@@ -39,11 +39,6 @@ class SelfOrchestratedBackend(AbstractMethod):
     def __init__(self):
         # Set up logging
         self.logger = logging.getLogger("src.models")
-        
-        # Initialize session tracking
-        self.current_session_id = None
-        self.current_session_log = []
-        self.logged_interactions = set()  # Track unique interactions to prevent duplicates
 
     @property
     def config_schema(self) -> Dict[str, ConfigParameter]:
@@ -250,8 +245,8 @@ class SelfOrchestratedBackend(AbstractMethod):
                 if agent.agent_name == "GeneralAgent":
                     predefined_response = self.get_general_agent_response(agent_summaries)
                     worker_message = AgentMessage(
-                        agent="GeneralAgent",
-                        tools=[{"id": -1, "name": "GetCapabilities", "args": {}, "result": predefined_response}],
+                        agent="WorkerAgent",
+                        content="Called GeneralAgent!",
                     )
                     result = AgentResult(
                         agent_name="GeneralAgent",
@@ -274,7 +269,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                     result = await agent.invoke_tools(task.task, worker_message.tools)
                     agent_messages.append(worker_message)
                 
-                # Send only tool calls and results via websocket
+                # Send tool calls and results via websocket or generic GeneralAgent message
                 await send_to_websocket(websocket, agent_message=worker_message)
             
             if agent_evaluator and task.agent_name != "GeneralAgent":

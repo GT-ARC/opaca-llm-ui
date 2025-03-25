@@ -76,8 +76,8 @@ class OrchestratorAgent(BaseAgent):
         {self.remark}
 
         Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
-        If the user request requires a summary, NO seperate agent or function is needed for that, as the output generating agent will do that!
-        NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TAKS! 
+        If the user request requires a summary, NO separate agent or function is needed for that, as the output generating agent will do that!
+        NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TASK! 
         IF YOU SHOULD RETRIEVE AND SUMMARIZE INFORMATION, ONLY CREATE A TASK FOR THE RETRIEVAL, NOT FOR THE SUMMARIZATION!
         THE SUMMARIZATION HAPPENS AUTOMATICALLY AND NO ACTION FROM YOUR SIDE IS REQUIRED FOR THAT!!
 
