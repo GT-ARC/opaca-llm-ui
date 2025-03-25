@@ -26,8 +26,7 @@ from .agents import (
     AgentPlanner, get_current_time
 )
 from .models import (
-    AgentEvaluation, 
-    OverallEvaluation, 
+    AgentEvaluation,
     AgentResult,
     AgentTask
 )
@@ -519,7 +518,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 else:
                     await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}\n\nOverall evaluation complete ✓")
                             
-                if evaluation == OverallEvaluation.REITERATE:
+                if evaluation == AgentEvaluation.REITERATE:
                     # Get iteration advice before continuing
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 

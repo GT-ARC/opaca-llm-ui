@@ -31,13 +31,8 @@ class PlannerPlan(BaseModel):
 
 class AgentEvaluation(str, Enum):
     """Possible outcomes from the agent evaluator"""
-    REITERATE = "REITERATE"  # Agent should try again with new context
-    FINISHED = "FINISHED"    # Agent has completed its task successfully
-
-class OverallEvaluation(str, Enum):
-    """Possible outcomes from the overall evaluator"""
-    REITERATE = "REITERATE"  # Need more agent actions
-    FINISHED = "FINISHED"    # Ready for final output generation
+    REITERATE = "REITERATE"  # Should try again with new context
+    FINISHED = "FINISHED"    # Completed task successfully
 
 class AgentResult(BaseModel):
     """Model for storing results from an agent's execution"""

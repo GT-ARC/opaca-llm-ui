@@ -9,7 +9,7 @@ import pytz
 from ..models import ChatMessage
 from .models import (
     AgentTask, OrchestratorPlan, OrchestratorPlan_no_thinking, PlannerPlan, AgentEvaluation, 
-    OverallEvaluation, AgentResult, IterationAdvice
+    AgentResult, IterationAdvice
 )
 from .prompts import (
     BACKGROUND_INFO,
@@ -262,9 +262,9 @@ class OverallEvaluator(BaseAgent):
 
     @property
     def guided_choice(self):
-        return [e.value for e in OverallEvaluation]
+        return [e.value for e in AgentEvaluation]
 
-    def evaluate_results(self, current_results: List[AgentResult]) -> OverallEvaluation | None:
+    def evaluate_results(self, current_results: List[AgentResult]) -> AgentEvaluation | None:
         for result in current_results:
             # Check for errors in tool results
             for tool_result in result.tool_results:
@@ -274,7 +274,7 @@ class OverallEvaluator(BaseAgent):
                         "502" in tool_result["result"]
                 ):
                     self.logger.info(f"Found failed tool call in {result.agent_name}: {tool_result}")
-                    return OverallEvaluation.REITERATE
+                    return AgentEvaluation.REITERATE
 
             # Check for incomplete sequential operations
             if len(result.tool_calls) > 1:
@@ -282,14 +282,14 @@ class OverallEvaluator(BaseAgent):
                 for tool_call in result.tool_calls:
                     if '<' in tool_call["args"] and '>' in tool_call["args"]:
                         self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
-                        return OverallEvaluation.REITERATE
+                        return AgentEvaluation.REITERATE
 
                 # Check if we have all necessary results for sequential operations
                 tool_names = [tc["name"] for tc in result.tool_calls]
                 result_names = [tr["name"] for tr in result.tool_results]
                 if not all(tn in result_names for tn in tool_names):
                     self.logger.info(f"Missing tool results in {result.agent_name}")
-                    return OverallEvaluation.REITERATE
+                    return AgentEvaluation.REITERATE
         return None
 
 
