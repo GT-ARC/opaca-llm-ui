@@ -123,7 +123,7 @@ class AbstractMethod(ABC):
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
                 completion = await client.chat.completions.create(**kwargs)
                 content = completion.choices[0].message.content
-                agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
+                agent_message.formatted_output = response_format.model_validate_json(completion.choices[0].message.content)
             agent_message.response_metadata = completion.usage.to_dict()
         else:
             if guided_choice:
