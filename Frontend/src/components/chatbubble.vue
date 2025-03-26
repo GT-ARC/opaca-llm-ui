@@ -22,8 +22,7 @@
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
-        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
-             :style="this.glowStyle">
+        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2">
 
             <div class="d-flex justify-content-start">
                 <!-- loading spinner -->
@@ -59,7 +58,7 @@
                      data-toggle="tooltip" data-placement="down" title="Toggle Debug">
                     <i class="fa fa-bug" />
                 </div>
-                <div v-show="!this.isLoading"
+                <div v-show="!this.isLoading && this.isVoiceServerConnected"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
@@ -111,7 +110,6 @@ export default {
             ttsAudio: null,
             isAudioLoading: false,
             isAudioPlaying: false,
-            glowColor: '#00ff00'
         }
     },
 
@@ -138,11 +136,6 @@ export default {
                 // new message -> mark previous steps done
                 this.markStatusMessagesDone();
                 this.statusMessages.set(agent, {text: text, mode: mode, options: options});
-            }
-
-            // update glow animation color
-            if (options && options.color) {
-                this.glowColor = options.color;
             }
         },
 
@@ -254,7 +247,6 @@ export default {
         },
 
         startAudioPlayback() {
-            console.log('startAudioPlayback', this.canPlayAudio());
             if (!this.canPlayAudio()) return;
             if (this.isAudioPlaying) {
                 this.stopAudioPlayback();
@@ -282,13 +274,6 @@ export default {
 
         clearDebugMessages() {
             this.debugMessages = [];
-        },
-
-        glowStyle() {
-            return this.isLoading
-                    ? { animation: `glowEffect 1.5s infinite alternate`,
-                        '--glow-color': this.glowColor }
-                    : { animation: 'none' };
         },
 
         clear() {
@@ -362,19 +347,6 @@ export default {
 
 .footer-item:hover {
     color: var(--primary-light);
-}
-
-.glowing {
-    animation: glow 1.5s infinite alternate;
-}
-
-@keyframes glow {
-    from {
-        box-shadow: 0 0 5px rgba(0, 255, 0, 0.25);
-    }
-    to {
-        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-    }
 }
 
 @media (prefers-color-scheme: dark) {
