@@ -199,10 +199,6 @@ export default {
             return this.$refs[refId][0];
         },
 
-        isStreamingBackend() {
-            return ['tool-llm', 'rest-gpt', 'self-orchestrated'].includes(this.getBackend());
-        },
-
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
@@ -210,8 +206,10 @@ export default {
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
 
-            // add AI chat bubble in loading state
+            // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
+            this.getLastBubble().addStatusMessage('preparing',
+                this.getDebugLoadingMessage('preparing'), 'pending');
 
             try {
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
@@ -226,8 +224,8 @@ export default {
         },
 
         async handleStreamingSocketOpen(socket, userText) {
-            const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
             try {
+                const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
                 socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
@@ -240,18 +238,16 @@ export default {
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
             console.log('socket message result', result);
 
-            // todo: difference between assistant and output_generator?
-            if (result.hasOwnProperty("agent")) {
-                if (result.agent === 'assistant') {
-                    aiBubble.toggleLoading(false);
-                    aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
-                } else if (result.agent === 'output_generator' || result.agent === 'Tool Evaluator') {
-                    aiBubble.toggleLoading(false);
+            // todo: difference between assistant and output_generator? what of this is needed?
+            if (result.hasOwnProperty('agent')) {
+                if (result.agent === 'assistant'
+                    || result.agent === 'output_generator'
+                    || result.agent === 'Tool Evaluator') {
                     aiBubble.addContent(result.content);
                     await this.addDebugToken(result, false);
                 } else {
                     // Agent messages are intermediate results
+                    this.addStatusMessage(result);
                     await this.addDebugToken(result, false);
                 }
 
@@ -387,23 +383,25 @@ export default {
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
+        addStatusMessage(agentMessage) {
+            const aiBubble = this.getLastBubble();
+            const agentName = agentMessage.agent;
+            const color = this.getDebugColor(agentName);
+            const message = this.getDebugLoadingMessage(agentName);
+            if (message) {
+                aiBubble.markStatusMessagesDone();
+                aiBubble.addStatusMessage(agentName, message, 'pending', {color: color});
+            } else if (agentName === 'system') {
+                const content = agentMessage.content.trim();
+                aiBubble.addDebugMessage(content, {color: color});
+            }
+        },
+
         async addDebugToken(agentMessage, isStatusMessage = false) {
             const aiBubble = this.getLastBubble();
             const agentName = agentMessage.agent;
             const color = this.getDebugColor(agentName);
             const message = this.getDebugLoadingMessage(agentName);
-
-            // add debug token as status message (also adds as debug message)
-            if (message) {
-                if (isStatusMessage) {
-                    aiBubble.addStatusMessage(message, 'pending', {color: color});
-                } else {
-                    aiBubble.addDebugMessage(message, 'pending', {color: color});
-                }
-            } else if (agentName === 'system') {
-                const content = agentMessage.content.trim();
-                aiBubble.addDebugMessage(content, {color: color});
-            }
 
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
@@ -423,25 +421,6 @@ export default {
             }
         },
 
-        processDebugInput(agentMessages) {
-            console.log('processDebugInput:', agentMessages);
-            // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-            for (const message of agentMessages) {
-                const color = this.getDebugColor(message.agent);
-
-                // if tools have been generated, display the tools (no message was generated in that case)
-                const content = [
-                    message["tools"].length > 0 ? JSON.stringify(message.tools) : message.content,
-                    `Execution time: ${message.execution_time.toFixed(2)}s`
-                ].join('\n');
-
-                this.addDebug(content, color, message["agent"]);
-
-                const aiBubble = this.getLastBubble();
-                aiBubble.addDebugMessage(message, 'normal', {color: color});
-            }
-        },
-
         // todo: what does this do?
         updateDebugColors() {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
@@ -453,6 +432,8 @@ export default {
         addDebug(text, color, type) {
             const sidebar = this.$refs.sidebar;
             sidebar.addDebugMessage(text, color, type);
+            const aiBubble = this.getLastBubble();
+            aiBubble.addDebugMessage(text, color, type);
         },
 
         getBackend() {

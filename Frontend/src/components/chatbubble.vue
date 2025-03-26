@@ -2,7 +2,7 @@
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end mb-2">
+         class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user ms-auto me-2 p-3 mb-2">
             <div v-html="this.content" />
@@ -15,81 +15,79 @@
 
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
-         class="d-flex flex-row justify-content-start mb-2 w-100">
+         class="d-flex flex-row justify-content-start mb-4 w-100">
 
         <!-- ai icon -->
         <div class="chaticon">
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
-        <div>
-            <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2">
-                <div class="d-flex justify-content-start">
-                    <!-- loading spinner -->
-                    <div v-show="this.isLoading">
-                        <i class="fa fa-spin fa-circle-o-notch me-1" />
-                    </div>
+        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
+             :style="this.glowStyle">
 
-                    <!-- error indicator -->
-                    <div v-show="this.isError">
-                        <i class="fa fa-exclamation-circle text-danger me-1" />
-                    </div>
-
-                    <!-- content, either status messages or actual response -->
-                    <div v-if="this.isLoading && this.statusMessages.length > 0" class="message-text mb-4" :class="{'text-danger': isError}">
-                        <div v-for="{ content, mode } in this.statusMessages" :key="content">
-                            <div v-if="mode === 'normal'">{{ content }}</div>
-                            <div v-if="mode === 'pending'">{{ content }} ...</div>
-                            <div v-if="mode === 'done'">{{ content }} ✓</div>
-                        </div>
-                    </div>
-                    <div v-else class="message-text" :class="{'text-danger': isError}"
-                         v-html="this.getFormattedContent()"
-                    />
-
+            <div class="d-flex justify-content-start">
+                <!-- loading spinner -->
+                <div v-show="this.isLoading">
+                    <i class="fa fa-spin fa-circle-o-notch me-1" />
                 </div>
 
-                <!-- footer: debug, generate audio, ... -->
-                <div class="d-flex justify-content-start small">
-                    <div v-show="!this.isLoading && this.debugMessages.length > 0"
-                         class="footer-item w-auto me-2"
-                         style="cursor: pointer;"
-                         @click="this.isDebugExpanded = !this.isDebugExpanded"
-                         data-toggle="tooltip" data-placement="down" title="Toggle Debug">
-                        <i class="fa fa-bug" />
-                    </div>
-                    <div v-show="!this.isLoading"
-                         class="footer-item w-auto me-2"
-                         style="cursor: pointer;"
-                         @click="this.startAudioPlayback()">
-                        <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
-                           data-toggle="tooltip" data-placement="down" title="Audio is loading..." />
-                        <i v-else-if="this.isAudioPlaying" class="fa fa-stop"
-                           data-toggle="tooltip" data-placement="down" title="Stop Audio" />
-                        <i v-else class="fa fa-volume-up"
-                           data-toggle="tooltip" data-placement="down" title="Play Audio" />
-                    </div>
+                <!-- error indicator -->
+                <div v-show="this.isError">
+                    <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
 
-                <!-- footer: debug messages -->
-                <div v-show="this.isDebugExpanded">
-                    <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
-                        <div v-for="{ content, mode, options } in this.debugMessages"
-                             :style="{ color: (options && options.color) ? options.color : null }">
-                            <div v-if="mode === 'normal'">{{ content }}</div>
-                            <div v-if="mode === 'pending'">{{ content }} ...</div>
-                            <div v-if="mode === 'done'">{{ content }} ✓</div>
-                        </div>
+                <!-- content, either status messages or actual response -->
+                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text mb-4" :class="{'text-danger': isError}">
+                    <div v-for="[key, { text, mode }] in this.statusMessages.entries()" :key="key">
+                        <div v-if="mode === 'normal'">{{ text }}</div>
+                        <div v-if="mode === 'pending'">{{ text }} ...</div>
+                        <div v-if="mode === 'done'">{{ text }} ✓</div>
                     </div>
                 </div>
+                <div v-else class="message-text" :class="{'text-danger': isError}"
+                     v-html="this.getFormattedContent()"
+                />
 
             </div>
+
+            <!-- footer: debug, generate audio, ... -->
+            <div class="d-flex justify-content-start small">
+                <div v-show="!this.isLoading && this.debugMessages.length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isDebugExpanded = !this.isDebugExpanded"
+                     data-toggle="tooltip" data-placement="down" title="Toggle Debug">
+                    <i class="fa fa-bug" />
+                </div>
+                <div v-show="!this.isLoading"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.startAudioPlayback()">
+                    <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down" title="Audio is loading..." />
+                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop"
+                       data-toggle="tooltip" data-placement="down" title="Stop Audio" />
+                    <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down" title="Play Audio" />
+                </div>
+            </div>
+
+            <!-- footer: debug messages -->
+            <div v-show="this.isDebugExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
+                    <div v-for="{ text, options } in this.debugMessages"
+                         :style="{ color: (options && options.color) ? options.color : null }">
+                        <div>{{ text }}</div>
+                    </div>
+                </div>
+            </div>
+
         </div>
-    </div>`
+    </div>
 </template>
 
 <script>
-import { marked } from "marked";
+import {marked} from "marked";
 import conf from "../../config.js";
 
 export default {
@@ -105,7 +103,7 @@ export default {
     data() {
         return {
             content: this.initialContent ?? '',
-            statusMessages: [],
+            statusMessages: new Map(),
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
@@ -113,6 +111,7 @@ export default {
             ttsAudio: null,
             isAudioLoading: false,
             isAudioPlaying: false,
+            glowColor: '#00ff00'
         }
     },
 
@@ -122,40 +121,65 @@ export default {
         },
 
         /**
-         * @param text {string}
-         * @param mode {string} any of 'normal', 'pending' or 'done'
+         * @param agent {string} Name of the agent that caused this status message.
+         * @param text {string} Status message text content.
+         * @param mode {string} Any of 'normal', 'pending' or 'done'.
          * @param options {Object}
          */
-        addStatusMessage(text, mode = 'normal', options = null) {
+        addStatusMessage(agent, text, mode = 'normal', options = null) {
             if (!text || !text.trim()) return;
             text = text.trim();
-            if (mode !== 'normal') {
+            const message = this.statusMessages.get(agent);
+            if (message) {
+                message.text = text;
+                message.mode = mode;
+                message.options = options;
+            } else {
+                // new message -> mark previous steps done
                 this.markStatusMessagesDone();
+                this.statusMessages.set(agent, {text: text, mode: mode, options: options});
             }
-            const msg = {content: text, mode: mode, options: options};
-            this.statusMessages.push(msg);
-            this.debugMessages.push(msg);
+
+            // update glow animation color
+            if (options && options.color) {
+                this.glowColor = options.color;
+            }
         },
 
         /**
+         * todo: better way to do this, that doesnt copy the copy the code from the sidebar debug messages?
          * @param text {string}
-         * @param mode {string} any of 'normal', 'pending' or 'done'
-         * @param options {Object}
+         * @param color {string}
+         * @param type {string}
          */
-        addDebugMessage(text, mode = 'normal', options = null) {
-            if (!text || !text.trim()) return;
-            text = text.trim();
-            const msg = {content: text, mode: mode, options: options};
-            this.debugMessages.push(msg);
+        addDebugMessage(text, color, type) {
+            if (!text) return;
+            const message = {text: text, type: type, options: {color: color}};
+
+            // if there are no messages yet, just push the new one
+            if (this.debugMessages.length === 0) {
+                this.debugMessages.push(message);
+                return;
+            }
+
+            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
+            if (lastMessage.type === type && type === 'Tool Generator-Tools') {
+                // If the message includes tools, the message needs to be replaced instead of appended
+                this.debugMessages[this.debugMessages.length - 1] = message;
+            } else if (lastMessage.type === type) {
+                // If the message has the same type as before but is not a tool, append the token to the text
+                lastMessage.text += text;
+            } else {
+                // new message type
+                this.debugMessages.push(message);
+            }
         },
 
         /**
-         * mark _all_ pending status and debug messages done
+         * mark all pending status messages done
          */
         markStatusMessagesDone() {
-            const messages = [...this.statusMessages, ...this.debugMessages];
-            console.log('mark messages done: ', messages.length);
-            messages
+            Array.from(this.statusMessages.values())
                 .filter(msg => msg.mode === 'pending')
                 .forEach(msg => msg.mode = 'done');
         },
@@ -187,6 +211,9 @@ export default {
                 ? value : !this.isError;
         },
 
+        /**
+         * generate new audio for this message using the whisper voice server
+         */
         async generateAudio(voice = 'alloy') {
             if (!this.content) return;
             if (!this.isVoiceServerConnected) {
@@ -250,9 +277,18 @@ export default {
         },
 
         clearStatusMessages() {
-            this.statusMessages = [];
-            this.debugMessages = this.debugMessages
-                .filter(msg => msg.mode === 'normal');
+            this.statusMessages = new Map();
+        },
+
+        clearDebugMessages() {
+            this.debugMessages = [];
+        },
+
+        glowStyle() {
+            return this.isLoading
+                    ? { animation: `glowEffect 1.5s infinite alternate`,
+                        '--glow-color': this.glowColor }
+                    : { animation: 'none' };
         },
 
         clear() {
@@ -326,6 +362,19 @@ export default {
 
 .footer-item:hover {
     color: var(--primary-light);
+}
+
+.glowing {
+    animation: glow 1.5s infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 5px rgba(0, 255, 0, 0.25);
+    }
+    to {
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    }
 }
 
 @media (prefers-color-scheme: dark) {
