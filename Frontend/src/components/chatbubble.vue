@@ -72,7 +72,6 @@
 
                 <!-- footer: debug messages -->
                 <div v-show="this.isDebugExpanded">
-                    <hr class="debug-separator">
                     <div class="bubble-debug-text">
                         <div v-for="{ content, mode, options } in this.debugMessages"
                              :style="{ color: (options && options.color) ? options.color : null }">
@@ -353,6 +352,7 @@ export default {
     .chaticon {
         background: var(--chat-ai-dark);
     }
+
 }
 
 @media screen and (max-width: 768px) {

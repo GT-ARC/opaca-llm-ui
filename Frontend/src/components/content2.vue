@@ -55,9 +55,11 @@
                                 v-model="textInput"
                                 :placeholder="conf.translations[language].inputPlaceholder || 'Send a message...'"
                                 class="form-control overflow-hidden"
-                                style="resize: none; height: auto; max-height: 300px;"
+                                style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
-                                @input="textInputCallback"></textarea>
+                                @keydown="textInputCallback"
+                                @input="resizeTextInput"
+                      ></textarea>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
@@ -165,9 +167,18 @@ export default {
         },
 
         async textInputCallback(event) {
-            if (event.key === "Enter" && !event.shiftKey) {
+            console.log('textInputCallback', event, event.key, event.shiftKey);
+            if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
+            }
+        },
+
+        resizeTextInput(event) {
+            const textArea = event.target;
+            if (textArea) {
+                textArea.style.height = 'auto';
+                textArea.style.height = `${textArea.scrollHeight}px`;
             }
         },
 
@@ -241,7 +252,6 @@ export default {
                 aiBubble.toggleLoading(false);
                 aiBubble.toggleError(true);
                 await this.editTextSpeechBubbleAI("Error while fetching data: " + error, false);
-                await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 this.scrollDownChat();
             }
         },
@@ -261,12 +271,11 @@ export default {
                     aiBubble.toggleLoading(false);
                     const formattedContent = marked.parse(result.content);
                     await this.editTextSpeechBubbleAI(formattedContent, true);
-
-                    // Remove any active glow animation for assistant content
-                    // await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
+                } else if (result.agent === 'Tool Generator') {
+                    await this.addDebugToken(result, false);
                 } else {
                     // Agent messages are intermediate results
-                    await this.addDebugToken(result);
+                    await this.addDebugToken(result, true);
                 }
                 this.scrollDownDebug();
             } else {
@@ -341,14 +350,18 @@ export default {
         },
 
         async resetChat() {
-            document.getElementById("chat-container").innerHTML = '';
-            this.$refs.sidebar.debugMessages = []
-            if (!this.isMobile) {
-                // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
-                await this.addChatBubble(conf.translations[this.language].welcome, false, false);
-            }
+            this.messages = [];
+            this.$refs.sidebar.clearDebugMessage();
+            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
+        },
+
+        async showWelcomeMessage() {
+            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
+            if (!this.isMobile) {
+                await this.addChatBubble(conf.translations[this.language].welcome, false, false);
+            }
         },
 
         /**
@@ -370,7 +383,6 @@ export default {
         async handleUnexpectedConnectionClosed(message, currentMessageCount) {
             console.log('Connection closed unexpectedly', message, currentMessageCount);
             await this.editTextSpeechBubbleAI(message, false);
-            await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
 
             const aiBubble = this.getLastBubble();
             aiBubble.toggleLoading(false);
@@ -396,7 +408,7 @@ export default {
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
-        async addDebugToken(agentMessage) {
+        async addDebugToken(agentMessage, isStatusMessage = false) {
             const aiBubble = this.getLastBubble();
             const agentName = agentMessage.agent;
             const color = this.getDebugColor(agentName);
@@ -404,8 +416,11 @@ export default {
 
             // add debug token as status message (also adds as debug message)
             if (message) {
-                aiBubble.addStatusMessage(message, 'pending', {color: color});
-                // await this.editAnimationSpeechBubbleAI(messageCount, true, color);
+                if (isStatusMessage) {
+                    aiBubble.addStatusMessage(message, 'pending', {color: color});
+                } else {
+                    aiBubble.addDebugMessage(message, {color: color});
+                }
             } else if (agentName === 'system') {
                 aiBubble.addDebugMessage(agentMessage.content.trim(), {color: color});
             }
@@ -462,46 +477,6 @@ export default {
         addDebug(text, color, type) {
             const sidebar = this.$refs.sidebar;
             sidebar.addDebugMessage(text, color, type);
-        },
-
-        // todo: recreate effect? does not currently do anything with new chatbubble component
-        async editAnimationSpeechBubbleAI(active, color) {
-            const aiBubble = this.getLastBubble().getElement();
-            if (!aiBubble) return;
-
-            if (!document.querySelector(`#move-glow`)) {
-                // Create a style block for the custom animation
-                const style = document.createElement("style");
-                style.id = "move-glow";
-                style.innerHTML = `
-                    @keyframes move-glow {
-                        0%, 100% {
-                            box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
-                        }
-                        50% {
-                            box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
-                        }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            const chatBubble = aiBubble.querySelector("#chatBubble");
-            if (!chatBubble) return;
-
-            if (active) {
-                if (color === "#ffffff") {
-                    // Initial phase - use primary color with more intensity
-                    chatBubble.style.setProperty("--glow-color-1", "var(--primary-light)40");
-                    chatBubble.style.setProperty("--glow-color-2", "var(--primary-light)90");
-                } else {
-                    chatBubble.style.setProperty("--glow-color-1", `${color}40`);
-                    chatBubble.style.setProperty("--glow-color-2", `${color}90`);
-                }
-                chatBubble.style.animation = "move-glow 3s infinite";
-            } else {
-                chatBubble.style.animation = "";
-            }
         },
 
         async editTextSpeechBubbleAI(text, isStatusMessage = false) {
@@ -602,11 +577,7 @@ export default {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
-        if (!this.isMobile) {
-            await this.addChatBubble(conf.translations[this.language].welcome, false, false);
-        }
-
+        await this.showWelcomeMessage();
         const questions = conf.DefaultQuestions;
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);

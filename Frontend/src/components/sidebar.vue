@@ -439,7 +439,11 @@ export default {
                 // new message type
                 this.debugMessages.push(message);
             }
-        }
+        },
+
+        clearDebugMessage() {
+            this.debugMessages = [];
+        },
     },
     mounted() {
         this.setupResizer();
