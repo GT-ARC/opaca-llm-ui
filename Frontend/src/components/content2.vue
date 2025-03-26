@@ -72,7 +72,7 @@
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
-                            @click="startRecognition"
+                            @click="this.showRecordingPopup = true"
                             :disabled="!isFinished">
                         <i class="fa fa-microphone"/>
                     </button>
@@ -210,55 +210,30 @@ export default {
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
 
-            // add ai chat bubble in loading state
+            // add AI chat bubble in loading state
             await this.addChatBubble('', false, true);
             this.scrollDownChat();
 
             try {
-                if (this.isStreamingBackend()) {
-                    // create websocket for streaming
-                    this.socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
-                    this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
-                    this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                    this.socket.onclose   = ()    => this.handleStreamingSocketClose(0);
-                    this.socket.onerror   = error => this.handleStreamingSocketError(error, 0);
-                } else {
-                    // simple or tool-llm(?) prompt
-                    const result = await sendRequest(
-                        "POST",
-                        `${conf.BackendAddress}/${this.getBackend()}/query`,
-                        {user_query: userText, api_key: this.apiKey},
-                        null);
-                    const answer = result.data.content;
-                    if (result.data.error) {
-                        this.addDebug(result.data.error)
-                    }
-                    await this.editTextSpeechBubbleAI(answer, false);
-                    this.scrollDownChat();
-
-                    this.processDebugInput(result.data.agent_messages, currentMessageCount);
-                    this.scrollDownDebug();
-
-                    // Generate audio for the response if needed
-                    if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                        const aiBubble = this.getLastBubble();
-                        aiBubble.startAudioPlayback();
-                        this.autoSpeakNextMessage = false;
-                    }
-                }
+                // create websocket for streaming
+                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
+                this.socket = new WebSocket(url);
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
-                console.error(error);
-                const aiBubble = this.getLastBubble();
-                aiBubble.toggleLoading(false);
-                aiBubble.toggleError(true);
-                await this.editTextSpeechBubbleAI("Error while fetching data: " + error, false);
-                this.scrollDownChat();
+                await this.handleStreamingSocketError(error);
             }
         },
 
         async handleStreamingSocketOpen(socket, userText) {
             const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
-            socket.send(inputData);
+            try {
+                socket.send(inputData);
+            } catch (error) {
+                console.error('Failed to send data via socket:', error);
+            }
         },
 
         async handleStreamingSocketMessage(event) {
@@ -267,10 +242,9 @@ export default {
             console.log('socket message result', result);
 
             if (result.hasOwnProperty("agent")) {
-                if (result.agent === 'assistant') {
+                if (result.agent === 'assistant' || result.agent === 'Tool Generator') {
                     aiBubble.toggleLoading(false);
-                    const formattedContent = marked.parse(result.content);
-                    await this.editTextSpeechBubbleAI(formattedContent, true);
+                    aiBubble.addContent(result.content);
                 } else if (result.agent === 'Tool Generator') {
                     await this.addDebugToken(result, false);
                 } else {
@@ -289,35 +263,35 @@ export default {
             }
         },
 
-        async handleStreamingSocketClose(currentMessageCount) {
+        async handleStreamingSocketClose() {
             console.log("WebSocket connection closed", this.isFinished);
             if (!this.isFinished) {
-                const message = "It seems there was a problem during the response generation...";
-                await this.handleUnexpectedConnectionClosed(message, currentMessageCount);
+                const message = "It seems there was a problem in the response generation.";
+                await this.handleUnexpectedConnectionClosed(message);
             }
 
-            // auto-speak message
+            this.startAutoSpeak();
+            this.isFinished = true;
+            this.scrollDownChat();
+        },
+
+        async handleStreamingSocketError(error) {
+            console.error("Received error: ", error);
+            if (!this.isFinished) {
+                const message = "An Error occurred in the response generation: " + error.toString();
+                await this.handleUnexpectedConnectionClosed(message);
+            }
+
+            this.isFinished = true;
+            this.scrollDownChat();
+        },
+
+        startAutoSpeak() {
             if (this.autoSpeakNextMessage && this.voiceServerConnected) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
             }
-            this.isFinished = true;
-        },
-
-        async handleStreamingSocketError(error, currentMessageCount) {
-            if (!this.isFinished) {
-                const message = "I encountered the following error during the response generation: " + error.toString();
-                await this.handleUnexpectedConnectionClosed(message, currentMessageCount);
-            }
-            console.log("Received error: ", error);
-
-            // todo: does this also close the socket?
-            this.isFinished = true;
-        },
-
-        async startRecognition() {
-            this.showRecordingPopup = true;
         },
 
         handleTranscriptionComplete(text) {
@@ -329,7 +303,7 @@ export default {
         handleSendMessage(text) {
             if (text) {
                 this.textInput = "";
-                this.autoSpeakNextMessage = true; // Set this flag when message comes from voice input
+                this.autoSpeakNextMessage = true;
                 this.askChatGpt(text);
             }
         },
@@ -380,8 +354,8 @@ export default {
             this.scrollDownChat();
         },
 
-        async handleUnexpectedConnectionClosed(message, currentMessageCount) {
-            console.log('Connection closed unexpectedly', message, currentMessageCount);
+        async handleUnexpectedConnectionClosed(message) {
+            console.log('Connection closed unexpectedly', message);
             await this.editTextSpeechBubbleAI(message, false);
 
             const aiBubble = this.getLastBubble();
@@ -479,11 +453,9 @@ export default {
             sidebar.addDebugMessage(text, color, type);
         },
 
-        async editTextSpeechBubbleAI(text, isStatusMessage = false) {
+        editTextSpeechBubbleAI(text, isStatusMessage = false) {
             const aiBubble = this.getLastBubble();
-            if (!aiBubble) {
-                await this.addChatBubble(text, false, true);
-            } else if (isStatusMessage) {
+            if (isStatusMessage) {
                 console.log('add status message', text);
                 aiBubble.addStatusMessage(text);
             } else {
