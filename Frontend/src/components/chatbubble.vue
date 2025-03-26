@@ -2,7 +2,7 @@
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end mb-4">
+         class="d-flex flex-row justify-content-end mb-2">
 
         <div class="chatbubble chatbubble-user ms-auto me-2 p-3 mb-2">
             <div v-html="this.content" />
@@ -15,7 +15,7 @@
 
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
-         class="d-flex flex-row justify-content-start mb-4 w-100">
+         class="d-flex flex-row justify-content-start mb-2 w-100">
 
         <!-- ai icon -->
         <div class="chaticon">
@@ -36,30 +36,30 @@
                     </div>
 
                     <!-- content, either status messages or actual response -->
-                    <div v-if="this.isLoading" class="message-text" :class="{'text-danger': isError}">
+                    <div v-if="this.isLoading && this.statusMessages.length > 0" class="message-text mb-4" :class="{'text-danger': isError}">
                         <div v-for="{ content, mode } in this.statusMessages" :key="content">
                             <div v-if="mode === 'normal'">{{ content }}</div>
                             <div v-if="mode === 'pending'">{{ content }} ...</div>
                             <div v-if="mode === 'done'">{{ content }} ✓</div>
                         </div>
                     </div>
-                    <div v-else class="message-text" :class="{'text-danger': isError}">
-                        <div v-html="this.getFormattedContent()" />
-                    </div>
+                    <div v-else class="message-text" :class="{'text-danger': isError}"
+                         v-html="this.getFormattedContent()"
+                    />
 
                 </div>
 
                 <!-- footer: debug, generate audio, ... -->
-                <div class="row px-2" style="font-size: 50px">
-                    <div v-show="this.debugMessages.length > 0"
-                         class="debug-toggle w-auto me-1"
+                <div class="d-flex justify-content-start small">
+                    <div v-show="!this.isLoading && this.debugMessages.length > 0"
+                         class="footer-item w-auto me-2"
                          style="cursor: pointer;"
                          @click="this.isDebugExpanded = !this.isDebugExpanded"
                          data-toggle="tooltip" data-placement="down" title="Toggle Debug">
-                        <i class="fa fa-terminal" /> test
+                        <i class="fa fa-bug" />
                     </div>
                     <div v-show="!this.isLoading"
-                         class="debug-toggle w-auto"
+                         class="footer-item w-auto me-2"
                          style="cursor: pointer;"
                          @click="this.startAudioPlayback()">
                         <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
@@ -67,13 +67,13 @@
                         <i v-else-if="this.isAudioPlaying" class="fa fa-stop"
                            data-toggle="tooltip" data-placement="down" title="Stop Audio" />
                         <i v-else class="fa fa-volume-up"
-                           data-toggle="tooltip" data-placement="down" title="Play Audio" /> test
+                           data-toggle="tooltip" data-placement="down" title="Play Audio" />
                     </div>
                 </div>
 
                 <!-- footer: debug messages -->
                 <div v-show="this.isDebugExpanded">
-                    <div class="bubble-debug-text overflow-y-scroll p-2 rounded-2   " style="max-height: 200px">
+                    <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
                         <div v-for="{ content, mode, options } in this.debugMessages"
                              :style="{ color: (options && options.color) ? options.color : null }">
                             <div v-if="mode === 'normal'">{{ content }}</div>
@@ -143,7 +143,6 @@ export default {
          * @param options {Object}
          */
         addDebugMessage(text, mode = 'normal', options = null) {
-            console.log('add debug msg', text);
             if (!text || !text.trim()) return;
             text = text.trim();
             const msg = {content: text, mode: mode, options: options};
@@ -154,7 +153,9 @@ export default {
          * mark _all_ pending status and debug messages done
          */
         markStatusMessagesDone() {
-            [...this.statusMessages, ...this.debugMessages]
+            const messages = [...this.statusMessages, ...this.debugMessages];
+            console.log('mark messages done: ', messages.length);
+            messages
                 .filter(msg => msg.mode === 'pending')
                 .forEach(msg => msg.mode = 'done');
         },
@@ -226,6 +227,7 @@ export default {
         },
 
         startAudioPlayback() {
+            console.log('startAudioPlayback', this.canPlayAudio());
             if (!this.canPlayAudio()) return;
             if (this.isAudioPlaying) {
                 this.stopAudioPlayback();
@@ -245,6 +247,12 @@ export default {
         canPlayAudio() {
             return this.isVoiceServerConnected && !this.isUser
                 && this.content && !this.isLoading && !this.isAudioLoading;
+        },
+
+        clearStatusMessages() {
+            this.statusMessages = [];
+            this.debugMessages = this.debugMessages
+                .filter(msg => msg.mode === 'normal');
         },
 
         clear() {
@@ -291,6 +299,7 @@ export default {
     min-width: 0;
     padding-right: 0.5rem;
     white-space: normal;
+    gap: 1rem;
 }
 
 .chaticon {
@@ -302,7 +311,6 @@ export default {
     background-color: white;
     border-radius: 50%;
     border: 1px solid var(--border-light);
-    margin: 0 0.5rem;
     aspect-ratio: 1 / 1;
 }
 
@@ -312,20 +320,20 @@ export default {
     object-fit: contain;
 }
 
-.debug-toggle {
+.footer-item {
     color: var(--text-secondary-light);
 }
 
-.debug-toggle:hover {
+.footer-item:hover {
     color: var(--primary-light);
 }
 
 @media (prefers-color-scheme: dark) {
-    .debug-toggle {
+    .footer-item {
         color: var(--text-secondary-dark);
     }
 
-    .debug-toggle:hover {
+    .footer-item:hover {
         color: var(--text-primary-dark);
     }
 

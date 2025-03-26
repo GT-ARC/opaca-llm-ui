@@ -20,7 +20,7 @@
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
               :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
-              style="max-width: 1000px">
+              style="max-width: 1000px !important;">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-5': !isMobile}">
@@ -212,7 +212,6 @@ export default {
 
             // add AI chat bubble in loading state
             await this.addChatBubble('', false, true);
-            this.scrollDownChat();
 
             try {
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
@@ -231,30 +230,40 @@ export default {
             try {
                 socket.send(inputData);
             } catch (error) {
-                console.error('Failed to send data via socket:', error);
+                await this.handleStreamingSocketError(error);
             }
         },
 
+        /** todo: rework/simplify */
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
             console.log('socket message result', result);
 
+            // todo: difference between assistant and output_generator?
             if (result.hasOwnProperty("agent")) {
-                if (result.agent === 'assistant' || result.agent === 'Tool Generator') {
+                if (result.agent === 'assistant') {
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
+                    await this.addDebugToken(result, false);
+                } else if (result.agent === 'output_generator' || result.agent === 'Tool Evaluator') {
+                    aiBubble.toggleLoading(false);
+                    aiBubble.addContent(result.content);
+                    await this.addDebugToken(result, false);
                 } else {
                     // Agent messages are intermediate results
-                    await this.addDebugToken(result, true);
+                    await this.addDebugToken(result, false);
                 }
+
                 this.scrollDownDebug();
+                this.scrollDownChat();
             } else {
                 // no agent property -> Last message received should be final response
+                // todo: why doe sthe last message contain the entire result again?
                 aiBubble.toggleError(!!result.error);
                 const content = result.error
                     ? result.error : result.content;
-                this.editTextSpeechBubbleAI(content, false);
+                aiBubble.setContent(content);
                 aiBubble.toggleLoading(false);
                 this.isFinished = true;
             }
@@ -264,7 +273,7 @@ export default {
             console.log("WebSocket connection closed", this.isFinished);
             if (!this.isFinished) {
                 const message = "It seems there was a problem in the response generation.";
-                await this.handleUnexpectedConnectionClosed(message);
+                this.handleUnexpectedConnectionClosed(message);
             }
 
             this.startAutoSpeak();
@@ -276,7 +285,7 @@ export default {
             console.error("Received error: ", error);
             if (!this.isFinished) {
                 const message = "An Error occurred in the response generation: " + error.toString();
-                await this.handleUnexpectedConnectionClosed(message);
+                this.handleUnexpectedConnectionClosed(message);
             }
 
             this.isFinished = true;
@@ -351,11 +360,10 @@ export default {
             this.scrollDownChat();
         },
 
-        async handleUnexpectedConnectionClosed(message) {
-            console.log('Connection closed unexpectedly', message);
-            this.editTextSpeechBubbleAI(message, false);
-
+        handleUnexpectedConnectionClosed(message) {
+            console.error('Connection closed unexpectedly', message);
             const aiBubble = this.getLastBubble();
+            aiBubble.setContent(message);
             aiBubble.toggleLoading(false);
             aiBubble.toggleError(true);
         },
@@ -393,7 +401,8 @@ export default {
                     aiBubble.addDebugMessage(message, 'pending', {color: color});
                 }
             } else if (agentName === 'system') {
-                aiBubble.addDebugMessage(agentMessage.content.trim(), {color: color});
+                const content = agentMessage.content.trim();
+                aiBubble.addDebugMessage(content, {color: color});
             }
 
             // log tool output
@@ -401,6 +410,7 @@ export default {
                 const toolOutput = agentMessage["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
+                console.log('found tool output:', toolOutput);
                 const type = agentMessage["agent"] + "-Tools"
                 this.addDebug(toolOutput, color, type);
             }
@@ -432,6 +442,7 @@ export default {
             }
         },
 
+        // todo: what does this do?
         updateDebugColors() {
             const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
             debugElements.forEach((element) => {
@@ -442,15 +453,6 @@ export default {
         addDebug(text, color, type) {
             const sidebar = this.$refs.sidebar;
             sidebar.addDebugMessage(text, color, type);
-        },
-
-        editTextSpeechBubbleAI(text, isStatusMessage = false) {
-            const aiBubble = this.getLastBubble();
-            if (isStatusMessage) {
-                aiBubble.addStatusMessage(text);
-            } else {
-                aiBubble.setContent(text);
-            }
         },
 
         getBackend() {
@@ -559,14 +561,6 @@ export default {
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
     padding: 2rem 0; /* Increased top padding for first message */
-}
-
-#chat-container {
-    width: 100%;
-    max-width: min(95%, 120ch);
-    padding: 0.25rem;
-    margin: 0 auto;
-    position: relative;
 }
 
 /* Responsive widths for larger screens */
@@ -680,7 +674,6 @@ export default {
 #mainContent {
     width: 100%;
     max-width: 100%;
-    padding-right: 0 !important;
     height: calc(100vh - 60px);
     display: flex;
     flex-direction: column;
