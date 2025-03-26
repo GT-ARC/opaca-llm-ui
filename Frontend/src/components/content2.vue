@@ -23,7 +23,7 @@
               style="max-width: 1000px">
 
             <!-- Chat Window with Chat bubbles -->
-            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-3': !isMobile}">
+            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-5': !isMobile}">
                 <div v-for="{ elementId, isUser, content, isLoading } in this.messages">
                     <Chatbubble
                         :element-id="elementId"
@@ -215,7 +215,6 @@ export default {
             this.scrollDownChat();
 
             try {
-                // create websocket for streaming
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
                 this.socket = new WebSocket(url);
                 this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
@@ -245,8 +244,6 @@ export default {
                 if (result.agent === 'assistant' || result.agent === 'Tool Generator') {
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
-                } else if (result.agent === 'Tool Generator') {
-                    await this.addDebugToken(result, false);
                 } else {
                     // Agent messages are intermediate results
                     await this.addDebugToken(result, true);
@@ -257,7 +254,7 @@ export default {
                 aiBubble.toggleError(!!result.error);
                 const content = result.error
                     ? result.error : result.content;
-                await this.editTextSpeechBubbleAI(content, false);
+                this.editTextSpeechBubbleAI(content, false);
                 aiBubble.toggleLoading(false);
                 this.isFinished = true;
             }
@@ -356,7 +353,7 @@ export default {
 
         async handleUnexpectedConnectionClosed(message) {
             console.log('Connection closed unexpectedly', message);
-            await this.editTextSpeechBubbleAI(message, false);
+            this.editTextSpeechBubbleAI(message, false);
 
             const aiBubble = this.getLastBubble();
             aiBubble.toggleLoading(false);
@@ -393,7 +390,7 @@ export default {
                 if (isStatusMessage) {
                     aiBubble.addStatusMessage(message, 'pending', {color: color});
                 } else {
-                    aiBubble.addDebugMessage(message, {color: color});
+                    aiBubble.addDebugMessage(message, 'pending', {color: color});
                 }
             } else if (agentName === 'system') {
                 aiBubble.addDebugMessage(agentMessage.content.trim(), {color: color});
@@ -416,28 +413,22 @@ export default {
             }
         },
 
-        processDebugInput(agentMessages, messageCount) {
+        processDebugInput(agentMessages) {
+            console.log('processDebugInput:', agentMessages);
             // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
             for (const message of agentMessages) {
-                const color = this.getDebugColor(message["agent"]);
+                const color = this.getDebugColor(message.agent);
+
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = [
-                    message["tools"].length > 0 ? JSON.stringify(message["tools"]) : message["content"],
-                    `Execution time: ${message["execution_time"].toFixed(2)}s`
+                    message["tools"].length > 0 ? JSON.stringify(message.tools) : message.content,
+                    `Execution time: ${message.execution_time.toFixed(2)}s`
                 ].join('\n');
 
                 this.addDebug(content, color, message["agent"]);
 
-                // Add the formatted debug text to the associated speech bubble
-                const messageBubble = document.getElementById(`debug-${messageCount}-text`)
-                if (messageBubble) {
-                    let d1 = document.createElement("div")
-                    d1.className = "bubble-debug-text"
-                    d1.textContent = content
-                    d1.style.color = color
-                    d1.dataset.type = message["agent"]
-                    messageBubble.append(d1)
-                }
+                const aiBubble = this.getLastBubble();
+                aiBubble.addDebugMessage(message, 'normal', {color: color});
             }
         },
 
@@ -456,11 +447,9 @@ export default {
         editTextSpeechBubbleAI(text, isStatusMessage = false) {
             const aiBubble = this.getLastBubble();
             if (isStatusMessage) {
-                console.log('add status message', text);
                 aiBubble.addStatusMessage(text);
             } else {
-                console.log('add content', text);
-                aiBubble.addContent(text);
+                aiBubble.setContent(text);
             }
         },
 

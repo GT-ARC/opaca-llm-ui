@@ -50,29 +50,30 @@
                 </div>
 
                 <!-- footer: debug, generate audio, ... -->
-                <div class="row ps-2">
+                <div class="row px-2" style="font-size: 50px">
                     <div v-show="this.debugMessages.length > 0"
-                         class="debug-toggle w-auto me-2"
-                         style="cursor: pointer; font-size: 10px"
-                         @click="this.isDebugExpanded = !this.isDebugExpanded">
-                        <img src="/src/assets/Icons/double_down_icon.png"
-                             alt=">>" height="10px" width="10px"
-                             class="m-0 p-0 w-auto"
-                             :style="this.isDebugExpanded ? 'transform: rotate(180deg)' : ''"/>
-                        Debug
+                         class="debug-toggle w-auto me-1"
+                         style="cursor: pointer;"
+                         @click="this.isDebugExpanded = !this.isDebugExpanded"
+                         data-toggle="tooltip" data-placement="down" title="Toggle Debug">
+                        <i class="fa fa-terminal" /> test
                     </div>
                     <div v-show="!this.isLoading"
-                         class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;"
+                         class="debug-toggle w-auto"
+                         style="cursor: pointer;"
                          @click="this.startAudioPlayback()">
-                        <i v-if="!this.isAudioLoading" class="fa fa-volume-up" />
-                        <i v-else class="fa fa-spin fa-spinner" />
-                        Generate Audio
+                        <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
+                           data-toggle="tooltip" data-placement="down" title="Audio is loading..." />
+                        <i v-else-if="this.isAudioPlaying" class="fa fa-stop"
+                           data-toggle="tooltip" data-placement="down" title="Stop Audio" />
+                        <i v-else class="fa fa-volume-up"
+                           data-toggle="tooltip" data-placement="down" title="Play Audio" /> test
                     </div>
                 </div>
 
                 <!-- footer: debug messages -->
                 <div v-show="this.isDebugExpanded">
-                    <div class="bubble-debug-text">
+                    <div class="bubble-debug-text overflow-y-scroll p-2 rounded-2   " style="max-height: 200px">
                         <div v-for="{ content, mode, options } in this.debugMessages"
                              :style="{ color: (options && options.color) ? options.color : null }">
                             <div v-if="mode === 'normal'">{{ content }}</div>
@@ -137,14 +138,15 @@ export default {
         },
 
         /**
-         * add non-status debug message
          * @param text {string}
+         * @param mode {string} any of 'normal', 'pending' or 'done'
          * @param options {Object}
          */
-        addDebugMessage(text, options = null) {
+        addDebugMessage(text, mode = 'normal', options = null) {
+            console.log('add debug msg', text);
             if (!text || !text.trim()) return;
             text = text.trim();
-            const msg = {content: text, mode: 'normal', options: options};
+            const msg = {content: text, mode: mode, options: options};
             this.debugMessages.push(msg);
         },
 
@@ -311,23 +313,11 @@ export default {
 }
 
 .debug-toggle {
-    cursor: pointer;
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
     color: var(--text-secondary-light);
-    transition: color 0.2s ease;
-    padding: 0.25rem;
 }
 
 .debug-toggle:hover {
     color: var(--primary-light);
-}
-
-.debug-toggle img {
-    filter: invert(100%);
 }
 
 @media (prefers-color-scheme: dark) {
