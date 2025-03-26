@@ -49,25 +49,28 @@
 
                 </div>
 
-                <!-- footer: debug messages, generate audio, ... -->
+                <!-- footer: debug, generate audio, ... -->
                 <div class="row ps-2">
-                    <div class="debug-toggle w-auto me-2"
+                    <div v-show="this.debugMessages.length > 0"
+                         class="debug-toggle w-auto me-2"
                          style="cursor: pointer; font-size: 10px"
                          @click="this.isDebugExpanded = !this.isDebugExpanded">
                         <img src="/src/assets/Icons/double_down_icon.png"
                              alt=">>" height="10px" width="10px"
                              class="m-0 p-0 w-auto"
-                             :style="this.isDebugExpanded ? 'transform: rotate(180deg)' : ''"
-                        />
+                             :style="this.isDebugExpanded ? 'transform: rotate(180deg)' : ''"/>
                         Debug
                     </div>
-                    <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;"
+                    <div v-show="!this.isLoading"
+                         class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;"
                          @click="this.startAudioPlayback()">
                         <i v-if="!this.isAudioLoading" class="fa fa-volume-up" />
                         <i v-else class="fa fa-spin fa-spinner" />
                         Generate Audio
                     </div>
                 </div>
+
+                <!-- footer: debug messages -->
                 <div v-show="this.isDebugExpanded">
                     <hr class="debug-separator">
                     <div class="bubble-debug-text">
@@ -87,7 +90,6 @@
 
 <script>
 import { marked } from "marked";
-import { getDebugColor } from '../config/debug-colors.js';
 import conf from "../../config.js";
 
 export default {
@@ -159,14 +161,18 @@ export default {
         getFormattedContent() {
             try {
                 return marked.parse(this.content);
-            } catch (e) {
-                console.error('Failed to parse chat bubble content:', e);
+            } catch (error) {
+                console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
             }
         },
 
         setContent(newContent) {
             this.content = newContent;
+        },
+
+        addContent(newContent) {
+            this.content += newContent;
         },
 
         toggleLoading(value = null) {
@@ -179,12 +185,23 @@ export default {
                 ? value : !this.isError;
         },
 
-        async generateAudio(text, voice = 'alloy') {
+        async generateAudio(voice = 'alloy') {
+            if (!this.content) return;
+            if (!this.isVoiceServerConnected) {
+                console.warn('voice server not connected');
+                return;
+            }
             this.isAudioLoading = true;
-            const params = { text: text, voice: voice };
-            const payload = { method: 'POST' };
+
             try {
-                const response = await fetch(`${conf.VoiceServerAddress}/generate_audio?${new URLSearchParams(params)}`, payload);
+                const url = `${conf.VoiceServerAddress}/generate_audio`;
+                const payload = { method: 'POST' };
+                const params = new URLSearchParams({
+                    text: this.content,
+                    voice: voice
+                });
+
+                const response = await fetch(`${url}?${params}`, payload);
                 if (response.ok) {
                     const audioBlob = await response.blob();
                     const audioUrl = URL.createObjectURL(audioBlob);
@@ -193,6 +210,9 @@ export default {
                     this.ttsAudio.onpause = () => this.isAudioPlaying = false;
                     this.ttsAudio.onend = () => this.isAudioPlaying = false;
                     this.ttsAudio.play();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Audio API error:', response.status, errorText);
                 }
             } catch (error) {
                 console.error(error);
@@ -211,7 +231,7 @@ export default {
             } else if (this.ttsAudio) {
                 this.ttsAudio.play();
             } else {
-                this.generateAudio(this.content);
+                this.generateAudio();
             }
         },
 
@@ -222,7 +242,8 @@ export default {
         },
 
         canPlayAudio() {
-            return this.content && !this.isLoading && !this.isAudioLoading;
+            return this.isVoiceServerConnected && !this.isUser
+                && this.content && !this.isLoading && !this.isAudioLoading;
         },
 
         clear() {
@@ -233,8 +254,10 @@ export default {
             this.isLoading = false;
             this.isError = false;
             this.ttsAudio = null;
+            this.isAudioPlaying = false;
+            this.isAudioLoading = false;
         }
-    }
+    },
 }
 </script>
 
@@ -278,8 +301,8 @@ export default {
     background-color: white;
     border-radius: 50%;
     border: 1px solid var(--border-light);
-    padding: 0.5rem;
     margin: 0 0.5rem;
+    aspect-ratio: 1 / 1;
 }
 
 .chaticon img {
@@ -325,6 +348,10 @@ export default {
     .chatbubble {
         background: var(--chat-ai-dark);
         color: var(--text-primary-dark);
+    }
+
+    .chaticon {
+        background: var(--chat-ai-dark);
     }
 }
 

@@ -22,10 +22,8 @@
               :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
               style="max-width: 1000px">
 
-            <!-- Chat Window -->
+            <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-3': !isMobile}">
-
-                <!-- chat bubbles -->
                 <div v-for="{ elementId, isUser, content, isLoading } in this.messages">
                     <Chatbubble
                         :element-id="elementId"
@@ -128,6 +126,7 @@ export default {
     data() {
         return {
             messages: [],
+            socket: null,
 
             apiKey: '',
             textInput: '',
@@ -196,27 +195,24 @@ export default {
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
-            const currentMessageCount = this.messageCount;
-            this.messageCount++;
-            this.accumulatedContent = ''; // Reset accumulated content for new message
+
+            // add user chat bubble
             await this.addChatBubble(userText, true, false);
+
+            // add ai chat bubble in loading state
+            await this.addChatBubble('', false, true);
+            this.scrollDownChat();
+
             try {
                 if (this.isStreamingBackend()) {
-                    await this.addChatBubble('', false, true);
-
-                    // await this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
-                    this.scrollDownChat();
-
-                    // create websocket
-                    const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
-                    socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
-                    socket.onmessage = event => this.handleStreamingSocketMessage(event, currentMessageCount);
-                    socket.onclose   = ()    => this.handleStreamingSocketClose(currentMessageCount);
-                    socket.onerror   = error => this.handleStreamingSocketError(error, currentMessageCount);
+                    // create websocket for streaming
+                    this.socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
+                    this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
+                    this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                    this.socket.onclose   = ()    => this.handleStreamingSocketClose(0);
+                    this.socket.onerror   = error => this.handleStreamingSocketError(error, 0);
                 } else {
-                    await this.addChatBubble('Generating your answer...', false, true); // todo: translation
-                    this.scrollDownChat()
-
+                    // simple or tool-llm(?) prompt
                     const result = await sendRequest(
                         "POST",
                         `${conf.BackendAddress}/${this.getBackend()}/query`,
@@ -234,7 +230,8 @@ export default {
 
                     // Generate audio for the response if needed
                     if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                        await this.generateAudioForMessage(currentMessageCount, answer);
+                        const aiBubble = this.getLastBubble();
+                        aiBubble.startAudioPlayback();
                         this.autoSpeakNextMessage = false;
                     }
                 }
@@ -254,10 +251,9 @@ export default {
             socket.send(inputData);
         },
 
-        async handleStreamingSocketMessage(event, currentMessageCount) {
-            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+        async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
-
+            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
             console.log('socket message result', result);
 
             if (result.hasOwnProperty("agent")) {
@@ -270,19 +266,17 @@ export default {
                     // await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 } else {
                     // Agent messages are intermediate results
-                    await this.addDebugToken(result, currentMessageCount);
+                    await this.addDebugToken(result);
                 }
                 this.scrollDownDebug();
             } else {
-                // Last message received should be final response
+                // no agent property -> Last message received should be final response
                 aiBubble.toggleError(!!result.error);
-                const content = result.error ?? result.content;
+                const content = result.error
+                    ? result.error : result.content;
                 await this.editTextSpeechBubbleAI(content, false);
-                await this.editAnimationSpeechBubbleAI(currentMessageCount, false);
                 aiBubble.toggleLoading(false);
-
-                // todo: needed? Put the final response into the accumulated content
-                this.accumulatedContent = result.content;
+                this.isFinished = true;
             }
         },
 
@@ -292,14 +286,13 @@ export default {
                 const message = "It seems there was a problem during the response generation...";
                 await this.handleUnexpectedConnectionClosed(message, currentMessageCount);
             }
-            // Get the final accumulated content and message ID for speech
-            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                if (this.accumulatedContent) {
-                    await this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
-                    this.autoSpeakNextMessage = false;
-                }
-            }
 
+            // auto-speak message
+            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                const aiBubble = this.getLastBubble();
+                aiBubble.startAudioPlayback();
+                this.autoSpeakNextMessage = false;
+            }
             this.isFinished = true;
         },
 
@@ -403,9 +396,9 @@ export default {
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
-        async addDebugToken(agent_message) {
+        async addDebugToken(agentMessage) {
             const aiBubble = this.getLastBubble();
-            const agentName = agent_message.agent;
+            const agentName = agentMessage.agent;
             const color = this.getDebugColor(agentName);
             const message = this.getDebugLoadingMessage(agentName);
 
@@ -414,35 +407,29 @@ export default {
                 aiBubble.addStatusMessage(message, 'pending', {color: color});
                 // await this.editAnimationSpeechBubbleAI(messageCount, true, color);
             } else if (agentName === 'system') {
-                aiBubble.addDebugMessage(agent_message.content.trim(), {color: color});
+                aiBubble.addDebugMessage(agentMessage.content.trim(), {color: color});
             }
 
             // log tool output
-            if (agent_message["tools"].length > 0) {
-                const tool_output = agent_message["tools"].map(tool =>
+            if (agentMessage.tools && agentMessage.tools.length > 0) {
+                const toolOutput = agentMessage["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
-                const type = agent_message["agent"] + "-Tools"
-                this.addDebug(tool_output, color, type);
+                const type = agentMessage["agent"] + "-Tools"
+                this.addDebug(toolOutput, color, type);
             }
 
             // log agent message
-            if (agent_message["content"] !== "") {
-                const text = agent_message["content"];
-                const type = agent_message["agent"];
+            if (agentMessage.content) {
+                const text = agentMessage.content;
+                const type = agentMessage.agent;
                 this.addDebug(text, color, type);
             }
         },
 
-        processDebugInput(agent_messages, messageCount) {
-            if (agent_messages.length > 0) {
-                // if at least one debug message was found, let the "debug" button appear on the speech bubble
-                const debugToggle = document.getElementById(`debug-${messageCount}-toggle`);
-                debugToggle.style.display = 'block';
-            }
-
+        processDebugInput(agentMessages, messageCount) {
             // agent_messages has fields: [agent, content, execution_time, response_metadata[completion_tokens, prompt_tokens, total_tokens]]
-            for (const message of agent_messages) {
+            for (const message of agentMessages) {
                 const color = this.getDebugColor(message["agent"]);
                 // if tools have been generated, display the tools (no message was generated in that case)
                 const content = [
@@ -522,9 +509,11 @@ export default {
             if (!aiBubble) {
                 await this.addChatBubble(text, false, true);
             } else if (isStatusMessage) {
+                console.log('add status message', text);
                 aiBubble.addStatusMessage(text);
             } else {
-                aiBubble.setContent(text);
+                console.log('add content', text);
+                aiBubble.addContent(text);
             }
         },
 
@@ -579,83 +568,6 @@ export default {
         isResetAvailable() {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
-        },
-
-        async generateAudioForMessage(messageId, text) {
-            try {
-                const messageBubble = document.getElementById(messageId);
-                if (!messageBubble) {
-                    console.error('Message bubble not found:', messageId);
-                    return;
-                }
-
-                // Get the containers
-                const actionContainer = messageBubble.querySelector(".message-actions");
-                const audioContainer = messageBubble.querySelector(".audio-container");
-
-                if (!audioContainer) return;
-
-                // Show loading state in place of the button
-                actionContainer.innerHTML = `
-                    <div class="audio-loading">
-                        <div class="loader"></div>
-                        <span>Generating audio...</span>
-                    </div>
-                `;
-
-                // Make API call
-                const response = await fetch(`${conf.VoiceServerAddress}/generate_audio?${new URLSearchParams({
-                    text: text,
-                    voice: 'alloy'
-                })}`, {
-                    method: 'POST'
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API error:', response.status, errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                // Get audio blob
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-
-                // Use this to get around the blocking of autoplay by browsers (based on https://stackoverflow.com/questions/50490304/how-to-make-audio-autoplay-on-chrome)
-                // This works for chromium based browsers, but not for firefox and safari.
-                // Safari will autoplay the audio if the user clicked on the generate button (as the user initiated that)
-                // But if we automatically generate audio, it will not play automatically
-                const silenceUrl = `
-                <iframe src="../assets/silence.mp3" allow="autoplay" id="audio" style="display: none"></iframe>
-                `;
-
-                actionContainer.remove();
-                actionContainer.innerHTML = silenceUrl;
-
-                // Create audio player
-                const audioPlayer = `
-                    <audio controls autoplay>
-                        <source src="${audioUrl}" type="audio/mpeg">
-                        Your browser does not support the audio element.
-                    </audio>
-                `;
-
-                // Remove the action container and update audio container
-                actionContainer.remove();
-                audioContainer.innerHTML = audioPlayer;
-
-            } catch (error) {
-                console.error('Error generating audio:', error);
-                const actionContainer = messageBubble.querySelector(".message-actions");
-                if (actionContainer) {
-                    actionContainer.innerHTML = `
-                        <div class="audio-error">
-                            <i class="fa fa-exclamation-circle"></i>
-                            Error generating audio
-                        </div>
-                    `;
-                }
-            }
         },
 
         setupTooltips() {
