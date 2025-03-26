@@ -1,5 +1,5 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100">
+    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
 
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
@@ -960,11 +960,6 @@ export default {
     border-radius: 1.5rem !important;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
 @media (min-width: 1400px) {
     #chat-container,
     .input-group,
@@ -1004,17 +999,6 @@ export default {
     .input-group {
         padding: 0;
     }
-}
-
-/* ??? */
-
-.fixed {
-    position: fixed !important;
-}
-
-.d-flex.justify-content-start.flex-grow-1.w-100 {
-    position: relative;
-    z-index: 1;
 }
 
 </style>

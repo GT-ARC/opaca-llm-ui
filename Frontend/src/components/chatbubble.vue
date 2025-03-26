@@ -61,10 +61,11 @@
                         />
                         Debug
                     </div>
-                    <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;">
-                        <i v-if="!this.isAudioPlaying" class="fa fa-volume-up" />
+                    <div class="debug-toggle w-auto" style="cursor: pointer; font-size: 10px;"
+                         @click="this.startAudioPlayback()">
+                        <i v-if="!this.isAudioLoading" class="fa fa-volume-up" />
                         <i v-else class="fa fa-spin fa-spinner" />
-                        Generate Audio (todo)
+                        Generate Audio
                     </div>
                 </div>
                 <div v-show="this.isDebugExpanded">
@@ -106,8 +107,10 @@ export default {
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
+            isError: false,
+            ttsAudio: null,
+            isAudioLoading: false,
             isAudioPlaying: false,
-            isError: false
         }
     },
 
@@ -176,14 +179,60 @@ export default {
                 ? value : !this.isError;
         },
 
+        async generateAudio(text, voice = 'alloy') {
+            this.isAudioLoading = true;
+            const params = { text: text, voice: voice };
+            const payload = { method: 'POST' };
+            try {
+                const response = await fetch(`${conf.VoiceServerAddress}/generate_audio?${new URLSearchParams(params)}`, payload);
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    this.ttsAudio = new Audio(audioUrl);
+                    this.ttsAudio.onplay = () => this.isAudioPlaying = true;
+                    this.ttsAudio.onpause = () => this.isAudioPlaying = false;
+                    this.ttsAudio.onend = () => this.isAudioPlaying = false;
+                    this.ttsAudio.play();
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Failed to generate audio.');
+                this.ttsAudio = null;
+                this.isAudioPlaying = false;
+            } finally {
+                this.isAudioLoading = false;
+            }
+        },
+
+        startAudioPlayback() {
+            if (!this.canPlayAudio()) return;
+            if (this.isAudioPlaying) {
+                this.stopAudioPlayback();
+            } else if (this.ttsAudio) {
+                this.ttsAudio.play();
+            } else {
+                this.generateAudio(this.content);
+            }
+        },
+
+        stopAudioPlayback() {
+            if (!this.ttsAudio) return;
+            this.ttsAudio.pause();
+            this.ttsAudio.currentTime = 0;
+        },
+
+        canPlayAudio() {
+            return this.content && !this.isLoading && !this.isAudioLoading;
+        },
+
         clear() {
             this.content = '';
             this.statusMessages = [];
             this.debugMessages = [];
             this.isDebugExpanded = false;
             this.isLoading = false;
-            this.isAudioPlaying = false;
             this.isError = false;
+            this.ttsAudio = null;
         }
     }
 }
