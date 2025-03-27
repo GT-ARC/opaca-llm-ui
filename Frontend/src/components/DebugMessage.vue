@@ -1,6 +1,6 @@
 <!-- Debug Message Component -->
 <template>
-    <div class="debug-text" :style="{ color: this.color }" :data-type="type">
+    <div class="debug-text" :style="this.getDebugColoring(this.type)" :data-type="type">
         <div class="debug-header">{{ type }}</div>
         <div class="debug-content">{{ text }}</div>
         <div v-if="executionTime" class="debug-execution-time">
@@ -13,6 +13,8 @@
 </template>
 
 <script>
+import {getDebugColor} from "../config/debug-colors.js";
+
 export default {
     name: 'DebugMessage',
     props: {
@@ -20,12 +22,12 @@ export default {
             type: String,
             required: true
         },
-        color: {
+        type: {
             type: String,
             required: true
         },
-        type: {
-            type: String,
+        isDarkScheme: {
+            type: Boolean,
             required: true
         },
         executionTime: {
@@ -35,6 +37,13 @@ export default {
         responseMetadata: {
             type: Object,
             default: null
+        },
+    },
+
+    methods: {
+        getDebugColoring (agentName) {
+            const color = getDebugColor(agentName, this.isDarkScheme);
+            return {color: color ?? null};
         }
     }
 }

@@ -10,12 +10,16 @@
             @error="handleRecordingError"
         />
 
-        <Sidebar :backend="backend" :language="language" ref="sidebar"
+        <Sidebar :backend="backend"
+                 :language="language"
+                 :is-dark-scheme="isDarkScheme"
+                 ref="sidebar"
                  @language-change="handleLanguageChange"
                  @select-question="askChatGpt"
                  @category-selected="newCategory => this.selectedCategory = newCategory"
                  @api-key-change="(newValue) => this.apiKey = newValue"
-                 @on-sidebar-toggle="this.onSidebarToggle"/>
+                 @on-sidebar-toggle="this.onSidebarToggle"
+        />
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
@@ -105,7 +109,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import {marked} from "marked";
 import {sendRequest, shuffleArray} from "../utils.js";
-import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
+import {debugColors, defaultDebugColors, debugLoadingMessages, getDebugColor} from '../config/debug-colors.js';
 
 import { useDevice } from "../useIsMobile.js";
 
@@ -163,22 +167,12 @@ export default {
     methods: {
         updateTheme() {
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.updateDebugColors();
         },
 
         async textInputCallback(event) {
-            console.log('textInputCallback', event, event.key, event.shiftKey);
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
-            }
-        },
-
-        resizeTextInput(event) {
-            const textArea = event.target;
-            if (textArea) {
-                textArea.style.height = 'auto';
-                textArea.style.height = `${textArea.scrollHeight}px`;
             }
         },
 
@@ -190,7 +184,14 @@ export default {
             }
         },
 
-        /** todo: check if ai bubble? */
+        resizeTextInput(event) {
+            const textArea = event.target;
+            if (textArea) {
+                textArea.style.height = 'auto';
+                textArea.style.height = `${textArea.scrollHeight}px`;
+            }
+        },
+
         getLastBubble() {
             if (this.messages.length === 0) {
                 throw Error('Tried to get the last chat bubble when none exist. This should not happen.');
@@ -236,7 +237,6 @@ export default {
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-            console.log('socket message result', result);
 
             // todo: difference between assistant and output_generator? what of this is needed?
             if (result.hasOwnProperty('agent')) {
@@ -247,7 +247,7 @@ export default {
                     await this.addDebugToken(result, false);
                 } else {
                     // Agent messages are intermediate results
-                    this.addStatusMessage(result);
+                    this.processAgentStatusMessage(result);
                     await this.addDebugToken(result, false);
                 }
 
@@ -374,34 +374,27 @@ export default {
             div.scrollTop = div.scrollHeight;
         },
 
-        getDebugColor(agentName) {
-            return (debugColors[agentName] ?? defaultDebugColors)[this.isDarkScheme ? 0 : 1];
-        },
-
         getDebugLoadingMessage(agentName) {
             // Use the current language (GB or DE) to get the appropriate message
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
-        addStatusMessage(agentMessage) {
+        processAgentStatusMessage(agentMessage) {
             const aiBubble = this.getLastBubble();
             const agentName = agentMessage.agent;
-            const color = this.getDebugColor(agentName);
             const message = this.getDebugLoadingMessage(agentName);
             if (message) {
                 aiBubble.markStatusMessagesDone();
-                aiBubble.addStatusMessage(agentName, message, 'pending', {color: color});
+                aiBubble.addStatusMessage(agentName, message, 'pending');
             } else if (agentName === 'system') {
                 const content = agentMessage.content.trim();
-                aiBubble.addDebugMessage(content, {color: color});
+                aiBubble.addDebugMessage(content);
             }
         },
 
-        async addDebugToken(agentMessage, isStatusMessage = false) {
-            const aiBubble = this.getLastBubble();
+        async addDebugToken(agentMessage) {
             const agentName = agentMessage.agent;
-            const color = this.getDebugColor(agentName);
-            const message = this.getDebugLoadingMessage(agentName);
+            const color = getDebugColor(agentName);
 
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
@@ -409,31 +402,23 @@ export default {
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
                 console.log('found tool output:', toolOutput);
-                const type = agentMessage["agent"] + "-Tools"
-                this.addDebug(toolOutput, color, type);
+                const type = agentMessage.agent;
+                this.addDebug(toolOutput, type);
             }
 
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
                 const type = agentMessage.agent;
-                this.addDebug(text, color, type);
+                this.addDebug(text, type);
             }
         },
 
-        // todo: what does this do?
-        updateDebugColors() {
-            const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
-            debugElements.forEach((element) => {
-                element.style.color = this.getDebugColor(element.dataset.type ?? "");
-            });
-        },
-
-        addDebug(text, color, type) {
+        addDebug(text, type) {
             const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, color, type);
+            sidebar.addDebugMessage(text, type);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, color, type);
+            aiBubble.addDebugMessage(text, type);
         },
 
         getBackend() {

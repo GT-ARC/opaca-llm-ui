@@ -26,24 +26,24 @@
 
             <div class="d-flex justify-content-start">
                 <!-- loading spinner -->
-                <div v-show="this.isLoading">
+                <div v-show="this.isLoading" class="w-auto">
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
                 </div>
 
                 <!-- error indicator -->
-                <div v-show="this.isError">
+                <div v-show="this.isError" class="w-auto">
                     <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
 
                 <!-- content, either status messages or actual response -->
-                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text mb-4" :class="{'text-danger': isError}">
-                    <div v-for="[key, { text, mode }] in this.statusMessages.entries()" :key="key">
+                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4" :class="{'text-danger': isError}">
+                    <div v-for="[agentName, { text, mode }] in this.statusMessages.entries()" :key="agentName">
                         <div v-if="mode === 'normal'">{{ text }}</div>
                         <div v-if="mode === 'pending'">{{ text }} ...</div>
                         <div v-if="mode === 'done'">{{ text }} ✓</div>
                     </div>
                 </div>
-                <div v-else class="message-text" :class="{'text-danger': isError}"
+                <div v-else class="message-text w-auto" :class="{'text-danger': isError}"
                      v-html="this.getFormattedContent()"
                 />
 
@@ -51,7 +51,7 @@
 
             <!-- footer: debug, generate audio, ... -->
             <div class="d-flex justify-content-start small">
-                <div v-show="!this.isLoading && this.debugMessages.length > 0"
+                <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
@@ -74,8 +74,8 @@
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
-                    <div v-for="{ text, options } in this.debugMessages"
-                         :style="{ color: (options && options.color) ? options.color : null }">
+                    <div v-for="{ text, type } in this.debugMessages"
+                         :style="this.getDebugColoring(type)">
                         <div>{{ text }}</div>
                     </div>
                 </div>
@@ -88,6 +88,7 @@
 <script>
 import {marked} from "marked";
 import conf from "../../config.js";
+import {getDebugColor} from "../config/debug-colors.js";
 
 export default {
     name: 'chatbubble',
@@ -142,12 +143,11 @@ export default {
         /**
          * todo: better way to do this, that doesnt copy the copy the code from the sidebar debug messages?
          * @param text {string}
-         * @param color {string}
          * @param type {string}
          */
-        addDebugMessage(text, color, type) {
+        addDebugMessage(text, type) {
             if (!text) return;
-            const message = {text: text, type: type, options: {color: color}};
+            const message = {text: text, type: type};
 
             // if there are no messages yet, just push the new one
             if (this.debugMessages.length === 0) {
@@ -202,6 +202,11 @@ export default {
         toggleError(value = null) {
             this.isError = value !== null
                 ? value : !this.isError;
+        },
+
+        getDebugColoring(agentName) {
+            const color = getDebugColor(agentName, this.isDarkScheme);
+            return {color: color ?? null};
         },
 
         /**
@@ -288,6 +293,7 @@ export default {
             this.isAudioLoading = false;
         }
     },
+
 }
 </script>
 

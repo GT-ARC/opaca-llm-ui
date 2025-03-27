@@ -175,8 +175,8 @@
                             v-for="debugMessage in debugMessages"
                             :key="debugMessage.text"
                             :text="debugMessage.text"
-                            :color="debugMessage.color"
                             :type="debugMessage.type"
+                            :is-dark-scheme="this.isDarkScheme"
                             :execution-time="debugMessage.executionTime"
                             :response-metadata="debugMessage.responseMetadata"
                         />
@@ -216,7 +216,8 @@ export default {
     },
     props: {
         backend: String,
-        language: String
+        language: String,
+        isDarkScheme: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -418,9 +419,9 @@ export default {
             return JSON.stringify(obj, null, 2)
         },
 
-        addDebugMessage(text, color, type) {
+        addDebugMessage(text, type) {
             if (!text) return;
-            const message = {text: text, color: color, type: type};
+            const message = {text: text, type: type};
 
             // if there are no messages yet, just push the new one
             if (this.debugMessages.length === 0) {

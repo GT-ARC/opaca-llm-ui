@@ -75,12 +75,12 @@ export const debugLoadingMessages = {
 }
 
 export function getDebugColor(key, isDarkScheme) {
-    const darkSchemeId = isDarkScheme ? 1 : 0;
+    const darkSchemeId = isDarkScheme ? 0 : 1;
     if (debugColors[key]) {
         return debugColors[key][darkSchemeId];
     } else {
         console.warn(`Debug color ${key} not found.`);
-        return defaultDebugColors[key][darkSchemeId];
+        return defaultDebugColors[key][darkSchemeId] || null;
     }
 }
 
