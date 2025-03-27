@@ -189,6 +189,16 @@ class SelfOrchestratedBackend(AbstractMethod):
 
                 # Send plan via websocket if needed
                 await send_to_websocket(websocket, agent_message=planner_message)
+
+                # If no plan was created, return empty AgentResult
+                if not plan:
+                    return AgentResult(
+                        agent_name=task.agent_name,
+                        task=task_str,
+                        output="There was an error during the generation of an agent plan!",
+                        tool_calls=[],
+                        tool_results=[],
+                    )
             
                 await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n")
 
@@ -415,6 +425,13 @@ Now, using the tools available to you and the previous results, continue with yo
                 )
                 plan = orchestrator_message.formatted_output
                 response.agent_messages.append(orchestrator_message)
+
+                if not plan:
+                    response.content = ("I am sorry, but I was unable to generate a plan for your problem. Please "
+                                        "try to reformulate your request!")
+                    response.error = "Orchestrator was unable to generate a well-formatted plan!"
+                    response.execution_time = time.time() - overall_start_time
+                    return response
                 
                 # First send the thinking process
                 if not config.get("disable_orchestrator_thinking", False):
@@ -540,12 +557,17 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     await send_to_websocket(websocket, agent_message=advisor_message)
 
+                    # If no advice context was successfully generated, assume that the final response can be generated
+                    if not advice:
+                        await send_to_websocket(websocket, "IterationAdvisor", "Tasks completed successfully. Proceeding to final output.")
+                        break
+
                     # Handle follow-up questions from iteration advisor
                     if advice.needs_follow_up and advice.follow_up_question:
                         response.content = advice.follow_up_question
                         response.execution_time = time.time() - overall_start_time
                         return response
-                    
+
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
                         await send_to_websocket(websocket, "IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary)

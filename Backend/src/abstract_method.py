@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+import re
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
 from openai import AsyncOpenAI
 from openai.lib import ResponseFormatT
+from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage
@@ -123,7 +125,11 @@ class AbstractMethod(ABC):
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
                 completion = await client.chat.completions.create(**kwargs)
                 content = completion.choices[0].message.content
-                agent_message.formatted_output = response_format.model_validate_json(completion.choices[0].message.content)
+                cleaned_content = self.extract_json_like_content(content)
+                try:
+                    agent_message.formatted_output = response_format.model_validate_json(cleaned_content)
+                except ValidationError:
+                    agent_message.formatted_output = {}
             agent_message.response_metadata = completion.usage.to_dict()
         else:
             if guided_choice:
@@ -211,3 +217,9 @@ class AbstractMethod(ABC):
     @staticmethod
     def _is_gpt(model: str):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
+
+    @staticmethod
+    def extract_json_like_content(text):
+        """Removes any string content before the first { and after the last }"""
+        match = re.search(r'\{.*}', text, re.DOTALL)
+        return match.group(0) if match else text
