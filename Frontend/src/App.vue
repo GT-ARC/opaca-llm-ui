@@ -132,20 +132,19 @@
     </header>
 
     <div class="col background">
-        <MainContent2 class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
+        <MainContent class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
     </div>
 </template>
 
 <script>
-import conf from '../config.js'
-import MainContent from './components/content.vue'
-import MainContent2 from './components/content2.vue';
+import conf from '../config.js';
+import MainContent from './components/content.vue';
 
 import { useDevice } from "./useIsMobile.js";
 
 export default {
     name: 'App',
-    components: {MainContent, MainContent2},
+    components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, isMobile, screenWidth };

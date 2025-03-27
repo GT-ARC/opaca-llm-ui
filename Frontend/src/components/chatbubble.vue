@@ -350,13 +350,15 @@ export default {
     background-color: white;
     border-radius: 50%;
     border: 1px solid var(--border-light);
+    padding: 0.5rem;
     aspect-ratio: 1 / 1;
 }
 
 .chaticon img {
+    filter: invert(100%);
+    object-fit: contain;
     width: 100%;
     height: 100%;
-    object-fit: contain;
 }
 
 .footer-item {
@@ -404,6 +406,7 @@ export default {
 
     .chaticon {
         background: var(--chat-ai-dark);
+        border-color: var(--border-dark);
     }
 
 }
