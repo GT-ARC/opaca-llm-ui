@@ -80,7 +80,7 @@ export function getDebugColor(key, isDarkScheme) {
         return debugColors[key][darkSchemeId];
     } else {
         console.warn(`Debug color ${key} not found.`);
-        return defaultDebugColors[key][darkSchemeId] || null;
+        return defaultDebugColors[key]?.[darkSchemeId] || null;
     }
 }
 

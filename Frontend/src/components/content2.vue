@@ -210,7 +210,7 @@ export default {
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             this.getLastBubble().addStatusMessage('preparing',
-                this.getDebugLoadingMessage('preparing'), 'pending');
+                this.getDebugLoadingMessage('preparing'), false);
 
             try {
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
@@ -238,15 +238,12 @@ export default {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
-            // todo: difference between assistant and output_generator? what of this is needed?
             if (result.hasOwnProperty('agent')) {
-                if (result.agent === 'assistant'
-                    || result.agent === 'output_generator'
-                    || result.agent === 'Tool Evaluator') {
+                if (result.agent === 'output_generator') {
+                    // put output_generator content directly in the bubble
                     aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
                 } else {
-                    // Agent messages are intermediate results
+                    // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
                     await this.addDebugToken(result, false);
                 }
@@ -255,7 +252,6 @@ export default {
                 this.scrollDownChat();
             } else {
                 // no agent property -> Last message received should be final response
-                // todo: why doe sthe last message contain the entire result again?
                 aiBubble.toggleError(!!result.error);
                 const content = result.error
                     ? result.error : result.content;
@@ -384,24 +380,17 @@ export default {
             const agentName = agentMessage.agent;
             const message = this.getDebugLoadingMessage(agentName);
             if (message) {
-                aiBubble.markStatusMessagesDone();
-                aiBubble.addStatusMessage(agentName, message, 'pending');
-            } else if (agentName === 'system') {
-                const content = agentMessage.content.trim();
-                aiBubble.addDebugMessage(content);
+                aiBubble.markStatusMessagesDone(agentName);
+                aiBubble.addStatusMessage(agentName, message, false);
             }
         },
 
         async addDebugToken(agentMessage) {
-            const agentName = agentMessage.agent;
-            const color = getDebugColor(agentName);
-
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
                 const toolOutput = agentMessage["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
-                console.log('found tool output:', toolOutput);
                 const type = agentMessage.agent;
                 this.addDebug(toolOutput, type);
             }

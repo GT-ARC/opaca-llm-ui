@@ -430,7 +430,7 @@ export default {
             }
 
             const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator-Tools') {
+            if (lastMessage.type === type && type === 'Tool Generator') {
                 // If the message includes tools, the message needs to be replaced instead of appended
                 this.debugMessages[this.debugMessages.length - 1] = message;
             } else if (lastMessage.type === type) {

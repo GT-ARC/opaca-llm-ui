@@ -22,7 +22,8 @@
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
-        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2">
+        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
+             :class="{glow: this.isLoading}" :style="this.getGlowColors()">
 
             <div class="d-flex justify-content-start">
                 <!-- loading spinner -->
@@ -37,10 +38,9 @@
 
                 <!-- content, either status messages or actual response -->
                 <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4" :class="{'text-danger': isError}">
-                    <div v-for="[agentName, { text, mode }] in this.statusMessages.entries()" :key="agentName">
-                        <div v-if="mode === 'normal'">{{ text }}</div>
-                        <div v-if="mode === 'pending'">{{ text }} ...</div>
-                        <div v-if="mode === 'done'">{{ text }} ✓</div>
+                    <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
+                        <div v-if="completed">{{ text }} ✓</div>
+                        <div v-else>{{ text }} ...</div>
                     </div>
                 </div>
                 <div v-else class="message-text w-auto" :class="{'text-danger': isError}"
@@ -64,7 +64,7 @@
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down" title="Audio is loading..." />
-                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop"
+                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
                        data-toggle="tooltip" data-placement="down" title="Stop Audio" />
                     <i v-else class="fa fa-volume-up"
                        data-toggle="tooltip" data-placement="down" title="Play Audio" />
@@ -74,10 +74,11 @@
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
-                    <div v-for="{ text, type } in this.debugMessages"
-                         :style="this.getDebugColoring(type)">
-                        <div>{{ text }}</div>
-                    </div>
+                    <DebugMessage v-for="{ text, type } in this.debugMessages"
+                        :text="text"
+                        :type="type"
+                        :is-dark-scheme="this.isDarkScheme"
+                    />
                 </div>
             </div>
 
@@ -89,9 +90,11 @@
 import {marked} from "marked";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
+import DebugMessage from "./DebugMessage.vue";
 
 export default {
     name: 'chatbubble',
+    components: {DebugMessage},
     props: {
         elementId: String,
         isUser: Boolean,
@@ -120,23 +123,22 @@ export default {
         },
 
         /**
-         * @param agent {string} Name of the agent that caused this status message.
+         * @param agentName {string} Name of the agent that caused this status message.
          * @param text {string} Status message text content.
-         * @param mode {string} Any of 'normal', 'pending' or 'done'.
-         * @param options {Object}
+         * @param completed {boolean} Flag to indicate if the task is done.
          */
-        addStatusMessage(agent, text, mode = 'normal', options = null) {
+        addStatusMessage(agentName, text, completed = false) {
             if (!text || !text.trim()) return;
             text = text.trim();
-            const message = this.statusMessages.get(agent);
+            const message = this.statusMessages.get(agentName);
             if (message) {
+
                 message.text = text;
-                message.mode = mode;
-                message.options = options;
+                message.completed = completed;
             } else {
                 // new message -> mark previous steps done
-                this.markStatusMessagesDone();
-                this.statusMessages.set(agent, {text: text, mode: mode, options: options});
+                this.markStatusMessagesDone(agentName);
+                this.statusMessages.set(agentName, {text: text, completed: completed});
             }
         },
 
@@ -156,7 +158,7 @@ export default {
             }
 
             const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator-Tools') {
+            if (lastMessage.type === type && type === 'Tool Generator') {
                 // If the message includes tools, the message needs to be replaced instead of appended
                 this.debugMessages[this.debugMessages.length - 1] = message;
             } else if (lastMessage.type === type) {
@@ -169,12 +171,16 @@ export default {
         },
 
         /**
-         * mark all pending status messages done
+         * Go over the status messages map and mark all pending ones done
+         * up to, but not including, the provided "stopKey".
          */
-        markStatusMessagesDone() {
-            Array.from(this.statusMessages.values())
-                .filter(msg => msg.mode === 'pending')
-                .forEach(msg => msg.mode = 'done');
+        markStatusMessagesDone(stopKey = null) {
+            const messages = Array.from(this.statusMessages.entries());
+            for (let i = 0; i < messages.length; ++i) {
+                const [key, msg] = messages[i];
+                if (key === stopKey) break;
+                msg.completed = true;
+            }
         },
 
         getFormattedContent() {
@@ -204,9 +210,15 @@ export default {
                 ? value : !this.isError;
         },
 
-        getDebugColoring(agentName) {
-            const color = getDebugColor(agentName, this.isDarkScheme);
-            return {color: color ?? null};
+        getGlowColors() {
+            const agentName = this.debugMessages.at(-1)?.type;
+            const baseColor = agentName
+                ? getDebugColor(agentName, this.isDarkScheme)
+                : null;
+            return {
+                '--glow-color-1': baseColor ? `${baseColor}40` : '#00ff0040',
+                '--glow-color-2': baseColor ? `${baseColor}90` : '#00ff0090',
+            };
         },
 
         /**
@@ -353,6 +365,22 @@ export default {
 
 .footer-item:hover {
     color: var(--primary-light);
+}
+
+.glow {
+    --glow-color-1: #00ff0040;
+    --glow-color-2: #00ff0090;
+    box-shadow: 0 0 8px #00ff0040;
+    animation: glow 3s infinite;
+}
+
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 0 12px var(--glow-color-1, #00ff0040);
+    }
+    50% {
+        box-shadow: 0 0 15px var(--glow-color-2, #00ff0090);
+    }
 }
 
 @media (prefers-color-scheme: dark) {
