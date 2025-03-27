@@ -380,9 +380,26 @@ export default {
         },
 
         async fetchBackendConfig() {
-            /* todo: called in various places, but was never defined?
-                also not sure what exactly it should do. */
-        }
+            if (!this.isConnected) {
+                this.backendConfig = null;
+                return;
+            }
+            const backend = this.getBackend();
+            try {
+                const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
+                if (response.status === 200) {
+                    this.backendConfig = response.data.value;
+                    this.backendConfigSchema = response.data.config_schema;
+                } else {
+                    this.backendConfig = this.backendConfigSchema = null;
+                    console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
+                }
+            } catch (error) {
+                console.error('Error fetching backend config:', error);
+                this.backendConfig = null;
+            }
+        },
+
     },
     mounted() {
         this.setupResizer();
