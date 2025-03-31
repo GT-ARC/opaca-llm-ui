@@ -253,6 +253,10 @@ export default {
 </script>
 
 <style scoped>
+.background {
+    background-color: var(--background-light);
+}
+
 header {
     background-color: var(--background-light);
     width: 100%;
@@ -335,6 +339,10 @@ header {
 }
 
 @media (prefers-color-scheme: dark) {
+    .background {
+        background-color: var(--background-dark);
+    }
+
     header {
         background-color: var(--background-dark);
         border-color: #2e2e2e;

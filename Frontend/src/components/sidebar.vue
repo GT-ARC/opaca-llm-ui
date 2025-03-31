@@ -1,5 +1,5 @@
 <template>
-    <div id="sidebar-base" class="d-flex justify-content-start">
+    <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
@@ -34,8 +34,8 @@
         <!-- sidebar content -->
         <div v-show="isViewSelected()" class="pt-4">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
+               class="container-fluid d-flex flex-column position-relative"
+               :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
                 <div v-show="isViewSelected('connect')">
@@ -361,7 +361,7 @@ export default {
                 // Calculate the new width for the aside
                 const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
 
-                if (newWidth > 200 && newWidth < 600) {
+                if (newWidth > 200 && newWidth < 768) {
                     sidebar.style.width = `${newWidth}px`;
                 }
             });
@@ -485,15 +485,15 @@ export default {
 
 <style scoped>
 #sidebar-base {
-    background-color: var(--background-light);
+    background-color: var(--surface-light);
 }
 
 /* sidebar content */
 #sidebar {
-    width: 100%;
+    width: min(400px, 100vw - 3rem);
+    height: calc(100vh - 85px);
     min-width: 150px;
-    max-width: 600px;
-    position: relative;
+    max-width: 768px;
     z-index: 999;
 }
 
@@ -535,6 +535,10 @@ export default {
 }
 
 @media screen and (max-width: 768px) {
+    #sidebar {
+        width: min(600px, 100vw - 3rem);
+    }
+
     .sidebar-item {
         font-size: 0.8rem;
         width: 2rem;
