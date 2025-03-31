@@ -50,7 +50,7 @@ var config = {
     DefaultSidebarView: 'questions',
 
 
-    translations:{
+    translations: {
         GB: {
             name: "English",
             language: 'Language',
