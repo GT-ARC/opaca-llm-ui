@@ -88,7 +88,7 @@ import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
 import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
 import { useDevice } from "../useIsMobile.js";
-import sm from "../SidebarManager";
+import SidebarManager from "../SidebarManager";
 
 export default {
     name: 'main-content',
@@ -103,7 +103,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { sm, isMobile, screenWidth };
+        return { SidebarManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -700,7 +700,7 @@ export default {
         },
 
         isMainContentVisible() {
-            return !(this.isMobile && sm.isSidebarOpen());
+            return !(this.isMobile && SidebarManager.isSidebarOpen());
         },
 
         isSendAvailable() {
