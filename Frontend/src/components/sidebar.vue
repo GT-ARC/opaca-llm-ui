@@ -5,40 +5,40 @@
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="selectView('connect')"
+            <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Connection"
-               v-bind:class="{'sidebar-item-select': isViewSelected('connect')}" />
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
-            <i @click="selectView('questions')"
+            <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Prompt Library"
-               v-bind:class="{'sidebar-item-select': isViewSelected('questions')}" />
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
-            <i @click="selectView('agents')"
+            <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Agents & Actions"
-               v-bind:class="{'sidebar-item-select': isViewSelected('agents')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
-            <i @click="selectView('config')"
+            <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Configuration"
-               v-bind:class="{'sidebar-item-select': isViewSelected('config')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
-            <i @click="selectView('debug')"
+            <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" title="Logging"
-               v-bind:class="{'sidebar-item-select': isViewSelected('debug')}"/>
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
         <!-- sidebar content -->
-        <div v-show="isViewSelected()" class="pt-4">
+        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column position-relative"
                :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
-                <div v-show="isViewSelected('connect')">
+                <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
 
@@ -85,7 +85,7 @@
                 </div>
 
                 <!-- agents/actions overview -->
-                <div v-show="isViewSelected('agents')"
+                <div v-show="SidebarManager.isViewSelected('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
@@ -138,7 +138,7 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="isViewSelected('config')"
+                <div v-show="SidebarManager.isViewSelected('config')"
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
@@ -168,7 +168,7 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="isViewSelected('debug')" id="chatDebug"
+                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                     <div id="debug-console"
                          class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
@@ -185,7 +185,7 @@
                 </div>
 
                 <!-- sample questions -->
-                <div v-show="isViewSelected('questions')"
+                <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
                         :questions="conf.translations[language].sidebarQuestions"
@@ -207,6 +207,7 @@ import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
+import SidebarManager from "../SidebarManager.js";
 
 export default {
     name: 'Sidebar',
@@ -222,7 +223,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, isMobile, screenWidth };
+        return { conf, SidebarManager, isMobile, screenWidth};
     },
     data() {
         return {
@@ -244,24 +245,6 @@ export default {
         };
     },
     methods: {
-        selectView(key) {
-            if (this.selectedView !== key) {
-                this.selectedView = key;
-            } else {
-                this.selectedView = 'none';
-            }
-            this.$emit('on-sidebar-toggle', this.selectedView);
-            // console.log('selected sidebar view:', this.selectedView);
-        },
-
-        isViewSelected(key) {
-            if (key !== undefined) {
-                return this.selectedView === key;
-            } else {
-                return this.selectedView !== 'none';
-            }
-        },
-
         async initRpConnection() {
             const connectButton = document.getElementById('button-connect');
             connectButton.disabled = true;
@@ -275,7 +258,7 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView(conf.DefaultSidebarView);
+                    SidebarManager.selectView(conf.DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -289,7 +272,6 @@ export default {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
-                // this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -446,6 +428,7 @@ export default {
         clearDebugMessage() {
             this.debugMessages = [];
         },
+
     },
     mounted() {
         this.setupResizer();
@@ -459,7 +442,7 @@ export default {
         if (conf.AutoConnect) {
             this.initRpConnection();
         } else {
-            this.selectView('connect');
+            SidebarManager.selectView('connect');
         }
     },
     updated() {

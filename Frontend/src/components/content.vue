@@ -15,11 +15,11 @@
                  :is-dark-scheme="isDarkScheme"
                  ref="sidebar"
                  @language-change="handleLanguageChange"
-                 @select-question="askChatGpt"
+                 @select-question="this.askSampleQuestion"
                  @category-selected="newCategory => this.selectedCategory = newCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue"
-                 @on-sidebar-toggle="this.onSidebarToggle"
+                 @api-key-change="newValue => this.apiKey = newValue"
         />
+
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
@@ -44,7 +44,7 @@
                     <div v-for="(question, index) in getCurrentCategoryQuestions()"
                          :key="index"
                          class="sample-question"
-                         @click="askChatGpt(question.question)">
+                         @click="this.askSampleQuestion(question.question)">
                         {{ question.icon }} <br> {{ question.question }}
                     </div>
                 </div>
@@ -111,6 +111,7 @@ import {sendRequest, shuffleArray} from "../utils.js";
 import {debugLoadingMessages} from '../config/debug-colors.js';
 
 import { useDevice } from "../useIsMobile.js";
+import SidebarManager from "../SidebarManager";
 
 export default {
     name: 'main-content',
@@ -126,7 +127,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { conf, isMobile, screenWidth };
+        return { conf, SidebarManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -144,7 +145,6 @@ export default {
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
-            isSidebarActive: false,
             randomSampleQuestions: null,
         }
     },
@@ -177,9 +177,17 @@ export default {
             if (this.textInput && this.isFinished) {
                 const userInput = this.textInput;
                 this.textInput = '';
+                await nextTick();
                 this.resizeTextInput();
                 await this.askChatGpt(userInput);
             }
+        },
+
+        async askSampleQuestion(questionText) {
+            this.textInput = questionText
+            await nextTick();
+            this.resizeTextInput();
+            await this.submitText();
         },
 
         resizeTextInput() {
@@ -442,12 +450,8 @@ export default {
             }));
         },
 
-        onSidebarToggle(key) {
-            this.isSidebarActive = (key !== 'none');
-        },
-
         isMainContentVisible() {
-            return !(this.isMobile && this.isSidebarActive);
+            return !(this.isMobile && SidebarManager.isSidebarOpen());
         },
 
         isSendAvailable() {
