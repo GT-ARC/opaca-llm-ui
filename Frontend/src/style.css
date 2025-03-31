@@ -173,12 +173,3 @@ h2{
 .debug-text {
     /* color: rgba(16, 163, 127, 0.8) !important; */
 }
-
-@keyframes move-glow {
-  0%, 100% {
-    box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
-  }
-  50% {
-    box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
-  }
-}

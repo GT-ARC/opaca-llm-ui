@@ -23,13 +23,12 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
-              style="max-width: 1000px !important;">
+              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
-            <div class="container-fluid flex-grow-1" id="chat1" :class="{'px-5': !isMobile}">
-                <div v-for="{ elementId, isUser, content, isLoading } in this.messages">
-                    <Chatbubble
+            <div class="container-fluid flex-grow-1 chat-container" id="chat1">
+                <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
+                    <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
                         :is-voice-server-connected="this.voiceServerConnected"
@@ -70,7 +69,8 @@
                             v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            style="margin-left: -2px" >
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
@@ -135,7 +135,6 @@ export default {
 
             apiKey: '',
             textInput: '',
-            messageCount: 0,
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
@@ -145,8 +144,6 @@ export default {
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
-            statusMessages: {}, // Track status messages by messageCount
-            accumulatedContent: '',
             isSidebarActive: false,
             randomSampleQuestions: null,
         }
@@ -172,19 +169,21 @@ export default {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
+                this.resizeTextInput()
             }
         },
 
         async submitText() {
-            if (this.textInput) {
+            if (this.textInput && this.isFinished) {
                 const userInput = this.textInput;
                 this.textInput = '';
+                this.resizeTextInput();
                 await this.askChatGpt(userInput);
             }
         },
 
-        resizeTextInput(event) {
-            const textArea = event.target;
+        resizeTextInput() {
+            const textArea = document.getElementById('textInput');
             if (textArea) {
                 textArea.style.height = 'auto';
                 textArea.style.height = `${textArea.scrollHeight}px`;
@@ -232,7 +231,6 @@ export default {
             }
         },
 
-        /** todo: rework/simplify */
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
@@ -506,8 +504,8 @@ export default {
 
 </script>
 
-<style>
-#chat1 {
+<style scoped>
+.chat-container {
     flex: 1;
     overflow-y: auto;
     position: relative;
@@ -515,23 +513,6 @@ export default {
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
     padding: 2rem 0; /* Increased top padding for first message */
-}
-
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    #mainContent::before,
-    #mainContent::after {
-        width: min(70%, 160ch);
-        max-width: calc(100% - 4rem);
-    }
-}
-
-@media (min-width: 1800px) {
-    #mainContent::before,
-    #mainContent::after {
-        width: min(60%, 180ch);
-        max-width: calc(100% - 4rem);
-    }
 }
 
 .input-container {
@@ -547,7 +528,7 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(95%, 160ch);
+    max-width: min(95%, 100ch);
     margin: 0 auto;
     padding: 0 1rem;
 }
@@ -611,28 +592,19 @@ export default {
     height: 1.25rem;
 }
 
-.input-group .btn-primary i.fa-paper-plane {
-    margin-left: -2px; /* Adjust send icon position */
-}
-
-
-@keyframes bounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-2px);
-    }
+.chatbubble-container {
+    max-width: min(95%, 160ch);
 }
 
 #mainContent {
     width: 100%;
     max-width: 100%;
-    height: calc(100vh - 60px);
+    height: calc(100vh - 50px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative; /* For fade positioning */
+    background-color: var(--background-light);
 }
 
 .sample-questions {
@@ -678,6 +650,15 @@ export default {
     background-color: var(--secondary-light) !important;
 }
 
+/* Override any Bootstrap input group border radius styles */
+.input-group > :first-child,
+.input-group > :last-child,
+.input-group > .form-control:not(:last-child),
+.input-group > .form-control:not(:first-child) {
+    border-radius: 1.5rem !important;
+}
+
+/* dark scheme styling */
 @media (prefers-color-scheme: dark) {
     body {
         background-color: var(--background-dark);
@@ -743,27 +724,20 @@ export default {
 
 }
 
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-    border-radius: 1.5rem !important;
-}
-
+/* Responsive widths for larger screens */
 @media (min-width: 1400px) {
-    #chat-container,
     .input-group,
-    .sample-questions {
-        max-width: min(70%, 160ch);
+    .sample-questions,
+    .chatbubble-container {
+        max-width: min(60%, 160ch);
     }
 }
 
 @media (min-width: 1800px) {
-    #chat-container,
     .input-group,
-    .sample-questions {
-        max-width: min(60%, 180ch);
+    .sample-questions,
+    .chatbubble-container {
+        max-width: min(50%, 160ch);
     }
 }
 
@@ -789,6 +763,16 @@ export default {
 
     .input-group {
         padding: 0;
+    }
+}
+
+/* animations */
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-2px);
     }
 }
 

@@ -4,7 +4,7 @@
     <div v-if="this.isUser" :id="this.elementId"
          class="d-flex flex-row justify-content-end mb-4">
 
-        <div class="chatbubble chatbubble-user ms-auto me-2 p-3 mb-2">
+        <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
             <div v-html="this.content" />
         </div>
         <div class="chaticon">

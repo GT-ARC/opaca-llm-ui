@@ -1,5 +1,5 @@
 <template>
-    <div class="d-flex justify-content-start">
+    <div id="sidebar-base" class="d-flex justify-content-start">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
@@ -32,7 +32,7 @@
         </div>
 
         <!-- sidebar content -->
-        <div v-show="isViewSelected()" class="mt-4">
+        <div v-show="isViewSelected()" class="pt-4">
             <aside id="sidebar"
                class="container-fluid d-flex flex-column px-3"
                style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
@@ -170,7 +170,8 @@
                 <!-- debug console -->
                 <div v-show="isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="text-start">
+                    <div id="debug-console"
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
                         <DebugMessage
                             v-for="debugMessage in debugMessages"
                             :key="debugMessage.text"
@@ -483,7 +484,11 @@ export default {
 </script>
 
 <style scoped>
+#sidebar-base {
+    background-color: var(--background-light);
+}
 
+/* sidebar content */
 #sidebar {
     width: 100%;
     min-width: 150px;
@@ -545,7 +550,7 @@ export default {
     top: 0;
     right: 0;
     border-radius: var(--border-radius-sm);
-    background-color: #e5e7eb;
+    background-color: var(--border-light);
     transition: background-color 0.2s ease;
 }
 
@@ -553,84 +558,13 @@ export default {
     background-color: var(--primary-light);
 }
 
-.debug-container {
-    height: 100%;
+#chatDebug {
+    background-color: var(--surface-light);
+    border: 1px solid var(--border-light);
     overflow: hidden;
+    height: 100%;
     display: flex;
     flex-direction: column;
-}
-
-.debug-messages {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column-reverse;
-    padding: 0.75rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 0.5rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875rem;
-    padding: 0.25rem 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    .debug-container {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-dark);
-    }
-
-    #sidebar {
-        background-color: var(--background-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .debug-container {
-        background-color: var(--surface-light);
-        border-color: var(--border-light);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-light);
-    }
 }
 
 /* Accordion Styling */
@@ -714,8 +648,33 @@ export default {
     font-family: monospace;
 }
 
-/* Dark mode styles */
+.list-group {
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    background-color: transparent;
+}
+
+.list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary-light);
+    transition: all 0.2s ease;
+}
+
+.list-group-flush .list-group-item {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+/* dark mode styling */
 @media (prefers-color-scheme: dark) {
+    #sidebar-base {
+        background-color: var(--background-dark);
+    }
+
     #sidebar-menu {
         background-color: var(--surface-dark);
         border-color: var(--border-dark);
@@ -727,15 +686,30 @@ export default {
 
     .sidebar-item:hover {
         background-color: var(--background-dark);
-        color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select {
         background-color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select:hover {
         background-color: var(--secondary-dark);
+    }
+
+    .resizer {
+        background-color: var(--border-dark);
+    }
+
+    .resizer:hover {
+        background-color: var(--primary-dark);
+    }
+
+    #chatDebug {
+        background-color: var(--surface-dark);
+        border-color: var(--border-dark);
+        border: 1px solid var(--border-dark);
     }
 
     .accordion-item {
@@ -763,10 +737,18 @@ export default {
         filter: invert(1);
     }
 
+    .accordion-body {
+        background-color: var(--background-dark);
+    }
+
+    .accordion-collapse {
+        background-color: var(--background-dark);
+    }
+
     .json-box {
-    background-color: var(--surface-dark);
-    color: var(--text-primary-dark);
-}
+        background-color: var(--surface-dark);
+        color: var(--text-primary-dark);
+    }
 
     .form-control {
         background-color: var(--input-dark);
@@ -783,136 +765,13 @@ export default {
         border-color: var(--primary-dark);
     }
 
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .debug-text {
-        color: var(--text-primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: #fff;
-        overflow: hidden;
-        border: 1px solid #ccc; /* border only needed in light mode */
-    }
-
-    .resizer {
-        background-color: gray;
-    }
-}
-
-.list-group {
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    background-color: transparent;
-}
-
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
     .list-group-item {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
     }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
 }
 
-#chatDebug {
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-#debug-console {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 3px;
-    font-family: "Courier New", monospace;
-    font-size: small;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: var(--surface-light);
-        border: 1px solid var(--border-light);
-    }
-
-    .resizer {
-        background-color: var(--border-light);
-    }
-}
-
+/* mobile design */
 @media screen and (max-width: 768px) {
     .resizer {
         display: none;
