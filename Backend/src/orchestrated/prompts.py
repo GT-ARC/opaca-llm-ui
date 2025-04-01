@@ -25,6 +25,11 @@ Your task is to create one or more executable tasks and assign them to the avail
 The tasks should be detailed and include all necessary information.
 YOU ABSOLUTELY HAVE TO USE THE CORRECT NAMES OF THE AGENTS! DO NOT COMBINE AGENT NAMES AND FUNCTION NAMES!
 
+NEVER assume a parameter value! This is of most importance! Get the real parameter values for a task by calling 
+other tasks beforehand if that is possible, otherwise set in your output the field 'needs_follow_up' to True and 
+generate a follow up question in the field 'follow_up_question' that will be shown to the user directly without 
+executing any tasks. You should always try to gather the required information yourself first by generating tasks!
+
 To make sure you create a robust and efficient plan, you must start your task with a reasoning process.
 The process should look as follows:
 
@@ -44,18 +49,12 @@ Think of all the steps that would be required.
 You are even allowed to invoke agents twice if you need to!
 
 Guidelines:
-1. **Task Breakdown**: Decompose the user request into one or multiple tasks, considering dependencies and the need for parallel execution.
+1. **Task Breakdown**: Decompose the user request into one or multiple tasks and the need for parallel execution. The individual tasks should include a detailed description of what the agent should do in that step.
 2. **Agent Assignment**: Assign tasks to agents based on their capabilities. Use the chat history only if it is directly relevant to the current request.
-3. **Dependencies**: For tasks that need information from other tasks:
-   - Split them into separate tasks with proper dependencies
-   - Put them in different rounds
-   - Example *"Get phone numbers for people in my next meeting"*:
-     Round 1: Retrieve the upcoming meetings for the next 7 days
-     Round 2: Get phone numbers for the attendees listed in the next meeting inside of the list using their email address.
-4. Tasks in the same round can AND WILL be executed in parallel if they are independent
-5. Only create dependencies between tasks if the output of one task is ABSOLUTELY REQUIRED for another
-6. Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
-7. **Output Generation and Summarization**: Do NOT include summarization tasks; an OutputGenerator will handle this at the end of the chain AUTOMATICALLY.
+3. Tasks in the same round can AND WILL be executed in parallel. They have to be absolutely independent.
+4. If the output of a task is used as an input in a later task, you have to set the rounds for each task accordingly.
+5. Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
+6. **Output Generation and Summarization**: Do NOT include summarization tasks; an OutputGenerator will handle this at the end of the chain AUTOMATICALLY.
 
 BUT ONLY FOCUS ON THE ACTUAL USER REQUEST. DON'T THINK ABOUT OTHER TASKS OR IDEAS THAT ARE NOT DIRECTLY RELATED TO THE USER REQUEST!
 EVEN IF YOU THINK OF OTHER TASKS THAT WOULD BE NICE TO HAVE, DON'T INCLUDE THEM!
@@ -75,23 +74,22 @@ Your task is to create executable tasks and assign them to the available agents.
 The tasks should be detailed and include all necessary information.
 YOU ABSOLUTELY HAVE TO USE THE CORRECT NAMES OF THE AGENTS! DO NOT COMBINE AGENT NAMES AND FUNCTION NAMES!
 
+NEVER assume a parameter value! This is of most importance! Get the real parameter values for a task by calling 
+other tasks beforehand if that is possible, otherwise set in your output the field 'needs_follow_up' to True and 
+generate a follow up question in the field 'follow_up_question' that will be shown to the user directly without 
+executing any tasks. You should always try to gather the required information yourself first by generating tasks!
+
 Really focus on the user request and identify ALL the tasks that are needed to solve the request.
 Think of all the steps that would be required. 
 You are even allowed to invoke agents twice if you need to!
 
 Guidelines:
-1. **Task Breakdown**: Decompose the user request into one or multiple tasks, considering dependencies and the need for parallel execution. The individual tasks should include a detailed description of what the agent should do in that step.
+1. **Task Breakdown**: Decompose the user request into one or multiple tasks and the need for parallel execution. The individual tasks should include a detailed description of what the agent should do in that step.
 2. **Agent Assignment**: Assign tasks to agents based on their capabilities. Use the chat history only if it is directly relevant to the current request.
-3. **Dependencies**: For tasks that need information from other tasks:
-   - Split them into separate tasks with proper dependencies
-   - Put them in different rounds
-   - Example *"Get phone numbers for people in my next meeting"*:
-     Round 1: Retrieve the upcoming meetings for the next 7 days
-     Round 2: Get phone numbers for the attendees listed in the next meeting inside of the list using their email address.
-4. Tasks in the same round can AND WILL be executed in parallel if they are independent
-5. Only create dependencies between tasks if the output of one task is ABSOLUTELY REQUIRED for another
-6. Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
-7. **Output Generation and Summarization**: Do NOT include summarization tasks; an OutputGenerator will handle this at the end of the chain AUTOMATICALLY.
+3. Tasks in the same round can AND WILL be executed in parallel. They have to be absolutely independent.
+4. If the output of a task is used as an input in a later task, you have to set the rounds for each task accordingly.
+5. Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
+6. **Output Generation and Summarization**: Do NOT include summarization tasks; an OutputGenerator will handle this at the end of the chain AUTOMATICALLY.
 
 BUT ONLY FOCUS ON THE ACTUAL USER REQUEST. DON'T THINK ABOUT OTHER TASKS OR IDEAS THAT ARE NOT DIRECTLY RELATED TO THE USER REQUEST!
 EVEN IF YOU THINK OF OTHER TASKS THAT WOULD BE NICE TO HAVE, DON'T INCLUDE THEM!
@@ -225,21 +223,12 @@ Important Guidelines:
 1. Focus on WHAT needs to be done to solve the given task and break it down into subtasks
 2. In your final subtask make a suggestion on a function that could be used to solve the task together with the CONCRETE parameters to enter for that function
 3. Keep in mind that the worker agent sometimes tries to enter variables or placeholders in its tool calls (WHICH DOES NOT WORK!) - Therefore you must strictly remind the worker agent to not do that and provide concrete values for the parameters where possible!
-4. Put dependent subtasks in later rounds
-4. Tasks in the same round can run in parallel
-5. Use round numbers starting from 1
-6. Keep task descriptions clear and goal-oriented
-7. Each task should be atomic and focused
-8. Include dependencies between tasks when needed
+4. You are absolutely FORBIDDEN to make up any parameter values. All parameter values must either be taken directly out of the user request or be acquired from other tasks.
+5. Tasks in the same round can run in parallel
+6. Use round numbers starting from 1
+7. Keep task descriptions clear and goal-oriented
+8. Each task should be atomic and focused
 9. For each suggested function call you give provide a clear disclaimer that the worker agent is allowed and ENCOURAGED to question your choice and come up with a better solution (if another function is more appropriate)!
-
-Example task breakdown:
-For "Get the kitchen temperature":
-Round 1:
-- Task: "Find the sensor ID for the kitchen. Suggest a function call that could be used to get this information: 'home-assistant-agent--GetSensorId' with the requestBody parameters 'room': 'kitchen'"
-
-Round 2 (depends on Round 1):
-- Task: "Get the current temperature reading using the sensor ID from the previous task. Suggest a function call that could be used to get this information: 'home-assistant-agent--GetValue' with the requestBody parameters 'sensorId': 'sensor_id_from_previous_task'(ABSOLUTELY Use the concrete sensor ID from the previous task), 'key': 'temperature'"
 
 You must output a JSON object with:
 1. reasoning: Brief explanation of your task breakdown approach
