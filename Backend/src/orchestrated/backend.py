@@ -96,7 +96,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 required=True, 
                 default=False,
                 description="Whether to use the agent evaluator or not"),
-
             # Whether to use the orchestrator without thinking
             "disable_orchestrator_thinking": ConfigParameter(
                 type="boolean", 
@@ -107,6 +106,7 @@ class SelfOrchestratedBackend(AbstractMethod):
         }
 
     async def execute_round_task(self, worker_agent, config, subtask, orchestrator_context, round_context, round_num, agent_messages, websocket):
+        """Executes a single subtask with a WorkerAgent"""
         current_task = subtask.task
 
         # Build comprehensive context that includes:
@@ -125,6 +125,8 @@ class SelfOrchestratedBackend(AbstractMethod):
             current_task = f"{current_task}\n\n{''.join(task_context)}"
 
         self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+
+        # Generate a concrete opaca action call for the given subtask
         worker_message = await self.call_llm(
             agent="WorkerAgent",
             model=config["worker_model"],
@@ -135,9 +137,14 @@ class SelfOrchestratedBackend(AbstractMethod):
             vllm_base_url=config["worker_base_url"],
             tools=worker_agent.tools
         )
+
+        # Invoke the action on the connected opaca platform
         agent_result = await worker_agent.invoke_tools(current_task, worker_message)
+
+        # Create agent message and stream content via websocket
         agent_messages.append(worker_message)
         await send_to_websocket(websocket, agent_message=worker_message)
+
         return agent_result
     
     async def _execute_round(
@@ -155,17 +162,17 @@ class SelfOrchestratedBackend(AbstractMethod):
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
 
         async def execute_single_task(task: AgentTask):
+            """Executes a single task"""
+            # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
             
-            # Log the task being executed
+            # Log that the task is being executed
             self.logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
             if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
-
                 await send_to_websocket(websocket, "AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n")
-                
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -230,6 +237,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                                 for tr in prev_result.tool_results:
                                     round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
 
+                    # Executes tasks in the same round in parallel
                     round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num, agent_messages, websocket) for subtask in current_tasks])
 
                     # Process round results
@@ -253,7 +261,9 @@ class SelfOrchestratedBackend(AbstractMethod):
 
                 # Execute task directly
                 if agent.agent_name == "GeneralAgent":
-                    predefined_response = self.get_general_agent_response(agent_summaries)
+                    # The general agent returns a pre-defined response
+                    predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
+                                            agent_capabilities=json.dumps(agent_summaries, indent=2))
                     worker_message = AgentMessage(
                         agent="WorkerAgent",
                         content="Called GeneralAgent!",
@@ -266,6 +276,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         tool_results=[{"name": "GetCapabilities", "result": predefined_response}],
                     )
                 else:
+                    # Generate a concrete tool call by the worker agent with its tools
                     worker_message = await self.call_llm(
                         agent="WorkerAgent",
                         model=config["worker_model"],
@@ -276,6 +287,8 @@ class SelfOrchestratedBackend(AbstractMethod):
                         vllm_base_url=config["worker_base_url"],
                         tools=agent.tools,
                     )
+
+                    # Invoke the tool call on the connected opaca platform
                     result = await agent.invoke_tools(task.task, worker_message.tools)
                     agent_messages.append(worker_message)
                 
@@ -286,6 +299,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # Now evaluate the result after we have it
                 await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n")
 
+                # If manual evaluation passes, run the AgentEvaluator
                 if not (evaluation := agent_evaluator.evaluate_results(result)):
                     evaluation_message = await self.call_llm(
                         agent="AgentEvaluator",
@@ -373,7 +387,6 @@ Now, using the tools available to you and the previous results, continue with yo
         overall_start_time = time.time()
 
         try:
-            
             # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config())
             with open(f'{Path(__file__).parent}/model_config.yaml', 'r') as f:
@@ -387,7 +400,7 @@ Now, using the tools available to you and the previous results, continue with yo
             agent_details = await session.client.get_agent_details()
             
             # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "actions": []}
+            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": []}
             
             # Initialize Orchestrator
             orchestrator = OrchestratorAgent(
@@ -423,9 +436,12 @@ Now, using the tools available to you and the previous results, continue with yo
                     vllm_base_url=config["base_url"],
                     response_format=orchestrator.schema,
                 )
+
+                # Extract pre-formatted Orchestrator Plan
                 plan = orchestrator_message.formatted_output
                 response.agent_messages.append(orchestrator_message)
 
+                # If the plan was not formatted properly, let the user know and ask for a retry
                 if not plan:
                     response.content = ("I am sorry, but I was unable to generate a plan for your problem. Please "
                                         "try to reformulate your request!")
@@ -604,6 +620,8 @@ Please address these specific improvements:
                 vllm_base_url=config["generator_base_url"],
                 websocket=websocket,
             )
+            # 'output_generator' is a special agent type to let the UI know to stream the results directly in chat
+            # Agent is changed afterwards properly
             final_output.agent = "OutputGenerator"
             response.agent_messages.append(final_output)
             await send_to_websocket(websocket, agent_message=final_output)
@@ -636,18 +654,14 @@ Please address these specific improvements:
                                                          f"Total Tokens used: {sum([msg.response_metadata.get('total_tokens', 0) for msg in response.agent_messages])}\nTotal (Prompt, Complete)\n{json.dumps(token_usage, indent=2)}\nExecution complete ✓")
             
             return response
-            
+
+        # If any errors were encountered, capture error desc and send to debug view
         except Exception as e:
             self.logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
             response.error = str(e)
             await send_to_websocket(websocket, "system", f"\n\nError: {str(e)}\n\n")
+            response.execution_time = time.time() - overall_start_time
             return response
-
-    @staticmethod
-    def get_general_agent_response(agent_summaries):
-        return get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
-            agent_capabilities=json.dumps(agent_summaries, indent=2)
-        )
 
 
 async def send_to_websocket(websocket = None, agent: str = "system", message: str = "", agent_message: AgentMessage = None):

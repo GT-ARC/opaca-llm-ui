@@ -47,7 +47,7 @@ Here is an overview of your Rules & Constraints:
 2. **Agent Assignment**: Assign tasks to agents based on their capabilities. Use the chat history only if it is directly relevant to the current request.
 3. **Parallel Tasks**: Tasks in the same round can AND WILL be executed in parallel. They have to be absolutely independent.
 4. **Task Sequence**: If the output of a task is used as an input in a later task, you have to set the rounds for each task accordingly.
-5. **Correct Agent Names**: Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
+5. **Correct Names**: Use EXACTLY the agent names AND the function names as provided in the Summaries - they are case sensitive!
 6. **Only ask follow-up if necessary**: Asking a follow-up question will abort the whole process and instead returns a message directly to the user. This should only be done in extreme cases where you are absolutely sure that you and your agents have no ability to answer the user without its help. Always try to get missing information yourself first!
 7. **Correct Parameter Types**: Check if the agent descriptions require special parameter types and check whether the available information is in the required format. If not, you should always try to get the required format by creating additional tasks in your plan first.
 
@@ -75,7 +75,7 @@ Here is an overview of your Rules & Constraints:
 2. **Agent Assignment**: Assign tasks to agents based on their capabilities. Use the chat history only if it is directly relevant to the current request.
 3. **Parallel Tasks**: Tasks in the same round can AND WILL be executed in parallel. They have to be absolutely independent.
 4. **Task Sequence**: If the output of a task is used as an input in a later task, you have to set the rounds for each task accordingly.
-5. **Correct Agent Names**: Use EXACTLY the agent names as provided in the Summaries - they are case sensitive!
+5. **Correct Names**: Use EXACTLY the agent names AND the function names as provided in the Summaries - they are case sensitive!
 6. **Only ask follow-up if necessary**: Asking a follow-up question will abort the whole process and instead returns a message directly to the user. This should only be done in extreme cases where you are absolutely sure that you and your agents have no ability to answer the user without its help. Always try to get missing information yourself first!
 7. **Correct Parameter Types**: Check if the agent descriptions require special parameter types and check whether the available information is in the required format. If not, you should always try to get the required format by creating additional tasks in your plan first.
 
