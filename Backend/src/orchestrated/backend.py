@@ -104,48 +104,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 description="Whether to disable the thinking process of the orchestrator"
             )
         }
-
-    async def execute_round_task(self, worker_agent, config, subtask, orchestrator_context, round_context, round_num, agent_messages, websocket):
-        """Executes a single subtask with a WorkerAgent"""
-        current_task = subtask.task
-
-        # Build comprehensive context that includes:
-        # 1. Previous orchestrator rounds
-        # 2. Previous planner rounds
-        # 3. Current round context
-        task_context = []
-
-        if orchestrator_context:
-            task_context.append(orchestrator_context)
-        if round_context:
-            task_context.append(round_context)
-
-        # Combine all contexts with proper separation
-        if task_context:
-            current_task = f"{current_task}\n\n{''.join(task_context)}"
-
-        self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
-
-        # Generate a concrete opaca action call for the given subtask
-        worker_message = await self.call_llm(
-            agent="WorkerAgent",
-            model=config["worker_model"],
-            system_prompt=worker_agent.system_prompt(),
-            messages=worker_agent.messages(subtask),
-            temperature=config["temperature"],
-            vllm_api_key=os.getenv("VLLM_API_KEY"),
-            vllm_base_url=config["worker_base_url"],
-            tools=worker_agent.tools
-        )
-
-        # Invoke the action on the connected opaca platform
-        agent_result = await worker_agent.invoke_tools(current_task, worker_message)
-
-        # Create agent message and stream content via websocket
-        agent_messages.append(worker_message)
-        await send_to_websocket(websocket, agent_message=worker_message)
-
-        return agent_result
     
     async def _execute_round(
         self,
@@ -155,17 +113,74 @@ class SelfOrchestratedBackend(AbstractMethod):
         all_results: List[AgentResult],
         agent_summaries: Dict[str, Any],
         websocket=None,
-        agent_messages: List[AgentMessage] = None
+        agent_messages: List[AgentMessage] = None,
+        num_tools: int = 1,
     ) -> Tuple[List[AgentResult], List[AgentMessage]]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
+        tool_counter = num_tools
+        tool_counter_lock = asyncio.Lock()
+
+        async def execute_round_task(worker_agent, subtask, orchestrator_context, round_context,
+                                     round_num):
+            """Executes a single subtask with a WorkerAgent"""
+            current_task = subtask.task
+            nonlocal tool_counter
+
+            # Build comprehensive context that includes:
+            # 1. Previous orchestrator rounds
+            # 2. Previous planner rounds
+            # 3. Current round context
+            task_context = []
+
+            if orchestrator_context:
+                task_context.append(orchestrator_context)
+            if round_context:
+                task_context.append(round_context)
+
+            # Combine all contexts with proper separation
+            if task_context:
+                current_task = f"{current_task}\n\n{''.join(task_context)}"
+
+            self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+
+            # Generate a concrete opaca action call for the given subtask
+            worker_message = await self.call_llm(
+                agent="WorkerAgent",
+                model=config["worker_model"],
+                system_prompt=worker_agent.system_prompt(),
+                messages=worker_agent.messages(subtask),
+                temperature=config["temperature"],
+                vllm_api_key=os.getenv("VLLM_API_KEY"),
+                vllm_base_url=config["worker_base_url"],
+                tools=worker_agent.tools
+            )
+
+            # Update the tool ids
+            async with tool_counter_lock:
+                for tool in worker_message.tools:
+                    tool["id"] = tool_counter
+                    print(f'Used tool_counter: {tool["id"]}')
+                    tool_counter += 1
+
+            # Invoke the action on the connected opaca platform
+            agent_result = await worker_agent.invoke_tools(current_task, worker_message)
+
+            # Create agent message and stream content via websocket
+            agent_messages.append(worker_message)
+            await send_to_websocket(websocket, agent_message=worker_message)
+
+            return agent_result
 
         async def execute_single_task(task: AgentTask):
             """Executes a single task"""
             # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
+
+            # Keep track of the tool ids
+            nonlocal tool_counter
             
             # Log that the task is being executed
             self.logger.info(f"Executing task for {task.agent_name}: {task_str}")
@@ -238,7 +253,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                                     round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
 
                     # Executes tasks in the same round in parallel
-                    round_results = await asyncio.gather(*[self.execute_round_task(planner.worker_agent, config, subtask, planner.get_orchestrator_context(all_results), round_context, round_num, agent_messages, websocket) for subtask in current_tasks])
+                    round_results = await asyncio.gather(*[execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in current_tasks])
 
                     # Process round results
                     for result in round_results:
@@ -287,6 +302,13 @@ class SelfOrchestratedBackend(AbstractMethod):
                         vllm_base_url=config["worker_base_url"],
                         tools=agent.tools,
                     )
+
+                    # Update the tool ids
+                    async with tool_counter_lock:
+                        for tool in worker_message.tools:
+                            tool["id"] = tool_counter
+                            print(f'Used tool_counter: {tool["id"]}')
+                            tool_counter += 1
 
                     # Invoke the tool call on the connected opaca platform
                     result = await agent.invoke_tools(task.task, worker_message.tools)
@@ -362,6 +384,14 @@ Now, using the tools available to you and the previous results, continue with yo
                     vllm_base_url=config["worker_base_url"],
                     tools=agent.tools
                 )
+
+                # Update the tool ids
+                async with tool_counter_lock:
+                    for tool in worker_message.tools:
+                        tool["id"] = tool_counter
+                        print(f'Used tool_counter: {tool["id"]}')
+                        tool_counter += 1
+
                 result = await agent.invoke_tools(task.task, worker_message.tools)
                 agent_messages.append(worker_message)
                 
@@ -529,7 +559,8 @@ Now, using the tools available to you and the previous results, continue with yo
                         all_results,
                         agent_details,
                         websocket,
-                        response.agent_messages
+                        response.agent_messages,
+                        sum(len(message.tools) for message in response.agent_messages) + 1,
                     )
                     
                     all_results.extend(round_results)
