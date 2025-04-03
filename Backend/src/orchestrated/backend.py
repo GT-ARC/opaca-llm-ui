@@ -526,7 +526,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform instead of JSON file
                         agent_tools = []
-                        actions_spec = await session.client.get_actions_with_refs()
+                        actions_spec = await session.opaca_client.get_actions_with_refs()
                         functions, error = openapi_to_functions(actions_spec, use_agent_names=True)
                         
                         # Filter functions for this specific agent and clean up parameters
@@ -560,7 +560,7 @@ Now, using the tools available to you and the previous results, continue with yo
                             agent_name=agent_name,
                             summary=agent_data["summary"],
                             tools=agent_tools,
-                            session_client=session.client,
+                            session_client=session.opaca_client,
                             config=config
                         )
                 

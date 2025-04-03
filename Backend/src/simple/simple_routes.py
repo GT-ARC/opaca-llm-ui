@@ -65,7 +65,7 @@ class SimpleBackend(AbstractMethod):
 
         # initialize messages
         policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
-        actions = session.client.actions if session.client else "(No services, not connected yet.)"
+        actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
         # new conversation starts here
@@ -96,7 +96,7 @@ class SimpleBackend(AbstractMethod):
                     logger.info("JSON, but not an action call...")
                     break
                 logger.info("Successfully parsed as JSON, calling service...")
-                action_result = await session.client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
+                action_result = await session.opaca_client.invoke_opaca_action(d["action"], d["agentId"], d["params"])
                 tool_result_response = f"The result of this step was: {repr(action_result)}"
                 messages.append(ChatMessage(role="assistant", content=tool_result_response))
                 result.agent_messages.append(AgentMessage(
