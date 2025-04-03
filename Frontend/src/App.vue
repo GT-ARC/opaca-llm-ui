@@ -95,7 +95,7 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown me-0">
+                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <span v-show="!isMobile">Voice Server</span>
@@ -149,13 +149,14 @@ import MainContent from './components/content.vue';
 
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
+import AudioManager from "./AudioManager.js";
 
 export default {
     name: 'App',
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
