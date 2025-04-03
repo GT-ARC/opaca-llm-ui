@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
@@ -45,6 +44,7 @@ class AbstractMethod(ABC):
 
     @staticmethod
     async def call_llm(
+            client: AsyncOpenAI,
             model: str,
             agent: str,
             system_prompt: str,
@@ -59,6 +59,7 @@ class AbstractMethod(ABC):
         via the provided websocket. Returns the complete response as an AgentMessage.
 
         Args:
+            client (AsyncOpenAI): An already initialized AsyncOpenAI instance.
             model (str): The name of the model to call.
             agent (str): The name of the agent which got invoked.
             system_prompt (str): The system prompt for the model.
@@ -76,12 +77,6 @@ class AbstractMethod(ABC):
         exec_time = time.time()
         tool_call_buffers = {}
         content = ''
-
-        # Initialize either OpenAI model or vllm model
-        if model.startswith(("gpt", "o1", "o3")):
-            client = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
-        else:
-            client = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
 
         # Initialize agent message
         agent_message = AgentMessage(
@@ -160,6 +155,9 @@ class AbstractMethod(ABC):
                 tool['args'] = json.loads(tool['args'])
             except json.JSONDecodeError:
                 tool['args'] = {}
+            if not tool["args"]:
+                tool["args"] = {}
+                continue
 
         agent_message.execution_time = time.time() - exec_time
 

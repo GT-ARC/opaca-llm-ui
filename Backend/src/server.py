@@ -71,6 +71,7 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = handle_session_id(request, response)
+    await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
     session.messages.extend([ChatMessage(role="user", content=message.user_query),
                              ChatMessage(role="assistant", content=result.content)])
@@ -83,6 +84,7 @@ async def query_stream(websocket: WebSocket, backend: str):
     try:
         data = await websocket.receive_json()
         message = Message(**data)
+        await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
         session.messages.extend([ChatMessage(role="user", content=message.user_query),
                                  ChatMessage(role="assistant", content=result.content)])
