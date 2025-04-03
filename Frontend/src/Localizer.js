@@ -1,4 +1,5 @@
 import {ref} from 'vue';
+    import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 
 
@@ -272,20 +273,34 @@ class Localizer {
         }
     }
 
+    /**
+     * Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments.
+     * Also does in-line markdown parsing on the text.
+     * @param text
+     * @param args
+     * @returns {string|null}
+     */
     formatText(text, ...args) {
-        return text.replace(/%(\d+)/g, (match, number) => {
-            return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
-        });
+        if (!text) return null;
+        try {
+            text = text.replace(/%(\d+)/g, (match, number) => {
+                return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
+            });
+            return marked.parseInline(text);
+        } catch (error) {
+            console.error('Formatting error:', error);
+            return null;
+        }
     }
 
     _getFrom(data, key, args, defaultValue, warningText, errorText) {
-        const fallbackText = data?.[this.fallbackLanguage]?.[key];
-        const text = data?.[this.language]?.[key];
+        const fallbackText = this.formatText(data?.[this.fallbackLanguage]?.[key], ...args);
+        const text = this.formatText(data?.[this.language]?.[key], ...args);
         if (text) {
-            return this.formatText(text, ...args);
+            return text;
         } else if (fallbackText) {
             console.warn('Localization Warning:', warningText);
-            return this.formatText(fallbackText, ...args);
+            return fallbackText;
         } else {
             console.error('Localization Error:', errorText);
             return defaultValue;
