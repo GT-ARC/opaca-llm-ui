@@ -309,7 +309,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                             tool_counter += 1
 
                     # Invoke the tool call on the connected opaca platform
-                    result = await agent.invoke_tools(task.task, worker_message.tools)
+                    result = await agent.invoke_tools(task.task, worker_message)
                     agent_messages.append(worker_message)
                 
                 # Send tool calls and results via websocket or generic GeneralAgent message
@@ -389,7 +389,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         tool["id"] = tool_counter
                         tool_counter += 1
 
-                result = await agent.invoke_tools(task.task, worker_message.tools)
+                result = await agent.invoke_tools(task.task, worker_message)
                 agent_messages.append(worker_message)
                 
                 # Send only tool calls and results via websocket
