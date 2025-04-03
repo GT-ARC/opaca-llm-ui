@@ -21,6 +21,11 @@ class AbstractMethod(ABC):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         pass
 
+    @abstractmethod
+    async def init_models(self, session_data: SessionData) -> None:
+        pass
+
+
     def default_config(self):
         def extract_defaults(schema):
             # Extracts the default values of nested configurations

@@ -1,6 +1,9 @@
+import os
 import re
 import time
 from typing import List
+
+from openai import AsyncOpenAI
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
@@ -19,6 +22,15 @@ class ToolLLMBackend(AbstractMethod):
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
+
+    async def init_models(self, session: SessionData) -> None:
+        # Initialize either OpenAI model or vllm model
+        model = session.config.get(self.NAME, self.default_config())["model"]
+        if model not in session.cached_models.keys():
+            if model.startswith(("gpt", "o1", "o3")):
+                session.cached_models[model] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
+            else:
+                session.cached_models[model] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
 
     async def query(self, message: str, session: SessionData) -> Response:
         return await self.query_stream(message, session)

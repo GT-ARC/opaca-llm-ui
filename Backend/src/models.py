@@ -4,6 +4,7 @@ Request and response models used in the FastAPI routes (and in some of the imple
 import logging
 from typing import List, Dict, Any, Optional, Self
 
+from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field
 
 
@@ -105,6 +106,7 @@ class SessionData(BaseModel):
     config: Dict[str, Any] = {}
     opaca_client: Any = None
     api_key: str = None
+    cached_models: Dict[str, AsyncOpenAI] = []
 
 
 class ConfigArrayItem(BaseModel):

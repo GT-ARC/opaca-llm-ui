@@ -150,6 +150,20 @@ class SelfOrchestratedBackend(AbstractMethod):
                 description="Whether to disable the thinking process of the orchestrator"
             )
         }
+
+
+
+    async def init_models(self, session: SessionData) -> None:
+        # Initialize either OpenAI model or vllm model
+        model_config = session.config.get(self.NAME, self.default_config())["model_config_name"]
+        models = [model_config["orchestrator_model"], model_config["worker_model"], model_config["evaluator_model"], model_config["generator_model"]]
+        base_urls = [model_config["orchestrator_base_url"], model_config["worker_base_url"], model_config["evaluator_base_url"], model_config["generator_base_url"]]
+        for model, base_url in zip(models, base_urls):
+            if model not in session.cached_models.keys():
+                if model.startswith(("gpt", "o1", "o3")):
+                    session.cached_models[model] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
+                else:
+                    session.cached_models[model] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
     
     async def _create_openai_client(self, session: SessionData, agent_type: str = "worker") -> AsyncOpenAI:
         """Create OpenAI client with appropriate configuration"""
