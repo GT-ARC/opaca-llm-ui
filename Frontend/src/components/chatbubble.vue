@@ -121,7 +121,7 @@ export default {
         }
     },
 
-    methods: {  
+    methods: {
         getElement() {
             return document.getElementById(this.elementId);
         },

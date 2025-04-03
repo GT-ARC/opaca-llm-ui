@@ -61,6 +61,7 @@ export const localizationData = {
         tooltipSidebarAgents: "Agenten & Aktionen",
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
+        tooltipChatbubbleDebug: "Debug",
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
