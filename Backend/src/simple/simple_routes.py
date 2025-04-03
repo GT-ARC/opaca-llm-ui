@@ -54,9 +54,6 @@ class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
 
-    def __init__(self):
-        self.config = self.default_config()
-
     async def init_models(self, session: SessionData) -> None:
         # Initialize either OpenAI model or vllm model
         model = session.config.get(self.NAME, self.default_config())["model"]
@@ -74,8 +71,11 @@ class SimpleBackend(AbstractMethod):
         logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)
 
+        # Get session config
+        config = session.config.get(self.NAME, self.default_config())
+
         # initialize messages
-        policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
+        policy = ask_policies[int(session.config.get("ask_policy", config["ask_policy"]))]
         actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
@@ -85,11 +85,12 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
-                model=self.config["model"],
+                client=session.cached_models[config["model"]],
+                model=config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy, actions),
                 messages=messages,
-                temperature=self.config["temperature"],
+                temperature=config["temperature"],
                 tool_choice="none",
                 websocket=websocket,
             )
