@@ -213,13 +213,6 @@ export default {
             return key === this.backend;
         },
 
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
         async initVoiceServerConnection() {
             try {
                 const response = await fetch(`${conf.VoiceServerAddress}/info`);
@@ -234,8 +227,8 @@ export default {
             }
         }
     },
+
     mounted() {
-        this.setupTooltips();
         this.initVoiceServerConnection();
     }
 }

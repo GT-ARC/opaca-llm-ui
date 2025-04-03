@@ -132,7 +132,6 @@ export default {
             text = text.trim();
             const message = this.statusMessages.get(agentName);
             if (message) {
-
                 message.text = text;
                 message.completed = completed;
             } else {
