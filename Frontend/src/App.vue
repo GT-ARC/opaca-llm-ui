@@ -5,7 +5,7 @@
 
                 <!-- backlink -->
                 <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
-                    <a v-bind:href="conf.BackLink">
+                    <a :href="conf.BackLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -137,8 +137,8 @@
 </template>
 
 <script>
-import conf from '../config.js'
-import MainContent from './components/content.vue'
+import conf from '../config.js';
+import MainContent from './components/content.vue';
 
 import { useDevice } from "./useIsMobile.js";
 
@@ -209,13 +209,6 @@ export default {
             return key === this.backend;
         },
 
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
         async checkVoiceServerConnection() {
             try {
                 const response = await fetch(`${conf.VoiceServerAddress}/info`);
@@ -242,13 +235,16 @@ export default {
         }
     },
     mounted() {
-        this.setupTooltips();
         this.checkVoiceServerConnection();
     }
 }
 </script>
 
 <style scoped>
+.background {
+    background-color: var(--background-light);
+}
+
 header {
     background-color: var(--background-light);
     width: 100%;
@@ -331,6 +327,10 @@ header {
 }
 
 @media (prefers-color-scheme: dark) {
+    .background {
+        background-color: var(--background-dark);
+    }
+
     header {
         background-color: var(--background-dark);
         border-color: #2e2e2e;

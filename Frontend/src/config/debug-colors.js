@@ -73,3 +73,22 @@ export const debugLoadingMessages = {
         "system": "",
     }
 }
+
+export function getDebugColor(key, isDarkScheme) {
+    const darkSchemeId = isDarkScheme ? 0 : 1;
+    if (debugColors[key]) {
+        return debugColors[key][darkSchemeId];
+    } else {
+        console.warn(`Debug color ${key} not found.`);
+        return defaultDebugColors[key]?.[darkSchemeId] || null;
+    }
+}
+
+export function getDebugLoadingMessage(language, key) {
+    if (debugLoadingMessages[language]?.[key]) {
+        return debugLoadingMessages[language][key];
+    } else {
+        console.error(`Debug loading message ${key} not found for language ${language}.`);
+        return 'Unknown debug message';
+    }
+}

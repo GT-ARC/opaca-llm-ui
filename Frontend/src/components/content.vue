@@ -1,5 +1,5 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100">
+    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
 
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
@@ -10,27 +10,45 @@
             @error="handleRecordingError"
         />
 
-        <Sidebar :backend="backend" :language="language" ref="sidebar"
+        <Sidebar :backend="backend"
+                 :language="language"
+                 :is-dark-scheme="isDarkScheme"
+                 ref="sidebar"
                  @language-change="handleLanguageChange"
-                 @select-question="askChatGpt"
-                 @category-selected="updateSelectedCategory"
-                 @api-key-change="(newValue) => this.apiKey = newValue" />
+                 @select-question="this.askSampleQuestion"
+                 @category-selected="newCategory => this.selectedCategory = newCategory"
+                 @api-key-change="newValue => this.apiKey = newValue"
+        />
+
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              v-bind:class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
-            <!-- Chat Window -->
-            <div class="container-fluid flex-grow-1 px-0" id="chat1">
-                <div class="card-body" id="chat-container"/>
+            <!-- Chat Window with Chat bubbles -->
+            <div class="container-fluid flex-grow-1 chat-container" id="chat1">
+                <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
+                    <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
+                        :element-id="elementId"
+                        :is-user="isUser"
+                        :is-voice-server-connected="this.voiceServerConnected"
+                        :is-dark-scheme="this.isDarkScheme"
+                        :initial-content="content"
+                        :initial-loading="isLoading"
+                        :ref="elementId"
+                    />
+                </div>
+
+                <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
                     <div v-for="(question, index) in getCurrentCategoryQuestions()"
                          :key="index"
                          class="sample-question"
-                         @click="askChatGpt(question.question)">
+                         @click="this.askSampleQuestion(question.question)">
                         {{ question.icon }} <br> {{ question.question }}
                     </div>
                 </div>
+
             </div>
 
             <!-- Input Area -->
@@ -38,24 +56,27 @@
                 <div class="input-group">
                       <textarea id="textInput"
                                 v-model="textInput"
-                                :placeholder="getConfig().translations[language].inputPlaceholder || 'Send a message...'"
+                                :placeholder="conf.translations[language].inputPlaceholder || 'Send a message...'"
                                 class="form-control overflow-hidden"
+                                style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
-                                @input="autoResize"
-                                @keypress="textInputCallback"></textarea>
+                                @keydown="textInputCallback"
+                                @input="resizeTextInput"
+                      ></textarea>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
                             v-if="this.isSendAvailable()"
                             class="btn btn-primary"
                             @click="submitText"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            style="margin-left: -2px" >
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
-                            @click="startRecognition"
+                            @click="this.showRecordingPopup = true"
                             :disabled="!isFinished">
                         <i class="fa fa-microphone"/>
                     </button>
@@ -70,8 +91,8 @@
             </div>
 
             <!-- Simple Keyboard -->
-            <SimpleKeyboard v-if="getConfig().ShowKeyboard"
-                            @change="this.onChangeSimpleKeyboard" />
+            <SimpleKeyboard v-if="conf.ShowKeyboard"
+                            @change="input => this.textInput = input" />
 
         </main>
 
@@ -80,13 +101,15 @@
 </template>
 
 <script>
-import {marked} from "marked";
-import conf from '../../config'
+import {nextTick} from "vue";
 import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
-import {sendRequest, shuffleArray} from "../utils.js";
 import RecordingPopup from './RecordingPopup.vue';
-import {debugColors, defaultDebugColors, debugLoadingMessages} from '../config/debug-colors.js';
+import Chatbubble from "./chatbubble.vue";
+import conf from '../../config'
+import {sendRequest, shuffleArray} from "../utils.js";
+import {debugLoadingMessages} from '../config/debug-colors.js';
+
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 
@@ -95,7 +118,8 @@ export default {
     components: {
         Sidebar,
         SimpleKeyboard,
-        RecordingPopup
+        RecordingPopup,
+        Chatbubble
     },
     props: {
         backend: String,
@@ -103,13 +127,15 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { SidebarManager, isMobile, screenWidth };
+        return { conf, SidebarManager, isMobile, screenWidth };
     },
     data() {
         return {
+            messages: [],
+            socket: null,
+
             apiKey: '',
             textInput: '',
-            messageCount: 0,
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
@@ -119,8 +145,6 @@ export default {
             deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
             voiceServerConnected: false,
-            statusMessages: {}, // Track status messages by messageCount
-            accumulatedContent: '',
             randomSampleQuestions: null,
         }
     },
@@ -137,155 +161,140 @@ export default {
         }
     },
     methods: {
-        getConfig() {
-            return conf;
-        },
-
         updateTheme() {
-            // Check if dark color scheme is preferred
             this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.updateDebugColors(this.isDarkScheme)
-        },
-
-        onChangeSimpleKeyboard(input) {
-            this.textInput = input;
         },
 
         async textInputCallback(event) {
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
+                this.resizeTextInput()
             }
         },
 
         async submitText() {
-            const userInput = this.textInput;
-            if (this.textInput) {
+            if (this.textInput && this.isFinished) {
+                const userInput = this.textInput;
                 this.textInput = '';
+                await nextTick();
+                this.resizeTextInput();
                 await this.askChatGpt(userInput);
             }
+        },
+
+        async askSampleQuestion(questionText) {
+            this.textInput = questionText
+            await nextTick();
+            this.resizeTextInput();
+            await this.submitText();
+        },
+
+        resizeTextInput() {
+            const textArea = document.getElementById('textInput');
+            if (textArea) {
+                textArea.style.height = 'auto';
+                textArea.style.height = `${textArea.scrollHeight}px`;
+            }
+        },
+
+        getLastBubble() {
+            if (this.messages.length === 0) {
+                throw Error('Tried to get the last chat bubble when none exist. This should not happen.');
+            }
+            const refId = this.messages[this.messages.length - 1].elementId;
+            return this.$refs[refId][0];
         },
 
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
-            const currentMessageCount = this.messageCount;
-            this.messageCount++;
-            const debugMessageLength = this.$refs.sidebar.debugMessages.length;
-            this.accumulatedContent = ''; // Reset accumulated content for new message
-            this.createSpeechBubbleUser(userText);
+
+            // add user chat bubble
+            await this.addChatBubble(userText, true, false);
+
+            // add AI chat bubble in loading state, add prepare message
+            await this.addChatBubble('', false, true);
+            this.getLastBubble().addStatusMessage('preparing',
+                this.getDebugLoadingMessage('preparing'), false);
+
             try {
-                // Initialize with preparing message
-                this.statusMessages[currentMessageCount] = new Map();
-                const systemMessage = this.getDebugLoadingMessage('preparing');
-                this.statusMessages[currentMessageCount].set('preparing', systemMessage + ' ...');
-                this.editTextSpeechBubbleAI(Array.from(this.statusMessages[currentMessageCount].values()).join('\n'), currentMessageCount);
-
-                // Show loading indicator for initial message
-                const aiBubble = document.getElementById(`${currentMessageCount}`);
-                if (aiBubble) {
-                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                    if (loadingContainer) {
-                        loadingContainer.classList.remove('hidden');
-                    }
-                }
-
-                const preparingColor = this.getDebugColor('preparing', this.isDarkScheme);
-                this.editAnimationSpeechBubbleAI(currentMessageCount, true, preparingColor);
-                this.scrollDown(false);
-
-                const socket = new WebSocket(`${conf.BackendAddress}/${this.getBackend()}/query_stream`);
-
-                socket.onmessage = (event) => {
-                    const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-                    if (result.hasOwnProperty("agent")) {
-                        // Mark system preparation as complete on first agent message
-                        if (this.statusMessages[currentMessageCount].has('preparing')) {
-                            const preparingMessage = this.getDebugLoadingMessage('preparing');
-                            this.statusMessages[currentMessageCount].set('preparing', preparingMessage + ' ✓');
-                        }
-
-                        if (result.agent === 'output_generator') {
-                            // Accumulate content for streaming without coloring
-                            if (!this.accumulatedContent) {
-                                this.accumulatedContent = '';
-                                // Hide loading indicator on first chunk
-                                const aiBubble = document.getElementById(`${currentMessageCount}`);
-                                if (aiBubble) {
-                                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                                    if (loadingContainer) {
-                                        loadingContainer.classList.add('hidden');
-                                    }
-                                }
-                            }
-                            this.accumulatedContent += result.content;
-                            // Apply markdown parsing to the entire accumulated content
-                            const formattedContent = marked.parse(this.accumulatedContent);
-                            this.editTextSpeechBubbleAI(formattedContent, currentMessageCount, true, false); // Pass false to prevent loading indicator changes
-                            // Remove any active glow animation for assistant content
-                            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                        } else {
-                            // Agent messages are intermediate results
-                            this.addDebugToken(result, currentMessageCount);
-                        }
-                        this.scrollDown(true);
-                    } else {
-                        // Last message received should be final response
-                        this.editTextSpeechBubbleAI(result.content, currentMessageCount);
-                        this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-
-                        // Put the final response into the accumulated content
-                        this.accumulatedContent = result.content;
-
-                        // Hide loading indicator
-                        const aiBubble = document.getElementById(`${currentMessageCount}`);
-                        if (aiBubble) {
-                            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                            if (loadingContainer) {
-                                loadingContainer.classList.add('hidden');
-                            }
-                        }
-
-                        // Handle Debug Message in Chat Bubble
-                        this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-                    }
-                };
-
-                socket.onopen = () => {
-                    const inputData = {user_query: userText, api_key: this.apiKey};
-                    socket.send(JSON.stringify(inputData));
-                };
-
-                socket.onclose = () => {
-                    if (!this.isFinished) {
-                        this.handleUnexpectedConnectionClosed("❗It seems there was a problem during the response generation...", currentMessageCount, debugMessageLength)
-                    }
-                    console.log("WebSocket connection closed");
-                    // Get the final accumulated content and message ID for speech
-                    if (this.autoSpeakNextMessage && this.voiceServerConnected) {
-                        if (this.accumulatedContent) {
-                            this.generateAudioForMessage(currentMessageCount, this.accumulatedContent);
-                            this.autoSpeakNextMessage = false;
-                        }
-                    }
-                };
-
-                socket.onerror = (error) => {
-                    if (!this.isFinished) {
-                        this.handleUnexpectedConnectionClosed("❗I encountered the following error during the response generation: " + error.toString(), currentMessageCount, debugMessageLength)
-                    }
-                    console.log("Received error: ", error);
-                }
+                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
+                this.socket = new WebSocket(url);
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
-                console.error(error);
-                this.editTextSpeechBubbleAI("Error while fetching data: " + error, currentMessageCount);
-                this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-                this.scrollDown(false);
+                await this.handleStreamingSocketError(error);
             }
         },
 
-        async startRecognition() {
-            this.showRecordingPopup = true;
+        async handleStreamingSocketOpen(socket, userText) {
+            try {
+                const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
+                socket.send(inputData);
+            } catch (error) {
+                await this.handleStreamingSocketError(error);
+            }
+        },
+
+        async handleStreamingSocketMessage(event) {
+            const aiBubble = this.getLastBubble();
+            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+
+            if (result.hasOwnProperty('agent')) {
+                if (result.agent === 'output_generator') {
+                    // put output_generator content directly in the bubble
+                    aiBubble.addContent(result.content);
+                } else {
+                    // other agent messages are intermediate results
+                    this.processAgentStatusMessage(result);
+                    await this.addDebugToken(result, false);
+                }
+
+                this.scrollDownDebug();
+                this.scrollDownChat();
+            } else {
+                // no agent property -> Last message received should be final response
+                aiBubble.toggleError(!!result.error);
+                const content = result.error
+                    ? result.error : result.content;
+                aiBubble.setContent(content);
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+            }
+        },
+
+        async handleStreamingSocketClose() {
+            console.log("WebSocket connection closed", this.isFinished);
+            if (!this.isFinished) {
+                const message = "It seems there was a problem in the response generation.";
+                this.handleUnexpectedConnectionClosed(message);
+            }
+
+            this.startAutoSpeak();
+            this.isFinished = true;
+            this.scrollDownChat();
+        },
+
+        async handleStreamingSocketError(error) {
+            console.error("Received error: ", error);
+            if (!this.isFinished) {
+                const message = "An Error occurred in the response generation: " + error.toString();
+                this.handleUnexpectedConnectionClosed(message);
+            }
+
+            this.isFinished = true;
+            this.scrollDownChat();
+        },
+
+        startAutoSpeak() {
+            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+                const aiBubble = this.getLastBubble();
+                aiBubble.startAudioPlayback();
+                this.autoSpeakNextMessage = false;
+            }
         },
 
         handleTranscriptionComplete(text) {
@@ -297,7 +306,7 @@ export default {
         handleSendMessage(text) {
             if (text) {
                 this.textInput = "";
-                this.autoSpeakNextMessage = true; // Set this flag when message comes from voice input
+                this.autoSpeakNextMessage = true;
                 this.askChatGpt(text);
             }
         },
@@ -318,159 +327,52 @@ export default {
         },
 
         async resetChat() {
-            document.getElementById("chat-container").innerHTML = '';
-            this.$refs.sidebar.debugMessages = []
-            if (!this.isMobile) {
-                // dont add in mobile view, as welcome message + sample questions is too large for mobile screen
-                this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
-            }
+            this.messages = [];
+            this.$refs.sidebar.clearDebugMessage();
+            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
         },
 
-        createSpeechBubbleAI(text, id, isPreformatted = false) {
-            const chat = document.getElementById("chat-container");
-            let d1 = document.createElement("div");
-            let debugId = `debug-${id}`;
-            const isStatusMessage = text.includes('...') || text.includes('✓');
-            
-            // Format the initial text appropriately
-            const formattedText = isStatusMessage 
-                ? text.split('\n')
-                    .filter(line => line.trim() !== '')
-                    .map(line => `<div class="status-line">${line}</div>`)
-                    .join('')
-                : isPreformatted ? text : marked.parse(text);
-
-            d1.innerHTML = `
-            <div id="${id}" class="d-flex flex-row justify-content-start mb-4">
-                <div class="chaticon">
-                    <img src="/src/assets/Icons/ai.png" alt="AI">
-                </div>
-                <div class="chat-content">
-                    <div id="chatBubble" class="p-3 small mb-2 chatbubble chat-ai">
-                        <div class="d-flex flex-row justify-content-start message-content">
-                            <div id="loadingContainer"><div class="loader hidden"></div></div>
-                            <div id="messageContainer" class="message-text">${formattedText}</div>
-                        </div>
-                        <div id="${debugId}-toggle" class="debug-toggle" style="display: none; cursor: pointer; font-size: 10px;">
-                            <img src=/src/assets/Icons/double_down_icon.png class="double-down-icon" alt=">>" width="10px" height="10px" style="transform: none"/>
-                            debug
-                        </div>
-                        <hr id="${debugId}-separator" class="debug-separator" style="display: none;">
-                        <div id="${debugId}-text" v-if="debugExpanded" class="bubble-debug-text" style="display: none;"/>
-                    </div>
-                </div>
-                ${this.voiceServerConnected ? `
-                <div class="audio-actions">
-                    <div class="message-actions">
-                        <button class="generate-audio-btn" data-message-id="${id}">
-                            <i class="fa fa-volume-up"></i> Generate Audio
-                        </button>
-                    </div>
-                    <div class="audio-container"></div>
-                </div>
-                ` : ''}
-            </div>`;
-
-            chat.appendChild(d1);
-
-            const debugToggle = document.getElementById(`${debugId}-toggle`);
-            const debugSeparator = document.getElementById(`${debugId}-separator`);
-            const debugText = document.getElementById(`${debugId}-text`);
-
-            let debugExpanded = false;
-
-            debugToggle.addEventListener('click', () => {
-                debugExpanded = !debugExpanded;
-                if (debugExpanded) {
-                    debugSeparator.style.display = 'block';
-                    debugText.style.display = 'block';
-                    const icon = debugToggle.querySelector('img');
-                    icon.style.transform = 'rotate(180deg)'
-                }
-                else {
-                    debugSeparator.style.display = 'none';
-                    debugText.style.display = 'none';
-                    const icon = debugToggle.querySelector('img');
-                    icon.style.transform = 'none'
-                }
-            })
-
-            // After creating the element, add the event listener
-            const audioButton = d1.querySelector('.generate-audio-btn');
-            if (audioButton) {
-                audioButton.addEventListener('click', () => {
-                    const messageId = audioButton.dataset.messageId;
-                    const messageContainer = document.getElementById(messageId).querySelector("#messageContainer");
-                    const messageText = messageContainer.textContent.trim();
-                    this.generateAudioForMessage(messageId, messageText);
-                });
+        async showWelcomeMessage() {
+            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
+            if (!this.isMobile) {
+                await this.addChatBubble(conf.translations[this.language].welcome, false, false);
             }
         },
 
-        createSpeechBubbleUser(text) {
-            const chat = document.getElementById("chat-container")
-            let d1 = document.createElement("div")
-            d1.innerHTML = `
-                <div class="d-flex flex-row justify-content-end mb-4">
-                    <div class="chatbubble chat-user">
-                        ${text}
-                    </div>
-                    <div class="chaticon">
-                        <img src="/src/assets/Icons/nutzer.png" alt="User">
-                    </div>
-                </div>`;
-            chat.appendChild(d1)
-            this.scrollDown(false)
+        /**
+         * @param content {string} initial chatbubble content
+         * @param isUser {boolean} whether the message is by the user or the AI
+         * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
+         * later (streaming responses etc.)
+         */
+        async addChatBubble(content, isUser = false, isLoading = false) {
+            const elementId = `chatbubble-${this.messages.length}`;
+            const message = { elementId: elementId, isUser: isUser, content: content, isLoading: isLoading };
+            this.messages.push(message);
+
+            // wait for the next rendering tick so that the component is mounted
+            await nextTick();
+            this.scrollDownChat();
         },
 
-        bindDebugMsgToBubble(currentMessageCount, debugMessageLength) {
-            // Append the debug messages generated during this request to the ai message bubble
-            const aiBubble = document.getElementById(`debug-${currentMessageCount}-text`);
-            const debugMessages = this.$refs.sidebar.debugMessages;
-            if (aiBubble) {
-                for (let i = debugMessageLength; i < debugMessages.length; i++) {
-                    let d1 = document.createElement("div");
-                    d1.className = "bubble-debug-text";
-                    d1.textContent = debugMessages.at(i).text;
-                    d1.style.color = debugMessages.at(i).color;
-                    d1.dataset.type = debugMessages.at(i).type;
-                    aiBubble.append(d1);
-                }
-            }
-
-            // Make expand debug button appear
-            const debugToggle = document.getElementById(`debug-${currentMessageCount}-toggle`);
-            debugToggle.style.display = 'block';
-            this.scrollDown(false);
-            this.isFinished = true
+        handleUnexpectedConnectionClosed(message) {
+            console.error('Connection closed unexpectedly', message);
+            const aiBubble = this.getLastBubble();
+            aiBubble.setContent(message);
+            aiBubble.toggleLoading(false);
+            aiBubble.toggleError(true);
         },
 
-        handleUnexpectedConnectionClosed(message, currentMessageCount, debugMessageLength) {
-            this.editTextSpeechBubbleAI(message, currentMessageCount);
-            this.editAnimationSpeechBubbleAI(currentMessageCount, false);
-            this.bindDebugMsgToBubble(currentMessageCount, debugMessageLength)
-
-            const aiBubble = document.getElementById(`${currentMessageCount}`);
-            const messageContainer = aiBubble.querySelector("#messageContainer");
-            messageContainer.style.color = "red"
-
-            const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-            if (loadingContainer) {
-                loadingContainer.classList.add('hidden');
-            }
+        scrollDownChat() {
+            const div = document.getElementById('chat1');
+            div.scrollTop = div.scrollHeight;
         },
-
-        scrollDown(debug) {
-            const chatDiv = debug
-                    ? document.getElementById('debug-console')
-                    : document.getElementById('chat1');
-            chatDiv.scrollTop = chatDiv.scrollHeight;
-        },
-
-        getDebugColor(agentName, darkScheme) {
-            return (debugColors[agentName] ?? defaultDebugColors)[darkScheme ? 0 : 1];
+        
+        scrollDownDebug() {
+            const div = document.getElementById('debug-console');
+            div.scrollTop = div.scrollHeight;
         },
 
         getDebugLoadingMessage(agentName) {
@@ -478,173 +380,39 @@ export default {
             return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
         },
 
-        addDebugToken(agent_message, messageCount) {
-            const color = this.getDebugColor(agent_message["agent"], this.isDarkScheme);
-            const message = this.getDebugLoadingMessage(agent_message["agent"]);
-
-            // Initialize status messages for this messageCount if not exists
-            if (!this.statusMessages[messageCount]) {
-                this.statusMessages[messageCount] = new Map();
-            }
-
-            // Update status message for this agent
+        processAgentStatusMessage(agentMessage) {
+            const aiBubble = this.getLastBubble();
+            const agentName = agentMessage.agent;
+            const message = this.getDebugLoadingMessage(agentName);
             if (message) {
-                // Mark previous agent's message as completed
-                for (const [agent, status] of this.statusMessages[messageCount].entries()) {
-                    if (status.endsWith('...')) {
-                        this.statusMessages[messageCount].set(agent, status.replace('...', '✓'));
-                    }
-                }
-                // Set current agent's message
-                this.statusMessages[messageCount].set(agent_message["agent"], message + ' ...');
-            }
-
-            // Build cumulative status message from all agents
-            const statusMessage = Array.from(this.statusMessages[messageCount].values()).join('\n');
-            
-            // Change the loading message and color depending on the currently received agent message
-            this.editTextSpeechBubbleAI(statusMessage, messageCount);
-            this.editAnimationSpeechBubbleAI(messageCount, true, color);
-
-            if (agent_message["tools"].length > 0) {
-                const tool_output = agent_message["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}\n`
-                ).join("\n\n")
-                this.addDebug(tool_output, color, agent_message["agent"] + "-Tools", agent_message["response_metadata"], agent_message["execution_time"]);
-
-            } else if (agent_message["content"] !== "" || agent_message["response_metadata"] !== null) {
-                this.addDebug(agent_message["content"], color, agent_message["agent"], agent_message["response_metadata"], agent_message["execution_time"]);
+                aiBubble.markStatusMessagesDone(agentName);
+                aiBubble.addStatusMessage(agentName, message, false);
             }
         },
 
-        updateDebugColors(darkScheme) {
-            const debugElements = document.querySelectorAll('.debug-text, .bubble-debug-text');
-            debugElements.forEach((element) => {
-                element.style.color = this.getDebugColor(element.dataset.type ?? "", darkScheme);
-            });
-        },
-
-        addDebug(text, color, type, responseMetadata = null, executionTime = null) {
-            const debugMessages = this.$refs.sidebar.debugMessages;
-
-            // If the message includes tools, the message needs to be replaced instead of appended
-            if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === "Tool Generator-Tools" && type === "Tool Generator-Tools" && text) {
-                debugMessages[debugMessages.length - 1] = {
-                    text: text,
-                    color: color,
-                    type: "Tool Generator-Tools",
-                    executionTime: executionTime,
-                    responseMetadata: responseMetadata,
-                }
+        async addDebugToken(agentMessage) {
+            // log tool output
+            if (agentMessage.tools && agentMessage.tools.length > 0) {
+                const toolOutput = agentMessage["tools"].map(tool =>
+                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                ).join("\n\n");
+                const type = agentMessage.agent;
+                this.addDebug(toolOutput, type);
             }
-            // If the message has the same type as before but is not a tool, append the token to the text
-            else if (debugMessages.length > 0 && debugMessages[debugMessages.length - 1].type === type) {
-                debugMessages[debugMessages.length - 1].text += `${text}`
-                debugMessages[debugMessages.length - 1].responseMetadata = responseMetadata;
-                debugMessages[debugMessages.length - 1].executionTime = executionTime;
-            }
-            // If the message has a new type, assume it is the beginning of a new agent message
-            else if (text){
-                debugMessages.push({
-                    text: text,
-                    color: color,
-                    type: type,
-                    executionTime: executionTime,
-                    responseMetadata: responseMetadata,
-                });
+
+            // log agent message
+            if (agentMessage.content) {
+                const text = agentMessage.content;
+                const type = agentMessage.agent;
+                this.addDebug(text, type);
             }
         },
 
-        editAnimationSpeechBubbleAI(id, active, color) {
-            const aiBubble = document.getElementById(`${id}`);
-            if (!aiBubble) return;
-
-            if (!document.querySelector(`#move-glow`)) {
-                // Create a style block for the custom animation
-                const style = document.createElement("style");
-                style.id = "move-glow";
-                style.innerHTML = `
-                    @keyframes move-glow {
-                        0%, 100% {
-                            box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
-                        }
-                        50% {
-                            box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
-                        }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            const chatBubble = aiBubble.querySelector("#chatBubble");
-            if (!chatBubble) return;
-
-            if (active) {
-                if (color === "#ffffff") {
-                    // Initial phase - use primary color with more intensity
-                    chatBubble.style.setProperty("--glow-color-1", "var(--primary-light)40");
-                    chatBubble.style.setProperty("--glow-color-2", "var(--primary-light)90");
-                } else {
-                    chatBubble.style.setProperty("--glow-color-1", `${color}40`);
-                    chatBubble.style.setProperty("--glow-color-2", `${color}90`);
-                }
-                chatBubble.style.animation = "move-glow 3s infinite";
-            } else {
-                chatBubble.style.animation = "";
-            }
-        },
-
-        editTextSpeechBubbleAI(text, id, isPreformatted = false, updateLoading = true) {
-            const aiBubble = document.getElementById(`${id}`);
-            if (!aiBubble) {
-                // If the bubble doesn't exist yet, create it
-                this.createSpeechBubbleAI(text, id);
-                return;
-            }
-
-            const messageContainer = aiBubble.querySelector("#messageContainer");
-            if (!messageContainer) return;
-
-            // Check if this is a status message (contains checkmarks or ellipsis)
-            const isStatusMessage = text.includes('...') || text.includes('✓');
-            
-            if (isStatusMessage) {
-                // Format status messages with clean line breaks
-                const formattedText = text.split('\n')
-                    .filter(line => line.trim() !== '')
-                    .map(line => `<div class="status-line">${line}</div>`)
-                    .join('');
-                messageContainer.innerHTML = formattedText;
-
-                // Show loading indicator for active status only if we should update loading
-                if (updateLoading) {
-                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                    if (loadingContainer) {
-                        loadingContainer.classList.toggle('hidden', !text.includes('...'));
-                    }
-                }
-            } else {
-                // Use the pre-formatted content or parse markdown as needed
-                messageContainer.innerHTML = isPreformatted ? text : marked.parse(text);
-
-                // Hide loading indicator only if we should update loading
-                if (updateLoading) {
-                    const loadingContainer = aiBubble.querySelector("#loadingContainer .loader");
-                    if (loadingContainer) {
-                        loadingContainer.classList.add('hidden');
-                    }
-                }
-            }
-        },
-
-        toggleLoadingSymbol(id) {
-            const aiBubble = document.getElementById(`${id}`);
-            if (!aiBubble) return;
-
-            const loadingContainer = aiBubble.querySelector("#loadingContainer");
-            if (!loadingContainer) return;
-
-            loadingContainer.classList.toggle("loader");
+        addDebug(text, type) {
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(text, type);
+            const aiBubble = this.getLastBubble();
+            aiBubble.addDebugMessage(text, type);
         },
 
         getBackend() {
@@ -652,27 +420,14 @@ export default {
             return parts[parts.length - 1];
         },
 
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
-        autoResize(event) {
-            const textarea = event.target;
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight) + 'px';
-        },
-
         getRandomSampleQuestions(num_questions = 3) {
             function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
             if (this.randomSampleQuestions == null) {
                 let questions = [];
-                this.getConfig().translations[this.language].sidebarQuestions
+                conf.translations[this.language].sidebarQuestions
                     .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
                 shuffleArray(questions);
-                this.randomSampleQuestions = questions.slice(0, num_questions);    
+                this.randomSampleQuestions = questions.slice(0, num_questions);
             }
             return this.randomSampleQuestions;
         },
@@ -695,10 +450,6 @@ export default {
             }));
         },
 
-        updateSelectedCategory(category) {
-            this.selectedCategory = category;
-        },
-
         isMainContentVisible() {
             return !(this.isMobile && SidebarManager.isSidebarOpen());
         },
@@ -713,87 +464,31 @@ export default {
             return this.textInput.length === 0;
         },
 
-        async generateAudioForMessage(messageId, text) {
-            try {
-                const messageBubble = document.getElementById(messageId);
-                if (!messageBubble) {
-                    console.error('Message bubble not found:', messageId);
-                    return;
-                }
-
-                // Get the containers
-                const actionContainer = messageBubble.querySelector(".message-actions");
-                const audioContainer = messageBubble.querySelector(".audio-container");
-                
-                if (!audioContainer) return;
-                
-                // Show loading state in place of the button
-                actionContainer.innerHTML = `
-                    <div class="audio-loading">
-                        <div class="loader"></div>
-                        <span>Generating audio...</span>
-                    </div>
-                `;
-
-                // Make API call
-                const response = await fetch(`${this.getConfig().VoiceServerAddress}/generate_audio?${new URLSearchParams({
-                    text: text,
-                    voice: 'alloy'
-                })}`, {
-                    method: 'POST'
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API error:', response.status, errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                // Get audio blob
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                
-                // Use this to get around the blocking of autoplay by browsers (based on https://stackoverflow.com/questions/50490304/how-to-make-audio-autoplay-on-chrome)
-                // This works for chromium based browsers, but not for firefox and safari. 
-                // Safari will autoplay the audio if the user clicked on the generate button (as the user initiated that) 
-                // But if we automatically generate audio, it will not play automatically
-                const silenceUrl = `
-                <iframe src="../assets/silence.mp3" allow="autoplay" id="audio" style="display: none"></iframe>
-                `;
-                
-                actionContainer.remove();
-                actionContainer.innerHTML = silenceUrl;
-
-                // Create audio player
-                const audioPlayer = `
-                    <audio controls autoplay>
-                        <source src="${audioUrl}" type="audio/mpeg">
-                        Your browser does not support the audio element.
-                    </audio>
-                `;
-
-                // Remove the action container and update audio container
-                actionContainer.remove();
-                audioContainer.innerHTML = audioPlayer;
-
-            } catch (error) {
-                console.error('Error generating audio:', error);
-                const actionContainer = messageBubble.querySelector(".message-actions");
-                if (actionContainer) {
-                    actionContainer.innerHTML = `
-                        <div class="audio-error">
-                            <i class="fa fa-exclamation-circle"></i>
-                            Error generating audio
-                        </div>
-                    `;
-                }
-            }
+        setupTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
         },
+
+        async initVoiceServerConnection() {
+            try {
+                const response = await fetch(`${conf.VoiceServerAddress}/info`);
+                if (!response.ok) {
+                    const data = await response.json();
+                    this.deviceInfo = `${data.model} on ${data.device}`;
+                    this.voiceServerConnected = true;
+                } else {
+                    this.deviceInfo = 'Speech recognition device not available';
+                    this.voiceServerConnected = false;
+                }
+            } catch (error) {
+                console.error('Error fetching device info:', error);
+            }
+        }
     },
 
     async mounted() {
-        window.addEventListener('resize', this.updateWidth);
-
         // Initialize the selected language from the sidebar if available
         if (this.$refs.sidebar) {
             this.selectedLanguage = this.$refs.sidebar.selectedLanguage;
@@ -801,103 +496,20 @@ export default {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
-        if (!this.isMobile) {
-            this.createSpeechBubbleAI(conf.translations[this.language].welcome, 'startBubble');
-        }
-
-        const questions = this.getConfig().DefaultQuestions;
-        this.updateSelectedCategory(questions);
+        await this.showWelcomeMessage();
+        const questions = conf.DefaultQuestions;
+        this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        // Check voice server connection
-        try {
-            const response = await fetch(`${conf.VoiceServerAddress}/info`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch device info');
-            }
-            const data = await response.json();
-            this.deviceInfo = `${data.model} on ${data.device}`;
-            this.voiceServerConnected = true;
-        } catch (error) {
-            console.error('Error fetching device info:', error);
-            this.deviceInfo = 'Speech recognition device not available';
-            this.voiceServerConnected = false;
-        }
-
-        document.addEventListener('generateAudio', (event) => {
-            const { messageId, text } = event.detail;
-            this.generateAudioForMessage(messageId, text);
-        });
+        await this.initVoiceServerConnection();
     },
 
-    beforeUnmount() {
-        window.removeEventListener('resize', this.updateWidth);
-        document.removeEventListener('generateAudio', this.generateAudioForMessage);
-    }
 }
 
 </script>
 
-<style>
-.chatbubble {
-    border-radius: 1.25rem;
-    text-align: left;
-    position: relative;
-    transition: all 0.2s ease;
-    width: fit-content;
-    max-width: 800px;
-}
-
-.message-content {
-    align-items: flex-start;
-    gap: 0.75rem;
-}
-
-.message-text {
-    flex: 1;
-    min-width: 0;
-    padding-right: 0.5rem;
-    white-space: normal;
-}
-
-.chat-user {
-    background-color: var(--chat-user-light);
-    margin-left: auto;
-    margin-right: 1rem;
-    padding: 0.75rem 1.25rem;
-    width: auto !important; /* Override any width constraints */
-}
-
-.chat-ai {
-    background-color: var(--chat-ai-light);
-    margin-left: 1rem;
-    margin-right: auto;
-    width: calc(100% - 4rem) !important;
-    will-change: box-shadow;
-    transition: box-shadow 0.3s ease;
-}
-
-.chaticon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    background-color: white;
-    border-radius: 50%;
-    border: 1px solid var(--border-light);
-    padding: 0.5rem;
-    margin: 0 0.5rem;
-}
-
-.chaticon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-#chat1 {
+<style scoped>
+.chat-container {
     flex: 1;
     overflow-y: auto;
     position: relative;
@@ -905,79 +517,6 @@ export default {
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
     padding: 2rem 0; /* Increased top padding for first message */
-}
-
-#chat-container {
-    width: 100%;
-    max-width: min(95%, 120ch);
-    padding: 0.25rem;
-    margin: 0 auto;
-    position: relative;
-}
-
-/* Move fade effects to mainContent */
-#mainContent::before,
-#mainContent::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(95%, 120ch);
-    height: 40px;
-    pointer-events: none;
-    z-index: 10;
-    max-width: calc(100% - 2rem); /* Account for padding */
-}
-
-/* Top fade */
-#mainContent::before {
-    top: 0;
-    background: linear-gradient(to bottom,
-        var(--background-light) 0%,
-        var(--background-light) 40%,
-        transparent 100%);
-}
-
-/* Bottom fade */
-#mainContent::after {
-    bottom: 88px; /* Input container height + padding */
-    background: linear-gradient(to top,
-        var(--background-light) 0%,
-        var(--background-light) 40%,
-        transparent 100%);
-}
-
-@media (prefers-color-scheme: dark) {
-    #mainContent::before {
-        background: linear-gradient(to bottom,
-            var(--background-dark) 0%,
-            var(--background-dark) 40%,
-            transparent 100%);
-    }
-
-    #mainContent::after {
-        background: linear-gradient(to top,
-            var(--background-dark) 0%,
-            var(--background-dark) 40%,
-            transparent 100%);
-    }
-}
-
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    #mainContent::before,
-    #mainContent::after {
-        width: min(70%, 160ch);
-        max-width: calc(100% - 4rem);
-    }
-}
-
-@media (min-width: 1800px) {
-    #mainContent::before,
-    #mainContent::after {
-        width: min(60%, 180ch);
-        max-width: calc(100% - 4rem);
-    }
 }
 
 .input-container {
@@ -993,7 +532,7 @@ export default {
 
 .input-group {
     width: 100%;
-    max-width: min(95%, 160ch);
+    max-width: min(95%, 100ch);
     margin: 0 auto;
     padding: 0 1rem;
 }
@@ -1057,29 +596,19 @@ export default {
     height: 1.25rem;
 }
 
-.input-group .btn-primary i.fa-paper-plane {
-    margin-left: -2px; /* Adjust send icon position */
-}
-
-
-@keyframes bounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-2px);
-    }
+.chatbubble-container {
+    max-width: min(95%, 160ch);
 }
 
 #mainContent {
     width: 100%;
     max-width: 100%;
-    padding-right: 0 !important;
-    height: calc(100vh - 60px);
+    height: calc(100vh - 50px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative; /* For fade positioning */
+    background-color: var(--background-light);
 }
 
 .sample-questions {
@@ -1125,6 +654,15 @@ export default {
     background-color: var(--secondary-light) !important;
 }
 
+/* Override any Bootstrap input group border radius styles */
+.input-group > :first-child,
+.input-group > :last-child,
+.input-group > .form-control:not(:last-child),
+.input-group > .form-control:not(:first-child) {
+    border-radius: 1.5rem !important;
+}
+
+/* dark scheme styling */
 @media (prefers-color-scheme: dark) {
     body {
         background-color: var(--background-dark);
@@ -1132,16 +670,6 @@ export default {
 
     #mainContent {
         background-color: var(--background-dark);
-    }
-
-    .chat-user {
-        background-color: var(--chat-user-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .chat-ai {
-        background-color: var(--chat-ai-dark);
-        color: var(--text-primary-dark);
     }
 
     .input-container {
@@ -1198,225 +726,26 @@ export default {
         border-color: var(--primary-dark);
     }
 
-    .chaticon {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .chaticon img {
-        filter: invert(1);
-    }
 }
 
-#chatDebug {
-    background-color: var(--surface-light);
-    border-radius: var(--border-radius-lg);
-    padding: 1rem;
-    box-shadow: var(--shadow-md);
-}
-
-@media (prefers-color-scheme: dark) {
-    #chatDebug {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .debug-toggle {
-        color: var(--text-secondary-dark);
-    }
-
-    .debug-toggle:hover {
-        color: var(--text-primary-dark);
-    }
-
-    .bubble-debug-text {
-        background-color: var(--surface-dark);
-        color: var(--text-secondary-dark);
-    }
-}
-
+/* Responsive widths for larger screens */
 @media (min-width: 1400px) {
-    #chat-container,
     .input-group,
-    .sample-questions {
-        max-width: min(70%, 160ch);
+    .sample-questions,
+    .chatbubble-container {
+        max-width: min(60%, 160ch);
     }
 }
 
 @media (min-width: 1800px) {
-    #chat-container,
     .input-group,
-    .sample-questions {
-        max-width: min(60%, 180ch);
+    .sample-questions,
+    .chatbubble-container {
+        max-width: min(50%, 160ch);
     }
 }
 
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-    border-radius: 1.5rem !important;
-}
-
-.bubble-debug-text {
-    font-size: 0.875rem;
-    color: var(--text-secondary-light);
-    padding: 0.5rem 0.75rem;
-    margin-top: 0.5rem;
-    background-color: transparent;
-}
-
-.debug-toggle {
-    cursor: pointer;
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--text-secondary-light);
-    transition: color 0.2s ease;
-    padding: 0.25rem;
-}
-
-.debug-toggle:hover {
-    color: var(--primary-light);
-}
-
-.loader {
-    border: 2px solid transparent;
-    border-top: 2px solid #3498db;
-    border-radius: 50%;
-    width: 14px;
-    height: 14px;
-    animation: spin 1s linear infinite;
-    margin-right: 8px;
-}
-
-.hidden {
-    display: none;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@media (max-width: 400px) {
-    .opaca-credentials {
-        flex-direction: column;
-    }
-}
-
-.debug-toggle img {
-    width: 10px;
-    height: 10px;
-    opacity: 0.6;
-    transition: all 0.2s ease;
-    margin-right: 0.25rem;
-}
-
-.debug-toggle:hover img {
-    opacity: 1;
-}
-
-.debug-separator {
-    border: 0;
-    margin: 0.5rem 0;
-    border-top: 1px solid var(--border-light);
-    opacity: 0.2;
-}
-
-@media (prefers-color-scheme: dark) {
-    .debug-text {
-        /* Remove empty style */
-    }
-
-    .debug-toggle {
-        color: var(--text-secondary-dark);
-    }
-
-    .debug-toggle:hover {
-        color: var(--primary-dark);
-    }
-
-    .bubble-debug-text {
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .debug-separator {
-        border-color: var(--border-dark);
-    }
-}
-
-.bubble-debug-text::before {
-    content: attr(data-agent);
-    margin-right: 0.75rem;
-}
-
-/* Add margin to the first chat bubble */
-/* i dont know what this is supposed to do, but i dont think it works.
-    it just offsets the user-chat bubble down so it's lower than the user icon, which looks weird imo, especially since the same doesnt happen for the ai.
-    feel free to uncomment if this was the intention. */
-.chatbubble:first-child {
-    /* margin-top: 1rem; */
-}
-
-/* Add margin to the last chat bubble */
-.chatbubble:last-child {
-    margin-bottom: 1rem;
-}
-
-.chat-ai.waiting {
-    opacity: 0.7;
-}
-
-/* Remove the static dots */
-.chat-ai.waiting::after {
-    display: none;
-}
-
-.chat-ai.waiting span {
-    display: inline-block;
-    animation: wave 1s infinite;
-    margin: 0 1px;
-}
-
-.chat-ai.waiting span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.chat-ai.waiting span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes wave {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
-}
-
-#waitBubble {
-    opacity: 0.7;
-}
-
-/* Remove the bubble bounce animation */
-#waitBubble .chat-ai {
-    animation: none;
-}
-
-.status-line {
-    margin: 0;
-    line-height: 1.4;
-    padding: 0.1rem 0;
-    display: flex;
-    align-items: center;
-}
-
+/* mobile layout style changes */
 @media screen and (max-width: 768px) {
     #mainContent {
         display: none;
@@ -1439,126 +768,16 @@ export default {
     .input-group {
         padding: 0;
     }
-
-    .chat-user {
-        margin-right: 0;
-    }
-
-    .chat-ai {
-        margin-left: 0;
-    }
-
-    .chaticon {
-        padding: 0.5rem;
-        margin: 0 0.25rem;
-    }
-
 }
 
-@keyframes move-glow {
+/* animations */
+@keyframes bounce {
     0%, 100% {
-        box-shadow: 0 0 8px var(--glow-color-1, #ffffff33);
+        transform: translateY(0);
     }
     50% {
-        box-shadow: 0 0 15px var(--glow-color-2, #ffffff73);
+        transform: translateY(-2px);
     }
-}
-
-.chat-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    max-width: calc(100% - 4rem);
-}
-
-.message-actions {
-    margin: 0.25rem 0;
-    display: flex;
-    gap: 0.5rem;
-    padding-left: 0.6rem;  /* Increase padding to align with chat bubble */
-}
-
-.generate-audio-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary-light);
-    background-color: transparent;
-    border: 1px solid var(--border-light);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.generate-audio-btn:hover {
-    color: var(--primary-light);
-    border-color: var(--primary-light);
-    background-color: var(--primary-light-10);
-}
-
-.audio-container {
-    padding-left: 0.6rem;  
-    margin-top: 0.25rem;
-    max-width: 300px;
-}
-
-.audio-actions {
-    display: flex;
-    flex-direction: column;
-    padding-left: 0.6rem;
-}
-
-.audio-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary-light);
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
-}
-
-.audio-error {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--error-light);
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
-    .generate-audio-btn {
-        color: var(--text-secondary-dark);
-        border-color: var(--border-dark);
-    }
-
-    .generate-audio-btn:hover {
-        color: var(--primary-dark);
-        border-color: var(--primary-dark);
-        background-color: var(--primary-dark-10);
-    }
-
-    .audio-loading {
-        color: var(--text-secondary-dark);
-    }
-
-    .audio-error {
-        color: var(--error-dark);
-    }
-}
-
-/* Add these styles at the end of your existing styles */
-.fixed {
-    position: fixed !important;
-}
-
-/* Ensure proper stacking context for the main container */
-.d-flex.justify-content-start.flex-grow-1.w-100 {
-    position: relative;
-    z-index: 1;
 }
 
 </style>
