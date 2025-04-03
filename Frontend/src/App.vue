@@ -344,6 +344,10 @@ header {
         color: var(--text-primary-dark);
     }
 
+    .nav-link:focus {
+        color: var(--text-primary-dark);
+    }
+
     .nav-link:hover {
         background-color: var(--surface-dark);
         color: var(--primary-dark);
