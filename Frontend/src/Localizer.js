@@ -24,6 +24,15 @@ export const localizationData = {
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
+        tooltipSidebarConnection: "Connection",
+        tooltipSidebarPrompts: "Prompt Library",
+        tooltipSidebarAgents: "Agents & Actions",
+        tooltipSidebarConfig: "Configuration",
+        tooltipSidebarLogs: "Logging",
+        tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleAudioPlay: "Play Audio",
+        tooltipChatbubbleAudioStop: "Stop Audio",
+        tooltipChatbubbleAudioLoad: "Audio is loading ...",
     },
 
     DE: {
@@ -47,6 +56,14 @@ export const localizationData = {
         ttsRetry: 'Erneut verbinden',
         ttsServerInfo: '%1 auf %2',
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
+        tooltipSidebarConnection: "Verbindung",
+        tooltipSidebarPrompts: "Prompt-Bibliothek",
+        tooltipSidebarAgents: "Agenten & Aktionen",
+        tooltipSidebarConfig: "Konfiguration",
+        tooltipSidebarLogs: "Logging",
+        tooltipChatbubbleAudioPlay: "Audio abspielen",
+        tooltipChatbubbleAudioStop: "Audio stoppen",
+        tooltipChatbubbleAudioLoad: "Audio lädt ...",
     },
 };
 

@@ -7,27 +7,27 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Connection"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Prompt Library"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Configuration"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Logging"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
