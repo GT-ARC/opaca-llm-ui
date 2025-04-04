@@ -1,10 +1,8 @@
 import logging
-import os
 import time
 
 import json
 
-from openai import AsyncOpenAI
 from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
@@ -54,15 +52,6 @@ class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
 
-    async def init_models(self, session: SessionData) -> None:
-        # Initialize either OpenAI model or vllm model
-        model = session.config.get(self.NAME, self.default_config())["model"]
-        if model not in session.cached_models.keys():
-            if model.startswith(("gpt", "o1", "o3")):
-                session.cached_models[model] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
-            else:
-                session.cached_models[model] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=os.getenv("VLLM_BASE_URL"))
-
     async def query(self, message: str, session: SessionData) -> Response:
         return await self.query_stream(message, session)
 
@@ -75,7 +64,7 @@ class SimpleBackend(AbstractMethod):
         config = session.config.get(self.NAME, self.default_config())
 
         # initialize messages
-        policy = ask_policies[int(session.config.get("ask_policy", config["ask_policy"]))]
+        policy = ask_policies[int(config.get("ask_policy", config["ask_policy"]))]
         actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
@@ -144,6 +133,7 @@ class SimpleBackend(AbstractMethod):
     def config_schema(self) -> dict:
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+            "vllm_base_url": ConfigParameter(type="string", required=False, default=''),
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
             "ask_policy": ConfigParameter(type="integer", required=True, default=0,
                                           enum=[*range(0, len(ask_policies))]),
