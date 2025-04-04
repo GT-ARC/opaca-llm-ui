@@ -74,7 +74,7 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
-                client=session.cached_models[config["model"]],
+                client=session.cached_models[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy, actions),

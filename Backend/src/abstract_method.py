@@ -22,8 +22,15 @@ class AbstractMethod(ABC):
         pass
 
     async def init_models(self, session: SessionData) -> None:
+        """
+        Initializes and caches single model instance based on the config parameter 'vllm_base_url'.
+        The GPT model family can use the same instance (gpt, o1, o3, ...).
+        Models are cached within the session data linked to a unique user.
+
+        :param session: The current session data of a unique user
+        """
         # Initialize either OpenAI model or vllm model
-        base_url = session.config.get(self.NAME, self.default_config()).get("vllm_base_url", {}) or "gpt"
+        base_url = session.config.get(self.NAME, self.default_config()).get("vllm_base_url", "gpt")
         if base_url not in session.cached_models.keys():
             if base_url == "gpt":
                 session.cached_models[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
