@@ -393,7 +393,7 @@ class WorkerAgent(BaseAgent):
                 result = await self.session_client.invoke_opaca_action(
                     action=action_name,
                     agent=agent_name,
-                    params=tool_call["args"].get("requestBody", {})  # Get requestBody from args
+                    params=tool_call["args"]  # Get requestBody from args
                 )
             except Exception as e:
                 self.logger.error(f"Failed to execute tool call: {tool_call['name']}")

@@ -509,28 +509,30 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform
                         agent_tools = []
-                        actions_spec = await session.client.get_actions_with_refs()
-                        functions, error = openapi_to_functions(actions_spec, use_agent_names=True)
-                        response.error += error
-                        
+                        agent_actions = await session.client.get_actions()
+
                         # Filter functions for this specific agent and clean up parameters
-                        for func in functions:
-                            if func["function"]["name"].startswith(f"{agent_name}--"):
-                                # Create a cleaned version of the function
-                                cleaned_func = {
-                                    "type": "function",
-                                    "function": {
-                                        "name": func["function"]["name"],
-                                        "description": func["function"]["description"],
-                                        "parameters": {
-                                            "type": "object",
-                                            "properties": {
-                                                "requestBody": func["function"]["parameters"]["properties"]["requestBody"]
-                                            }
+                        for agent, actions in agent_actions.items():
+                            if agent.startswith(agent_name):
+                                for action in actions:
+                                    # Create a cleaned version of the function
+                                    cleaned_func = {
+                                        "type": "function",
+                                        "function": {
+                                            "name": action["name"],
+                                            "description": action["description"],
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    name: {"type": content.get("type", "object")} for name, content in action.get("parameters", {}).items()
+                                                },
+                                                "required": [a_name for a_name in action.get("parameters", {}).keys() if action.get("parameters", {}).get(a_name, {}).get("required", False)],
+                                                "additionalProperties": False
+                                            },
+                                            "strict": True
                                         }
                                     }
-                                }
-                                agent_tools.append(cleaned_func)
+                                    agent_tools.append(cleaned_func)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
