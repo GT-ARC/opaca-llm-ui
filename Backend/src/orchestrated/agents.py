@@ -19,7 +19,7 @@ from .prompts import (
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
     ITERATION_ADVISOR_PROMPT,
-    AGENT_PLANNER_PROMPT,
+    AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT_NEW,
 )
 
 
@@ -31,11 +31,18 @@ class BaseAgent:
         self.response_metadata = {}
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, agent_summaries: Dict[str, Any], chat_history: Optional[List[ChatMessage]] = None, disable_thinking: bool = False):
+    def __init__(
+            self,
+            agent_summaries: Dict[str, Any],
+            chat_history: Optional[List[ChatMessage]] = None,
+            disable_thinking: bool = False,
+            tools: List = None
+    ):
         super().__init__()
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history.copy()
         self.disable_thinking = disable_thinking
+        self.tools = tools
 
     @property
     def remark(self):
@@ -48,6 +55,7 @@ class OrchestratorAgent(BaseAgent):
 
 
     def system_prompt(self):
+        return ORCHESTRATOR_PROMPT_NEW
         if self.disable_thinking:
             return get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING.format(
                 agent_summaries=json.dumps(self.agent_summaries, indent=2)
@@ -57,6 +65,13 @@ class OrchestratorAgent(BaseAgent):
             ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
 
     def messages(self, user_request: str):
+        return [
+            {
+                "role": "user",
+                "content": f'Now create a plan by outputting tool calls including ALL necessary tasks to fulfill the following request:\n'
+                           f'{user_request}'
+            }
+        ]
         chat_context = ""
         if self.chat_history:
             # Get last 5 messages for context
@@ -71,10 +86,6 @@ class OrchestratorAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"""
-        {chat_context} \n\n
-
-        {self.remark}
-
         Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
         If the user request requires a summary, NO separate agent or function is needed for that, as the output generating agent will do that!
         NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TASK! 

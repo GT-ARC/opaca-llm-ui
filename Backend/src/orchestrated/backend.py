@@ -47,7 +47,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             "model_config_name": ConfigParameter(
                 type="string", 
                 required=True, 
-                default="vllm", 
+                default="4o-mini",
                 enum=["vllm", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-large", "vllm-superlarge", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
@@ -425,15 +425,19 @@ Now, using the tools available to you and the previous results, continue with yo
             
             # Get simplified agent summaries for the orchestrator
             agent_details = await session.client.get_agent_details()
-            
+
             # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": []}
+            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["getGeneralCapabilities"]}
+
+            # Create tools from agent details
+            orchestrator_tools = self.get_agents_as_tools(agent_details)
             
             # Initialize Orchestrator
             orchestrator = OrchestratorAgent(
                 agent_summaries=agent_details,
                 chat_history=session.messages,  # Pass chat history to orchestrator
-                disable_thinking=config.get("disable_orchestrator_thinking", False)
+                disable_thinking=config.get("disable_orchestrator_thinking", False),
+                tools=orchestrator_tools,
             )
             
             # Initialize evaluator and iteration advisor
@@ -461,6 +465,8 @@ Now, using the tools available to you and the previous results, continue with yo
                     temperature=config["temperature"],
                     vllm_api_key=os.getenv("VLLM_API_KEY"),
                     vllm_base_url=config["base_url"],
+                    tools=orchestrator.tools,
+                    tool_choice='none',
                     response_format=orchestrator.schema,
                 )
 
@@ -485,12 +491,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Mark planning phase complete
                 await send_to_websocket(websocket, "Orchestrator", "Execution plan created ✓\n\n")
-
-                # If follow-up question is needed, break and ask user immediately
-                if plan.needs_follow_up and plan.follow_up_question:
-                    response.content = plan.follow_up_question
-                    response.execution_time = time.time() - overall_start_time
-                    return response
                 
                 # Iterate through every generated plan and add needed agents as worker agents
                 for task in plan.tasks:
@@ -691,6 +691,35 @@ Please address these specific improvements:
             response.execution_time = time.time() - overall_start_time
             return response
 
+    @staticmethod
+    def get_agents_as_tools(agent_details: Dict):
+        tools = []
+        for name, content in agent_details.items():
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "task": {
+                                "type": "string",
+                                "description": "A clear task description including all necessary steps and information "
+                                               "to be fulfilled by this agent."
+                            },
+                            "round": {
+                                "type": "integer",
+                                "description": "The round in which this tool should be executed. First round is 1."
+                            }
+                        },
+                        "required": ["task", "round"],
+                        "additionalProperties": False
+                    },
+                    "strict": True
+                }
+            })
+        return tools
 
 async def send_to_websocket(websocket = None, agent: str = "system", message: str = "", agent_message: AgentMessage = None):
     """
