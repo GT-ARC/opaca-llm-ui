@@ -133,7 +133,7 @@ class SimpleBackend(AbstractMethod):
     def config_schema(self) -> dict:
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default=''),
+            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
             "ask_policy": ConfigParameter(type="integer", required=True, default=0,
                                           enum=[*range(0, len(ask_policies))]),
