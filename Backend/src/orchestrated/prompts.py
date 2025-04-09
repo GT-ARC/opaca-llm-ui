@@ -170,7 +170,7 @@ DO NOT explain your choice.
 DO NOT add any text.
 JUST classify the given results and output ONLY the SINGLE word REITERATE or FINISHED."""
 
-OVERALL_EVALUATOR_PROMPT = """You are an evaluator that determines if the current execution results are sufficient.
+OVERALL_EVALUATOR_PROMPT = """You are an evaluator that determines if the current execution results are sufficient to answer an initial user request.
 
 IMPORTANT: Keep in mind that there is an output generating LLM-Agent at the end of the chain.
 If the request requires summarizing information, no separate agent or function is needed for that, as the output generating agent will do that AUTOMATICALLY!
@@ -183,7 +183,7 @@ Your ONLY role is to output EXACTLY ONE of these two options:
 - REITERATE: If there are remaining ESSENTIAL steps that MUST be attempted
 - FINISHED: If all ESSENTIAL steps were attempted (even if they failed)
 
-IMPORTANT: Do NOT create summaries or suggest actions. The OutputGenerator will handle all summarization as the final step.
+IMPORTANT: Do NOT create summaries or suggest actions. The OutputGenerator Agent will handle all summarization as the final step.
 
 Strict Rules:
 1. Tool errors = FINISHED (errors won't fix themselves)
@@ -193,7 +193,6 @@ Strict Rules:
 5. You have a CONCRETE improvement path for the given user request = REITERATE (if you are sure that this will fix the issue)
 6. Missing ESSENTIAL steps = REITERATE (if you are sure that it will help gather missing and critical information)
 
-BIAS HEAVILY towards FINISHED. If in ANY doubt, choose FINISHED.
 The cost of unnecessary retries is high, while partial info is still useful.
 IT IS ONLY EVERY ALLOWED TO REITERATE IF YOU HAVE A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!
 
@@ -215,7 +214,7 @@ REMEMBER: TO SHOW AN IMAGE IN MARKDOWN, YOU NEED TO USE THE FOLLOWING SYNTAX:
 EXAMPLE: 
 ![Noise Level Comparison](link_to_image)
 
-REMEMBER: Your goal is summarize the relevant results of the tool calls in a way that is easy to understand and directly addresses the user message.
+REMEMBER: Your goal is to summarize the relevant results of the tool calls in a way that is easy to understand and directly addresses the user message.
 
 IF YOU CAN THINK OF A INTERESTING FOLLOW UP ACTION OR FOLLOW UP QUESTION TO ASK THE USER, INCLUDE IT AT THE END OF YOUR RESPONSE!"""
 

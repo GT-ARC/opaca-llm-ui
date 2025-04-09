@@ -30,7 +30,6 @@ from .models import (
     AgentResult,
     AgentTask
 )
-from ..utils import openapi_to_functions
 
 
 class SelfOrchestratedBackend(AbstractMethod):
@@ -203,6 +202,8 @@ class SelfOrchestratedBackend(AbstractMethod):
                     temperature=config["temperature"],
                     vllm_api_key=os.getenv("VLLM_API_KEY"),
                     vllm_base_url=config["base_url"],
+                    tools=planner.tools,
+                    tool_choice="none",
                     response_format=planner.schema,
                 )
                 agent_messages.append(planner_message)

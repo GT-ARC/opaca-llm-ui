@@ -54,48 +54,25 @@ class OrchestratorAgent(BaseAgent):
                     THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
 
 
-    def system_prompt(self):
+    @staticmethod
+    def system_prompt():
         return ORCHESTRATOR_PROMPT_NEW
-        if self.disable_thinking:
-            return get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING.format(
-                agent_summaries=json.dumps(self.agent_summaries, indent=2)
-            ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
-        return get_current_time() + BACKGROUND_INFO + ORCHESTRATOR_SYSTEM_PROMPT.format(
-                agent_summaries=json.dumps(self.agent_summaries, indent=2)
-            ) + """\n\nIMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
 
     def messages(self, user_request: str):
-        return [
-            {
+        return [{
+            "role": "assistant",
+            "content": "# CHAT HISTORY\n\nThe following messages are part of the previous chat history and do not follow my output schema. I can use information from the chat history for the latest user request if they are relevant."
+        }] + self.chat_history + [
+                {
+                "role": "assistant",
+                "content": "# END OF CHAT HISTORY"
+                }
+        ] + [
+                {
                 "role": "user",
                 "content": f'Now create a plan by outputting tool calls including ALL necessary tasks to fulfill the following request:\n'
                            f'{user_request}'
-            }
-        ]
-        chat_context = ""
-        if self.chat_history:
-            # Get last 5 messages for context
-            recent_messages = self.chat_history[-4:]
-            chat_context = "Consider the chat history if applicable: \n\nRecent chat history:\n\n"
-            for msg in recent_messages:
-                chat_context += f"{msg.role}: {msg.content}\n"
-
-            chat_context = chat_context + """\n\n IF YOU UTILIZE INFORMATION FROM THE CHAT HISTORY, YOU MUST ALWAYS INCLUDE IT WITHIN YOUR TASKS. YOU ARE THE ONLY AGENT IN THE WHOLE CHAIN THAT HAS ACCESS TO THE CHAT HISTORY!"""
-
-        return [
-            {
-                "role": "user",
-                "content": f"""
-        Keep in mind that there is an output generating LLM-Agent at the end of the chain (WHICH SUMMARIZES THE RESULTS OF THE TASKS AUTOMATICALLY!!!).
-        If the user request requires a summary, NO separate agent or function is needed for that, as the output generating agent will do that!
-        NEVER, ABSOLUTELY NEVER CREATE A SUMMARIZATION TASK! 
-        IF YOU SHOULD RETRIEVE AND SUMMARIZE INFORMATION, ONLY CREATE A TASK FOR THE RETRIEVAL, NOT FOR THE SUMMARIZATION!
-        THE SUMMARIZATION HAPPENS AUTOMATICALLY AND NO ACTION FROM YOUR SIDE IS REQUIRED FOR THAT!!
-
-        NOW, Create an execution plan for this request: \n 
-        {user_request}
-        """
-            }
+                }
         ]
 
     @property
@@ -116,18 +93,23 @@ class AgentPlanner(BaseAgent):
     ):
         super().__init__()
         self.agent_name = agent_name
-        self.tools = tools
+        self._tools = tools
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger("src.models")
 
-    def system_prompt(self):
-        return get_current_time() + BACKGROUND_INFO + AGENT_PLANNER_PROMPT + f"""
-            THE AVAILABLE FUNCTIONS OF YOUR WORKER AGENT ARE:
-            
-            {json.dumps(self.tools, indent=2)}
-            
-            IMPORTANT: Provide your response as a raw JSON object, not wrapped in markdown code blocks."""
+    @property
+    def tools(self):
+        # The agent planner uses the tools in combination with a structured output, which requires the tools to be
+        # 'strict', which requires all fields in 'properties' to be included in 'required'
+        for tool in self._tools:
+            if tool["function"].get("parameters", {}).get("required", []) is not None:
+                tool["function"]["parameters"]["required"] = [name for name in tool["function"]["parameters"].get("properties", {}).keys()]
+        return self._tools
+
+    @staticmethod
+    def system_prompt():
+        return AGENT_PLANNER_PROMPT
 
     @staticmethod
     def messages(task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
@@ -159,8 +141,7 @@ class AgentPlanner(BaseAgent):
             6. Put all the information needed to execute the task into the task field.
             
             YOU ABSOLUTELY HAVE TO PROVIDE ALL THE REQUIRED FUNCTION ARGUMENTS AND ALL THE INFORMATION NECESSARY FOR THE WORKER AGENT INTO THE TASK FIELD.
-            EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!
-            DO NOT ADD OTHER FIELDS LIKE 'requestBody'!"""
+            EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!"""
         }]
 
     @property
@@ -264,10 +245,7 @@ class OverallEvaluator(BaseAgent):
                 "content": json.dumps({
                     "original_request": original_request,
                     "current_results": [r.model_dump() for r in current_results]
-                }, indent=2) +
-                           "\n\n" + "NOW: EVALUATE IF THE USER REQUEST CAN BE ANSWERED WITH THE GIVEN RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                           "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED." +
-                           "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
+                }, indent=2)
             }
         ]
 
