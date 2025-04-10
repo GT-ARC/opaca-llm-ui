@@ -207,6 +207,92 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     return functions, error_msg
 
 
+def openapi_to_functions_strict(openapi_spec: dict, agent: str = "", use_agent_names: bool = False):
+    functions = []
+    for path, methods in openapi_spec["paths"].items():
+        for method, spec_with_ref in methods.items():
+            # 1. Resolve JSON references.
+            try:
+                spec = jsonref.replace_refs(spec_with_ref)
+            except Exception as e:
+                print(f'Error while replacing references for unknown action. Cause: {str(e)}\n')
+                continue
+
+            # 2. Extract a name for the functions
+            try:
+                # The operation id is formatted as 'containerId-agentName-actionName'
+                container_id, agent_name, function_name = spec.get("operationId").split(';')
+                if agent and agent_name != agent:
+                    continue
+            except Exception as e:
+                print(f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
+                      f'Cause: {str(e)}\n')
+                continue
+
+            # 3. Extract a description and parameters.
+            try:
+                # OpenAI only allows up to 1024 characters in the description field
+                desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
+            except Exception as e:
+                print(f'Error while getting description for operation ({agent_name}--{function_name}). '
+                      f'Cause: {str(e)}\n')
+                continue
+
+            request_body = spec.get("requestBody", {})
+
+            args_schema = {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False
+            }
+
+            if request_body:
+                content = request_body.get("content", {})
+                if "application/json" in content:
+                    body_schema = content["application/json"]["schema"]
+                    if body_schema.get("type") == "object":
+                        body_schema.setdefault("additionalProperties", False)
+                        args_schema["properties"].update(body_schema.get("properties", {}))
+                        args_schema["required"].extend(body_schema.get("required", []))
+
+            # Remove duplicates in 'required'
+            args_schema["required"] = list(set(args_schema["required"]))
+            functions.append({
+                "type": "function",
+                "function": {
+                    "name":  agent_name + '--' + function_name if use_agent_names else function_name,
+                    "description": desc,
+                    "parameters": args_schema,
+                    "strict": True
+                }
+            })
+            enforce_strictness(functions[-1])
+
+    return functions
+
+
+def enforce_strictness(schema):
+    if isinstance(schema, dict):
+        schema.pop("format", None)  # optional: clean out OpenAPI stuff
+        if schema.get("type") == "object":
+            props = schema.get("properties", {})
+            schema["required"] = list(props.keys())
+            schema["additionalProperties"] = False  # ensure strict mode
+            for prop_schema in props.values():
+                enforce_strictness(prop_schema)
+        elif schema.get("type") == "array":
+            items = schema.get("items")
+            if items:
+                enforce_strictness(items)
+        else:
+            for v in schema.values():
+                enforce_strictness(v)
+    elif isinstance(schema, list):
+        for item in schema:
+            enforce_strictness(item)
+
+
 def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParameter]):
     """
     Validates the given input values against the Configuration Schema
