@@ -208,6 +208,11 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
 
 
 def openapi_to_functions_strict(openapi_spec: dict, agent: str = "", use_agent_names: bool = False):
+    """
+    This is an alternative strategy to transform tools into OpenAI specification.
+    Only used by orchestration currently.
+    Main difference is, that no 'requestBody' field is used.
+    """
     functions = []
     for path, methods in openapi_spec["paths"].items():
         for method, spec_with_ref in methods.items():
@@ -264,10 +269,8 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = "", use_agent_n
                     "name":  agent_name + '--' + function_name if use_agent_names else function_name,
                     "description": desc,
                     "parameters": args_schema,
-                    "strict": True
                 }
             })
-            enforce_strictness(functions[-1])
 
     return functions
 

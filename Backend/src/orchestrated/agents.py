@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Union
 import logging
 from datetime import datetime
 import pytz
+from copy import deepcopy
 
 
 from ..models import ChatMessage
@@ -21,6 +22,7 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT,
 )
+from ..utils import enforce_strictness
 
 
 class BaseAgent:
@@ -93,19 +95,14 @@ class AgentPlanner(BaseAgent):
     ):
         super().__init__()
         self.agent_name = agent_name
-        self._tools = tools
+        self.tools = deepcopy(tools)
+        # The agent planner needs tools to be strict
+        for tool in self.tools:
+            tool["function"]["strict"] = True
+            enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger("src.models")
-
-    @property
-    def tools(self):
-        # The agent planner uses the tools in combination with a structured output, which requires the tools to be
-        # 'strict', which requires all fields in 'properties' to be included in 'required'
-        for tool in self._tools:
-            if tool["function"].get("parameters", {}).get("required", []) is not None:
-                tool["function"]["parameters"]["required"] = [name for name in tool["function"]["parameters"].get("properties", {}).keys()]
-        return self._tools
 
     @staticmethod
     def system_prompt():
