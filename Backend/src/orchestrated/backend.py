@@ -30,6 +30,7 @@ from .models import (
     AgentResult,
     AgentTask
 )
+from ..utils import openapi_to_functions, openapi_to_functions_strict
 
 
 class SelfOrchestratedBackend(AbstractMethod):
@@ -509,31 +510,8 @@ Now, using the tools available to you and the previous results, continue with yo
                         agent_data = agent_details[agent_name]["description"]
                         
                         # Get functions from platform
-                        agent_tools = []
-                        agent_actions = await session.client.get_actions()
-
-                        # Filter functions for this specific agent and clean up parameters
-                        for agent, actions in agent_actions.items():
-                            if agent.startswith(agent_name):
-                                for action in actions:
-                                    # Create a cleaned version of the function
-                                    cleaned_func = {
-                                        "type": "function",
-                                        "function": {
-                                            "name": action["name"],
-                                            "description": action["description"],
-                                            "parameters": {
-                                                "type": "object",
-                                                "properties": {
-                                                    name: {"type": content.get("type", "object")} for name, content in action.get("parameters", {}).items()
-                                                },
-                                                "required": [a_name for a_name in action.get("parameters", {}).keys() if action.get("parameters", {}).get(a_name, {}).get("required", False)],
-                                                "additionalProperties": False
-                                            },
-                                            "strict": True
-                                        }
-                                    }
-                                    agent_tools.append(cleaned_func)
+                        agent_tools = await session.client.get_actions_with_refs()
+                        agent_tools = openapi_to_functions_strict(agent_tools, agent=agent_name, use_agent_names=True)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(

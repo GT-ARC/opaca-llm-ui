@@ -19,7 +19,7 @@ from .prompts import (
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
     ITERATION_ADVISOR_PROMPT,
-    AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT_NEW,
+    AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT,
 )
 
 
@@ -56,7 +56,7 @@ class OrchestratorAgent(BaseAgent):
 
     @staticmethod
     def system_prompt():
-        return ORCHESTRATOR_PROMPT_NEW
+        return ORCHESTRATOR_PROMPT
 
     def messages(self, user_request: str):
         return [{
@@ -297,10 +297,7 @@ class IterationAdvisor(BaseAgent):
                 "content": json.dumps({
                     "original_request": original_request,
                     "current_results": [r.model_dump() for r in current_results]
-                }, indent=2) +
-                           "\n\n" + "NOW: Create a concrete improvement plan for the given user request! CONSIDER THAT YOU ARE ALLOWED AND ALSO EXPECTED TO VETO THE REITERATION IF THERE IS NO CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                           "\n\n" + "If you have doubts or wish to not reiterate, set 'should_retry' to false. YOU ARE EXPECTED TO HAVE A STRONG REASON TO BELIEVE THE RESULTS CAN BE IMPROVED WITH A REITERATION IF YOU CHOOSE TO RETRY." +
-                           "\n\n" + "IMPORTANT: The OutputGenerator will summarize all results at the end of the pipeline. If the necessary information exists in the results (even if not perfectly formatted), choose FINISHED."
+                }, indent=2)
             }
         ]
 
