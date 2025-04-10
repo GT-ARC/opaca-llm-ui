@@ -30,7 +30,7 @@ from .models import (
     AgentResult,
     AgentTask
 )
-from ..utils import openapi_to_functions, openapi_to_functions_strict
+from ..utils import openapi_to_functions_strict
 
 
 class SelfOrchestratedBackend(AbstractMethod):
@@ -78,12 +78,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 maximum=10,
                 enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                 description="Maximum number of re-iterations (retries after failed attempts)"),
-            # Whether to use the worker model for output generation
-            "use_worker_for_output": ConfigParameter(
-                type="boolean", 
-                required=True, 
-                default=False,
-                description="Whether to use the worker model for output generation"),
             # Whether to use the planner agent or not
             "use_agent_planner": ConfigParameter(
                 type="boolean", 
@@ -96,13 +90,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 required=True, 
                 default=False,
                 description="Whether to use the agent evaluator or not"),
-            # Whether to use the orchestrator without thinking
-            "disable_orchestrator_thinking": ConfigParameter(
-                type="boolean", 
-                required=True, 
-                default=True,
-                description="Whether to disable the thinking process of the orchestrator"
-            )
         }
     
     async def _execute_round(
@@ -438,7 +425,6 @@ Now, using the tools available to you and the previous results, continue with yo
             orchestrator = OrchestratorAgent(
                 agent_summaries=agent_details,
                 chat_history=session.messages,  # Pass chat history to orchestrator
-                disable_thinking=config.get("disable_orchestrator_thinking", False),
                 tools=orchestrator_tools,
             )
             
@@ -483,10 +469,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     response.error = "Orchestrator was unable to generate a well-formatted plan!"
                     response.execution_time = time.time() - overall_start_time
                     return response
-                
-                # First send the thinking process
-                if not config.get("disable_orchestrator_thinking", False):
-                    await send_to_websocket(websocket, "Orchestrator", f"Thinking process:\n{plan.thinking}\n\n")
                 
                 # Then send the tasks
                 await send_to_websocket(websocket, agent_message=orchestrator_message, message=f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}\n\n")

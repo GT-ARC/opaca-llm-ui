@@ -13,11 +13,6 @@ class AgentTask(BaseModel):
 
 class OrchestratorPlan(BaseModel):
     """Model for the orchestrator's execution plan"""
-    thinking: str = Field(description="Step by step reasoning about how to break down and solve the task")
-    tasks: List[AgentTask] = Field(description="List of tasks to be executed")
-
-class OrchestratorPlan_no_thinking(BaseModel):
-    """Model for the orchestrator's execution plan"""
     tasks: List[AgentTask] = Field(description="List of tasks to be executed")
 
 class PlannerPlan(BaseModel):

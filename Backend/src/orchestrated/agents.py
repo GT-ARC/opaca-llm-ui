@@ -9,13 +9,11 @@ from copy import deepcopy
 
 from ..models import ChatMessage
 from .models import (
-    AgentTask, OrchestratorPlan, OrchestratorPlan_no_thinking, PlannerPlan, AgentEvaluation, 
+    AgentTask, OrchestratorPlan, PlannerPlan, AgentEvaluation,
     AgentResult, IterationAdvice
 )
 from .prompts import (
     BACKGROUND_INFO,
-    ORCHESTRATOR_SYSTEM_PROMPT,
-    ORCHESTRATOR_SYSTEM_PROMPT_NO_THINKING,
     AGENT_SYSTEM_PROMPT,
     AGENT_EVALUATOR_PROMPT,
     OVERALL_EVALUATOR_PROMPT,
@@ -37,24 +35,12 @@ class OrchestratorAgent(BaseAgent):
             self,
             agent_summaries: Dict[str, Any],
             chat_history: Optional[List[ChatMessage]] = None,
-            disable_thinking: bool = False,
             tools: List = None
     ):
         super().__init__()
         self.agent_summaries = agent_summaries
         self.chat_history = chat_history.copy()
-        self.disable_thinking = disable_thinking
         self.tools = tools
-
-    @property
-    def remark(self):
-        if self.disable_thinking:
-            return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-                      THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
-        return """REMEMBER: YOU ARE THE ONLY AGENT THAT HAS ACCESS TO THE CHAT HISTORY AND TO YOUR THINKING PROCESS! EVERYTHING THAT YOU DO NOT PUT INTO THE TASK FIELD WILL BE LOST!
-                    YOUR THINKING MUST BE IN THE CORRECT JSON FIELD DEDICATED TO THE THINKING PROCESS!
-                    THE CONCRETE TASKS MUST BE IN THE JSON FIELD DEDICATED TO THE TASKS!"""
-
 
     @staticmethod
     def system_prompt():
@@ -79,8 +65,6 @@ class OrchestratorAgent(BaseAgent):
 
     @property
     def schema(self):
-        if self.disable_thinking:
-            return OrchestratorPlan_no_thinking
         return OrchestratorPlan
 
 class AgentPlanner(BaseAgent):
@@ -222,7 +206,7 @@ class AgentEvaluator(BaseAgent):
         # If we have multiple tool calls and one uses a placeholder that wasn't replaced
         if len(result.tool_calls) > 1:
             for tool_call in result.tool_calls:
-                if '<' in tool_call["arguments"] and '>' in tool_call["arguments"]:
+                if '<' in tool_call["args"] and '>' in tool_call["args"]:
                     self.logger.info("Found unresolved placeholder in tool call")
                     return AgentEvaluation.REITERATE
         return None
