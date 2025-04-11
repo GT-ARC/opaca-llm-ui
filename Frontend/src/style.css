@@ -17,6 +17,7 @@
   --border-light: #e5e7eb;
   --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
   --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
+  --debug-console-light: var(--surface-light);
   
   /* Colors - Dark Theme */
   --background-dark: #1e1e2e;
@@ -30,6 +31,7 @@
   --chat-user-dark: #2a2a3c;
   --chat-ai-dark: #313145;
   --input-dark: #252535;
+  --debug-console-dark: #161628;
 
   /* additional colors */
   --glow-color-1: var(--primary-light)40;

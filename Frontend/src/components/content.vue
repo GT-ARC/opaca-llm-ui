@@ -126,7 +126,7 @@ export default {
         language: String,
     },
     setup() {
-        const { isMobile, screenWidth } = useDevice()
+        const { isMobile, screenWidth } = useDevice();
         return { conf, SidebarManager, isMobile, screenWidth };
     },
     data() {
