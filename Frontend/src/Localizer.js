@@ -246,7 +246,8 @@ class Localizer {
     constructor() {
         this._selectedLanguage = ref('GB');
         this._fallbackLanguage = ref('GB');
-        this._verifySettings();
+
+        this.randomSampleQuestions = null;
     }
 
     set language(newLang) {
@@ -329,7 +330,9 @@ class Localizer {
 
         // if category could not be found, return random sample questions
         if (!category) {
-            return this.getRandomSampleQuestions();
+            if (!this.randomSampleQuestions)
+                this.randomSampleQuestions = this.getRandomSampleQuestions();
+            return this.randomSampleQuestions;
         }
 
         // take first 3 questions and use their individual icons

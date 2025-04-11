@@ -143,7 +143,6 @@ export default {
             isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: 'Information & Upskilling',
-            randomSampleQuestions: null,
         }
     },
     methods: {
