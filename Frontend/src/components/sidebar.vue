@@ -7,27 +7,27 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Connection"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Prompt Library"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Configuration"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Logging"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
@@ -46,7 +46,7 @@
                         <input id="opacaUrlInput" type="text"
                                class="form-control m-0"
                                v-model="opacaRuntimePlatform"
-                               :placeholder="conf.translations[language].opacaLocation" />
+                               :placeholder="Localizer.get('opacaLocation')" />
                     </div>
 
                     <div class="py-2 text-start">
@@ -172,8 +172,7 @@
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
                     <div id="debug-console"
                          class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
-                        <DebugMessage
-                            v-for="debugMessage in debugMessages"
+                        <DebugMessage v-for="debugMessage in debugMessages"
                             :key="debugMessage.text"
                             :text="debugMessage.text"
                             :type="debugMessage.type"
@@ -188,10 +187,10 @@
                 <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
-                        :questions="conf.translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
                         @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions" />
+                        ref="sidebar_questions"
+                    />
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
@@ -208,6 +207,7 @@ import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
+import Localizer from "../Localizer.js";
 
 export default {
     name: 'Sidebar',
@@ -223,11 +223,10 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, isMobile, screenWidth};
+        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
-            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -236,7 +235,6 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            selectedLanguage: 'english',
             isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
@@ -262,11 +260,11 @@ export default {
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unauthorized);
+                    alert(Localizer.get('unauthorized'));
                 } else {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unreachable);
+                    alert(Localizer.get('unreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
@@ -433,11 +431,6 @@ export default {
     mounted() {
         this.setupResizer();
         this.fetchBackendConfig();
-        if (this.language === 'GB') {
-            this.selectedLanguage = 'english';
-        } else if (this.language === 'DE') {
-            this.selectedLanguage = 'german';
-        }
 
         if (conf.AutoConnect) {
             this.initRpConnection();
@@ -449,19 +442,9 @@ export default {
         this.scrollDownConfigView()
     },
     watch: {
-        backend(newValue) {
+        backend() {
             this.fetchBackendConfig();
         },
-        language: {
-            immediate: true,
-            handler(newVal) {
-                if (newVal === 'GB') {
-                    this.selectedLanguage = 'english';
-                } else if (newVal === 'DE') {
-                    this.selectedLanguage = 'german';
-                }
-            }
-        }
     }
 }
 </script>

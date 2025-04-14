@@ -55,7 +55,7 @@
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
-                     data-toggle="tooltip" data-placement="down" title="Toggle Debug">
+                     data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
                 <div v-show="!this.isLoading && this.isVoiceServerConnected"
@@ -63,11 +63,11 @@
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down" title="Audio is loading..." />
+                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
                     <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down" title="Stop Audio" />
+                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down" title="Play Audio" />
+                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
             </div>
 
@@ -91,10 +91,14 @@ import {marked} from "marked";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
+import Localizer from "../Localizer.js";
 
 export default {
     name: 'chatbubble',
     components: {DebugMessage},
+    setup() {
+        return {Localizer}
+    },
     props: {
         elementId: String,
         isUser: Boolean,
