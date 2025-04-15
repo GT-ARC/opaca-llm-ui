@@ -34,6 +34,9 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
+        agentActionDescription: "Description",
+        agentActionParameters: "Input Parameters",
+        agentActionResult: "Result",
     },
 
     DE: {
@@ -66,6 +69,9 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
+        agentActionDescription: "Beschreibung",
+        agentActionParameters: "Parameter",
+        agentActionResult: "Ergebnis",
     },
 };
 

@@ -84,6 +84,16 @@
                     </div>
                 </div>
 
+                <!-- sample questions -->
+                <div v-show="SidebarManager.isViewSelected('questions')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <SidebarQuestions
+                        @select-question="handleQuestionSelect"
+                        @category-selected="(category) => $emit('category-selected', category)"
+                        ref="sidebar_questions"
+                    />
+                </div>
+
                 <!-- agents/actions overview -->
                 <div v-show="SidebarManager.isViewSelected('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
@@ -123,10 +133,13 @@
                                             <!-- action body -->
                                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
                                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                                <p><strong>Description:</strong> {{ action.description }}</p>
-                                                <strong>Input Parameters:</strong>
-                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
-                                                <strong>Result:</strong>
+                                                <p v-if="action.description">
+                                                    <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
+                                                    {{ action.description }}
+                                                </p>
+                                                <strong>{{ Localizer.get('agentActionParameters') }}:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
+                                                <strong>{{ Localizer.get('agentActionResult') }}:</strong>
                                                 <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                             </div>
                                         </div>
@@ -181,16 +194,6 @@
                                       :response-metadata="debugMessage.responseMetadata"
                         />
                     </div>
-                </div>
-
-                <!-- sample questions -->
-                <div v-show="SidebarManager.isViewSelected('questions')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions
-                        @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions"
-                    />
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
