@@ -1,6 +1,7 @@
 import {ref} from 'vue';
-    import {marked} from 'marked';
+import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import conf from '../config.js';
 
 
 export const localizationData = {
@@ -259,9 +260,9 @@ export const voiceGenLocales = {
 
 class Localizer {
 
-    constructor() {
-        this._selectedLanguage = ref('GB');
-        this._fallbackLanguage = ref('GB');
+    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
+        this._selectedLanguage = ref(selectedLanguage);
+        this._fallbackLanguage = ref(fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
@@ -393,5 +394,5 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer();
+const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
 export default localizer;

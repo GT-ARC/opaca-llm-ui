@@ -34,11 +34,6 @@ var config = {
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
-    languages: {
-        GB: 'en-GB',
-        DE: 'de-DE'
-    },
-
     // if true, attempt to connect to the configured platform on load
     AutoConnect: false,
 
@@ -49,6 +44,9 @@ var config = {
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
+    // localizer settings
+    fallbackLanguage: import.meta.env.VITE_FALLBACK_LANGUAGE ?? 'GB',
+    defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
 }
 
 

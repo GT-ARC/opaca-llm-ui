@@ -88,8 +88,8 @@
                 <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
-                        @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"
+                        @select-question="question => this.$emit('select-question', question)"
+                        @category-selected="category => this.$emit('category-selected', category)"
                         ref="sidebar_questions"
                     />
                 </div>

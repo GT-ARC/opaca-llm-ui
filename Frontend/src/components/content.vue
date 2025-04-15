@@ -93,10 +93,6 @@
                 </div>
             </div>
 
-            <!-- Simple Keyboard -->
-            <SimpleKeyboard v-if="conf.ShowKeyboard"
-                            @change="input => this.textInput = input" />
-
         </main>
 
     </div>
@@ -405,19 +401,10 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
-
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
     },
 
     mounted() {
         this.updateTheme();
-        this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
         // expand category in sidebar
