@@ -1,6 +1,6 @@
 <template>
     <header>
-        <div class="col">
+        <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
@@ -278,7 +278,7 @@ header {
 }
 
 .dropdown-menu {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
@@ -294,7 +294,7 @@ header {
     position: absolute;
     left: 100%;
     top: -7px;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
 }
@@ -310,7 +310,7 @@ header {
 
 .nav-link {
     padding: 0.5rem 1rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     color: var(--text-primary-light);
 }

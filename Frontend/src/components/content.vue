@@ -631,7 +631,7 @@ export default {
     padding: 1.5rem;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-primary-light);
     transition: all 0.2s ease;
     text-align: center;

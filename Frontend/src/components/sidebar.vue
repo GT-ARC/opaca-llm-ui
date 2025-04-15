@@ -32,14 +32,13 @@
         </div>
 
         <!-- sidebar content -->
-        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
-            <aside id="sidebar"
-               class="container-fluid d-flex flex-column position-relative"
+        <aside id="sidebar" v-show="SidebarManager.isSidebarOpen()"
+               class="container-fluid d-flex flex-column position-relative mt-4"
                :class="{'px-3': !isMobile}">
 
-                <!-- connection settings -->
-                <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig"
+            <!-- connection settings -->
+            <div v-show="SidebarManager.isViewSelected('connect')">
+                <div id="sidebarConfig"
                      class="container d-flex flex-column">
 
                     <div class="py-2 text-start">
@@ -82,53 +81,62 @@
                     </div>
 
                 </div>
-                </div>
+            </div>
 
-                <!-- agents/actions overview -->
-                <div v-show="SidebarManager.isViewSelected('agents')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
-                    <div v-else class="flex-row" >
-                        <div class="accordion text-start" id="agents-accordion">
-                            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
+            <!-- sample questions -->
+            <div v-show="SidebarManager.isViewSelected('questions')"
+                 class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <SidebarQuestions
+                    :questions="conf.translations[language].sidebarQuestions"
+                    @select-question="(question) => this.$emit('select-question', question)"
+                    @category-selected="(category) => this.$emit('category-selected', category)"
+                    ref="sidebar_questions" />
+            </div>
 
-                                <!-- header -->
-                                <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
-                                    <button class="accordion-button collapsed"
-                                            type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#accordion-body-' + agentIndex"
-                                            aria-expanded="false"
-                                            :aria-controls="'accordion-body-' + agentIndex">
-                                        <i class="fa fa-user me-3"/>
-                                        <strong>{{ agent }}</strong>
-                                    </button>
-                                </h2>
+            <!-- agents/actions overview -->
+            <div v-show="SidebarManager.isViewSelected('agents')"
+                 id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
+                <div v-else class="flex-row" >
+                    <div class="accordion text-start" id="agents-accordion">
+                        <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
 
-                                <!-- body -->
-                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
-                                     :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
-                                    <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
-                                        <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
+                            <!-- header -->
+                            <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
+                                <button class="accordion-button collapsed"
+                                        type="button" data-bs-toggle="collapse"
+                                        :data-bs-target="'#accordion-body-' + agentIndex"
+                                        aria-expanded="false"
+                                        :aria-controls="'accordion-body-' + agentIndex">
+                                    <i class="fa fa-user me-3"/>
+                                    <strong>{{ agent }}</strong>
+                                </button>
+                            </h2>
 
-                                            <!-- header -->
-                                            <button class="action-header-button collapsed"
-                                                    type="button" data-bs-toggle="collapse"
-                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
-                                                    aria-expanded="false"
-                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
-                                                <i class="fa fa-wrench me-3"/>
-                                                {{ action.name }}
-                                            </button>
+                            <!-- body -->
+                            <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
+                                 :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
+                                <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
+                                    <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
 
-                                            <!-- action body -->
-                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
-                                                 :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                                <p><strong>Description:</strong> {{ action.description }}</p>
-                                                <strong>Input Parameters:</strong>
-                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
-                                                <strong>Result:</strong>
-                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
-                                            </div>
+                                        <!-- header -->
+                                        <button class="action-header-button collapsed"
+                                                type="button" data-bs-toggle="collapse"
+                                                :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                aria-expanded="false"
+                                                :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                            <i class="fa fa-wrench me-3"/>
+                                            {{ action.name }}
+                                        </button>
+
+                                        <!-- action body -->
+                                        <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                                             :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
+                                            <p><strong>Description:</strong> {{ action.description }}</p>
+                                            <strong>Input Parameters:</strong>
+                                            <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
+                                            <strong>Result:</strong>
+                                            <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                         </div>
                                     </div>
                                 </div>
@@ -136,67 +144,59 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- backend config -->
-                <div v-show="SidebarManager.isViewSelected('config')"
-                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
-                    <div v-else class="flex-row text-start">
-                        <config-parameter v-for="(value, name) in backendConfigSchema"
-                                :key="name"
-                                :name="name"
-                                :value="value"
-                                v-model="backendConfig[name]"/>
+            <!-- backend config -->
+            <div v-show="SidebarManager.isViewSelected('config')"
+                 id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
+                <div v-else class="flex-row text-start">
+                    <config-parameter v-for="(value, name) in backendConfigSchema"
+                                      :key="name"
+                                      :name="name"
+                                      :value="value"
+                                      v-model="backendConfig[name]"/>
 
-                        <div class="py-2 text-center">
-                            <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                                <i class="fa fa-save me-2"/>Save Config
-                            </button>
-                        </div>
-                        <div class="py-2 text-center">
-                            <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                                <i class="fa fa-undo me-2"/>Reset to Default
-                            </button>
-                        </div>
-                        <div
-                            v-if="!this.shouldFadeOut"
-                            class="config-error-message text-center"
-                            :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
-                            {{ this.configMessage }}
-                        </div>
+                    <div class="py-2 text-center">
+                        <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
+                            <i class="fa fa-save me-2"/>Save Config
+                        </button>
+                    </div>
+                    <div class="py-2 text-center">
+                        <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
+                            <i class="fa fa-undo me-2"/>Reset to Default
+                        </button>
+                    </div>
+                    <div
+                        v-if="!this.shouldFadeOut"
+                        class="config-error-message text-center"
+                        :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
+                        {{ this.configMessage }}
                     </div>
                 </div>
+            </div>
 
-                <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console"
-                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
-                        <DebugMessage
-                            v-for="debugMessage in debugMessages"
-                            :key="debugMessage.text"
-                            :text="debugMessage.text"
-                            :type="debugMessage.type"
-                            :is-dark-scheme="this.isDarkScheme"
-                            :execution-time="debugMessage.executionTime"
-                            :response-metadata="debugMessage.responseMetadata"
-                        />
-                    </div>
+            <!-- debug console -->
+            <div v-show="SidebarManager.isViewSelected('debug')"
+                 id="chatDebug"
+                 class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                
+                <div id="debug-console"
+                     class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                    <DebugMessage
+                        v-for="debugMessage in debugMessages"
+                        :key="debugMessage.text"
+                        :text="debugMessage.text"
+                        :type="debugMessage.type"
+                        :is-dark-scheme="this.isDarkScheme"
+                        :execution-time="debugMessage.executionTime"
+                        :response-metadata="debugMessage.responseMetadata"
+                    />
                 </div>
+            </div>
 
-                <!-- sample questions -->
-                <div v-show="SidebarManager.isViewSelected('questions')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions
-                        :questions="conf.translations[language].sidebarQuestions"
-                        @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions" />
-                </div>
-
-                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
-            </aside>
-        </div>
+            <div v-show="!isMobile" class="resizer me-1" id="resizer" />
+        </aside>
     </div>
 </template>
 
@@ -375,11 +375,6 @@ export default {
             }
         },
 
-        handleQuestionSelect(question) {
-            // Send the question to the chat without closing the sidebar
-            this.$emit('select-question', question);
-        },
-
         startFadeOut() {
             // Clear previous timeout (if the user saves the config again before fade-out could happen)
             if (this.fadeTimeout) {
@@ -495,7 +490,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-secondary-light);
     transition: all 0.2s ease;
 }
@@ -536,7 +531,7 @@ export default {
     position: absolute;
     top: 0;
     right: 0;
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--bs-border-radius-sm);
     background-color: var(--border-light);
     transition: background-color 0.2s ease;
 }
@@ -556,7 +551,7 @@ export default {
 
 /* Accordion Styling */
 .accordion-item {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-light);
     overflow: hidden;
@@ -564,7 +559,7 @@ export default {
 }
 
 .accordion-button {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -630,13 +625,13 @@ export default {
     background-color: var(--bs-gray-200);
     color: var(--text-primary-light);
     padding: 0.75rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
 }
 
 .list-group {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     overflow: hidden;
     background-color: transparent;
 }

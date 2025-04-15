@@ -89,7 +89,7 @@ export default {
     cursor: pointer;
     background-color: var(--surface-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     user-select: none;
 }
@@ -139,7 +139,7 @@ export default {
     cursor: pointer;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
 }
 
