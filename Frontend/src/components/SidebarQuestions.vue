@@ -32,7 +32,7 @@ export default {
     name: 'SidebarQuestions',
     data() {
         return {
-            expandedSection: 0
+            expandedSection: null
         }
     },
     methods: {
@@ -152,19 +152,6 @@ export default {
     flex: 1;
     font-size: 0.875rem;
     line-height: 1.4;
-}
-
-/* Slide animation */
-.slide-enter-active,
-.slide-leave-active {
-    transition: all 0.3s ease;
-    max-height: 1000px;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-    opacity: 0;
-    max-height: 0;
 }
 
 @media (prefers-color-scheme: dark) {
