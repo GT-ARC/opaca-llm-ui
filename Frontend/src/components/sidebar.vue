@@ -1,44 +1,44 @@
 <template>
-    <div class="d-flex justify-content-start">
+    <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="selectView('connect')"
+            <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Connection"
-               v-bind:class="{'sidebar-item-select': isViewSelected('connect')}" />
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
-            <i @click="selectView('questions')"
+            <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Prompt Library"
-               v-bind:class="{'sidebar-item-select': isViewSelected('questions')}" />
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
-            <i @click="selectView('agents')"
+            <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
-               v-bind:class="{'sidebar-item-select': isViewSelected('agents')}"/>
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
-            <i @click="selectView('config')"
+            <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Configuration"
-               v-bind:class="{'sidebar-item-select': isViewSelected('config')}"/>
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
-            <i @click="selectView('debug')"
+            <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Logging"
-               v-bind:class="{'sidebar-item-select': isViewSelected('debug')}"/>
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
         <!-- sidebar content -->
-        <div v-show="isViewSelected()" class="mt-4">
+        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
+               class="container-fluid d-flex flex-column position-relative"
+               :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
-                <div v-show="isViewSelected('connect')">
+                <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
                      class="container d-flex flex-column">
 
@@ -46,7 +46,7 @@
                         <input id="opacaUrlInput" type="text"
                                class="form-control m-0"
                                v-model="opacaRuntimePlatform"
-                               :placeholder="getConfig().translations[language].opacaLocation" />
+                               :placeholder="Localizer.get('opacaLocation')" />
                     </div>
 
                     <div class="py-2 text-start">
@@ -67,7 +67,7 @@
 
                     </div>
 
-                    <div class="py-2 text-start" v-if="getConfig().ShowApiKey">
+                    <div class="py-2 text-start" v-if="conf.ShowApiKey">
                         <input id="apiKey" type="password"
                                class="form-control m-0"
                                placeholder="OpenAI API Key"
@@ -85,7 +85,7 @@
                 </div>
 
                 <!-- agents/actions overview -->
-                <div v-show="isViewSelected('agents')"
+                <div v-show="SidebarManager.isViewSelected('agents')"
                      id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
@@ -138,7 +138,7 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="isViewSelected('config')"
+                <div v-show="SidebarManager.isViewSelected('config')"
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
@@ -168,15 +168,15 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="isViewSelected('debug')" id="chatDebug"
+                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="text-start">
-                        <DebugMessage
-                            v-for="debugMessage in debugMessages"
+                    <div id="debug-console"
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                        <DebugMessage v-for="debugMessage in debugMessages"
                             :key="debugMessage.text"
                             :text="debugMessage.text"
-                            :color="debugMessage.color"
                             :type="debugMessage.type"
+                            :is-dark-scheme="this.isDarkScheme"
                             :execution-time="debugMessage.executionTime"
                             :response-metadata="debugMessage.responseMetadata"
                         />
@@ -184,13 +184,13 @@
                 </div>
 
                 <!-- sample questions -->
-                <div v-show="isViewSelected('questions')"
+                <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
-                        :questions="getConfig().translations[language].sidebarQuestions"
                         @select-question="handleQuestionSelect"
                         @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions" />
+                        ref="sidebar_questions"
+                    />
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
@@ -206,6 +206,8 @@ import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
+import SidebarManager from "../SidebarManager.js";
+import Localizer from "../Localizer.js";
 
 export default {
     name: 'Sidebar',
@@ -216,15 +218,15 @@ export default {
     },
     props: {
         backend: String,
-        language: String
+        language: String,
+        isDarkScheme: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { isMobile, screenWidth };
+        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
-            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -233,7 +235,6 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            selectedLanguage: 'english',
             isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
@@ -242,28 +243,6 @@ export default {
         };
     },
     methods: {
-        getConfig() {
-            return conf;
-        },
-
-        selectView(key) {
-            if (this.selectedView !== key) {
-                this.selectedView = key;
-            } else {
-                this.selectedView = 'none';
-            }
-            this.$emit('on-sidebar-toggle', this.selectedView);
-            // console.log('selected sidebar view:', this.selectedView);
-        },
-
-        isViewSelected(key) {
-            if (key !== undefined) {
-                return this.selectedView === key;
-            } else {
-                return this.selectedView !== 'none';
-            }
-        },
-
         async initRpConnection() {
             const connectButton = document.getElementById('button-connect');
             connectButton.disabled = true;
@@ -277,21 +256,20 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    this.selectView(this.getConfig().DefaultSidebarView);
+                    SidebarManager.selectView(conf.DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unauthorized);
+                    alert(Localizer.get('unauthorized'));
                 } else {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unreachable);
+                    alert(Localizer.get('unreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.platformActions = null;
                 this.isConnected = false;
-                // this.selectView('connect');
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
@@ -363,7 +341,7 @@ export default {
                 // Calculate the new width for the aside
                 const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
 
-                if (newWidth > 200 && newWidth < 600) {
+                if (newWidth > 200 && newWidth < 768) {
                     sidebar.style.width = `${newWidth}px`;
                 }
             });
@@ -420,51 +398,68 @@ export default {
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
-        }
+        },
+
+        addDebugMessage(text, type) {
+            if (!text) return;
+            const message = {text: text, type: type};
+
+            // if there are no messages yet, just push the new one
+            if (this.debugMessages.length === 0) {
+                this.debugMessages.push(message);
+                return;
+            }
+
+            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
+            if (lastMessage.type === type && type === 'Tool Generator') {
+                // If the message includes tools, the message needs to be replaced instead of appended
+                this.debugMessages[this.debugMessages.length - 1] = message;
+            } else if (lastMessage.type === type) {
+                // If the message has the same type as before but is not a tool, append the token to the text
+                lastMessage.text += text;
+            } else {
+                // new message type
+                this.debugMessages.push(message);
+            }
+        },
+
+        clearDebugMessage() {
+            this.debugMessages = [];
+        },
+
     },
     mounted() {
         this.setupResizer();
         this.fetchBackendConfig();
-        if (this.language === 'GB') {
-            this.selectedLanguage = 'english';
-        } else if (this.language === 'DE') {
-            this.selectedLanguage = 'german';
-        }
 
         if (conf.AutoConnect) {
             this.initRpConnection();
         } else {
-            this.selectView('connect');
+            SidebarManager.selectView('connect');
         }
     },
     updated() {
         this.scrollDownConfigView()
     },
     watch: {
-        backend(newValue) {
+        backend() {
             this.fetchBackendConfig();
         },
-        language: {
-            immediate: true,
-            handler(newVal) {
-                if (newVal === 'GB') {
-                    this.selectedLanguage = 'english';
-                } else if (newVal === 'DE') {
-                    this.selectedLanguage = 'german';
-                }
-            }
-        }
     }
 }
 </script>
 
 <style scoped>
+#sidebar-base {
+    background-color: var(--surface-light);
+}
 
+/* sidebar content */
 #sidebar {
-    width: 100%;
+    width: min(400px, 100vw - 3rem);
+    height: calc(100vh - 85px);
     min-width: 150px;
-    max-width: 600px;
-    position: relative;
+    max-width: 768px;
     z-index: 999;
 }
 
@@ -506,6 +501,10 @@ export default {
 }
 
 @media screen and (max-width: 768px) {
+    #sidebar {
+        width: min(600px, 100vw - 3rem);
+    }
+
     .sidebar-item {
         font-size: 0.8rem;
         width: 2rem;
@@ -521,7 +520,7 @@ export default {
     top: 0;
     right: 0;
     border-radius: var(--border-radius-sm);
-    background-color: #e5e7eb;
+    background-color: var(--border-light);
     transition: background-color 0.2s ease;
 }
 
@@ -529,84 +528,13 @@ export default {
     background-color: var(--primary-light);
 }
 
-.debug-container {
-    height: 100%;
+#chatDebug {
+    background-color: var(--surface-light);
+    border: 1px solid var(--border-light);
     overflow: hidden;
+    height: 100%;
     display: flex;
     flex-direction: column;
-}
-
-.debug-messages {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column-reverse;
-    padding: 0.75rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 0.5rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875rem;
-    padding: 0.25rem 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    .debug-container {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-dark);
-    }
-
-    #sidebar {
-        background-color: var(--background-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .debug-container {
-        background-color: var(--surface-light);
-        border-color: var(--border-light);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-light);
-    }
 }
 
 /* Accordion Styling */
@@ -690,8 +618,33 @@ export default {
     font-family: monospace;
 }
 
-/* Dark mode styles */
+.list-group {
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    background-color: transparent;
+}
+
+.list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary-light);
+    transition: all 0.2s ease;
+}
+
+.list-group-flush .list-group-item {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+/* dark mode styling */
 @media (prefers-color-scheme: dark) {
+    #sidebar-base {
+        background-color: var(--background-dark);
+    }
+
     #sidebar-menu {
         background-color: var(--surface-dark);
         border-color: var(--border-dark);
@@ -703,15 +656,30 @@ export default {
 
     .sidebar-item:hover {
         background-color: var(--background-dark);
-        color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select {
         background-color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select:hover {
         background-color: var(--secondary-dark);
+    }
+
+    .resizer {
+        background-color: var(--border-dark);
+    }
+
+    .resizer:hover {
+        background-color: var(--primary-dark);
+    }
+
+    #chatDebug {
+        background-color: var(--surface-dark);
+        border-color: var(--border-dark);
+        border: 1px solid var(--border-dark);
     }
 
     .accordion-item {
@@ -739,10 +707,18 @@ export default {
         filter: invert(1);
     }
 
+    .accordion-body {
+        background-color: var(--background-dark);
+    }
+
+    .accordion-collapse {
+        background-color: var(--background-dark);
+    }
+
     .json-box {
-    background-color: var(--surface-dark);
-    color: var(--text-primary-dark);
-}
+        background-color: var(--surface-dark);
+        color: var(--text-primary-dark);
+    }
 
     .form-control {
         background-color: var(--input-dark);
@@ -759,136 +735,13 @@ export default {
         border-color: var(--primary-dark);
     }
 
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .debug-text {
-        color: var(--text-primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: #fff;
-        overflow: hidden;
-        border: 1px solid #ccc; /* border only needed in light mode */
-    }
-
-    .resizer {
-        background-color: gray;
-    }
-}
-
-.list-group {
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    background-color: transparent;
-}
-
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
     .list-group-item {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
     }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
 }
 
-#chatDebug {
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-#debug-console {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 3px;
-    font-family: "Courier New", monospace;
-    font-size: small;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: var(--surface-light);
-        border: 1px solid var(--border-light);
-    }
-
-    .resizer {
-        background-color: var(--border-light);
-    }
-}
-
+/* mobile design */
 @media screen and (max-width: 768px) {
     .resizer {
         display: none;

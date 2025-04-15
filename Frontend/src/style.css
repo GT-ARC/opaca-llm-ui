@@ -30,6 +30,10 @@
   --chat-user-dark: #2a2a3c;
   --chat-ai-dark: #313145;
   --input-dark: #252535;
+
+  /* additional colors */
+  --glow-color-1: var(--primary-light)40;
+  --glow-color-2: var(--primary-light)90;
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -168,5 +172,3 @@ h2{
 .debug-text {
     /* color: rgba(16, 163, 127, 0.8) !important; */
 }
-
-
