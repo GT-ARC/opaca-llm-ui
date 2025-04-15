@@ -26,54 +26,6 @@ export const debugColors = {
 // Default colors for unknown agents [dark, light]
 export const defaultDebugColors = ["#fff", "#000"];
 
-// Placeholder messages for streaming in different languages
-export const debugLoadingMessages = {
-    GB: {
-        // System
-        "preparing": "Initializing the OPACA AI Agents",
-        // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Creating detailed orchestration plan",
-        // Multi-Agent System - Agent Level
-        "AgentPlanner": "Planning function calls for task",
-        "WorkerAgent": "Executing function calls",
-        "AgentEvaluator": "Evaluating task completion",
-        // Multi-Agent System - Overall Level
-        "OverallEvaluator": "Assessing overall request completion",
-        "IterationAdvisor": "Analyzing results and planning next steps",
-        // Multi-Agent System - Output Level
-        "OutputGenerator": "Generating final response",
-        // Tools
-        "Tool Generator": "Calling the required tools",
-        "Tool Evaluator": "Validating tool calls",
-        // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
-    },
-    DE: {
-        // System
-        "preparing": "OPACA KI-Agenten werden initialisiert",
-        // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Erstelle Plan zur Aufgabenverteilung",
-        // Multi-Agent System - Agent Level
-        "AgentPlanner": "Plane Funktionsaufrufe für die Aufgabe",
-        "WorkerAgent": "Führe Funktionsaufrufe aus",
-        "AgentEvaluator": "Bewerte Aufgabenabschluss",
-        // Multi-Agent System - Overall Level
-        "OverallEvaluator": "Bewerte Gesamtanfrage",
-        "IterationAdvisor": "Analysiere Ergebnisse und plane nächste Schritte",
-        // Multi-Agent System - Output Level
-        "OutputGenerator": "Generiere finale Antwort",
-        // Tools
-        "Tool Generator": "Aufrufen der benötigten Tools",
-        "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
-        // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
-    }
-}
-
 export function getDebugColor(key, isDarkScheme) {
     const darkSchemeId = isDarkScheme ? 0 : 1;
     if (debugColors[key]) {
@@ -81,14 +33,5 @@ export function getDebugColor(key, isDarkScheme) {
     } else {
         console.warn(`Debug color ${key} not found.`);
         return defaultDebugColors[key]?.[darkSchemeId] || null;
-    }
-}
-
-export function getDebugLoadingMessage(language, key) {
-    if (debugLoadingMessages[language]?.[key]) {
-        return debugLoadingMessages[language][key];
-    } else {
-        console.error(`Debug loading message ${key} not found for language ${language}.`);
-        return 'Unknown debug message';
     }
 }

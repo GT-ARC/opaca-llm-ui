@@ -4,20 +4,20 @@
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
-            :language="selectedLanguage"
+            :language="Localizer.getLanguageForTTS()"
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
         />
 
-        <Sidebar :backend="backend"
-                 :language="language"
-                 :is-dark-scheme="isDarkScheme"
-                 ref="sidebar"
-                 @language-change="handleLanguageChange"
-                 @select-question="this.askSampleQuestion"
-                 @category-selected="newCategory => this.selectedCategory = newCategory"
-                 @api-key-change="newValue => this.apiKey = newValue"
+        <Sidebar
+            :backend="backend"
+            :language="language"
+            :is-dark-scheme="isDarkScheme"
+             ref="sidebar"
+             @select-question="this.askSampleQuestion"
+             @category-selected="newCategory => this.selectedCategory = newCategory"
+             @api-key-change="newValue => this.apiKey = newValue"
         />
 
 
@@ -41,7 +41,7 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in getCurrentCategoryQuestions()"
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
@@ -56,7 +56,7 @@
                 <div class="input-group">
                       <textarea id="textInput"
                                 v-model="textInput"
-                                :placeholder="conf.translations[language].inputPlaceholder || 'Send a message...'"
+                                :placeholder="Localizer.get('inputPlaceholder')"
                                 class="form-control overflow-hidden"
                                 style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
@@ -107,8 +107,8 @@ import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import {sendRequest, shuffleArray} from "../utils.js";
-import {debugLoadingMessages} from '../config/debug-colors.js';
+import {sendRequest} from "../utils.js";
+import Localizer from "../Localizer.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
@@ -124,16 +124,16 @@ export default {
     props: {
         backend: String,
         language: String,
+        voiceServerConnected: Boolean,
     },
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, isMobile, screenWidth };
+        const { isMobile, screenWidth } = useDevice()
+        return { conf, SidebarManager, Localizer, isMobile, screenWidth };
     },
     data() {
         return {
             messages: [],
             socket: null,
-
             apiKey: '',
             textInput: '',
             isFinished: true,
@@ -141,23 +141,7 @@ export default {
             autoSpeakNextMessage: false,
             isDarkScheme: false,
             showRecordingPopup: false,
-            selectedLanguage: 'english',
-            deviceInfo: '',
             selectedCategory: 'Information & Upskilling',
-            voiceServerConnected: false,
-            randomSampleQuestions: null,
-        }
-    },
-    watch: {
-        language: {
-            immediate: true,
-            handler(newVal) {
-                if (newVal === 'GB') {
-                    this.selectedLanguage = 'english';
-                } else if (newVal === 'DE') {
-                    this.selectedLanguage = 'german';
-                }
-            }
         }
     },
     methods: {
@@ -216,7 +200,7 @@ export default {
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             this.getLastBubble().addStatusMessage('preparing',
-                this.getDebugLoadingMessage('preparing'), false);
+                Localizer.getLoadingMessage('preparing'), false);
 
             try {
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
@@ -269,7 +253,7 @@ export default {
         async handleStreamingSocketClose() {
             console.log("WebSocket connection closed", this.isFinished);
             if (!this.isFinished) {
-                const message = "It seems there was a problem in the response generation.";
+                const message = Localizer.get('socketClosed');
                 this.handleUnexpectedConnectionClosed(message);
             }
 
@@ -281,7 +265,7 @@ export default {
         async handleStreamingSocketError(error) {
             console.error("Received error: ", error);
             if (!this.isFinished) {
-                const message = "An Error occurred in the response generation: " + error.toString();
+                const message = Localizer.get('socketError', error.toString());
                 this.handleUnexpectedConnectionClosed(message);
             }
 
@@ -316,16 +300,6 @@ export default {
             alert('Error recording audio: ' + error.message);
         },
 
-        handleLanguageChange(newLanguage) {
-            this.selectedLanguage = newLanguage;
-            // Update the main app language based on the selected language
-            if (newLanguage === 'english') {
-                this.$emit('update:language', 'GB');
-            } else if (newLanguage === 'german') {
-                this.$emit('update:language', 'DE');
-            }
-        },
-
         async resetChat() {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
@@ -337,7 +311,7 @@ export default {
         async showWelcomeMessage() {
             // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
             if (!this.isMobile) {
-                await this.addChatBubble(conf.translations[this.language].welcome, false, false);
+                await this.addChatBubble(Localizer.get('welcome'), false, false);
             }
         },
 
@@ -375,15 +349,10 @@ export default {
             div.scrollTop = div.scrollHeight;
         },
 
-        getDebugLoadingMessage(agentName) {
-            // Use the current language (GB or DE) to get the appropriate message
-            return debugLoadingMessages[this.language]?.[agentName] ?? debugLoadingMessages['GB'][agentName];
-        },
-
         processAgentStatusMessage(agentMessage) {
             const aiBubble = this.getLastBubble();
             const agentName = agentMessage.agent;
-            const message = this.getDebugLoadingMessage(agentName);
+            const message = Localizer.getLoadingMessage(agentName);
             if (message) {
                 aiBubble.markStatusMessagesDone(agentName);
                 aiBubble.addStatusMessage(agentName, message, false);
@@ -420,36 +389,6 @@ export default {
             return parts[parts.length - 1];
         },
 
-        getRandomSampleQuestions(num_questions = 3) {
-            function mapIcons(q, c) { return {question: q.question, icon: q.icon ?? c.icon} }
-            if (this.randomSampleQuestions == null) {
-                let questions = [];
-                conf.translations[this.language].sidebarQuestions
-                    .forEach(group => questions = questions.concat(group.questions.map(q => mapIcons(q, group))));
-                shuffleArray(questions);
-                this.randomSampleQuestions = questions.slice(0, num_questions);
-            }
-            return this.randomSampleQuestions;
-        },
-
-        getCurrentCategoryQuestions() {
-            const categories = conf.translations[this.language].sidebarQuestions;
-            const currentCategory = categories.find(cat => cat.header === this.selectedCategory);
-
-            if (!currentCategory) {
-                // If no category is selected, show random sample questions
-                return this.getRandomSampleQuestions();
-            } else {
-                this.randomSampleQuestions = null; // roll a new sample next time
-            }
-
-            // Take first 3 questions and use their individual icons
-            return currentCategory.questions.slice(0, 3).map(q => ({
-                question: q.question,
-                icon: q.icon || currentCategory.icon // Fallback to category icon if question has no icon
-            }));
-        },
-
         isMainContentVisible() {
             return !(this.isMobile && SidebarManager.isSidebarOpen());
         },
@@ -471,37 +410,19 @@ export default {
             });
         },
 
-        async initVoiceServerConnection() {
-            try {
-                const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (!response.ok) {
-                    const data = await response.json();
-                    this.deviceInfo = `${data.model} on ${data.device}`;
-                    this.voiceServerConnected = true;
-                } else {
-                    this.deviceInfo = 'Speech recognition device not available';
-                    this.voiceServerConnected = false;
-                }
-            } catch (error) {
-                console.error('Error fetching device info:', error);
-            }
-        }
     },
 
-    async mounted() {
-        // Initialize the selected language from the sidebar if available
-        if (this.$refs.sidebar) {
-            this.selectedLanguage = this.$refs.sidebar.selectedLanguage;
-        }
+    mounted() {
         this.updateTheme();
         this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-        await this.showWelcomeMessage();
+
+        // expand category in sidebar
         const questions = conf.DefaultQuestions;
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        await this.initVoiceServerConnection();
+        this.showWelcomeMessage();
     },
 
 }

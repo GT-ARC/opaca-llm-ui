@@ -40,13 +40,14 @@
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-globe me-1"/>
-                                <span v-show="!isMobile">{{ conf.translations[this.language].name}}</span>
+                                <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                                <li v-for="(value, key) in conf.translations" @click="this.setLanguage(key)">
+                                <li v-for="{ key, name } in Localizer.getAvailableLocales()"
+                                    @click="Localizer.language = key">
                                     <a class="dropdown-item">
-                                        <p v-bind:style= "[this.language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
-                                            {{ value.name }}
+                                        <p :style= "{'font-weight': Localizer.language === key ? 'bold' : 'normal'}">
+                                            {{ name }}
                                         </p>
                                     </a>
                                 </li>
@@ -104,7 +105,7 @@
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
                                             <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ voiceServerConnected ? 'Connected' : 'Disconnected' }}</span>
+                                            <span class="ms-2">{{ voiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
                                         </div>
                                     </div>
                                 </li>
@@ -113,14 +114,14 @@
                                         <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted"
                                              style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ deviceInfo }}
+                                            {{ Localizer.get('ttsServerInfo', this.deviceInfo.model, this.deviceInfo.device) }}
                                         </div>
                                     </div>
                                 </li>
                                 <li v-if="!voiceServerConnected">
-                                    <button class="dropdown-item" @click="checkVoiceServerConnection">
+                                    <button class="dropdown-item" @click="this.initVoiceServerConnection()">
                                         <i class="fa fa-refresh me-2"/>
-                                        Retry Connection
+                                        {{ Localizer.get('ttsRetry') }}
                                     </button>
                                 </li>
                             </ul>
@@ -132,7 +133,13 @@
     </header>
 
     <div class="col background">
-        <MainContent class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
+        <MainContent
+            class="tab"
+            :backend="this.backend"
+            :language="this.language"
+            :voice-server-connected="this.voiceServerConnected"
+            ref="content"
+        />
     </div>
 </template>
 
@@ -140,14 +147,15 @@
 import conf from '../config.js';
 import MainContent from './components/content.vue';
 
-import { useDevice } from "./useIsMobile.js";
+import {useDevice} from "./useIsMobile.js";
+import Localizer from "./Localizer.js"
 
 export default {
     name: 'App',
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, isMobile, screenWidth };
+        return { conf, Localizer, isMobile, screenWidth };
     },
     data() {
         return {
@@ -159,10 +167,6 @@ export default {
         }
     },
     methods: {
-        setLanguage(lang){
-            this.language = lang;
-        },
-
         setBackend(key) {
             const keyPath = key.split('/');
             const value = conf.Backends[keyPath[0]];
@@ -209,33 +213,23 @@ export default {
             return key === this.backend;
         },
 
-        async checkVoiceServerConnection() {
+        async initVoiceServerConnection() {
             try {
                 const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (!response.ok) {
-                    this.updateVoiceServerStatus(false);
-                    return;
+                if (response.ok) {
+                    this.deviceInfo = await response.json();
+                    this.voiceServerConnected = true;
+                } else {
+                    this.voiceServerConnected = false;
                 }
-                const data = await response.json();
-                this.deviceInfo = `${data.model} on ${data.device}`;
-                this.updateVoiceServerStatus(true);
             } catch (error) {
-                this.updateVoiceServerStatus(false);
-            }
-        },
-
-        updateVoiceServerStatus(isConnected) {
-            this.voiceServerConnected = isConnected;
-            this.deviceInfo = isConnected ? this.deviceInfo : '';
-            // Update the voice server status in the MainContent component
-            if (this.$refs.content) {
-                this.$refs.content.voiceServerConnected = isConnected;
-                this.$refs.content.deviceInfo = this.deviceInfo;
+                console.error('Error fetching device info:', error);
             }
         }
     },
+
     mounted() {
-        this.checkVoiceServerConnection();
+        this.initVoiceServerConnection();
     }
 }
 </script>

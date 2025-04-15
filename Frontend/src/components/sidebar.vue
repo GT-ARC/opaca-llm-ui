@@ -7,136 +7,128 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Connection"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Prompt Library"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Configuration"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-bug p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Logging"
+               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
         <!-- sidebar content -->
-        <aside id="sidebar" v-show="SidebarManager.isSidebarOpen()"
-               class="container-fluid d-flex flex-column position-relative mt-4"
-               :class="{'px-3': !isMobile}">
+        <div v-show="SidebarManager.isSidebarOpen()">
+            <aside id="sidebar"
+                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   :class="{'px-3': !isMobile}">
 
-            <!-- connection settings -->
-            <div v-show="SidebarManager.isViewSelected('connect')">
-                <div id="sidebarConfig"
-                     class="container d-flex flex-column">
+                <!-- connection settings -->
+                <div v-show="SidebarManager.isViewSelected('connect')">
+                    <div id="sidebarConfig"
+                         class="container d-flex flex-column">
 
-                    <div class="py-2 text-start">
-                        <input id="opacaUrlInput" type="text"
-                               class="form-control m-0"
-                               v-model="opacaRuntimePlatform"
-                               :placeholder="conf.translations[language].opacaLocation" />
-                    </div>
+                        <div class="py-2 text-start">
+                            <input id="opacaUrlInput" type="text"
+                                   class="form-control m-0"
+                                   v-model="opacaRuntimePlatform"
+                                   :placeholder="Localizer.get('opacaLocation')" />
+                        </div>
 
-                    <div class="py-2 text-start">
-                        <div class="row opaca-credentials">
-                            <div class="col-md-6">
-                                <input id="opacaUser" type="text"
-                                       class="form-control m-0"
-                                       v-model="opacaUser"
-                                       placeholder="Username" />
+                        <div class="py-2 text-start">
+                            <div class="row opaca-credentials">
+                                <div class="col-md-6">
+                                    <input id="opacaUser" type="text"
+                                           class="form-control m-0"
+                                           v-model="opacaUser"
+                                           placeholder="Username" />
+                                </div>
+                                <div class="col-md-6">
+                                    <input id="opacaPwd" type="password"
+                                           class="form-control m-0"
+                                           v-model="opacaPwd"
+                                           placeholder="Password" />
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <input id="opacaPwd" type="password"
-                                       class="form-control m-0"
-                                       v-model="opacaPwd"
-                                       placeholder="Password" />
-                            </div>
+
+                        </div>
+
+                        <div class="py-2 text-start" v-if="conf.ShowApiKey">
+                            <input id="apiKey" type="password"
+                                   class="form-control m-0"
+                                   placeholder="OpenAI API Key"
+                                   v-model="this.apiKey"
+                                   @input="this.$emit('api-key-change', this.apiKey)" />
+                        </div>
+
+                        <div class="text-center py-2">
+                            <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
+                                <i class="fa fa-link me-1"/>Connect
+                            </button>
                         </div>
 
                     </div>
-
-                    <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                        <input id="apiKey" type="password"
-                               class="form-control m-0"
-                               placeholder="OpenAI API Key"
-                               v-model="this.apiKey"
-                               @input="this.$emit('api-key-change', this.apiKey)" />
-                    </div>
-
-                    <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
-                            <i class="fa fa-link me-1"/>Connect
-                        </button>
-                    </div>
-
                 </div>
-            </div>
 
-            <!-- sample questions -->
-            <div v-show="SidebarManager.isViewSelected('questions')"
-                 class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                <SidebarQuestions
-                    :questions="conf.translations[language].sidebarQuestions"
-                    @select-question="(question) => this.$emit('select-question', question)"
-                    @category-selected="(category) => this.$emit('category-selected', category)"
-                    ref="sidebar_questions" />
-            </div>
+                <!-- agents/actions overview -->
+                <div v-show="SidebarManager.isViewSelected('agents')"
+                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
+                    <div v-else class="flex-row" >
+                        <div class="accordion text-start" id="agents-accordion">
+                            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
 
-            <!-- agents/actions overview -->
-            <div v-show="SidebarManager.isViewSelected('agents')"
-                 id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
-                <div v-else class="flex-row" >
-                    <div class="accordion text-start" id="agents-accordion">
-                        <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
+                                <!-- header -->
+                                <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
+                                    <button class="accordion-button collapsed"
+                                            type="button" data-bs-toggle="collapse"
+                                            :data-bs-target="'#accordion-body-' + agentIndex"
+                                            aria-expanded="false"
+                                            :aria-controls="'accordion-body-' + agentIndex">
+                                        <i class="fa fa-user me-3"/>
+                                        <strong>{{ agent }}</strong>
+                                    </button>
+                                </h2>
 
-                            <!-- header -->
-                            <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
-                                <button class="accordion-button collapsed"
-                                        type="button" data-bs-toggle="collapse"
-                                        :data-bs-target="'#accordion-body-' + agentIndex"
-                                        aria-expanded="false"
-                                        :aria-controls="'accordion-body-' + agentIndex">
-                                    <i class="fa fa-user me-3"/>
-                                    <strong>{{ agent }}</strong>
-                                </button>
-                            </h2>
+                                <!-- body -->
+                                <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
+                                     :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
+                                    <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
+                                        <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
 
-                            <!-- body -->
-                            <div :id="'accordion-body-' + agentIndex" class="accordion-collapse collapse"
-                                 :aria-labelledby="'accordion-header-' + agentIndex" :data-bs-parent="'#agents-accordion'">
-                                <div class="list-group list-group-flush" :id="'actions-accordion-' + agentIndex">
-                                    <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item">
+                                            <!-- header -->
+                                            <button class="action-header-button collapsed"
+                                                    type="button" data-bs-toggle="collapse"
+                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
+                                                    aria-expanded="false"
+                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                <i class="fa fa-wrench me-3"/>
+                                                {{ action.name }}
+                                            </button>
 
-                                        <!-- header -->
-                                        <button class="action-header-button collapsed"
-                                                type="button" data-bs-toggle="collapse"
-                                                :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
-                                                aria-expanded="false"
-                                                :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
-                                            <i class="fa fa-wrench me-3"/>
-                                            {{ action.name }}
-                                        </button>
-
-                                        <!-- action body -->
-                                        <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
-                                             :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                            <p><strong>Description:</strong> {{ action.description }}</p>
-                                            <strong>Input Parameters:</strong>
-                                            <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
-                                            <strong>Result:</strong>
-                                            <pre class="json-box">{{ formatJSON(action.result) }} </pre>
+                                            <!-- action body -->
+                                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                                                 :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
+                                                <p><strong>Description:</strong> {{ action.description }}</p>
+                                                <strong>Input Parameters:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
+                                                <strong>Result:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -144,59 +136,66 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- backend config -->
-            <div v-show="SidebarManager.isViewSelected('config')"
-                 id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
-                <div v-else class="flex-row text-start">
-                    <config-parameter v-for="(value, name) in backendConfigSchema"
-                                      :key="name"
-                                      :name="name"
-                                      :value="value"
-                                      v-model="backendConfig[name]"/>
+                <!-- backend config -->
+                <div v-show="SidebarManager.isViewSelected('config')"
+                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
+                    <div v-else class="flex-row text-start">
+                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                                          :key="name"
+                                          :name="name"
+                                          :value="value"
+                                          v-model="backendConfig[name]"/>
 
-                    <div class="py-2 text-center">
-                        <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                            <i class="fa fa-save me-2"/>Save Config
-                        </button>
-                    </div>
-                    <div class="py-2 text-center">
-                        <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                            <i class="fa fa-undo me-2"/>Reset to Default
-                        </button>
-                    </div>
-                    <div
-                        v-if="!this.shouldFadeOut"
-                        class="config-error-message text-center"
-                        :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
-                        {{ this.configMessage }}
+                        <div class="py-2 text-center">
+                            <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
+                                <i class="fa fa-save me-2"/>Save Config
+                            </button>
+                        </div>
+                        <div class="py-2 text-center">
+                            <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
+                                <i class="fa fa-undo me-2"/>Reset to Default
+                            </button>
+                        </div>
+                        <div
+                            v-if="!this.shouldFadeOut"
+                            class="config-error-message text-center"
+                            :class="{ 'text-danger': !this.configChangeSuccess, 'text-success': this.configChangeSuccess}">
+                            {{ this.configMessage }}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- debug console -->
-            <div v-show="SidebarManager.isViewSelected('debug')"
-                 id="chatDebug"
-                 class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                
-                <div id="debug-console"
-                     class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
-                    <DebugMessage
-                        v-for="debugMessage in debugMessages"
-                        :key="debugMessage.text"
-                        :text="debugMessage.text"
-                        :type="debugMessage.type"
-                        :is-dark-scheme="this.isDarkScheme"
-                        :execution-time="debugMessage.executionTime"
-                        :response-metadata="debugMessage.responseMetadata"
+                <!-- debug console -->
+                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
+                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                    <div id="debug-console"
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                        <DebugMessage v-for="debugMessage in debugMessages"
+                                      :key="debugMessage.text"
+                                      :text="debugMessage.text"
+                                      :type="debugMessage.type"
+                                      :is-dark-scheme="this.isDarkScheme"
+                                      :execution-time="debugMessage.executionTime"
+                                      :response-metadata="debugMessage.responseMetadata"
+                        />
+                    </div>
+                </div>
+
+                <!-- sample questions -->
+                <div v-show="SidebarManager.isViewSelected('questions')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <SidebarQuestions
+                        @select-question="handleQuestionSelect"
+                        @category-selected="(category) => $emit('category-selected', category)"
+                        ref="sidebar_questions"
                     />
                 </div>
-            </div>
 
-            <div v-show="!isMobile" class="resizer me-1" id="resizer" />
-        </aside>
+                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
+            </aside>
+        </div>
     </div>
 </template>
 
@@ -208,6 +207,7 @@ import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
+import Localizer from "../Localizer.js";
 
 export default {
     name: 'Sidebar',
@@ -223,11 +223,10 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, isMobile, screenWidth};
+        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
-            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -236,7 +235,6 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            selectedLanguage: 'english',
             isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
@@ -262,11 +260,11 @@ export default {
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unauthorized);
+                    alert(Localizer.get('unauthorized'));
                 } else {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unreachable);
+                    alert(Localizer.get('unreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
@@ -428,11 +426,6 @@ export default {
     mounted() {
         this.setupResizer();
         this.fetchBackendConfig();
-        if (this.language === 'GB') {
-            this.selectedLanguage = 'english';
-        } else if (this.language === 'DE') {
-            this.selectedLanguage = 'german';
-        }
 
         if (conf.AutoConnect) {
             this.initRpConnection();
@@ -444,19 +437,9 @@ export default {
         this.scrollDownConfigView()
     },
     watch: {
-        backend(newValue) {
+        backend() {
             this.fetchBackendConfig();
         },
-        language: {
-            immediate: true,
-            handler(newVal) {
-                if (newVal === 'GB') {
-                    this.selectedLanguage = 'english';
-                } else if (newVal === 'DE') {
-                    this.selectedLanguage = 'german';
-                }
-            }
-        }
     }
 }
 </script>
