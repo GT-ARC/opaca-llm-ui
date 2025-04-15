@@ -26,7 +26,7 @@
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-terminal p-2 sidebar-item"
+               class="fa fa-bug p-2 sidebar-item"
                data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
@@ -529,7 +529,7 @@ export default {
 }
 
 #chatDebug {
-    background-color: var(--surface-light);
+    background-color: var(--debug-console-light);
     border: 1px solid var(--border-light);
     overflow: hidden;
     height: 100%;
@@ -677,7 +677,7 @@ export default {
     }
 
     #chatDebug {
-        background-color: var(--surface-dark);
+        background-color: var(--debug-console-dark);
         border-color: var(--border-dark);
         border: 1px solid var(--border-dark);
     }
