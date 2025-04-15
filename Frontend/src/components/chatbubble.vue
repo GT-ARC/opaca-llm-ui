@@ -55,7 +55,7 @@
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
-                     data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleDebug')">
+                     :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
                 <div v-show="!this.isLoading && this.isVoiceServerConnected"
@@ -63,11 +63,11 @@
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
                     <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
             </div>
 

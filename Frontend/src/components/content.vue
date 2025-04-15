@@ -70,21 +70,24 @@
                             class="btn btn-primary"
                             @click="submitText"
                             :disabled="!isFinished"
-                            style="margin-left: -2px" >
+                            :title="Localizer.get('tooltipButtonSend')"
+                            style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="this.showRecordingPopup = true"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonRecord')">
                         <i class="fa fa-microphone"/>
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
@@ -565,24 +568,6 @@ export default {
     box-shadow: var(--shadow-sm);
 }
 
-.btn-primary {
-    background-color: var(--primary-light) !important;
-    border: none;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: var(--secondary-light) !important;
-}
-
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-    border-radius: 1.5rem !important;
-}
-
 /* dark scheme styling */
 @media (prefers-color-scheme: dark) {
     body {
@@ -610,30 +595,6 @@ export default {
 
     .input-group .form-control:focus {
         box-shadow: 0 0 0 1px var(--primary-dark);
-    }
-
-    .btn-outline-primary {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-primary:hover {
-        border-color: var(--primary-dark);
-        color: var(--primary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger:hover {
-        border-color: #ef4444;
-        color: #ef4444;
-        background-color: transparent;
     }
 
     .sample-question {

@@ -58,9 +58,9 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--primary-light);
+  background-color: var(--primary-light) !important;
+  color: var(--text-primary-light);
   border: none;
-  color: white;
 }
 
 .btn-primary:hover {
@@ -121,6 +121,14 @@ body {
   border-radius: var(--bs-border-radius-pill) !important;
 }
 
+/* Override any Bootstrap input group border radius styles */
+.input-group > :first-child,
+.input-group > :last-child,
+.input-group > .form-control:not(:last-child),
+.input-group > .form-control:not(:first-child) {
+  border-radius: 1.5rem !important;
+}
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   body {
@@ -131,6 +139,11 @@ body {
   .form-control {
     background-color: var(--surface-dark);
     border-color: var(--border-dark);
+    color: var(--text-primary-dark);
+  }
+
+  .btn-primary {
+    background-color: var(--primary-dark) !important;
     color: var(--text-primary-dark);
   }
 

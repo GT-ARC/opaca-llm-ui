@@ -7,27 +7,27 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
+               :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
+               :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
+               :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
+               :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-bug p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
+               :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
@@ -163,12 +163,12 @@
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                                <i class="fa fa-save me-2"/>Save Config
+                                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonBackendConfigSave') }}
                             </button>
                         </div>
                         <div class="py-2 text-center">
                             <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                                <i class="fa fa-undo me-2"/>Reset to Default
+                                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonBackendConfigReset') }}
                             </button>
                         </div>
                         <div
