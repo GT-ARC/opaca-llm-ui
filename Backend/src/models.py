@@ -105,7 +105,7 @@ class SessionData(BaseModel):
     config: Dict[str, Any] = {}
     opaca_client: Any = None
     api_key: str = None
-    cached_models: Dict[str, Any] = {}
+    llm_clients: Dict[str, Any] = {}
 
 
 class ConfigArrayItem(BaseModel):

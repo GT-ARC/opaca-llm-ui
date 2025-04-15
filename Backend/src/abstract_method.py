@@ -30,12 +30,12 @@ class AbstractMethod(ABC):
         :param session: The current session data of a unique user
         """
         # Initialize either OpenAI model or vllm model
-        base_url = session.config.get(self.NAME, self.default_config()).get("vllm_base_url", "gpt")
-        if base_url not in session.cached_models.keys():
+        base_url = session.config.get(self.NAME, self.default_config())["vllm_base_url"]
+        if base_url not in session.llm_clients.keys():
             if base_url == "gpt":
-                session.cached_models[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
+                session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
             else:
-                session.cached_models[base_url] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
+                session.llm_clients[base_url] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
 
 
     def default_config(self):

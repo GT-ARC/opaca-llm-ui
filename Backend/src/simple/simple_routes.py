@@ -64,7 +64,7 @@ class SimpleBackend(AbstractMethod):
         config = session.config.get(self.NAME, self.default_config())
 
         # initialize messages
-        policy = ask_policies[int(config.get("ask_policy", config["ask_policy"]))]
+        policy = ask_policies[config["ask_policy"]]
         actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
@@ -74,7 +74,7 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
-                client=session.cached_models[config["vllm_base_url"]],
+                client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy, actions),
