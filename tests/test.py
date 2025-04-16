@@ -7,6 +7,7 @@ import sys
 from typing import Dict, List
 import logging
 from collections import defaultdict
+from copy import deepcopy
 
 import numpy as np
 import subprocess
@@ -16,6 +17,7 @@ import requests
 from openai import OpenAI
 from pydantic import BaseModel
 
+from models import EvalMatch
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
 from question_sets.deployment import deployment_questions
@@ -90,6 +92,74 @@ def invoke_judge(question, expected_answer, response):
     return response.choices[0].message.parsed
 
 
+def flatten(xss):
+    return [x for xs in xss for x in xs]
+
+
+def evaluate_param(_actual_args, _expected_args):
+    actual_args = deepcopy(_actual_args)
+    expected_args = deepcopy(_expected_args)
+
+    for e_p in _expected_args:
+        if e_p.optional:
+            expected_args.pop(e_p)
+            if e_p.key in _actual_args.keys():
+                actual_args.pop(_actual_args[e_p.key])
+            continue
+        if e_p.key not in _actual_args.keys():
+            return False
+        else:
+            a_p = _actual_args[e_p.key]
+        if not type(e_p.value) == type(a_p):
+            return False
+        if e_p.match == EvalMatch.EXACT and not e_p.value == a_p:
+            return False
+        elif e_p.match == EvalMatch.PARTIAL and not e_p.value in a_p:
+            return False
+        expected_args.remove(e_p)
+        del actual_args[e_p.key]
+
+    if not actual_args and not expected_args:
+        return True
+    return False
+
+
+
+def evaluate_tools(_actual_tools, _expected_tools):
+    # Make copy of tools, subtract matches and get missed/extra tool calls
+    actual_tools = flatten(deepcopy(_actual_tools))
+    expected_tools = deepcopy(_expected_tools)
+
+    # Save results
+    result = {
+        "match": [],
+        "missed": [],
+        "extra": [],
+    }
+
+    for e_tool in _expected_tools:
+        for a_tool in flatten(_actual_tools):
+            if not e_tool.name in a_tool["name"]:
+                continue
+
+            # Filter out the requestBody field
+            a_args = a_tool["args"]
+            if a_tool["args"].get('requestBody', {}):
+                a_args = a_tool["args"].get('requestBody', {})
+
+            if not evaluate_param(a_args, e_tool.args):
+                continue
+
+            result["match"].append(a_tool["name"])
+            expected_tools.remove(e_tool)
+            actual_tools.remove(a_tool)
+
+    result["missed"] = [t.name for t in expected_tools]
+    result["extra"] = [t["name"] for t in actual_tools]
+
+    return result
+
+
 def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, backend: str, config: Dict) -> None:
     """
     Test a scenario. Will iterate through every pair of (question, expected_answer) pairs. Will print
@@ -156,6 +226,9 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             iterations.append(result["iterations"])
             number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
             total_token_usage += result_json["questions"][f'question_{i+1}']['response_metadata']['total_tokens'] or 0
+
+            # Evaluate the tools against the expected tools
+            result_json["question"][f'question_{i+1}']["tool_matches"] = evaluate_tools(result_json["questions"][f'question_{i+1}']["tools"], call["tools"])
 
             logging.info(f'Question {i+1}: {metric.quality}')
 

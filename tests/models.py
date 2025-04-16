@@ -12,7 +12,7 @@ class EvalMatch(Enum):
 class EvalToolParam(BaseModel):
     key: str                                # The key of a parameter
     value: Any                              # The value of a parameter
-    match: EvalMatch = EvalMatch.EXACT    # How 'strict' the value should align with the actual value
+    match: EvalMatch = EvalMatch.EXACT      # How 'strict' the value should align with the actual value
     optional: bool = False                  # Optional means that this parameter is not required necessarily
 
 class EvalTool(BaseModel):
