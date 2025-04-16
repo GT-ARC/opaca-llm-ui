@@ -81,6 +81,7 @@ class AgentMessage(BaseModel):
     tools: List[Dict[str, Any]] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
+    formatted_output: Any = None
     status: str = Field(default="", description="Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')")
     step: str = Field(default="", description="Current step being executed")
 
