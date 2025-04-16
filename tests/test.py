@@ -137,25 +137,39 @@ def evaluate_tools(_actual_tools, _expected_tools):
         "extra": [],
     }
 
-    for e_tool in _expected_tools:
-        for a_tool in flatten(_actual_tools):
+    ids = []
+
+    # Iterate over all expected tools sorted by their ids (important for dependencies)
+    for e_tool in sorted(_expected_tools, key=lambda x: x.id):
+
+        # Iterate over list of tools until match is found
+        for a_tool in actual_tools:
             if not e_tool.name in a_tool["name"]:
                 continue
 
-            # Filter out the requestBody field
+            # Optionally filter out the requestBody field
             a_args = a_tool["args"]
             if a_tool["args"].get('requestBody', {}):
                 a_args = a_tool["args"].get('requestBody', {})
 
+            # Evaluate the tool parameters, returns True if they match
             if not evaluate_param(a_args, e_tool.args):
                 continue
 
-            result["match"].append(a_tool["name"])
+            # Check if dependent tool calls have been made
+            # If not, mark this expected tool call as missed with a reason
+            if not all(i in ids for i in e_tool.depends):
+                result["missed"].append(e_tool.name + "[missing dependency]")
+                break
+
+            ids.append(e_tool.id)
+            result["match"].append(e_tool.name)
             expected_tools.remove(e_tool)
             actual_tools.remove(a_tool)
+            break
 
-    result["missed"] = [t.name for t in expected_tools]
-    result["extra"] = [t["name"] for t in actual_tools]
+    result["missed"].extend([t.name for t in expected_tools])
+    result["extra"].extend([t["name"] for t in actual_tools])
 
     return result
 
@@ -190,7 +204,11 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             server_time = time.time() - server_time
 
             # Load the results and evaluate them by the JudgeLLM
-            result = json.loads(result)
+            try:
+                result = json.loads(result)
+            except json.decoder.JSONDecodeError as e:
+                print(f'Encountered following error: {e}\n handling result: {result}')
+                continue
             metric = invoke_judge(call["input"], call["output"], result["content"])
 
             # Write the results into a file
@@ -228,7 +246,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             total_token_usage += result_json["questions"][f'question_{i+1}']['response_metadata']['total_tokens'] or 0
 
             # Evaluate the tools against the expected tools
-            result_json["question"][f'question_{i+1}']["tool_matches"] = evaluate_tools(result_json["questions"][f'question_{i+1}']["tools"], call["tools"])
+            result_json["questions"][f'question_{i+1}']["tool_matches"] = evaluate_tools(result_json["questions"][f'question_{i+1}']["tools"], call["tools"])
 
             logging.info(f'Question {i+1}: {metric.quality}')
 

@@ -97,7 +97,7 @@ simple_questions = [
         "input": "I need to order four computer mouses.",
         "output": "The answer should confirm that an order has been placed for 4 computer mouses. The id of the order should be given within the answer. The id number should be positive or 0, both are valid order ids.",
         "tools": [
-            EvalTool(name="MakeOrder", args=[EvalToolParam(key="item", value="mouse", match=EvalMatch.NONE)])
+            EvalTool(name="MakeOrder", args=[EvalToolParam(key="item", value="mouse", match=EvalMatch.PARTIAL), EvalToolParam(key="amount", value=4)])
         ]
     },
     {
@@ -160,7 +160,7 @@ simple_questions = [
         "input": "What is 42 to the power of 4?",
         "output": "The answer should include the result for the calculation of 42 to the power of 4, which is 3,111,696.",
         "tools": [
-            EvalTool(name="Power", args=[EvalToolParam(key="base", value=42), EvalToolParam(key="power", value=4)])
+            EvalTool(name="Power", args=[EvalToolParam(key="base", value=42), EvalToolParam(key="exp", value=4)])
         ]
     },
     {
