@@ -70,29 +70,28 @@
                             class="btn btn-primary"
                             @click="submitText"
                             :disabled="!isFinished"
-                            style="margin-left: -2px" >
+                            :title="Localizer.get('tooltipButtonSend')"
+                            style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
                             v-if="this.voiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="this.showRecordingPopup = true"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonRecord')">
                         <i class="fa fa-microphone"/>
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
             </div>
-
-            <!-- Simple Keyboard -->
-            <SimpleKeyboard v-if="conf.ShowKeyboard"
-                            @change="input => this.textInput = input" />
 
         </main>
 
@@ -134,7 +133,6 @@ export default {
         return {
             messages: [],
             socket: null,
-
             apiKey: '',
             textInput: '',
             isFinished: true,
@@ -403,19 +401,10 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
-
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
     },
 
     mounted() {
         this.updateTheme();
-        this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
         // expand category in sidebar
@@ -553,7 +542,7 @@ export default {
     padding: 1.5rem;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-primary-light);
     transition: all 0.2s ease;
     text-align: center;
@@ -564,24 +553,6 @@ export default {
     border-color: var(--primary-light);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-.btn-primary {
-    background-color: var(--primary-light) !important;
-    border: none;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: var(--secondary-light) !important;
-}
-
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-    border-radius: 1.5rem !important;
 }
 
 /* dark scheme styling */
@@ -611,30 +582,6 @@ export default {
 
     .input-group .form-control:focus {
         box-shadow: 0 0 0 1px var(--primary-dark);
-    }
-
-    .btn-outline-primary {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-primary:hover {
-        border-color: var(--primary-dark);
-        color: var(--primary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger:hover {
-        border-color: #ef4444;
-        color: #ef4444;
-        background-color: transparent;
     }
 
     .sample-question {
