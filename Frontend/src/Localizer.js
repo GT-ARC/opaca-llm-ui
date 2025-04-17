@@ -43,6 +43,7 @@ export const localizationData = {
         agentActionResult: "Result",
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
+        tooltipSidebarFaq: "Help/FAQ",
     },
 
     DE: {
@@ -83,6 +84,7 @@ export const localizationData = {
         agentActionResult: "Ergebnis",
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
+        tooltipSidebarFaq: "Hilfe/FAQ",
     },
 };
 
