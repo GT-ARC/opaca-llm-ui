@@ -134,7 +134,6 @@
 
     <div class="col background">
         <MainContent
-            class="tab"
             :backend="this.backend"
             :language="this.language"
             :voice-server-connected="this.voiceServerConnected"
