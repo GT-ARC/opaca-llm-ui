@@ -332,6 +332,8 @@ export default {
     margin-right: 1rem;
     padding: 0.75rem 1.25rem;
     width: auto !important; /* Override any width constraints */
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .chatbubble-ai {

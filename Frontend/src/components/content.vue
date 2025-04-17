@@ -54,15 +54,17 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
+                    <div class="scroll-wrapper">
                       <textarea id="textInput"
                                 v-model="textInput"
                                 :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control overflow-hidden"
+                                class="form-control"
                                 style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
                                 @keydown="textInputCallback"
                                 @input="resizeTextInput"
                       ></textarea>
+                    </div>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
@@ -344,7 +346,7 @@ export default {
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
-        
+
         scrollDownDebug() {
             const div = document.getElementById('debug-console');
             div.scrollTop = div.scrollHeight;
@@ -452,6 +454,14 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
+.scroll-wrapper {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
 .input-group {
     width: 100%;
     max-width: min(95%, 100ch);
@@ -467,7 +477,6 @@ export default {
     height: 3rem;
     min-height: 3rem;
     resize: none;
-    overflow-y: hidden;
     max-height: min(40vh, 20rem);
     line-height: 1.5;
     border-radius: 1.5rem !important;
@@ -484,6 +493,18 @@ export default {
 
 .input-group .form-control:focus {
     box-shadow: 0 0 0 1px var(--primary-light);
+}
+
+::-webkit-scrollbar {
+    background-color: transparent;
+    width: 10px;
+    right: -1.5rem;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--text-secondary-light);
+    border-radius: 1rem;
+    cursor: default !important;
 }
 
 .input-group .btn {
@@ -611,6 +632,10 @@ export default {
 
     .input-group .form-control:focus {
         box-shadow: 0 0 0 1px var(--primary-dark);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--text-secondary-dark);
     }
 
     .btn-outline-primary {
