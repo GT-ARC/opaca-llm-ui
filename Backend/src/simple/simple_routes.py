@@ -40,20 +40,17 @@ Following is the list of available agents and actions described in JSON:
 %s
 """
 
-ask_policies = [
-    "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation."
-]
+ask_policies = {
+    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+}
 
 logger = logging.getLogger("src.models")
 
 class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
-
-    def __init__(self):
-        self.config = self.default_config()
 
     async def query(self, message: str, session: SessionData) -> Response:
         return await self.query_stream(message, session)
@@ -63,8 +60,10 @@ class SimpleBackend(AbstractMethod):
         logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)
 
+        config = session.config.get(self.NAME, self.default_config())
+
         # initialize messages
-        policy = ask_policies[int(session.config.get("ask_policy", self.config["ask_policy"]))]
+        policy = ask_policies[config["ask_policy"]]
         actions = session.client.actions if session.client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
@@ -74,11 +73,11 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
-                model=self.config["model"],
+                model=config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy, actions),
                 messages=messages,
-                temperature=self.config["temperature"],
+                temperature=config["temperature"],
                 tool_choice="none",
                 websocket=websocket,
             )
@@ -133,6 +132,6 @@ class SimpleBackend(AbstractMethod):
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
-            "ask_policy": ConfigParameter(type="integer", required=True, default=0,
-                                          enum=[*range(0, len(ask_policies))]),
+            "ask_policy": ConfigParameter(type="string", required=True, default="never",
+                                          enum=list(ask_policies.keys())),
         }
