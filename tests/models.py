@@ -1,12 +1,12 @@
-from typing import Any, List, Tuple
+from typing import Any, List
 from pydantic import BaseModel
 from enum import Enum
 
 
 class EvalMatch(Enum):
-    EXACT: str = "exact"                    # The parameter value has to match exactly the expected value
-    PARTIAL: str = "partial"                # The parameter value should include the expected value (e.g. expected 'mouse' would be true for 'computer mouses')
-    NONE: str = "none"                      # The value is not necessary for the comparison, only the type
+    EXACT= "exact"                    # The parameter value has to match exactly the expected value
+    PARTIAL = "partial"                # The parameter value should include the expected value (e.g. expected 'mouse' would be true for 'computer mouses')
+    NONE = "none"                      # The value is not necessary for the comparison, only the type
 
 
 class EvalToolParam(BaseModel):
@@ -22,4 +22,4 @@ class EvalTool(BaseModel):
     optional: bool = False                  # Optional means that this tool call is not required necessarily
     id: int = -1                            # An id to identify a tool call. Used in combination with dependencies.
     depends: List[int] = []                 # A list of tool calls that should be executed before this one indicated by their id
-    alternative: List[Tuple[int]] = []      # A list of alternative call ids, which could have been called instead. Can include one or multiple calls as alternatives
+    alternatives: List[List[int]] = []      # A list of alternative call ids, which could have been called instead. Can include one or multiple calls as alternatives

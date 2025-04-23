@@ -18,7 +18,9 @@ complex_questions = [
         "input": "What is the highest room id in the system and what is the name belonging to that id?",
         "output": "The highest room id is 100 and the name of that room is 'VIP Room'.",
         "tools": [
-            EvalTool(name="GetRooms")
+            EvalTool(name="GetRooms", id=0, alternatives=[[1, 2]]),
+            EvalTool(name="GetRoomIds", id=1, alternatives=[[0]]),
+            EvalTool(name="GetRoomName", id=2, args=[EvalToolParam(key="room_id", value=100)], alternatives=[[0]])
         ]
     },
     {
@@ -54,8 +56,8 @@ complex_questions = [
             EvalTool(name="RunFullSystemCheck", id=0),
             EvalTool(name="GetDeviceId", id=1, depends=[0], args=[EvalToolParam(key="device_name", value="Thermostat")]),
             EvalTool(name="GetDeviceId", id=2, depends=[0], args=[EvalToolParam(key="device_name", value="Security Camera")]),
-            EvalTool(name="ScheduleMaintenance", depends=[1], args=[EvalToolParam(key="device_id", value=0), EvalToolParam(key="date", value="2025-02-01")]),
-            EvalTool(name="ScheduleMaintenance", depends=[2], args=[EvalToolParam(key="device_id", value=2), EvalToolParam(key="date", value="2025-02-01")]),
+            EvalTool(name="ScheduleMaintenance", id=3, depends=[1], args=[EvalToolParam(key="device_id", value=0), EvalToolParam(key="date", value="2025-02-01")]),
+            EvalTool(name="ScheduleMaintenance", id=3, depends=[2], args=[EvalToolParam(key="device_id", value=2), EvalToolParam(key="date", value="2025-02-01")]),
         ]
     },
     {
@@ -70,9 +72,9 @@ complex_questions = [
         "input": "Please book me any available desk",
         "output": "The answer should include a specific desk id that was booked for the user.",
         "tools": [
-            EvalTool(name="GetRooms", id=0),
-            EvalTool(name="CheckAvailability", id=1, depends=[0], args=[EvalToolParam(key="room_id", value=1, match=EvalMatch.NONE)]),
-            EvalTool(name="BookRoom", depends=[1], args=[EvalToolParam(key="room_id", value=1, match=EvalMatch.NONE)]),
+            EvalTool(name="GetDesks", id=0),
+            EvalTool(name="IsFree", id=1, depends=[0], args=[EvalToolParam(key="desk", value=1, match=EvalMatch.NONE)]),
+            EvalTool(name="BookDesk", id=2, depends=[1], args=[EvalToolParam(key="desk", value=1, match=EvalMatch.NONE)]),
         ]
     },
     {
@@ -80,13 +82,13 @@ complex_questions = [
         "output": "The answer should include a formatted table in markdown. In this table, the fridge ids ranging from 60 to 66 should be listed alongside their contents.",
         "tools": [
             EvalTool(name="GetFridgeSpaceIds", id=0),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=60)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=61)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=62)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=63)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=64)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=65)]),
-            EvalTool(name="GetFridgeContents", depends=[0], args=[EvalToolParam(key="space_id", value=66)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=60)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=61)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=62)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=63)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=64)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=65)]),
+            EvalTool(name="GetFridgeContents", id=1, depends=[0], args=[EvalToolParam(key="space_id", value=66)]),
         ]
     },
     {
@@ -105,16 +107,16 @@ complex_questions = [
         "output": "The answer should indicate, that there was no milk found in the fridge and that the item 'milk' has been added to the list of groceries, or that 'milk' is already part of the grocery list.",
         "tools": [
             EvalTool(name="GetFridgeContents", id=0),
-            EvalTool(name="AddToGroceryList", depends=[0], args=[EvalToolParam(key="item", value="milk")]),
+            EvalTool(name="AddToGroceryList", id=1, depends=[0], args=[EvalToolParam(key="item", value="milk")]),
         ]
     },
     {
         "input": "Check the sensor battery in each room and tell me in which rooms the sensor battery is less than 30%.",
         "output": "The answer needs to include a list of the room names, in which the sensor battery is below 30%. The room names should be given as their actual names and not called 'Room 1' or 'Room 2'.",
         "tools": [
-            EvalTool(name="GetRooms", id=0)] + [
-            EvalTool(name="CheckSensorBattery", depends=[0], args=[EvalToolParam(key="room_id", value=i)]) for i in range(14)] + [
-            EvalTool(name="CheckSensorBattery", depends=[0], args=[EvalToolParam(key="room_id", value=100)])
+            EvalTool(name="GetRooms", id=0, alternatives=[[1]])] + [
+            EvalTool(name="CheckSensorBattery", id=2, depends=[0], args=[EvalToolParam(key="room_id", value=i)]) for i in range(14)] + [
+            EvalTool(name="CheckSensorBattery", id=2, depends=[0], args=[EvalToolParam(key="room_id", value=100)])
         ]
     },
     {
@@ -140,7 +142,7 @@ complex_questions = [
         "output": "The answer should tell the user, that the total size of the warehouse is 5000 square meters. The answer then should give value for the monthly rent, which would be 37,500$.",
         "tools": [
             EvalTool(name="GetWarehouseAreaSize", id=0),
-            EvalTool(name="Multiply", depends=[0], args=[EvalToolParam(key="a", value=7.5, match=EvalMatch.NONE), EvalToolParam(key="b", value=5000, match=EvalMatch.NONE)]),
+            EvalTool(name="Multiply", id=1, depends=[0], args=[EvalToolParam(key="a", value=7.5, match=EvalMatch.NONE), EvalToolParam(key="b", value=5000, match=EvalMatch.NONE)]),
         ]
     },
     {
@@ -149,8 +151,8 @@ complex_questions = [
         "tools": [
             EvalTool(name="GetItemLocation", id=0, args=[EvalToolParam(key="item", value="curtain")]),
             EvalTool(name="MoveToLocation", id=1, depends=[0], args=[EvalToolParam(key="zone", value="zone-E")]),
-            EvalTool(name="PickupItem", depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
-            EvalTool(name="PickupItem", depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
+            EvalTool(name="PickupItem", id=2, depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
+            EvalTool(name="PickupItem", id=3, depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
         ]
     },
     {
@@ -201,7 +203,7 @@ complex_questions = [
             EvalTool(name="Sin", id=0, args=[EvalToolParam(key="a", value=20)]),
             EvalTool(name="Cos", id=1, args=[EvalToolParam(key="a", value=10)]),
             EvalTool(name="Divide", id=2, depends=[0, 1], args=[EvalToolParam(key="a", value=0.9129452507276277), EvalToolParam(key="b", value=-0.8390715290764524)]),
-            EvalTool(name="Multiply", depends=[2], args=[EvalToolParam(key="a", value=-1.0880422217787395), EvalToolParam(key="b", value=0.45)])
+            EvalTool(name="Multiply", id=3, depends=[2], args=[EvalToolParam(key="a", value=-1.0880422217787395), EvalToolParam(key="b", value=0.45)])
         ]
     },
     {

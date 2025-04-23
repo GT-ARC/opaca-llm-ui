@@ -147,6 +147,12 @@ def evaluate_tools(_actual_tools, _expected_tools):
             if not e_tool.name in a_tool["name"]:
                 continue
 
+            # Check if any alternative tool calls have been made already
+            # If yes, this expected tool call ca be disregarded
+            if any(i in ids for i in e_tool.alternatives):
+                expected_tools.remove(e_tool)
+                continue
+
             # Optionally filter out the requestBody field
             a_args = a_tool["args"]
             if a_tool["args"].get('requestBody', {}):
@@ -159,7 +165,7 @@ def evaluate_tools(_actual_tools, _expected_tools):
             # Check if dependent tool calls have been made
             # If not, mark this expected tool call as missed with a reason
             if not all(i in ids for i in e_tool.depends):
-                result["missed"].append(e_tool.name + "[missing dependency]")
+                e_tool.name += f"(missing dependencies: {e_tool.depends})"
                 break
 
             ids.append(e_tool.id)
@@ -167,6 +173,12 @@ def evaluate_tools(_actual_tools, _expected_tools):
             expected_tools.remove(e_tool)
             actual_tools.remove(a_tool)
             break
+
+    # Iterate over remaining expected tools and check if any alternatives have been found
+    remaining_tools = deepcopy(expected_tools)      # Deepcopy to avoid iteration errors while removing elements
+    for e_tool in remaining_tools:
+        if any(all(i in ids for i in e_ids) for e_ids in e_tool.alternatives):
+            expected_tools.remove(e_tool)
 
     result["missed"].extend([t.name for t in expected_tools])
     result["extra"].extend([t["name"] for t in actual_tools])
@@ -188,6 +200,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     execution_times = []
     number_tools = 0
     helpful_counter = 0
+    correct_tool_usage = 0
     total_score = 0.0
     total_time = .0
     agent_time = defaultdict(float)
@@ -247,6 +260,10 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
 
             # Evaluate the tools against the expected tools
             result_json["questions"][f'question_{i+1}']["tool_matches"] = evaluate_tools(result_json["questions"][f'question_{i+1}']["tools"], call["tools"])
+            if len(result_json["questions"][f'question_{i+1}']["tool_matches"]["missed"]) == \
+                len(result_json["questions"][f'question_{i+1}']["tool_matches"]["extra"]) == 0:
+                correct_tool_usage += 1
+
 
             logging.info(f'Question {i+1}: {metric.quality}')
 
@@ -259,6 +276,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             "config": config,
             "questions": len(question_set),
             "helpful": helpful_counter,
+            "correct_tool_usage": correct_tool_usage,
             "average_score": total_score / len(question_set),
             "total_time": total_time,
             "total_server_time": time.time() - total_server_time,
