@@ -83,7 +83,8 @@ simple_questions = [
         "input": "Can you tell me which rooms exist in this office building?",
         "output": "The answer should tell the user every existing room, which includes: 'Experience Hub', 'Conference Room', 'Management Office', 'Focus Space', 'Design Thinking Space', 'Co-Working Space', 'Robot Development Space', 'Robot Testing Area', 'Bathroom Women', 'Bathroom Men', 'Bathroom Uni', 'Kitchen', 'Server Room', 'VIP Room'.",
         "tools": [
-            EvalTool(name="GetRooms")
+            EvalTool(name="GetRooms", id=0, alternatives=[[1]]),
+            EvalTool(name="GetRoomNames", id=1, alternatives=[[0]]),
         ]
     },
     {

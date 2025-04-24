@@ -102,9 +102,9 @@ def evaluate_param(_actual_args, _expected_args):
 
     for e_p in _expected_args:
         if e_p.optional:
-            expected_args.pop(e_p)
+            expected_args.remove(e_p)
             if e_p.key in _actual_args.keys():
-                actual_args.pop(_actual_args[e_p.key])
+                actual_args.remove(_actual_args[e_p.key])
             continue
         if e_p.key not in _actual_args.keys():
             return False
@@ -175,9 +175,12 @@ def evaluate_tools(_actual_tools, _expected_tools):
             break
 
     # Iterate over remaining expected tools and check if any alternatives have been found
+    # Also check for optional tool calls that were not found and remove them
     remaining_tools = deepcopy(expected_tools)      # Deepcopy to avoid iteration errors while removing elements
     for e_tool in remaining_tools:
-        if any(all(i in ids for i in e_ids) for e_ids in e_tool.alternatives):
+        if e_tool.optional:
+            expected_tools.remove(e_tool)
+        elif any(all(i in ids for i in e_ids) for e_ids in e_tool.alternatives):
             expected_tools.remove(e_tool)
 
     result["missed"].extend([t.name for t in expected_tools])
@@ -201,6 +204,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
     number_tools = 0
     helpful_counter = 0
     correct_tool_usage = 0
+    perfect_tool_usage = 0
     total_score = 0.0
     total_time = .0
     agent_time = defaultdict(float)
@@ -260,9 +264,10 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
 
             # Evaluate the tools against the expected tools
             result_json["questions"][f'question_{i+1}']["tool_matches"] = evaluate_tools(result_json["questions"][f'question_{i+1}']["tools"], call["tools"])
-            if len(result_json["questions"][f'question_{i+1}']["tool_matches"]["missed"]) == \
-                len(result_json["questions"][f'question_{i+1}']["tool_matches"]["extra"]) == 0:
+            if len(result_json["questions"][f'question_{i+1}']["tool_matches"]["missed"]) == 0:
                 correct_tool_usage += 1
+                if len(result_json["questions"][f'question_{i+1}']["tool_matches"]["extra"]) == 0:
+                    perfect_tool_usage += 1
 
 
             logging.info(f'Question {i+1}: {metric.quality}')
@@ -277,6 +282,7 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
             "questions": len(question_set),
             "helpful": helpful_counter,
             "correct_tool_usage": correct_tool_usage,
+            "perfect_tool_usage": perfect_tool_usage,
             "average_score": total_score / len(question_set),
             "total_time": total_time,
             "total_server_time": time.time() - total_server_time,

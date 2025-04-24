@@ -27,17 +27,21 @@ complex_questions = [
         "input": "Turn on the lights in every bathroom.",
         "output": "The answer should indicate that the lights were turned on the rooms 'Bathroom Women', 'Bathroom Men', and 'Bathroom Uni'. The ids of those rooms are 9, 10, 11 respectively.",
         "tools": [
-            EvalTool(name="GetRooms"),
-            EvalTool(name="TurnOnLights", args=[EvalToolParam(key="room_id", value=9)]),
-            EvalTool(name="TurnOnLights", args=[EvalToolParam(key="room_id", value=10)]),
-            EvalTool(name="TurnOnLights", args=[EvalToolParam(key="room_id", value=11)]),
+            EvalTool(name="GetRooms", id=0, alternatives=[[1, 2, 3, 4]]),
+            EvalTool(name="GetRoomNames", id=1, alternatives=[[0]]),
+            EvalTool(name="GetRoomId", id=2, alternatives=[[0]], args=[EvalToolParam(key="room_name", value="Women", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="GetRoomId", id=3, alternatives=[[0]], args=[EvalToolParam(key="room_name", value="Men", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="GetRoomId", id=4, alternatives=[[0]], args=[EvalToolParam(key="room_name", value="Uni", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="TurnOnLights", id=5, args=[EvalToolParam(key="room_id", value=9)]),
+            EvalTool(name="TurnOnLights", id=5, args=[EvalToolParam(key="room_id", value=10)]),
+            EvalTool(name="TurnOnLights", id=5, args=[EvalToolParam(key="room_id", value=11)]),
         ]
     },
     {
         "input": "Set the light intensity in the Focus space to 50%.",
         "output": "The answer should indicate, that the light intensity was set to 50%. In the given context, the answer might also indicate 50% as 0.5.",
         "tools": [
-            EvalTool(name="GetRoomId", args=[EvalToolParam(key="room_name", value="Focus space")]),
+            EvalTool(name="GetRoomId", args=[EvalToolParam(key="room_name", value="Focus", match=EvalMatch.PARTIAL)]),
             EvalTool(name="SetLightIntensity", args=[EvalToolParam(key="room_id", value=4), EvalToolParam(key="intensity", value=0.5)]),
         ]
     },
@@ -45,8 +49,9 @@ complex_questions = [
         "input": "Check if the Conference room is currently free and if it is, book it.",
         "output": "In the answer, the status of the conference occupation should be returned. If it is occupied, a booking procedure should not have happened. But if the conference room is free, it should also have already been booked.",
         "tools": [
-            EvalTool(name="GetRoomId", args=[EvalToolParam(key="room_name", value="Conference room")]),
-            EvalTool(name="CheckAvailability", args=[EvalToolParam(key="room_id", value=2)])
+            EvalTool(name="GetRoomId", id=0, args=[EvalToolParam(key="room_name", value="Conference", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="CheckAvailability", id=1, depends=[0], args=[EvalToolParam(key="room_id", value=2)]),
+            EvalTool(name="BookRoom", id=2, depends=[1], args=[EvalToolParam(key="room_id", value=2)]),
         ]
     },
     {
@@ -64,8 +69,8 @@ complex_questions = [
         "input": "Please order me the snack with the longest name",
         "output": "The answer should tell the user, that the snack with the longest name is 'chocolate bar'. Further, the answer should confirm that a 'chocolate bar' has been ordered for the user.",
         "tools": [
-            EvalTool(name="GetSnackInventory"),
-            EvalTool(name="OrderSnack", args=[EvalToolParam(key="item", value="chocolate bar"), EvalToolParam(key="amount", value=1, optional=True)]),
+            EvalTool(name="GetSnackInventory", id=0),
+            EvalTool(name="OrderSnack", id=1, depends=[0], args=[EvalToolParam(key="item", value="chocolate bar"), EvalToolParam(key="amount", value=1, optional=True)]),
         ]
     },
     {
@@ -73,7 +78,7 @@ complex_questions = [
         "output": "The answer should include a specific desk id that was booked for the user.",
         "tools": [
             EvalTool(name="GetDesks", id=0),
-            EvalTool(name="IsFree", id=1, depends=[0], args=[EvalToolParam(key="desk", value=1, match=EvalMatch.NONE)]),
+            EvalTool(name="IsFree", id=1, alternatives=[[1]], depends=[0], args=[EvalToolParam(key="desk", value=1, match=EvalMatch.NONE)]),        # Is its own alternative, meaning it only needs to be present once
             EvalTool(name="BookDesk", id=2, depends=[1], args=[EvalToolParam(key="desk", value=1, match=EvalMatch.NONE)]),
         ]
     },
@@ -114,9 +119,10 @@ complex_questions = [
         "input": "Check the sensor battery in each room and tell me in which rooms the sensor battery is less than 30%.",
         "output": "The answer needs to include a list of the room names, in which the sensor battery is below 30%. The room names should be given as their actual names and not called 'Room 1' or 'Room 2'.",
         "tools": [
-            EvalTool(name="GetRooms", id=0, alternatives=[[1]])] + [
-            EvalTool(name="CheckSensorBattery", id=2, depends=[0], args=[EvalToolParam(key="room_id", value=i)]) for i in range(14)] + [
-            EvalTool(name="CheckSensorBattery", id=2, depends=[0], args=[EvalToolParam(key="room_id", value=100)])
+            EvalTool(name="GetRooms", id=0, alternatives=[[1]]),
+            EvalTool(name="GetRoomIds", id=1, alternatives=[[0]])] + [
+            EvalTool(name="CheckSensorBattery", id=2, args=[EvalToolParam(key="room_id", value=i)]) for i in range(1, 14)] + [
+            EvalTool(name="CheckSensorBattery", id=2, args=[EvalToolParam(key="room_id", value=100)])
         ]
     },
     {
@@ -142,7 +148,7 @@ complex_questions = [
         "output": "The answer should tell the user, that the total size of the warehouse is 5000 square meters. The answer then should give value for the monthly rent, which would be 37,500$.",
         "tools": [
             EvalTool(name="GetWarehouseAreaSize", id=0),
-            EvalTool(name="Multiply", id=1, depends=[0], args=[EvalToolParam(key="a", value=7.5, match=EvalMatch.NONE), EvalToolParam(key="b", value=5000, match=EvalMatch.NONE)]),
+            EvalTool(name="Multiply", id=1, depends=[0], args=[EvalToolParam(key="a", value=7.5, match=EvalMatch.NONE), EvalToolParam(key="b", value=5000, match=EvalMatch.NONE)], optional=True),
         ]
     },
     {
@@ -177,7 +183,9 @@ complex_questions = [
         "input": "I want to order a new pair of green scissors and a pair of blue jeans.",
         "output": "The answer should confirm the creation of two orders, one which has as an item a pair of green scissors and the other one which has an item of a pair of blue jeans. The order ids should be provided as well",
         "tools": [
-            EvalTool(name="MakeOrders", args=[EvalToolParam(key="items", value=["green scissors", "blue jeans"], match=EvalMatch.PARTIAL), EvalToolParam(key="amounts", value=[1, 1], optional=True)]),
+            EvalTool(name="MakeOrders", id=0, alternatives=[[1, 2]], args=[EvalToolParam(key="items", value=["green scissors", "blue jeans"], match=EvalMatch.PARTIAL), EvalToolParam(key="amounts", value=[1, 1], optional=True)]),
+            EvalTool(name="MakeOrder", id=1, alternatives=[[0]], args=[EvalToolParam(key="item", value="green scissors", match=EvalMatch.PARTIAL), EvalToolParam(key="amount", value=1, optional=True)]),
+            EvalTool(name="MakeOrder", id=2, alternatives=[[0]], args=[EvalToolParam(key="item", value="blue jeans", match=EvalMatch.PARTIAL), EvalToolParam(key="amount", value=1, optional=True)]),
         ]
     },
     {
@@ -202,15 +210,17 @@ complex_questions = [
         "tools": [
             EvalTool(name="Sin", id=0, args=[EvalToolParam(key="a", value=20)]),
             EvalTool(name="Cos", id=1, args=[EvalToolParam(key="a", value=10)]),
-            EvalTool(name="Divide", id=2, depends=[0, 1], args=[EvalToolParam(key="a", value=0.9129452507276277), EvalToolParam(key="b", value=-0.8390715290764524)]),
-            EvalTool(name="Multiply", id=3, depends=[2], args=[EvalToolParam(key="a", value=-1.0880422217787395), EvalToolParam(key="b", value=0.45)])
+            EvalTool(name="Divide", id=2, depends=[0, 1], args=[EvalToolParam(key="a", value=0.9129452507276277), EvalToolParam(key="b", value=-0.8390715290764524)], optional=True),
+            EvalTool(name="Multiply", id=3, depends=[2], args=[EvalToolParam(key="a", value=-1.0880422217787395), EvalToolParam(key="b", value=0.45)], optional=True)
         ]
     },
     {
         "input": "Please create two playlists. One should be called '80s Hits' and should include the following songs: 'Africa', 'Take on Me', 'Sweet Dreams (Are Made of This)', 'Footloose', 'Maniac'. The other one should be called 'Hip-Hop Classics' and should include the following songs: 'Jump Around', 'Still D.R.E.', 'POWER', 'Hypnotize', 'In Da Club'.",
         "output": "The answer should confirm the creation of two playlists with the names '80s Hits' and 'Hip-Hop Classics'. It should give the playlist ids for each of the playlists. It should also confirm, that the given songs have been added to each playlist respectively.",
         "tools": [
-            EvalTool(name="CreateMultiplePlaylists", args=[EvalToolParam(key="playlist_names", value=["80s Hits", "Hip-Hop Classics"]), EvalToolParam(key="playlist_songs", value=[['Africa', 'Take on Me', 'Sweet Dreams (Are Made of This)', 'Footloose', 'Maniac'], ['Jump Around', 'Still D.R.E.', 'POWER', 'Hypnotize', 'In Da Club']])]),
+            EvalTool(name="CreateMultiplePlaylists", id=0, alternatives=[[1, 2]], args=[EvalToolParam(key="playlist_names", value=["80s Hits", "Hip-Hop Classics"]), EvalToolParam(key="playlist_songs", value=[['Africa', 'Take on Me', 'Sweet Dreams (Are Made of This)', 'Footloose', 'Maniac'], ['Jump Around', 'Still D.R.E.', 'POWER', 'Hypnotize', 'In Da Club']])]),
+            EvalTool(name="CreatePlaylist", id=1, alternatives=[[0]], args=[EvalToolParam(key="playlist_name", value="80s Hits"), EvalToolParam(key="songs", value=['Africa', 'Take on Me', 'Sweet Dreams (Are Made of This)', 'Footloose', 'Maniac'])]),
+            EvalTool(name="CreatePlaylist", id=2, alternatives=[[0]], args=[EvalToolParam(key="playlist_name", value="Hip-Hop Classics"), EvalToolParam(key="songs", value=['Jump Around', 'Still D.R.E.', 'POWER', 'Hypnotize', 'In Da Club'])])
         ]
     },
     {
