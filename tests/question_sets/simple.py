@@ -19,10 +19,228 @@ simple_questions = [
         ]
     },
     {
+        "input": "What is the name of room 7?",
+        "output": "The answer should have successfully determined that the name of the room with id 7 is 'Robot Development Space'.",
+        "tools": [
+            EvalTool(name="GetRoomName", args=[EvalToolParam(key="room_id", value=7)])
+        ]
+    },
+    {
+        "input": "Give me the id of the Server Room",
+        "output": "The answer should have successfully determined that id of the server room is 13.",
+        "tools": [
+            EvalTool(name="GetRoomId", args=[EvalToolParam(key="room_name", value="Server", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "What are the room names and their ids?",
+        "output": "The answer should include a list of rooms including the ids 1 to 13 and 100 alongside their names.",
+        "tools": [
+            EvalTool(name="GetRooms")
+        ]
+    },
+    {
+        "input": "What is the highest room id?",
+        "output": "The answer should have successfully determined that the highest room id is 100.",
+        "tools": [
+            EvalTool(name="GetRoomIds")
+        ]
+    },
+    {
+        "input": "How many bathrooms are there?",
+        "output": "The answer should have successfully determined that there are 3 bathrooms in the system: 'Bathroom Women', 'Bathroom Men', and 'Bathroom Uni'.",
+        "tools": [
+            EvalTool(name="GetRoomNames", id=0, alternatives=[[1]]),
+            EvalTool(name="GetRooms", id=1, alternatives=[[0]])
+        ]
+    },
+    {
+        "input": "Is the room 2 free?",
+        "output": "The answer should tell the user that room 2 is currently available.",
+        "tools": [
+            EvalTool(name="CheckAvailability", args=[EvalToolParam(key="room_id", value=2)])
+        ]
+    },
+    {
+        "input": "Can I book room 3?",
+        "output": "The answer should tell the user that room 3 is not available for booking.",
+        "tools": [
+            EvalTool(name="CheckAvailability", args=[EvalToolParam(key="room_id", value=3)])
+        ]
+    },
+    {
+        "input": "I just checked and room 4 is currently free. Book it for me!",
+        "output": "The answer should tell the user that it has booked room 4.",
+        "tools": [
+            EvalTool(name="BookRoom", args=[EvalToolParam(key="room_id", value=4)])
+        ]
+    },
+    {
         "input": "Can I make coffee?",
         "output": "The answer should check the status of the coffee machine. The available status can be 'making coffee...', 'unavailable', 'available', 'cleaning', or 'coffee ready!'. The answer should then tell the user if a new cup of coffee can be made, or if the coffee machine is currently in service or unavailable.",
         "tools": [
             EvalTool(name="CheckCoffeeMachineStatus")
+        ]
+    },
+    {
+        "input": "Please check the status of the coffee machine.",
+        "output": "The answer should check the status of the coffee machine. The available status can be 'making coffee...', 'unavailable', 'available', 'cleaning', or 'coffee ready!'.",
+        "tools": [
+            EvalTool(name="CheckCoffeeMachineStatus")
+        ]
+    },
+    {
+        "input": "What are the available desks?",
+        "output": "The answer should provide the user with a list of 1 to 10, each being the number of a specific desk.",
+        "tools": [
+            EvalTool(name="GetDesks")
+        ]
+    },
+    {
+        "input": "Does desk number 17 exist?",
+        "output": "The answer should tell the user, that desk number 17 does not exist.",
+        "tools": [
+            EvalTool(name="GetDesks")
+        ]
+    },
+    {
+        "input": "I want to book desk 2, is it available?",
+        "output": "The answer should confirm that desk 2 is available for booking.",
+        "tools": [
+            EvalTool(name="IsFree", args=[EvalToolParam(key="desk", value=2)])
+        ]
+    },
+    {
+        "input": "I think desk 7 might be occupied, am I right?",
+        "output": "The answer should confirm the user by saying that desk 7 is occupied.",
+        "tools": [
+            EvalTool(name="IsFree", args=[EvalToolParam(key="desk", value=7)])
+        ]
+    },
+    {
+        "input": "Book me desk 6",
+        "output": "The answer should confirm the booking of desk 6 to the user.",
+        "tools": [
+            EvalTool(name="BookDesk", args=[EvalToolParam(key="desk", value=6)])
+        ]
+    },
+    {
+        "input": "Try to book desk 3 and tell me what happened.",
+        "output": "The answer should inform the user, that the booking was not successful. The reasons can include either the desk not being available at the moment, or an invalid desk number.",
+        "tools": [
+            EvalTool(name="BookDesk", args=[EvalToolParam(key="desk", value=3)])
+        ]
+    },
+    {
+        "input": "What is the current status of the system?",
+        "output": "The answer should tell the user, that a full system check was performed, which yielded the following results: - Thermostat: Damaged, - Air Quality Monitor: Functioning, - Security Camera: Damaged, - Network Router: Functioning, - HVAC System Controller: Functioning.",
+        "tools": [
+            EvalTool(name="RunFullSystemCheck")
+        ]
+    },
+    {
+        "input": "Perform a system check",
+        "output": "The answer should tell the user, that a full system check was performed, which yielded the following results: - Thermostat: Damaged, - Air Quality Monitor: Functioning, - Security Camera: Damaged, - Network Router: Functioning, - HVAC System Controller: Functioning.",
+        "tools": [
+            EvalTool(name="RunFullSystemCheck")
+        ]
+    },
+    {
+        "input": "Something seems off about device 0, can you check?",
+        "output": "The answer should confirm that device 0, the thermostat, was found to be damaged.",
+        "tools": [
+            EvalTool(name="CheckDeviceHealth", args=[EvalToolParam(key="device_id", value=0)])
+        ]
+    },
+    {
+        "input": "Is device 4 functioning properly?",
+        "output": "The answer should tell the user that device 4, the HVAC System Controller, is functioning properly.",
+        "tools": [
+            EvalTool(name="CheckDeviceHealth", args=[EvalToolParam(key="device_id", value=4)])
+        ]
+    },
+    {
+        "input": "For how long has the system been up?",
+        "output": "The answer should give the timespan of how long the system has been up. This value can be given as a unix timestamp.",
+        "tools": [
+            EvalTool(name="GetSystemUptime")
+        ]
+    },
+    {
+        "input": "How much time has been passed since the last reboot?",
+        "output": "The answer should give the timespan of how long the system has been up since the last reboot. This value can be given as a unix timestamp.",
+        "tools": [
+            EvalTool(name="GetSystemUptime")
+        ]
+    },
+    {
+        "input": "What are the devices in the system?",
+        "output": "The answer should include a list of all the devices in the system: - Thermostat (id 0), - Air Quality Monitor (id 1), - Security Camera (id 2), - Network Router (id 3), - HVAC System Controller (id 4)",
+        "tools": [
+            EvalTool(name="ListActiveDevices")
+        ]
+    },
+    {
+        "input": "What are the ids and names of the devices in the system?",
+        "output": "The answer should include a list of all the devices and their ids in the system: - Thermostat (id 0), - Air Quality Monitor (id 1), - Security Camera (id 2), - Network Router (id 3), - HVAC System Controller (id 4)",
+        "tools": [
+            EvalTool(name="ListActiveDevices")
+        ]
+    },
+    {
+        "input": "What is the id of the network router?",
+        "output": "The answer should tell the user the id of the network router is 3.",
+        "tools": [
+            EvalTool(name="GetDeviceId", args=[EvalToolParam(key="device_name", value="router", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "How is the thermostat identified within the system?",
+        "output": "The answer should tell the user the id of the thermostat is 0.",
+        "tools": [
+            EvalTool(name="GetDeviceId", args=[EvalToolParam(key="device_name", value="thermostat", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "Make a report of the system and show it to me.",
+        "output": "The answer should include a detailed report of the system devices, their operational status, the system status, error logs, and upcoming maintenances.",
+        "tools": [
+            EvalTool(name="GenerateReport")
+        ]
+    },
+    {
+        "input": "Can you give me the latest report of the system?",
+        "output": "The answer should include a detailed report of the system devices, their operational status, the system status, error logs, and upcoming maintenances.",
+        "tools": [
+            EvalTool(name="GenerateReport")
+        ]
+    },
+    {
+        "input": "Can you tell me how the network is currently doing?",
+        "output": "The answer should tell the user, that the network is currently functioning properly.",
+        "tools": [
+            EvalTool(name="CheckNetworkStatus")
+        ]
+    },
+    {
+        "input": "How is our network doing?",
+        "output": "The answer should tell the user, that the network is currently functioning properly.",
+        "tools": [
+            EvalTool(name="CheckNetworkStatus")
+        ]
+    },
+    {
+        "input": "Please restart the device 3",
+        "output": "The answer should confirm that device 3 has been restarted.",
+        "tools": [
+            EvalTool(name="RestartDevice", args=[EvalToolParam(key="device_id", value=3)])
+        ]
+    },
+    {
+        "input": "Try to restart device 4, but tell me what happened.",
+        "output": "The answer should confirm that device 4 has been restarted.",
+        "tools": [
+            EvalTool(name="RestartDevice", args=[EvalToolParam(key="device_id", value=4)])
         ]
     },
     {
