@@ -1,7 +1,7 @@
 <!-- SidebarQuestions Component -->
 <template>
     <div class="sidebar-questions">
-        <div v-for="(section, index) in questions" :key="index" class="question-section">
+        <div v-for="(section, index) in this.getQuestions()" :key="index" class="question-section">
             <div class="section-header" 
                  @click="toggleSection(index)"
                  :class="{ 'expanded': expandedSection === index }">
@@ -25,46 +25,43 @@
 </template>
 
 <script>
+import Localizer from "../Localizer.js";
+import {sidebarQuestions} from "../Localizer.js";
+
 export default {
     name: 'SidebarQuestions',
-    props: {
-        questions: {
-            type: Array,
-            required: true
-        }
-    },
     data() {
         return {
-            expandedSection: 0
-        }
-    },
-    watch: {
-        questions: {
-            immediate: true,
-            handler() {
-                this.expandedSection = 0;
-            }
+            expandedSection: null
         }
     },
     methods: {
+        getQuestions() {
+            return sidebarQuestions[Localizer.language];
+        },
+
         toggleSection(index) {
+            const questions = this.getQuestions();
             if (this.expandedSection === index) {
                 this.expandedSection = null;
                 this.$emit('category-selected', null);
             } else {
                 this.expandedSection = index;
-                this.$emit('category-selected', this.questions[index].header);
+                this.$emit('category-selected', questions[index].header);
             }
         },
+
         toggleSectionByHeader(header) {
-            const index = this.questions.findIndex(section => section.header === header);
+            const index = this.getQuestions().findIndex(section => section.header === header);
             this.toggleSection(index);
         },
+
         expandSectionByHeader(header) {
-            const index = this.questions.findIndex(section => section.header === header);
+            const questions = this.getQuestions();
+            const index = this.getQuestions().findIndex(section => section.header === header);
             if (this.expandedSection !== index) {
                 this.expandedSection = index;
-                this.$emit('category-selected', this.questions[index].header);
+                this.$emit('category-selected', questions[index].header);
             }
         }
     }
@@ -89,7 +86,7 @@ export default {
     cursor: pointer;
     background-color: var(--surface-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     user-select: none;
 }
@@ -139,7 +136,7 @@ export default {
     cursor: pointer;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
 }
 
@@ -155,19 +152,6 @@ export default {
     flex: 1;
     font-size: 0.875rem;
     line-height: 1.4;
-}
-
-/* Slide animation */
-.slide-enter-active,
-.slide-leave-active {
-    transition: all 0.3s ease;
-    max-height: 1000px;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-    opacity: 0;
-    max-height: 0;
 }
 
 @media (prefers-color-scheme: dark) {

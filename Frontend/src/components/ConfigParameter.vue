@@ -5,9 +5,9 @@
                 <strong>{{ name }}</strong>
                 <div v-if="value.description" class="tooltip-container">
                     <button
-                        type="button"
                         class="question-mark"
-                        @click.stop="toggleTooltip">
+                        @mouseover="toggleTooltip"
+                        @mouseleave="toggleTooltip">
                         ?
                     </button>
                     <div v-if="showTooltip" class="tooltip-bubble">
@@ -23,15 +23,16 @@
                     v-model="nestedConfig[subName]"/>
             </div>
         </div>
-        <!-- Boolean types create a checkbox -->
-        <template v-else-if="value.type === 'boolean'">
+
+        <div v-else>
+            <!-- header: name and tooltip description -->
             <div class="config-section-header">
                 <strong>{{ name }}</strong>
                 <div v-if="value.description" class="tooltip-container">
                     <button
-                        type="button"
                         class="question-mark"
-                        @click.stop="toggleTooltip">
+                        @mouseover="toggleTooltip"
+                        @mouseleave="toggleTooltip">
                         ?
                     </button>
                     <div v-if="showTooltip" class="tooltip-bubble">
@@ -39,105 +40,55 @@
                     </div>
                 </div>
             </div>
-            <input v-model="localValue"
-                   class="form-check-input"
-                   type="checkbox"/>
-        </template>
 
-        <!-- Dropdown menu for enums -->
-        <template v-else-if="Array.isArray(value?.enum)">
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        type="button"
-                        class="question-mark"
-                        @click.stop="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
+            <!-- boolean type: checkbox -->
+            <div v-if="value.type === 'boolean'">
+                <input v-model="localValue"
+                       class="form-check-input"
+                       type="checkbox"/>
+            </div>
+
+            <!-- enums: dropdown menu -->
+            <div v-else-if="Array.isArray(value?.enum)">
+                <select v-model="localValue" class="form-control">
+                    <option v-for="option in value?.enum" :key="option" :value="option">
+                        {{ option }}
+                    </option>
+                </select>
+            </div>
+
+            <!-- numbers: check min/max range -->
+            <div v-else-if="['number', 'integer'].includes(value.type)">
+                <input v-model="localValue"
+                       class="form-control"
+                       type="number"
+                       :min="value?.minimum"
+                       :max="value.maximum"
+                       :step="value.type === 'integer' ? 1 : 0.01"/>
+            </div>
+
+            <!-- array type: dynamic list (is this used?) -->
+            <div v-else-if="value.type === 'array'">
+                <div v-for="(item, index) in localValue" :key="index" class="array-item">
+                    <div class="input-with-minus">
+                        <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-button" @click="removeItem(index)">
+                            &minus;
+                        </button>
                     </div>
                 </div>
+                <button class="btn btn-primary btn-sm add-button" @click="addItem">Add Item</button>
             </div>
-            <select v-model="localValue" class="form-control">
-                <option v-for="option in value?.enum" :key="option" :value="option">
-                    {{ option }}
-                </option>
-            </select>
-        </template>
 
-        <!-- Numbers and integers check for minimum and maximum ranges -->
-        <template v-else-if="['number', 'integer'].includes(value.type)">
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        type="button"
-                        class="question-mark"
-                        @click.stop="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
+            <!-- other elements: plain text input -->
+            <div v-else>
+                <input v-model="localValue"
+                       class="form-control"
+                       type="text"/>
             </div>
-            <input v-model="localValue"
-                   class="form-control"
-                   type="number"
-                   :min="value?.minimum"
-                   :max="value.maximum"
-                   :step="value.type === 'integer' ? 1 : 0.01"/>
-        </template>
 
-        <!-- Array type -->
-        <template v-else-if="value.type === 'array'">
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        type="button"
-                        class="question-mark"
-                        @click.stop="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-            <div v-for="(item, index) in localValue" :key="index" class="array-item">
-                <div class="input-with-minus">
-                <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
-                <button type="button" class="btn btn-outline-danger btn-sm remove-button" @click="removeItem(index)">
-                    &minus;
-                </button>
-            </div>
-            </div>
-            <button class="btn btn-primary btn-sm add-button" @click="addItem">Add Item</button>
-        </template>
+        </div>
 
-        <!-- Other values are just plain text inputs -->
-        <template v-else>
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        type="button"
-                        class="question-mark"
-                        @click.stop="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble overflow-auto">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-            <input v-model="localValue"
-                   class="form-control"
-                   type="text"/>
-        </template>
     </div>
 </template>
 
@@ -219,32 +170,9 @@ export default {
 
         toggleTooltip() {
             this.showTooltip = !this.showTooltip;
-        },
-
-        handleClickOutside(event) {
-            if (!this.$el.contains(event.target)) {
-                this.showTooltip = false;
-            }
-        },
+        }
     },
 
-    mounted() {
-        document.addEventListener("click", this.handleClickOutside);
-    },
-    beforeUnmount() {
-        document.removeEventListener("click", this.handleClickOutside);
-    },
-
-    template: `
-        <div class="tooltip-container">
-            <button type="button" class="question-mark" @click.stop="toggleTooltip">
-                ?
-            </button>
-            <div v-if="this.showTooltip" class="tooltip-bubble">
-                {{ description }}
-            </div>
-        </div>
-    `
 };
 </script>
 
@@ -319,8 +247,8 @@ input[type="number"] {
     position: absolute;
     display: block;
     width: 200px;
-    top: 20px;
-    left: 0;
+    top: 32px;
+    left: -50px;
     background-color: #333;
     color: white;
     padding: 6px 10px;

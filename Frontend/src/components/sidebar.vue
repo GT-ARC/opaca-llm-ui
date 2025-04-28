@@ -1,5 +1,5 @@
 <template>
-    <div class="d-flex justify-content-start">
+    <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
@@ -7,81 +7,91 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Connection"
+               :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Prompt Library"
+               :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Agents & Actions"
+               :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Configuration"
+               :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-terminal p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" title="Logging"
+               class="fa fa-bug p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
         </div>
 
         <!-- sidebar content -->
-        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
+        <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column px-3"
-               style="height: calc(100vh - 85px); width: min(400px, 100vw - 3rem)">
+                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
                 <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
-                     class="container d-flex flex-column">
+                         class="container d-flex flex-column">
 
-                    <div class="py-2 text-start">
-                        <input id="opacaUrlInput" type="text"
-                               class="form-control m-0"
-                               v-model="opacaRuntimePlatform"
-                               :placeholder="conf.translations[language].opacaLocation" />
-                    </div>
+                        <div class="py-2 text-start">
+                            <input id="opacaUrlInput" type="text"
+                                   class="form-control m-0"
+                                   v-model="opacaRuntimePlatform"
+                                   :placeholder="Localizer.get('opacaLocation')" />
+                        </div>
 
-                    <div class="py-2 text-start">
-                        <div class="row opaca-credentials">
-                            <div class="col-md-6">
-                                <input id="opacaUser" type="text"
-                                       class="form-control m-0"
-                                       v-model="opacaUser"
-                                       placeholder="Username" />
+                        <div class="py-2 text-start">
+                            <div class="row opaca-credentials">
+                                <div class="col-md-6">
+                                    <input id="opacaUser" type="text"
+                                           class="form-control m-0"
+                                           v-model="opacaUser"
+                                           placeholder="Username" />
+                                </div>
+                                <div class="col-md-6">
+                                    <input id="opacaPwd" type="password"
+                                           class="form-control m-0"
+                                           v-model="opacaPwd"
+                                           placeholder="Password" />
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <input id="opacaPwd" type="password"
-                                       class="form-control m-0"
-                                       v-model="opacaPwd"
-                                       placeholder="Password" />
-                            </div>
+
+                        </div>
+
+                        <div class="py-2 text-start" v-if="conf.ShowApiKey">
+                            <input id="apiKey" type="password"
+                                   class="form-control m-0"
+                                   placeholder="OpenAI API Key"
+                                   v-model="this.apiKey"
+                                   @input="this.$emit('api-key-change', this.apiKey)" />
+                        </div>
+
+                        <div class="text-center py-2">
+                            <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
+                                <i class="fa fa-link me-1"/>Connect
+                            </button>
                         </div>
 
                     </div>
-
-                    <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                        <input id="apiKey" type="password"
-                               class="form-control m-0"
-                               placeholder="OpenAI API Key"
-                               v-model="this.apiKey"
-                               @input="this.$emit('api-key-change', this.apiKey)" />
-                    </div>
-
-                    <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
-                            <i class="fa fa-link me-1"/>Connect
-                        </button>
-                    </div>
-
                 </div>
+
+                <!-- sample questions -->
+                <div v-show="SidebarManager.isViewSelected('questions')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <SidebarQuestions
+                        @select-question="question => this.$emit('select-question', question)"
+                        @category-selected="category => this.$emit('category-selected', category)"
+                        ref="sidebar_questions"
+                    />
                 </div>
 
                 <!-- agents/actions overview -->
@@ -123,10 +133,13 @@
                                             <!-- action body -->
                                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
                                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                                <p><strong>Description:</strong> {{ action.description }}</p>
-                                                <strong>Input Parameters:</strong>
-                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
-                                                <strong>Result:</strong>
+                                                <p v-if="action.description">
+                                                    <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
+                                                    {{ action.description }}
+                                                </p>
+                                                <strong>{{ Localizer.get('agentActionParameters') }}:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
+                                                <strong>{{ Localizer.get('agentActionResult') }}:</strong>
                                                 <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                             </div>
                                         </div>
@@ -143,19 +156,19 @@
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
                         <config-parameter v-for="(value, name) in backendConfigSchema"
-                                :key="name"
-                                :name="name"
-                                :value="value"
-                                v-model="backendConfig[name]"/>
+                                          :key="name"
+                                          :name="name"
+                                          :value="value"
+                                          v-model="backendConfig[name]"/>
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                                <i class="fa fa-save me-2"/>Save Config
+                                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonBackendConfigSave') }}
                             </button>
                         </div>
                         <div class="py-2 text-center">
                             <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                                <i class="fa fa-undo me-2"/>Reset to Default
+                                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonBackendConfigReset') }}
                             </button>
                         </div>
                         <div
@@ -170,27 +183,17 @@
                 <!-- debug console -->
                 <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
                      class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
-                    <div id="debug-console" class="text-start">
-                        <DebugMessage
-                            v-for="debugMessage in debugMessages"
-                            :key="debugMessage.text"
-                            :text="debugMessage.text"
-                            :color="debugMessage.color"
-                            :type="debugMessage.type"
-                            :execution-time="debugMessage.executionTime"
-                            :response-metadata="debugMessage.responseMetadata"
+                    <div id="debug-console"
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                        <DebugMessage v-for="debugMessage in debugMessages"
+                                      :key="debugMessage.text"
+                                      :text="debugMessage.text"
+                                      :type="debugMessage.type"
+                                      :is-dark-scheme="this.isDarkScheme"
+                                      :execution-time="debugMessage.executionTime"
+                                      :response-metadata="debugMessage.responseMetadata"
                         />
                     </div>
-                </div>
-
-                <!-- sample questions -->
-                <div v-show="SidebarManager.isViewSelected('questions')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions
-                        :questions="conf.translations[language].sidebarQuestions"
-                        @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions" />
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
@@ -207,6 +210,7 @@ import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
+import Localizer from "../Localizer.js";
 
 export default {
     name: 'Sidebar',
@@ -217,15 +221,15 @@ export default {
     },
     props: {
         backend: String,
-        language: String
+        language: String,
+        isDarkScheme: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { SidebarManager, conf, isMobile, screenWidth};
+        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
-            selectedView: 'none',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: '',
             opacaPwd: '',
@@ -234,7 +238,6 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            selectedLanguage: 'english',
             isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
@@ -260,11 +263,11 @@ export default {
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unauthorized);
+                    alert(Localizer.get('unauthorized'));
                 } else {
                     this.platformActions = null;
                     this.isConnected = false;
-                    alert(conf.translations[this.language].unreachable);
+                    alert(Localizer.get('unreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
@@ -341,7 +344,7 @@ export default {
                 // Calculate the new width for the aside
                 const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
 
-                if (newWidth > 200 && newWidth < 600) {
+                if (newWidth > 200 && newWidth < 768) {
                     sidebar.style.width = `${newWidth}px`;
                 }
             });
@@ -373,11 +376,6 @@ export default {
             }
         },
 
-        handleQuestionSelect(question) {
-            // Send the question to the chat without closing the sidebar
-            this.$emit('select-question', question);
-        },
-
         startFadeOut() {
             // Clear previous timeout (if the user saves the config again before fade-out could happen)
             if (this.fadeTimeout) {
@@ -399,15 +397,38 @@ export default {
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
         },
+
+        addDebugMessage(text, type) {
+            if (!text) return;
+            const message = {text: text, type: type};
+
+            // if there are no messages yet, just push the new one
+            if (this.debugMessages.length === 0) {
+                this.debugMessages.push(message);
+                return;
+            }
+
+            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
+            if (lastMessage.type === type && type === 'Tool Generator') {
+                // If the message includes tools, the message needs to be replaced instead of appended
+                this.debugMessages[this.debugMessages.length - 1] = message;
+            } else if (lastMessage.type === type) {
+                // If the message has the same type as before but is not a tool, append the token to the text
+                lastMessage.text += text;
+            } else {
+                // new message type
+                this.debugMessages.push(message);
+            }
+        },
+
+        clearDebugMessage() {
+            this.debugMessages = [];
+        },
+
     },
     mounted() {
         this.setupResizer();
         this.fetchBackendConfig();
-        if (this.language === 'GB') {
-            this.selectedLanguage = 'english';
-        } else if (this.language === 'DE') {
-            this.selectedLanguage = 'german';
-        }
 
         if (conf.AutoConnect) {
             this.initRpConnection();
@@ -419,30 +440,24 @@ export default {
         this.scrollDownConfigView()
     },
     watch: {
-        backend(newValue) {
+        backend() {
             this.fetchBackendConfig();
         },
-        language: {
-            immediate: true,
-            handler(newVal) {
-                if (newVal === 'GB') {
-                    this.selectedLanguage = 'english';
-                } else if (newVal === 'DE') {
-                    this.selectedLanguage = 'german';
-                }
-            }
-        }
     }
 }
 </script>
 
 <style scoped>
+#sidebar-base {
+    background-color: var(--surface-light);
+}
 
+/* sidebar content */
 #sidebar {
-    width: 100%;
+    width: min(400px, 100vw - 3rem);
+    height: calc(100vh - 85px);
     min-width: 150px;
-    max-width: 600px;
-    position: relative;
+    max-width: 768px;
     z-index: 999;
 }
 
@@ -461,7 +476,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-secondary-light);
     transition: all 0.2s ease;
 }
@@ -484,6 +499,10 @@ export default {
 }
 
 @media screen and (max-width: 768px) {
+    #sidebar {
+        width: min(600px, 100vw - 3rem);
+    }
+
     .sidebar-item {
         font-size: 0.8rem;
         width: 2rem;
@@ -498,8 +517,8 @@ export default {
     position: absolute;
     top: 0;
     right: 0;
-    border-radius: var(--border-radius-sm);
-    background-color: #e5e7eb;
+    border-radius: var(--bs-border-radius-sm);
+    background-color: var(--border-light);
     transition: background-color 0.2s ease;
 }
 
@@ -507,89 +526,18 @@ export default {
     background-color: var(--primary-light);
 }
 
-.debug-container {
-    height: 100%;
+#chatDebug {
+    background-color: var(--debug-console-light);
+    border: 1px solid var(--border-light);
     overflow: hidden;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }
 
-.debug-messages {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column-reverse;
-    padding: 0.75rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 0.5rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.875rem;
-    padding: 0.25rem 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    .debug-container {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-dark);
-    }
-
-    #sidebar {
-        background-color: var(--background-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .debug-container {
-        background-color: var(--surface-light);
-        border-color: var(--border-light);
-    }
-
-    #chatDebug {
-        background-color: var(--surface-light);
-    }
-}
-
 /* Accordion Styling */
 .accordion-item {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-light);
     overflow: hidden;
@@ -597,7 +545,7 @@ export default {
 }
 
 .accordion-button {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -663,13 +611,38 @@ export default {
     background-color: var(--bs-gray-200);
     color: var(--text-primary-light);
     padding: 0.75rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
 }
 
-/* Dark mode styles */
+.list-group {
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+    background-color: transparent;
+}
+
+.list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary-light);
+    transition: all 0.2s ease;
+}
+
+.list-group-flush .list-group-item {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+/* dark mode styling */
 @media (prefers-color-scheme: dark) {
+    #sidebar-base {
+        background-color: var(--background-dark);
+    }
+
     #sidebar-menu {
         background-color: var(--surface-dark);
         border-color: var(--border-dark);
@@ -681,15 +654,30 @@ export default {
 
     .sidebar-item:hover {
         background-color: var(--background-dark);
-        color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select {
         background-color: var(--primary-dark);
+        color: var(--text-primary-dark);
     }
 
     .sidebar-item-select:hover {
         background-color: var(--secondary-dark);
+    }
+
+    .resizer {
+        background-color: var(--border-dark);
+    }
+
+    .resizer:hover {
+        background-color: var(--primary-dark);
+    }
+
+    #chatDebug {
+        background-color: var(--debug-console-dark);
+        border-color: var(--border-dark);
+        border: 1px solid var(--border-dark);
     }
 
     .accordion-item {
@@ -717,10 +705,18 @@ export default {
         filter: invert(1);
     }
 
+    .accordion-body {
+        background-color: var(--background-dark);
+    }
+
+    .accordion-collapse {
+        background-color: var(--background-dark);
+    }
+
     .json-box {
-    background-color: var(--surface-dark);
-    color: var(--text-primary-dark);
-}
+        background-color: var(--surface-dark);
+        color: var(--text-primary-dark);
+    }
 
     .form-control {
         background-color: var(--input-dark);
@@ -737,136 +733,13 @@ export default {
         border-color: var(--primary-dark);
     }
 
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .debug-text {
-        color: var(--text-primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: #fff;
-        overflow: hidden;
-        border: 1px solid #ccc; /* border only needed in light mode */
-    }
-
-    .resizer {
-        background-color: gray;
-    }
-}
-
-.list-group {
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    background-color: transparent;
-}
-
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
     .list-group-item {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
     }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
 }
 
-#chatDebug {
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-#debug-console {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem;
-}
-
-.debug-text {
-    display: block;
-    text-align: left;
-    margin-left: 3px;
-    font-family: "Courier New", monospace;
-    font-size: small;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-@media (prefers-color-scheme: dark) {
-    #chatDebug {
-        background-color: var(--surface-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: white;
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    #chatDebug {
-        background-color: var(--surface-light);
-        border: 1px solid var(--border-light);
-    }
-
-    .resizer {
-        background-color: var(--border-light);
-    }
-}
-
+/* mobile design */
 @media screen and (max-width: 768px) {
     .resizer {
         display: none;

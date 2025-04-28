@@ -40,11 +40,11 @@ Following is the list of available agents and actions described in JSON:
 %s
 """
 
-ask_policies = [
-    "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation."
-]
+ask_policies = {
+    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+}
 
 logger = logging.getLogger("src.models")
 
@@ -135,6 +135,6 @@ class SimpleBackend(AbstractMethod):
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
-            "ask_policy": ConfigParameter(type="integer", required=True, default=0,
-                                          enum=[*range(0, len(ask_policies))]),
+            "ask_policy": ConfigParameter(type="string", required=True, default="never",
+                                          enum=list(ask_policies.keys())),
         }

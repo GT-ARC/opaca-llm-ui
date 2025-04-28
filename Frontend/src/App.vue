@@ -1,11 +1,11 @@
 <template>
     <header>
-        <div class="col">
+        <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
                 <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
-                    <a v-bind:href="conf.BackLink">
+                    <a :href="conf.BackLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -40,13 +40,14 @@
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-globe me-1"/>
-                                <span v-show="!isMobile">{{ conf.translations[this.language].name}}</span>
+                                <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                                <li v-for="(value, key) in conf.translations" @click="this.setLanguage(key)">
+                                <li v-for="{ key, name } in Localizer.getAvailableLocales()"
+                                    @click="Localizer.language = key">
                                     <a class="dropdown-item">
-                                        <p v-bind:style= "[this.language === key ? {'font-weight': 'bold'} : {'font-weight': 'normal'}]">
-                                            {{ value.name }}
+                                        <p :style= "{'font-weight': Localizer.language === key ? 'bold' : 'normal'}">
+                                            {{ name }}
                                         </p>
                                     </a>
                                 </li>
@@ -104,7 +105,7 @@
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
                                             <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ voiceServerConnected ? 'Connected' : 'Disconnected' }}</span>
+                                            <span class="ms-2">{{ voiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
                                         </div>
                                     </div>
                                 </li>
@@ -113,14 +114,14 @@
                                         <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted"
                                              style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ deviceInfo }}
+                                            {{ Localizer.get('ttsServerInfo', this.deviceInfo.model, this.deviceInfo.device) }}
                                         </div>
                                     </div>
                                 </li>
                                 <li v-if="!voiceServerConnected">
-                                    <button class="dropdown-item" @click="checkVoiceServerConnection">
+                                    <button class="dropdown-item" @click="this.initVoiceServerConnection()">
                                         <i class="fa fa-refresh me-2"/>
-                                        Retry Connection
+                                        {{ Localizer.get('ttsRetry') }}
                                     </button>
                                 </li>
                             </ul>
@@ -132,22 +133,28 @@
     </header>
 
     <div class="col background">
-        <MainContent class="tab" :backend="this.backend" :language="this.language" @update:language="setLanguage" ref="content" />
+        <MainContent
+            :backend="this.backend"
+            :language="this.language"
+            :voice-server-connected="this.voiceServerConnected"
+            ref="content"
+        />
     </div>
 </template>
 
 <script>
-import conf from '../config.js'
-import MainContent from './components/content.vue'
+import conf from '../config.js';
+import MainContent from './components/content.vue';
 
-import { useDevice } from "./useIsMobile.js";
+import {useDevice} from "./useIsMobile.js";
+import Localizer from "./Localizer.js"
 
 export default {
     name: 'App',
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, isMobile, screenWidth };
+        return { conf, Localizer, isMobile, screenWidth };
     },
     data() {
         return {
@@ -159,10 +166,6 @@ export default {
         }
     },
     methods: {
-        setLanguage(lang){
-            this.language = lang;
-        },
-
         setBackend(key) {
             const keyPath = key.split('/');
             const value = conf.Backends[keyPath[0]];
@@ -209,46 +212,32 @@ export default {
             return key === this.backend;
         },
 
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
-        async checkVoiceServerConnection() {
+        async initVoiceServerConnection() {
             try {
                 const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (!response.ok) {
-                    this.updateVoiceServerStatus(false);
-                    return;
+                if (response.ok) {
+                    this.deviceInfo = await response.json();
+                    this.voiceServerConnected = true;
+                } else {
+                    this.voiceServerConnected = false;
                 }
-                const data = await response.json();
-                this.deviceInfo = `${data.model} on ${data.device}`;
-                this.updateVoiceServerStatus(true);
             } catch (error) {
-                this.updateVoiceServerStatus(false);
-            }
-        },
-
-        updateVoiceServerStatus(isConnected) {
-            this.voiceServerConnected = isConnected;
-            this.deviceInfo = isConnected ? this.deviceInfo : '';
-            // Update the voice server status in the MainContent component
-            if (this.$refs.content) {
-                this.$refs.content.voiceServerConnected = isConnected;
-                this.$refs.content.deviceInfo = this.deviceInfo;
+                console.error('Error fetching device info:', error);
             }
         }
     },
+
     mounted() {
-        this.setupTooltips();
-        this.checkVoiceServerConnection();
+        this.initVoiceServerConnection();
     }
 }
 </script>
 
 <style scoped>
+.background {
+    background-color: var(--background-light);
+}
+
 header {
     background-color: var(--background-light);
     width: 100%;
@@ -282,7 +271,7 @@ header {
 }
 
 .dropdown-menu {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
@@ -298,7 +287,7 @@ header {
     position: absolute;
     left: 100%;
     top: -7px;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
 }
@@ -314,7 +303,7 @@ header {
 
 .nav-link {
     padding: 0.5rem 1rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     color: var(--text-primary-light);
 }
@@ -331,6 +320,10 @@ header {
 }
 
 @media (prefers-color-scheme: dark) {
+    .background {
+        background-color: var(--background-dark);
+    }
+
     header {
         background-color: var(--background-dark);
         border-color: #2e2e2e;
@@ -341,6 +334,10 @@ header {
     }
 
     .nav-link {
+        color: var(--text-primary-dark);
+    }
+
+    .nav-link:focus {
         color: var(--text-primary-dark);
     }
 
