@@ -1309,45 +1309,4 @@ simple_questions = [
             EvalTool(name="LikeTrack", args=[EvalToolParam(key="track", value="Azure Nights")]),
         ]
     },
-
-    ### Calculator Agent
-    """
-    {
-        "input": "Please add the following numbers together: 581739.3712 and 928.6749",
-        "output": "The answer should confirm that the numbers 581,739.3712 and 928.6749 have been added together and give the result, which is 582,668.0461.",
-        "tools": [
-            EvalTool(name="Add", id=0, alternatives=[[1]], args=[EvalToolParam(key="a", value=581739.3712), EvalToolParam(key="b", value=928.6749)]),
-            EvalTool(name="Add", id=1, alternatives=[[0]], args=[EvalToolParam(key="a", value=928.6749), EvalToolParam(key="b", value=581739.3712)]),
-        ]
-    },
-    {
-        "input": "I have a rather difficult addition task and I think it would be easier if you just quickly add them together. Here are the two numbers: 746182.8471 and 371857.4717",
-        "output": "The answer should confirm that the numbers 746,182.8471 and 371,857.4717 have been added together and give the result, which is 1,118,040.3188.",
-        "tools": [
-            EvalTool(name="Add", id=0, alternatives=[[1]], args=[EvalToolParam(key="a", value=746182.8471), EvalToolParam(key="b", value=371857.4717)]),
-            EvalTool(name="Add", id=1, alternatives=[[0]], args=[EvalToolParam(key="a", value=371857.4717), EvalToolParam(key="b", value=746182.8471)]),
-        ]
-    },
-    {
-        "input": "What is 42 to the power of 4?",
-        "output": "The answer should include the result for the calculation of 42 to the power of 4, which is 3,111,696.",
-        "tools": [
-            EvalTool(name="Power", args=[EvalToolParam(key="base", value=42), EvalToolParam(key="exp", value=4)])
-        ]
-    },
-    {
-        "input": "What is the sine of 2.857?",
-        "output": "The answer should tell the sine of 2.857, which is roughly 0.2807665132504996. If the result is approximately this value, the answer can be seen as fulfilled.",
-        "tools": [
-            EvalTool(name="Sin", args=[EvalToolParam(key="a", value=2.857)])
-        ]
-    },
-    {
-        "input": "What would I get, if I subtract twelve from one hundred and four?",
-        "output": "The answer should tell the user the result of 104 minus 12, which is 92, or ninety-two.",
-        "tools": [
-            EvalTool(name="Subtract", args=[EvalToolParam(key="a", value=104), EvalToolParam(key="b", value=12)])
-        ]
-    },
-    """
 ]

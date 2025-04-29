@@ -239,7 +239,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm
 
     result_json = {"questions": {}, "summary": {}}
 
-    for i, call in enumerate(question_set[:5]):
+    for i, call in enumerate(question_set):
         # Generate a response by the OPACA LLM
         server_time = time.time()
         result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
