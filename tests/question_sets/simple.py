@@ -936,18 +936,396 @@ simple_questions = [
             EvalTool(name="RemoveItemFromZone", args=[EvalToolParam(key="item", value="mop", match=EvalMatch.PARTIAL), EvalToolParam(key="zone", value="D", match=EvalMatch.PARTIAL)])
         ]
     },
+
+    ### Music Player Agent
+
     {
-        "input": "Please start playing the track 7",
+        "input": "Please start playing the track 7.",
         "output": "The answer should confirm to the user, that the track with id 7 is now currently playing.",
         "tools": [
             EvalTool(name="PlayTrack", args=[EvalToolParam(key="track_id", value=7)])
         ]
     },
     {
-        "input": "Please set the volume down to 3",
+        "input": "Resume the song",
+        "output": "The answer should confirm to the user, that the track with id 7 is now currently playing.",
+        "tools": [
+            EvalTool(name="PlayTrack")
+        ]
+    },
+    {
+        "input": "Pause the current track.",
+        "output": "The answer should inform the user, that the music has been paused.",
+        "tools": [
+            EvalTool(name="PauseTrack")
+        ]
+    },
+    {
+        "input": "I've had enough of the currently playing song and I want to have some silence for a minute.",
+        "output": "The answer should inform the user, that the music has been paused.",
+        "tools": [
+            EvalTool(name="PauseTrack")
+        ]
+    },
+    {
+        "input": "Please skip to the next song.",
+        "output": "The answer should inform the user, that the next song is now playing.",
+        "tools": [
+            EvalTool(name="SkipToNextTrack")
+        ]
+    },
+    {
+        "input": "Oh I don't like the current song, I would rather hear the next instead. Make it happen.",
+        "output": "The answer should inform the user, that the next song is now playing.",
+        "tools": [
+            EvalTool(name="SkipToNextTrack")
+        ]
+    },
+    {
+        "input": "Please make the previous song play again.",
+        "output": "The answer should inform the user, that the previous song is now playing again.",
+        "tools": [
+            EvalTool(name="SkipToPreviousTrack")
+        ]
+    },
+    {
+        "input": "I really liked the last song. Can you make it play again?",
+        "output": "The answer should inform the user, that the previous song is now playing again.",
+        "tools": [
+            EvalTool(name="SkipToPreviousTrack")
+        ]
+    },
+    {
+        "input": "What is the current volume?",
+        "output": "The answer should inform the user about the current volume level, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="GetCurrentVolume")
+        ]
+    },
+    {
+        "input": "Is the music playing too loud? Not sure but can you check what the current configuration is?",
+        "output": "The answer should inform the user about the current volume level of the music, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="GetCurrentVolume")
+        ]
+    },
+    {
+        "input": "I want you to increase the volume.",
+        "output": "The answer should inform the user that the volume level has been increased and provide the new volume level, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="IncreaseVolume")
+        ]
+    },
+    {
+        "input": "Oh I really like the current song. Make it louder!",
+        "output": "The answer should inform the user that the volume level has been increased and provide the new volume level, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="IncreaseVolume")
+        ]
+    },
+    {
+        "input": "Please decrease the volume.",
+        "output": "The answer should inform the user that the volume level has been decreased and provide the new volume level, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="DecreaseVolume")
+        ]
+    },
+    {
+        "input": "Now the music is playing a little bit to loud. Can you lower it just a bit?",
+        "output": "The answer should inform the user that the volume level has been decreased and provide the new volume level, which can range from 0 to 10.",
+        "tools": [
+            EvalTool(name="DecreaseVolume")
+        ]
+    },
+    {
+        "input": "I want you to change the volume setting to 5.",
+        "output": "The answer should inform the user that the volume level has been changed to 5.",
+        "tools": [
+            EvalTool(name="AdjustVolume", args=[EvalToolParam(key="volume", value=5)])
+        ]
+    },
+    {
+        "input": "I need to tone down the music quite a bit. I think a new value of 3 should be suitable.",
         "output": "The answer should confirm that the current volume level has been set to 3.",
         "tools": [
             EvalTool(name="AdjustVolume", args=[EvalToolParam(key="volume", value=3)])
+        ]
+    },
+    {
+        "input": "Please mute the music.",
+        "output": "The answer should confirm that the music has now been muted.",
+        "tools": [
+            EvalTool(name="Mute")
+        ]
+    },
+    {
+        "input": "Hold on, somebody is talking to me. Silence the music for a moment.",
+        "output": "The answer should confirm that the music has now been muted.",
+        "tools": [
+            EvalTool(name="Mute")
+        ]
+    },
+    {
+        "input": "Get me all the track ids.",
+        "output": "The answer should include a list of all track ids, which is a list of all numbers from 0 to 9.",
+        "tools": [
+            EvalTool(name="GetTrackIds")
+        ]
+    },
+    {
+        "input": "I think for some of your actions ids are quite important, including for interaction with my music. Which ids can I use if I want to play some songs for example?",
+        "output": "The answer should include a list of all track ids, which is a list of all numbers from 0 to 9.",
+        "tools": [
+            EvalTool(name="GetTrackIds")
+        ]
+    },
+    {
+        "input": "Please tell me all the track names that you know.",
+        "output": "The answer should include a list of all track names, which are: 'Echoes in the Rain', 'Starlight Serenade', 'Midnight Mirage', 'Crimson Horizon', 'Whispers of the Wind', 'Neon Dreams', 'Solace in the Shadows', 'Golden Skies', 'Rhythm of the Heartbeat', 'Aurora's Embrace'.",
+        "tools": [
+            EvalTool(name="GetTracks")
+        ]
+    },
+    {
+        "input": "I am curios about the song names you provide. Because I would really like to know what is included. Can you help me out with that?",
+        "output": "The answer should include a list of all track names, which are: 'Echoes in the Rain', 'Starlight Serenade', 'Midnight Mirage', 'Crimson Horizon', 'Whispers of the Wind', 'Neon Dreams', 'Solace in the Shadows', 'Golden Skies', 'Rhythm of the Heartbeat', 'Aurora's Embrace'.",
+        "tools": [
+            EvalTool(name="GetTracks")
+        ]
+    },
+    {
+        "input": "Get the id of the track 'Crimson Horizon'.",
+        "output": "The answer should return the id of the track 'Crimson Horizon' which is 3.",
+        "tools": [
+            EvalTool(name="GetIdByTrack", args=[EvalToolParam(key="track", value="crimson", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "I think for some of your actions regarding music I need the ids of specific songs. One song that I am curious about is called Aurora's Embrace. Can you tell me the id of that song?",
+        "output": "The answer should return the id of the track Aurora's Embrace which is 9.",
+        "tools": [
+            EvalTool(name="GetIdByTrack", args=[EvalToolParam(key="track", value="aurora", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "Get me the name of the track with id 7.",
+        "output": "The answer should return the name of the track with id 7, which is 'Golden Skies'.",
+        "tools": [
+            EvalTool(name="GetTrackById", args=[EvalToolParam(key="track_id", value=7)])
+        ]
+    },
+    {
+        "input": "Hey, I know that you use ids for songs but sometimes I would also like to know their actual names. Can you tell what song 4 is called?",
+        "output": "The answer should return the name of the track with id 7, which is 'Whispers of the Wind'.",
+        "tools": [
+            EvalTool(name="GetTrackById", args=[EvalToolParam(key="track_id", value=4)])
+        ]
+    },
+
+    ### Playlist Management Agent
+
+    {
+        "input": "Please create the playlist called 'My Favorite Songs'.",
+        "output": "The answer should confirm that the playlist 'My Favorite Songs' has been created.",
+        "tools": [
+            EvalTool(name="CreatePlaylist", args=[EvalToolParam(key="playlist_name", value="Favorite Songs", match=EvalMatch.PARTIAL)])
+        ]
+    },
+    {
+        "input": "I want you to create the playlist called 'My Favorite Songs' and in there should be the songs 'Whispers in the Static', 'Velvet Skies and Broken Dreams', 'Echoes of Tomorrow', 'Crimson Horizon', and 'Dancing with Shadows'.",
+        "output": "The answer should confirm that the playlist 'My Favorite Songs' has been created and the songs 'Whispers in the Static', 'Velvet Skies and Broken Dreams', 'Echoes of Tomorrow', 'Crimson Horizon', and 'Dancing with Shadows' have been added to the playlist.",
+        "tools": [
+            EvalTool(name="CreatePlaylist", args=[EvalToolParam(key="playlist_name", value="Favorite Songs", match=EvalMatch.PARTIAL), EvalToolParam(key="songs", value=['Whispers in the Static', 'Velvet Skies and Broken Dreams', 'Echoes of Tomorrow', 'Crimson Horizon', 'Dancing with Shadows'])]),
+        ]
+    },
+    {
+        "input": "I want you to create multiple playlists for me called 'Coffee & Cloudbursts', 'Wanderlust Tapes', and 'Fragments of a Forgotten Summer'.",
+        "output": "The answer should confirm that the playlists 'Coffee & Cloudbursts', 'Wanderlust Tapes', and 'Fragments of a Forgotten Summer' have successfully been created. The answer should also include a list of the created playlist ids.",
+        "tools": [
+            EvalTool(name="CreateMultiplePlaylists", args=[EvalToolParam(key="playlist_names", value=['Coffee & Cloudbursts', 'Wanderlust Tapes', 'Fragments of a Forgotten Summer'])]),
+        ]
+    },
+    {
+        "input": "I want you to create multiple playlists for me called 'Coffee & Cloudbursts', 'Wanderlust Tapes', and 'Fragments of a Forgotten Summer'. Fill the first playlist with the songs 'Whispers in the Static' and 'Velvet Skies and Broken Dreams', the second playlist with 'Echoes of Tomorrow' and 'Crimson Horizon', and the third playlist with just 'Dancing with Shadows'.",
+        "output": "The answer should confirm that the playlists 'Coffee & Cloudbursts', 'Wanderlust Tapes', and 'Fragments of a Forgotten Summer' have successfully been created. The answer should also include a list of the created playlist ids.",
+        "tools": [
+            EvalTool(name="CreateMultiplePlaylists", args=[EvalToolParam(key="playlist_names", value=['Coffee & Cloudbursts', 'Wanderlust Tapes', 'Fragments of a Forgotten Summer']), EvalToolParam(key="playlist_songs", value=[['Whispers in the Static', 'Velvet Skies and Broken Dreams'], ['Echoes of Tomorrow', 'Crimson Horizon'], ['Dancing with Shadows']])]),
+        ]
+    },
+    {
+        "input": "Please add the song 'Whispers in the Static' to the playlist with id 46.",
+        "output": "The answer should confirm that the song 'Whispers in the Static' has been successfully added to the playlist with id 46.",
+        "tools": [
+            EvalTool(name="AddSongToPlaylist", args=[EvalToolParam(key="playlist_id", value=46), EvalToolParam(key="song_name", value="Whispers in the Static")]),
+        ]
+    },
+    {
+        "input": "I have found this cool new song called 'Echoes of Tomorrow'. I definitely want to save that song for later, but not sure to which playlist I want to add it right now. You know what? Just add it to the playlist with id 46 for now.",
+        "output": "The answer should confirm that the song 'Echoes of Tomorrow' has been successfully added to the playlist with id 46.",
+        "tools": [
+            EvalTool(name="AddSongToPlaylist", args=[EvalToolParam(key="playlist_id", value=46), EvalToolParam(key="song_name", value="Echoes of Tomorrow")]),
+        ]
+    },
+    {
+        "input": "Rename playlist 46 to 'New Hits 2025' for me.",
+        "output": "The answer should confirm that the playlist with id 46 has been renamed to 'New Hits 2025'.",
+        "tools": [
+            EvalTool(name="RenamePlaylist", args=[EvalToolParam(key="playlist_id", value=46), EvalToolParam(key="new_name", value="New Hits 2025")]),
+        ]
+    },
+    {
+        "input": "I wasn't quite sure how to name playlist 46 yet, but after adding some songs to it, I am certain that the new name should be 'New Hits 2025'.",
+        "output": "The answer should confirm that the playlist with id 46 has been renamed to 'New Hits 2025'.",
+        "tools": [
+            EvalTool(name="RenamePlaylist", args=[EvalToolParam(key="playlist_id", value=46), EvalToolParam(key="new_name", value="New Hits 2025")]),
+        ]
+    },
+    {
+        "input": "Get me all the names of the playlists.",
+        "output": "The answer should return a list of all playlist names, which have to include at least 'Oblivion Soundtrack' and 'Minecraft Soundtrack'. The answer is allowed to contain more than those playlist names.",
+        "tools": [
+            EvalTool(name="GetPlaylistNames"),
+        ]
+    },
+    {
+        "input": "I am wondering what the names of all the playlists are, I don't really care for the ids to be honest.",
+        "output": "The answer should return a list of all playlist names, which have to include at least 'Oblivion Soundtrack' and 'Minecraft Soundtrack'. The answer is allowed to contain more than those playlist names.",
+        "tools": [
+            EvalTool(name="GetPlaylistNames"),
+        ]
+    },
+    {
+        "input": "Tell me the song names of the playlist with id 42.",
+        "output": "The answer should return a list of all song names of the playlist 42, which include: 'Through the Valleys', 'Harvest Dawn', 'King and Country', 'Wings of Kynareth', 'Glory of Cyrodiil'",
+        "tools": [
+            EvalTool(name="GetPlaylistSongs", args=[EvalToolParam(key="playlist_id", value=42)]),
+        ]
+    },
+    {
+        "input": "I am wondering what songs are included in playlist 42, I heard the playlist now a couple of times, but the songs don't have any vocals so it is hard to know what their names are.",
+        "output": "The answer should return a list of all song names of the playlist 42, which include: 'Through the Valleys', 'Harvest Dawn', 'King and Country', 'Wings of Kynareth', 'Glory of Cyrodiil'",
+        "tools": [
+            EvalTool(name="GetPlaylistSongs", args=[EvalToolParam(key="playlist_id", value=42)]),
+        ]
+    },
+    {
+        "input": "Give me an overview of all the playlists you have access to.",
+        "output": "The answer should include a detailed overview of all the playlist names and their songs. The answer will include multiple playlists, but should at least include the playlist names 'Oblivion Soundtrack' and 'Minecraft Soundtrack'.",
+        "tools": [
+            EvalTool(name="GetPlaylists"),
+        ]
+    },
+    {
+        "input": "I am new here and I heard that you give access to some sort of playlist management? I believe you already have some playlists saved. Could you tell me what they are and what songs are in them?",
+        "output": "The answer should include a detailed overview of all the playlist names and their songs. The answer will include multiple playlists, but should at least include the playlist names 'Oblivion Soundtrack' and 'Minecraft Soundtrack'.",
+        "tools": [
+            EvalTool(name="GetPlaylists"),
+        ]
+    },
+    {
+        "input": "Get me the id of the playlist with name 'Oblivion Soundtrack'.",
+        "output": "The answer should return the id of the playlist with the name 'Oblivion Soundtrack', which is 42.",
+        "tools": [
+            EvalTool(name="GetPlaylistId", args=[EvalToolParam(key="playlist_name", value="Oblivion Soundtrack")]),
+        ]
+    },
+    {
+        "input": "I think for some of your functionalities it is important to the ids of playlists. Anyway, I would like to modify a playlist. The playlist in question is called 'Oblivion Soundtrack'. Give me some unique number or whatever you have associated with that playlist.",
+        "output": "The answer should return the id of the playlist with the name 'Oblivion Soundtrack', which is 42.",
+        "tools": [
+            EvalTool(name="GetPlaylistId", args=[EvalToolParam(key="playlist_name", value="Oblivion Soundtrack")]),
+        ]
+    },
+    {
+        "input": "Remove song 'Haggstorm' from playlist with id 43",
+        "output": "The answer should confirm that the song 'Haggstorm' has been removed from the playlist with id 43.",
+        "tools": [
+            EvalTool(name="RemoveSongFromPlaylist", args=[EvalToolParam(key="playlist_id", value=43), EvalToolParam(key="song_name", value="Haggstorm")]),
+        ]
+    },
+    {
+        "input": "I accidentally added the song Sweden to the playlist with id 43. Is it possible that you remove it?",
+        "output": "The answer should confirm that the song 'Sweden' has been removed from the playlist with id 43.",
+        "tools": [
+            EvalTool(name="RemoveSongFromPlaylist", args=[EvalToolParam(key="playlist_id", value=43), EvalToolParam(key="song_name", value="Sweden")]),
+        ]
+    },
+    {
+        "input": "Please delete the playlist with id 44 for me.",
+        "output": "The answer should confirm that the playlist with id 44 has been deleted.",
+        "tools": [
+            EvalTool(name="DeletePlaylist", args=[EvalToolParam(key="playlist_id", value=44)]),
+        ]
+    },
+    {
+        "input": "I created this one playlist, don't remember the name, but the id is 45, where I just saved some songs for later. I have added them all to other playlists now and I would like to delete the old playlist. Please do that for me.",
+        "output": "The answer should confirm that the playlist with id 45 has been deleted.",
+        "tools": [
+            EvalTool(name="DeletePlaylist", args=[EvalToolParam(key="playlist_id", value=45)]),
+        ]
+    },
+
+    ### Social Agent
+
+    {
+        "input": "Please follow the artist 'Luna Vesper' for me.",
+        "output": "The answer should confirm that the artist 'Luna Vesper' is now being followed.",
+        "tools": [
+            EvalTool(name="FollowArtist", args=[EvalToolParam(key="artist", value="Luna Vesper")]),
+        ]
+    },
+    {
+        "input": "I have found this interesting sounding new band called 'The Hollow Keys'. Please follow them on my social.",
+        "output": "The answer should confirm that the band 'The Hollow Keys' is now being followed.",
+        "tools": [
+            EvalTool(name="FollowArtist", args=[EvalToolParam(key="artist", value="The Hollow Keys")]),
+        ]
+    },
+    {
+        "input": "Please unfollow the artist 'Nova Rook'.",
+        "output": "The answer should confirm that the artist 'Nova Rook' has been unfollowed.",
+        "tools": [
+            EvalTool(name="UnfollowArtist", args=[EvalToolParam(key="artist", value="Nova Rook")]),
+        ]
+    },
+    {
+        "input": "The latest stuff being released by Echofield is not really that good anymore. I want to unfollow them.",
+        "output": "The answer should confirm that the artist 'Echofield' has been unfollowed.",
+        "tools": [
+            EvalTool(name="UnfollowArtist", args=[EvalToolParam(key="artist", value="Echofield")]),
+        ]
+    },
+    {
+        "input": "Please like the track 'Heartbeats' for me.",
+        "output": "The answer should confirm that the track 'Heartbeats' has been liked.",
+        "tools": [
+            EvalTool(name="LikeTrack", args=[EvalToolParam(key="track", value="Heartbeats")]),
+        ]
+    },
+    {
+        "input": "I just heard the track 'Azure Nights' and I think it is pretty good. Like it for me.",
+        "output": "The answer should confirm that the track 'Azure Nights' has been liked.",
+        "tools": [
+            EvalTool(name="LikeTrack", args=[EvalToolParam(key="track", value="Azure Nights")]),
+        ]
+    },
+
+    ### Calculator Agent
+    """
+    {
+        "input": "Please add the following numbers together: 581739.3712 and 928.6749",
+        "output": "The answer should confirm that the numbers 581,739.3712 and 928.6749 have been added together and give the result, which is 582,668.0461.",
+        "tools": [
+            EvalTool(name="Add", id=0, alternatives=[[1]], args=[EvalToolParam(key="a", value=581739.3712), EvalToolParam(key="b", value=928.6749)]),
+            EvalTool(name="Add", id=1, alternatives=[[0]], args=[EvalToolParam(key="a", value=928.6749), EvalToolParam(key="b", value=581739.3712)]),
+        ]
+    },
+    {
+        "input": "I have a rather difficult addition task and I think it would be easier if you just quickly add them together. Here are the two numbers: 746182.8471 and 371857.4717",
+        "output": "The answer should confirm that the numbers 746,182.8471 and 371,857.4717 have been added together and give the result, which is 1,118,040.3188.",
+        "tools": [
+            EvalTool(name="Add", id=0, alternatives=[[1]], args=[EvalToolParam(key="a", value=746182.8471), EvalToolParam(key="b", value=371857.4717)]),
+            EvalTool(name="Add", id=1, alternatives=[[0]], args=[EvalToolParam(key="a", value=371857.4717), EvalToolParam(key="b", value=746182.8471)]),
         ]
     },
     {
@@ -971,4 +1349,5 @@ simple_questions = [
             EvalTool(name="Subtract", args=[EvalToolParam(key="a", value=104), EvalToolParam(key="b", value=12)])
         ]
     },
+    """
 ]
