@@ -38,6 +38,7 @@ def parse_arguments():
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
+    parser.add_argument("-c", "--chunks", type=int, default=10, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -70,7 +71,7 @@ class Metric(BaseModel):
 
 
 # Method to invoke the Judge LLM
-def invoke_judge(question, expected_answer, response):
+async def invoke_judge(question, expected_answer, response):
     formatted_message = judge_template.format(
         question=question, expected_answer=expected_answer, response=response
     )
@@ -192,7 +193,7 @@ async def evaluate_tools(_actual_tools, _expected_tools):
     return result
 
 
-async def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, opaca_url: str, backend: str, model: str) -> None:
+async def benchmark_test(file_name: str, question_set: List, llm_url: str, opaca_url: str, backend: str, model: str) -> None:
     """
     Test a scenario. Will iterate through every pair of (question, expected_answer) pairs. Will print
     its results to the given file_name in the same directory.
@@ -252,7 +253,7 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm
         except json.decoder.JSONDecodeError as e:
             print(f'Encountered following error: {e}\n handling result: {result}')
             continue
-        metric = invoke_judge(call["input"], call["output"], result["content"])
+        metric = await invoke_judge(call["input"], call["output"], result["content"])
 
         # Write the results into a file
         result_json["questions"][f'question_{i+1}'] = {
@@ -322,6 +323,112 @@ async def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm
         json.dump(result_json, f, indent=2)
 
 
+async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str):
+    if not os.path.exists('test_runs'):
+        os.makedirs('test_runs')
+
+    # Create a unique session for requests
+    session = httpx.AsyncClient()
+
+    # Make the OPACA-LLM connect with the OPACA platform
+    logging.info("Trying to connect to OPACA LLM...")
+    try:
+        await session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
+    except Exception as e:
+        logging.error(f'Unable to establish a connection to the OPACA platform: {str(e)}')
+        raise RuntimeError(str(e))
+
+    # Get default config and overwrite the model
+    try:
+        config = json.loads((await session.get(llm_url + f'/{backend}/config')).content)["value"]
+        if backend == "self-orchestrated":
+            config["model_config_name"] = model
+        else:
+            config["model"] = model
+        await session.put(llm_url + f'/{backend}/config', json=config)
+    except Exception as e:
+        logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
+        raise RuntimeError(str(e))
+
+    iterations = []
+    execution_times = []
+    number_tools = 0
+    helpful_counter = 0
+    correct_tool_usage = 0
+    perfect_tool_usage = 0
+    total_score = 0.0
+    total_time = .0
+    agent_time = defaultdict(float)
+    total_token_usage = 0
+
+    results = []
+
+    for i, call in enumerate(question_set):
+        # Generate a response by the OPACA LLM
+        server_time = time.time()
+        result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
+        result = result.content
+        server_time = time.time() - server_time
+
+        # Load the results and evaluate them by the JudgeLLM
+        try:
+            result = json.loads(result)
+        except json.decoder.JSONDecodeError as e:
+            print(f'Encountered following error: {e}\n handling result: {result}')
+            continue
+        metric = await invoke_judge(call["input"], call["output"], result["content"])
+
+        # Write the results into a file
+        results.append({
+            "question": call["input"],
+            "expected_answer": call["output"],
+            "response": result["content"],
+            "iterations": result["iterations"],
+            "time": result["execution_time"],
+            "response_metadata": {
+                "prompt_tokens": sum([message["response_metadata"].get("prompt_tokens", 0) for message in result["agent_messages"]]),
+                "completion_tokens": sum([message["response_metadata"].get("completion_tokens", 0) for message in result["agent_messages"]]),
+                "total_tokens": sum([message["response_metadata"].get("total_tokens", 0) for message in result["agent_messages"]]),
+            },
+            "server_time": server_time,
+            "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
+            "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
+            "quality": metric.quality,
+            "score": metric.score,
+            "reason": metric.reason,
+        })
+
+        # Accumulate the time of each agent
+        for agent_message in result["agent_messages"]:
+            agent_time[f'{agent_message["agent"]}'] += agent_message["execution_time"]
+
+        # Save the results in memory for a summary
+        if metric.quality == "helpful":
+            helpful_counter += 1
+        total_score += metric.score
+        total_time += result["execution_time"]
+        execution_times.append(result["execution_time"])
+        iterations.append(result["iterations"])
+        number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
+        total_token_usage += results[i]['response_metadata']['total_tokens'] or 0
+
+        # Evaluate the tools against the expected tools
+        results[i]["tool_matches"] = await evaluate_tools(results[i]["tools"], call["tools"])
+        if len(results[i]["tool_matches"]["missed"]) == 0:
+            correct_tool_usage += 1
+            if len(results[i]["tool_matches"]["extra"]) == 0:
+                perfect_tool_usage += 1
+
+
+        logging.info(f'Question {i+1}: {metric.quality}')
+
+        # Reset the message history
+        await session.post(llm_url + "/reset", json={}, timeout=None)
+
+    return results
+
+
+
 def setUp(opaca_url: str):
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
@@ -388,6 +495,7 @@ async def main():
     model = args.model
     opaca_url = args.opaca_url
     iterations = args.iterations
+    chunk_size = args.chunks
     llm_url = args.llm_url
     # Set the logging level
     logging.basicConfig(
@@ -426,11 +534,37 @@ async def main():
         logging.error(f'Failed to setup the test environment: {str(e)}')
         exit(1)
 
-    # Run the benchmark test
-    await asyncio.gather(*(benchmark_test(f'{scenario}-{file_name}-{i}.json', questions[scenario], llm_url, opaca_url, backend, model) for i in range(iterations)))
+    question_set = questions[scenario][:20]
+
+    chunks = [question_set[i:i + chunk_size] for i in range(0, len(question_set), chunk_size)]
+
+    total_time = time.time()
+    q_results = await asyncio.gather(*(parallel_test(chunks[i], llm_url, opaca_url, backend, model) for i in range(len(chunks))))
+
+    print(len(q_results))
+
+    results = {"questions": q_results, "summary": {
+        "backend": backend,
+        "model": model,
+        "questions": len(question_set),
+        "helpful": len([i for i in q_results if i["quality"] == "helpful"]),
+        # "correct_tool_usage": correct_tool_usage,
+        # "perfect_tool_usage": perfect_tool_usage,
+        "average_score": sum([i["score"] for i in q_results]) / len(question_set),
+        "total_time": sum([i["time"] for i in q_results]),
+        "total_server_time": time.time() - total_time,
+        # "agent_time": agent_time,
+        # "avg_execution_time_per_iteration": np.average(np.array(execution_times) / np.array(iterations)),
+        # "total_token_usage": total_token_usage,
+    }}
 
     # Cleanup the test environment
     tearDown(opaca_url, container_ids)
+
+    return
+
+    # Run the benchmark test
+    # await asyncio.gather(*(benchmark_test(f'{scenario}-{file_name}-{i}.json', questions[scenario], llm_url, opaca_url, backend, model) for i in range(iterations)))
 
 
 if __name__ == "__main__":
