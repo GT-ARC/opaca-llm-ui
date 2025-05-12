@@ -7,7 +7,7 @@ var config = {
         "simple": "Simple Prompt",
         "tool-llm": "Tool LLM",
         "self-orchestrated": "Self-Orchestrated",
-	"simple_tools": "Simple Tool Prompt"
+	"simple-tools": "Simple Tool Prompt"
     },
         //"simple_tools": "Simple Tool Prompt"
     /*

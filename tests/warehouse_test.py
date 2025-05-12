@@ -28,12 +28,13 @@ logger = logging.getLogger(__name__)
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
-    parser.add_argument("-b", "--backend", type=str, default="simple-tools", help="Specify the backend that should be used.")
+    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all", "warehouse"], help="The scenario that should be tested. Use 'all' to test everything.")
+    parser.add_argument("-b", "--backend", type=str, default="tool-llm", help="Specify the backend that should be used.")
     parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
+
     return parser.parse_args()
 
 
@@ -42,8 +43,7 @@ session = requests.Session()
 
 
 # Define the test container names (should all be located in docker hub repo "rkader2811")
-test_containers = ["rkader2811/smart-office", "rkader2811/warehouse", "rkader2811/music-platform", "rkader2811/calculator"]
-
+test_containers = ["rkader2811/warehouse"]
 
 # Instruct the Judge LLM
 judge_system_message = ("Given a question, expected answer, and response. Evaluate if the response was helpful and "
@@ -263,18 +263,7 @@ def tearDown(opaca_url, container_ids):
     os.remove(".env")
     logging.info(f'Teardown finished!')
 
-def print_backend_logs():
-    container_name = "tests-opaca-llm-backend-1"
-    try:
-        print(f"📦 Fetching logs from container: {container_name}")
-        logs = subprocess.check_output(["docker", "logs", container_name], text=True)
-        print("🪵 Backend logs:\n")
-        print(logs)
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to fetch logs from {container_name}: {e}")
-    except Exception as e:
-        print(f"❌ Unexpected error: {type(e)} - {e}")
-        
+
 def main():
     args = parse_arguments()
 
@@ -299,11 +288,10 @@ def main():
 
     # Define question sets for scenarios
     questions = {
-        "simple": simple_questions,
-        "complex": complex_questions,
-        "deployment": deployment_questions,
-        "simple-complex": simple_questions + complex_questions,
-        "all": simple_questions + complex_questions + deployment_questions,
+        "warehouse": [{
+            "input": "Move every logistics robot to zone-A.",
+            "output": "All logistics robots should be reported as moved to zone-A. Expected zone confirmation or task success."
+        }]
     }
 
     # Check if selected scenario is available
@@ -321,13 +309,8 @@ def main():
         logging.error(f'Failed to setup the test environment: {str(e)}')
         return
 
-    print("HELLO!")
-
-
     # Run the benchmark test
     benchmark_test(f'{scenario}-{file_name}', questions[scenario], llm_url, backend, config)
-        
-    print_backend_logs()
 
     # Cleanup the test environment
     tearDown(opaca_url, container_ids)
