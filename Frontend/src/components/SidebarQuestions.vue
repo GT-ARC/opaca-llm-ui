@@ -32,7 +32,7 @@ export default {
     name: 'SidebarQuestions',
     data() {
         return {
-            expandedSection: 0
+            expandedSection: null
         }
     },
     methods: {
@@ -86,7 +86,7 @@ export default {
     cursor: pointer;
     background-color: var(--surface-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     user-select: none;
 }
@@ -136,7 +136,7 @@ export default {
     cursor: pointer;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
 }
 
@@ -152,19 +152,6 @@ export default {
     flex: 1;
     font-size: 0.875rem;
     line-height: 1.4;
-}
-
-/* Slide animation */
-.slide-enter-active,
-.slide-leave-active {
-    transition: all 0.3s ease;
-    max-height: 1000px;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-    opacity: 0;
-    max-height: 0;
 }
 
 @media (prefers-color-scheme: dark) {

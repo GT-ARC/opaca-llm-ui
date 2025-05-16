@@ -62,17 +62,18 @@ async def get_backends() -> list:
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     session = await handle_session_id(request, response)
-    session.client = OpacaClient()
-    return await session.client.connect(url.url, url.user, url.pwd)
+    session.opaca_client = OpacaClient()
+    return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
-    return await session.client.get_actions()
+    return await session.opaca_client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
+    await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
     session.messages.extend([ChatMessage(role="user", content=message.user_query),
                              ChatMessage(role="assistant", content=result.content)])
@@ -85,6 +86,7 @@ async def query_stream(websocket: WebSocket, backend: str):
     try:
         data = await websocket.receive_json()
         message = Message(**data)
+        await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
         session.messages.extend([ChatMessage(role="user", content=message.user_query),
                                  ChatMessage(role="assistant", content=result.content)])
