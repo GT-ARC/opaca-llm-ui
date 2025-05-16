@@ -380,7 +380,7 @@ async def main():
         logging.error(f'Failed to setup the test environment: {str(e)}')
         exit(1)
 
-    question_set = questions[scenario][:20]
+    question_set = questions[scenario]
 
     chunks = split(question_set, chunk_size)
 
