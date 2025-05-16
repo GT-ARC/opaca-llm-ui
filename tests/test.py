@@ -43,13 +43,26 @@ test_containers = ["rkader2811/smart-office", "rkader2811/warehouse", "rkader281
 
 
 # Instruct the Judge LLM
-judge_system_message = ("Given a question, expected answer, and response. Evaluate if the response was helpful and "
-                  "included the information that were mentioned in the expected answer. Helpful responses include "
-                  "all the expected information. Unhelpful responses include errors or a missing vital parts "
-                  "of the expected information. Decide the quality by using the keywords 'helpful' or 'unhelpful'. "
-                  "Further give the answer a score between 0.0 and 1.0, in which 0.0 is very unhelpful with no "
-                  "information and 1.0 is very helpful and every required information present."
-                  "Always provide a reason for your decision.")
+judge_system_message = ("""You are given a question, expected answer, and response. Evaluate if the response was helpful and 
+included the information that were mentioned in the expected answer. You are judging the quality of 
+the answer by giving a score from 1 to 5. Here are the definitions of those scores:
+
+1 – Completely Irrelevant:
+The response does not include any of the expected information and does not address the initial request in a meaningful way. It may be entirely off-topic, misleading, or nonsensical.
+
+2 – Attempted but Unsuccessful:
+The response attempts to address the request but fails to include any correct or expected information. It may contain generic or off-base content with no real value in context.
+
+3 – Partially Correct:
+The response includes some of the expected information, but omits key details or contains significant inaccuracies. The answer is incomplete or only partially useful.
+
+4 – Mostly Correct:
+The response includes all key expected information, but lacks precision, clarity, or depth. It may contain minor inaccuracies, vague phrasing, or insufficient justification.
+
+5 – Fully Correct and Precise:
+The response includes all expected information and is clear, precise, well-structured, and meets the requirements of the request completely. It may also demonstrate nuance or thorough understanding.
+
+Important: Always provide a reason for your decision.""")
 
 
 # Message template for the Judge LLM
@@ -60,9 +73,8 @@ judge_template = ("A user had the following question: {question}\n\n"
 
 # Structured output how the JudgeLLM should answer
 class Metric(BaseModel):
-    quality: str
+    score: int
     reason: str
-    score: float
 
 
 # Method to invoke the Judge LLM
@@ -266,14 +278,13 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
                 "server_time": server_time,
                 "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
                 "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
-                "quality": metric.quality,
                 "score": metric.score,
                 "reason": metric.reason,
             })
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-            logging.info(f'Question {i+1}: {metric.quality}')
+            logging.info(f'Question {i+1} scored: {metric.score}')
 
             # Reset the message history
             await session.post(llm_url + "/reset", timeout=None)
@@ -397,7 +408,6 @@ async def main():
     agent_time = defaultdict(float)
     correct_tool_usage = 0
     perfect_tool_usage = 0
-    num_helpful = 0
     total_token_usage = 0
     total_time = 0
     total_server_time = 0
@@ -410,8 +420,6 @@ async def main():
             correct_tool_usage += 1
             if len(q["tool_matches"]["extra"]) == 0:
                 perfect_tool_usage += 1
-        if q["quality"] == "helpful":
-            num_helpful += 1
         total_token_usage += q["response_metadata"]["total_tokens"]
         total_time += q["time"]
         total_server_time += q["server_time"]
@@ -423,7 +431,6 @@ async def main():
         "backend": backend,
         "model": model,
         "questions": len(question_set),
-        "helpful": num_helpful,
         "correct_tool_usage": correct_tool_usage,
         "perfect_tool_usage": perfect_tool_usage,
         "average_score": average_score,
