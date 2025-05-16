@@ -97,6 +97,9 @@ def split(a, n):
 
 
 async def evaluate_param(_actual_args, _expected_args):
+    """
+    Evaluates whether the actual arguments match the expected arguments based on specified conditions.
+    """
     actual_args = deepcopy(_actual_args)
     expected_args = deepcopy(_expected_args)
 
@@ -130,6 +133,10 @@ async def evaluate_param(_actual_args, _expected_args):
 
 
 async def evaluate_tools(_actual_tools, _expected_tools):
+    """
+    Evaluate and compare the actual tools used with the expected tools.
+    """
+
     # Make copy of tools, subtract matches and get missed/extra tool calls
     actual_tools = flatten(deepcopy(_actual_tools))
     expected_tools = deepcopy(_expected_tools)
@@ -275,12 +282,27 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
 
 
-def setUp(opaca_url: str):
+def setUp(opaca_url: str) -> None:
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
     Also starts the OPACA-LLM. Returns the object for the server process of the OPACA-LLM (so it can be terminated
     afterwards) and a list of the created container ids.
     """
+
+    # If an opaca platform is already running, delete all running containers and deploy the benchmark containers
+    # This is necessary to restore the initial variable states
+    if requests.get(opaca_url + "/info").status_code == 200:
+        logging.info("OPACA platform already running. Cleaning up container environment...")
+        response = requests.get(opaca_url + "/containers")
+        c_ids = [c["containerId"] for c in json.loads(response.content)]
+        for c_id in c_ids:
+            requests.delete(opaca_url + f'/containers/{c_id}', json={})
+            logging.info(f'Removed container {c_id}')
+        for name in test_containers:
+            requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
+            logging.info(f"Deployed {name}!")
+        return
+
     # Login to docker registry
     try:
         subprocess.run(["docker", "login", "registry.gitlab.dai-labor.de"], check=True)
@@ -308,28 +330,13 @@ def setUp(opaca_url: str):
         time.sleep(1)
 
     # Deploy containers to OPACA platform
-    container_ids = []
     logging.info("Deploying OPACA containers for testing...")
     for name in test_containers:
-        response = requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
-        container_ids.append(response.content.decode('ascii'))
+        requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
         logging.info(f"Deployed {name}!")
 
     logging.info("Setup finished")
-    return container_ids
-
-
-def tearDown(opaca_url, container_ids):
-    """
-    Cleans up the testing environment. Deletes the created containers from the specified OPACA platform,
-    """
-    logging.info(f'Tearing down benchmark environment...')
-    for container_id in container_ids:
-        requests.delete(opaca_url + f'/containers/{container_id}', json={})
-        logging.info(f'Removed container {container_id}')
-    subprocess.run(["docker", "compose", "rm", "-s", "-f"])
-    os.remove(".env")
-    logging.info(f'Teardown finished!')
+    return
 
 
 async def main():
@@ -429,9 +436,6 @@ async def main():
     # Write results into json file
     with open(f'test_runs/{file_name}', "a") as f:
         json.dump(results, f, indent=2)
-
-    # Cleanup the test environment
-    tearDown(opaca_url, container_ids)
 
     return
 
