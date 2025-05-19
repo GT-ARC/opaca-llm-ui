@@ -1,6 +1,5 @@
 """
-Simple approach, directly communicating with an LLM, listing the
-available actions in the system prompt (first message) along some explanation, and asking
+Simple approach, directly communicating with an LLM, acquiring available tools/services dynamically and asking
 the LLM in a loop until it thinks the user's request is fulfilled, parsing the LLM's
 response for action invocations in JSON format and calling those along the way.
 Works for both, GPT and vLLM.

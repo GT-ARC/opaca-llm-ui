@@ -1,14 +1,16 @@
 import argparse
+import asyncio
 import datetime
 import json
 import os
 import socket
 import sys
-from typing import Dict, List
+from typing import List
 import logging
 from collections import defaultdict
+from copy import deepcopy
 
-import numpy as np
+import httpx
 import subprocess
 import time
 
@@ -16,29 +18,24 @@ import requests
 from openai import OpenAI
 from pydantic import BaseModel
 
+from models import EvalMatch
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
 from question_sets.deployment import deployment_questions
-
-
-# Define a logger
-logger = logging.getLogger(__name__)
 
 
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
-    parser.add_argument("-b", "--backend", type=str, default="simple-tools", help="Specify the backend that should be used.")
+    parser.add_argument("-b", "--backend", type=str, default="tool-llm", help="Specify the backend that should be used.")
     parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
+    parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
+    parser.add_argument("-c", "--chunks", type=int, default=10, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
-
-
-# Create a unique session for requests
-session = requests.Session()
 
 
 # Define the test container names (should all be located in docker hub repo "rkader2811")
@@ -69,7 +66,7 @@ class Metric(BaseModel):
 
 
 # Method to invoke the Judge LLM
-def invoke_judge(question, expected_answer, response):
+async def invoke_judge(question, expected_answer, response):
     formatted_message = judge_template.format(
         question=question, expected_answer=expected_answer, response=response
     )
@@ -90,46 +87,177 @@ def invoke_judge(question, expected_answer, response):
     return response.choices[0].message.parsed
 
 
-def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: str, backend: str, config: Dict) -> None:
+def flatten(xss):
+    return [x for xs in xss for x in xs]
+
+
+def split(a, n):
+    k, m = divmod(len(a), n)
+    return [a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)]
+
+
+async def evaluate_param(_actual_args, _expected_args):
     """
-    Test a scenario. Will iterate through every pair of (question, expected_answer) pairs. Will print
-    its results to the given file_name in the same directory.
-    :return: None
+    Evaluates whether the actual arguments match the expected arguments based on specified conditions.
     """
-    logging.info("In benchmark test")
+    actual_args = deepcopy(_actual_args)
+    expected_args = deepcopy(_expected_args)
+
+    for e_p in _expected_args:
+        if e_p.optional:
+            expected_args.remove(e_p)
+            if e_p.key in actual_args.keys():
+                del actual_args[e_p.key]
+            continue
+        if e_p.key not in _actual_args.keys():
+            return False
+        else:
+            a_p = _actual_args[e_p.key]
+        if not type(e_p.value) == type(a_p):
+            return False
+        if e_p.match == EvalMatch.EXACT and not e_p.value == a_p:
+            return False
+        elif e_p.match == EvalMatch.PARTIAL and not e_p.value in a_p:
+            if type(e_p.value) == str:
+                if not e_p.value.lower() in a_p.lower():
+                    return False
+            elif not e_p.value in a_p:
+                return False
+        expected_args.remove(e_p)
+        del actual_args[e_p.key]
+
+    if not actual_args and not expected_args:
+        return True
+    return False
+
+
+
+async def evaluate_tools(_actual_tools, _expected_tools):
+    """
+    Evaluate and compare the actual tools used with the expected tools.
+    """
+
+    # Make copy of tools, subtract matches and get missed/extra tool calls
+    actual_tools = flatten(deepcopy(_actual_tools))
+    expected_tools = deepcopy(_expected_tools)
+
+    # Save results
+    result = {
+        "match": [],
+        "missed": [],
+        "extra": [],
+    }
+
+    ids = []
+
+    # Iterate over all expected tools sorted by their ids (important for dependencies)
+    for e_tool in sorted(_expected_tools, key=lambda x: x.id):
+
+        # Iterate over list of tools until match is found
+        for a_tool in actual_tools:
+            if not e_tool.name in a_tool["name"]:
+                continue
+
+            # Check if any alternative tool calls have been made already
+            # If yes, this expected tool call ca be disregarded
+            if any(i in ids for i in e_tool.alternatives):
+                expected_tools.remove(e_tool)
+                continue
+
+            # Optionally filter out the requestBody field
+            a_args = a_tool["args"]
+            if a_tool["args"].get('requestBody', {}):
+                a_args = a_tool["args"].get('requestBody', {})
+
+            # Evaluate the tool parameters, returns True if they match
+            if not await evaluate_param(a_args, e_tool.args):
+                continue
+
+            # Check if dependent tool calls have been made
+            # If not, mark this expected tool call as missed with a reason
+            if not all(i in ids for i in e_tool.depends):
+                e_tool.name += f"(missing dependencies: {e_tool.depends})"
+                break
+
+            ids.append(e_tool.id)
+            result["match"].append(e_tool.name)
+            expected_tools.remove(e_tool)
+            actual_tools.remove(a_tool)
+            break
+
+    # Iterate over remaining expected tools and check if any alternatives have been found
+    # Also check for optional tool calls that were not found and remove them
+    remaining_tools = deepcopy(expected_tools)      # Deepcopy to avoid iteration errors while removing elements
+    for e_tool in remaining_tools:
+        if e_tool.optional:
+            expected_tools.remove(e_tool)
+        elif any(all(i in ids for i in e_ids) for e_ids in e_tool.alternatives):
+            expected_tools.remove(e_tool)
+
+    result["missed"].extend([t.name for t in expected_tools])
+    result["extra"].extend([t["name"] for t in actual_tools])
+
+    return result
+
+
+async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str):
     if not os.path.exists('test_runs'):
         os.makedirs('test_runs')
 
-    iterations = []
-    execution_times = []
-    number_tools = 0
-    helpful_counter = 0
-    total_score = 0.0
-    total_time = .0
-    agent_time = defaultdict(float)
-    total_server_time = time.time()
-    total_token_usage = 0
+    # Create a unique session for requests
+    async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
-    result_json = {"questions": {}, "summary": {}}
+        # Make the OPACA-LLM connect with the OPACA platform
+        logging.info("Trying to connect to OPACA LLM...")
+        try:
+            await session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
+        except Exception as e:
+            logging.error(f'Unable to establish a connection to the OPACA platform: {str(e)}')
+            raise RuntimeError(str(e))
 
-    try:
+        # Get default config and overwrite the model
+        try:
+            config = json.loads((await session.get(llm_url + f'/{backend}/config')).content)["value"]
+            if backend == "self-orchestrated":
+                config["model_config_name"] = model
+            else:
+                config["model"] = model
+            await session.put(llm_url + f'/{backend}/config', json=config)
+        except Exception as e:
+            logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
+            raise RuntimeError(str(e))
+
+        agent_time = defaultdict(float)
+
+        results = []
+
         for i, call in enumerate(question_set):
             # Generate a response by the OPACA LLM
             server_time = time.time()
-            result = session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}).content
+            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
+            result = result.content
             server_time = time.time() - server_time
-            #print("RAW RESULT:", result)
+
             # Load the results and evaluate them by the JudgeLLM
-            result = json.loads(result)
-            metric = invoke_judge(call["input"], call["output"], result["content"])
+            try:
+                result = json.loads(result)
+            except json.decoder.JSONDecodeError as e:
+                print(f'Encountered following error: {e}\n handling result: {result}')
+                continue
+            metric = await invoke_judge(call["input"], call["output"], result["content"])
+
+            # Accumulate the time of each agent
+            for agent_message in result["agent_messages"]:
+                agent_time[f'{agent_message["agent"]}'] += agent_message["execution_time"]
 
             # Write the results into a file
-            result_json["questions"][f'question_{i+1}'] = {
+            results.append({
                 "question": call["input"],
                 "expected_answer": call["output"],
                 "response": result["content"],
                 "iterations": result["iterations"],
                 "time": result["execution_time"],
+                "agent_time": dict(agent_time),
                 "response_metadata": {
                     "prompt_tokens": sum([message["response_metadata"].get("prompt_tokens", 0) for message in result["agent_messages"]]),
                     "completion_tokens": sum([message["response_metadata"].get("completion_tokens", 0) for message in result["agent_messages"]]),
@@ -141,55 +269,40 @@ def benchmark_test(file_name: str, question_set: List[Dict[str, str]], llm_url: 
                 "quality": metric.quality,
                 "score": metric.score,
                 "reason": metric.reason,
-            }
+            })
 
-            # Accumulate the time of each agent
-            for agent_message in result["agent_messages"]:
-                agent_time[f'{agent_message["agent"]}'] += agent_message["execution_time"]
-
-            # Save the results in memory for a summary
-            if metric.quality == "helpful":
-                helpful_counter += 1
-            total_score += metric.score
-            total_time += result["execution_time"]
-            execution_times.append(result["execution_time"])
-            iterations.append(result["iterations"])
-            number_tools += sum(len(message["tools"]) for message in result["agent_messages"])
-            total_token_usage += result_json["questions"][f'question_{i+1}']['response_metadata']['total_tokens'] or 0
-
+            # Evaluate the tools against the expected tools
+            results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
             logging.info(f'Question {i+1}: {metric.quality}')
 
             # Reset the message history
-            session.post(llm_url + "/reset", json={})
+            await session.post(llm_url + "/reset", timeout=None)
 
-        # Write a summary of all tests
-        result_json["summary"] = {
-            "backend": backend,
-            "config": config,
-            "questions": len(question_set),
-            "helpful": helpful_counter,
-            "average_score": total_score / len(question_set),
-            "total_time": total_time,
-            "total_server_time": time.time() - total_server_time,
-            "agent_time": agent_time,
-            "avg_execution_time_per_iteration": np.average(np.array(execution_times) / np.array(iterations)),
-            "total_token_usage": total_token_usage,
-        }
-
-        # Write results into json file
-        with open(f'test_runs/{file_name}', "a") as f:
-            json.dump(result_json, f, indent=2)
-
-    except Exception as e:
-        raise RuntimeError(str(e))
+    return results
 
 
-def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
+
+def setUp(opaca_url: str) -> None:
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
     Also starts the OPACA-LLM. Returns the object for the server process of the OPACA-LLM (so it can be terminated
     afterwards) and a list of the created container ids.
     """
+
+    # If an opaca platform is already running, delete all running containers and deploy the benchmark containers
+    # This is necessary to restore the initial variable states
+    if requests.get(opaca_url + "/info").status_code == 200:
+        logging.info("OPACA platform already running. Cleaning up container environment...")
+        response = requests.get(opaca_url + "/containers")
+        c_ids = [c["containerId"] for c in json.loads(response.content)]
+        for c_id in c_ids:
+            requests.delete(opaca_url + f'/containers/{c_id}', json={})
+            logging.info(f'Removed container {c_id}')
+        for name in test_containers:
+            requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
+            logging.info(f"Deployed {name}!")
+        return
+
     # Login to docker registry
     try:
         subprocess.run(["docker", "login", "registry.gitlab.dai-labor.de"], check=True)
@@ -208,7 +321,7 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
     start_time = time.time()
     while time.time() - start_time < 15:
         try:
-            response = session.get(opaca_url + "/info")
+            response = requests.get(opaca_url + "/info")
             if response.status_code == 200:
                 logging.info("OPACA platform and OPACA-LLM successfully started.")
                 break
@@ -217,65 +330,16 @@ def setUp(opaca_url: str, llm_url: str, backend: str, model: str):
         time.sleep(1)
 
     # Deploy containers to OPACA platform
-    container_ids = []
     logging.info("Deploying OPACA containers for testing...")
     for name in test_containers:
-        response = requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
-        container_ids.append(response.content.decode('ascii'))
+        requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
         logging.info(f"Deployed {name}!")
 
-    # Make the OPACA-LLM connect with the OPACA platform
-    logging.info("Trying to connect to OPACA LLM...")
-    try:
-        session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
-    except Exception as e:
-        logging.error(f'Unable to establish a connection to the OPACA platform: {str(e)}')
-        tearDown(opaca_url, container_ids)
-        raise RuntimeError(str(e))
-
-
-    # Get default config and overwrite the model
-    try:
-        config = json.loads(session.get(llm_url + f'/{backend}/config').content)["value"]
-        if backend == "self-orchestrated":
-            config["model_config_name"] = model
-        else:
-            config["model"] = model
-        session.put(llm_url + f'/{backend}/config', json=config)
-    except Exception as e:
-        logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
-        tearDown(opaca_url, container_ids)
-        raise RuntimeError(str(e))
-
     logging.info("Setup finished")
-    return container_ids, config
+    return
 
 
-def tearDown(opaca_url, container_ids):
-    """
-    Cleans up the testing environment. Deletes the created containers from the specified OPACA platform,
-    """
-    logging.info(f'Tearing down benchmark environment...')
-    for container_id in container_ids:
-        requests.delete(opaca_url + f'/containers/{container_id}', json={})
-        logging.info(f'Removed container {container_id}')
-    subprocess.run(["docker", "compose", "rm", "-s", "-f"])
-    os.remove(".env")
-    logging.info(f'Teardown finished!')
-
-def print_backend_logs():
-    container_name = "tests-opaca-llm-backend-1"
-    try:
-        print(f"📦 Fetching logs from container: {container_name}")
-        logs = subprocess.check_output(["docker", "logs", container_name], text=True)
-        print("🪵 Backend logs:\n")
-        print(logs)
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to fetch logs from {container_name}: {e}")
-    except Exception as e:
-        print(f"❌ Unexpected error: {type(e)} - {e}")
-        
-def main():
+async def main():
     args = parse_arguments()
 
     # Extract arguments
@@ -283,6 +347,8 @@ def main():
     backend = args.backend
     model = args.model
     opaca_url = args.opaca_url
+    iterations = args.iterations
+    chunk_size = args.chunks
     llm_url = args.llm_url
     # Set the logging level
     logging.basicConfig(
@@ -309,29 +375,70 @@ def main():
     # Check if selected scenario is available
     if not scenario in questions.keys():
         logging.error(f'The scenario "{scenario}" is not supported.')
-        return -1
+        exit(1)
 
     # Create a unique file name for the results
     file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
-        container_ids, config = setUp(opaca_url, llm_url, backend, model)
+        container_ids = setUp(opaca_url)
     except Exception as e:
         logging.error(f'Failed to setup the test environment: {str(e)}')
-        return
+        exit(1)
 
-    print("HELLO!")
+    question_set = questions[scenario]
+
+    chunks = split(question_set, chunk_size)
+
+    q_results = await asyncio.gather(*(parallel_test(chunks[i], llm_url, opaca_url, backend, model) for i in range(len(chunks))))
+    q_results = flatten(q_results)
+
+    agent_time = defaultdict(float)
+    correct_tool_usage = 0
+    perfect_tool_usage = 0
+    num_helpful = 0
+    total_token_usage = 0
+    total_time = 0
+    total_server_time = 0
+    average_score = 0.0
+
+    for q in q_results:
+        for k, v in q["agent_time"].items():
+            agent_time[k] += v
+        if len(q["tool_matches"]["missed"]) == 0:
+            correct_tool_usage += 1
+            if len(q["tool_matches"]["extra"]) == 0:
+                perfect_tool_usage += 1
+        if q["quality"] == "helpful":
+            num_helpful += 1
+        total_token_usage += q["response_metadata"]["total_tokens"]
+        total_time += q["time"]
+        total_server_time += q["server_time"]
+        average_score += q["score"]
+    average_score /= len(q_results)
 
 
-    # Run the benchmark test
-    benchmark_test(f'{scenario}-{file_name}', questions[scenario], llm_url, backend, config)
-        
-    print_backend_logs()
+    results = {"questions": q_results, "summary": {
+        "backend": backend,
+        "model": model,
+        "questions": len(question_set),
+        "helpful": num_helpful,
+        "correct_tool_usage": correct_tool_usage,
+        "perfect_tool_usage": perfect_tool_usage,
+        "average_score": average_score,
+        "total_time": total_time,
+        "total_server_time": total_server_time,
+        "agent_time": agent_time,
+        "total_token_usage": total_token_usage,
+    }}
 
-    # Cleanup the test environment
-    tearDown(opaca_url, container_ids)
+    # Write results into json file
+    with open(f'test_runs/{file_name}', "a") as f:
+        json.dump(results, f, indent=2)
+
+    return
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
