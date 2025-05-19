@@ -21,7 +21,6 @@ from pydantic import BaseModel
 from models import EvalMatch
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
-from question_sets.deployment import deployment_questions
 
 
 # Configure logging
@@ -33,7 +32,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "deployment", "simple-complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
+    parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--backend", type=str, default="tool-llm", help="Specify the backend that should be used.")
     parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
@@ -330,7 +329,7 @@ def setUp(opaca_url: str) -> None:
     # Start the OPACA platform
     # The compose stack should have been started and exited previously...
     logging.info("Starting OPACA platform and OPACA-LLM...")
-    subprocess.run(["docker", "compose", "up", "-d", "--build"])
+    subprocess.run(["docker", "compose", "up", "-d", "--build"], cwd=os.path.dirname(os.path.realpath(__file__)))
 
     # Wait until OPACA platform has started, set timeout to 15 seconds
     start_time = time.time()
@@ -382,9 +381,7 @@ async def main():
     questions = {
         "simple": simple_questions,
         "complex": complex_questions,
-        "deployment": deployment_questions,
-        "simple-complex": simple_questions + complex_questions,
-        "all": simple_questions + complex_questions + deployment_questions,
+        "all": simple_questions + complex_questions,
     }
 
     # Check if selected scenario is available
