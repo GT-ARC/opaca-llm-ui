@@ -24,6 +24,12 @@ from question_sets.simple import simple_questions
 from question_sets.deployment import deployment_questions
 
 
+# Configure logging
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -217,7 +223,6 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
         # Make the OPACA-LLM connect with the OPACA platform
-        logging.info("Trying to connect to OPACA LLM...")
         try:
             await session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
         except Exception as e:
@@ -401,7 +406,9 @@ async def main():
     results = {}
 
     # Main test loop
-    for i in range(iterations):
+    for i in range(1, iterations+1):
+
+        logging.info(f'Starting iteration {i}...')
 
         # Split the question set into chunks for parallel execution
         chunks = split(question_set, chunk_size)
@@ -466,7 +473,7 @@ async def main():
             "agent_time": Counter(),
             "total_token_usage": 0
         }
-        for i in range(iterations):
+        for i in range(1, iterations+1):
             results["total_summary"]["correct_tool_usage"] += results[f'iteration_{i}']['summary']['correct_tool_usage']
             results["total_summary"]["perfect_tool_usage"] += results[f'iteration_{i}']['summary']['perfect_tool_usage']
             results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
@@ -475,6 +482,8 @@ async def main():
             results["total_summary"]["agent_time"] += Counter(results[f'iteration_{i}']['summary']['agent_time'])
             results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
         results["total_summary"]["average_score"] /= iterations
+
+    logging.info(f"Finished benchmark test!\nTotal questions: {len(question_set) * iterations}\nAverage Score: {results['total_summary']['average_score']}")
 
     # Write results into json file
     if not os.path.exists('test_runs'):
