@@ -7,7 +7,7 @@ import socket
 import sys
 from typing import List
 import logging
-from collections import defaultdict
+from collections import defaultdict, Counter
 from copy import deepcopy
 
 import httpx
@@ -33,7 +33,7 @@ def parse_arguments():
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
-    parser.add_argument("-c", "--chunks", type=int, default=10, help="The number of chunks the question set will be split into and evaluated in parallel.")
+    parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -213,9 +213,6 @@ async def evaluate_tools(_actual_tools, _expected_tools):
 
 
 async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str):
-    if not os.path.exists('test_runs'):
-        os.makedirs('test_runs')
-
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
@@ -292,7 +289,6 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
     return results
 
 
-
 def setUp(opaca_url: str) -> None:
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
@@ -302,7 +298,8 @@ def setUp(opaca_url: str) -> None:
 
     # If an opaca platform is already running, delete all running containers and deploy the benchmark containers
     # This is necessary to restore the initial variable states
-    if requests.get(opaca_url + "/info").status_code == 200:
+    try:
+        requests.get(opaca_url + "/info")
         logging.info("OPACA platform already running. Cleaning up container environment...")
         response = requests.get(opaca_url + "/containers")
         c_ids = [c["containerId"] for c in json.loads(response.content)]
@@ -313,6 +310,8 @@ def setUp(opaca_url: str) -> None:
             requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
             logging.info(f"Deployed {name}!")
         return
+    except requests.exceptions.RequestException as e:
+        logging.info("Creating new OPACA platform environment...")
 
     # Login to docker registry
     try:
@@ -389,58 +388,97 @@ async def main():
         exit(1)
 
     # Create a unique file name for the results
-    file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = f'{scenario}-{model}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
-        container_ids = setUp(opaca_url)
+        setUp(opaca_url)
     except Exception as e:
         logging.error(f'Failed to setup the test environment: {str(e)}')
         exit(1)
 
     question_set = questions[scenario]
+    results = {}
 
-    chunks = split(question_set, chunk_size)
+    # Main test loop
+    for i in range(iterations):
 
-    q_results = await asyncio.gather(*(parallel_test(chunks[i], llm_url, opaca_url, backend, model) for i in range(len(chunks))))
-    q_results = flatten(q_results)
+        # Split the question set into chunks for parallel execution
+        chunks = split(question_set, chunk_size)
 
-    agent_time = defaultdict(float)
-    correct_tool_usage = 0
-    perfect_tool_usage = 0
-    total_token_usage = 0
-    total_time = 0
-    total_server_time = 0
-    average_score = 0.0
+        # Execute Tests and combine results
+        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model) for j in range(len(chunks))))
+        q_results = flatten(q_results)
 
-    for q in q_results:
-        for k, v in q["agent_time"].items():
-            agent_time[k] += v
-        if len(q["tool_matches"]["missed"]) == 0:
-            correct_tool_usage += 1
-            if len(q["tool_matches"]["extra"]) == 0:
-                perfect_tool_usage += 1
-        total_token_usage += q["response_metadata"]["total_tokens"]
-        total_time += q["time"]
-        total_server_time += q["server_time"]
-        average_score += q["score"]
-    average_score /= len(q_results)
+        # Init benchmark values
+        agent_time = Counter()
+        correct_tool_usage = 0
+        perfect_tool_usage = 0
+        total_token_usage = 0
+        total_time = 0
+        total_server_time = 0
+        average_score = 0.0
 
+        # Extract benchmark results
+        for q in q_results:
+            agent_time += Counter(q["agent_time"])
+            if len(q["tool_matches"]["missed"]) == 0:
+                correct_tool_usage += 1
+                if len(q["tool_matches"]["extra"]) == 0:
+                    perfect_tool_usage += 1
+            total_token_usage += q["response_metadata"]["total_tokens"]
+            total_time += q["time"]
+            total_server_time += q["server_time"]
+            average_score += q["score"]
+        average_score /= len(q_results)
 
-    results = {"questions": q_results, "summary": {
-        "backend": backend,
-        "model": model,
-        "questions": len(question_set),
-        "correct_tool_usage": correct_tool_usage,
-        "perfect_tool_usage": perfect_tool_usage,
-        "average_score": average_score,
-        "total_time": total_time,
-        "total_server_time": total_server_time,
-        "agent_time": agent_time,
-        "total_token_usage": total_token_usage,
-    }}
+        # Create a summary of the test run
+        result = {"questions": q_results, "summary": {
+            "backend": backend,
+            "model": model,
+            "questions": len(question_set),
+            "correct_tool_usage": correct_tool_usage,
+            "perfect_tool_usage": perfect_tool_usage,
+            "average_score": average_score,
+            "total_time": total_time,
+            "total_server_time": total_server_time,
+            "agent_time": agent_time,
+            "total_token_usage": total_token_usage,
+        }}
+
+        # If there is more than one iteration, save results into separated field
+        if iterations > 1:
+            results[f'iteration_{i}'] = result
+        else:
+            results = result
+
+    # If there was more than one iteration, create a total summary
+    if iterations > 1:
+        results["total_summary"] = {
+            "backend": backend,
+            "model": model,
+            "questions": len(question_set) * iterations,
+            "correct_tool_usage": 0,
+            "perfect_tool_usage": 0,
+            "average_score": 0,
+            "total_time": 0,
+            "total_server_time": 0,
+            "agent_time": Counter(),
+            "total_token_usage": 0
+        }
+        for i in range(iterations):
+            results["total_summary"]["correct_tool_usage"] += results[f'iteration_{i}']['summary']['correct_tool_usage']
+            results["total_summary"]["perfect_tool_usage"] += results[f'iteration_{i}']['summary']['perfect_tool_usage']
+            results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
+            results["total_summary"]["total_time"] += results[f'iteration_{i}']['summary']['total_time']
+            results["total_summary"]["total_server_time"] += results[f'iteration_{i}']['summary']['total_server_time']
+            results["total_summary"]["agent_time"] += Counter(results[f'iteration_{i}']['summary']['agent_time'])
+            results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
+        results["total_summary"]["average_score"] /= iterations
 
     # Write results into json file
+    if not os.path.exists('test_runs'):
+        os.makedirs('test_runs')
     with open(f'test_runs/{file_name}', "a") as f:
         json.dump(results, f, indent=2)
 
