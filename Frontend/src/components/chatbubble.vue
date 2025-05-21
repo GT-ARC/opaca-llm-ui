@@ -316,6 +316,13 @@ export default {
 }
 </script>
 
+<style>
+.message-text img {
+    max-width: 100%;
+    display: block;
+}
+</style>
+
 <style scoped>
 .chatbubble {
     background-color: var(--chat-ai-light);
