@@ -1,5 +1,6 @@
 import {ref} from "vue";
 import conf from "../config.js";
+import Localizer from "./Localizer.js";
 
 
 /**
@@ -103,22 +104,39 @@ class AudioManager {
         }
     }
 
+
+    isRecognitionSupported() {
+        return true;
+    }
+
+    isSynthesisSupported() {
+        return true;
+    }
+}
+
+class WhisperHandler {
+
+    constructor(voice = 'alloy') {
+        this.voice = voice;
+    }
+
+
     /**
      * Generate audio from the given text using a local Whisper server.
      * @param text {String}
      * @param voice {String}
      * @returns {Promise<TtsAudio|null>}
      */
-    async generateAudio(text, voice = 'alloy') {
+    async generateAudio(text) {
         if (!this.canGenerateAudio(text)) return null;
-        this.isLoading = true;
+        audioManager.isLoading = true;
 
         try {
             const url = `${conf.VoiceServerAddress}/generate_audio`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: text,
-                voice: voice
+                voice: this.voice
             });
 
             const response = await fetch(`${url}?${params}`, payload);
@@ -139,8 +157,71 @@ class AudioManager {
         }
     }
 
+    generateText(audio) {
+        // todo: extract from RecordingPopup?
+    }
+
+    /**
+     * Check whether TTS is currently possible.
+     * @param text
+     * @returns {boolean}
+     */
     canGenerateAudio(text) {
-        return text && this.isVoiceServerConnected && !this.isLoading;
+        return text && audioManager.isVoiceServerConnected && !audioManager.isLoading;
+    }
+
+    isRecognitionSupported() {
+        return audioManager.isVoiceServerConnected;
+    }
+
+    isSynthesisSupported() {
+        return audioManager.isVoiceServerConnected;
+    }
+
+}
+
+
+class WebSpeechHandler {
+
+    generateAudio(text) {
+
+    }
+
+    generateText(audio) {
+
+    }
+
+    isRecognitionSupported() {
+        return this._isGoogleChrome()
+            && this._isWebSpeechSupported()
+            && this._isSecureConnection();
+    }
+
+    isSynthesisSupported() {
+        return true;
+    }
+
+    /**
+     * very hacky check if the user is using the (full) google chrome browser
+     * @returns {boolean}
+     * @private
+     */
+    _isGoogleChrome() {
+        return window.chrome !== undefined
+            && window.navigator.userAgentData !== undefined
+            && window.navigator.userAgentData?.brands?.some(b => b?.brand === 'Google Chrome')
+            && window.navigator.vendor === "Google Inc."
+            && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
+    }
+
+    _isWebSpeechSupported() {
+        'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    }
+
+    _isSecureConnection() {
+        return location.protocol === 'https'
+            || location.hostname === 'localhost'
+            || location.hostname !== '127.0.0.1';
     }
 }
 
