@@ -67,10 +67,7 @@ class SimpleToolsBackend(AbstractMethod):
         logger.info("simple tools is running")
                    
         while result.iterations < 10:
-            logger.error("test")
-            logger.info("test2")
-            result.error = "test3"
-            #print("test4")
+
             result.iterations += 1
 
             # call the LLM with function-calling enabled
@@ -96,48 +93,47 @@ class SimpleToolsBackend(AbstractMethod):
             try:
                 # if the model returned any function calls, invoke them
                 if getattr(response, "tools", None):
+                    tool_contents = []
+                    tool_entries = []
+                    
                     for call in response.tools:
                         action_name = call["name"]
                         params = call["args"].get("requestBody", {})
-    
-                        # invoke via OPACA client                       
+                    
+                        # invoke via OPACA client
                         action_result = await session.client.invoke_opaca_action(
-                            action_name, agent = None, params=params
+                            action_name, agent=None, params=params
                         )
-    
-                        # append the tool result into the conversation
-                        tool_result_response = f"The result of this step was: {repr(action_result)}"
-                        messages.append(ChatMessage(role="assistant", content=tool_result_response))
-                        """result.agent_messages.append(AgentMessage(
+                    
+                        # collect tool result details
+                        tool_contents.append(f"The result of tool '{action_name}' was: {repr(action_result)}")
+                        tool_entries.append({
+                            "id": result.iterations,
+                            "name": call["name"],
+                            "args": params,
+                            "result": action_result
+                        })
+                    
+                    # Append one unified message after loop
+                    if tool_contents:
+                        combined_tool_response = "\n".join(tool_contents)
+                        messages.append(ChatMessage(role="assistant", content=combined_tool_response))
+                        result.agent_messages.append(AgentMessage(
                             agent="assistant",
-                            content=tool_result_response,
-                            tools=[{
-                                "id": result.iterations,
-                                "name": call["name"],
-                                "args": params,
-                                "result": action_result
-                            }]
-                        ))"""
+                            content=combined_tool_response,
+                            tools=tool_entries
+                        ))
 
                 else:
 
                     if response and response.content:
                         result.content = response.content
-                        if not result.agent_messages:
-                            result.agent_messages.append(AgentMessage(
-                                agent="assistant",
-                                content="no tool was used",
-                                tools=[]
-                            ))
-                        logger.info("Dummy Agent message was added, without tools")
-
-
+                        
                     else:
                         logger.warning("Model response was empty (no content and no tools).")
                     break
                 
             except Exception as e:
-                print(f"ERROR: {type(e)}, {e}")
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
                 result.agent_messages.append(AgentMessage(agent="system", content=error))

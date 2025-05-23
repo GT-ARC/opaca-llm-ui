@@ -7,7 +7,7 @@ import socket
 import sys
 from typing import List
 import logging
-from collections import defaultdict
+from collections import defaultdict, Counter
 from copy import deepcopy
 
 import httpx
@@ -24,6 +24,12 @@ from question_sets.simple import simple_questions
 from question_sets.deployment import deployment_questions
 
 
+# Configure logging
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -33,7 +39,7 @@ def parse_arguments():
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
-    parser.add_argument("-c", "--chunks", type=int, default=10, help="The number of chunks the question set will be split into and evaluated in parallel.")
+    parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -43,13 +49,26 @@ test_containers = ["rkader2811/smart-office", "rkader2811/warehouse", "rkader281
 
 
 # Instruct the Judge LLM
-judge_system_message = ("Given a question, expected answer, and response. Evaluate if the response was helpful and "
-                  "included the information that were mentioned in the expected answer. Helpful responses include "
-                  "all the expected information. Unhelpful responses include errors or a missing vital parts "
-                  "of the expected information. Decide the quality by using the keywords 'helpful' or 'unhelpful'. "
-                  "Further give the answer a score between 0.0 and 1.0, in which 0.0 is very unhelpful with no "
-                  "information and 1.0 is very helpful and every required information present."
-                  "Always provide a reason for your decision.")
+judge_system_message = ("""You are given a question, expected answer, and response. Evaluate if the response was helpful and 
+included the information that were mentioned in the expected answer. You are judging the quality of 
+the answer by giving a score from 1 to 5. Here are the definitions of those scores:
+
+1 – Completely Irrelevant:
+The response does not include any of the expected information and does not address the initial request in a meaningful way. It may be entirely off-topic, misleading, or nonsensical.
+
+2 – Attempted but Unsuccessful:
+The response attempts to address the request but fails to include any correct or expected information. It may contain generic or off-base content with no real value in context.
+
+3 – Partially Correct:
+The response includes some of the expected information, but omits key details or contains significant inaccuracies. The answer is incomplete or only partially useful.
+
+4 – Mostly Correct:
+The response includes all key expected information, but lacks precision, clarity, or depth. It may contain minor inaccuracies, vague phrasing, or insufficient justification.
+
+5 – Fully Correct and Precise:
+The response includes all expected information and is clear, precise, well-structured, and meets the requirements of the request completely. It may also demonstrate nuance or thorough understanding.
+
+Important: Always provide a reason for your decision.""")
 
 
 # Message template for the Judge LLM
@@ -60,9 +79,8 @@ judge_template = ("A user had the following question: {question}\n\n"
 
 # Structured output how the JudgeLLM should answer
 class Metric(BaseModel):
-    quality: str
+    score: int
     reason: str
-    score: float
 
 
 # Method to invoke the Judge LLM
@@ -201,14 +219,10 @@ async def evaluate_tools(_actual_tools, _expected_tools):
 
 
 async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str):
-    if not os.path.exists('test_runs'):
-        os.makedirs('test_runs')
-
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
         # Make the OPACA-LLM connect with the OPACA platform
-        logging.info("Trying to connect to OPACA LLM...")
         try:
             await session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
         except Exception as e:
@@ -266,20 +280,18 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
                 "server_time": server_time,
                 "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
                 "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
-                "quality": metric.quality,
                 "score": metric.score,
                 "reason": metric.reason,
             })
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-            logging.info(f'Question {i+1}: {metric.quality}')
+            logging.info(f'Question {i+1} scored: {metric.score}')
 
             # Reset the message history
             await session.post(llm_url + "/reset", timeout=None)
 
     return results
-
 
 
 def setUp(opaca_url: str) -> None:
@@ -291,7 +303,8 @@ def setUp(opaca_url: str) -> None:
 
     # If an opaca platform is already running, delete all running containers and deploy the benchmark containers
     # This is necessary to restore the initial variable states
-    if requests.get(opaca_url + "/info").status_code == 200:
+    try:
+        requests.get(opaca_url + "/info")
         logging.info("OPACA platform already running. Cleaning up container environment...")
         response = requests.get(opaca_url + "/containers")
         c_ids = [c["containerId"] for c in json.loads(response.content)]
@@ -302,12 +315,14 @@ def setUp(opaca_url: str) -> None:
             requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
             logging.info(f"Deployed {name}!")
         return
+    except requests.exceptions.RequestException as e:
+        logging.info("Creating new OPACA platform environment...")
 
     # Login to docker registry
-    try:
+    """try:
         subprocess.run(["docker", "login", "registry.gitlab.dai-labor.de"], check=True)
     except Exception as e:
-        raise Exception("Unable to login to gitlab.dai-labor.de")
+        raise Exception("Unable to login to gitlab.dai-labor.de")"""
 
     with open(".env", "w", encoding="utf-8") as f:
         f.write(f'OPACA_URL="{opaca_url}"\n')
@@ -378,62 +393,103 @@ async def main():
         exit(1)
 
     # Create a unique file name for the results
-    file_name = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = f'{scenario}-{model}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
-        container_ids = setUp(opaca_url)
+        setUp(opaca_url)
     except Exception as e:
         logging.error(f'Failed to setup the test environment: {str(e)}')
         exit(1)
 
     question_set = questions[scenario]
+    results = {}
 
-    chunks = split(question_set, chunk_size)
+    # Main test loop
+    for i in range(1, iterations+1):
 
-    q_results = await asyncio.gather(*(parallel_test(chunks[i], llm_url, opaca_url, backend, model) for i in range(len(chunks))))
-    q_results = flatten(q_results)
+        logging.info(f'Starting iteration {i}...')
 
-    agent_time = defaultdict(float)
-    correct_tool_usage = 0
-    perfect_tool_usage = 0
-    num_helpful = 0
-    total_token_usage = 0
-    total_time = 0
-    total_server_time = 0
-    average_score = 0.0
+        # Split the question set into chunks for parallel execution
+        chunks = split(question_set, chunk_size)
 
-    for q in q_results:
-        for k, v in q["agent_time"].items():
-            agent_time[k] += v
-        if len(q["tool_matches"]["missed"]) == 0:
-            correct_tool_usage += 1
-            if len(q["tool_matches"]["extra"]) == 0:
-                perfect_tool_usage += 1
-        if q["quality"] == "helpful":
-            num_helpful += 1
-        total_token_usage += q["response_metadata"]["total_tokens"]
-        total_time += q["time"]
-        total_server_time += q["server_time"]
-        average_score += q["score"]
-    average_score /= len(q_results)
+        # Execute Tests and combine results
+        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model) for j in range(len(chunks))))
+        q_results = flatten(q_results)
 
+        # Init benchmark values
+        agent_time = Counter()
+        correct_tool_usage = 0
+        perfect_tool_usage = 0
+        total_token_usage = 0
+        total_time = 0
+        total_server_time = 0
+        average_score = 0.0
 
-    results = {"questions": q_results, "summary": {
-        "backend": backend,
-        "model": model,
-        "questions": len(question_set),
-        "helpful": num_helpful,
-        "correct_tool_usage": correct_tool_usage,
-        "perfect_tool_usage": perfect_tool_usage,
-        "average_score": average_score,
-        "total_time": total_time,
-        "total_server_time": total_server_time,
-        "agent_time": agent_time,
-        "total_token_usage": total_token_usage,
-    }}
+        # Extract benchmark results
+        for q in q_results:
+            agent_time += Counter(q["agent_time"])
+            if len(q["tool_matches"]["missed"]) == 0:
+                correct_tool_usage += 1
+                if len(q["tool_matches"]["extra"]) == 0:
+                    perfect_tool_usage += 1
+            total_token_usage += q["response_metadata"]["total_tokens"]
+            total_time += q["time"]
+            total_server_time += q["server_time"]
+            average_score += q["score"]
+        average_score /= len(q_results)
+
+        # Create a summary of the test run
+        result = {"questions": q_results, "summary": {
+            "backend": backend,
+            "model": model,
+            "questions": len(question_set),
+            "correct_tool_usage": correct_tool_usage,
+            "perfect_tool_usage": perfect_tool_usage,
+            "average_score": average_score,
+            "total_time": total_time,
+            "total_server_time": total_server_time,
+            "agent_time": agent_time,
+            "total_token_usage": total_token_usage,
+        }}
+
+        # If there is more than one iteration, save results into separated field
+        if iterations > 1:
+            results[f'iteration_{i}'] = result
+        else:
+            results = result
+            logging.info(f"Finished benchmark test!\nTotal questions: {len(question_set) * iterations}\nAverage Score: {result['summary']['average_score']}")
+
+    # If there was more than one iteration, create a total summary
+    if iterations > 1:
+        results["total_summary"] = {
+            "backend": backend,
+            "model": model,
+            "questions": len(question_set) * iterations,
+            "correct_tool_usage": 0,
+            "perfect_tool_usage": 0,
+            "average_score": 0,
+            "total_time": 0,
+            "total_server_time": 0,
+            "agent_time": Counter(),
+            "total_token_usage": 0
+        }
+        for i in range(1, iterations+1):
+            results["total_summary"]["correct_tool_usage"] += results[f'iteration_{i}']['summary']['correct_tool_usage']
+            results["total_summary"]["perfect_tool_usage"] += results[f'iteration_{i}']['summary']['perfect_tool_usage']
+            results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
+            results["total_summary"]["total_time"] += results[f'iteration_{i}']['summary']['total_time']
+            results["total_summary"]["total_server_time"] += results[f'iteration_{i}']['summary']['total_server_time']
+            results["total_summary"]["agent_time"] += Counter(results[f'iteration_{i}']['summary']['agent_time'])
+            results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
+        results["total_summary"]["average_score"] /= iterations
+
+        logging.info(f"Finished benchmark test!\nTotal questions: {len(question_set) * iterations}\nAverage Score: {results['total_summary']['average_score']}")
+
 
     # Write results into json file
+    if not os.path.exists('test_runs'):
+        os.makedirs('test_runs')
     with open(f'test_runs/{file_name}', "a") as f:
         json.dump(results, f, indent=2)
 
