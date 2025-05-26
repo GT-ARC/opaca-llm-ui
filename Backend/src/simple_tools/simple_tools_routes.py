@@ -125,9 +125,15 @@ class SimpleToolsBackend(AbstractMethod):
                         ))
 
                 else:
-
+                    #Non-paralel tests needs this additon to prevent hang ups
                     if response and response.content:
                         result.content = response.content
+                        if not result.agent_messages:
+                            result.agent_messages.append(AgentMessage(
+                                agent="assistant",
+                                content="no tool was used",
+                                tools=[]
+                            ))
                         
                     else:
                         logger.warning("Model response was empty (no content and no tools).")
