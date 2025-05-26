@@ -14,6 +14,7 @@ import httpx
 import subprocess
 import time
 import random
+from rich.progress import Progress, TaskID
 
 import requests
 from openai import OpenAI
@@ -220,7 +221,7 @@ async def evaluate_tools(_actual_tools, _expected_tools):
     return result
 
 
-async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str, use_judge: bool):
+async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str, use_judge: bool, progress: Progress, task_id: TaskID):
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
@@ -291,10 +292,12 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-            logging.info(f'Question {i+1}')
 
             # Reset the message history
             await session.post(llm_url + "/reset", timeout=None)
+
+            # Update progress bar
+            progress.advance(task_id)
 
     return results
 
@@ -416,14 +419,18 @@ async def main():
 
     # Main test loop
     for i in range(1, iterations+1):
-
         logging.info(f'Iteration {i}/{iterations}')
 
         # Split the question set into chunks for parallel execution
         chunks = split(question_set, chunk_size)
 
+        # Visualize progress
+        progress = Progress()
+        progress.start()
+        tasks = [progress.add_task(f'Chunk-{i}', total=len(data)) for i, data in enumerate(chunks)]
+
         # Execute Tests and combine results
-        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model, use_judge) for j in range(len(chunks))))
+        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
         q_results = flatten(q_results)
 
         # Init benchmark values
@@ -468,6 +475,7 @@ async def main():
             results[f'iteration_{i}'] = result
         else:
             results = result
+        progress.stop()
 
     # If there was more than one iteration, create a total summary
     if iterations > 1:
@@ -493,7 +501,8 @@ async def main():
             results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
             if use_judge:
                 results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
-        results["total_summary"]["average_score"] /= iterations
+        if use_judge:
+            results["total_summary"]["average_score"] /= iterations
 
     logging.info(f"Finished benchmark test!\tTotal questions: {len(question_set) * iterations}")
 
