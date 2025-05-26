@@ -7,9 +7,9 @@ The different backend methods of the OPACA-LLM can be tested within a designated
 
 To run the tests, execute the following command
 
-`python3 .\tests\test.py -s simple -b tool-llm -m gpt-4o-mini -o http://{YOUR_LOCAL_IP}:8000`
+`python3 .\tests\test.py -s simple -b tool-llm -m gpt-4o-mini -o http://{YOUR_LOCAL_IP}:8000 -p 20`
 
-This will start a benchmark run for the `simple` question set scenario and use the `tool-llm` method with the `gpt-4o-mini` model. You can find out your local IP by running `ipconfig` in any console. After a complete benchmark run, the results will be written into a JSON file located in `\tests\test_runs`
+This will start a benchmark run for the `simple` question set scenario and use the `tool-llm` method with the `gpt-4o-mini` model. It will use 20% of the simple question data set randomly selected. You can find out your local IP by running `ipconfig` in any console. After a complete benchmark run, the results will be written into a JSON file located in `\tests\test_runs`
 
 ## Test settings
 
@@ -22,6 +22,8 @@ The test script includes a variety of different flags that can be used:
 - `-l, --llm-url`: The URL where the OPACA-LLM is running. (default: `http://localhost:3001`)
 - `-i, --iterations`: The number of iterations that will be executed. A single iteration will test all requests defined in the question set scenario. (default: `1`)
 - `-c, --chunks`: The number of chunks the question set will be broken into and tested in parallel. More chunks speed up the benchmarking process but could also negatively impact the time performance value of the test. (default: `5`)
+- `-j, --judge`: If this flag is provided, the judge-llm will be used. (WARNING: Using the judge-llm with large question sets will become expensive)
+- `-p, --portion`: Defines the portion size of the selected question set. The portions will be randomly sampled. The portion size is given in percentages. (default: `100`)
 - `--log-level`: The log-level of the benchmark test. (default: INFO)
 
 The result file will have the following naming format: `{backend}-{model}-{date}.json`. The result JSON file is structured as follows:

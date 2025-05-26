@@ -13,6 +13,7 @@ from copy import deepcopy
 import httpx
 import subprocess
 import time
+import random
 
 import requests
 from openai import OpenAI
@@ -39,6 +40,8 @@ def parse_arguments():
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
     parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
+    parser.add_argument("-j", "--judge", action=argparse.BooleanOptionalAction, help="Whether the Judge LLM should be used for evaluation.")
+    parser.add_argument("-p", "--portion", type=int, default=100, help="The portion of the question set that should be evaluated in percentage.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
     return parser.parse_args()
 
@@ -217,7 +220,7 @@ async def evaluate_tools(_actual_tools, _expected_tools):
     return result
 
 
-async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str):
+async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str, use_judge: bool):
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
@@ -251,13 +254,12 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
             result = result.content
             server_time = time.time() - server_time
 
-            # Load the results and evaluate them by the JudgeLLM
+            # Load the results
             try:
                 result = json.loads(result)
             except json.decoder.JSONDecodeError as e:
                 print(f'Encountered following error: {e}\n handling result: {result}')
                 continue
-            metric = await invoke_judge(call["input"], call["output"], result["content"])
 
             # Accumulate the time of each agent
             for agent_message in result["agent_messages"]:
@@ -279,13 +281,17 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
                 "server_time": server_time,
                 "called_tools": sum(len(message["tools"]) for message in result["agent_messages"]),
                 "tools": [message["tools"] for message in result["agent_messages"] if message["tools"]],
-                "score": metric.score,
-                "reason": metric.reason,
             })
+
+            # Let results be evaluated by judge llm
+            if use_judge:
+                metric = await invoke_judge(call["input"], call["output"], result["content"])
+                results[-1]["reason"] = metric.reason
+                results[-1]["score"] = metric.score
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-            logging.info(f'Question {i+1} scored: {metric.score}')
+            logging.info(f'Question {i+1}')
 
             # Reset the message history
             await session.post(llm_url + "/reset", timeout=None)
@@ -364,6 +370,8 @@ async def main():
     iterations = args.iterations
     chunk_size = args.chunks
     llm_url = args.llm_url
+    use_judge = args.judge
+    portion = args.portion
     # Set the logging level
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
@@ -402,16 +410,20 @@ async def main():
     question_set = questions[scenario]
     results = {}
 
+    # Samples a random portion of the selected question set
+    if portion != 100:
+        question_set = random.sample(question_set, int(len(question_set) * portion / 100))
+
     # Main test loop
     for i in range(1, iterations+1):
 
-        logging.info(f'Starting iteration {i}...')
+        logging.info(f'Iteration {i}/{iterations}')
 
         # Split the question set into chunks for parallel execution
         chunks = split(question_set, chunk_size)
 
         # Execute Tests and combine results
-        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model) for j in range(len(chunks))))
+        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model, use_judge) for j in range(len(chunks))))
         q_results = flatten(q_results)
 
         # Init benchmark values
@@ -433,7 +445,7 @@ async def main():
             total_token_usage += q["response_metadata"]["total_tokens"]
             total_time += q["time"]
             total_server_time += q["server_time"]
-            average_score += q["score"]
+            average_score += q.get("score", 0)
         average_score /= len(q_results)
 
         # Create a summary of the test run
@@ -443,12 +455,13 @@ async def main():
             "questions": len(question_set),
             "correct_tool_usage": correct_tool_usage,
             "perfect_tool_usage": perfect_tool_usage,
-            "average_score": average_score,
             "total_time": total_time,
             "total_server_time": total_server_time,
             "agent_time": agent_time,
             "total_token_usage": total_token_usage,
         }}
+        if use_judge:
+            result["summary"]["average_score"] = average_score
 
         # If there is more than one iteration, save results into separated field
         if iterations > 1:
@@ -464,23 +477,25 @@ async def main():
             "questions": len(question_set) * iterations,
             "correct_tool_usage": 0,
             "perfect_tool_usage": 0,
-            "average_score": 0,
             "total_time": 0,
             "total_server_time": 0,
             "agent_time": Counter(),
             "total_token_usage": 0
         }
+        if use_judge:
+            results["total_summary"]["average_score"] = 0.0
         for i in range(1, iterations+1):
             results["total_summary"]["correct_tool_usage"] += results[f'iteration_{i}']['summary']['correct_tool_usage']
             results["total_summary"]["perfect_tool_usage"] += results[f'iteration_{i}']['summary']['perfect_tool_usage']
-            results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
             results["total_summary"]["total_time"] += results[f'iteration_{i}']['summary']['total_time']
             results["total_summary"]["total_server_time"] += results[f'iteration_{i}']['summary']['total_server_time']
             results["total_summary"]["agent_time"] += Counter(results[f'iteration_{i}']['summary']['agent_time'])
             results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
+            if use_judge:
+                results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
         results["total_summary"]["average_score"] /= iterations
 
-    logging.info(f"Finished benchmark test!\nTotal questions: {len(question_set) * iterations}\nAverage Score: {results['total_summary']['average_score']}")
+    logging.info(f"Finished benchmark test!\tTotal questions: {len(question_set) * iterations}")
 
     # Write results into json file
     if not os.path.exists('test_runs'):
