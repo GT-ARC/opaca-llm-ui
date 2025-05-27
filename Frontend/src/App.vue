@@ -38,7 +38,8 @@
 
                         <!-- connection -->
                         <li class="nav-item d-flex align-items-center me-2">
-                            <input type="text"
+                            <input v-if="!connected"
+                                   type="text"
                                    v-model="opacaRuntimePlatform"
                                    placeholder="Enter URL"
                                    class="form-control form-control-sm me-2"/>
@@ -47,10 +48,10 @@
                                     :disabled="isConnecting"
                                     @click="handleConnectButtonClick">
                                 <template v-if="isConnecting">
-                                    <span class="fa fa-spin fa-spinner"></span>
+                                    <span class="fa fa-spin fa-spinner fa-dis"></span>
                                 </template>
                                 <template v-else>
-                                    {{ connected ? 'Disconnect' : 'Connect' }}
+                                    <i :class="['fa', connected ? 'fa-unlink' : 'fa-link', 'me-1']"/>{{ connected ? 'Disconnect' : 'Connect' }}
                                 </template>
                             </button>
                         </li>
@@ -162,6 +163,7 @@
         <MainContent
             :backend="this.backend"
             :language="this.language"
+            :connected="this.connected"
             :voice-server-connected="this.voiceServerConnected"
             ref="content"
         />
