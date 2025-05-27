@@ -65,6 +65,9 @@ class AudioManager {
         this._isVoiceServerConnected = ref(false);
         this._isLoading = ref(false);
         this._deviceInfo = ref('');
+
+        this.whisperVoice = 'alloy';
+        this.synthesis = null;
     }
 
     get isLoading() {return this._isLoading.value;}
@@ -104,39 +107,30 @@ class AudioManager {
         }
     }
 
-
-    isRecognitionSupported() {
-        return true;
+    async generateAudio(text) {
+        if (this.isVoiceServerConnected) {
+            await this.generateWhisperAudio(text);
+        } else {
+            await this.generateWebSpeechAudio(text);
+        }
     }
-
-    isSynthesisSupported() {
-        return true;
-    }
-}
-
-class WhisperHandler {
-
-    constructor(voice = 'alloy') {
-        this.voice = voice;
-    }
-
 
     /**
      * Generate audio from the given text using a local Whisper server.
      * @param text {String}
-     * @param voice {String}
      * @returns {Promise<TtsAudio|null>}
      */
-    async generateAudio(text) {
-        if (!this.canGenerateAudio(text)) return null;
-        audioManager.isLoading = true;
+    async generateWhisperAudio(text) {
+        if (!text) return null;
+        if (this.isLoading) return null;
+        this.isLoading = true;
 
         try {
             const url = `${conf.VoiceServerAddress}/generate_audio`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: text,
-                voice: this.voice
+                voice: this.whisperVoice
             });
 
             const response = await fetch(`${url}?${params}`, payload);
@@ -155,40 +149,78 @@ class WhisperHandler {
         } finally {
             this.isLoading = false;
         }
+
     }
 
-    generateText(audio) {
-        // todo: extract from RecordingPopup?
+    async generateWebSpeechAudio(text) {
+        this.abortSpeaking();
+        this.synthesis = new (webkitSpeechSynthesis || SpeechSynthesis);
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = Localizer.getLanguageForTTS();
+
+        utterance.onstart = () => {
+            console.log("Speaking started.");
+        };
+
+        utterance.onend = () => {
+            console.log("Speaking ended.");
+        };
+
+        utterance.onerror = (error) => {
+            console.error(error);
+        };
+
+        speechSynthesis.speak(utterance);
     }
 
     /**
-     * Check whether TTS is currently possible.
-     * @param text
-     * @returns {boolean}
+     * Start speech recognition with web speech.
+     *
+     * @param onResult Callback that should expect the successfully recognized text.
      */
-    canGenerateAudio(text) {
-        return text && audioManager.isVoiceServerConnected && !audioManager.isLoading;
+    async startRecognition(onResult) {
+        if (!this.isRecognitionSupported()) return;
+        this.abortSpeaking();
+        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
+        recognition.lang = Localizer.getLanguageForTTS();
+
+        recognition.onresult = async (event) => {
+            if (!event.results || event.results.length <= 0) return;
+            const recognizedText = event.results[0][0].transcript;
+            try {
+                onResult(recognizedText);
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        recognition.onspeechend = () => {
+            console.log('Recognition: Speech ended.');
+            this.isLoading = false;
+        };
+
+        recognition.onnomatch = () => {
+            console.error('Failed to recognize speech.');
+        };
+
+        recognition.onerror = (error) => {
+            console.error('Failed to recognize speech: ', error);
+        };
+
+        recognition.onend = () => {
+            console.log('Recognition ended.');
+            this.isLoading = false;
+        };
+
+        recognition.start();
+        this.isLoading = true;
     }
 
-    isRecognitionSupported() {
-        return audioManager.isVoiceServerConnected;
-    }
-
-    isSynthesisSupported() {
-        return audioManager.isVoiceServerConnected;
-    }
-
-}
-
-
-class WebSpeechHandler {
-
-    generateAudio(text) {
-
-    }
-
-    generateText(audio) {
-
+    abortSpeaking() {
+        if (this.synthesis && this.synthesis.speaking) {
+            this.synthesis.cancel();
+            this.synthesis = null;
+        }
     }
 
     isRecognitionSupported() {
@@ -197,25 +229,20 @@ class WebSpeechHandler {
             && this._isSecureConnection();
     }
 
-    isSynthesisSupported() {
-        return true;
-    }
-
     /**
-     * very hacky check if the user is using the (full) google chrome browser
+     * Very hacky check if the user is using the (full) Google Chrome browser.
      * @returns {boolean}
-     * @private
      */
     _isGoogleChrome() {
         return window.chrome !== undefined
-            && window.navigator.userAgentData !== undefined
-            && window.navigator.userAgentData?.brands?.some(b => b?.brand === 'Google Chrome')
             && window.navigator.vendor === "Google Inc."
+            && window.navigator.userAgentData !== undefined
+            && Array.from(window.navigator.userAgentData?.brands)?.some(b => b?.brand === 'Google Chrome')
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
     }
 
     _isWebSpeechSupported() {
-        'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     }
 
     _isSecureConnection() {
