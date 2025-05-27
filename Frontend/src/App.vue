@@ -36,6 +36,32 @@
                      v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
+                        <!-- connection -->
+                        <li class="nav-item d-flex align-items-center me-2">
+                            <input type="text"
+                                   v-model="opacaRuntimePlatform"
+                                   placeholder="Enter URL"
+                                   class="form-control form-control-sm me-2"/>
+                            <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
+                                    style="min-width: 120px;"
+                                    :disabled="isConnecting"
+                                    @click="handleConnectButtonClick">
+                                <template v-if="isConnecting">
+                                    <span class="fa fa-spin fa-spinner"></span>
+                                </template>
+                                <template v-else>
+                                    {{ connected ? 'Disconnect' : 'Connect' }}
+                                </template>
+                            </button>
+                        </li>
+
+                        <!-- Status Indicator -->
+                        <li class="nav-item d-flex align-items-center me-2">
+                            <a :class="['me-2', 'connection-indicator', connected ? 'bg-success' : 'bg-danger']"
+                               title="Connection Status"
+                               style="width: 12px; height: 12px; border-radius: 50%;"></a>
+                        </li>
+
                         <!-- languages -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -148,6 +174,7 @@ import MainContent from './components/content.vue';
 
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
+import {sendRequest} from "./utils.js";
 
 export default {
     name: 'App',
@@ -161,11 +188,42 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
+            connected: false,
+            isConnecting: false,
             voiceServerConnected: false,
             deviceInfo: ''
         }
     },
     methods: {
+        async handleConnectButtonClick() {
+            if (this.connected) {
+                this.connected = false;
+                return
+            }
+            try {
+                this.isConnecting = true;
+                const body = {url: this.opacaRuntimePlatform, user: "", pwd: ""};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                const rpStatus = parseInt(res.data);
+                if (rpStatus === 200) {
+                    this.connected = true;
+                } else if (rpStatus === 403) {
+                    this.connected = false;
+                    alert(Localizer.get('unauthorized'));
+                } else {
+                    this.connected = false;
+                    alert(Localizer.get('unreachable'));
+                }
+            } catch (e) {
+                console.error('Error while initiating prompt:', e);
+                this.connected = false;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.isConnecting = false;
+            }
+        },
+
         setBackend(key) {
             const keyPath = key.split('/');
             const value = conf.Backends[keyPath[0]];
@@ -319,6 +377,11 @@ header {
     gap: 0.5rem;
 }
 
+.connection-indicator {
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
 @media (prefers-color-scheme: dark) {
     .background {
         background-color: var(--background-dark);
@@ -362,6 +425,21 @@ header {
 
     .text-muted {
         color: var(--text-secondary-dark) !important;
+    }
+
+    .form-control {
+        background-color: var(--input-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .form-control::placeholder {
+        color: var(--text-secondary-dark);
+    }
+
+    .form-control:focus {
+        background-color: var(--input-dark);
+        border-color: var(--primary-dark);
     }
 }
 
