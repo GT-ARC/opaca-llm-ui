@@ -121,32 +121,45 @@ async def evaluate_param(_actual_args, _expected_args):
     """
     Evaluates whether the actual arguments match the expected arguments based on specified conditions.
     """
+
+    # Make deepcopy to track correct/missed/extra parameters
     actual_args = deepcopy(_actual_args)
     expected_args = deepcopy(_expected_args)
 
     for e_p in _expected_args:
-        if e_p.optional:
+
+        # Continue if expected parameter is optional and was not found
+        if e_p.optional and not e_p.key in actual_args.keys():
             expected_args.remove(e_p)
-            if e_p.key in actual_args.keys():
-                del actual_args[e_p.key]
             continue
-        if e_p.key not in _actual_args.keys():
+
+        # Return False if expected parameter is not found
+        elif e_p.key not in _actual_args.keys():
             return False
         else:
             a_p = _actual_args[e_p.key]
+
+        # Check if the value type matches
         if not type(e_p.value) == type(a_p):
             return False
+
+        # Check for exact value match
         if e_p.match == EvalMatch.EXACT and not e_p.value == a_p:
             return False
+
+        # Check for partial value match
         elif e_p.match == EvalMatch.PARTIAL and not e_p.value in a_p:
             if type(e_p.value) == str:
                 if not e_p.value.lower() in a_p.lower():
                     return False
             elif not e_p.value in a_p:
                 return False
+
+        # Remove parameter if all checks were completed
         expected_args.remove(e_p)
         del actual_args[e_p.key]
 
+    # Parameter check is successful if no parameters are left in both lists
     if not actual_args and not expected_args:
         return True
     return False
