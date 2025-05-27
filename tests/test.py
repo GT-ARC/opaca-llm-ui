@@ -20,7 +20,7 @@ import requests
 from openai import OpenAI
 from pydantic import BaseModel
 
-from models import EvalMatch
+from models import EvalMatch, EvalToolParam
 from question_sets.complex import complex_questions
 from question_sets.simple import simple_questions
 
@@ -117,53 +117,30 @@ def split(a, n):
     return [a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)]
 
 
-async def evaluate_param(_actual_args, _expected_args):
+async def evaluate_param(actual_args: dict[str, object], expected_args: list[EvalToolParam]):
     """
     Evaluates whether the actual arguments match the expected arguments based on specified conditions.
     """
+    expected_dict = {e.key: e for e in expected_args}
 
-    # Make deepcopy to track correct/missed/extra parameters
-    actual_args = deepcopy(_actual_args)
-    expected_args = deepcopy(_expected_args)
+    # Check if there are extra parameters
+    if any(a not in expected_dict for a in actual_args):
+        return False
 
-    for e_p in _expected_args:
+    # Check if there are missing parameters
+    if any(e.key not in actual_args for e in expected_args if not e.optional):
+        return False
 
-        # Continue if expected parameter is optional and was not found
-        if e_p.optional and not e_p.key in actual_args.keys():
-            expected_args.remove(e_p)
-            continue
-
-        # Return False if expected parameter is not found
-        elif e_p.key not in _actual_args.keys():
+    # Check if all parameter values match the expected values
+    def matches(act, exp):
+        if type(act) != type(exp.value):
             return False
-        else:
-            a_p = _actual_args[e_p.key]
-
-        # Check if the value type matches
-        if not type(e_p.value) == type(a_p):
-            return False
-
-        # Check for exact value match
-        if e_p.match == EvalMatch.EXACT and not e_p.value == a_p:
-            return False
-
-        # Check for partial value match
-        elif e_p.match == EvalMatch.PARTIAL and not e_p.value in a_p:
-            if type(e_p.value) == str:
-                if not e_p.value.lower() in a_p.lower():
-                    return False
-            elif not e_p.value in a_p:
-                return False
-
-        # Remove parameter if all checks were completed
-        expected_args.remove(e_p)
-        del actual_args[e_p.key]
-
-    # Parameter check is successful if no parameters are left in both lists
-    if not actual_args and not expected_args:
-        return True
-    return False
-
+        if exp.match == EvalMatch.EXACT:
+            return act == exp.value
+        if exp.match == EvalMatch.PARTIAL and type(exp.value) == str:
+            return exp.value.lower() in act.lower()
+        return exp.match == EvalMatch.NONE
+    return all(matches(actual_args[key], expected_dict[key]) for key in actual_args)
 
 
 async def evaluate_tools(_actual_tools, _expected_tools):

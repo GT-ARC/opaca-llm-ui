@@ -49,7 +49,7 @@ complex_questions = [
         "output": "The answer should tell the user, that the Network Router is functioning properly.",
         "tools": [
             EvalTool(name="GetDeviceId", id=0, args=[EvalToolParam(key="device_name", value="router", match=EvalMatch.PARTIAL)]),
-            EvalTool(name="CheckDeviceHealthy", id=1, depends=[0], args=[EvalToolParam(key="device_id", value=3)])
+            EvalTool(name="CheckDeviceHealth", id=1, depends=[0], args=[EvalToolParam(key="device_id", value=3)])
         ]
     },
     {
@@ -57,7 +57,7 @@ complex_questions = [
         "output": "The answer should tell the user, that the Security Camera is damaged.",
         "tools": [
             EvalTool(name="GetDeviceId", id=0, args=[EvalToolParam(key="device_name", value="camera", match=EvalMatch.PARTIAL)]),
-            EvalTool(name="CheckDeviceHealthy", id=1, depends=[0], args=[EvalToolParam(key="device_id", value=2)])
+            EvalTool(name="CheckDeviceHealth", id=1, depends=[0], args=[EvalToolParam(key="device_id", value=2)])
         ]
     },
     {
