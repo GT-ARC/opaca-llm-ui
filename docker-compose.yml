@@ -19,6 +19,7 @@ services:
       VITE_SHOW_KEYBOARD:
       VITE_SHOW_APIKEY:
       VITE_VOICE_SERVER_URL:
+      VITE_AUTOCONNECT:
 
   # FastAPI-based backend for the OPACA LLM Integration
   opaca-llm-backend:
