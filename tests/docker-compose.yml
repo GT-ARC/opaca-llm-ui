@@ -1,5 +1,3 @@
-version: '1'
-
 services:
 
   # THE MAIN OPACA RUNTIME PLATFORM RUNNING IN DOCKER
