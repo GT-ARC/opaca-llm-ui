@@ -30,7 +30,7 @@ ask_policies = {
 
 
 logger = logging.getLogger("src.models")
-logger.setLevel(logging.INFO)
+
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"
 
@@ -63,7 +63,6 @@ class SimpleToolsBackend(AbstractMethod):
         messages = session.messages.copy()
         messages.append(ChatMessage(role="user", content=message))
         
-        logging.info("simple tools is running")
         logger.info("simple tools is running")
                    
         while result.iterations < 10:
@@ -74,7 +73,7 @@ class SimpleToolsBackend(AbstractMethod):
             response = await self.call_llm(
                 model=config["model"],
                 agent="assistant",
-                system_prompt=system_prompt % (policy), #, actions),
+                system_prompt=system_prompt % (policy), 
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,
@@ -125,9 +124,10 @@ class SimpleToolsBackend(AbstractMethod):
                         ))
 
                 else:
-                    #Non-paralel tests needs this additon to prevent hang ups
                     if response and response.content:
                         result.content = response.content
+
+                        #Non-parallel test.py needs this addition to prevent hang ups
                         if not result.agent_messages:
                             result.agent_messages.append(AgentMessage(
                                 agent="assistant",
@@ -145,7 +145,6 @@ class SimpleToolsBackend(AbstractMethod):
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 result.error = str(e)
 
-        result.content = response.content
         result.execution_time = time.time() - exec_time
         return result
 

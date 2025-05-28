@@ -22,3 +22,4 @@ class EvalTool(BaseModel):
     id: int = -1                            # An id to identify a tool call. Used in combination with dependencies.
     depends: List[int] = []                 # A list of tool calls that should be executed before this one indicated by their id
     alternatives: List[List[int]] = []      # A list of alternative call ids, which could have been called instead. Can include one or multiple calls as alternatives
+

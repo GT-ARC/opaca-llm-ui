@@ -12,4 +12,3 @@ COPY src Backend
 EXPOSE 3001
 
 ENTRYPOINT [ "python3", "-m", "Backend.server" ]
-
