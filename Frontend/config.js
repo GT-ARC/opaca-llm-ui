@@ -9,7 +9,7 @@ var config = {
         "self-orchestrated": "Self-Orchestrated",
 	"simple-tools": "Simple Tool Prompt"
     },
-        //"simple_tools": "Simple Tool Prompt"
+
     /*
     // reminder, because it's currently not used: define one level of "sub-backends" like this:
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
@@ -65,3 +65,4 @@ function parseQueryParams() {
 parseQueryParams();
 
 export default config = config;
+

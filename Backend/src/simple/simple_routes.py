@@ -46,9 +46,7 @@ ask_policies = {
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
 
-#logger = logging.getLogger("src.models")
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger()
+logger = logging.getLogger("src.models")
 class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
@@ -72,10 +70,6 @@ class SimpleBackend(AbstractMethod):
         messages.append(ChatMessage(role="user", content=message))
 
         while True:
-            logger.error("test")
-            logger.info("test2")
-            logging.error("test")
-            logging.info("test2")
             result.iterations += 1
             response = await self.call_llm(
                 model=config["model"],
