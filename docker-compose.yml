@@ -27,8 +27,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      OPENAI_API_KEY: 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
-      VLLM_BASE_URL:
+      OPENAI_API_KEY:
       VLLM_API_KEY:
       FRONTEND_BASE_URL:
 
