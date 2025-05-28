@@ -4,10 +4,9 @@ from enum import Enum
 
 
 class EvalMatch(Enum):
-    EXACT= "exact"                    # The parameter value has to match exactly the expected value
+    EXACT = "exact"                    # The parameter value has to match exactly the expected value
     PARTIAL = "partial"                # The parameter value should include the expected value (e.g. expected 'mouse' would be true for 'computer mouses')
     NONE = "none"                      # The value is not necessary for the comparison, only the type
-
 
 class EvalToolParam(BaseModel):
     key: str                                # The key of a parameter
