@@ -92,12 +92,13 @@ import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 export default {
     name: 'chatbubble',
     components: {DebugMessage},
     setup() {
-        return {Localizer}
+        return {Localizer, AudioManager};
     },
     props: {
         elementId: String,

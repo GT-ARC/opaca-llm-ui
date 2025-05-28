@@ -1,6 +1,7 @@
 import {ref} from "vue";
 import conf from "../config.js";
 import Localizer from "./Localizer.js";
+import {Speech} from "openai/resources/audio/index";
 
 
 /**
@@ -9,11 +10,11 @@ import Localizer from "./Localizer.js";
  */
 
 
-class TtsAudio {
+class WhisperAudio {
 
     constructor(audioBlob) {
         this._isPlaying = ref(false);
-        this.audio = this.makeFromBlob(audioBlob);
+        this._audio = this.makeFromBlob(audioBlob);
     }
 
     get isPlaying() {return this._isPlaying.value;}
@@ -34,10 +35,10 @@ class TtsAudio {
     }
 
     async play() {
+        if (!this.canPlay) return;
         try {
-            if (!this.canPlay) return;
             if (!this.isPlaying) {
-                await this.audio.play();
+                await this._audio.play();
             } else {
                 this.stop();
             }
@@ -48,13 +49,63 @@ class TtsAudio {
     }
 
     stop() {
-        if (!this.audio) return;
-        this.audio.pause();
-        this.audio.currentTime = 0;
+        if (!this._audio) return;
+        this._audio.pause();
+        this._audio.currentTime = 0;
     }
 
     canPlay() {
-        return this.audio !== null;
+        return this._audio !== null;
+    }
+
+}
+
+
+class WebSpeechAudio {
+
+    constructor(utterance) {
+        this._isPlaying = ref(false);
+        this._synthesis = null;
+        this._utterance = this.setupUtterance(utterance);
+    }
+
+    get isPlaying() {return this._isPlaying.value;}
+    set isPlaying(value) {this._isPlaying.value = value;}
+
+    setupUtterance(utterance) {
+        utterance.lang = Localizer.getLanguageForTTS();
+
+        utterance.onstart = () => {
+            this.isPlaying = true;
+        };
+
+        utterance.onend = () => {
+            this.isPlaying = false;
+        };
+
+        utterance.onerror = (error) => {
+            console.error('Failed to play utterance:', error);
+            this.isPlaying = false;
+        };
+
+        return utterance;
+    }
+
+    play() {
+        if (!this.canPlay) return;
+        this._synthesis = new (webkitSpeechSynthesis || SpeechSynthesis)();
+        this._synthesis.speak(this._utterance);
+    }
+
+    stop() {
+        if (this._synthesis && this._synthesis.speaking) {
+            this._synthesis.cancel();
+        }
+        this._synthesis = null;
+    }
+
+    canPlay() {
+        return this._utterance != null;
     }
 
 }
@@ -67,14 +118,13 @@ class AudioManager {
         this._deviceInfo = ref('');
 
         this.whisperVoice = 'alloy';
-        this.synthesis = null;
     }
-
-    get isLoading() {return this._isLoading.value;}
-    set isLoading(value) {this._isLoading.value = value;}
 
     get isVoiceServerConnected() {return this._isVoiceServerConnected.value;}
     set isVoiceServerConnected(value) {this._isVoiceServerConnected.value = value;}
+
+    get isLoading() {return this._isLoading.value;}
+    set isLoading(value) {this._isLoading.value = value;}
 
     get deviceInfo() {return this._deviceInfo.value;}
     set deviceInfo(value) {this._deviceInfo.value = value;}
@@ -108,17 +158,17 @@ class AudioManager {
     }
 
     async generateAudio(text) {
-        if (this.isVoiceServerConnected) {
-            await this.generateWhisperAudio(text);
+        if (!this.isVoiceServerConnected) {
+            return await this.generateWhisperAudio(text);
         } else {
-            await this.generateWebSpeechAudio(text);
+            return await this.generateWebSpeechAudio(text);
         }
     }
 
     /**
      * Generate audio from the given text using a local Whisper server.
      * @param text {String}
-     * @returns {Promise<TtsAudio|null>}
+     * @returns {Promise<WhisperAudio|null>}
      */
     async generateWhisperAudio(text) {
         if (!text) return null;
@@ -136,7 +186,7 @@ class AudioManager {
             const response = await fetch(`${url}?${params}`, payload);
             if (response.ok) {
                 const audioBlob = await response.blob();
-                return new TtsAudio(audioBlob);
+                return new WhisperAudio(audioBlob);
             } else {
                 const errorText = await response.text();
                 console.error('Audio API error:', response.status, errorText);
@@ -153,29 +203,13 @@ class AudioManager {
     }
 
     async generateWebSpeechAudio(text) {
-        this.abortSpeaking();
-        this.synthesis = new (webkitSpeechSynthesis || SpeechSynthesis);
+        if (!text) return null;
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = Localizer.getLanguageForTTS();
-
-        utterance.onstart = () => {
-            console.log("Speaking started.");
-        };
-
-        utterance.onend = () => {
-            console.log("Speaking ended.");
-        };
-
-        utterance.onerror = (error) => {
-            console.error(error);
-        };
-
-        speechSynthesis.speak(utterance);
+        return new WebSpeechAudio(utterance);
     }
 
     /**
      * Start speech recognition with web speech.
-     *
      * @param onResult Callback that should expect the successfully recognized text.
      */
     async startRecognition(onResult) {
@@ -214,13 +248,6 @@ class AudioManager {
 
         recognition.start();
         this.isLoading = true;
-    }
-
-    abortSpeaking() {
-        if (this.synthesis && this.synthesis.speaking) {
-            this.synthesis.cancel();
-            this.synthesis = null;
-        }
     }
 
     isRecognitionSupported() {
