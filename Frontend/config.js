@@ -28,7 +28,7 @@ var config = {
 
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? 'http://localhost:7431',
+    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
