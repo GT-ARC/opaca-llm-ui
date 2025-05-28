@@ -6,6 +6,7 @@ and different routes for posting questions, updating the configuration, etc.
 import os
 import uuid
 from typing import List, Dict, Any
+import asyncio
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
@@ -49,6 +50,7 @@ BACKENDS = {
 
 # Simple dict to store session data
 # Keep in mind: The session data is only reset upon restarting the application
+sessions_lock = asyncio.Lock()
 sessions = {}
 
 
@@ -59,18 +61,18 @@ async def get_backends() -> list:
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     session.opaca_client = OpacaClient()
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
     session.messages.extend([ChatMessage(role="user", content=message.user_query),
@@ -80,7 +82,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
-    session = handle_session_id_for_websocket(websocket)
+    session = await handle_session_id_for_websocket(websocket)
     try:
         data = await websocket.receive_json()
         message = Message(**data)
@@ -94,28 +96,30 @@ async def query_stream(websocket: WebSocket, backend: str):
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     return session.messages
 
 @app.post("/reset", description="Reset message history for the current session.")
-async def reset(request: Request, response: FastAPIResponse) -> None:
-    session = handle_session_id(request, response)
+async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
+    session = await handle_session_id(request, response)
     session.messages.clear()
+    return FastAPIResponse(status_code=204)
 
 @app.post("/reset_all", description="Reset all sessions")
 async def reset_all():
-    sessions.clear()
+    async with sessions_lock:
+        sessions.clear()
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     try:
         validate_config_input(conf, BACKENDS[backend].config_schema)
     except HTTPException as e:
@@ -125,24 +129,25 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session = handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
+async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
     session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")
-    if not session_id or session_id not in sessions:
-        session_id = str(uuid.uuid4())
-        sessions[session_id] = SessionData()
-    response.set_cookie("session_id", session_id)
-    return sessions[session_id]
+    async with sessions_lock:
+        if not session_id or session_id not in sessions:
+            session_id = str(uuid.uuid4())
+            sessions[session_id] = SessionData()
+        response.set_cookie("session_id", session_id)
+        return sessions[session_id]
 
-def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
+async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     """
     Gets the session id from a websocket and returns the corresponding session data. If no session id was found
     or the id is unknown, creates a new session id and adds an empty list of messages to that session id.
@@ -156,13 +161,14 @@ def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
         session_id = cookie_dict.get("session_id")
 
-    # If session ID is not found or invalid, create a new one
-    if not session_id or session_id not in sessions:
-        session_id = str(uuid.uuid4())
-        sessions[session_id] = SessionData()
+    async with sessions_lock:
+        # If session ID is not found or invalid, create a new one
+        if not session_id or session_id not in sessions:
+            session_id = str(uuid.uuid4())
+            sessions[session_id] = SessionData()
 
-    # Return the session data for the session ID
-    return sessions[session_id]
+        # Return the session data for the session ID
+        return sessions[session_id]
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":
