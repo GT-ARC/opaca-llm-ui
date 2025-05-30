@@ -65,4 +65,3 @@ function parseQueryParams() {
 parseQueryParams();
 
 export default config = config;
-

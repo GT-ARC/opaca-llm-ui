@@ -241,13 +241,9 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
         for i, call in enumerate(question_set):
             # Generate a response by the OPACA LLM
             server_time = time.time()
-            try:
-                result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
-                result = result.content
-                server_time = time.time() - server_time
-            except json.decoder.JSONDecodeError as e:
-                print(f'Encountered following error inr esult: {e}\n handling result: {result}')
-                continue
+            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
+            result = result.content
+            server_time = time.time() - server_time
 
             # Load the results
             try:
@@ -418,26 +414,13 @@ async def main():
         # Split the question set into chunks for parallel execution
         chunks = split(question_set, chunk_size)
 
-        #logging.info(chunks[0])
-
         # Visualize progress
         progress = Progress()
         progress.start()
-
         tasks = [progress.add_task(f'Chunk-{i}', total=len(data)) for i, data in enumerate(chunks)]
 
         # Execute Tests and combine results
-
-        print("llm_url:", llm_url)
-        print("opaca_url:", opaca_url)
-        print("backend:", backend)
-        print("model:", model)
-        print("use_judge:", use_judge)
-        print("progress:", progress)
-        print("tasks:", tasks)
         q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
-        logging.info(f'tests')
-
         q_results = flatten(q_results)
 
         # Init benchmark values
