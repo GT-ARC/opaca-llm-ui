@@ -49,7 +49,7 @@ class SimpleToolsBackend(AbstractMethod):
         
 	# Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.client.get_actions_with_refs(), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
         except AttributeError as e:
             result.error = str(e)
             result.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -71,6 +71,7 @@ class SimpleToolsBackend(AbstractMethod):
 
             # call the LLM with function-calling enabled
             response = await self.call_llm(
+                client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=system_prompt % (policy), 
@@ -100,7 +101,7 @@ class SimpleToolsBackend(AbstractMethod):
                         params = call["args"].get("requestBody", {})
                     
                         # invoke via OPACA client
-                        action_result = await session.client.invoke_opaca_action(
+                        action_result = await session.opaca_client.invoke_opaca_action(
                             action_name, agent=None, params=params
                         )
                     
@@ -145,6 +146,8 @@ class SimpleToolsBackend(AbstractMethod):
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 result.error = str(e)
 
+        result.content = response.content
+
         result.execution_time = time.time() - exec_time
         return result
 
@@ -156,5 +159,6 @@ class SimpleToolsBackend(AbstractMethod):
             "ask_policy": ConfigParameter(type="string", required=True, default="never",
                                           enum=list(ask_policies.keys())),
             "use_agent_names": ConfigParameter(type="boolean", required=False, default=False),
+            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt',)
 
         }

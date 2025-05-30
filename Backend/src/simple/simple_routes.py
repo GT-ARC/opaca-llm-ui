@@ -47,6 +47,7 @@ ask_policies = {
 }
 
 logger = logging.getLogger("src.models")
+
 class SimpleBackend(AbstractMethod):
 
     NAME = "simple"
