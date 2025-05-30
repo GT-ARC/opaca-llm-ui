@@ -91,54 +91,36 @@ class SimpleToolsBackend(AbstractMethod):
             ))
 
             try:
-                # if the model returned any function calls, invoke them
-                if getattr(response, "tools", None):
-                    tool_contents = []
-                    tool_entries = []
-                    
-                    for call in response.tools:
-                        action_name = call["name"]
-                        params = call["args"].get("requestBody", {})
-                    
-                        # invoke via OPACA client
-                        action_result = await session.opaca_client.invoke_opaca_action(
-                            action_name, agent=None, params=params
-                        )
-                    
-                        # collect tool result details
-                        tool_contents.append(f"The result of tool '{action_name}' was: {repr(action_result)}")
-                        tool_entries.append({
-                            "id": result.iterations,
-                            "name": call["name"],
-                            "args": params,
-                            "result": action_result
-                        })
-                    
-                    # Append one unified message after loop
-                    if tool_contents:
-                        combined_tool_response = "\n".join(tool_contents)
-                        messages.append(ChatMessage(role="assistant", content=combined_tool_response))
-                        result.agent_messages.append(AgentMessage(
-                            agent="assistant",
-                            content=combined_tool_response,
-                            tools=tool_entries
-                        ))
-
-                else:
-                    if response and response.content:
-                        result.content = response.content
-
-                        #Non-parallel test.py needs this addition to prevent hang ups
-                        if not result.agent_messages:
-                            result.agent_messages.append(AgentMessage(
-                                agent="assistant",
-                                content="no tool was used",
-                                tools=[]
-                            ))
-                        
-                    else:
-                        logger.warning("Model response was empty (no content and no tools).")
-                    break
+                tool_contents = []
+                tool_entries = []
+                
+                for call in response.tools:
+                    action_name = call["name"]
+                    params = call["args"].get("requestBody", {})
+                
+                    # invoke via OPACA client
+                    action_result = await session.opaca_client.invoke_opaca_action(
+                        action_name, agent=None, params=params
+                    )
+                
+                    # collect tool result details
+                    tool_contents.append(f"The result of tool '{action_name}' was: {repr(action_result)}")
+                    tool_entries.append({
+                        "id": result.iterations,
+                        "name": call["name"],
+                        "args": params,
+                        "result": action_result
+                    })
+                
+                # Append one unified message after loop
+                if tool_contents:
+                    combined_tool_response = "\n".join(tool_contents)
+                    messages.append(ChatMessage(role="assistant", content=combined_tool_response))
+                    result.agent_messages.append(AgentMessage(
+                        agent="assistant",
+                        content=combined_tool_response,
+                        tools=tool_entries
+                    ))
                 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
