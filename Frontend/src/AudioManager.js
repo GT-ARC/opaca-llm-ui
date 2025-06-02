@@ -2,6 +2,7 @@ import {ref} from "vue";
 import conf from "../config.js";
 import Localizer from "./Localizer.js";
 import {Speech} from "openai/resources/audio/index";
+import {Exception} from "sass";
 
 
 /**
@@ -9,16 +10,84 @@ import {Speech} from "openai/resources/audio/index";
  * Web Speech API or a custom Whisper server running locally.
  */
 
-
-class WhisperAudio {
+class TtsAudio {
 
     constructor(audioBlob) {
         this._isPlaying = ref(false);
-        this._audio = this.makeFromBlob(audioBlob);
+        this._isLoading = ref(false);
     }
 
     get isPlaying() {return this._isPlaying.value;}
     set isPlaying(value) {this._isPlaying.value = value;}
+
+    get isLoading() {return this._isLoading.value;}
+    set isLoading(value) {this._isLoading.value = value;}
+
+    play() {
+        throw Error('Not implemented');
+    }
+
+    stop() {
+        throw Error('Not implemented');
+    }
+
+    canPlay() {
+        throw Error('Not implemented');
+    }
+
+    canStop() {
+        throw Error('Not implemented');
+    }
+
+}
+
+class WhisperAudio extends TtsAudio {
+
+    constructor(audioBlob) {
+        super();
+        this._isPlaying = ref(false);
+        this._isLoading = ref(false);
+        this.audio = null;
+
+        this.setupAudio(audioBlob)
+            .then(() => this.isLoading = false);
+    }
+
+    get isPlaying() {return this._isPlaying.value;}
+    set isPlaying(value) {this._isPlaying.value = value;}
+
+    get isLoading() {return this._isLoading.value;}
+    set isLoading(value) {this._isLoading.value = value;}
+
+    async setupAudio(text) {
+        this.isLoading = true;
+
+        try {
+            const url = `${conf.VoiceServerAddress}/generate_audio`;
+            const payload = { method: 'POST' };
+            const params = new URLSearchParams({
+                text: text,
+                voice: audioManager.whisperVoice
+            });
+
+            const response = await fetch(`${url}?${params}`, payload);
+            if (response.ok) {
+                const audioBlob = await response.blob();
+                return this.makeFromBlob(audioBlob);
+            } else {
+                const errorText = await response.text();
+                console.error('Audio API error:', response.status, errorText);
+                return null;
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Failed to generate audio.');
+            return null;
+        } finally {
+            this.isLoading = false;
+        }
+
+    }
 
     /**
      * @param audioBlob {Blob}
@@ -49,13 +118,13 @@ class WhisperAudio {
     }
 
     stop() {
-        if (!this._audio) return;
-        this._audio.pause();
-        this._audio.currentTime = 0;
+        if (!this.audio) return;
+        this.audio.pause();
+        this.audio.currentTime = 0;
     }
 
     canPlay() {
-        return this._audio !== null;
+        return this.audio !== null && !this.isLoading;
     }
 
 }
@@ -63,31 +132,35 @@ class WhisperAudio {
 
 class WebSpeechAudio {
 
-    constructor(utterance) {
+    constructor(text) {
         this._isPlaying = ref(false);
+        this._isLoading = ref(false);
         this._synthesis = null;
-        this._utterance = this.setupUtterance(utterance);
+        this._utterance = this.setupUtterance(text);
     }
 
     get isPlaying() {return this._isPlaying.value;}
     set isPlaying(value) {this._isPlaying.value = value;}
 
-    setupUtterance(utterance) {
-        utterance.lang = Localizer.getLanguageForTTS();
+    get isLoading() {return this._isLoading.value;}
+    set isLoading(value) {this._isLoading.value = value;}
 
+    setupUtterance(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = Localizer.getLanguageForTTS();
         utterance.onstart = () => {
+            this.isLoading = false;
             this.isPlaying = true;
         };
-
         utterance.onend = () => {
             this.isPlaying = false;
+            this.isLoading = false;
         };
-
         utterance.onerror = (error) => {
             console.error('Failed to play utterance:', error);
             this.isPlaying = false;
+            this.isLoading = false;
         };
-
         return utterance;
     }
 
@@ -172,6 +245,8 @@ class AudioManager {
      */
     async generateWhisperAudio(text) {
         if (!text) return null;
+        return new WhisperAudio(text);
+
         if (this.isLoading) return null;
         this.isLoading = true;
 
@@ -204,8 +279,7 @@ class AudioManager {
 
     async generateWebSpeechAudio(text) {
         if (!text) return null;
-        const utterance = new SpeechSynthesisUtterance(text);
-        return new WebSpeechAudio(utterance);
+        return new WebSpeechAudio(text);
     }
 
     /**
