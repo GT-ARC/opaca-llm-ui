@@ -31,7 +31,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
@@ -74,7 +73,7 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.voiceServerConnected"
+                            v-if="AudioManager.isVoiceServerConnected"
                             class="btn btn-outline-primary"
                             @click="this.showRecordingPopup = true"
                             :disabled="!isFinished">
@@ -109,6 +108,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import {sendRequest} from "../utils.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
@@ -124,11 +124,10 @@ export default {
     props: {
         backend: String,
         language: String,
-        voiceServerConnected: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth };
+        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -276,7 +275,7 @@ export default {
         },
 
         startAutoSpeak() {
-            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+            if (this.autoSpeakNextMessage && AudioManager.isVoiceServerConnected) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;

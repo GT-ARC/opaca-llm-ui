@@ -1,63 +1,78 @@
 import {ref} from "vue";
 import conf from "../config.js";
 import Localizer from "./Localizer.js";
-import {Speech} from "openai/resources/audio/index";
-import {Exception} from "sass";
 
 
 /**
  * Provide unified API for TTS/STT using either the browser built-in
  * Web Speech API or a custom Whisper server running locally.
  */
-
 class TtsAudio {
 
-    constructor(audioBlob) {
+    constructor() {
         this._isPlaying = ref(false);
         this._isLoading = ref(false);
     }
 
-    get isPlaying() {return this._isPlaying.value;}
-    set isPlaying(value) {this._isPlaying.value = value;}
+    get isLoading() {
+        return this._isLoading.value !== undefined
+            ? this._isLoading.value
+            : this._isLoading;
+    }
 
-    get isLoading() {return this._isLoading.value;}
-    set isLoading(value) {this._isLoading.value = value;}
+    set isLoading(value) {
+        if (this._isLoading.value !== undefined) {
+            this._isLoading.value = value;
+        } else {
+            this._isLoading = value;
+        }
+    }
+
+    get isPlaying() {
+        return this._isPlaying.value !== undefined
+            ? this._isPlaying.value
+            : this._isPlaying;
+    }
+
+    set isPlaying(value) {
+        if (this._isPlaying.value !== undefined) {
+            this._isPlaying.value = value;
+        } else {
+            this._isPlaying = value;
+        }
+    }
 
     play() {
-        throw Error('Not implemented');
+        throw Error("Not implemented");
     }
 
     stop() {
-        throw Error('Not implemented');
+        throw Error("Not implemented");
     }
 
     canPlay() {
-        throw Error('Not implemented');
+        throw Error("Not implemented");
     }
 
     canStop() {
-        throw Error('Not implemented');
+        throw Error("Not implemented");
     }
 
 }
 
+/**
+ * Class for handling whisper-generated audio.
+ */
 class WhisperAudio extends TtsAudio {
 
-    constructor(audioBlob) {
-        super();
-        this._isPlaying = ref(false);
-        this._isLoading = ref(false);
+    constructor(text) {
+        super()
         this.audio = null;
 
-        this.setupAudio(audioBlob)
-            .then(() => this.isLoading = false);
+        this.setupAudio(text)
+            .then(() => this.isLoading = false)
+            .then(() => this.play());
     }
-
-    get isPlaying() {return this._isPlaying.value;}
-    set isPlaying(value) {this._isPlaying.value = value;}
-
-    get isLoading() {return this._isLoading.value;}
-    set isLoading(value) {this._isLoading.value = value;}
 
     async setupAudio(text) {
         this.isLoading = true;
@@ -73,7 +88,7 @@ class WhisperAudio extends TtsAudio {
             const response = await fetch(`${url}?${params}`, payload);
             if (response.ok) {
                 const audioBlob = await response.blob();
-                return this.makeFromBlob(audioBlob);
+                this.audio = this.makeFromBlob(audioBlob);
             } else {
                 const errorText = await response.text();
                 console.error('Audio API error:', response.status, errorText);
@@ -104,12 +119,14 @@ class WhisperAudio extends TtsAudio {
     }
 
     async play() {
-        if (!this.canPlay) return;
+        // console.log("Playing...", this.canPlay(), this.isPlaying);
+        if (!this.canPlay()) return;
         try {
             if (!this.isPlaying) {
-                await this._audio.play();
+                this.isPlaying = true;
+                await this.audio.play();
             } else {
-                this.stop();
+                await this.stop();
             }
         } catch (error) {
             console.error(error);
@@ -117,33 +134,33 @@ class WhisperAudio extends TtsAudio {
         }
     }
 
-    stop() {
+    async stop() {
         if (!this.audio) return;
         this.audio.pause();
         this.audio.currentTime = 0;
+        this.isPlaying = false;
     }
 
     canPlay() {
         return this.audio !== null && !this.isLoading;
     }
 
+    canStop() {
+        return this.audio !== null && !this.isLoading;
+    }
+
 }
 
-
-class WebSpeechAudio {
+/**
+ * Class for handling WebSpeech-generated audio.
+ */
+class WebSpeechAudio extends TtsAudio {
 
     constructor(text) {
-        this._isPlaying = ref(false);
-        this._isLoading = ref(false);
+        super()
         this._synthesis = null;
         this._utterance = this.setupUtterance(text);
     }
-
-    get isPlaying() {return this._isPlaying.value;}
-    set isPlaying(value) {this._isPlaying.value = value;}
-
-    get isLoading() {return this._isLoading.value;}
-    set isLoading(value) {this._isLoading.value = value;}
 
     setupUtterance(text) {
         const utterance = new SpeechSynthesisUtterance(text);
@@ -164,43 +181,84 @@ class WebSpeechAudio {
         return utterance;
     }
 
-    play() {
+    async play() {
         if (!this.canPlay) return;
         this._synthesis = new (webkitSpeechSynthesis || SpeechSynthesis)();
         this._synthesis.speak(this._utterance);
     }
 
-    stop() {
-        if (this._synthesis && this._synthesis.speaking) {
-            this._synthesis.cancel();
-        }
+    async stop() {
+        if (!this.canStop()) return;
+        this._synthesis.cancel();
         this._synthesis = null;
     }
 
     canPlay() {
-        return this._utterance != null;
+        return this._utterance != null && this._utterance.text;
+    }
+
+    canStop() {
+        return this._utterance != null && this._synthesis !== null
+            && this._synthesis.speaking
     }
 
 }
 
-
+/**
+ * Manager class that provides unified public access.
+ */
 class AudioManager {
+
     constructor() {
         this._isVoiceServerConnected = ref(false);
         this._isLoading = ref(false);
         this._deviceInfo = ref('');
+        this._recognition = null;
 
         this.whisperVoice = 'alloy';
     }
 
-    get isVoiceServerConnected() {return this._isVoiceServerConnected.value;}
-    set isVoiceServerConnected(value) {this._isVoiceServerConnected.value = value;}
+    get isVoiceServerConnected() {
+        return this._isVoiceServerConnected.value !== undefined
+            ? this._isVoiceServerConnected.value
+            : this._isVoiceServerConnected;
+    }
 
-    get isLoading() {return this._isLoading.value;}
-    set isLoading(value) {this._isLoading.value = value;}
+    set isVoiceServerConnected(value) {
+        if (this._isVoiceServerConnected.value !== undefined) {
+            this._isVoiceServerConnected.value = value;
+        } else {
+            this._isVoiceServerConnected = value;
+        }
+    }
 
-    get deviceInfo() {return this._deviceInfo.value;}
-    set deviceInfo(value) {this._deviceInfo.value = value;}
+    get isLoading() {
+        return this._isLoading.value !== undefined
+            ? this._isLoading.value
+            : this._isLoading;
+    }
+
+    set isLoading(value) {
+        if (this._isLoading.value !== undefined) {
+            this._isLoading.value = value;
+        } else {
+            this._isLoading = value;
+        }
+    }
+
+    get deviceInfo() {
+        return this._deviceInfo.value !== undefined
+            ? this._deviceInfo.value
+            : this._deviceInfo;
+    }
+
+    set deviceInfo(value) {
+        if (this._deviceInfo.value !== undefined) {
+            this._deviceInfo.value = value;
+        } else {
+            this._deviceInfo = value;
+        }
+    }
 
     isBackendConfigured() {
         return !! conf.VoiceServerAddress
@@ -231,50 +289,14 @@ class AudioManager {
     }
 
     async generateAudio(text) {
-        if (!this.isVoiceServerConnected) {
-            return await this.generateWhisperAudio(text);
-        } else {
-            return await this.generateWebSpeechAudio(text);
-        }
+        return await this.isVoiceServerConnected
+            ? this.generateWhisperAudio(text)
+            : this.generateWebSpeechAudio(text);
     }
 
-    /**
-     * Generate audio from the given text using a local Whisper server.
-     * @param text {String}
-     * @returns {Promise<WhisperAudio|null>}
-     */
     async generateWhisperAudio(text) {
         if (!text) return null;
         return new WhisperAudio(text);
-
-        if (this.isLoading) return null;
-        this.isLoading = true;
-
-        try {
-            const url = `${conf.VoiceServerAddress}/generate_audio`;
-            const payload = { method: 'POST' };
-            const params = new URLSearchParams({
-                text: text,
-                voice: this.whisperVoice
-            });
-
-            const response = await fetch(`${url}?${params}`, payload);
-            if (response.ok) {
-                const audioBlob = await response.blob();
-                return new WhisperAudio(audioBlob);
-            } else {
-                const errorText = await response.text();
-                console.error('Audio API error:', response.status, errorText);
-                return null;
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Failed to generate audio.');
-            return null;
-        } finally {
-            this.isLoading = false;
-        }
-
     }
 
     async generateWebSpeechAudio(text) {
@@ -283,16 +305,16 @@ class AudioManager {
     }
 
     /**
-     * Start speech recognition with web speech.
-     * @param onResult Callback that should expect the successfully recognized text.
+     * Start speech recognition with web speech API.
+     * @param onResult Callback that should expect the successfully recognized text as an argument.
      */
-    async startRecognition(onResult) {
+    async startWebSpeechRecognition(onResult) {
         if (!this.isRecognitionSupported()) return;
-        this.abortSpeaking();
-        const recognition = new (webkitSpeechRecognition || SpeechRecognition)()
-        recognition.lang = Localizer.getLanguageForTTS();
+        await this.stopWebSpeechRecognition();
+        this._recognition = new (webkitSpeechRecognition || SpeechRecognition)();
+        this._recognition.lang = Localizer.getLanguageForTTS();
 
-        recognition.onresult = async (event) => {
+        this._recognition.onresult = async (event) => {
             if (!event.results || event.results.length <= 0) return;
             const recognizedText = event.results[0][0].transcript;
             try {
@@ -302,32 +324,40 @@ class AudioManager {
             }
         };
 
-        recognition.onspeechend = () => {
+        this._recognition.onspeechend = () => {
             console.log('Recognition: Speech ended.');
             this.isLoading = false;
         };
 
-        recognition.onnomatch = () => {
+        this._recognition.onnomatch = () => {
             console.error('Failed to recognize speech.');
         };
 
-        recognition.onerror = (error) => {
+        this._recognition.onerror = (error) => {
             console.error('Failed to recognize speech: ', error);
         };
 
-        recognition.onend = () => {
+        this._recognition.onend = () => {
             console.log('Recognition ended.');
             this.isLoading = false;
         };
 
-        recognition.start();
+        this._recognition.start();
         this.isLoading = true;
     }
 
+    async stopWebSpeechRecognition() {
+        if (this._recognition) {
+            this._recognition.abort();
+            this._recognition = null;
+        }
+    }
+
     isRecognitionSupported() {
-        return this._isGoogleChrome()
+        return this.isVoiceServerConnected
+            || (this._isGoogleChrome()
             && this._isWebSpeechSupported()
-            && this._isSecureConnection();
+            && this._isSecureConnection());
     }
 
     /**
@@ -351,6 +381,7 @@ class AudioManager {
             || location.hostname === 'localhost'
             || location.hostname !== '127.0.0.1';
     }
+
 }
 
 

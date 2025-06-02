@@ -21,7 +21,7 @@ export const localizationData = {
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
         ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconneded',
+        ttsDisconnected: 'Disconnected',
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',

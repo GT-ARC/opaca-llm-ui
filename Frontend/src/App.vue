@@ -104,22 +104,22 @@
                                 <li>
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
-                                            <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ voiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
+                                            <i class="fa" :class="AudioManager.isVoiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
+                                            <span class="ms-2">{{ AudioManager.isVoiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="voiceServerConnected">
+                                <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
                                         <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted"
                                              style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ Localizer.get('ttsServerInfo', this.deviceInfo.model, this.deviceInfo.device) }}
+                                            {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="!voiceServerConnected">
-                                    <button class="dropdown-item" @click="this.initVoiceServerConnection()">
+                                <li v-if="!AudioManager.isVoiceServerConnected">
+                                    <button class="dropdown-item" @click="AudioManager.initVoiceServerConnection()">
                                         <i class="fa fa-refresh me-2"/>
                                         {{ Localizer.get('ttsRetry') }}
                                     </button>
@@ -137,7 +137,6 @@
             class="tab"
             :backend="this.backend"
             :language="this.language"
-            :voice-server-connected="this.voiceServerConnected"
             ref="content"
         />
     </div>
@@ -163,8 +162,6 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
-            voiceServerConnected: false,
-            deviceInfo: ''
         }
     },
     methods: {
@@ -213,24 +210,10 @@ export default {
             }
             return key === this.backend;
         },
-
-        async initVoiceServerConnection() {
-            try {
-                const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (response.ok) {
-                    this.deviceInfo = await response.json();
-                    this.voiceServerConnected = true;
-                } else {
-                    this.voiceServerConnected = false;
-                }
-            } catch (error) {
-                console.error('Error fetching device info:', error);
-            }
-        }
     },
 
     mounted() {
-        this.initVoiceServerConnection();
+        AudioManager.initVoiceServerConnection();
     }
 }
 </script>
