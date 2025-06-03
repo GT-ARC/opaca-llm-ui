@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "tool-llm",
     Backends: {
         "simple": "Simple Prompt",
         "tool-llm": "Tool LLM",
@@ -28,7 +28,7 @@ var config = {
 
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? 'http://localhost:7431',
+    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
 
     ShowKeyboard: import.meta.env.VITE_SHOW_KEYBOARD ?? false,
 
@@ -38,7 +38,8 @@ var config = {
     AutoConnect: import.meta.env.VITE_AUTOCONNECT ?? 'false',
 
     // which set of questions is shown within the chat window on startup.
-    DefaultQuestions: 'Task Automation',
+    // this should be the name of one of the categories, or "None" (or any other nonexistent value) for none
+    DefaultQuestions: 'None',
 
     // which sidebar view is shown by default.
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'

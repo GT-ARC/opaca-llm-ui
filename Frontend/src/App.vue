@@ -95,7 +95,7 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown me-0">
+                        <li class="nav-item dropdown me-0" v-if="conf.VoiceServerAddress">
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <span v-show="!isMobile">Voice Server</span>
@@ -213,6 +213,7 @@ export default {
         },
 
         async initVoiceServerConnection() {
+            if (! conf.VoiceServerAddress) return;
             try {
                 const response = await fetch(`${conf.VoiceServerAddress}/info`);
                 if (response.ok) {

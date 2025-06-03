@@ -47,45 +47,49 @@
                     <div id="sidebarConfig"
                          class="container d-flex flex-column">
 
-                        <div class="py-2 text-start">
-                            <input id="opacaUrlInput" type="text"
-                                   class="form-control m-0"
-                                   v-model="opacaRuntimePlatform"
-                                   :placeholder="Localizer.get('opacaLocation')" />
-                        </div>
+                        <form @submit.prevent="initRpConnection()">
 
-                        <div class="py-2 text-start">
-                            <div class="row opaca-credentials">
-                                <div class="col-md-6">
-                                    <input id="opacaUser" type="text"
-                                           class="form-control m-0"
-                                           v-model="opacaUser"
-                                           placeholder="Username" />
-                                </div>
-                                <div class="col-md-6">
-                                    <input id="opacaPwd" type="password"
-                                           class="form-control m-0"
-                                           v-model="opacaPwd"
-                                           placeholder="Password" />
-                                </div>
+                            <div class="py-2 text-start">
+                                <input id="opacaUrlInput" type="text"
+                                    class="form-control m-0"
+                                    v-model="opacaRuntimePlatform"
+                                    :placeholder="Localizer.get('opacaLocation')" />
                             </div>
 
-                        </div>
+                            <div class="py-2 text-start">
+                                <div class="row opaca-credentials">
+                                    <div class="col-md-6">
+                                        <input id="opacaUser" type="text"
+                                            class="form-control m-0"
+                                            v-model="opacaUser"
+                                            autocomplete="username"
+                                            placeholder="Username" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input id="opacaPwd" type="password"
+                                            class="form-control m-0"
+                                            v-model="opacaPwd"
+                                            autocomplete="current-password" 
+                                            placeholder="Password" />
+                                    </div>
+                                </div>
 
-                        <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                            <input id="apiKey" type="password"
-                                   class="form-control m-0"
-                                   placeholder="OpenAI API Key"
-                                   v-model="this.apiKey"
-                                   @input="this.$emit('api-key-change', this.apiKey)" />
-                        </div>
+                            </div>
 
-                        <div class="text-center py-2">
-                            <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
-                                <i class="fa fa-link me-1"/>Connect
-                            </button>
-                        </div>
+                            <div class="py-2 text-start" v-if="conf.ShowApiKey">
+                                <input id="apiKey" type="password"
+                                    class="form-control m-0"
+                                    placeholder="OpenAI API Key"
+                                    v-model="this.apiKey"
+                                    @input="this.$emit('api-key-change', this.apiKey)" />
+                            </div>
 
+                            <div class="text-center py-2">
+                                <button class="btn btn-primary w-100" type="submit" id="button-connect">
+                                    <i class="fa fa-link me-1"/>Connect
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
 
