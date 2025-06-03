@@ -90,6 +90,9 @@
                                 </button>
                             </div>
                         </form>
+
+                        <div v-html="this.howAssistContent" class="d-flex flex-column text-start faq-content">
+                    </div>
                     </div>
                 </div>
 
@@ -262,10 +265,12 @@ export default {
             shouldFadeOut: false,
             fadeTimeout: null,
             faqContent: '',
+            howAssistContent: '',
         };
     },
     methods: {
         async initRpConnection() {
+            this.howAssistContent = '';
             const connectButton = document.getElementById('button-connect');
             connectButton.disabled = true;
             console.log(`CONNECTING as ${this.opacaUser}`);
@@ -278,7 +283,8 @@ export default {
                     this.platformActions = res2.data;
                     this.isConnected = true;
                     await this.fetchBackendConfig();
-                    SidebarManager.selectView(conf.DefaultSidebarView);
+                    this.showHowCanYouHelpInSidebar(); // intentionally no 'await'
+                    //SidebarManager.selectView(conf.DefaultSidebarView);
                 } else if (rpStatus === 403) {
                     this.platformActions = null;
                     this.isConnected = false;
@@ -295,6 +301,19 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 connectButton.disabled = false;
+            }
+        },
+
+        async showHowCanYouHelpInSidebar() {
+            try {
+                this.howAssistContent = "Querying functionality, please wait...";
+                const body = {user_query: "How can you assist me?"};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`, body);
+                console.log("result: " + JSON.stringify(res));
+                const answer = res.data.agent_messages[0].content;
+                this.howAssistContent = marked.parse(answer);
+            } catch (error) {
+                console.log("ERROR " + error);
             }
         },
 
