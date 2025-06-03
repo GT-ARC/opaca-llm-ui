@@ -43,6 +43,6 @@ Yes. If you have the backend URL and credentials, you can deploy and register ne
 
 ## Further Reading
 
-* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA-LLM on Github</a>
-* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">OPACA on Github</a>
+* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">OPACA-LLM on Github</a>
+* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA on Github</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Project</a>
