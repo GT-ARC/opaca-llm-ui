@@ -2,7 +2,7 @@ var config = {
 
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "self-orchestrated",
+    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "tool-llm",
     Backends: {
         "simple": "Simple Prompt",
         "tool-llm": "Tool LLM",
@@ -38,7 +38,8 @@ var config = {
     AutoConnect: false,
 
     // which set of questions is shown within the chat window on startup.
-    DefaultQuestions: 'Task Automation',
+    // this should be the name of one of the categories, or "None" (or any other nonexistent value) for none
+    DefaultQuestions: 'None',
 
     // which sidebar view is shown by default.
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'

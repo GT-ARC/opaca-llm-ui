@@ -59,7 +59,7 @@ export default {
         expandSectionByHeader(header) {
             const questions = this.getQuestions();
             const index = this.getQuestions().findIndex(section => section.header === header);
-            if (this.expandedSection !== index) {
+            if (index != -1 && this.expandedSection !== index) {
                 this.expandedSection = index;
                 this.$emit('category-selected', questions[index].header);
             }
