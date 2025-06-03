@@ -437,7 +437,7 @@ export default {
         },
 
         async buildFaqContent() {
-            const readmeUrl = 'https://raw.githubusercontent.com/GT-ARC/opaca-llm-ui/refs/heads/main/docs/faq.md';
+            const readmeUrl = '/src/assets/about.md';
             try {
                 const response = await fetch(readmeUrl);
                 if (response.ok) {
