@@ -36,31 +36,38 @@
                      v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
-                        <!-- connection -->
-                        <li class="nav-item d-flex align-items-center me-2">
-                            <input v-if="!connected"
-                                   type="text"
-                                   v-model="opacaRuntimePlatform"
-                                   placeholder="Enter URL"
-                                   class="form-control form-control-sm me-2"/>
-                            <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
-                                    style="min-width: 120px;"
-                                    :disabled="isConnecting"
-                                    @click="handleConnectButtonClick">
-                                <template v-if="isConnecting">
-                                    <span class="fa fa-spin fa-spinner fa-dis"></span>
-                                </template>
-                                <template v-else>
-                                    <i :class="['fa', connected ? 'fa-unlink' : 'fa-link', 'me-1']"/>{{ connected ? 'Disconnect' : 'Connect' }}
-                                </template>
-                            </button>
-                        </li>
-
                         <!-- Status Indicator -->
                         <li class="nav-item d-flex align-items-center me-2">
                             <a :class="['me-2', 'connection-indicator', connected ? 'bg-success' : 'bg-danger']"
                                title="Connection Status"
-                               style="width: 12px; height: 12px; border-radius: 50%;"></a>
+                               style="width: 15px; height: 15px; border-radius: 50%;"></a>
+                        </li>
+
+
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
+                                <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>{{ connected ? 'Connected' : 'Not Connected' }}
+                            </a>
+                            <ul class="dropdown-menu show p-4" style="min-width: 320px;">
+                                <div v-if="!connected" class="mb-3">
+                                    <input v-if="!connected"
+                                           type="text"
+                                           v-model="opacaRuntimePlatform"
+                                           placeholder="Enter URL"
+                                           class="form-control form-control-sm me-2"/>
+                                </div>
+                                <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
+                                        :disabled="isConnecting"
+                                        @click="handleConnectButtonClick">
+                                    <template v-if="isConnecting">
+                                        <span class="fa fa-spin fa-spinner fa-dis"></span>
+                                    </template>
+                                    <template v-else>
+                                        {{ connected ? 'Disconnect' : 'Connect' }}
+                                    </template>
+                                </button>
+                            </ul>
                         </li>
 
                         <!-- languages -->
