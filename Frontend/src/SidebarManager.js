@@ -12,6 +12,7 @@ class SidebarManager {
         'agents',
         'config',
         'debug',
+        'faq',
     ]
 
     /**

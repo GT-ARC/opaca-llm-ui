@@ -29,6 +29,11 @@
                class="fa fa-bug p-2 sidebar-item"
                :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
+
+            <i @click="SidebarManager.toggleView('faq')"
+               class="fa fa-question-circle p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarFaq')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
         <!-- sidebar content -->
@@ -196,6 +201,14 @@
                     </div>
                 </div>
 
+                <!-- Help/FAQ -->
+                <div v-show="SidebarManager.isViewSelected('faq')"
+                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                    <div v-html="this.faqContent"
+                         class="d-flex flex-column text-start faq-content">
+                    </div>
+                </div>
+
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
         </div>
@@ -211,6 +224,7 @@ import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
 import Localizer from "../Localizer.js";
+import {marked} from "marked";
 
 export default {
     name: 'Sidebar',
@@ -243,6 +257,7 @@ export default {
             configChangeSuccess: false,
             shouldFadeOut: false,
             fadeTimeout: null,
+            faqContent: '',
         };
     },
     methods: {
@@ -421,6 +436,21 @@ export default {
             }
         },
 
+        async buildFaqContent() {
+            const readmeUrl = '/src/assets/about.md';
+            try {
+                const response = await fetch(readmeUrl);
+                if (response.ok) {
+                    const faqRaw = await response.text();
+                    this.faqContent = marked.parse(faqRaw);
+                } else {
+                    console.error('Failed to fetch FAQ content:', response.status, response);
+                }
+            } catch (error) {
+                console.error('Failed to fetch FAQ content:', error);
+            }
+        },
+
         clearDebugMessage() {
             this.debugMessages = [];
         },
@@ -435,6 +465,7 @@ export default {
         } else {
             SidebarManager.selectView('connect');
         }
+        this.buildFaqContent();
     },
     updated() {
         this.scrollDownConfigView()
@@ -496,6 +527,11 @@ export default {
 .sidebar-item-select:hover {
     background-color: var(--secondary-light);
     color: white !important;
+}
+
+.faq-content {
+    background-color: var(--background-light);
+    color: var(--text-primary-light);
 }
 
 @media screen and (max-width: 768px) {
@@ -737,6 +773,12 @@ export default {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
     }
+
+    .faq-content {
+        background-color: var(--background-dark);
+        color: var(--text-primary-dark);
+    }
+
 }
 
 /* mobile design */
