@@ -136,3 +136,4 @@ Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and
   * [Simple](docs/methods/simple.md)
   * [Tool-LLM](docs/methods/tool_llm.md)
   * [Orchestration](docs/methods/orchestration.md)
+* [Frequently Asked Questions](docs/faq.md)
