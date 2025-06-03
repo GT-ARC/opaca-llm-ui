@@ -3,15 +3,6 @@
 The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and multiple "backends" connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 
-## How does this work?
-
-The architecture consists of a frontend (this UI) and a backend, providing an API to be called by the frontend. The backend provides several different prompting methods or interaction modes (see further below), each with their own strengths and weaknesses. Each of those have access to all the actions provided by the agents running on the connected OPACA platform.
-
-The frontend includes different sidebars that can be expanded or collapsed, providing e.g. information on the available agents, sample queries, configuration for the different prompting methods, and detailed debug output. The message history and configuration is stored in the browser session, so multiple users can use the system in parallel.
-
-For more detailed information, please visit the project's GitHub page (link at the bottom of this page).
-
-
 ## How do I use it?
 
 1. Connect to an OPACA Runtime Platform.
@@ -19,6 +10,15 @@ For more detailed information, please visit the project's GitHub page (link at t
 3. Select the prompting method to use (e.g. Tool-LLM, Simple, ...) and check its configuration.
 4. Try one of the sample queries or type your own question into the chat window.
 5. Wait a few seconds for the LLM's response, inspect the debug-output for "behind the scenes" info, and ask follow-up questions.
+
+
+## How does this work?
+
+The architecture consists of a frontend (this UI) and a backend, providing an API to be called by the frontend. The backend provides several different prompting methods or interaction modes (see further below), each with their own strengths and weaknesses. Each of those have access to all the actions provided by the agents running on the connected OPACA platform.
+
+The frontend includes different sidebars that can be expanded or collapsed, providing e.g. information on the available agents, sample queries, configuration for the different prompting methods, and detailed debug output. The message history and configuration is stored in the browser session, so multiple users can use the system in parallel.
+
+For more detailed information, please visit the project's GitHub page (link at the bottom of this page).
 
 
 ## Frequently Asked Questions
