@@ -222,6 +222,7 @@ export default {
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
         isDarkScheme: Boolean,
     },
     setup() {
@@ -238,7 +239,6 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
             shouldFadeOut: false,
@@ -246,38 +246,6 @@ export default {
         };
     },
     methods: {
-        async initRpConnection() {
-            const connectButton = document.getElementById('button-connect');
-            connectButton.disabled = true;
-            console.log(`CONNECTING as ${this.opacaUser}`);
-            try {
-                const body = {url: this.opacaRuntimePlatform, user: this.opacaUser, pwd: this.opacaPwd};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                const rpStatus = parseInt(res.data);
-                if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                    this.platformActions = res2.data;
-                    this.isConnected = true;
-                    await this.fetchBackendConfig();
-                    SidebarManager.selectView(conf.DefaultSidebarView);
-                } else if (rpStatus === 403) {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unauthorized'));
-                } else {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unreachable'));
-                }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.platformActions = null;
-                this.isConnected = false;
-                alert('Backend server is unreachable.');
-            } finally {
-                connectButton.disabled = false;
-            }
-        },
 
         getBackend() {
             const parts = this.backend.split('/');
@@ -356,10 +324,6 @@ export default {
         },
 
         async fetchBackendConfig() {
-            if (!this.isConnected) {
-                this.backendConfig = null;
-                return;
-            }
             const backend = this.getBackend();
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
@@ -428,21 +392,26 @@ export default {
     },
     mounted() {
         this.setupResizer();
-        this.fetchBackendConfig();
-
-        if (conf.AutoConnect) {
-            this.initRpConnection();
-        } else {
-            SidebarManager.selectView('connect');
-        }
     },
     updated() {
         this.scrollDownConfigView()
     },
     watch: {
         backend() {
-            this.fetchBackendConfig();
+            if (this.connected) {
+                this.fetchBackendConfig();
+            }
         },
+        async connected(newVal) {
+            if (newVal) {
+                await this.fetchBackendConfig()
+                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                this.platformActions = res2.data;
+            } else {
+                this.backendConfig = null;
+                this.platformActions = null;
+            }
+        }
     }
 }
 </script>

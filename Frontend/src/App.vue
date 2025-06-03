@@ -43,7 +43,7 @@
                                style="width: 15px; height: 15px; border-radius: 50%;"></a>
                         </li>
 
-
+                        <!-- Connection -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
@@ -184,6 +184,7 @@ import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
 import {sendRequest} from "./utils.js";
+import SidebarManager from "./SidebarManager.js";
 
 export default {
     name: 'App',
@@ -296,6 +297,12 @@ export default {
 
     mounted() {
         this.initVoiceServerConnection();
+
+        if (conf.AutoConnect) {
+            this.handleConnectButtonClick();
+        } else {
+            SidebarManager.selectView('connect');
+        }
     }
 }
 </script>
