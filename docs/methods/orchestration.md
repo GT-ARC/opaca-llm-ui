@@ -37,8 +37,8 @@ Further arbitrary agents could also be ingested into the backend to make answeri
 
 # File structure
 
-- `backend.py`: handles connection and routing of requests between the different agents
-- `agents.py`: defines how the agents behave and how the LLM calls are invoked
-- `models.py`: defines the Pydantic models for data structures used in the multi-agent system (tasks, plans, results, etc.)
-- `config.py` & `model_config.yaml`: setup of model configuration 
-- `prompts.py`: Contains the system prompts for each agent type that define their behaviour and responsibilities
+- `backend.py`: Contains the core logic of the orchestration method. Further handles connection and routing.
+- `agents.py`: Defines agent specific properties such as message structure or response schema.
+- `models.py`: Defines the Pydantic models for data structures used specifically in the multi-agent system (tasks, plans, results, etc.).
+- `model_config.yaml`: Contains specific model configurations for the different agents within the multi-agent system.
+- `prompts.py`: Contains the system prompts for each agent type that define their behaviour and responsibilities.

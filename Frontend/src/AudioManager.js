@@ -118,7 +118,6 @@ class WhisperAudio extends TtsAudio {
     }
 
     async play() {
-        // console.log("Playing...", this.canPlay(), this.isPlaying);
         if (!this.canPlay()) return;
         try {
             if (!this.isPlaying) {
@@ -295,7 +294,6 @@ class AudioManager {
     }
 
     async generateAudio(text) {
-        console.log('AudioManager.generateAudio:', text);
         return await this.isVoiceServerConnected
             ? this.generateWhisperAudio(text)
             : this.generateWebSpeechAudio(text);

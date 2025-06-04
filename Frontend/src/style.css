@@ -1,11 +1,4 @@
 :root {
-  /* Border Radius */
-  --border-radius-sm: 8px;
-  --border-radius-md: 12px;
-  --border-radius-lg: 16px;
-  --border-radius-xl: 24px;
-  --border-radius-full: 9999px;
-  
   /* Colors - Light Theme */
   --background-light: #ffffff;
   --surface-light: #f9fafb;
@@ -17,6 +10,7 @@
   --border-light: #e5e7eb;
   --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
   --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
+  --debug-console-light: var(--surface-light);
   
   /* Colors - Dark Theme */
   --background-dark: #1e1e2e;
@@ -30,6 +24,7 @@
   --chat-user-dark: #2a2a3c;
   --chat-ai-dark: #313145;
   --input-dark: #252535;
+  --debug-console-dark: #161628;
 
   /* additional colors */
   --glow-color-1: var(--primary-light)40;
@@ -47,12 +42,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 /* Modern Button Styles */
 .btn {
-  border-radius: var(--border-radius-full);
+  border-radius: var(--bs-border-radius-pill);
   padding: 0.75rem 1.5rem;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -63,9 +58,9 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--primary-light);
+  background-color: var(--primary-light) !important;
+  color: var(--text-primary-light);
   border: none;
-  color: white;
 }
 
 .btn-primary:hover {
@@ -99,7 +94,7 @@ body {
 
 /* Form Controls */
 .form-control {
-  border-radius: var(--border-radius-full);
+  border-radius: var(--bs-border-radius-pill);
   padding: 0.875rem 1.25rem;
   border: 1px solid var(--border-light);
   transition: all 0.2s ease;
@@ -119,11 +114,19 @@ body {
 }
 
 .input-group > .form-control {
-  border-radius: var(--border-radius-full) !important;
+  border-radius: var(--bs-border-radius-pill) !important;
 }
 
 .input-group > .btn {
-  border-radius: var(--border-radius-full) !important;
+  border-radius: var(--bs-border-radius-pill) !important;
+}
+
+/* Override any Bootstrap input group border radius styles */
+.input-group > :first-child,
+.input-group > :last-child,
+.input-group > .form-control:not(:last-child),
+.input-group > .form-control:not(:first-child) {
+  border-radius: 1.5rem !important;
 }
 
 /* Dark Mode */
@@ -132,43 +135,30 @@ body {
     background-color: var(--background-dark);
     color: var(--text-primary-dark);
   }
-  
+
   .form-control {
     background-color: var(--surface-dark);
     border-color: var(--border-dark);
     color: var(--text-primary-dark);
   }
-  
+
+  .btn-primary {
+    background-color: var(--primary-dark) !important;
+    color: var(--text-primary-dark);
+  }
+
   .btn-outline-primary {
     border-color: var(--border-dark);
     color: var(--text-primary-dark);
   }
-  
+
   .btn-outline-primary:hover {
     border-color: var(--primary-dark);
     color: var(--primary-dark);
   }
-  
+
   .btn-outline-danger {
     border-color: var(--border-dark);
     color: var(--text-primary-dark);
   }
-}
-
-h2{
-  margin: 30px;
-}
- 
-.card {
-  padding: 2em;
-}
-
-#app {
-  margin: 0 auto;
-  text-align:center;
-  padding: 0 auto;
-}
-
-.debug-text {
-    /* color: rgba(16, 163, 127, 0.8) !important; */
 }

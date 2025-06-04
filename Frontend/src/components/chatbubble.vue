@@ -5,7 +5,7 @@
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
-            <div v-html="this.content" />
+            <div v-html="this.content"></div>
         </div>
         <div class="chaticon">
             <img src="/src/assets/Icons/nutzer.png" alt="User">
@@ -18,7 +18,7 @@
          class="d-flex flex-row justify-content-start mb-4 w-100">
 
         <!-- ai icon -->
-        <div class="chaticon">
+        <div v-if="!isMobile" class="chaticon">
             <img src="/src/assets/Icons/ai.png" alt="AI">
         </div>
 
@@ -55,7 +55,7 @@
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
-                     data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleDebug')">
+                     :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
                 <div v-show="!this.isLoading"
@@ -63,17 +63,21 @@
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
                     <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down" :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
             </div>
 
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2   " style="max-height: 200px">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                     style="max-height: 200px">
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
                         :type="type"
@@ -91,21 +95,23 @@ import {marked} from "marked";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
+import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 
 export default {
     name: 'chatbubble',
     components: {DebugMessage},
-    setup() {
-        return {conf, Localizer, AudioManager};
-    },
     props: {
         elementId: String,
         isUser: Boolean,
         isDarkScheme: Boolean,
         initialContent: String,
         initialLoading: Boolean,
+    },
+    setup() {
+        const { isMobile, screenWidth } = useDevice();
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -216,6 +222,7 @@ export default {
             const baseColor = agentName
                 ? getDebugColor(agentName, this.isDarkScheme)
                 : null;
+            if (!baseColor) return null;
             return {
                 '--glow-color-1': baseColor ? `${baseColor}40` : '#00ff0040',
                 '--glow-color-2': baseColor ? `${baseColor}90` : '#00ff0090',
@@ -285,6 +292,13 @@ export default {
 }
 </script>
 
+<style>
+.message-text img {
+    max-width: 100%;
+    display: block;
+}
+</style>
+
 <style scoped>
 .chatbubble {
     background-color: var(--chat-ai-light);
@@ -323,7 +337,7 @@ export default {
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    background-color: white;
+    background: var(--chat-ai-light);
     border-radius: 50%;
     border: 1px solid var(--border-light);
     padding: 0.5rem;
@@ -331,7 +345,6 @@ export default {
 }
 
 .chaticon img {
-    filter: invert(100%);
     object-fit: contain;
     width: 100%;
     height: 100%;
@@ -343,6 +356,11 @@ export default {
 
 .footer-item:hover {
     color: var(--primary-light);
+}
+
+.bubble-debug-text {
+    background-color: var(--debug-console-light);
+    color: var(--text-secondary-light);
 }
 
 .glow {
@@ -371,7 +389,7 @@ export default {
     }
 
     .bubble-debug-text {
-        background-color: var(--surface-dark);
+        background-color: var(--debug-console-dark);
         color: var(--text-secondary-dark);
     }
 
@@ -383,6 +401,10 @@ export default {
     .chaticon {
         background: var(--chat-ai-dark);
         border-color: var(--border-dark);
+    }
+
+    .chaticon img {
+        filter: invert(100%);
     }
 
 }

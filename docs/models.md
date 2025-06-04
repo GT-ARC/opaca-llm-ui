@@ -40,12 +40,13 @@ The final response that will be sent back to the frontend. Contains a list of `A
 Stores user specific data related to a single browser session.
 
 #### Attributes
-| Attribute  | Type             | Default | Description                                                                                                                                                                                                                      |
-|------------|------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `messages` | `List[Any]`      | `[]`    | Saves message pairs consisting of the original user input and the generated output. Is used as a message history in all subsequent requests.                                                                                     |
-| `config`   | `Dict[str, Any]` | `{}`    | Stores the configuration setting for each available method. The method names are the keys for the different configuration objects. (Example: `{"tool-llm-llama": {"model": ...}}`                                                |
-| `client`   | `OpacaClient`    | `None`  | A personal proxy client. The client is initialized with the given user credentials and authenticated. Every action invocation by a user is subsequently performed by using this client and therefore the associated permissions. |
-| `api_key`  | `str`            | `None`  | An optional api key to be used for model access instead of keys stored in the environment variables.                                                                                                                             |
+| Attribute       | Type             | Default | Description                                                                                                                                                                                                                      |
+|-----------------|------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `messages`      | `List[Any]`      | `[]`    | Saves message pairs consisting of the original user input and the generated output. Is used as a message history in all subsequent requests.                                                                                     |
+| `config`        | `Dict[str, Any]` | `{}`    | Stores the configuration setting for each available method. The method names are the keys for the different configuration objects. (Example: `{"tool-llm-llama": {"model": ...}}`                                                |
+| `opaca_client`  | `OpacaClient`    | `None`  | A personal proxy client. The client is initialized with the given user credentials and authenticated. Every action invocation by a user is subsequently performed by using this client and therefore the associated permissions. |
+| `api_key`       | `str`            | `None`  | An optional api key to be used for model access instead of keys stored in the environment variables.                                                                                                                             |
+| `cached_models` | `Dict[str, Any]` | `{}`    | Caches pre-initialized models to improve inference speed. Models are stored based on their base_url. For gpt models use value "gpt", for all others their base url as the key.                                                   |
 
 ### Message
 
