@@ -164,7 +164,7 @@ class WebSpeechAudio extends TtsAudio {
 
     async setup() {
         const utterance = new SpeechSynthesisUtterance(this._text);
-        utterance.lang = Localizer.getLanguageForTTS(false);
+        utterance.lang = Localizer.getLanguageForTTS();
 
         utterance.onstart = () => {
             this.isLoading = false;
@@ -319,7 +319,7 @@ class AudioManager {
         if (!this.isRecognitionSupported()) return;
         await this.stopWebSpeechRecognition();
         this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
-        this._recognition.lang = Localizer.getLanguageForTTS(false);
+        this._recognition.lang = Localizer.getLanguageForTTS();
 
         this._recognition.onresult = async (event) => {
             if (!event.results || event.results.length <= 0) return;

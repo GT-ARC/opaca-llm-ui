@@ -1,6 +1,7 @@
 import {ref} from 'vue';
-    import {marked} from 'marked';
+import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import AudioManager from "./AudioManager.js";
 
 
 export const localizationData = {
@@ -362,8 +363,8 @@ class Localizer {
             .map(locale => { return {key: locale, name: localizationData[locale].name}; });
     }
 
-    getLanguageForTTS(isWhisper = true) {
-        return isWhisper
+    getLanguageForTTS() {
+        return AudioManager.isVoiceServerConnected
             ? voiceGenLocalesWhisper[this.language]
             : voiceGenLocalesWebSpeech[this.language];
     }

@@ -4,7 +4,7 @@
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
-            :language="Localizer.getLanguageForTTS(true)"
+            :language="Localizer.getLanguageForTTS()"
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
