@@ -1,6 +1,7 @@
 import {ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
 
 
@@ -22,7 +23,7 @@ export const localizationData = {
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
         ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconneded',
+        ttsDisconnected: 'Disconnected',
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
@@ -254,9 +255,14 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocales = {
+export const voiceGenLocalesWhisper = {
     GB: 'english',
     DE: 'german'
+};
+
+export const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
 };
 
 
@@ -380,7 +386,9 @@ class Localizer {
     }
 
     getLanguageForTTS() {
-        return voiceGenLocales[this.language];
+        return AudioManager.isVoiceServerConnected
+            ? voiceGenLocalesWhisper[this.language]
+            : voiceGenLocalesWebSpeech[this.language];
     }
 }
 

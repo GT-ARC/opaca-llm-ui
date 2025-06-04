@@ -31,7 +31,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
@@ -75,12 +74,13 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.voiceServerConnected"
+                            v-if="AudioManager.isRecognitionSupported()"
                             class="btn btn-outline-primary"
-                            @click="this.showRecordingPopup = true"
+                            @click="this.startRecognition()"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonRecord')">
-                        <i class="fa fa-microphone"/>
+                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                        <i v-else class="fa fa-spin fa-spinner" />
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
@@ -108,6 +108,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import {sendRequest} from "../utils.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
@@ -123,11 +124,10 @@ export default {
     props: {
         backend: String,
         language: String,
-        voiceServerConnected: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth };
+        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -273,7 +273,7 @@ export default {
         },
 
         startAutoSpeak() {
-            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+            if (this.autoSpeakNextMessage) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
@@ -297,6 +297,18 @@ export default {
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
+        },
+
+        startRecognition() {
+            if (AudioManager.isVoiceServerConnected) {
+                this.showRecordingPopup = true;
+            } else {
+                AudioManager.startWebSpeechRecognition(text => {
+                    this.handleTranscriptionComplete(text);
+                    this.autoSpeakNextMessage = true;
+                    this.submitText();
+                });
+            }
         },
 
         async resetChat() {

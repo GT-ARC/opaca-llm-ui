@@ -58,15 +58,18 @@
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
-                <div v-show="!this.isLoading && this.isVoiceServerConnected"
+                <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
             </div>
@@ -94,6 +97,7 @@ import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 export default {
     name: 'chatbubble',
@@ -101,14 +105,13 @@ export default {
     props: {
         elementId: String,
         isUser: Boolean,
-        isVoiceServerConnected: Boolean,
         isDarkScheme: Boolean,
         initialContent: String,
         initialLoading: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -119,8 +122,6 @@ export default {
             isLoading: this.initialLoading ?? false,
             isError: false,
             ttsAudio: null,
-            isAudioLoading: false,
-            isAudioPlaying: false,
         }
     },
 
@@ -229,50 +230,19 @@ export default {
         },
 
         /**
-         * generate new audio for this message using the whisper voice server
+         * Generate new audio for this message.
          */
-        async generateAudio(voice = 'alloy') {
+        async generateAudio() {
             if (!this.content) return;
-            if (!this.isVoiceServerConnected) {
-                console.warn('voice server not connected');
-                return;
-            }
-            this.isAudioLoading = true;
-
-            try {
-                const url = `${conf.VoiceServerAddress}/generate_audio`;
-                const payload = { method: 'POST' };
-                const params = new URLSearchParams({
-                    text: this.content,
-                    voice: voice
-                });
-
-                const response = await fetch(`${url}?${params}`, payload);
-                if (response.ok) {
-                    const audioBlob = await response.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    this.ttsAudio = new Audio(audioUrl);
-                    this.ttsAudio.onplay = () => this.isAudioPlaying = true;
-                    this.ttsAudio.onpause = () => this.isAudioPlaying = false;
-                    this.ttsAudio.onend = () => this.isAudioPlaying = false;
-                    this.ttsAudio.play();
-                } else {
-                    const errorText = await response.text();
-                    console.error('Audio API error:', response.status, errorText);
-                }
-            } catch (error) {
-                console.error(error);
-                alert('Failed to generate audio.');
-                this.ttsAudio = null;
-                this.isAudioPlaying = false;
-            } finally {
-                this.isAudioLoading = false;
-            }
+            this.ttsAudio = await AudioManager.generateAudio(this.content);
+            await this.ttsAudio.setup().then(() => {
+                this.ttsAudio.play();
+            });
         },
 
         startAudioPlayback() {
             if (!this.canPlayAudio()) return;
-            if (this.isAudioPlaying) {
+            if (this.isAudioPlaying()) {
                 this.stopAudioPlayback();
             } else if (this.ttsAudio) {
                 this.ttsAudio.play();
@@ -282,14 +252,22 @@ export default {
         },
 
         stopAudioPlayback() {
-            if (!this.ttsAudio) return;
-            this.ttsAudio.pause();
-            this.ttsAudio.currentTime = 0;
+            if (this.ttsAudio) {
+                this.ttsAudio.stop();
+            }
         },
 
         canPlayAudio() {
-            return this.isVoiceServerConnected && !this.isUser
-                && this.content && !this.isLoading && !this.isAudioLoading;
+            return !this.isUser && this.content && !this.isLoading
+                && !this.isAudioLoading();
+        },
+
+        isAudioPlaying() {
+            return this.ttsAudio && this.ttsAudio.isPlaying;
+        },
+
+        isAudioLoading() {
+            return this.ttsAudio && this.ttsAudio.isLoading;
         },
 
         clearStatusMessages() {
@@ -301,15 +279,13 @@ export default {
         },
 
         clear() {
+            this.clearStatusMessages();
+            this.clearDebugMessages();
             this.content = '';
-            this.statusMessages = [];
-            this.debugMessages = [];
             this.isDebugExpanded = false;
             this.isLoading = false;
             this.isError = false;
             this.ttsAudio = null;
-            this.isAudioPlaying = false;
-            this.isAudioLoading = false;
         }
     },
 
