@@ -228,6 +228,9 @@ export default {
         async generateAudio() {
             if (!this.content) return;
             this.ttsAudio = await AudioManager.generateAudio(this.content);
+            await this.ttsAudio.setup().then(() => {
+                this.ttsAudio.play();
+            });
         },
 
         startAudioPlayback() {

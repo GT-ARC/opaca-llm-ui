@@ -235,9 +235,14 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocales = {
+export const voiceGenLocalesWhisper = {
     GB: 'english',
     DE: 'german'
+};
+
+export const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
 };
 
 
@@ -357,8 +362,10 @@ class Localizer {
             .map(locale => { return {key: locale, name: localizationData[locale].name}; });
     }
 
-    getLanguageForTTS() {
-        return voiceGenLocales[this.language];
+    getLanguageForTTS(isWhisper = true) {
+        return isWhisper
+            ? voiceGenLocalesWhisper[this.language]
+            : voiceGenLocalesWebSpeech[this.language];
     }
 }
 

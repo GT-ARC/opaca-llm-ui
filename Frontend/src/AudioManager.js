@@ -42,11 +42,15 @@ class TtsAudio {
         }
     }
 
-    play() {
+    async setup() {
         throw Error("Not implemented");
     }
 
-    stop() {
+    async play() {
+        throw Error("Not implemented");
+    }
+
+    async stop() {
         throw Error("Not implemented");
     }
 
@@ -66,22 +70,18 @@ class TtsAudio {
 class WhisperAudio extends TtsAudio {
 
     constructor(text) {
-        super()
+        super();
+        this._text = text;
         this.audio = null;
-
-        this.setupAudio(text)
-            .then(() => this.isLoading = false)
-            .then(() => this.play());
     }
 
-    async setupAudio(text) {
+    async setup() {
         this.isLoading = true;
-
         try {
             const url = `${conf.VoiceServerAddress}/generate_audio`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
-                text: text,
+                text: this._text,
                 voice: audioManager.whisperVoice
             });
 
@@ -101,7 +101,6 @@ class WhisperAudio extends TtsAudio {
         } finally {
             this.isLoading = false;
         }
-
     }
 
     /**
@@ -157,14 +156,16 @@ class WhisperAudio extends TtsAudio {
 class WebSpeechAudio extends TtsAudio {
 
     constructor(text) {
-        super()
+        super();
+        this._text = text;
         this._synthesis = null;
-        this._utterance = this.setupUtterance(text);
+        this._utterance = null;
     }
 
-    setupUtterance(text) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = Localizer.getLanguageForTTS();
+    async setup() {
+        const utterance = new SpeechSynthesisUtterance(this._text);
+        utterance.lang = Localizer.getLanguageForTTS(false);
+
         utterance.onstart = () => {
             this.isLoading = false;
             this.isPlaying = true;
@@ -178,19 +179,24 @@ class WebSpeechAudio extends TtsAudio {
             this.isPlaying = false;
             this.isLoading = false;
         };
-        return utterance;
+
+        this._utterance = utterance;
     }
 
     async play() {
-        if (!this.canPlay) return;
-        this._synthesis = new (webkitSpeechSynthesis || SpeechSynthesis)();
-        this._synthesis.speak(this._utterance);
+        if (this.canPlay()) {
+            this.isLoading = true;
+            this._synthesis = window.speechSynthesis;
+            this._synthesis.speak(this._utterance);
+        }
     }
 
     async stop() {
-        if (!this.canStop()) return;
-        this._synthesis.cancel();
-        this._synthesis = null;
+        if (this.canStop()) {
+            this._synthesis.pause();
+            this._synthesis.cancel();
+            this._synthesis = null;
+        }
     }
 
     canPlay() {
@@ -283,12 +289,13 @@ class AudioManager {
                 this.isVoiceServerConnected = false;
             }
         } catch (error) {
-            console.error('Error fetching audio server info:', error);
+            console.error('Failed to connect to whisper server.');
             this.isVoiceServerConnected = false;
         }
     }
 
     async generateAudio(text) {
+        console.log('AudioManager.generateAudio:', text);
         return await this.isVoiceServerConnected
             ? this.generateWhisperAudio(text)
             : this.generateWebSpeechAudio(text);
@@ -311,8 +318,8 @@ class AudioManager {
     async startWebSpeechRecognition(onResult) {
         if (!this.isRecognitionSupported()) return;
         await this.stopWebSpeechRecognition();
-        this._recognition = new (webkitSpeechRecognition || SpeechRecognition)();
-        this._recognition.lang = Localizer.getLanguageForTTS();
+        this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+        this._recognition.lang = Localizer.getLanguageForTTS(false);
 
         this._recognition.onresult = async (event) => {
             if (!event.results || event.results.length <= 0) return;
@@ -342,8 +349,8 @@ class AudioManager {
             this.isLoading = false;
         };
 
-        this._recognition.start();
         this.isLoading = true;
+        this._recognition.start();
     }
 
     async stopWebSpeechRecognition() {

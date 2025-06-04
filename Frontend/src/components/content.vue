@@ -4,7 +4,7 @@
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
-            :language="Localizer.getLanguageForTTS()"
+            :language="Localizer.getLanguageForTTS(true)"
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
@@ -73,11 +73,12 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="AudioManager.isVoiceServerConnected"
+                            v-if="AudioManager.isRecognitionSupported()"
                             class="btn btn-outline-primary"
-                            @click="this.showRecordingPopup = true"
+                            @click="this.startRecognition()"
                             :disabled="!isFinished">
-                        <i class="fa fa-microphone"/>
+                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                        <i v-else class="fa fa-spin fa-spinner" />
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
@@ -275,7 +276,7 @@ export default {
         },
 
         startAutoSpeak() {
-            if (this.autoSpeakNextMessage && AudioManager.isVoiceServerConnected) {
+            if (this.autoSpeakNextMessage) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
@@ -299,6 +300,18 @@ export default {
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
+        },
+
+        startRecognition() {
+            if (AudioManager.isVoiceServerConnected) {
+                this.showRecordingPopup = true;
+            } else {
+                AudioManager.startWebSpeechRecognition(text => {
+                    this.handleTranscriptionComplete(text);
+                    this.autoSpeakNextMessage = true;
+                    this.submitText();
+                });
+            }
         },
 
         async resetChat() {
