@@ -63,7 +63,7 @@ The message handling of the OPACA LLM is illustrated in the image above. During 
 
 ### Speech Input and Output
 
-The chatbot-UI supports speech-to-text (STT) using the Whisper model. A server with accordant API routes is included in this project under `Backend/tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running, or no URL provided, the STT feature will not be available.
+The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under `Backend/tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
 
 
 ## Configuration and Parameters
