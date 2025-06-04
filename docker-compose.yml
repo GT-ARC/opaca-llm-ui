@@ -35,7 +35,7 @@ services:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:
-  #  build: ./Backend/tts-server
+  #  build: ./tts-server
   #  image: opaca-tts-server
   #  ports:
   #    - "7431:7431"
