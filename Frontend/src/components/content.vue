@@ -647,30 +647,6 @@ export default {
       background-color: var(--text-secondary-dark) !important;
     }
 
-    .btn-outline-primary {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-primary:hover {
-        border-color: var(--primary-dark);
-        color: var(--primary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger {
-        border-color: var(--border-dark);
-        color: var(--text-secondary-dark);
-        background-color: transparent;
-    }
-
-    .btn-outline-danger:hover {
-        border-color: #ef4444;
-        color: #ef4444;
-        background-color: transparent;
-    }
-
     .sample-question {
         background-color: var(--chat-user-dark);
         border-color: var(--border-dark);
