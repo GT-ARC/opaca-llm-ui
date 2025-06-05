@@ -53,15 +53,19 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
+                    <div class="scroll-wrapper">
                       <textarea id="textInput"
                                 v-model="textInput"
+                                ref="textInputRef"
                                 :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control overflow-hidden"
+                                class="form-control"
+                                :class="{ 'small-scrollbar': isSmallScrollbar }"
                                 style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
                                 @keydown="textInputCallback"
                                 @input="resizeTextInput"
                       ></textarea>
+                    </div>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
@@ -141,6 +145,7 @@ export default {
             isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: 'Information & Upskilling',
+            isSmallScrollbar: true,
         }
     },
     methods: {
@@ -354,7 +359,7 @@ export default {
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
-        
+
         scrollDownDebug() {
             const div = document.getElementById('debug-console');
             div.scrollTop = div.scrollHeight;
@@ -413,6 +418,19 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
+
+        updateScrollbarThumb() {
+          this.$nextTick(() => {
+            const el = this.$refs.textInputRef;
+            if (!el) return;
+
+            const computedStyle = getComputedStyle(el);
+            const maxHeight = parseFloat(computedStyle.maxHeight);
+
+            // If current height is less than the max-height
+            this.isSmallScrollbar = el.offsetHeight < maxHeight;
+          });
+        },
     },
 
     mounted() {
@@ -425,8 +443,14 @@ export default {
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.showWelcomeMessage();
-    },
 
+        this.updateScrollbarThumb();
+    },
+    watch: {
+      textInput() {
+        this.updateScrollbarThumb();
+      },
+    }
 }
 
 </script>
@@ -453,6 +477,14 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
+.scroll-wrapper {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+}
+
 .input-group {
     width: 100%;
     max-width: min(95%, 100ch);
@@ -468,7 +500,6 @@ export default {
     height: 3rem;
     min-height: 3rem;
     resize: none;
-    overflow-y: hidden;
     max-height: min(40vh, 20rem);
     line-height: 1.5;
     border-radius: 1.5rem !important;
@@ -485,6 +516,10 @@ export default {
 
 .input-group .form-control:focus {
     box-shadow: 0 0 0 1px var(--primary-light);
+}
+
+.small-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
 }
 
 .input-group .btn {
