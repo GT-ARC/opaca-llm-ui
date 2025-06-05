@@ -7,81 +7,100 @@
 
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConnection')"
+               :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarPrompts')"
+               :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarAgents')"
+               :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarConfig')"
+               :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-bug p-2 sidebar-item"
-               data-toggle="tooltip" data-placement="right" :title="Localizer.get('tooltipSidebarLogs')"
+               :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
+
+            <i @click="SidebarManager.toggleView('faq')"
+               class="fa fa-question-circle p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarFaq')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
         <!-- sidebar content -->
-        <div v-show="SidebarManager.isSidebarOpen()" class="mt-4">
+        <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-               class="container-fluid d-flex flex-column position-relative"
-               :class="{'px-3': !isMobile}">
+                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
                 <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
-                     class="container d-flex flex-column">
+                         class="container d-flex flex-column">
 
-                    <div class="py-2 text-start">
-                        <input id="opacaUrlInput" type="text"
-                               class="form-control m-0"
-                               v-model="opacaRuntimePlatform"
-                               :placeholder="Localizer.get('opacaLocation')" />
-                    </div>
+                        <form @submit.prevent="initRpConnection()">
 
-                    <div class="py-2 text-start">
-                        <div class="row opaca-credentials">
-                            <div class="col-md-6">
-                                <input id="opacaUser" type="text"
-                                       class="form-control m-0"
-                                       v-model="opacaUser"
-                                       placeholder="Username" />
+                            <div class="py-2 text-start">
+                                <input id="opacaUrlInput" type="text"
+                                    class="form-control m-0"
+                                    v-model="opacaRuntimePlatform"
+                                    :placeholder="Localizer.get('opacaLocation')" />
                             </div>
-                            <div class="col-md-6">
-                                <input id="opacaPwd" type="password"
-                                       class="form-control m-0"
-                                       v-model="opacaPwd"
-                                       placeholder="Password" />
+
+                            <div class="py-2 text-start">
+                                <div class="row opaca-credentials">
+                                    <div class="col-md-6">
+                                        <input id="opacaUser" type="text"
+                                            class="form-control m-0"
+                                            v-model="opacaUser"
+                                            autocomplete="username"
+                                            placeholder="Username" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input id="opacaPwd" type="password"
+                                            class="form-control m-0"
+                                            v-model="opacaPwd"
+                                            autocomplete="current-password" 
+                                            placeholder="Password" />
+                                    </div>
+                                </div>
+
                             </div>
-                        </div>
 
+                            <div class="py-2 text-start" v-if="conf.ShowApiKey">
+                                <input id="apiKey" type="password"
+                                    class="form-control m-0"
+                                    placeholder="OpenAI API Key"
+                                    v-model="this.apiKey"
+                                    @input="this.$emit('api-key-change', this.apiKey)" />
+                            </div>
+
+                            <div class="text-center py-2">
+                                <button class="btn btn-primary w-100" type="submit" id="button-connect">
+                                    <i class="fa fa-link me-1"/>Connect
+                                </button>
+                            </div>
+                        </form>
                     </div>
-
-                    <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                        <input id="apiKey" type="password"
-                               class="form-control m-0"
-                               placeholder="OpenAI API Key"
-                               v-model="this.apiKey"
-                               @input="this.$emit('api-key-change', this.apiKey)" />
-                    </div>
-
-                    <div class="text-center py-2">
-                        <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
-                            <i class="fa fa-link me-1"/>Connect
-                        </button>
-                    </div>
-
                 </div>
+
+                <!-- sample questions -->
+                <div v-show="SidebarManager.isViewSelected('questions')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <SidebarQuestions
+                        @select-question="question => this.$emit('select-question', question)"
+                        @category-selected="category => this.$emit('category-selected', category)"
+                        ref="sidebar_questions"
+                    />
                 </div>
 
                 <!-- agents/actions overview -->
@@ -123,10 +142,13 @@
                                             <!-- action body -->
                                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
                                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                                <p><strong>Description:</strong> {{ action.description }}</p>
-                                                <strong>Input Parameters:</strong>
-                                                <pre class="json-box">{{ formatJSON(action.parameters) }} </pre>
-                                                <strong>Result:</strong>
+                                                <p v-if="action.description">
+                                                    <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
+                                                    {{ action.description }}
+                                                </p>
+                                                <strong>{{ Localizer.get('agentActionParameters') }}:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
+                                                <strong>{{ Localizer.get('agentActionResult') }}:</strong>
                                                 <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                             </div>
                                         </div>
@@ -143,19 +165,19 @@
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
                         <config-parameter v-for="(value, name) in backendConfigSchema"
-                                :key="name"
-                                :name="name"
-                                :value="value"
-                                v-model="backendConfig[name]"/>
+                                          :key="name"
+                                          :name="name"
+                                          :value="value"
+                                          v-model="backendConfig[name]"/>
 
                         <div class="py-2 text-center">
                             <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                                <i class="fa fa-save me-2"/>Save Config
+                                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonBackendConfigSave') }}
                             </button>
                         </div>
                         <div class="py-2 text-center">
                             <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                                <i class="fa fa-undo me-2"/>Reset to Default
+                                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonBackendConfigReset') }}
                             </button>
                         </div>
                         <div
@@ -173,24 +195,22 @@
                     <div id="debug-console"
                          class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
                         <DebugMessage v-for="debugMessage in debugMessages"
-                            :key="debugMessage.text"
-                            :text="debugMessage.text"
-                            :type="debugMessage.type"
-                            :is-dark-scheme="this.isDarkScheme"
-                            :execution-time="debugMessage.executionTime"
-                            :response-metadata="debugMessage.responseMetadata"
+                                      :key="debugMessage.text"
+                                      :text="debugMessage.text"
+                                      :type="debugMessage.type"
+                                      :is-dark-scheme="this.isDarkScheme"
+                                      :execution-time="debugMessage.executionTime"
+                                      :response-metadata="debugMessage.responseMetadata"
                         />
                     </div>
                 </div>
 
-                <!-- sample questions -->
-                <div v-show="SidebarManager.isViewSelected('questions')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <SidebarQuestions
-                        @select-question="handleQuestionSelect"
-                        @category-selected="(category) => $emit('category-selected', category)"
-                        ref="sidebar_questions"
-                    />
+                <!-- Help/FAQ -->
+                <div v-show="SidebarManager.isViewSelected('faq')"
+                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                    <div v-html="this.faqContent"
+                         class="d-flex flex-column text-start faq-content">
+                    </div>
                 </div>
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
@@ -208,6 +228,7 @@ import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
 import Localizer from "../Localizer.js";
+import {marked} from "marked";
 
 export default {
     name: 'Sidebar',
@@ -240,6 +261,7 @@ export default {
             configChangeSuccess: false,
             shouldFadeOut: false,
             fadeTimeout: null,
+            faqContent: '',
         };
     },
     methods: {
@@ -373,11 +395,6 @@ export default {
             }
         },
 
-        handleQuestionSelect(question) {
-            // Send the question to the chat without closing the sidebar
-            this.$emit('select-question', question);
-        },
-
         startFadeOut() {
             // Clear previous timeout (if the user saves the config again before fade-out could happen)
             if (this.fadeTimeout) {
@@ -423,6 +440,21 @@ export default {
             }
         },
 
+        async buildFaqContent() {
+            const readmeUrl = '/src/assets/about.md';
+            try {
+                const response = await fetch(readmeUrl);
+                if (response.ok) {
+                    const faqRaw = await response.text();
+                    this.faqContent = marked.parse(faqRaw);
+                } else {
+                    console.error('Failed to fetch FAQ content:', response.status, response);
+                }
+            } catch (error) {
+                console.error('Failed to fetch FAQ content:', error);
+            }
+        },
+
         clearDebugMessage() {
             this.debugMessages = [];
         },
@@ -437,6 +469,7 @@ export default {
         } else {
             SidebarManager.selectView('connect');
         }
+        this.buildFaqContent();
     },
     updated() {
         this.scrollDownConfigView()
@@ -478,7 +511,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-secondary-light);
     transition: all 0.2s ease;
 }
@@ -500,6 +533,11 @@ export default {
     color: white !important;
 }
 
+.faq-content {
+    background-color: var(--background-light);
+    color: var(--text-primary-light);
+}
+
 @media screen and (max-width: 768px) {
     #sidebar {
         width: min(600px, 100vw - 3rem);
@@ -519,7 +557,7 @@ export default {
     position: absolute;
     top: 0;
     right: 0;
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--bs-border-radius-sm);
     background-color: var(--border-light);
     transition: background-color 0.2s ease;
 }
@@ -539,7 +577,7 @@ export default {
 
 /* Accordion Styling */
 .accordion-item {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-light);
     overflow: hidden;
@@ -547,7 +585,7 @@ export default {
 }
 
 .accordion-button {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -613,13 +651,13 @@ export default {
     background-color: var(--bs-gray-200);
     color: var(--text-primary-light);
     padding: 0.75rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
 }
 
 .list-group {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     overflow: hidden;
     background-color: transparent;
 }
@@ -739,6 +777,12 @@ export default {
         border-color: var(--border-dark);
         color: var(--text-primary-dark);
     }
+
+    .faq-content {
+        background-color: var(--background-dark);
+        color: var(--text-primary-dark);
+    }
+
 }
 
 /* mobile design */

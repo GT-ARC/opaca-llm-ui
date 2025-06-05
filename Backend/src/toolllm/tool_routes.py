@@ -1,7 +1,6 @@
 import re
 import time
 from typing import List
-
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
@@ -16,6 +15,7 @@ class ToolLLMBackend(AbstractMethod):
     def config_schema(self):
         return {
                 "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
+                "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
@@ -43,7 +43,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.client.get_actions_with_refs(), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -59,6 +59,7 @@ class ToolLLMBackend(AbstractMethod):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
             result = await self.call_llm(
+                client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
@@ -77,6 +78,7 @@ class ToolLLMBackend(AbstractMethod):
             while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
+                    client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
@@ -101,7 +103,7 @@ class ToolLLMBackend(AbstractMethod):
                         agent_name = None
                         action_name = call['name']
                     tool_results.append(
-                        await session.client.invoke_opaca_action(
+                        await session.opaca_client.invoke_opaca_action(
                             action_name,
                             agent_name,
                             call['args'].get('requestBody', {})
@@ -125,6 +127,7 @@ class ToolLLMBackend(AbstractMethod):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.call_llm(
+                    client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Evaluator',
                     system_prompt='',

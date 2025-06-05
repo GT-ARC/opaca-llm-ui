@@ -31,7 +31,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
@@ -72,29 +71,29 @@
                             class="btn btn-primary"
                             @click="submitText"
                             :disabled="!isFinished"
-                            style="margin-left: -2px" >
+                            :title="Localizer.get('tooltipButtonSend')"
+                            style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.voiceServerConnected"
+                            v-if="AudioManager.isRecognitionSupported()"
                             class="btn btn-outline-primary"
-                            @click="this.showRecordingPopup = true"
-                            :disabled="!isFinished">
-                        <i class="fa fa-microphone"/>
+                            @click="this.startRecognition()"
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonRecord')">
+                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                        <i v-else class="fa fa-spin fa-spinner" />
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
                             class="btn btn-outline-danger"
                             @click="resetChat"
-                            :disabled="!isFinished">
+                            :disabled="!isFinished"
+                            :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
             </div>
-
-            <!-- Simple Keyboard -->
-            <SimpleKeyboard v-if="conf.ShowKeyboard"
-                            @change="input => this.textInput = input" />
 
         </main>
 
@@ -111,6 +110,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import {sendRequest} from "../utils.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
@@ -126,17 +126,15 @@ export default {
     props: {
         backend: String,
         language: String,
-        voiceServerConnected: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth };
+        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             messages: [],
             socket: null,
-
             apiKey: '',
             textInput: '',
             isFinished: true,
@@ -277,7 +275,7 @@ export default {
         },
 
         startAutoSpeak() {
-            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+            if (this.autoSpeakNextMessage) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
@@ -301,6 +299,18 @@ export default {
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
+        },
+
+        startRecognition() {
+            if (AudioManager.isVoiceServerConnected) {
+                this.showRecordingPopup = true;
+            } else {
+                AudioManager.startWebSpeechRecognition(text => {
+                    this.handleTranscriptionComplete(text);
+                    this.autoSpeakNextMessage = true;
+                    this.submitText();
+                });
+            }
         },
 
         async resetChat() {
@@ -405,19 +415,10 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
-
-        setupTooltips() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-        },
-
     },
 
     mounted() {
         this.updateTheme();
-        this.setupTooltips();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
         // expand category in sidebar
@@ -574,7 +575,7 @@ export default {
     padding: 1.5rem;
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--bs-border-radius-lg);
     color: var(--text-primary-light);
     transition: all 0.2s ease;
     text-align: center;
@@ -585,24 +586,6 @@ export default {
     border-color: var(--primary-light);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-.btn-primary {
-    background-color: var(--primary-light) !important;
-    border: none;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: var(--secondary-light) !important;
-}
-
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-    border-radius: 1.5rem !important;
 }
 
 /* dark scheme styling */

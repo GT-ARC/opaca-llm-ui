@@ -25,6 +25,23 @@ class AbstractMethod(ABC):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         pass
 
+    async def init_models(self, session: SessionData) -> None:
+        """
+        Initializes and caches single model instance based on the config parameter 'vllm_base_url'.
+        The GPT model family can use the same instance (gpt, o1, o3, ...).
+        Models are cached within the session data linked to a unique user.
+
+        :param session: The current session data of a unique user
+        """
+        # Initialize either OpenAI model or vllm model
+        base_url = session.config.get(self.NAME, self.default_config())["vllm_base_url"]
+        if base_url not in session.llm_clients.keys():
+            if base_url == "gpt":
+                session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
+            else:
+                session.llm_clients[base_url] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
+
+
     def default_config(self):
         def extract_defaults(schema):
             # Extracts the default values of nested configurations
@@ -45,6 +62,7 @@ class AbstractMethod(ABC):
 
     async def call_llm(
             self,
+            client: AsyncOpenAI,
             model: str,
             agent: str,
             system_prompt: str,
@@ -52,8 +70,6 @@ class AbstractMethod(ABC):
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
-            vllm_api_key: Optional[str] = os.getenv("VLLM_API_KEY"),
-            vllm_base_url: Optional[str] = os.getenv("VLLM_BASE_URL"),
             response_format: Optional[Type[ResponseFormatT]] = None,
             guided_choice: Optional[List[str]] = None,
             websocket: Optional[WebSocket] = None,
@@ -63,6 +79,7 @@ class AbstractMethod(ABC):
         via the provided websocket. Returns the complete response as an AgentMessage.
 
         Args:
+            client (AsyncOpenAI): An already initialized AsyncOpenAI instance.
             model (str): The name of the model to call.
             agent (str): The name of the agent which got invoked.
             system_prompt (str): The system prompt for the model.
@@ -70,8 +87,6 @@ class AbstractMethod(ABC):
             temperature (float): The temperature to pass to the model
             tools (List[Dict[str, Any]]): The list of tools to pass to the model
             tool_choice (Optional[str]): Set the behavior of tool generation.
-            vllm_api_key (Optional[str]): An optional vllm API key when using models within the vllm framework.
-            vllm_base_url (Optional[str]): An optional vllm base URL when using models within the vllm framework.
             response_format (Optional[Dict]): The output schema the model should answer in.
             guided_choice (Optional[List[str]]): A list of choices the LLM should choose between.
             websocket (WebSocket): The websocket to use for streaming intermediate results.
@@ -84,12 +99,6 @@ class AbstractMethod(ABC):
         exec_time = time.time()
         tool_call_buffers = {}
         content = ''
-
-        # Initialize either OpenAI model or vllm model
-        if self._is_gpt(model):
-            client = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
-        else:
-            client = AsyncOpenAI(api_key=vllm_api_key, base_url=vllm_base_url)
 
         # Initialize agent message
         agent_message = AgentMessage(
@@ -200,6 +209,9 @@ class AbstractMethod(ABC):
                 tool['args'] = json.loads(tool['args'])
             except json.JSONDecodeError:
                 tool['args'] = {}
+            if not tool["args"]:
+                tool["args"] = {}
+                continue
 
         agent_message.execution_time = time.time() - exec_time
 

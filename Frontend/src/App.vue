@@ -1,6 +1,6 @@
 <template>
     <header>
-        <div class="col">
+        <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
@@ -95,7 +95,8 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown me-0">
+                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
+
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <span v-show="!isMobile">Voice Server</span>
@@ -104,22 +105,22 @@
                                 <li>
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
-                                            <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ voiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
+                                            <i class="fa" :class="AudioManager.isVoiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
+                                            <span class="ms-2">{{ AudioManager.isVoiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="voiceServerConnected">
+                                <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
                                         <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted"
                                              style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ Localizer.get('ttsServerInfo', this.deviceInfo.model, this.deviceInfo.device) }}
+                                            {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="!voiceServerConnected">
-                                    <button class="dropdown-item" @click="this.initVoiceServerConnection()">
+                                <li v-if="!AudioManager.isVoiceServerConnected">
+                                    <button class="dropdown-item" @click="AudioManager.initVoiceServerConnection()">
                                         <i class="fa fa-refresh me-2"/>
                                         {{ Localizer.get('ttsRetry') }}
                                     </button>
@@ -134,10 +135,8 @@
 
     <div class="col background">
         <MainContent
-            class="tab"
             :backend="this.backend"
             :language="this.language"
-            :voice-server-connected="this.voiceServerConnected"
             ref="content"
         />
     </div>
@@ -149,21 +148,20 @@ import MainContent from './components/content.vue';
 
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
+import AudioManager from "./AudioManager.js";
 
 export default {
     name: 'App',
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
-            voiceServerConnected: false,
-            deviceInfo: ''
         }
     },
     methods: {
@@ -212,24 +210,10 @@ export default {
             }
             return key === this.backend;
         },
-
-        async initVoiceServerConnection() {
-            try {
-                const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (response.ok) {
-                    this.deviceInfo = await response.json();
-                    this.voiceServerConnected = true;
-                } else {
-                    this.voiceServerConnected = false;
-                }
-            } catch (error) {
-                console.error('Error fetching device info:', error);
-            }
-        }
     },
 
     mounted() {
-        this.initVoiceServerConnection();
+        AudioManager.initVoiceServerConnection();
     }
 }
 </script>
@@ -272,7 +256,7 @@ header {
 }
 
 .dropdown-menu {
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
@@ -288,7 +272,7 @@ header {
     position: absolute;
     left: 100%;
     top: -7px;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     border: 1px solid #e5e7eb;
     box-shadow: var(--shadow-md);
 }
@@ -304,7 +288,7 @@ header {
 
 .nav-link {
     padding: 0.5rem 1rem;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     color: var(--text-primary-light);
 }

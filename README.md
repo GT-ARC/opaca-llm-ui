@@ -63,7 +63,7 @@ The message handling of the OPACA LLM is illustrated in the image above. During 
 
 ### Speech Input and Output
 
-The chatbot-UI supports speech-to-text (STT) using the Whisper model. A server with accordant API routes is included in this project under `Backend/tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running, or no URL provided, the STT feature will not be available.
+The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under `tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
 
 
 ## Configuration and Parameters
@@ -88,6 +88,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VITE_SHOW_KEYBOARD`: Whether to show a virtual keyboard.
 * `VITE_SHOW_APIKEY`: Whether to show an input field for the OpenAI API key in the UI
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
+* `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
 
 ### Backend
 
@@ -136,3 +137,4 @@ Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and
   * [Simple](docs/methods/simple.md)
   * [Tool-LLM](docs/methods/tool_llm.md)
   * [Orchestration](docs/methods/orchestration.md)
+* [Frequently Asked Questions](docs/faq.md)

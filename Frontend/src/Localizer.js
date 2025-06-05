@@ -1,6 +1,8 @@
 import {ref} from 'vue';
-    import {marked} from 'marked';
+import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import AudioManager from "./AudioManager.js";
+import conf from '../config.js';
 
 
 export const localizationData = {
@@ -21,19 +23,28 @@ export const localizationData = {
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
         ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconneded',
+        ttsDisconnected: 'Disconnected',
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
         tooltipSidebarConnection: "Connection",
         tooltipSidebarPrompts: "Prompt Library",
-        tooltipSidebarAgents: "Agents & Actions",
+        tooltipSidebarAgents: "Agents and Actions",
         tooltipSidebarConfig: "Configuration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
+        tooltipButtonSend: "Submit",
+        tooltipButtonRecord: "Dictate",
+        tooltipButtonReset: "Reset Chat",
+        agentActionDescription: "Description",
+        agentActionParameters: "Input Parameters",
+        agentActionResult: "Result",
+        buttonBackendConfigSave: "Save Config",
+        buttonBackendConfigReset: "Reset to Defaults",
+        tooltipSidebarFaq: "Help/FAQ",
     },
 
     DE: {
@@ -59,13 +70,22 @@ export const localizationData = {
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
         tooltipSidebarConnection: "Verbindung",
         tooltipSidebarPrompts: "Prompt-Bibliothek",
-        tooltipSidebarAgents: "Agenten & Aktionen",
+        tooltipSidebarAgents: "Agenten und Aktionen",
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
+        tooltipButtonSend: "Absenden",
+        tooltipButtonRecord: "Diktieren",
+        tooltipButtonReset: "Chat Zurücksetzen",
+        agentActionDescription: "Beschreibung",
+        agentActionParameters: "Parameter",
+        agentActionResult: "Ergebnis",
+        buttonBackendConfigSave: "Speichern",
+        buttonBackendConfigReset: "Zurücksetzen",
+        tooltipSidebarFaq: "Hilfe/FAQ",
     },
 };
 
@@ -235,17 +255,22 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocales = {
+export const voiceGenLocalesWhisper = {
     GB: 'english',
     DE: 'german'
+};
+
+export const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
 };
 
 
 class Localizer {
 
-    constructor() {
-        this._selectedLanguage = ref('GB');
-        this._fallbackLanguage = ref('GB');
+    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
+        this._selectedLanguage = ref(selectedLanguage);
+        this._fallbackLanguage = ref(fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
@@ -361,7 +386,9 @@ class Localizer {
     }
 
     getLanguageForTTS() {
-        return voiceGenLocales[this.language];
+        return AudioManager.isVoiceServerConnected
+            ? voiceGenLocalesWhisper[this.language]
+            : voiceGenLocalesWebSpeech[this.language];
     }
 }
 
@@ -377,5 +404,5 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer();
+const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
 export default localizer;
