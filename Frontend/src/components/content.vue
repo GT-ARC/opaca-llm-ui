@@ -518,18 +518,6 @@ export default {
     box-shadow: 0 0 0 1px var(--primary-light);
 }
 
-::-webkit-scrollbar {
-    background-color: transparent;
-    width: 10px;
-    right: -1.5rem;
-}
-
-::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-light) !important;
-    border-radius: 1rem;
-    cursor: default !important;
-}
-
 .small-scrollbar::-webkit-scrollbar-thumb {
   background-color: transparent !important;
 }
@@ -641,10 +629,6 @@ export default {
 
     .input-group .form-control:focus {
         box-shadow: 0 0 0 1px var(--primary-dark);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background-color: var(--text-secondary-dark) !important;
     }
 
     .sample-question {
