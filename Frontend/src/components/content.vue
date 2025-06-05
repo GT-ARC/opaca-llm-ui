@@ -56,8 +56,10 @@
                     <div class="scroll-wrapper">
                       <textarea id="textInput"
                                 v-model="textInput"
+                                ref="textInputRef"
                                 :placeholder="Localizer.get('inputPlaceholder')"
                                 class="form-control"
+                                :class="{ 'small-scrollbar': isSmallScrollbar }"
                                 style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
                                 @keydown="textInputCallback"
@@ -143,6 +145,7 @@ export default {
             isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: 'Information & Upskilling',
+            isSmallScrollbar: true,
         }
     },
     methods: {
@@ -415,6 +418,19 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
+
+        updateScrollbarThumb() {
+          this.$nextTick(() => {
+            const el = this.$refs.textInputRef;
+            if (!el) return;
+
+            const computedStyle = getComputedStyle(el);
+            const maxHeight = parseFloat(computedStyle.maxHeight);
+
+            // If current height is less than the max-height
+            this.isSmallScrollbar = el.offsetHeight < maxHeight;
+          });
+        },
     },
 
     mounted() {
@@ -427,8 +443,14 @@ export default {
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.showWelcomeMessage();
-    },
 
+        this.updateScrollbarThumb();
+    },
+    watch: {
+      textInput() {
+        this.updateScrollbarThumb();
+      },
+    }
 }
 
 </script>
@@ -460,7 +482,7 @@ export default {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    width: 100%;
+    flex: 1 1 auto;
 }
 
 .input-group {
@@ -503,9 +525,13 @@ export default {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-light);
+    background-color: var(--text-secondary-light) !important;
     border-radius: 1rem;
     cursor: default !important;
+}
+
+.small-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
 }
 
 .input-group .btn {
@@ -618,7 +644,7 @@ export default {
     }
 
     ::-webkit-scrollbar-thumb {
-      background-color: var(--text-secondary-dark);
+      background-color: var(--text-secondary-dark) !important;
     }
 
     .btn-outline-primary {
