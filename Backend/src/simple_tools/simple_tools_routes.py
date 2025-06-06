@@ -17,16 +17,7 @@ you should still tell the user that. In general, you should always generate a re
 please put ut why. If you are unable to fulfill the user queries with the given tools, let the user know. 
 You are only allowed to use those given tools. If a user asks about tools directly, 
 answer them with the required information. Tools can also be described as services.
-
-%s
-
 """
-
-ask_policies = {
-    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-}
 
 
 logger = logging.getLogger("src.models")
@@ -39,15 +30,12 @@ class SimpleToolsBackend(AbstractMethod):
 
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
-        logger.error(message, extra={"agent_name": "user"})
+        logger.info(message, extra={"agent_name": "user"})
         result = Response(query=message)
 
         config = session.config.get(self.NAME, self.default_config())
-
-        # choose ask policy
-        policy = ask_policies[config["ask_policy"]]
         
-	# Get tools and transform them into the OpenAI Function Schema
+        # Get tools and transform them into the OpenAI Function Schema
         try:
             tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
         except AttributeError as e:
@@ -62,8 +50,6 @@ class SimpleToolsBackend(AbstractMethod):
         # initialize message history
         messages = session.messages.copy()
         messages.append(ChatMessage(role="user", content=message))
-        
-        logger.info("simple tools is running")
                    
         while result.iterations < 10:
 
@@ -74,7 +60,7 @@ class SimpleToolsBackend(AbstractMethod):
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
-                system_prompt=system_prompt % (policy), 
+                system_prompt=system_prompt,
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,
@@ -91,6 +77,10 @@ class SimpleToolsBackend(AbstractMethod):
             ))
 
             try:
+                if not response.tools:
+                    result.content = response.content
+                    break
+
                 tool_contents = []
                 tool_entries = []
                 
@@ -116,19 +106,13 @@ class SimpleToolsBackend(AbstractMethod):
                 if tool_contents:
                     combined_tool_response = "\n".join(tool_contents)
                     messages.append(ChatMessage(role="assistant", content=combined_tool_response))
-                    result.agent_messages.append(AgentMessage(
-                        agent="assistant",
-                        content=combined_tool_response,
-                        tools=tool_entries
-                    ))
+                    result.agent_messages[-1].tools = tool_entries
                 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 result.error = str(e)
-
-        result.content = response.content
 
         result.execution_time = time.time() - exec_time
         return result
@@ -138,9 +122,6 @@ class SimpleToolsBackend(AbstractMethod):
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "ask_policy": ConfigParameter(type="string", required=True, default="never",
-                                          enum=list(ask_policies.keys())),
             "use_agent_names": ConfigParameter(type="boolean", required=False, default=False),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt',)
-
+            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt')
         }
