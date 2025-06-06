@@ -245,10 +245,11 @@ export default {
                 this.scrollDownChat();
             } else {
                 // no agent property -> Last message received should be final response
-                aiBubble.toggleError(!!result.error);
-                const content = result.error
-                    ? result.error : result.content;
-                aiBubble.setContent(content);
+                console.log(result.error);
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                }
+                aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
                 this.isFinished = true;
             }
@@ -352,7 +353,7 @@ export default {
             const aiBubble = this.getLastBubble();
             aiBubble.setContent(message);
             aiBubble.toggleLoading(false);
-            aiBubble.toggleError(true);
+            aiBubble.setError("Connection closed unexpectedly");
         },
 
         scrollDownChat() {
