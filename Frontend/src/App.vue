@@ -44,13 +44,13 @@
                         </li>
 
                         <!-- Connection -->
-                        <li class="nav-item dropdown me-2">
+                        <li class="nav-item dropdown me-2" @click="toggleConnectionDropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>{{ connected ? 'Connected' : 'Not Connected' }}
                             </a>
-                            <ul class="dropdown-menu show p-4" style="min-width: 320px;">
-                                <div v-if="!connected" class="mb-3">
+                            <ul v-if="showConnectionDropdown" class="dropdown-menu show p-4" style="min-width: 320px;">
+                                <div class="mb-3">
                                     <input v-if="!connected"
                                            type="text"
                                            v-model="opacaRuntimePlatform"
@@ -201,6 +201,7 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
+            showConnectionDropdown: true,
             voiceServerConnected: false,
             deviceInfo: ''
         }
@@ -209,6 +210,7 @@ export default {
         async handleConnectButtonClick() {
             if (this.connected) {
                 this.connected = false;
+                this.showConnectionDropdown = true;
                 return
             }
             try {
@@ -232,6 +234,10 @@ export default {
             } finally {
                 this.isConnecting = false;
             }
+        },
+
+        toggleConnectionDropdown() {
+            this.showConnectionDropdown = !this.showConnectionDropdown;
         },
 
         setBackend(key) {
@@ -301,7 +307,7 @@ export default {
         if (conf.AutoConnect) {
             this.handleConnectButtonClick();
         } else {
-            SidebarManager.selectView('connect');
+            SidebarManager.selectView('questions');
         }
     }
 }
