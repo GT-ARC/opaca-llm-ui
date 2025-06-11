@@ -38,7 +38,7 @@ var config = {
     AutoConnect: false,
 
     // which set of questions is shown within the chat window on startup.
-    DefaultQuestions: 'Task Automation',
+    DefaultQuestions: 'None',
 
     // which sidebar view is shown by default.
     // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'

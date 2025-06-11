@@ -4,11 +4,12 @@
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
-
+            <!--
             <i @click="SidebarManager.toggleView('connect')"
                class="fa fa-link p-2 sidebar-item"
                :title="Localizer.get('tooltipSidebarConnection')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
+            -->
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
@@ -38,6 +39,7 @@
                    :class="{'px-3': !isMobile}">
 
                 <!-- connection settings -->
+                <!--
                 <div v-show="SidebarManager.isViewSelected('connect')">
                     <div id="sidebarConfig"
                          class="container d-flex flex-column">
@@ -83,6 +85,7 @@
 
                     </div>
                 </div>
+                -->
 
                 <!-- sample questions -->
                 <div v-show="SidebarManager.isViewSelected('questions')"
