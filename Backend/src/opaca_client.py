@@ -8,7 +8,6 @@ import functools
 
 import httpx
 import jsonref
-from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional, List, Dict, Any
 
 
@@ -28,8 +27,11 @@ class OpacaClient:
             await self._get_token(user, pwd)
             await self._update_opaca_actions()
             return 200
-        except (ConnectionError, HTTPError) as e:
+        except httpx.ConnectError as e:
             print("COULD NOT CONNECT", e)
+            return 404
+        except httpx.HTTPStatusError as e:
+            print("CONNECTED WITH ERROR", e)
             return e.response.status_code if e.response is not None else 400
         
     async def get_actions(self) -> dict[str, List[Dict[str, Any]]]:
