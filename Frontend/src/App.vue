@@ -98,8 +98,9 @@
                         <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
 
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-microphone me-1"/>
-                                <span v-show="!isMobile">Voice Server</span>
+                                <i v-if="AudioManager.isVoiceServerConnected" class="fa fa-microphone me-1" />
+                                <i v-else class="fa fa-microphone-slash me-1" />
+                                <span v-show="!isMobile">{{ Localizer.get('audioServerSettings') }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
                                 <li>
@@ -113,8 +114,7 @@
                                 <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
                                         <!-- add word-wrapping to accomodate smaller devices -->
-                                        <div class="text-muted"
-                                             style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
+                                        <div class="text-muted">
                                             {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
                                     </div>
@@ -124,6 +124,14 @@
                                         <i class="fa fa-refresh me-2"/>
                                         {{ Localizer.get('ttsRetry') }}
                                     </button>
+                                </li>
+                                <li>
+                                    <div class="dropdown-item dropdown-item-text">
+                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <div class="text-muted">
+                                            {{ conf.VoiceServerAddress }}
+                                        </div>
+                                    </div>
                                 </li>
                             </ul>
                         </li>
@@ -249,6 +257,13 @@ header {
     cursor: pointer;
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
+}
+
+.dropdown-item-text {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 6rem);
+    word-wrap: break-word;
+    white-space: normal;
 }
 
 .dropdown-item:hover {
