@@ -46,8 +46,9 @@
                                 <li v-for="{ key, name } in Localizer.getAvailableLocales()"
                                     @click="Localizer.language = key">
                                     <a class="dropdown-item">
-                                        <p :style= "{'font-weight': Localizer.language === key ? 'bold' : 'normal'}">
+                                        <p :class="{ 'fw-bold': Localizer.language === key }">
                                             {{ name }}
+                                            <i v-show="Localizer.language === key" class="fa fa-check-circle text-success" />
                                         </p>
                                     </a>
                                 </li>
@@ -62,16 +63,20 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
                                 <li v-for="(value, key) in conf.Backends"
-                                    @click="setBackend(key)">
+                                    @click="this.setBackend(key)">
 
                                     <!-- top-level item/group -->
                                     <a v-if="typeof value !== 'string'" class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value.name }}</p>
-                                        <p v-else>{{ value.name }}</p>
+                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
+                                            {{ value.name }}
+                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
+                                        </p>
                                     </a>
                                     <a v-else class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value }}</p>
-                                        <p v-else>{{ value }}</p>
+                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
+                                            {{ value }}
+                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
+                                        </p>
                                     </a>
 
                                     <!-- sub-level items -->

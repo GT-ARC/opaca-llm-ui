@@ -56,7 +56,7 @@
                 <div v-show="this.content.length > 0"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
-                     @click="this.copyContent()"
+                     @click="this.copyContentToClipboard()"
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
@@ -245,16 +245,14 @@ export default {
             };
         },
 
-        copyContent() {
+        copyContentToClipboard() {
             if (this.content.length <= 0 || this.copySuccess) return;
             navigator.clipboard.writeText(this.content)
                 .then(() => {
                     this.copySuccess = true;
-                    setTimeout(() => {
-                        this.copySuccess = false;
-                    }, 2000);
+                    setTimeout(() => this.copySuccess = false, 2000);
                 })
-                .catch(error => console.error("Failed to copy text: ", error));
+                .catch(error => console.error('Failed to copy text: ', error));
         },
 
         /**
@@ -382,6 +380,7 @@ export default {
 
 .footer-item {
     color: var(--text-secondary-light);
+    font-weight: bold;
 }
 
 .footer-item:hover {
