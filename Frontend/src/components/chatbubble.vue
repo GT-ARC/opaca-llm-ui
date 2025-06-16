@@ -31,19 +31,14 @@
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
                 </div>
 
-                <!-- error indicator -->
-                <div v-show="this.isError" class="w-auto">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
                 <!-- content, either status messages or actual response -->
-                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4" :class="{'text-danger': isError}">
+                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4">
                     <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
                 </div>
-                <div v-else class="message-text w-auto" :class="{'text-danger': isError}"
+                <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
                 />
 
@@ -57,6 +52,13 @@
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
+                </div>
+                <div v-show="this.error !== null"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isErrorExpanded = !this.isErrorExpanded"
+                     :title="Localizer.get('tooltipChatbubbleError')">
+                    <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
@@ -82,6 +84,15 @@
                         :text="text"
                         :type="type"
                         :is-dark-scheme="this.isDarkScheme"
+                    />
+                </div>
+            </div>
+
+            <div v-show="this.isErrorExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                     style="max-height: 200px">
+                    <div class="message-text w-auto text-danger"
+                         v-html="this.error"
                     />
                 </div>
             </div>
@@ -120,7 +131,8 @@ export default {
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
-            isError: false,
+            error: null,
+            isErrorExpanded: false,
             ttsAudio: null,
         }
     },
@@ -212,9 +224,8 @@ export default {
                 ? value : !this.isLoading;
         },
 
-        toggleError(value = null) {
-            this.isError = value !== null
-                ? value : !this.isError;
+        setError(value = null) {
+            this.error = value;
         },
 
         getGlowColors() {
@@ -283,8 +294,9 @@ export default {
             this.clearDebugMessages();
             this.content = '';
             this.isDebugExpanded = false;
+            this.isErrorExpanded = false;
             this.isLoading = false;
-            this.isError = false;
+            this.error = null;
             this.ttsAudio = null;
         }
     },

@@ -21,6 +21,8 @@ export const debugColors = {
     "user": ["#ffffff", "#000000"],
     "assistant": ["#8888ff", "#434373"],
     "system": ["#ffff88", "#71713d"],
+    // Error
+    "ERROR": ["#ff0000", "#9c0000"],
 }
 
 // Default colors for unknown agents [dark, light]
