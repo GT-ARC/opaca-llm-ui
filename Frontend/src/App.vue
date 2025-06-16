@@ -44,8 +44,8 @@
                         </li>
 
                         <!-- Connection -->
-                        <li class="nav-item dropdown me-2" @click="toggleConnectionDropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" @click.prevent="toggleConnectionDropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>{{ connected ? 'Connected' : 'Not Connected' }}
                             </a>
@@ -59,7 +59,7 @@
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
-                                        @click="handleConnectButtonClick">
+                                        @click="connectToPlatform">
                                     <template v-if="isConnecting">
                                         <span class="fa fa-spin fa-spinner fa-dis"></span>
                                     </template>
@@ -166,6 +166,40 @@
         </div>
     </header>
 
+
+
+    <!-- Auth Modal -->
+    <div v-if="showAuthInput" class="auth-overlay">
+        <div class="dropdown-menu show p-4">
+            <form @submit.prevent="connectToPlatform">
+                <h5 class="me-3">Authentication Required</h5>
+                <input
+                        v-model="platformUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
+                        placeholder="Username"
+                        @input="loginError = false"
+                />
+                <input
+                        v-model="platformPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
+                        placeholder="Password"
+                        @input="loginError = false"
+                />
+                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    Invalid username or password.
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
+                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
+                    <span v-else>Submit</span>
+                </button>
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :backend="this.backend"
@@ -202,12 +236,16 @@ export default {
             connected: false,
             isConnecting: false,
             showConnectionDropdown: true,
+            showAuthInput: false,
+            platformUser: "",
+            platformPassword: "",
+            loginError: false,
             voiceServerConnected: false,
             deviceInfo: ''
         }
     },
     methods: {
-        async handleConnectButtonClick() {
+        async connectToPlatform() {
             if (this.connected) {
                 this.connected = false;
                 this.showConnectionDropdown = true;
@@ -215,14 +253,23 @@ export default {
             }
             try {
                 this.isConnecting = true;
-                const body = {url: this.opacaRuntimePlatform, user: "", pwd: ""};
+                this.loginError = false;
+
+                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
                 const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                this.platformPassword = "";
                 const rpStatus = parseInt(res.data);
+
                 if (rpStatus === 200) {
                     this.connected = true;
+                    this.showAuthInput = false;
+                    this.showConnectionDropdown = false;
                 } else if (rpStatus === 403) {
                     this.connected = false;
-                    alert(Localizer.get('unauthorized'));
+                    if (this.showAuthInput) {
+                        this.loginError = true;
+                    }
+                    this.showAuthInput = true;
                 } else {
                     this.connected = false;
                     alert(Localizer.get('unreachable'));
@@ -305,7 +352,7 @@ export default {
         this.initVoiceServerConnection();
 
         if (conf.AutoConnect) {
-            this.handleConnectButtonClick();
+            this.connectToPlatform();
         } else {
             SidebarManager.selectView('questions');
         }
@@ -356,6 +403,7 @@ header {
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
+    color: var(--text-primary-light)
 }
 
 .dropdown-menu li {
@@ -404,6 +452,29 @@ header {
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
 }
 
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; /* Should appear above all other items */
+}
+
+.is-invalid {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.is-invalid::placeholder {
+    color: #842029
+}
+
 @media (prefers-color-scheme: dark) {
     .background {
         background-color: var(--background-dark);
@@ -434,6 +505,7 @@ header {
     .dropdown-menu {
         background-color: var(--surface-dark);
         border-color: #2e2e2e;
+        color: var(--text-primary-dark);
     }
 
     .dropdown-item {

@@ -8,6 +8,7 @@ import functools
 
 import httpx
 import jsonref
+from httpx import HTTPStatusError
 from requests.exceptions import ConnectionError, HTTPError
 from typing import Optional, List, Dict, Any
 
@@ -28,6 +29,9 @@ class OpacaClient:
             await self._get_token(user, pwd)
             await self._update_opaca_actions()
             return 200
+        except HTTPStatusError as exc:
+            print(f'AUTHENTICATION REQUIRED')
+            return exc.response.status_code
         except (ConnectionError, HTTPError) as e:
             print("COULD NOT CONNECT", e)
             return e.response.status_code if e.response is not None else 400
