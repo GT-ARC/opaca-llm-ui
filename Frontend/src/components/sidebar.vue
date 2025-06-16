@@ -44,8 +44,12 @@
 
                 <!-- connection settings -->
                 <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig" class="container d-flex flex-column">
-                        <div v-html="this.howAssistContent" class="d-flex flex-column text-start faq-content" />
+                    <div id="sidebarConfig" class="placeholder-container">
+                        <div v-if="!connected">
+                            <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+                            <h5 class="p-4">It's a little quiet here...</h5>
+                        </div>
+                        <div v-else v-html="this.howAssistContent" class="d-flex flex-column text-start faq-content" />
                     </div>
                 </div>
 
@@ -617,6 +621,23 @@ export default {
     border-radius: 0;
 }
 
+.placeholder-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    color: var(--text-secondary-light);
+}
+
+.placeholder-image {
+    width: 180px;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
 /* dark mode styling */
 @media (prefers-color-scheme: dark) {
     #sidebar-base {
@@ -721,6 +742,10 @@ export default {
     .faq-content {
         background-color: var(--background-dark);
         color: var(--text-primary-dark);
+    }
+
+    .placeholder-container {
+        color: var(--text-secondary-dark)
     }
 
 }
