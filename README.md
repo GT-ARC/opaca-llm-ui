@@ -88,6 +88,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VITE_SHOW_KEYBOARD`: Whether to show a virtual keyboard.
 * `VITE_SHOW_APIKEY`: Whether to show an input field for the OpenAI API key in the UI
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
+* `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
 
 ### Backend
 
@@ -136,3 +137,4 @@ Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and
   * [Simple](docs/methods/simple.md)
   * [Tool-LLM](docs/methods/tool_llm.md)
   * [Orchestration](docs/methods/orchestration.md)
+* [Frequently Asked Questions](docs/faq.md)

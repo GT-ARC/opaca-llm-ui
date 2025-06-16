@@ -143,7 +143,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     functions = []
     error_msg = ""
 
-    for path, methods in openapi_spec["paths"].items():
+    for path, methods in openapi_spec.get("paths", {}).items():
         for method, spec_with_ref in methods.items():
             # 1. Resolve JSON references.
             try:
