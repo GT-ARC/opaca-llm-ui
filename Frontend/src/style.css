@@ -1,19 +1,51 @@
 :root {
   /* Colors - Light Theme */
-  --background-color: #ffffff;
-  --surface-color: #f9fafb;
-  --primary-color: #10a37f;  /* ChatGPT green */
-  --secondary-color: #0e906f;
-  --accent-color: #11b48a;
-  --text-primary-color: #1a1a1a;
-  --text-secondary-color: #6b7280;
-  --text-success-color: #10b981;
-  --text-danger-color: #ef4444;
-  --border-color: #e5e7eb;
-  --chat-user-color: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
-  --chat-ai-color: #f7f7f8;  /* Light grey for AI messages */
-  --input-color: #ffffff;
-  --debug-console-color: var(--surface-color);
+  --background-light: #ffffff;
+  --surface-light: #f9fafb;
+  --primary-light: #10a37f;  /* ChatGPT green */
+  --secondary-light: #0e906f;
+  --accent-light: #11b48a;
+  --text-primary-light: #1a1a1a;
+  --text-secondary-light: #6b7280;
+  --text-success-light: #10b981;
+  --text-danger-light: #ef4444;
+  --border-light: #e5e7eb;
+  --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary light tint */
+  --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
+  --input-light: #ffffff;
+  --debug-console-light: var(--surface-light);
+
+  /* Colors - Dark Theme */
+  --background-dark: #1e1e2e;
+  --surface-dark: #252535;
+  --primary-dark: #10a37f;
+  --secondary-dark: #0e906f;
+  --accent-dark: #11b48a;
+  --text-primary-dark: #ffffff;
+  --text-secondary-dark: #9ca3af;
+  --text-success-dark: #34d399;
+  --text-danger-dark: #f87171;
+  --border-dark: #313145;
+  --chat-user-dark: #2a2a3c;
+  --chat-ai-dark: #313145;
+  --input-dark: #252535;
+  --debug-console-dark: #161628;
+
+  /* Colors - Selected */
+  --background-color: var(--background-light);
+  --surface-color: var(--surface-light);
+  --primary-color: var(--primary-light);
+  --secondary-color: var(--secondary-light);
+  --accent-color: var(--accent-light);
+  --text-primary-color: var(--text-primary-light);
+  --text-secondary-color: var(--text-secondary-light);
+  --text-success-color: var(--text-success-light);
+  --text-danger-color: var(--text-danger-light);
+  --border-color: var(--border-light);
+  --chat-user-color: var(--chat-user-light);
+  --chat-ai-color: var(--chat-ai-light);
+  --input-color: var(--input-light);
+  --debug-console-color: var(--debug-console-light);
 
   /* additional colors */
   --glow-color-1: var(--primary-color)40;
