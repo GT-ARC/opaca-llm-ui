@@ -45,6 +45,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
+        howAssist: "How can you assist me?",
     },
 
     DE: {
@@ -86,6 +87,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
+        howAssist: "Womit kannst du mir helfen?",
     },
 };
 
@@ -124,7 +126,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "How can you assist me?", "icon": "❓"},
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What documents do I need for a residence permit?", "icon": "📄"},
                 {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
@@ -180,7 +181,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"},
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
                 {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
@@ -353,18 +353,24 @@ class Localizer {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
+        const howAssist = { question: this.get("howAssist"), icon: "❓" }
+
         // if category could not be found, return random sample questions
         if (!category) {
-            if (!this.randomSampleQuestions)
+            if (!this.randomSampleQuestions) {
                 this.randomSampleQuestions = this.getRandomSampleQuestions();
+                this.randomSampleQuestions.unshift(howAssist);
+            }
             return this.randomSampleQuestions;
         }
 
         // take first 3 questions and use their individual icons
-        return category.questions.slice(0, 3).map(q => ({
+        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
             question: q.question,
             icon: q.icon || category.icon // Fallback to category icon if question has no icon
         }));
+        sampleQuestions.unshift(howAssist);
+        return sampleQuestions;
     }
 
     getRandomSampleQuestions(numQuestions = 3) {
