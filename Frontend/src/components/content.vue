@@ -471,8 +471,8 @@ export default {
 
 .input-container {
     width: 100%;
-    background-color: var(--background-light);
-    border-top: 1px solid var(--border-light);
+    background-color: var(--background-color);
+    border-top: 1px solid var(--border-color);
     padding: 1rem 0;
     margin-bottom: 1rem;
     flex-shrink: 0;
@@ -496,9 +496,9 @@ export default {
 }
 
 .input-group .form-control {
-    box-shadow: 0 0 0 1px var(--border-light);
-    background-color: var(--background-light);
-    color: var(--text-primary-light);
+    box-shadow: 0 0 0 1px var(--border-color);
+    background-color: var(--input-color);
+    color: var(--text-primary-color);
     padding: 0.75rem 1rem;
     height: 3rem;
     min-height: 3rem;
@@ -514,11 +514,11 @@ export default {
 }
 
 .input-group .form-control::placeholder {
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
 }
 
 .input-group .form-control:focus {
-    box-shadow: 0 0 0 1px var(--primary-light);
+    box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
@@ -569,7 +569,7 @@ export default {
     flex-direction: column;
     overflow: hidden;
     position: relative; /* For fade positioning */
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .sample-questions {
@@ -590,61 +590,19 @@ export default {
     align-items: center;
     cursor: pointer;
     padding: 1.5rem;
-    background-color: var(--background-light);
-    border: 1px solid var(--border-light);
+    background-color: var(--chat-user-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
     transition: all 0.2s ease;
     text-align: center;
 }
 
 .sample-question:hover {
-    background-color: var(--surface-light);
-    border-color: var(--primary-light);
+    background-color: var(--surface-color);
+    border-color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-/* dark scheme styling */
-@media (prefers-color-scheme: dark) {
-    body {
-        background-color: var(--background-dark);
-    }
-
-    #mainContent {
-        background-color: var(--background-dark);
-    }
-
-    .input-container {
-        background-color: var(--background-dark);
-        border-color: var(--border-dark);
-    }
-
-    .input-group .form-control {
-        background-color: var(--input-dark);
-        box-shadow: 0 0 0 1px var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .input-group .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .input-group .form-control:focus {
-        box-shadow: 0 0 0 1px var(--primary-dark);
-    }
-
-    .sample-question {
-        background-color: var(--chat-user-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sample-question:hover {
-        background-color: var(--chat-ai-dark);
-        border-color: var(--primary-dark);
-    }
-
 }
 
 /* Responsive widths for larger screens */

@@ -84,23 +84,24 @@ export default {
     align-items: center;
     padding: 0.75rem 1rem;
     cursor: pointer;
-    background-color: var(--surface-light);
-    border: 1px solid var(--border-light);
+    color: var(--text-primary-color);
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
     user-select: none;
 }
 
 .section-header:hover {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
 
 .section-header.expanded {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
     color: white;
-    border-color: var(--primary-light);
+    border-color: var(--primary-color);
     margin-bottom: 0.5rem;
 }
 
@@ -134,18 +135,19 @@ export default {
     padding: 0.75rem 1rem;
     margin: 0.25rem 0;
     cursor: pointer;
-    background-color: var(--background-light);
-    border: 1px solid var(--border-light);
+    color: var(--text-primary-color);
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
 }
 
 .question-item:hover {
-    background-color: var(--surface-light);
+    background-color: var(--surface-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-    border-color: var(--primary-light);
-    color: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .question-text {
@@ -154,32 +156,4 @@ export default {
     line-height: 1.4;
 }
 
-@media (prefers-color-scheme: dark) {
-    .section-header {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .section-header:hover {
-        background-color: var(--background-dark);
-    }
-
-    .section-header.expanded {
-        background-color: var(--primary-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .question-item {
-        background-color: var(--background-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .question-item:hover {
-        background-color: var(--surface-dark);
-        border-color: var(--primary-dark);
-        color: var(--primary-dark);
-    }
-}
 </style> 

@@ -220,11 +220,11 @@ export default {
 
 <style scoped>
 .background {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 header {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
     width: 100%;
     height: 50px;
     display: flex;
@@ -249,10 +249,12 @@ header {
     cursor: pointer;
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
+    color: var(--text-primary-color);
 }
 
 .dropdown-item:hover {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
 }
 
 .dropdown-menu {
@@ -261,6 +263,7 @@ header {
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
+    background-color: var(--surface-color);
 }
 
 .dropdown-menu li {
@@ -290,12 +293,12 @@ header {
     padding: 0.5rem 1rem;
     border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
 }
 
 .nav-link:hover {
-    background-color: var(--surface-light);
-    color: var(--primary-light);
+    background-color: var(--surface-color);
+    color: var(--primary-color);
 }
 
 .dropdown-toggle {
@@ -305,12 +308,8 @@ header {
 }
 
 @media (prefers-color-scheme: dark) {
-    .background {
-        background-color: var(--background-dark);
-    }
 
     header {
-        background-color: var(--background-dark);
         border-color: #2e2e2e;
     }
 
@@ -318,36 +317,10 @@ header {
         filter: invert(1);
     }
 
-    .nav-link {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:focus {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:hover {
-        background-color: var(--surface-dark);
-        color: var(--primary-dark);
-    }
-
     .dropdown-menu {
-        background-color: var(--surface-dark);
         border-color: #2e2e2e;
     }
 
-    .dropdown-item {
-        color: var(--text-primary-dark);
-    }
-
-    .dropdown-item:hover {
-        background-color: var(--background-dark);
-        color: var(--primary-dark);
-    }
-
-    .text-muted {
-        color: var(--text-secondary-dark) !important;
-    }
 }
 
 /* Voice Server Settings Styles */
@@ -357,6 +330,10 @@ header {
 
 .text-danger {
     color: #ef4444 !important;
+}
+
+.text-muted {
+    color: var(--text-secondary-color) !important;
 }
 
 .dropdown-item .fa {

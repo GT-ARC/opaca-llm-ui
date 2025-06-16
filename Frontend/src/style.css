@@ -1,34 +1,21 @@
 :root {
   /* Colors - Light Theme */
-  --background-light: #ffffff;
-  --surface-light: #f9fafb;
-  --primary-light: #10a37f;  /* ChatGPT green */
-  --secondary-light: #0e906f;
-  --accent-light: #11b48a;
-  --text-primary-light: #1a1a1a;
-  --text-secondary-light: #6b7280;
-  --border-light: #e5e7eb;
-  --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
-  --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
-  --debug-console-light: var(--surface-light);
-  
-  /* Colors - Dark Theme */
-  --background-dark: #1e1e2e;
-  --surface-dark: #252535;
-  --primary-dark: #10a37f;
-  --secondary-dark: #0e906f;
-  --accent-dark: #11b48a;
-  --text-primary-dark: #ffffff;
-  --text-secondary-dark: #9ca3af;
-  --border-dark: #313145;
-  --chat-user-dark: #2a2a3c;
-  --chat-ai-dark: #313145;
-  --input-dark: #252535;
-  --debug-console-dark: #161628;
+  --background-color: #ffffff;
+  --surface-color: #f9fafb;
+  --primary-color: #10a37f;  /* ChatGPT green */
+  --secondary-color: #0e906f;
+  --accent-color: #11b48a;
+  --text-primary-color: #1a1a1a;
+  --text-secondary-color: #6b7280;
+  --border-color: #e5e7eb;
+  --chat-user-color: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
+  --chat-ai-color: #f7f7f8;  /* Light grey for AI messages */
+  --input-color: #ffffff;
+  --debug-console-color: var(--surface-color);
 
   /* additional colors */
-  --glow-color-1: var(--primary-light)40;
-  --glow-color-2: var(--primary-light)90;
+  --glow-color-1: var(--primary-color)40;
+  --glow-color-2: var(--primary-color)90;
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -43,6 +30,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: all 0.2s ease;
+  background-color: var(--background-color);
+  color: var(--text-primary-color);
 }
 
 /* Modern Button Styles */
@@ -58,32 +47,32 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--primary-light) !important;
-  color: var(--text-primary-light);
+  background-color: var(--primary-color) !important;
+  color: var(--text-primary-color);
   border: none;
 }
 
 .btn-primary:hover {
-  background-color: var(--secondary-light);
+  background-color: var(--secondary-color);
   transform: translateY(-1px);
 }
 
 .btn-outline-primary {
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-color);
   background-color: transparent;
-  color: var(--text-primary-light);
+  color: var(--text-primary-color);
 }
 
 .btn-outline-primary:hover {
-  border-color: var(--primary-light);
-  color: var(--primary-light);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
   background-color: transparent;
 }
 
 .btn-outline-danger {
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-color);
   background-color: transparent;
-  color: var(--text-primary-light);
+  color: var(--text-primary-color);
 }
 
 .btn-outline-danger:hover {
@@ -96,15 +85,16 @@ body {
 .form-control {
   border-radius: var(--bs-border-radius-pill);
   padding: 0.875rem 1.25rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-color);
   transition: all 0.2s ease;
   font-size: 1rem;
   line-height: 1.5;
-  background-color: var(--background-light);
+  background-color: var(--surface-color);
+  color: var(--text-primary-color);
 }
 
 .form-control:focus {
-  border-color: var(--primary-light);
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
 }
 
@@ -137,45 +127,26 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-light) !important;
+    background-color: var(--text-secondary-color) !important;
     border-radius: 1rem;
     cursor: default !important;
 }
 
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
-  body {
-    background-color: var(--background-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .form-control {
-    background-color: var(--surface-dark);
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .btn-primary {
-    background-color: var(--primary-dark) !important;
-    color: var(--text-primary-dark);
-  }
-
-  .btn-outline-primary {
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .btn-outline-primary:hover {
-    border-color: var(--primary-dark);
-    color: var(--primary-dark);
-  }
-
-  .btn-outline-danger {
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-dark) !important;
+  :root {
+    /* Colors - Dark Theme */
+    --background-color: #1e1e2e;
+    --surface-color: #252535;
+    --primary-color: #10a37f;
+    --secondary-color: #0e906f;
+    --accent-color: #11b48a;
+    --text-primary-color: #ffffff;
+    --text-secondary-color: #9ca3af;
+    --border-color: #313145;
+    --chat-user-color: #2a2a3c;
+    --chat-ai-color: #313145;
+    --input-color: #252535;
+    --debug-console-color: #161628;
   }
 }
