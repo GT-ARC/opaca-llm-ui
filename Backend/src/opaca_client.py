@@ -40,12 +40,16 @@ class OpacaClient:
         }
 
     async def get_agent_details(self) -> Dict[str, Dict[str, Any]]:
-        await self._update_opaca_actions()
+        try:
+            await self._update_opaca_actions()
+        except:
+            # exception is handled within the above method
+            pass
         return {
-            agent["agentId"]:
-                {
-                    "description": agent["description"],
-                    "functions": [action["name"] for action in agent["actions"]]}
+            agent["agentId"]: {
+                "description": agent["description"],
+                "functions": [action["name"] for action in agent["actions"]]
+            }
             for agent in self.actions_dict
         }
     
