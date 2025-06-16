@@ -325,11 +325,11 @@ header {
 
 /* Voice Server Settings Styles */
 .text-success {
-    color: #10b981 !important;
+    color: var(--text-success-color) !important;
 }
 
 .text-danger {
-    color: #ef4444 !important;
+    color: var(--text-danger-color) !important;
 }
 
 .text-muted {
@@ -347,15 +347,5 @@ header {
     width: 100%;
     text-align: left;
     padding: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-    .text-success {
-        color: #34d399 !important;
-    }
-
-    .text-danger {
-        color: #f87171 !important;
-    }
 }
 </style>
