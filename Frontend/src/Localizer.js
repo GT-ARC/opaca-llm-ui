@@ -104,7 +104,7 @@ export const sidebarQuestions = {
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
                 {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
-                {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
+                {"question": "Draft an out-of-office email explaining that Robert is my stand-in for the next 2 weeks.", "icon": "✉️"},
                 {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "👥"},
                 {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
                 {"question": "Find a meeting slot with the LLM team next week.", "icon": "📆"},
@@ -117,9 +117,9 @@ export const sidebarQuestions = {
             "icon": "📊",
             "questions": [
                 {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
-                {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
                 {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
+                {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize them in a meaningful way.", "icon": "🌤️"},
 
             ]
         },
@@ -129,7 +129,7 @@ export const sidebarQuestions = {
             "icon": "📚",
             "questions": [
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
-                {"question": "What documents do I need for a residence permit?", "icon": "📄"},
+                {"question": "What documents do I need for a residence permit in Germany?", "icon": "📄"},
                 {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
                 {"question": "How can I get an appointment at the Berlin Bürgeramt?", "icon": "📅"},
                 {"question": "What are 'Large Language Models'?", "icon": "🧠"},
@@ -144,9 +144,10 @@ export const sidebarQuestions = {
             "icon": "🏢",
             "questions": [
                 {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
-                {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
-                {"question": "Open the shelf in which I can store a glass.", "icon": "🥃"},
+                {"question": "Set the height of my smart desk to 120 cm.", "icon": "⬆️"},
+                {"question": "Open the shelf where I I can store a glass.", "icon": "🥃"},
                 {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
+                {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
 
             ]
         },
@@ -160,7 +161,7 @@ export const sidebarQuestions = {
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
                 {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
-                {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
+                {"question": "Erstelle eine Abwesenheitsmail, in der Robert als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
                 {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "👥"},
                 {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
                 {"question": "Finde einen Meetingtermin mit dem LLM-Team nächste Woche.", "icon": "📆"},
@@ -200,8 +201,9 @@ export const sidebarQuestions = {
             "questions": [
                 {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
                 {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
-                {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "🥃"},
+                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
+                {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
             ]
         },
     ],
