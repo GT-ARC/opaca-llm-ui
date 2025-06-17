@@ -1,4 +1,6 @@
 :root {
+  /* NOTE: If you add a color, make sure to add them to both the "light" and "dark" blocks, _and_ the "selected" block.
+           Also add the variable to the list of colors to be switched/updated in App#setTheme() */
   /* Colors - Light Theme */
   --background-light: #ffffff;
   --surface-light: #f9fafb;

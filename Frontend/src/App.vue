@@ -169,7 +169,8 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
-            isDarkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+            isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
+                         window.matchMedia('(prefers-color-scheme: dark)').matches),
         }
     },
     methods: {
@@ -222,6 +223,10 @@ export default {
         switchTheme() {
             console.log("IN SET THEME")
             this.isDarkMode = ! this.isDarkMode;
+            this.setTheme();
+        },
+
+        setTheme() {
             const theme = this.isDarkMode ? "dark" : "light";
             var colors = [
                 "--background-color",
@@ -243,10 +248,13 @@ export default {
             for (const color of colors) {
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
-        }
+        },
     },
 
     mounted() {
+        if (conf.ColorScheme != "system") {
+            this.setTheme();
+        }
         AudioManager.initVoiceServerConnection();
     }
 }

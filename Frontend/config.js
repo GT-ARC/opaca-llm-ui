@@ -34,6 +34,9 @@ var config = {
 
     ShowApiKey: import.meta.env.VITE_SHOW_APIKEY ?? false,
 
+    // starting color scheme: light, dark, or system (default)
+    ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
+
     // if true, attempt to connect to the configured platform on load
     AutoConnect: import.meta.env.VITE_AUTOCONNECT ?? 'false',
 
@@ -59,6 +62,7 @@ function parseQueryParams() {
     config.AutoConnect = (urlParams['autoconnect'] ?? config.AutoConnect) === 'true';
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
+    config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
 }
 
 parseQueryParams();
