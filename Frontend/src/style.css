@@ -50,7 +50,7 @@
   --chat-ai-color: var(--chat-ai-light);
   --input-color: var(--input-light);
   --debug-console-color: var(--debug-console-light);
-  --icon-invert-color: var(--icon-invert-light):
+  --icon-invert-color: var(--icon-invert-light);
 
   /* additional colors */
   --glow-color-1: var(--primary-color)40;
@@ -174,20 +174,20 @@ body {
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Colors - Dark Theme */
-    --background-color: #1e1e2e;
-    --surface-color: #252535;
-    --primary-color: #10a37f;
-    --secondary-color: #0e906f;
-    --accent-color: #11b48a;
-    --text-primary-color: #ffffff;
-    --text-secondary-color: #9ca3af;
-    --text-success-color: #34d399;
-    --text-danger-color: #f87171;
-    --border-color: #313145;
-    --chat-user-color: #2a2a3c;
-    --chat-ai-color: #313145;
-    --input-color: #252535;
-    --debug-console-color: #161628;
+    --background-color: var(--background-dark);
+    --surface-color: var(--surface-dark);
+    --primary-color: var(--primary-dark);
+    --secondary-color: var(--secondary-dark);
+    --accent-color: var(--accent-dark);
+    --text-primary-color: var(--text-primary-dark);
+    --text-secondary-color: var(--text-secondary-dark);
+    --text-success-color: var(--text-success-dark);
+    --text-danger-color: var(--text-danger-dark);
+    --border-color: var(--border-dark);
+    --chat-user-color: var(--chat-user-dark);
+    --chat-ai-color: var(--chat-ai-dark);
+    --input-color: var(--input-dark);
+    --debug-console-color: var(--debug-console-dark);
+    --icon-invert-color: var(--icon-invert-dark);
   }
 }
