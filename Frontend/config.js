@@ -6,8 +6,10 @@ var config = {
     Backends: {
         "simple": "Simple Prompt",
         "tool-llm": "Tool LLM",
-        "self-orchestrated": "Self-Orchestrated"
+        "self-orchestrated": "Self-Orchestrated",
+	"simple-tools": "Simple Tool Prompt"
     },
+
     /*
     // reminder, because it's currently not used: define one level of "sub-backends" like this:
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",

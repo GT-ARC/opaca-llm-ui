@@ -18,6 +18,7 @@ from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
 from .toolllm import *
 from .simple import SimpleBackend
+from .simple_tools import SimpleToolsBackend
 from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
 
@@ -45,6 +46,7 @@ BACKENDS = {
     SimpleBackend.NAME: SimpleBackend(),
     SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
     ToolLLMBackend.NAME: ToolLLMBackend(),
+    SimpleToolsBackend.NAME: SimpleToolsBackend(),
 }
 
 
