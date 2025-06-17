@@ -5,10 +5,10 @@
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="SidebarManager.toggleView('connect')"
-               class="fa fa-link p-2 sidebar-item"
-               :title="Localizer.get('tooltipSidebarConnection')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
+            <i @click="SidebarManager.toggleView('info')"
+               class="fa fa-circle-info p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarInfo')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
@@ -42,15 +42,14 @@
                    class="container-fluid d-flex flex-column position-relative mt-4"
                    :class="{'px-3': !isMobile}">
 
-                <!-- connection settings -->
-                <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig" class="placeholder-container">
-                        <div v-if="!connected">
-                            <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
-                            <h5 class="p-4">It's a little quiet here...</h5>
-                        </div>
-                        <div v-else v-html="this.howAssistContent" class="d-flex flex-column text-start faq-content" />
+                <!-- platform information -->
+                <div v-show="SidebarManager.isViewSelected('info')"
+                     id="sidebarConfig" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!connected" class="placeholder-container">
+                        <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+                        <h5 class="p-4">It's a little quiet here...</h5>
                     </div>
+                    <div v-else v-html="this.howAssistContent" class="faq-content w-auto"/>
                 </div>
 
                 <!-- sample questions -->
