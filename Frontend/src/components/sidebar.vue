@@ -632,6 +632,7 @@ export default {
     width: 1rem;
     height: 1rem;
     transition: all 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .accordion-body {
@@ -690,14 +691,6 @@ export default {
     border-right: 0;
     border-left: 0;
     border-radius: 0;
-}
-
-/* dark mode styling */
-@media (prefers-color-scheme: dark) {
-   
-    .accordion-button::after {
-        filter: invert(1);
-    }
 }
 
 /* mobile design */

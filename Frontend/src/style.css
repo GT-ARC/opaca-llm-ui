@@ -14,6 +14,7 @@
   --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
   --input-light: #ffffff;
   --debug-console-light: var(--surface-light);
+  --icon-invert-light: 0;
 
   /* Colors - Dark Theme */
   --background-dark: #1e1e2e;
@@ -30,6 +31,7 @@
   --chat-ai-dark: #313145;
   --input-dark: #252535;
   --debug-console-dark: #161628;
+  --icon-invert-dark: 1;
 
   /* Colors - Selected */
   --background-color: var(--background-light);
@@ -46,6 +48,7 @@
   --chat-ai-color: var(--chat-ai-light);
   --input-color: var(--input-light);
   --debug-console-color: var(--debug-console-light);
+  --icon-invert-color: var(--icon-invert-light):
 
   /* additional colors */
   --glow-color-1: var(--primary-color)40;

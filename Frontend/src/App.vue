@@ -291,6 +291,7 @@ header {
 
 .logo {
     transition: transform 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .logo:hover {
@@ -363,10 +364,6 @@ header {
 
     header {
         border-color: #2e2e2e;
-    }
-
-    .logo {
-        filter: invert(1);
     }
 
     .dropdown-menu {

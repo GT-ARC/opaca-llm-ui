@@ -364,6 +364,7 @@ export default {
     object-fit: contain;
     width: 100%;
     height: 100%;
+    filter: invert(var(--icon-invert-color));
 }
 
 .footer-item {
@@ -393,14 +394,6 @@ export default {
     50% {
         box-shadow: 0 0 15px var(--glow-color-2, #00ff0090);
     }
-}
-
-@media (prefers-color-scheme: dark) {
-
-    .chaticon img {
-        filter: invert(100%);
-    }
-
 }
 
 @media screen and (max-width: 768px) {
