@@ -45,11 +45,12 @@
 
                         <!-- Connection -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" @click.prevent="toggleConnectionDropdown">
+                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" @click.prevent="toggleConnectionDropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
-                                <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>{{ connected ? 'Connected' : 'Not Connected' }}
+                                <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <ul v-if="showConnectionDropdown" class="dropdown-menu show p-4" style="min-width: 320px;">
+                            <div v-if="showConnectionDropdown" class="dropdown-menu show p-4" aria-labelledby="connectionSelector" style="min-width: 320px;">
                                 <div class="mb-3">
                                     <input v-if="!connected"
                                            type="text"
@@ -64,10 +65,10 @@
                                         <span class="fa fa-spin fa-spinner fa-dis"></span>
                                     </template>
                                     <template v-else>
-                                        {{ connected ? 'Disconnect' : 'Connect' }}
+                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
                                     </template>
                                 </button>
-                            </ul>
+                            </div>
                         </li>
 
                         <!-- languages -->
@@ -172,30 +173,32 @@
     <div v-if="showAuthInput" class="auth-overlay">
         <div class="dropdown-menu show p-4">
             <form @submit.prevent="connectToPlatform">
-                <h5 class="me-3">Authentication Required</h5>
+                <h5 class="me-3">{{ Localizer.get('unauthenticated') }}</h5>
                 <input
                         v-model="platformUser"
                         type="text"
                         :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
-                        placeholder="Username"
+                        :placeholder="Localizer.get('username')"
                         @input="loginError = false"
                 />
                 <input
                         v-model="platformPassword"
                         type="password"
                         :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
-                        placeholder="Password"
+                        :placeholder="Localizer.get('password')"
                         @input="loginError = false"
                 />
                 <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    Invalid username or password.
+                    {{ Localizer.get('authError') }}
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
                     <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
-                    <span v-else>Submit</span>
+                    <span v-else>{{ Localizer.get('submit') }}</span>
                 </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">Cancel</button>
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
+                    {{ Localizer.get('cancel') }}
+                </button>
             </form>
         </div>
     </div>
