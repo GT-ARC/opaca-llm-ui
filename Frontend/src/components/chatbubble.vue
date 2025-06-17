@@ -31,19 +31,14 @@
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
                 </div>
 
-                <!-- error indicator -->
-                <div v-show="this.isError" class="w-auto">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
                 <!-- content, either status messages or actual response -->
-                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4" :class="{'text-danger': isError}">
+                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4">
                     <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
                 </div>
-                <div v-else class="message-text w-auto" :class="{'text-danger': isError}"
+                <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
                 />
 
@@ -58,15 +53,25 @@
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
-                <div v-show="!this.isLoading && this.isVoiceServerConnected"
+                <div v-show="this.error !== null"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isErrorExpanded = !this.isErrorExpanded"
+                     :title="Localizer.get('tooltipChatbubbleError')">
+                    <i class="fa fa-exclamation-circle text-danger me-1" />
+                </div>
+                <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
             </div>
@@ -83,6 +88,15 @@
                 </div>
             </div>
 
+            <div v-show="this.isErrorExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                     style="max-height: 200px">
+                    <div class="message-text w-auto text-danger"
+                         v-html="this.error"
+                    />
+                </div>
+            </div>
+
         </div>
     </div>
 </template>
@@ -94,6 +108,7 @@ import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 export default {
     name: 'chatbubble',
@@ -101,14 +116,13 @@ export default {
     props: {
         elementId: String,
         isUser: Boolean,
-        isVoiceServerConnected: Boolean,
         isDarkScheme: Boolean,
         initialContent: String,
         initialLoading: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -117,10 +131,9 @@ export default {
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
-            isError: false,
+            error: null,
+            isErrorExpanded: false,
             ttsAudio: null,
-            isAudioLoading: false,
-            isAudioPlaying: false,
         }
     },
 
@@ -211,9 +224,8 @@ export default {
                 ? value : !this.isLoading;
         },
 
-        toggleError(value = null) {
-            this.isError = value !== null
-                ? value : !this.isError;
+        setError(value = null) {
+            this.error = value;
         },
 
         getGlowColors() {
@@ -229,50 +241,19 @@ export default {
         },
 
         /**
-         * generate new audio for this message using the whisper voice server
+         * Generate new audio for this message.
          */
-        async generateAudio(voice = 'alloy') {
+        async generateAudio() {
             if (!this.content) return;
-            if (!this.isVoiceServerConnected) {
-                console.warn('voice server not connected');
-                return;
-            }
-            this.isAudioLoading = true;
-
-            try {
-                const url = `${conf.VoiceServerAddress}/generate_audio`;
-                const payload = { method: 'POST' };
-                const params = new URLSearchParams({
-                    text: this.content,
-                    voice: voice
-                });
-
-                const response = await fetch(`${url}?${params}`, payload);
-                if (response.ok) {
-                    const audioBlob = await response.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    this.ttsAudio = new Audio(audioUrl);
-                    this.ttsAudio.onplay = () => this.isAudioPlaying = true;
-                    this.ttsAudio.onpause = () => this.isAudioPlaying = false;
-                    this.ttsAudio.onend = () => this.isAudioPlaying = false;
-                    this.ttsAudio.play();
-                } else {
-                    const errorText = await response.text();
-                    console.error('Audio API error:', response.status, errorText);
-                }
-            } catch (error) {
-                console.error(error);
-                alert('Failed to generate audio.');
-                this.ttsAudio = null;
-                this.isAudioPlaying = false;
-            } finally {
-                this.isAudioLoading = false;
-            }
+            this.ttsAudio = await AudioManager.generateAudio(this.content);
+            await this.ttsAudio.setup().then(() => {
+                this.ttsAudio.play();
+            });
         },
 
         startAudioPlayback() {
             if (!this.canPlayAudio()) return;
-            if (this.isAudioPlaying) {
+            if (this.isAudioPlaying()) {
                 this.stopAudioPlayback();
             } else if (this.ttsAudio) {
                 this.ttsAudio.play();
@@ -282,14 +263,22 @@ export default {
         },
 
         stopAudioPlayback() {
-            if (!this.ttsAudio) return;
-            this.ttsAudio.pause();
-            this.ttsAudio.currentTime = 0;
+            if (this.ttsAudio) {
+                this.ttsAudio.stop();
+            }
         },
 
         canPlayAudio() {
-            return this.isVoiceServerConnected && !this.isUser
-                && this.content && !this.isLoading && !this.isAudioLoading;
+            return !this.isUser && this.content && !this.isLoading
+                && !this.isAudioLoading();
+        },
+
+        isAudioPlaying() {
+            return this.ttsAudio && this.ttsAudio.isPlaying;
+        },
+
+        isAudioLoading() {
+            return this.ttsAudio && this.ttsAudio.isLoading;
         },
 
         clearStatusMessages() {
@@ -301,15 +290,14 @@ export default {
         },
 
         clear() {
+            this.clearStatusMessages();
+            this.clearDebugMessages();
             this.content = '';
-            this.statusMessages = [];
-            this.debugMessages = [];
             this.isDebugExpanded = false;
+            this.isErrorExpanded = false;
             this.isLoading = false;
-            this.isError = false;
+            this.error = null;
             this.ttsAudio = null;
-            this.isAudioPlaying = false;
-            this.isAudioLoading = false;
         }
     },
 
@@ -339,6 +327,8 @@ export default {
     margin-right: 1rem;
     padding: 0.75rem 1.25rem;
     width: auto !important; /* Override any width constraints */
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .chatbubble-ai {

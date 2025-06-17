@@ -1,6 +1,7 @@
 import {ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
 
 
@@ -30,7 +31,7 @@ export const localizationData = {
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
         ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconneded',
+        ttsDisconnected: 'Disconnected',
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
@@ -40,6 +41,7 @@ export const localizationData = {
         tooltipSidebarConfig: "Configuration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleError: "Error",
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
@@ -52,6 +54,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
+        howAssist: "How can you assist me?",
     },
 
     DE: {
@@ -89,6 +92,7 @@ export const localizationData = {
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleError: "Fehler",
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
@@ -101,6 +105,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
+        howAssist: "Womit kannst du mir helfen?",
     },
 };
 
@@ -139,7 +144,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "How can you assist me?", "icon": "❓"},
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What documents do I need for a residence permit?", "icon": "📄"},
                 {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
@@ -195,7 +199,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"},
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
                 {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
@@ -270,9 +273,14 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocales = {
+export const voiceGenLocalesWhisper = {
     GB: 'english',
     DE: 'german'
+};
+
+export const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
 };
 
 
@@ -363,18 +371,24 @@ class Localizer {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
+        const howAssist = { question: this.get("howAssist"), icon: "❓" }
+
         // if category could not be found, return random sample questions
         if (!category) {
-            if (!this.randomSampleQuestions)
+            if (!this.randomSampleQuestions) {
                 this.randomSampleQuestions = this.getRandomSampleQuestions();
+                this.randomSampleQuestions.unshift(howAssist);
+            }
             return this.randomSampleQuestions;
         }
 
         // take first 3 questions and use their individual icons
-        return category.questions.slice(0, 3).map(q => ({
+        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
             question: q.question,
             icon: q.icon || category.icon // Fallback to category icon if question has no icon
         }));
+        sampleQuestions.unshift(howAssist);
+        return sampleQuestions;
     }
 
     getRandomSampleQuestions(numQuestions = 3) {
@@ -396,7 +410,9 @@ class Localizer {
     }
 
     getLanguageForTTS() {
-        return voiceGenLocales[this.language];
+        return AudioManager.isVoiceServerConnected
+            ? voiceGenLocalesWhisper[this.language]
+            : voiceGenLocalesWebSpeech[this.language];
     }
 }
 

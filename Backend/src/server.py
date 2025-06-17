@@ -62,7 +62,6 @@ async def get_backends() -> list:
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     session = await handle_session_id(request, response)
-    session.opaca_client = OpacaClient()
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
@@ -144,6 +143,7 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
+            sessions[session_id].opaca_client = OpacaClient()
         response.set_cookie("session_id", session_id)
         return sessions[session_id]
 
@@ -166,6 +166,7 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
+            sessions[session_id].opaca_client = OpacaClient()
 
         # Return the session data for the session ID
         return sessions[session_id]

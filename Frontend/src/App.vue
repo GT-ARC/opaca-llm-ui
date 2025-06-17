@@ -123,7 +123,8 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li class="nav-item dropdown me-0" v-if="conf.VoiceServerAddress">
+                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
+
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa fa-microphone me-1"/>
                                 <span v-show="!isMobile">Voice Server</span>
@@ -132,22 +133,22 @@
                                 <li>
                                     <div class="dropdown-item">
                                         <div class="d-flex align-items-center">
-                                            <i class="fa" :class="voiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ voiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
+                                            <i class="fa" :class="AudioManager.isVoiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
+                                            <span class="ms-2">{{ AudioManager.isVoiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="voiceServerConnected">
+                                <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
                                         <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted"
                                              style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ Localizer.get('ttsServerInfo', this.deviceInfo.model, this.deviceInfo.device) }}
+                                            {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
                                     </div>
                                 </li>
-                                <li v-if="!voiceServerConnected">
-                                    <button class="dropdown-item" @click="this.initVoiceServerConnection()">
+                                <li v-if="!AudioManager.isVoiceServerConnected">
+                                    <button class="dropdown-item" @click="AudioManager.initVoiceServerConnection()">
                                         <i class="fa fa-refresh me-2"/>
                                         {{ Localizer.get('ttsRetry') }}
                                     </button>
@@ -201,7 +202,6 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            :voice-server-connected="this.voiceServerConnected"
             ref="content"
         />
     </div>
@@ -215,13 +215,14 @@ import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
 import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
+import AudioManager from "./AudioManager.js";
 
 export default {
     name: 'App',
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -235,8 +236,6 @@ export default {
             platformUser: "",
             platformPassword: "",
             loginError: false,
-            voiceServerConnected: false,
-            deviceInfo: ''
         }
     },
     methods: {
@@ -321,25 +320,10 @@ export default {
             }
             return key === this.backend;
         },
-
-        async initVoiceServerConnection() {
-            if (! conf.VoiceServerAddress) return;
-            try {
-                const response = await fetch(`${conf.VoiceServerAddress}/info`);
-                if (response.ok) {
-                    this.deviceInfo = await response.json();
-                    this.voiceServerConnected = true;
-                } else {
-                    this.voiceServerConnected = false;
-                }
-            } catch (error) {
-                console.error('Error fetching device info:', error);
-            }
-        }
     },
 
     mounted() {
-        this.initVoiceServerConnection();
+        AudioManager.initVoiceServerConnection();
 
         if (conf.AutoConnect) {
             this.connectToPlatform();

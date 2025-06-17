@@ -32,7 +32,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-voice-server-connected="this.voiceServerConnected"
                         :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
@@ -55,15 +54,19 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
+                    <div class="scroll-wrapper">
                       <textarea id="textInput"
                                 v-model="textInput"
+                                ref="textInputRef"
                                 :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control overflow-hidden"
+                                class="form-control"
+                                :class="{ 'small-scrollbar': isSmallScrollbar }"
                                 style="resize: none; height: auto; max-height: 150px;"
                                 rows="1"
                                 @keydown="textInputCallback"
                                 @input="resizeTextInput"
                       ></textarea>
+                    </div>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
@@ -76,12 +79,13 @@
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
-                            v-if="this.voiceServerConnected"
+                            v-if="AudioManager.isRecognitionSupported()"
                             class="btn btn-outline-primary"
-                            @click="this.showRecordingPopup = true"
+                            @click="this.startRecognition()"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonRecord')">
-                        <i class="fa fa-microphone"/>
+                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                        <i v-else class="fa fa-spin fa-spinner" />
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
@@ -109,6 +113,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import {sendRequest} from "../utils.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
@@ -125,11 +130,10 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
-        voiceServerConnected: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth };
+        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -143,6 +147,7 @@ export default {
             isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: 'Information & Upskilling',
+            isSmallScrollbar: true,
         }
     },
     methods: {
@@ -242,10 +247,13 @@ export default {
                 this.scrollDownChat();
             } else {
                 // no agent property -> Last message received should be final response
-                aiBubble.toggleError(!!result.error);
-                const content = result.error
-                    ? result.error : result.content;
-                aiBubble.setContent(content);
+                console.log(result.error);
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                    const sidebar = this.$refs.sidebar;
+                    sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                }
+                aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
                 this.isFinished = true;
             }
@@ -275,7 +283,7 @@ export default {
         },
 
         startAutoSpeak() {
-            if (this.autoSpeakNextMessage && this.voiceServerConnected) {
+            if (this.autoSpeakNextMessage) {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
@@ -299,6 +307,18 @@ export default {
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
+        },
+
+        startRecognition() {
+            if (AudioManager.isVoiceServerConnected) {
+                this.showRecordingPopup = true;
+            } else {
+                AudioManager.startWebSpeechRecognition(text => {
+                    this.handleTranscriptionComplete(text);
+                    this.autoSpeakNextMessage = true;
+                    this.submitText();
+                });
+            }
         },
 
         async resetChat() {
@@ -337,14 +357,14 @@ export default {
             const aiBubble = this.getLastBubble();
             aiBubble.setContent(message);
             aiBubble.toggleLoading(false);
-            aiBubble.toggleError(true);
+            aiBubble.setError("Connection closed unexpectedly");
         },
 
         scrollDownChat() {
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
-        
+
         scrollDownDebug() {
             const div = document.getElementById('debug-console');
             div.scrollTop = div.scrollHeight;
@@ -403,6 +423,19 @@ export default {
             if (!this.isMobile) return true;
             return this.textInput.length === 0;
         },
+
+        updateScrollbarThumb() {
+          this.$nextTick(() => {
+            const el = this.$refs.textInputRef;
+            if (!el) return;
+
+            const computedStyle = getComputedStyle(el);
+            const maxHeight = parseFloat(computedStyle.maxHeight);
+
+            // If current height is less than the max-height
+            this.isSmallScrollbar = el.offsetHeight < maxHeight;
+          });
+        },
     },
 
     mounted() {
@@ -415,8 +448,14 @@ export default {
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.showWelcomeMessage();
-    },
 
+        this.updateScrollbarThumb();
+    },
+    watch: {
+      textInput() {
+        this.updateScrollbarThumb();
+      },
+    }
 }
 
 </script>
@@ -443,6 +482,14 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
+.scroll-wrapper {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+}
+
 .input-group {
     width: 100%;
     max-width: min(95%, 100ch);
@@ -458,7 +505,6 @@ export default {
     height: 3rem;
     min-height: 3rem;
     resize: none;
-    overflow-y: hidden;
     max-height: min(40vh, 20rem);
     line-height: 1.5;
     border-radius: 1.5rem !important;
@@ -475,6 +521,10 @@ export default {
 
 .input-group .form-control:focus {
     box-shadow: 0 0 0 1px var(--primary-light);
+}
+
+.small-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
 }
 
 .input-group .btn {
