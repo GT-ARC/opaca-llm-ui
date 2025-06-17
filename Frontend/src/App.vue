@@ -36,9 +36,37 @@
                      v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
+                        <!-- Connection -->
+                        <li class="nav-item dropdown-center me-2">
+                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
+                                <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
+                                <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
+                            </a>
+                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" :style="{'min-width': !isMobile && '320px'}">
+                                <div class="mb-3">
+                                    <input v-if="!connected"
+                                           type="text"
+                                           v-model="opacaRuntimePlatform"
+                                           placeholder="Enter URL"
+                                           class="form-control form-control-sm me-2"/>
+                                </div>
+                                <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
+                                        :disabled="isConnecting"
+                                        @click="connectToPlatform">
+                                    <template v-if="isConnecting">
+                                        <span class="fa fa-spin fa-spinner fa-dis"></span>
+                                    </template>
+                                    <template v-else>
+                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
+                                    </template>
+                                </button>
+                            </div>
+                        </li>
+
                         <!-- languages -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-globe me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
                             </a>
@@ -56,7 +84,7 @@
 
                         <!-- backends -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-server me-1"/>
                                 <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
                             </a>
@@ -133,10 +161,47 @@
         </div>
     </header>
 
+
+
+    <!-- Auth Modal -->
+    <div v-if="showAuthInput" class="auth-overlay">
+        <div class="dropdown-menu show p-4">
+            <form @submit.prevent="connectToPlatform">
+                <h5 class="me-3">{{ Localizer.get('unauthenticated') }}</h5>
+                <input
+                        v-model="platformUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('username')"
+                        @input="loginError = false"
+                />
+                <input
+                        v-model="platformPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('password')"
+                        @input="loginError = false"
+                />
+                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    {{ Localizer.get('authError') }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
+                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
+                    <span v-else>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :backend="this.backend"
             :language="this.language"
+            :connected="this.connected"
             ref="content"
         />
     </div>
@@ -148,6 +213,8 @@ import MainContent from './components/content.vue';
 
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
+import {sendRequest} from "./utils.js";
+import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 
 export default {
@@ -162,9 +229,52 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
+            connected: false,
+            isConnecting: false,
+            showAuthInput: false,
+            platformUser: "",
+            platformPassword: "",
+            loginError: false,
         }
     },
     methods: {
+        async connectToPlatform() {
+            if (this.connected) {
+                this.connected = false;
+                return
+            }
+            try {
+                this.isConnecting = true;
+                this.loginError = false;
+
+                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                this.platformPassword = "";
+                const rpStatus = parseInt(res.data);
+
+                if (rpStatus === 200) {
+                    this.connected = true;
+                    this.showAuthInput = false;
+                } else if (rpStatus === 403) {
+                    this.connected = false;
+                    if (this.showAuthInput) {
+                        this.loginError = true;
+                    }
+                    this.showAuthInput = true;
+                } else {
+                    this.connected = false;
+                    alert(Localizer.get('unreachable'));
+                }
+            } catch (e) {
+                console.error('Error while initiating prompt:', e);
+                this.connected = false;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.isConnecting = false;
+            }
+        },
+
         setBackend(key) {
             const keyPath = key.split('/');
             const value = conf.Backends[keyPath[0]];
@@ -214,6 +324,12 @@ export default {
 
     mounted() {
         AudioManager.initVoiceServerConnection();
+
+        if (conf.AutoConnect) {
+            this.connectToPlatform();
+        } else {
+            SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
+        }
     }
 }
 </script>
@@ -261,6 +377,7 @@ header {
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
+    color: var(--text-primary-light)
 }
 
 .dropdown-menu li {
@@ -304,6 +421,34 @@ header {
     gap: 0.5rem;
 }
 
+.connection-indicator {
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; /* Should appear above all other items */
+}
+
+.is-invalid {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.is-invalid::placeholder {
+    color: #842029
+}
+
 @media (prefers-color-scheme: dark) {
     .background {
         background-color: var(--background-dark);
@@ -334,6 +479,7 @@ header {
     .dropdown-menu {
         background-color: var(--surface-dark);
         border-color: #2e2e2e;
+        color: var(--text-primary-dark);
     }
 
     .dropdown-item {
@@ -347,6 +493,21 @@ header {
 
     .text-muted {
         color: var(--text-secondary-dark) !important;
+    }
+
+    .form-control {
+        background-color: var(--input-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .form-control::placeholder {
+        color: var(--text-secondary-dark);
+    }
+
+    .form-control:focus {
+        background-color: var(--input-dark);
+        border-color: var(--primary-dark);
     }
 }
 

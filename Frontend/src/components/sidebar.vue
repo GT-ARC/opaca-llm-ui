@@ -5,10 +5,10 @@
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="SidebarManager.toggleView('connect')"
-               class="fa fa-link p-2 sidebar-item"
-               :title="Localizer.get('tooltipSidebarConnection')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
+            <i @click="SidebarManager.toggleView('info')"
+               class="fa fa-circle-info p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarInfo')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
@@ -42,55 +42,14 @@
                    class="container-fluid d-flex flex-column position-relative mt-4"
                    :class="{'px-3': !isMobile}">
 
-                <!-- connection settings -->
-                <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig"
-                         class="container d-flex flex-column">
-
-                        <form @submit.prevent="initRpConnection()">
-
-                            <div class="py-2 text-start">
-                                <input id="opacaUrlInput" type="text"
-                                    class="form-control m-0"
-                                    v-model="opacaRuntimePlatform"
-                                    :placeholder="Localizer.get('opacaLocation')" />
-                            </div>
-
-                            <div class="py-2 text-start">
-                                <div class="row opaca-credentials">
-                                    <div class="col-md-6">
-                                        <input id="opacaUser" type="text"
-                                            class="form-control m-0"
-                                            v-model="opacaUser"
-                                            autocomplete="username"
-                                            placeholder="Username" />
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input id="opacaPwd" type="password"
-                                            class="form-control m-0"
-                                            v-model="opacaPwd"
-                                            autocomplete="current-password" 
-                                            placeholder="Password" />
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                                <input id="apiKey" type="password"
-                                    class="form-control m-0"
-                                    placeholder="OpenAI API Key"
-                                    v-model="this.apiKey"
-                                    @input="this.$emit('api-key-change', this.apiKey)" />
-                            </div>
-
-                            <div class="text-center py-2">
-                                <button class="btn btn-primary w-100" type="submit" id="button-connect">
-                                    <i class="fa fa-link me-1"/>Connect
-                                </button>
-                            </div>
-                        </form>
+                <!-- platform information -->
+                <div v-show="SidebarManager.isViewSelected('info')"
+                     id="sidebarConfig" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!connected" class="placeholder-container">
+                        <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+                        <h5 class="p-4">It's a little quiet here...</h5>
                     </div>
+                    <div v-else v-html="this.howAssistContent" class="faq-content w-auto"/>
                 </div>
 
                 <!-- sample questions -->
@@ -240,6 +199,7 @@ export default {
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
         isDarkScheme: Boolean,
     },
     setup() {
@@ -256,45 +216,26 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
             shouldFadeOut: false,
             fadeTimeout: null,
             faqContent: '',
+            howAssistContent: '',
         };
     },
     methods: {
-        async initRpConnection() {
-            const connectButton = document.getElementById('button-connect');
-            connectButton.disabled = true;
-            console.log(`CONNECTING as ${this.opacaUser}`);
+
+        async showHowCanYouHelpInSidebar() {
             try {
-                const body = {url: this.opacaRuntimePlatform, user: this.opacaUser, pwd: this.opacaPwd};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                const rpStatus = parseInt(res.data);
-                if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                    this.platformActions = res2.data;
-                    this.isConnected = true;
-                    await this.fetchBackendConfig();
-                    SidebarManager.selectView(conf.DefaultSidebarView);
-                } else if (rpStatus === 403) {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unauthorized'));
-                } else {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unreachable'));
-                }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.platformActions = null;
-                this.isConnected = false;
-                alert('Backend server is unreachable.');
-            } finally {
-                connectButton.disabled = false;
+                this.howAssistContent = "Querying functionality, please wait...";
+                const body = {user_query: "How can you assist me?"};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`, body);
+                console.log("result: " + JSON.stringify(res));
+                const answer = res.data.agent_messages[0].content;
+                this.howAssistContent = marked.parse(answer);
+            } catch (error) {
+                console.log("ERROR " + error);
             }
         },
 
@@ -375,10 +316,6 @@ export default {
         },
 
         async fetchBackendConfig() {
-            if (!this.isConnected) {
-                this.backendConfig = null;
-                return;
-            }
             const backend = this.getBackend();
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
@@ -462,13 +399,6 @@ export default {
     },
     mounted() {
         this.setupResizer();
-        this.fetchBackendConfig();
-
-        if (conf.AutoConnect) {
-            this.initRpConnection();
-        } else {
-            SidebarManager.selectView('connect');
-        }
         this.buildFaqContent();
     },
     updated() {
@@ -476,8 +406,21 @@ export default {
     },
     watch: {
         backend() {
-            this.fetchBackendConfig();
+            if (this.connected) {
+                this.fetchBackendConfig();
+            }
         },
+        async connected(newVal) {
+            if (newVal) {
+                await this.fetchBackendConfig()
+                this.showHowCanYouHelpInSidebar() // Intentionally no await
+                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                this.platformActions = res2.data;
+            } else {
+                this.backendConfig = null;
+                this.platformActions = null;
+            }
+        }
     }
 }
 </script>
@@ -677,6 +620,23 @@ export default {
     border-radius: 0;
 }
 
+.placeholder-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    color: var(--text-secondary-light);
+}
+
+.placeholder-image {
+    width: 180px;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
 /* dark mode styling */
 @media (prefers-color-scheme: dark) {
     #sidebar-base {
@@ -781,6 +741,10 @@ export default {
     .faq-content {
         background-color: var(--background-dark);
         color: var(--text-primary-dark);
+    }
+
+    .placeholder-container {
+        color: var(--text-secondary-dark)
     }
 
 }
