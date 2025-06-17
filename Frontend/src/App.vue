@@ -45,12 +45,12 @@
 
                         <!-- Connection -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" @click.prevent="toggleConnectionDropdown">
+                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="true">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div v-if="showConnectionDropdown" class="dropdown-menu show p-4" aria-labelledby="connectionSelector" style="min-width: 320px;">
+                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" style="min-width: 320px;">
                                 <div class="mb-3">
                                     <input v-if="!connected"
                                            type="text"
@@ -238,7 +238,6 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
-            showConnectionDropdown: true,
             showAuthInput: false,
             platformUser: "",
             platformPassword: "",
@@ -251,7 +250,6 @@ export default {
         async connectToPlatform() {
             if (this.connected) {
                 this.connected = false;
-                this.showConnectionDropdown = true;
                 return
             }
             try {
@@ -266,7 +264,6 @@ export default {
                 if (rpStatus === 200) {
                     this.connected = true;
                     this.showAuthInput = false;
-                    this.showConnectionDropdown = false;
                 } else if (rpStatus === 403) {
                     this.connected = false;
                     if (this.showAuthInput) {
@@ -284,10 +281,6 @@ export default {
             } finally {
                 this.isConnecting = false;
             }
-        },
-
-        toggleConnectionDropdown() {
-            this.showConnectionDropdown = !this.showConnectionDropdown;
         },
 
         setBackend(key) {
