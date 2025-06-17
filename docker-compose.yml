@@ -32,6 +32,7 @@ services:
       VLLM_BASE_URL:
       VLLM_API_KEY:
       FRONTEND_BASE_URL:
+      SMARTSPACE_BASE_URL:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:
