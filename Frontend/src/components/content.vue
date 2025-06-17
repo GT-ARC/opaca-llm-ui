@@ -13,6 +13,7 @@
         <Sidebar
             :backend="backend"
             :language="language"
+            :connected="connected"
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
              @select-question="this.askSampleQuestion"
@@ -128,6 +129,7 @@ export default {
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice()
