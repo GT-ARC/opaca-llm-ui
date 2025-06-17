@@ -44,13 +44,13 @@
                         </li>
 
                         <!-- Connection -->
-                        <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="true">
+                        <li class="nav-item dropdown-center me-2">
+                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" style="min-width: 320px;">
+                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
                                     <input v-if="!connected"
                                            type="text"
@@ -73,7 +73,7 @@
 
                         <!-- languages -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-globe me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
                             </a>
@@ -91,7 +91,7 @@
 
                         <!-- backends -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-server me-1"/>
                                 <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
                             </a>
@@ -351,7 +351,7 @@ export default {
         if (conf.AutoConnect) {
             this.connectToPlatform();
         } else {
-            SidebarManager.selectView('questions');
+            SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
         }
     }
 }
