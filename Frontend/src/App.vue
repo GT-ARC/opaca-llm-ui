@@ -94,30 +94,6 @@
                             </ul>
                         </li>
 
-                        <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-adjust me-1"/>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeSelector">
-                                <li @click="this.setTheme('light')">
-                                    <a class="dropdown-item">
-                                        <p>light</p>
-                                    </a>
-                                </li>
-                                <li @click="this.setTheme('dark')">
-                                    <a class="dropdown-item">
-                                        <p>dark</p>
-                                    </a>
-                                </li>
-                                <li @click="this.setTheme('system')">
-                                    <a class="dropdown-item">
-                                        <p>system</p>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-
-
                         <!-- Voice Server Settings -->
                         <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
 
@@ -150,6 +126,13 @@
                                     </button>
                                 </li>
                             </ul>
+                        </li>
+
+                        <!-- color theme toggle -->
+                        <li class="nav-item me-2">
+                            <a class="nav-link" href="#" role="button" @click="this.switchTheme()"  aria-expanded="false">
+                                <i class="fa fa-adjust me-1" />
+                            </a>
                         </li>
                     </ul>
                 </div>
@@ -186,6 +169,7 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            isDarkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
         }
     },
     methods: {
@@ -235,12 +219,10 @@ export default {
             return key === this.backend;
         },
 
-        setTheme(theme) {
+        switchTheme() {
             console.log("IN SET THEME")
-            if (theme === 'system') {
-                const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                theme = isDarkMode ? "dark" : "light";
-            }
+            this.isDarkMode = ! this.isDarkMode;
+            const theme = this.isDarkMode ? "dark" : "light";
             var colors = [
                 "--background-color",
                 "--surface-color",
@@ -256,9 +238,9 @@ export default {
                 "--chat-ai-color",
                 "--input-color",
                 "--debug-console-color",
+                "--icon-invert-color",
             ]
             for (const color of colors) {
-                console
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
         }
