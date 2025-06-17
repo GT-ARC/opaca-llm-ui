@@ -174,7 +174,7 @@
     <div v-if="showAuthInput" class="auth-overlay">
         <div class="dropdown-menu show p-4">
             <form @submit.prevent="connectToPlatform">
-                <h5 class="me-3">{{ Localizer.get('unauthenticated') }}</h5>
+                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
                 <input
                         v-model="platformUser"
                         type="text"
@@ -423,11 +423,15 @@ header {
     padding: 0.5rem;
     min-width: 200px;
     background-color: var(--surface-color);
-    color: var(--text-primary-light)
+    color: var(--text-primary-color)
 }
 
 .dropdown-menu li {
     position: relative;
+}
+
+.dropdown-menu h5 {
+    color: var(--text-primary-color);
 }
 
 .dropdown-menu .dropdown-submenu {
