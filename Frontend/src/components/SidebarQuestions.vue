@@ -47,7 +47,7 @@ export default {
                 this.$emit('category-selected', null);
             } else {
                 this.expandedSection = index;
-                this.$emit('category-selected', index in questions ? questions[index].header : "None");
+                this.$emit('category-selected', index in questions ? questions[index].header : 'none');
             }
         },
 
@@ -61,7 +61,7 @@ export default {
             const index = this.getQuestions().findIndex(section => section.header === header);
             if (index != -1 && this.expandedSection !== index) {
                 this.expandedSection = index;
-                this.$emit('category-selected', index in questions ? questions[index].header : "None");
+                this.$emit('category-selected', index in questions ? questions[index].header : 'none');
             }
         }
     }
