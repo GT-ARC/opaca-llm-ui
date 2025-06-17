@@ -42,7 +42,7 @@ var config = {
     DefaultQuestions: 'None',
 
     // which sidebar view is shown by default.
-    // possible values: 'none', 'connect', 'questions', 'agents', 'config', 'debug'
+    // possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
     // localizer settings
