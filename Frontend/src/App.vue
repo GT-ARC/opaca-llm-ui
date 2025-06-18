@@ -74,8 +74,9 @@
                                 <li v-for="{ key, name } in Localizer.getAvailableLocales()"
                                     @click="Localizer.language = key">
                                     <a class="dropdown-item">
-                                        <p :style= "{'font-weight': Localizer.language === key ? 'bold' : 'normal'}">
+                                        <p :class="{ 'fw-bold': Localizer.language === key }">
                                             {{ name }}
+                                            <i v-show="Localizer.language === key" class="fa fa-check-circle text-success" />
                                         </p>
                                     </a>
                                 </li>
@@ -90,16 +91,20 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
                                 <li v-for="(value, key) in conf.Backends"
-                                    @click="setBackend(key)">
+                                    @click="this.setBackend(key)">
 
                                     <!-- top-level item/group -->
                                     <a v-if="typeof value !== 'string'" class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value.name }}</p>
-                                        <p v-else>{{ value.name }}</p>
+                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
+                                            {{ value.name }}
+                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
+                                        </p>
                                     </a>
                                     <a v-else class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value }}</p>
-                                        <p v-else>{{ value }}</p>
+                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
+                                            {{ value }}
+                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
+                                        </p>
                                     </a>
 
                                     <!-- sub-level items -->
@@ -126,8 +131,9 @@
                         <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
 
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-microphone me-1"/>
-                                <span v-show="!isMobile">Voice Server</span>
+                                <i v-if="AudioManager.isVoiceServerConnected" class="fa fa-microphone me-1" />
+                                <i v-else class="fa fa-microphone-slash me-1" />
+                                <span v-show="!isMobile">{{ Localizer.get('audioServerSettings') }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
                                 <li>
@@ -141,8 +147,7 @@
                                 <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
                                         <!-- add word-wrapping to accomodate smaller devices -->
-                                        <div class="text-muted"
-                                             style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
+                                        <div class="text-muted">
                                             {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
                                     </div>
@@ -152,6 +157,14 @@
                                         <i class="fa fa-refresh me-2"/>
                                         {{ Localizer.get('ttsRetry') }}
                                     </button>
+                                </li>
+                                <li>
+                                    <div class="dropdown-item dropdown-item-text">
+                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <div class="text-muted">
+                                            {{ conf.VoiceServerAddress }}
+                                        </div>
+                                    </div>
                                 </li>
                             </ul>
                         </li>
@@ -409,6 +422,13 @@ header {
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
     color: var(--text-primary-color);
+}
+
+.dropdown-item-text {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 6rem);
+    word-wrap: break-word;
+    white-space: normal;
 }
 
 .dropdown-item:hover {

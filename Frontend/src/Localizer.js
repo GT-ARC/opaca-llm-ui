@@ -45,6 +45,7 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
+        tooltipChatbubbleCopy: "Copy",
         tooltipButtonSend: "Submit",
         tooltipButtonRecord: "Dictate",
         tooltipButtonReset: "Reset Chat",
@@ -54,6 +55,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
+        audioServerSettings: "Audio",
         howAssist: "How can you assist me?",
     },
 
@@ -96,6 +98,7 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
+        tooltipChatbubbleCopy: "Kopieren",
         tooltipButtonSend: "Absenden",
         tooltipButtonRecord: "Diktieren",
         tooltipButtonReset: "Chat Zurücksetzen",
@@ -105,6 +108,7 @@ export const localizationData = {
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
+        audioServerSettings: "Audio",
         howAssist: "Womit kannst du mir helfen?",
     },
 };

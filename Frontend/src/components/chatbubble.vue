@@ -46,6 +46,18 @@
 
             <!-- footer: debug, generate audio, ... -->
             <div class="d-flex justify-content-start small">
+
+                <!-- copy to clipboard -->
+                <div v-show="this.content.length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.copyContentToClipboard()"
+                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                    <i v-if="this.copySuccess" class="fa fa-check" />
+                    <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- debug messages -->
                 <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
@@ -53,6 +65,8 @@
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
+
+                <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
@@ -60,6 +74,8 @@
                      :title="Localizer.get('tooltipChatbubbleError')">
                     <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
+
+                <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
@@ -74,6 +90,7 @@
                        data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
+
             </div>
 
             <!-- footer: debug messages -->
@@ -135,6 +152,7 @@ export default {
             error: null,
             isErrorExpanded: false,
             ttsAudio: null,
+            copySuccess: false,
         }
     },
 
@@ -240,6 +258,16 @@ export default {
                 '--glow-color-1': baseColor ? `${baseColor}40` : '#00ff0040',
                 '--glow-color-2': baseColor ? `${baseColor}90` : '#00ff0090',
             };
+        },
+
+        copyContentToClipboard() {
+            if (this.content.length <= 0 || this.copySuccess) return;
+            navigator.clipboard.writeText(this.content)
+                .then(() => {
+                    this.copySuccess = true;
+                    setTimeout(() => this.copySuccess = false, 2000);
+                })
+                .catch(error => console.error('Failed to copy text: ', error));
         },
 
         /**
@@ -371,6 +399,7 @@ export default {
 
 .footer-item {
     color: var(--text-secondary-color);
+    font-weight: bold;
 }
 
 .footer-item:hover {
