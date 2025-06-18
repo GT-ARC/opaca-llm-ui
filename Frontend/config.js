@@ -8,8 +8,10 @@ var config = {
     Backends: {
         "simple": "Simple Prompt",
         "tool-llm": "Tool LLM",
-        "self-orchestrated": "Self-Orchestrated"
+        "self-orchestrated": "Self-Orchestrated",
+	"simple-tools": "Simple Tool Prompt"
     },
+
     /*
     // reminder, because it's currently not used: define one level of "sub-backends" like this:
     BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
@@ -38,6 +40,9 @@ var config = {
 
     // if true, attempt to connect to the configured platform on-load
     AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
+
+    // starting color scheme: light, dark, or system (default)
+    ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
 
     // which set of questions is shown within the chat window on startup.
     // this should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
@@ -77,6 +82,7 @@ function parseQueryParams() {
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
     config.DefaultLanguage = urlParams['lang'] ?? config.DefaultQuestions;
+    config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
 }
 
 parseQueryParams();

@@ -168,6 +168,13 @@
                                 </li>
                             </ul>
                         </li>
+
+                        <!-- color theme toggle -->
+                        <li class="nav-item me-2">
+                            <a class="nav-link" href="#" role="button" @click="this.switchTheme()"  aria-expanded="false">
+                                <i class="fa fa-adjust me-1" />
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -180,7 +187,7 @@
     <div v-if="showAuthInput" class="auth-overlay">
         <div class="dropdown-menu show p-4">
             <form @submit.prevent="connectToPlatform">
-                <h5 class="me-3">{{ Localizer.get('unauthenticated') }}</h5>
+                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
                 <input
                         v-model="platformUser"
                         type="text"
@@ -242,6 +249,8 @@ export default {
             language: 'GB',
             backend: conf.BackendDefault,
             sidebar: 'connect',
+            isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
+                         window.matchMedia('(prefers-color-scheme: dark)').matches),
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
@@ -333,9 +342,42 @@ export default {
             }
             return key === this.backend;
         },
+
+        switchTheme() {
+            console.log("IN SET THEME")
+            this.isDarkMode = ! this.isDarkMode;
+            this.setTheme();
+        },
+
+        setTheme() {
+            const theme = this.isDarkMode ? "dark" : "light";
+            var colors = [
+                "--background-color",
+                "--surface-color",
+                "--primary-color",
+                "--secondary-color",
+                "--accent-color",
+                "--text-primary-color",
+                "--text-secondary-color",
+                "--text-success-color",
+                "--text-danger-color",
+                "--border-color",
+                "--chat-user-color",
+                "--chat-ai-color",
+                "--input-color",
+                "--debug-console-color",
+                "--icon-invert-color",
+            ]
+            for (const color of colors) {
+                document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
+            }
+        },
     },
 
     mounted() {
+        if (conf.ColorScheme != "system") {
+            this.setTheme();
+        }
         AudioManager.initVoiceServerConnection();
 
         if (conf.AutoConnect) {
@@ -349,11 +391,11 @@ export default {
 
 <style scoped>
 .background {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 header {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
     width: 100%;
     height: 50px;
     display: flex;
@@ -368,6 +410,7 @@ header {
 
 .logo {
     transition: transform 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .logo:hover {
@@ -378,6 +421,7 @@ header {
     cursor: pointer;
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
+    color: var(--text-primary-color);
 }
 
 .dropdown-item-text {
@@ -388,7 +432,8 @@ header {
 }
 
 .dropdown-item:hover {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
 }
 
 .dropdown-menu {
@@ -397,11 +442,16 @@ header {
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
-    color: var(--text-primary-light)
+    background-color: var(--surface-color);
+    color: var(--text-primary-color)
 }
 
 .dropdown-menu li {
     position: relative;
+}
+
+.dropdown-menu h5 {
+    color: var(--text-primary-color);
 }
 
 .dropdown-menu .dropdown-submenu {
@@ -427,12 +477,12 @@ header {
     padding: 0.5rem 1rem;
     border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
 }
 
 .nav-link:hover {
-    background-color: var(--surface-light);
-    color: var(--primary-light);
+    background-color: var(--surface-color);
+    color: var(--primary-color);
 }
 
 .dropdown-toggle {
@@ -470,74 +520,29 @@ header {
 }
 
 @media (prefers-color-scheme: dark) {
-    .background {
-        background-color: var(--background-dark);
-    }
 
     header {
-        background-color: var(--background-dark);
         border-color: #2e2e2e;
-    }
-
-    .logo {
-        filter: invert(1);
-    }
-
-    .nav-link {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:focus {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:hover {
-        background-color: var(--surface-dark);
-        color: var(--primary-dark);
     }
 
     .dropdown-menu {
-        background-color: var(--surface-dark);
         border-color: #2e2e2e;
         color: var(--text-primary-dark);
     }
 
-    .dropdown-item {
-        color: var(--text-primary-dark);
-    }
-
-    .dropdown-item:hover {
-        background-color: var(--background-dark);
-        color: var(--primary-dark);
-    }
-
-    .text-muted {
-        color: var(--text-secondary-dark) !important;
-    }
-
-    .form-control {
-        background-color: var(--input-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .form-control:focus {
-        background-color: var(--input-dark);
-        border-color: var(--primary-dark);
-    }
 }
 
 /* Voice Server Settings Styles */
 .text-success {
-    color: #10b981 !important;
+    color: var(--text-success-color) !important;
 }
 
 .text-danger {
-    color: #ef4444 !important;
+    color: var(--text-danger-color) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary-color) !important;
 }
 
 .dropdown-item .fa {
@@ -551,15 +556,5 @@ header {
     width: 100%;
     text-align: left;
     padding: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-    .text-success {
-        color: #34d399 !important;
-    }
-
-    .text-danger {
-        color: #f87171 !important;
-    }
 }
 </style>

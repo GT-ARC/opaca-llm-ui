@@ -341,7 +341,8 @@ export default {
 
 <style scoped>
 .chatbubble {
-    background-color: var(--chat-ai-light);
+    color: var(--text-primary-color);
+    background-color: var(--chat-ai-color);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
@@ -351,6 +352,7 @@ export default {
 }
 
 .chatbubble-user {
+    background-color: var(--chat-user-color);
     margin-left: auto;
     margin-right: 1rem;
     padding: 0.75rem 1.25rem;
@@ -379,9 +381,9 @@ export default {
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    background: var(--chat-ai-light);
+    background: var(--chat-ai-color);
     border-radius: 50%;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
     padding: 0.5rem;
     aspect-ratio: 1 / 1;
 }
@@ -390,20 +392,21 @@ export default {
     object-fit: contain;
     width: 100%;
     height: 100%;
+    filter: invert(var(--icon-invert-color));
 }
 
 .footer-item {
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
     font-weight: bold;
 }
 
 .footer-item:hover {
-    color: var(--primary-light);
+    color: var(--primary-color);
 }
 
 .bubble-debug-text {
-    background-color: var(--debug-console-light);
-    color: var(--text-secondary-light);
+    background-color: var(--debug-console-color);
+    color: var(--text-secondary-color);
 }
 
 .glow {
@@ -420,36 +423,6 @@ export default {
     50% {
         box-shadow: 0 0 15px var(--glow-color-2, #00ff0090);
     }
-}
-
-@media (prefers-color-scheme: dark) {
-    .footer-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .footer-item:hover {
-        color: var(--text-primary-dark);
-    }
-
-    .bubble-debug-text {
-        background-color: var(--debug-console-dark);
-        color: var(--text-secondary-dark);
-    }
-
-    .chatbubble {
-        background: var(--chat-ai-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .chaticon {
-        background: var(--chat-ai-dark);
-        border-color: var(--border-dark);
-    }
-
-    .chaticon img {
-        filter: invert(100%);
-    }
-
 }
 
 @media screen and (max-width: 768px) {

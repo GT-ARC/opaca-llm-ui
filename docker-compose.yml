@@ -20,6 +20,7 @@ services:
       VITE_SHOW_APIKEY:
       VITE_VOICE_SERVER_URL:
       VITE_AUTOCONNECT:
+      VITE_COLOR_SCHEME:
 
   # FastAPI-based backend for the OPACA LLM Integration
   opaca-llm-backend:
@@ -32,6 +33,7 @@ services:
       VLLM_BASE_URL:
       VLLM_API_KEY:
       FRONTEND_BASE_URL:
+      SMARTSPACE_BASE_URL:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:

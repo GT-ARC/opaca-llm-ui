@@ -73,6 +73,7 @@ The OPACA LLM can be configured in various ways using the `config.js` file in th
 * `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
 * `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `connect` (stay on connect page), `questions` (sample questions), `agents` (agents and actions), `config` and `debug`.
 * `samples`: Which category of sample questions to show; possible options see "headers" in the `sidebarQuestions` section in the config (special characters might have to be URL-encoded), plus `random` for a random selection.
+* `colorscheme`: The starting color scheme, can be "light", "dark", or "system".
 
 
 ## Environment Variables
@@ -89,6 +90,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VITE_SHOW_APIKEY`: Whether to show an input field for the OpenAI API key in the UI
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
+* `VITE_COLOR_SCHEME`: The starting color scheme, can be "light", "dark", or "system"; can be overwritten by `colorscheme` query param.
 
 ### Backend
 
@@ -96,6 +98,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
 * `VLLM_API_KEY`: API key for the vLLM API, if any.
 * `FRONTEND_BASE_URL`: The URL of the frontend, analogous to `VITE_BACKEND_BASE_URL` (may be needed for CORS; defaults to localhost)
+* `SMARTSPACE_BASE_URL`: The URL of the Smartspace UI (may be needed for CORS; defaults to localhost)
 
 
 ## Getting Started
