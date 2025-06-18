@@ -427,7 +427,7 @@ export default {
 
 <style scoped>
 #sidebar-base {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
 }
 
 /* sidebar content */
@@ -440,8 +440,8 @@ export default {
 }
 
 #sidebar-menu {
-    background-color: var(--surface-light);
-    border-right: 1px solid var(--border-light);
+    background-color: var(--surface-color);
+    border-right: 1px solid var(--border-color);
     padding: 1.5rem 0.75rem;
     transition: all 0.3s ease;
 }
@@ -455,30 +455,45 @@ export default {
     align-items: center;
     justify-content: center;
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
     transition: all 0.2s ease;
 }
 
 .sidebar-item:hover {
-    background-color: var(--background-light);
-    color: var(--primary-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light) !important;
+    background-color: var(--primary-color) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
-    background-color: var(--secondary-light);
+    background-color: var(--secondary-color);
     color: white !important;
 }
 
+.form-control {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+    color: var(--text-primary-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary-color);
+}
+
+.form-control:focus {
+    background-color: var(--input-color);
+    border-color: var(--primary-color);
+}
+
 .faq-content {
-    background-color: var(--background-light);
-    color: var(--text-primary-light);
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
 }
 
 @media screen and (max-width: 768px) {
@@ -501,17 +516,17 @@ export default {
     top: 0;
     right: 0;
     border-radius: var(--bs-border-radius-sm);
-    background-color: var(--border-light);
+    background-color: var(--border-color);
     transition: background-color 0.2s ease;
 }
 
 .resizer:hover {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
 }
 
 #chatDebug {
-    background-color: var(--debug-console-light);
-    border: 1px solid var(--border-light);
+    background-color: var(--debug-console-color);
+    border: 1px solid var(--border-color);
     overflow: hidden;
     height: 100%;
     display: flex;
@@ -522,9 +537,9 @@ export default {
 .accordion-item {
     border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
     overflow: hidden;
-    background-color: var(--surface-light);
+    background-color: var(--surface-color);
 }
 
 .accordion-button {
@@ -532,8 +547,8 @@ export default {
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    background-color: var(--surface-light);
-    color: var(--text-primary-light);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
 }
 
 .accordion-button i {
@@ -541,13 +556,13 @@ export default {
 }
 
 .accordion-button:not(.collapsed) {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
     color: white;
     box-shadow: none;
 }
 
 .accordion-button:hover {
-    background-color: var(--secondary-light)
+    background-color: var(--secondary-color)
 }
 
 .accordion-button:focus {
@@ -560,15 +575,16 @@ export default {
     width: 1rem;
     height: 1rem;
     transition: all 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .accordion-body {
     padding: 0;
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .accordion-collapse {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .action-header-button {
@@ -591,8 +607,8 @@ export default {
 }
 
 .json-box {
-    background-color: var(--bs-gray-200);
-    color: var(--text-primary-light);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
     padding: 0.75rem;
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
@@ -609,8 +625,8 @@ export default {
     padding: 0.75rem 1rem;
     background-color: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary-color);
     transition: all 0.2s ease;
 }
 
@@ -635,118 +651,6 @@ export default {
     width: 180px;
     margin-bottom: 1rem;
     opacity: 0.6;
-}
-
-/* dark mode styling */
-@media (prefers-color-scheme: dark) {
-    #sidebar-base {
-        background-color: var(--background-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select:hover {
-        background-color: var(--secondary-dark);
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--debug-console-dark);
-        border-color: var(--border-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    .accordion-item {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .accordion-button {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .accordion-button:not(.collapsed) {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-        box-shadow: none;
-    }
-
-    .accordion-button:focus {
-        box-shadow: none;
-        border-color: transparent;
-    }
-
-    .accordion-button::after {
-        filter: invert(1);
-    }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
-
-    .json-box {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control {
-        background-color: var(--input-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .form-control:focus {
-        background-color: var(--input-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .list-group-item {
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .faq-content {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .placeholder-container {
-        color: var(--text-secondary-dark)
-    }
-
 }
 
 /* mobile design */
