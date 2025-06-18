@@ -8,11 +8,15 @@ import uuid
 from typing import List, Dict, Any
 import asyncio
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
+from typing import List, Optional
+import json
+import logging
+import traceback
 
 from .utils import validate_config_input
 from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
@@ -55,26 +59,70 @@ BACKENDS = {
 sessions_lock = asyncio.Lock()
 sessions = {}
 
+logger = logging.getLogger("models")
+logger.info("Server running")
+print("Server running")
 
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
     return list(BACKENDS)
 
-@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
+"""@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     session = await handle_session_id(request, response)
     session.opaca_client = OpacaClient()
-    return await session.opaca_client.connect(url.url, url.user, url.pwd)
+    return await session.opaca_client.connect(url.url, url.user, url.pwd)"""
+@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
+async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
+    print(">>> /connect called")
+    print(">>> Incoming URL:", url.url)
+    print(">>> Incoming user:", url.user)
+
+    try:
+        print(">>> Handling session ID")
+        #session = await handle_session_id(request, response)
+        session, session_id = await handle_session_id(request, response)
+        print(">>> [CONNECT] session_id used:", session_id)
+
+        print(">>> Creating OpacaClient")
+        session.opaca_client = OpacaClient()
+        print(">>> OpacaClient assigned to session:", session.opaca_client)
+
+        print(">>> Attempting connection...")
+        status = await session.opaca_client.connect(url.url, url.user, url.pwd)
+        print(">>> Connection status:", status)
+
+        if not hasattr(session, "opaca_client") or session.opaca_client is None:
+            print(">>> WARNING: session.opaca_client is None after connect")
+            raise HTTPException(status_code=500, detail="session.opaca_client is not set after connect")
+
+        if status != 200:
+            print(">>> Connection failed with status:", status)
+            raise HTTPException(status_code=status, detail="Failed to connect to OPACA Runtime Platform.")
+
+        print(">>> Connection successful. Returning status.")
+        print(">>> [CONNECT] session object id:", id(session))
+        return status
+
+    except HTTPException:
+        raise  # Let FastAPI handle known HTTP errors
+
+    except Exception as e:
+        print(">>> Unexpected error during /connect:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     return await session.opaca_client.get_actions()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
     session.messages.extend([ChatMessage(role="user", content=message.user_query),
@@ -83,6 +131,9 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
+    print("query_stream triggered")
+    logger.info("query_stream getriggert")
+
     await websocket.accept()
     session = await handle_session_id_for_websocket(websocket)
     try:
@@ -96,14 +147,49 @@ async def query_stream(websocket: WebSocket, backend: str):
     finally:
         await websocket.close()
 
+@app.post("/{backend}/upload_files", description="Upload one or more files along with a JSON message.")
+async def upload_files(
+    request: Request,
+    backend: str,
+    files: List[UploadFile] = File(...),
+    json_data: str = Form(...)
+):
+    print("upload_files triggered")
+    print("received files:", files)
+    
+    # Parse user query and API key
+    try:
+        parsed_data = json.loads(json_data)
+        message = Message(**parsed_data)  # Expecting fields like user_query, api_key
+    except Exception as e:
+        return {"error": "Invalid JSON payload", "detail": str(e)}
+
+    # Mimic WebSocket session setup
+    session = await handle_session_id_for_request(request)
+    await BACKENDS[backend].init_models(session)
+
+    # Call a non-streaming version of the model
+    # Re-serialize the parsed message into a string again
+    json_string = json.dumps(parsed_data)
+    result = await BACKENDS[backend].upload_files(session, json_string, files)
+    # Save the messages in the session
+    session.messages.extend([
+        ChatMessage(role="user", content=message.user_query),
+        ChatMessage(role="assistant", content=result.content)
+    ])
+
+    return {"content": result.content}
+
+
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
+
     return session.messages
 
 @app.post("/reset", description="Reset message history for the current session.")
 async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     session.messages.clear()
     return FastAPIResponse(status_code=204)
 
@@ -114,14 +200,14 @@ async def reset_all():
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     try:
         validate_config_input(conf, BACKENDS[backend].config_schema)
     except HTTPException as e:
@@ -131,23 +217,30 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session = await handle_session_id(request, response)
+    session, session_id = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
+#async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
+async def handle_session_id(request: Request, response: FastAPIResponse) -> tuple[SessionData, str]:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
     session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
     response and return the SessionData associated with that session-id.
     """
+    print(">>> [HANDLE_SESSION] Session ID in request.cookies:", request.cookies.get("session_id"))
+
+    # Existing logic
     session_id = request.cookies.get("session_id")
     async with sessions_lock:
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
         response.set_cookie("session_id", session_id)
-        return sessions[session_id]
+
+        print(">>> [HANDLE_SESSION] Using session ID:", session_id)
+        #return sessions[session_id]
+        return sessions[session_id], session_id
 
 async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     """
@@ -170,6 +263,27 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
             sessions[session_id] = SessionData()
 
         # Return the session data for the session ID
+        return sessions[session_id]
+    
+async def handle_session_id_for_request(request: Request) -> SessionData:
+    """
+    Gets the session id from an HTTP request and returns the corresponding session data.
+    If no session id was found or the id is unknown, creates a new session id and adds
+    an empty list of messages to that session id.
+    """
+    headers = Headers(scope=request.scope)
+    cookies = headers.get("cookie")
+    session_id = None
+
+    if cookies:
+        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
+        session_id = cookie_dict.get("session_id")
+
+    async with sessions_lock:
+        if not session_id or session_id not in sessions:
+            session_id = str(uuid.uuid4())
+            sessions[session_id] = SessionData()
+
         return sessions[session_id]
 
 # run as `python3 -m Backend.server`

@@ -225,6 +225,122 @@ class AbstractMethod(ABC):
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
+    
+    async def call_llm_with_pdf(
+        self,
+        client: AsyncOpenAI,
+        model: str,
+        agent: str,
+        system_prompt: str,
+        user_question: str,
+        pdf_file_path: str,
+        temperature: Optional[float] = 0.0,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = "auto",
+        response_format: Optional[Type[ResponseFormatT]] = None,
+    ) -> AgentMessage:
+        """
+        Calls an LLM with a PDF file input and an accompanying user question.
+        Uses OpenAI's file upload + input_file mechanism.
+
+        Args:
+            client (AsyncOpenAI): An initialized OpenAI client.
+            model (str): The model name.
+            agent (str): The agent name.
+            system_prompt (str): The system prompt.
+            user_question (str): The question to ask about the PDF.
+            pdf_file_path (str): Path to the local PDF file to upload.
+            temperature (float): Temperature for sampling.
+            tools (List): Tool definitions if any.
+            tool_choice (str): Tool choice policy.
+            response_format (Type): Optional pydantic schema for parsing.
+
+        Returns:
+            AgentMessage: Standard response object.
+        """
+
+        exec_time = time.time()
+
+        agent_message = AgentMessage(
+            agent=agent,
+            content='',
+            tools=[]
+        )
+
+        # --- STEP 1: Upload PDF ---
+        uploaded_file = await client.files.create(
+            file=open(pdf_file_path, "rb"),
+            purpose="user_data"
+        )
+
+        # --- STEP 2: Build proper messages ---
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "file",
+                        "file": {"file_id": uploaded_file.id}
+                    },
+                    {
+                        "type": "text",
+                        "text": user_question
+                    }
+                ]
+            }
+        ]
+
+        # --- STEP 3: Prepare kwargs ---
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "tools": tools or [],
+            "tool_choice": tool_choice if tools else "none"
+        }
+
+        if not model.startswith(("o1", "o3")):
+            kwargs["temperature"] = temperature
+
+        # --- STEP 4: Call the LLM with or without response_format ---
+        if response_format:
+            if self._is_gpt(model):
+                completion = await client.beta.chat.completions.parse(
+                    **kwargs, response_format=response_format
+                )
+                agent_message.content = completion.choices[0].message.content
+                agent_message.formatted_output = completion.choices[0].message.parsed
+            else:
+                # For non-GPT models: fallback
+                guided_json = transform_schema(response_format.model_json_schema())
+                kwargs["extra_body"] = {"guided_json": guided_json}
+                kwargs["messages"][0]["content"] += (
+                    f"\nYou MUST respond as JSON matching this schema:\n{json.dumps(guided_json, indent=2)}"
+                )
+                completion = await client.chat.completions.create(**kwargs)
+                raw_content = completion.choices[0].message.content
+                cleaned = self.extract_json_like_content(raw_content)
+                try:
+                    agent_message.formatted_output = response_format.model_validate_json(cleaned)
+                except ValidationError:
+                    agent_message.formatted_output = {}
+                agent_message.content = raw_content
+            agent_message.response_metadata = completion.usage.to_dict()
+        else:
+            completion = await client.chat.completions.create(**kwargs)
+            # no streaming here: just grab the single-shot response
+            agent_message.content = completion.choices[0].message.content
+            agent_message.response_metadata = completion.usage.to_dict()
+
+        agent_message.execution_time = time.time() - exec_time
+
+        logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output,
+                    extra={"agent_name": agent})
+
+        return agent_message
 
     @staticmethod
     def _is_gpt(model: str):

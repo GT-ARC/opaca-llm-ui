@@ -192,26 +192,87 @@ export default {
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
+            console.log("askChatGpt triggered");
 
-            // add user chat bubble
-            await this.addChatBubble(userText, true, false);
-
-            // add AI chat bubble in loading state, add prepare message
-            await this.addChatBubble('', false, true);
+            await this.addChatBubble(userText, true, false); // user message
+            await this.addChatBubble('', false, true);       // empty loading AI bubble
             this.getLastBubble().addStatusMessage('preparing',
                 Localizer.getLoadingMessage('preparing'), false);
 
+            // Optional testing: load test file
             try {
-                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
+                // const response = await fetch('/test_data.pdf');
+                const response = await fetch('http://localhost:5173/test_data.pdf');
+                console.log("Fetch response ok?", response.ok, response.status);
+                const blob = await response.blob();
+                console.log("Blob size:", blob.size);
+                const testFile = new File([blob], 'test.pdf', { type: 'application/pdf' });
+
+                // Trick: put it in a hidden <input type="file">
+                let fileInput = document.getElementById('hiddenFileInput');
+                if (!fileInput) {
+                    // create hidden input once if not existing
+                    fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.style.display = 'none';
+                    fileInput.id = 'hiddenFileInput';
+                    document.body.appendChild(fileInput);
+                }
+
+                const dt = new DataTransfer();
+                dt.items.add(testFile);
+                fileInput.files = dt.files;
+
+                // Also update your component's selectedFiles for consistency
+                this.selectedFiles = Array.from(fileInput.files);
+
+                console.log(`Loaded test.pdf into hidden file input & selectedFiles: ${testFile.size} bytes`);
             } catch (error) {
-                await this.handleStreamingSocketError(error);
+                console.error('Failed to load test.pdf:', error);
+            }
+
+            if (this.selectedFiles && this.selectedFiles.length > 0) {
+                const formData = new FormData();
+
+                this.selectedFiles.forEach(file => {
+                    formData.append("files", file);
+                });
+
+                const jsonMessage = JSON.stringify({
+                    user_query: userText,
+                    api_key: this.apiKey
+                });
+                formData.append("json_data", jsonMessage);
+
+                try {
+                    // Include backend name in URL
+                    const backend = this.getBackend();
+                    const response = await fetch(`${conf.BackendAddress}/${backend}/upload_files`, {
+                        method: "POST",
+                        body: formData,
+                        credentials: "include"  // Important: include cookies in the request or backend could generate new session id
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    console.log("Upload result:", result);
+
+                    // Reuse handleStreamingSocketMessage to display it
+                    const fakeEvent = { data: JSON.stringify(JSON.stringify(result)) };
+                    await this.handleStreamingSocketMessage(fakeEvent);
+
+                } catch (error) {
+                    console.error("Upload failed:", error);
+                    this.getLastBubble().setContent("Upload failed: " + error.message);
+                    this.getLastBubble().toggleLoading(false);
+                    this.isFinished = true;
+                }
             }
         },
+
 
         async handleStreamingSocketOpen(socket, userText) {
             try {

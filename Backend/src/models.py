@@ -107,6 +107,7 @@ class SessionData(BaseModel):
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
+    uploaded_files: Dict[str, Dict[str, Any]] = {} 
 
 
 class ConfigArrayItem(BaseModel):
