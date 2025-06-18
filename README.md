@@ -96,6 +96,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
 * `VLLM_API_KEY`: API key for the vLLM API, if any.
 * `FRONTEND_BASE_URL`: The URL of the frontend, analogous to `VITE_BACKEND_BASE_URL` (may be needed for CORS; defaults to localhost)
+* `SMARTSPACE_BASE_URL`: The URL of the Smartspace UI (may be needed for CORS; defaults to localhost)
 
 
 ## Getting Started
