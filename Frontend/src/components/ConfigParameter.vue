@@ -190,6 +190,21 @@ input[type="number"] {
   appearance: textfield;
 }
 
+.form-control {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+    color: var(--text-primary-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary-color);
+}
+
+.form-control:focus {
+    background-color: var(--input-color);
+    border-color: var(--primary-color);
+}
+
 .config-section {
     margin-bottom: 1.5rem;
 }
@@ -202,12 +217,12 @@ input[type="number"] {
 }
 
 .config-section-header i {
-    color: var(--primary-light);
+    color: var(--primary-color);
     font-size: 1.125rem;
 }
 
 .config-section-header strong {
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
 }
 
 .nested-config {
@@ -268,28 +283,4 @@ input[type="number"] {
     border-color: transparent transparent #333 transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-    .config-section-header strong {
-        color: var(--text-primary-dark);
-    }
-
-    .config-section-header i {
-        color: var(--primary-dark);
-    }
-
-    .form-control {
-        background-color: var(--input-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .form-control:focus {
-        background-color: var(--input-dark);
-        border-color: var(--primary-dark);
-    }
-}
 </style>
