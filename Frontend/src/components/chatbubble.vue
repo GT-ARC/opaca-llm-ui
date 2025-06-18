@@ -5,7 +5,7 @@
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
-            <div v-html="this.content"></div>
+            <div v-html="this.getFormattedContent()"></div>
         </div>
         <div class="chaticon">
             <img src="/src/assets/Icons/nutzer.png" alt="User">
@@ -103,6 +103,7 @@
 
 <script>
 import {marked} from "marked";
+import DOMPurify from "dompurify";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
@@ -204,7 +205,8 @@ export default {
 
         getFormattedContent() {
             try {
-                return marked.parse(this.content);
+                const content = marked.parse(this.content);
+                return DOMPurify.sanitize(content);
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
