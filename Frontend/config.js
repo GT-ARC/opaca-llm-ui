@@ -34,8 +34,6 @@ var config = {
 
     VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
 
-    ShowKeyboard: parseEnvBool('VITE_SHOW_KEYBOARD', false),
-
     ShowApiKey: parseEnvBool('VITE_SHOW_APIKEY', false),
 
     // if true, attempt to connect to the configured platform on-load
@@ -81,7 +79,7 @@ function parseQueryParams() {
     config.AutoConnect = urlParams['autoconnect'] ?? config.AutoConnect;
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
-    config.DefaultLanguage = urlParams['lang'] ?? config.DefaultQuestions;
+    config.DefaultLanguage = urlParams['lang'] === 'true' ?? config.DefaultLanguage;
     config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
 }
 
