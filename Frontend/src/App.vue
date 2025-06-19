@@ -45,7 +45,7 @@
                             </a>
                             <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
-                                    <input v-if="!connected"
+                                    <input :disabled="connected"
                                            type="text"
                                            v-model="opacaRuntimePlatform"
                                            placeholder="Enter URL"
@@ -146,7 +146,7 @@
                                 </li>
                                 <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <!-- add word-wrapping to accommodate smaller devices -->
                                         <div class="text-muted">
                                             {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
@@ -160,7 +160,6 @@
                                 </li>
                                 <li>
                                     <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted">
                                             {{ conf.VoiceServerAddress }}
                                         </div>
@@ -473,6 +472,7 @@ header {
     display: block;
 }
 
+/* navbar stuff */
 .nav-link {
     padding: 0.5rem 1rem;
     border-radius: var(--bs-border-radius);
@@ -481,8 +481,12 @@ header {
 }
 
 .nav-link:hover {
-    background-color: var(--surface-color);
-    color: var(--primary-color);
+    background-color: var(--surface-color) !important;
+    color: var(--primary-color) !important;
+}
+
+.nav-link.show {
+    color: var(--text-primary-color) !important;
 }
 
 .dropdown-toggle {
@@ -533,18 +537,6 @@ header {
 }
 
 /* Voice Server Settings Styles */
-.text-success {
-    color: var(--text-success-color) !important;
-}
-
-.text-danger {
-    color: var(--text-danger-color) !important;
-}
-
-.text-muted {
-    color: var(--text-secondary-color) !important;
-}
-
 .dropdown-item .fa {
     width: 1.25rem;
     text-align: center;

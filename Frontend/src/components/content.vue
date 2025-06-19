@@ -8,6 +8,7 @@
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
+            ref="RecordingPopup"
         />
 
         <Sidebar

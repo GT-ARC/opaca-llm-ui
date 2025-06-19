@@ -476,21 +476,6 @@ export default {
     color: white !important;
 }
 
-.form-control {
-    background-color: var(--input-color);
-    border-color: var(--border-color);
-    color: var(--text-primary-color);
-}
-
-.form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.form-control:focus {
-    background-color: var(--input-color);
-    border-color: var(--primary-color);
-}
-
 .faq-content {
     background-color: var(--background-color);
     color: var(--text-primary-color);
@@ -540,70 +525,6 @@ export default {
     border: 1px solid var(--border-color);
     overflow: hidden;
     background-color: var(--surface-color);
-}
-
-.accordion-button {
-    border-radius: var(--bs-border-radius);
-    padding: 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    background-color: var(--surface-color);
-    color: var(--text-primary-color);
-}
-
-.accordion-button i {
-    margin-right: 0.75rem;
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: none;
-}
-
-.accordion-button:hover {
-    background-color: var(--secondary-color)
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: transparent;
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    width: 1rem;
-    height: 1rem;
-    transition: all 0.2s ease;
-    filter: invert(var(--icon-invert-color));
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--background-color);
-}
-
-.accordion-collapse {
-    background-color: var(--background-color);
-}
-
-.action-header-button {
-    background-color: transparent;
-    color: inherit;
-    padding: 0.5rem 0;
-    border: none;
-    box-shadow: none;
-    text-align: left;
-    width: 100%;
-    font-weight: bold;
-}
-
-.action-header-button:focus {
-    outline: none;
-}
-
-.action-header-button::after {
-    display: none;
 }
 
 .json-box {
