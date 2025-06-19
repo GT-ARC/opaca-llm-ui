@@ -518,13 +518,23 @@ export default {
     flex-direction: column;
 }
 
-/* Accordion Styling */
-.accordion-item {
-    border-radius: var(--bs-border-radius);
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-    background-color: var(--surface-color);
+.action-header-button {
+    background-color: transparent;
+    color: inherit;
+    padding: 0.5rem 0;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    width: 100%;
+    font-weight: bold;
+}
+
+.action-header-button:focus {
+    outline: none;
+}
+
+.action-header-button::after {
+    display: none;
 }
 
 .json-box {
