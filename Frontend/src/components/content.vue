@@ -72,7 +72,7 @@
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
                             v-if="this.isSendAvailable()"
-                            class="btn btn-primary"
+                            class="btn btn-primary input-area-button"
                             @click="submitText"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
@@ -81,7 +81,7 @@
                     </button>
                     <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary"
+                            class="btn btn-outline-primary input-area-button"
                             @click="this.startRecognition()"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonRecord')">
@@ -90,7 +90,7 @@
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger"
+                            class="btn btn-outline-danger input-area-button"
                             @click="resetChat"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonReset')">
@@ -483,25 +483,8 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
-.scroll-wrapper {
-    border-radius: 1.5rem;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-}
-
-.input-group {
-    width: 100%;
-    max-width: min(95%, 100ch);
-    margin: 0 auto;
-    padding: 0 1rem;
-}
-
-.input-group .form-control {
+#textInput {
     box-shadow: 0 0 0 1px var(--border-color);
-    background-color: var(--input-color);
-    color: var(--text-primary-color);
     padding: 0.75rem 1rem;
     height: 3rem;
     min-height: 3rem;
@@ -511,24 +494,24 @@ export default {
     border-radius: 1.5rem !important;
 }
 
-.input-group .form-control[rows] {
+#textInput[rows] {
     height: auto;
     overflow-y: auto;
 }
 
-.input-group .form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.input-group .form-control:focus {
-    box-shadow: 0 0 0 1px var(--primary-color);
+.scroll-wrapper {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
   background-color: transparent !important;
 }
 
-.input-group .btn {
+.input-area-button {
     padding: 0;
     width: 3rem;
     height: 3rem;
@@ -541,16 +524,16 @@ export default {
     transition: all 0.2s ease;
 }
 
-.input-group .btn:hover {
+.input-area-button:hover {
     transform: translateY(-1px);
 }
 
-.input-group .btn:disabled {
+.input-area-button:disabled {
     animation: bounce 1s infinite;
     opacity: 0.7;
 }
 
-.input-group .btn i {
+.input-area-button i {
     font-size: 1.25rem;
     line-height: 1;
     display: inline-flex;

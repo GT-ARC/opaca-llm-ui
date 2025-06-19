@@ -123,7 +123,7 @@
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                        <ConfigParameter v-for="(value, name) in backendConfigSchema"
                                           :key="name"
                                           :name="name"
                                           :value="value"
@@ -544,27 +544,6 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
-}
-
-.list-group {
-    border-radius: var(--bs-border-radius);
-    overflow: hidden;
-    background-color: transparent;
-}
-
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-primary-color);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
 }
 
 .placeholder-container {

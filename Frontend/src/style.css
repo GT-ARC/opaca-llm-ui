@@ -73,7 +73,7 @@ body {
     color: var(--text-primary-color);
 }
 
-/* Modern Button Styles */
+/* override bootstrap button styles */
 .btn {
     border-radius: var(--bs-border-radius-pill);
     padding: 0.5rem;
@@ -120,7 +120,15 @@ body {
     background-color: transparent;
 }
 
-/* Form Controls */
+/* override bootstrap input-group styling */
+.input-group {
+    width: 100%;
+    max-width: min(95%, 100ch);
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* override bootstrap form-control styling */
 .form-control {
     padding: 0.5rem;
     transition: all 0.2s ease;
@@ -128,7 +136,7 @@ body {
     line-height: 1.5;
     border-radius: var(--bs-border-radius);
     border: 1px solid var(--border-color);
-    background-color: var(--surface-color);
+    background-color: var(--input-color);
     color: var(--text-primary-color);
 }
 
@@ -136,7 +144,7 @@ body {
     background-color: var(--surface-color);
     color: var(--text-primary-color);
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
+    box-shadow: 0 0 0 2px var(--primary-color);
 }
 
 .form-control::placeholder {
@@ -161,20 +169,7 @@ body {
     border-radius: var(--bs-border-radius-pill) !important;
 }
 
-/* text colors */
-.text-success {
-    color: var(--text-success-color) !important;
-}
-
-.text-danger {
-    color: var(--text-danger-color) !important;
-}
-
-.text-muted {
-    color: var(--text-secondary-color) !important;
-}
-
-/* override accordion styles */
+/* override bootstrap accordion styling */
 .accordion-item {
     border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
@@ -226,6 +221,41 @@ body {
 
 .accordion-collapse {
     background-color: var(--background-color);
+}
+
+/* override bootstrap list-group styling */
+.list-group {
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+    background-color: transparent;
+}
+
+.list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary-color);
+    transition: all 0.2s ease;
+}
+
+.list-group-flush .list-group-item {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+/* custom text colors classes */
+.text-success {
+    color: var(--text-success-color) !important;
+}
+
+.text-danger {
+    color: var(--text-danger-color) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary-color) !important;
 }
 
 /* nicer scrollbar (esp for within the input field) */
