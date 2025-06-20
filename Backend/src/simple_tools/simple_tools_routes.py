@@ -165,9 +165,6 @@ class SimpleToolsBackend(AbstractMethod):
         # --- Get model config ---
         config = session.config.get(self.NAME, self.default_config())
 
-        # --- Pick LLM policy ---
-        policy = ask_policies[config["ask_policy"]]
-
         # --- Get tool definitions ---
         result = Response(query=user_query)
         #logger.info("opaca_client:", session.opaca_client)
@@ -202,7 +199,7 @@ class SimpleToolsBackend(AbstractMethod):
                     client=session.llm_clients[config["vllm_base_url"]],
                     model=config["model"],
                     agent="assistant",
-                    system_prompt=system_prompt % policy,
+                    system_prompt=system_prompt,
                     messages=messages,
                     temperature=config["temperature"],
                     tools=tools,
@@ -237,7 +234,7 @@ class SimpleToolsBackend(AbstractMethod):
                     client=session.llm_clients[config["vllm_base_url"]],
                     model=config["model"],
                     agent="assistant",
-                    system_prompt=system_prompt % policy,
+                    system_prompt=system_prompt,
                     user_question=user_query,
                     pdf_file_path=tmp_pdf_path,
                     temperature=config["temperature"],
