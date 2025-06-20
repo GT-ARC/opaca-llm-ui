@@ -11,25 +11,18 @@ from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatM
 from ..utils import openapi_to_functions
 
 
-system_prompt = """You are a helpful ai assistant that plans solution to user queries with the help of 
+system_prompt = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
 parameters for those tools if the user has not explicitly told you to. 
-Some queries require sequential calls with those tools. In those cases you should inform the user a new call
-needs to be made with the intermediate results. If tools return nothing or simply complete without feedback 
-you should still tell the user that. In general, you should always generate a response. If you can't, 
-please put ut why. If you are unable to fulfill the user queries with the given tools, let the user know. 
+Some queries require sequential calls with those tools. In this case, you will receive the results of tool calls of 
+previous iterations. Evaluate, whether another tool call if necessary. 
+If tools return nothing or simply complete without feedback 
+you should still tell the user that. Once you have retrieved all necessary information, immediately generate a response 
+to the user about the result and the retrieval process. 
+If you are unable to fulfill the user queries with the given tools, let the user know. 
 You are only allowed to use those given tools. If a user asks about tools directly, 
-answer them with the required information. Tools can also be described as services.
-
-%s
-
+answer them with the required information. Tools can also be described as services. 
 """
-
-ask_policies = {
-    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-}
 
 
 logger = logging.getLogger("src.models")
@@ -47,11 +40,8 @@ class SimpleToolsBackend(AbstractMethod):
         result = Response(query=message)
 
         config = session.config.get(self.NAME, self.default_config())
-
-        # choose ask policy
-        policy = ask_policies[config["ask_policy"]]
         
-	# Get tools and transform them into the OpenAI Function Schema
+        # Get tools and transform them into the OpenAI Function Schema
         try:
             tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
         except AttributeError as e:
@@ -66,8 +56,6 @@ class SimpleToolsBackend(AbstractMethod):
         # initialize message history
         messages = session.messages.copy()
         messages.append(ChatMessage(role="user", content=message))
-        
-        logger.info("simple tools is running")
                    
         while result.iterations < 10:
 
@@ -78,7 +66,7 @@ class SimpleToolsBackend(AbstractMethod):
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
-                system_prompt=system_prompt % (policy), 
+                system_prompt=system_prompt,
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,
@@ -86,7 +74,6 @@ class SimpleToolsBackend(AbstractMethod):
             )
 
             # record assistant message
-            messages.append(ChatMessage(role="assistant", content=response.content))
             result.agent_messages.append(AgentMessage(
                 agent="assistant",
                 content=response.content,
@@ -95,20 +82,32 @@ class SimpleToolsBackend(AbstractMethod):
             ))
 
             try:
-                tool_contents = []
+                if not response.tools:
+                    result.content = response.content
+                    break
+
+                tool_contents = ""
                 tool_entries = []
                 
                 for call in response.tools:
-                    action_name = call["name"]
+                    if config['use_agent_names']:
+                        agent_name, action_name = call['name'].split('--', maxsplit=1)
+                    else:
+                        agent_name = None
+                        action_name = call['name']
                     params = call["args"].get("requestBody", {})
                 
                     # invoke via OPACA client
-                    action_result = await session.opaca_client.invoke_opaca_action(
-                        action_name, agent=None, params=params
-                    )
+                    try:
+                        action_result = await session.opaca_client.invoke_opaca_action(
+                            action_name, agent=agent_name, params=params
+                        )
+                    except Exception as e:
+                        action_result = None
+                        result.error += f"Failed to invoke action {action_name}. Cause: {e}"
                 
                     # collect tool result details
-                    tool_contents.append(f"The result of tool '{action_name}' was: {repr(action_result)}")
+                    tool_contents += f"The result of tool '{action_name}' with parameters '{params}' was: {action_result}\n"
                     tool_entries.append({
                         "id": result.iterations,
                         "name": call["name"],
@@ -118,21 +117,16 @@ class SimpleToolsBackend(AbstractMethod):
                 
                 # Append one unified message after loop
                 if tool_contents:
-                    combined_tool_response = "\n".join(tool_contents)
-                    messages.append(ChatMessage(role="assistant", content=combined_tool_response))
-                    result.agent_messages.append(AgentMessage(
-                        agent="assistant",
-                        content=combined_tool_response,
-                        tools=tool_entries
-                    ))
+                    messages.append(ChatMessage(role="user",
+                                                content=f"A user had the following request: {message}\n"
+                                                        f"You have used the following tools: \n{tool_contents}"))
+                    result.agent_messages[-1].tools = tool_entries
                 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
                 result.agent_messages.append(AgentMessage(agent="system", content=error))
                 result.error = str(e)
-
-        result.content = response.content
 
         result.execution_time = time.time() - exec_time
         return result
@@ -328,9 +322,6 @@ class SimpleToolsBackend(AbstractMethod):
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "ask_policy": ConfigParameter(type="string", required=True, default="never",
-                                          enum=list(ask_policies.keys())),
-            "use_agent_names": ConfigParameter(type="boolean", required=False, default=False),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt',)
-
+            "use_agent_names": ConfigParameter(type="boolean", required=False, default=True),
+            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
         }

@@ -1,18 +1,27 @@
 import {ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
+import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
 
 
 export const localizationData = {
     GB: {
+        pltConnected: "Connected",
+        pltDisconnected: "Disconnected",
+        connect: "Connect",
+        disconnect: "Disconnect",
         name: "English",
         language: 'Language',
         submit: 'Submit',
+        cancel: 'Cancel',
+        username: 'Username',
+        password: 'Password',
         welcome: 'Welcome to the OPACA LLM! You can use me to interact with the assistants and services available on the OPACA platform, or ask me general questions. How can I help you today?',
         connected: 'Connected! Available assistants and services:',
         unreachable: 'Please connect to a running OPACA platform.',
-        unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
+        unauthenticated: 'Authentication Required',
+        authError: 'Invalid username or password.',
         none: 'None',
         speechRecognition: 'Speak' ,
         readLastMessage: 'Read Last',
@@ -22,19 +31,21 @@ export const localizationData = {
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
         ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconneded',
+        ttsDisconnected: 'Disconnected',
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
-        tooltipSidebarConnection: "Connection",
+        tooltipSidebarInfo: "General Information",
         tooltipSidebarPrompts: "Prompt Library",
         tooltipSidebarAgents: "Agents and Actions",
         tooltipSidebarConfig: "Configuration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleError: "Error",
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
+        tooltipChatbubbleCopy: "Copy",
         tooltipButtonSend: "Submit",
         tooltipButtonRecord: "Dictate",
         tooltipButtonReset: "Reset Chat",
@@ -43,16 +54,27 @@ export const localizationData = {
         agentActionResult: "Result",
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
+        tooltipSidebarFaq: "Help/FAQ",
+        audioServerSettings: "Audio",
+        howAssist: "How can you assist me?",
     },
 
     DE: {
+        pltConnected: "Verbunden",
+        pltDisconnected: "Nicht Verbunden",
+        connect: "Verbinden",
+        disconnect: "Trennen",
         name: "Deutsch",
         language: 'Sprache',
         submit: 'Senden',
+        cancel: 'Abbrechen',
+        username: 'Benutzer',
+        password: 'Passwort',
         welcome: 'Willkommen beim OPACA LLM! Sie können mich nutzen, um mit den Assistenten und Diensten auf der OPACA-Plattform zu interagieren, oder auch allgemeine Fragen stellen. Wie kann ich Ihnen heute helfen?',
         connected: 'Verbunden! Verfügbare Assistenten und Dienste:',
         unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
-        unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
+        unauthenticated: 'Authentifizierung Erforderlich',
+        authError: 'Benutzer oder Passwort falsch.',
         none: 'Keine',
         speechRecognition: 'Sprechen' ,
         readLastMessage: 'Vorlesen',
@@ -66,15 +88,17 @@ export const localizationData = {
         ttsRetry: 'Erneut verbinden',
         ttsServerInfo: '%1 auf %2',
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
-        tooltipSidebarConnection: "Verbindung",
+        tooltipSidebarInfo: "Generelle Informationen",
         tooltipSidebarPrompts: "Prompt-Bibliothek",
         tooltipSidebarAgents: "Agenten und Aktionen",
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleError: "Fehler",
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
+        tooltipChatbubbleCopy: "Kopieren",
         tooltipButtonSend: "Absenden",
         tooltipButtonRecord: "Diktieren",
         tooltipButtonReset: "Chat Zurücksetzen",
@@ -83,6 +107,9 @@ export const localizationData = {
         agentActionResult: "Ergebnis",
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
+        tooltipSidebarFaq: "Hilfe/FAQ",
+        audioServerSettings: "Audio",
+        howAssist: "Womit kannst du mir helfen?",
     },
 };
 
@@ -121,7 +148,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "How can you assist me?", "icon": "❓"},
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What documents do I need for a residence permit?", "icon": "📄"},
                 {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
@@ -177,7 +203,6 @@ export const sidebarQuestions = {
             "header": "Information & Upskilling",
             "icon": "📚",
             "questions": [
-                {"question": "Womit kannst du mir helfen?", "icon": "❓"},
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
                 {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
@@ -252,9 +277,14 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocales = {
+export const voiceGenLocalesWhisper = {
     GB: 'english',
     DE: 'german'
+};
+
+export const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
 };
 
 
@@ -345,18 +375,24 @@ class Localizer {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
+        const howAssist = { question: this.get("howAssist"), icon: "❓" }
+
         // if category could not be found, return random sample questions
         if (!category) {
-            if (!this.randomSampleQuestions)
+            if (!this.randomSampleQuestions) {
                 this.randomSampleQuestions = this.getRandomSampleQuestions();
+                this.randomSampleQuestions.unshift(howAssist);
+            }
             return this.randomSampleQuestions;
         }
 
         // take first 3 questions and use their individual icons
-        return category.questions.slice(0, 3).map(q => ({
+        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
             question: q.question,
             icon: q.icon || category.icon // Fallback to category icon if question has no icon
         }));
+        sampleQuestions.unshift(howAssist);
+        return sampleQuestions;
     }
 
     getRandomSampleQuestions(numQuestions = 3) {
@@ -378,7 +414,9 @@ class Localizer {
     }
 
     getLanguageForTTS() {
-        return voiceGenLocales[this.language];
+        return AudioManager.isVoiceServerConnected
+            ? voiceGenLocalesWhisper[this.language]
+            : voiceGenLocalesWebSpeech[this.language];
     }
 }
 

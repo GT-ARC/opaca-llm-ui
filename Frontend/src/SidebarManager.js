@@ -7,11 +7,12 @@ class SidebarManager {
 
     static _availableViews = [
         'none',
-        'connect',
+        'info',
         'questions',
         'agents',
         'config',
         'debug',
+        'faq',
     ]
 
     /**

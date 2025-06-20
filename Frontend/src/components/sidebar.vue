@@ -5,10 +5,10 @@
              class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
              style="height: calc(100vh - 50px);">
 
-            <i @click="SidebarManager.toggleView('connect')"
-               class="fa fa-link p-2 sidebar-item"
-               :title="Localizer.get('tooltipSidebarConnection')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
+            <i @click="SidebarManager.toggleView('info')"
+               class="fa fa-circle-info p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarInfo')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book p-2 sidebar-item"
@@ -29,6 +29,11 @@
                class="fa fa-bug p-2 sidebar-item"
                :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
+
+            <i @click="SidebarManager.toggleView('faq')"
+               class="fa fa-question-circle p-2 sidebar-item"
+               :title="Localizer.get('tooltipSidebarFaq')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
         <!-- sidebar content -->
@@ -37,51 +42,14 @@
                    class="container-fluid d-flex flex-column position-relative mt-4"
                    :class="{'px-3': !isMobile}">
 
-                <!-- connection settings -->
-                <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig"
-                         class="container d-flex flex-column">
-
-                        <div class="py-2 text-start">
-                            <input id="opacaUrlInput" type="text"
-                                   class="form-control m-0"
-                                   v-model="opacaRuntimePlatform"
-                                   :placeholder="Localizer.get('opacaLocation')" />
-                        </div>
-
-                        <div class="py-2 text-start">
-                            <div class="row opaca-credentials">
-                                <div class="col-md-6">
-                                    <input id="opacaUser" type="text"
-                                           class="form-control m-0"
-                                           v-model="opacaUser"
-                                           placeholder="Username" />
-                                </div>
-                                <div class="col-md-6">
-                                    <input id="opacaPwd" type="password"
-                                           class="form-control m-0"
-                                           v-model="opacaPwd"
-                                           placeholder="Password" />
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                            <input id="apiKey" type="password"
-                                   class="form-control m-0"
-                                   placeholder="OpenAI API Key"
-                                   v-model="this.apiKey"
-                                   @input="this.$emit('api-key-change', this.apiKey)" />
-                        </div>
-
-                        <div class="text-center py-2">
-                            <button class="btn btn-primary w-100" @click="initRpConnection()" id="button-connect">
-                                <i class="fa fa-link me-1"/>Connect
-                            </button>
-                        </div>
-
+                <!-- platform information -->
+                <div v-show="SidebarManager.isViewSelected('info')"
+                     id="sidebarConfig" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                    <div v-if="!connected" class="placeholder-container">
+                        <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+                        <h5 class="p-4">It's a little quiet here...</h5>
                     </div>
+                    <div v-else v-html="this.howAssistContent" class="faq-content w-auto"/>
                 </div>
 
                 <!-- sample questions -->
@@ -196,6 +164,14 @@
                     </div>
                 </div>
 
+                <!-- Help/FAQ -->
+                <div v-show="SidebarManager.isViewSelected('faq')"
+                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                    <div v-html="this.faqContent"
+                         class="d-flex flex-column text-start faq-content">
+                    </div>
+                </div>
+
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
         </div>
@@ -211,6 +187,7 @@ import { useDevice } from "../useIsMobile.js";
 import ConfigParameter from './ConfigParameter.vue';
 import SidebarManager from "../SidebarManager.js";
 import Localizer from "../Localizer.js";
+import {marked} from "marked";
 
 export default {
     name: 'Sidebar',
@@ -222,6 +199,7 @@ export default {
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
         isDarkScheme: Boolean,
     },
     setup() {
@@ -238,44 +216,26 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
             shouldFadeOut: false,
             fadeTimeout: null,
+            faqContent: '',
+            howAssistContent: '',
         };
     },
     methods: {
-        async initRpConnection() {
-            const connectButton = document.getElementById('button-connect');
-            connectButton.disabled = true;
-            console.log(`CONNECTING as ${this.opacaUser}`);
+
+        async showHowCanYouHelpInSidebar() {
             try {
-                const body = {url: this.opacaRuntimePlatform, user: this.opacaUser, pwd: this.opacaPwd};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                const rpStatus = parseInt(res.data);
-                if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                    this.platformActions = res2.data;
-                    this.isConnected = true;
-                    await this.fetchBackendConfig();
-                    SidebarManager.selectView(conf.DefaultSidebarView);
-                } else if (rpStatus === 403) {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unauthorized'));
-                } else {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unreachable'));
-                }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.platformActions = null;
-                this.isConnected = false;
-                alert('Backend server is unreachable.');
-            } finally {
-                connectButton.disabled = false;
+                this.howAssistContent = "Querying functionality, please wait...";
+                const body = {user_query: "How can you assist me?"};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`, body);
+                console.log("result: " + JSON.stringify(res));
+                const answer = res.data.agent_messages[0].content;
+                this.howAssistContent = marked.parse(answer);
+            } catch (error) {
+                console.log("ERROR " + error);
             }
         },
 
@@ -356,10 +316,6 @@ export default {
         },
 
         async fetchBackendConfig() {
-            if (!this.isConnected) {
-                this.backendConfig = null;
-                return;
-            }
             const backend = this.getBackend();
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
@@ -421,6 +377,21 @@ export default {
             }
         },
 
+        async buildFaqContent() {
+            const readmeUrl = '/src/assets/about.md';
+            try {
+                const response = await fetch(readmeUrl);
+                if (response.ok) {
+                    const faqRaw = await response.text();
+                    this.faqContent = marked.parse(faqRaw);
+                } else {
+                    console.error('Failed to fetch FAQ content:', response.status, response);
+                }
+            } catch (error) {
+                console.error('Failed to fetch FAQ content:', error);
+            }
+        },
+
         clearDebugMessage() {
             this.debugMessages = [];
         },
@@ -428,28 +399,35 @@ export default {
     },
     mounted() {
         this.setupResizer();
-        this.fetchBackendConfig();
-
-        if (conf.AutoConnect) {
-            this.initRpConnection();
-        } else {
-            SidebarManager.selectView('connect');
-        }
+        this.buildFaqContent();
     },
     updated() {
         this.scrollDownConfigView()
     },
     watch: {
         backend() {
-            this.fetchBackendConfig();
+            if (this.connected) {
+                this.fetchBackendConfig();
+            }
         },
+        async connected(newVal) {
+            if (newVal) {
+                await this.fetchBackendConfig()
+                this.showHowCanYouHelpInSidebar() // Intentionally no await
+                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                this.platformActions = res2.data;
+            } else {
+                this.backendConfig = null;
+                this.platformActions = null;
+            }
+        }
     }
 }
 </script>
 
 <style scoped>
 #sidebar-base {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
 }
 
 /* sidebar content */
@@ -462,8 +440,8 @@ export default {
 }
 
 #sidebar-menu {
-    background-color: var(--surface-light);
-    border-right: 1px solid var(--border-light);
+    background-color: var(--surface-color);
+    border-right: 1px solid var(--border-color);
     padding: 1.5rem 0.75rem;
     transition: all 0.3s ease;
 }
@@ -477,25 +455,45 @@ export default {
     align-items: center;
     justify-content: center;
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
     transition: all 0.2s ease;
 }
 
 .sidebar-item:hover {
-    background-color: var(--background-light);
-    color: var(--primary-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light) !important;
+    background-color: var(--primary-color) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
-    background-color: var(--secondary-light);
+    background-color: var(--secondary-color);
     color: white !important;
+}
+
+.form-control {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+    color: var(--text-primary-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary-color);
+}
+
+.form-control:focus {
+    background-color: var(--input-color);
+    border-color: var(--primary-color);
+}
+
+.faq-content {
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
 }
 
 @media screen and (max-width: 768px) {
@@ -518,17 +516,17 @@ export default {
     top: 0;
     right: 0;
     border-radius: var(--bs-border-radius-sm);
-    background-color: var(--border-light);
+    background-color: var(--border-color);
     transition: background-color 0.2s ease;
 }
 
 .resizer:hover {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
 }
 
 #chatDebug {
-    background-color: var(--debug-console-light);
-    border: 1px solid var(--border-light);
+    background-color: var(--debug-console-color);
+    border: 1px solid var(--border-color);
     overflow: hidden;
     height: 100%;
     display: flex;
@@ -539,9 +537,9 @@ export default {
 .accordion-item {
     border-radius: var(--bs-border-radius);
     margin-bottom: 0.5rem;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
     overflow: hidden;
-    background-color: var(--surface-light);
+    background-color: var(--surface-color);
 }
 
 .accordion-button {
@@ -549,8 +547,8 @@ export default {
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    background-color: var(--surface-light);
-    color: var(--text-primary-light);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
 }
 
 .accordion-button i {
@@ -558,13 +556,13 @@ export default {
 }
 
 .accordion-button:not(.collapsed) {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
     color: white;
     box-shadow: none;
 }
 
 .accordion-button:hover {
-    background-color: var(--secondary-light)
+    background-color: var(--secondary-color)
 }
 
 .accordion-button:focus {
@@ -577,15 +575,16 @@ export default {
     width: 1rem;
     height: 1rem;
     transition: all 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .accordion-body {
     padding: 0;
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .accordion-collapse {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .action-header-button {
@@ -608,8 +607,8 @@ export default {
 }
 
 .json-box {
-    background-color: var(--bs-gray-200);
-    color: var(--text-primary-light);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
     padding: 0.75rem;
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
@@ -626,8 +625,8 @@ export default {
     padding: 0.75rem 1rem;
     background-color: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary-color);
     transition: all 0.2s ease;
 }
 
@@ -637,106 +636,21 @@ export default {
     border-radius: 0;
 }
 
-/* dark mode styling */
-@media (prefers-color-scheme: dark) {
-    #sidebar-base {
-        background-color: var(--background-dark);
-    }
+.placeholder-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    color: var(--text-secondary-light);
+}
 
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select:hover {
-        background-color: var(--secondary-dark);
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--debug-console-dark);
-        border-color: var(--border-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    .accordion-item {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .accordion-button {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .accordion-button:not(.collapsed) {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-        box-shadow: none;
-    }
-
-    .accordion-button:focus {
-        box-shadow: none;
-        border-color: transparent;
-    }
-
-    .accordion-button::after {
-        filter: invert(1);
-    }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
-
-    .json-box {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control {
-        background-color: var(--input-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .form-control:focus {
-        background-color: var(--input-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .list-group-item {
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
+.placeholder-image {
+    width: 180px;
+    margin-bottom: 1rem;
+    opacity: 0.6;
 }
 
 /* mobile design */

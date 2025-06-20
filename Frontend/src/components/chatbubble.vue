@@ -5,7 +5,7 @@
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
-            <div v-html="this.content" />
+            <div v-html="this.getFormattedContent()"></div>
         </div>
         <div class="chaticon">
             <img src="/src/assets/Icons/nutzer.png" alt="User">
@@ -31,19 +31,14 @@
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
                 </div>
 
-                <!-- error indicator -->
-                <div v-show="this.isError" class="w-auto">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
                 <!-- content, either status messages or actual response -->
-                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4" :class="{'text-danger': isError}">
+                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4">
                     <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
                 </div>
-                <div v-else class="message-text w-auto" :class="{'text-danger': isError}"
+                <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
                 />
 
@@ -51,6 +46,18 @@
 
             <!-- footer: debug, generate audio, ... -->
             <div class="d-flex justify-content-start small">
+
+                <!-- copy to clipboard -->
+                <div v-show="this.content.length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.copyContentToClipboard()"
+                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                    <i v-if="this.copySuccess" class="fa fa-check" />
+                    <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- debug messages -->
                 <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
@@ -58,17 +65,32 @@
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
-                <div v-show="!this.isLoading && this.isVoiceServerConnected"
+
+                <!-- error handling -->
+                <div v-show="this.error !== null"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isErrorExpanded = !this.isErrorExpanded"
+                     :title="Localizer.get('tooltipChatbubbleError')">
+                    <i class="fa fa-exclamation-circle text-danger me-1" />
+                </div>
+
+                <!-- audio stuff -->
+                <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading" class="fa fa-spin fa-spinner"
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying" class="fa fa-stop-circle"
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioStop')" />
                     <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
+
             </div>
 
             <!-- footer: debug messages -->
@@ -83,17 +105,28 @@
                 </div>
             </div>
 
+            <div v-show="this.isErrorExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                     style="max-height: 200px">
+                    <div class="message-text w-auto text-danger"
+                         v-html="this.error"
+                    />
+                </div>
+            </div>
+
         </div>
     </div>
 </template>
 
 <script>
 import {marked} from "marked";
+import DOMPurify from "dompurify";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
+import AudioManager from "../AudioManager.js";
 
 export default {
     name: 'chatbubble',
@@ -101,14 +134,13 @@ export default {
     props: {
         elementId: String,
         isUser: Boolean,
-        isVoiceServerConnected: Boolean,
         isDarkScheme: Boolean,
         initialContent: String,
         initialLoading: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { Localizer, isMobile, screenWidth };
+        return { conf, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
@@ -117,10 +149,10 @@ export default {
             debugMessages: [],
             isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
-            isError: false,
+            error: null,
+            isErrorExpanded: false,
             ttsAudio: null,
-            isAudioLoading: false,
-            isAudioPlaying: false,
+            copySuccess: false,
         }
     },
 
@@ -191,7 +223,8 @@ export default {
 
         getFormattedContent() {
             try {
-                return marked.parse(this.content);
+                const content = marked.parse(this.content);
+                return DOMPurify.sanitize(content);
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
@@ -211,9 +244,8 @@ export default {
                 ? value : !this.isLoading;
         },
 
-        toggleError(value = null) {
-            this.isError = value !== null
-                ? value : !this.isError;
+        setError(value = null) {
+            this.error = value;
         },
 
         getGlowColors() {
@@ -228,51 +260,30 @@ export default {
             };
         },
 
+        copyContentToClipboard() {
+            if (this.content.length <= 0 || this.copySuccess) return;
+            navigator.clipboard.writeText(this.content)
+                .then(() => {
+                    this.copySuccess = true;
+                    setTimeout(() => this.copySuccess = false, 2000);
+                })
+                .catch(error => console.error('Failed to copy text: ', error));
+        },
+
         /**
-         * generate new audio for this message using the whisper voice server
+         * Generate new audio for this message.
          */
-        async generateAudio(voice = 'alloy') {
+        async generateAudio() {
             if (!this.content) return;
-            if (!this.isVoiceServerConnected) {
-                console.warn('voice server not connected');
-                return;
-            }
-            this.isAudioLoading = true;
-
-            try {
-                const url = `${conf.VoiceServerAddress}/generate_audio`;
-                const payload = { method: 'POST' };
-                const params = new URLSearchParams({
-                    text: this.content,
-                    voice: voice
-                });
-
-                const response = await fetch(`${url}?${params}`, payload);
-                if (response.ok) {
-                    const audioBlob = await response.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    this.ttsAudio = new Audio(audioUrl);
-                    this.ttsAudio.onplay = () => this.isAudioPlaying = true;
-                    this.ttsAudio.onpause = () => this.isAudioPlaying = false;
-                    this.ttsAudio.onend = () => this.isAudioPlaying = false;
-                    this.ttsAudio.play();
-                } else {
-                    const errorText = await response.text();
-                    console.error('Audio API error:', response.status, errorText);
-                }
-            } catch (error) {
-                console.error(error);
-                alert('Failed to generate audio.');
-                this.ttsAudio = null;
-                this.isAudioPlaying = false;
-            } finally {
-                this.isAudioLoading = false;
-            }
+            this.ttsAudio = await AudioManager.generateAudio(this.content);
+            await this.ttsAudio.setup().then(() => {
+                this.ttsAudio.play();
+            });
         },
 
         startAudioPlayback() {
             if (!this.canPlayAudio()) return;
-            if (this.isAudioPlaying) {
+            if (this.isAudioPlaying()) {
                 this.stopAudioPlayback();
             } else if (this.ttsAudio) {
                 this.ttsAudio.play();
@@ -282,14 +293,22 @@ export default {
         },
 
         stopAudioPlayback() {
-            if (!this.ttsAudio) return;
-            this.ttsAudio.pause();
-            this.ttsAudio.currentTime = 0;
+            if (this.ttsAudio) {
+                this.ttsAudio.stop();
+            }
         },
 
         canPlayAudio() {
-            return this.isVoiceServerConnected && !this.isUser
-                && this.content && !this.isLoading && !this.isAudioLoading;
+            return !this.isUser && this.content && !this.isLoading
+                && !this.isAudioLoading();
+        },
+
+        isAudioPlaying() {
+            return this.ttsAudio && this.ttsAudio.isPlaying;
+        },
+
+        isAudioLoading() {
+            return this.ttsAudio && this.ttsAudio.isLoading;
         },
 
         clearStatusMessages() {
@@ -301,15 +320,14 @@ export default {
         },
 
         clear() {
+            this.clearStatusMessages();
+            this.clearDebugMessages();
             this.content = '';
-            this.statusMessages = [];
-            this.debugMessages = [];
             this.isDebugExpanded = false;
+            this.isErrorExpanded = false;
             this.isLoading = false;
-            this.isError = false;
+            this.error = null;
             this.ttsAudio = null;
-            this.isAudioPlaying = false;
-            this.isAudioLoading = false;
         }
     },
 
@@ -325,7 +343,8 @@ export default {
 
 <style scoped>
 .chatbubble {
-    background-color: var(--chat-ai-light);
+    color: var(--text-primary-color);
+    background-color: var(--chat-ai-color);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
@@ -335,10 +354,13 @@ export default {
 }
 
 .chatbubble-user {
+    background-color: var(--chat-user-color);
     margin-left: auto;
     margin-right: 1rem;
     padding: 0.75rem 1.25rem;
     width: auto !important; /* Override any width constraints */
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .chatbubble-ai {
@@ -361,9 +383,9 @@ export default {
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    background: var(--chat-ai-light);
+    background: var(--chat-ai-color);
     border-radius: 50%;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-color);
     padding: 0.5rem;
     aspect-ratio: 1 / 1;
 }
@@ -372,19 +394,21 @@ export default {
     object-fit: contain;
     width: 100%;
     height: 100%;
+    filter: invert(var(--icon-invert-color));
 }
 
 .footer-item {
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
+    font-weight: bold;
 }
 
 .footer-item:hover {
-    color: var(--primary-light);
+    color: var(--primary-color);
 }
 
 .bubble-debug-text {
-    background-color: var(--debug-console-light);
-    color: var(--text-secondary-light);
+    background-color: var(--debug-console-color);
+    color: var(--text-secondary-color);
 }
 
 .glow {
@@ -401,36 +425,6 @@ export default {
     50% {
         box-shadow: 0 0 15px var(--glow-color-2, #00ff0090);
     }
-}
-
-@media (prefers-color-scheme: dark) {
-    .footer-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .footer-item:hover {
-        color: var(--text-primary-dark);
-    }
-
-    .bubble-debug-text {
-        background-color: var(--debug-console-dark);
-        color: var(--text-secondary-dark);
-    }
-
-    .chatbubble {
-        background: var(--chat-ai-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .chaticon {
-        background: var(--chat-ai-dark);
-        border-color: var(--border-dark);
-    }
-
-    .chaticon img {
-        filter: invert(100%);
-    }
-
 }
 
 @media screen and (max-width: 768px) {

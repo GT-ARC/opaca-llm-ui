@@ -35,6 +35,7 @@ app = FastAPI(
 # Configure CORS settings
 origins = [
     f"{os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')}",
+    f"{os.getenv('SMARTSPACE_BASE_URL', 'http://localhost:5174')}",
 ]
 
 app.add_middleware(
@@ -68,52 +69,10 @@ print("Server running")
 async def get_backends() -> list:
     return list(BACKENDS)
 
-"""@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
-    session = await handle_session_id(request, response)
-    session.opaca_client = OpacaClient()
-    return await session.opaca_client.connect(url.url, url.user, url.pwd)"""
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
-    print(">>> /connect called")
-    print(">>> Incoming URL:", url.url)
-    print(">>> Incoming user:", url.user)
-
-    try:
-        print(">>> Handling session ID")
-        #session = await handle_session_id(request, response)
-        session, session_id = await handle_session_id(request, response)
-        print(">>> [CONNECT] session_id used:", session_id)
-
-        print(">>> Creating OpacaClient")
-        session.opaca_client = OpacaClient()
-        print(">>> OpacaClient assigned to session:", session.opaca_client)
-
-        print(">>> Attempting connection...")
-        status = await session.opaca_client.connect(url.url, url.user, url.pwd)
-        print(">>> Connection status:", status)
-
-        if not hasattr(session, "opaca_client") or session.opaca_client is None:
-            print(">>> WARNING: session.opaca_client is None after connect")
-            raise HTTPException(status_code=500, detail="session.opaca_client is not set after connect")
-
-        if status != 200:
-            print(">>> Connection failed with status:", status)
-            raise HTTPException(status_code=status, detail="Failed to connect to OPACA Runtime Platform.")
-
-        print(">>> Connection successful. Returning status.")
-        print(">>> [CONNECT] session object id:", id(session))
-        return status
-
-    except HTTPException:
-        raise  # Let FastAPI handle known HTTP errors
-
-    except Exception as e:
-        print(">>> Unexpected error during /connect:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
-
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
@@ -236,6 +195,7 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> tupl
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
+            sessions[session_id].opaca_client = OpacaClient()
         response.set_cookie("session_id", session_id)
 
         print(">>> [HANDLE_SESSION] Using session ID:", session_id)
@@ -261,6 +221,7 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
+            sessions[session_id].opaca_client = OpacaClient()
 
         # Return the session data for the session ID
         return sessions[session_id]
