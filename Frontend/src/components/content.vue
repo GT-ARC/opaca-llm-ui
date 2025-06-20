@@ -95,6 +95,13 @@
                             :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
+                    <label class="btn btn-secondary" style="margin-left: 4px;" title="Upload PDF">
+                        <i class="fa fa-upload"></i>
+                        <input type="file"
+                                accept=".pdf"
+                                @change="handleFileUpload"
+                                style="display: none;" />
+                    </label>
                 </div>
             </div>
 
@@ -173,6 +180,43 @@ export default {
             }
         },
 
+        // Triggered when a file is selected; checks that it's a PDF and calls upload
+        async handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type !== "application/pdf") {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            console.log("PDF selected:", file.name);
+
+            // Set this.selectedFiles correctly
+            this.selectedFiles = [file];
+
+            // Optionally call uploadFile here if you want immediate upload
+            // But not necessary if you wait for askChatGpt() to do the upload
+            },
+
+        // Sends the selected file to the backend using a POST request
+        async uploadFile(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+            const response = await fetch("/your-upload-endpoint", {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+            console.log("Upload successful:", result);
+            } catch (error) {
+            console.error("Upload failed:", error);
+            }
+        },
+
         async askSampleQuestion(questionText) {
             this.textInput = questionText
             await nextTick();
@@ -201,63 +245,29 @@ export default {
             this.showExampleQuestions = false;
             console.log("askChatGpt triggered");
 
-            await this.addChatBubble(userText, true, false); // user message
-            await this.addChatBubble('', false, true);       // empty loading AI bubble
-            this.getLastBubble().addStatusMessage('preparing',
-                Localizer.getLoadingMessage('preparing'), false);
+            await this.addChatBubble(userText, true, false); // User message
+            await this.addChatBubble('', false, true);       // Loading AI bubble
+            this.getLastBubble().addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
-            // Optional testing: load test file
-            try {
-                // const response = await fetch('/test_data.pdf');
-                const response = await fetch('http://localhost:5173/test_data.pdf');
-                console.log("Fetch response ok?", response.ok, response.status);
-                const blob = await response.blob();
-                console.log("Blob size:", blob.size);
-                const testFile = new File([blob], 'test.pdf', { type: 'application/pdf' });
+            // If no uploaded files, just submit the user text
+            const hasUploadedFile = this.selectedFiles && this.selectedFiles.length > 0;
 
-                // Trick: put it in a hidden <input type="file">
-                let fileInput = document.getElementById('hiddenFileInput');
-                if (!fileInput) {
-                    // create hidden input once if not existing
-                    fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.style.display = 'none';
-                    fileInput.id = 'hiddenFileInput';
-                    document.body.appendChild(fileInput);
-                }
-
-                const dt = new DataTransfer();
-                dt.items.add(testFile);
-                fileInput.files = dt.files;
-
-                // Also update your component's selectedFiles for consistency
-                this.selectedFiles = Array.from(fileInput.files);
-
-                console.log(`Loaded test.pdf into hidden file input & selectedFiles: ${testFile.size} bytes`);
-            } catch (error) {
-                console.error('Failed to load test.pdf:', error);
-            }
-
-            if (this.selectedFiles && this.selectedFiles.length > 0) {
-                const formData = new FormData();
-
-                this.selectedFiles.forEach(file => {
-                    formData.append("files", file);
-                });
-
-                const jsonMessage = JSON.stringify({
-                    user_query: userText,
-                    api_key: this.apiKey
-                });
-                formData.append("json_data", jsonMessage);
-
+            if (!hasUploadedFile) {
+                console.log("No file uploaded, sending only text.");
                 try {
-                    // Include backend name in URL
+                    const jsonMessage = JSON.stringify({
+                        user_query: userText,
+                        api_key: this.apiKey
+                    });
+
                     const backend = this.getBackend();
                     const response = await fetch(`${conf.BackendAddress}/${backend}/upload_files`, {
                         method: "POST",
-                        body: formData,
-                        credentials: "include"  // Important: include cookies in the request or backend could generate new session id
+                        body: jsonMessage,
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        credentials: "include"
                     });
 
                     if (!response.ok) {
@@ -265,20 +275,61 @@ export default {
                     }
 
                     const result = await response.json();
-                    console.log("Upload result:", result);
+                    console.log("Text-only result:", result);
 
-                    // Reuse handleStreamingSocketMessage to display it
                     const fakeEvent = { data: JSON.stringify(JSON.stringify(result)) };
                     await this.handleStreamingSocketMessage(fakeEvent);
 
                 } catch (error) {
-                    console.error("Upload failed:", error);
-                    this.getLastBubble().setContent("Upload failed: " + error.message);
+                    console.error("Text-only request failed:", error);
+                    this.getLastBubble().setContent("Request failed: " + error.message);
                     this.getLastBubble().toggleLoading(false);
                     this.isFinished = true;
                 }
+
+                return;
+            }
+
+            // If files were uploaded, proceed with file upload logic
+            console.log(`Found ${this.selectedFiles.length} uploaded file(s). Uploading with text...`);
+
+            const formData = new FormData();
+            this.selectedFiles.forEach(file => {
+                formData.append("files", file);
+            });
+
+            const jsonMessage = JSON.stringify({
+                user_query: userText,
+                api_key: this.apiKey
+            });
+            formData.append("json_data", jsonMessage);
+
+            try {
+                const backend = this.getBackend();
+                const response = await fetch(`${conf.BackendAddress}/${backend}/upload_files`, {
+                    method: "POST",
+                    body: formData,
+                    credentials: "include"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("Upload result:", result);
+
+                const fakeEvent = { data: JSON.stringify(JSON.stringify(result)) };
+                await this.handleStreamingSocketMessage(fakeEvent);
+
+            } catch (error) {
+                console.error("Upload failed:", error);
+                this.getLastBubble().setContent("Upload failed: " + error.message);
+                this.getLastBubble().toggleLoading(false);
+                this.isFinished = true;
             }
         },
+
 
 
         async handleStreamingSocketOpen(socket, userText) {

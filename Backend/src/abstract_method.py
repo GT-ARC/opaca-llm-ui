@@ -267,11 +267,19 @@ class AbstractMethod(ABC):
             tools=[]
         )
 
+        logger.info(f"model type: {model}")
+
+
         # --- STEP 1: Upload PDF ---
         uploaded_file = await client.files.create(
             file=open(pdf_file_path, "rb"),
-            purpose="user_data"
+            purpose="assistants"
         )
+
+        logger.info("file upload status:")
+        logger.info(uploaded_file.status)
+        logger.info(f"Uploaded file ID: {uploaded_file.id}")
+        logger.info(f"Uploaded file details: {uploaded_file}")
 
         # --- STEP 2: Build proper messages ---
         messages = [
@@ -307,6 +315,7 @@ class AbstractMethod(ABC):
 
         # --- STEP 4: Call the LLM with or without response_format ---
         if response_format:
+            logger.info("response_format present")
             if self._is_gpt(model):
                 completion = await client.beta.chat.completions.parse(
                     **kwargs, response_format=response_format
@@ -330,6 +339,7 @@ class AbstractMethod(ABC):
                 agent_message.content = raw_content
             agent_message.response_metadata = completion.usage.to_dict()
         else:
+            logger.info("no response-format")
             completion = await client.chat.completions.create(**kwargs)
             # no streaming here: just grab the single-shot response
             agent_message.content = completion.choices[0].message.content
