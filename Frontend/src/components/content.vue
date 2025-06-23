@@ -24,7 +24,7 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
@@ -51,21 +51,44 @@
 
             </div>
 
-            <!-- Input Area -->
-            <div class="input-container">
-                <div class="input-group">
-                    <div class="scroll-wrapper">
-                      <textarea id="textInput"
-                                v-model="textInput"
-                                ref="textInputRef"
-                                :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control"
-                                :class="{ 'small-scrollbar': isSmallScrollbar }"
-                                style="resize: none; height: auto; max-height: 150px;"
-                                rows="1"
-                                @keydown="textInputCallback"
-                                @input="resizeTextInput"
-                      ></textarea>
+                <!-- Upload Preview -->
+                <div
+                v-if="selectedFiles.length"
+                class="upload-status-preview text-muted small mb-2 text-center"
+                >
+                <!-- Show spinner while uploading -->
+                <i v-if="uploadStatus.isUploading" class="fa fa-spinner fa-spin me-1"></i>
+
+                <!-- Show PDF icon after upload -->
+                <i v-else class="fa fa-file-pdf text-secondary me-1"></i>
+
+                <!-- Show file name -->
+                {{ selectedFiles[0].name }}
+
+                <!-- Upload status text -->
+                <span v-if="uploadStatus.isUploading">uploading…</span>
+                <span v-else>uploaded — will be sent with your message</span>
+                </div>
+
+                <!-- Input Area (now handles drag-and-drop) -->
+                <div class="input-container"
+                    @dragover.prevent
+                    @dragenter.prevent
+                    @drop.prevent="handleDrop">
+
+                    <div class="input-group">
+                        <div class="scroll-wrapper">
+                        <textarea id="textInput"
+                                    v-model="textInput"
+                                    ref="textInputRef"
+                                    :placeholder="Localizer.get('inputPlaceholder')"
+                                    class="form-control"
+                                    :class="{ 'small-scrollbar': isSmallScrollbar }"
+                                    style="resize: none; height: auto; max-height: 150px;"
+                                    rows="1"
+                                    @keydown="textInputCallback"
+                                    @input="resizeTextInput"
+                        ></textarea>
                     </div>
 
                     <!-- user has entered text into message box -> send button available -->
@@ -155,6 +178,11 @@ export default {
             showRecordingPopup: false,
             selectedCategory: 'Information & Upskilling',
             isSmallScrollbar: true,
+            selectedFiles: [],
+            uploadStatus: {
+                isUploading: false,
+                uploadedFileName: '',
+            },
         }
     },
     methods: {
@@ -172,13 +200,29 @@ export default {
 
         async submitText() {
             if (this.textInput && this.isFinished) {
-                const userInput = this.textInput;
+                // ⬇ Copy current input and reset field
+                let userInput = this.textInput;
                 this.textInput = '';
+
+                // ⬇ If a file is uploaded, append info about it to the input
+                if (this.selectedFiles.length > 0) {
+                const file = this.selectedFiles[0];
+                userInput += `\n\n[Attached PDF: ${file.name}]`;
+                }
+
                 await nextTick();
                 this.resizeTextInput();
+
+                // ⬇ Call your existing handler for sending the message
                 await this.askChatGpt(userInput);
+
+                // ✅ Clear file and status after sending
+                this.selectedFiles = [];
+                this.uploadStatus.uploadedFileName = '';
+                this.uploadStatus.isUploading = false;
             }
         },
+
 
         // Triggered when a file is selected; checks that it's a PDF and calls upload
         async handleFileUpload(event) {
@@ -197,9 +241,10 @@ export default {
 
             // Optionally call uploadFile here if you want immediate upload
             // But not necessary if you wait for askChatGpt() to do the upload
-            },
+        },
 
         // Sends the selected file to the backend using a POST request
+        // not needed if askChatGPT is used
         async uploadFile(file) {
             const formData = new FormData();
             formData.append("file", file);
@@ -216,6 +261,27 @@ export default {
             console.error("Upload failed:", error);
             }
         },
+
+        handleDrop(event) {
+            const file = event.dataTransfer.files[0];
+            if (!file || file.type !== "application/pdf") {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            this.uploadStatus.isUploading = true;
+            
+            this.selectedFiles = [file];
+
+            this.uploadStatus.isUploading = false;
+
+            // Simulate upload delay so spinner is visible
+            // setTimeout(() => {
+            //    this.uploadStatus.isUploading = false;
+            //}, 500); // 500ms delay — adjust as needed
+        },
+
+
 
         async askSampleQuestion(questionText) {
             this.textInput = questionText
