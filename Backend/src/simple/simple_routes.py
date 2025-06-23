@@ -65,7 +65,7 @@ class SimpleBackend(AbstractMethod):
 
         # initialize messages
         policy = ask_policies[config["ask_policy"]]
-        actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
+        actions = await session.opaca_client.get_actions() if session.opaca_client else "(No services, not connected yet.)"
         messages = session.messages.copy()
 
         # new conversation starts here

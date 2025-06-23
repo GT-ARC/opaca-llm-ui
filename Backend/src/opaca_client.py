@@ -9,15 +9,16 @@ import functools
 import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
-
+from .internal_tools import InternalTools, MAGIC_NAME
 
 class OpacaClient:
 
-    def __init__(self):
+    def __init__(self, internal_tools: InternalTools):
         self.url = None
         self.token = None
         self.actions = "(No services, not connected yet.)"
         self.actions_dict = {}
+        self.internal_tools = internal_tools
         
     async def connect(self, url: str, user: str, pwd: str):
         print("CONNECT", repr(url), user)
@@ -35,9 +36,9 @@ class OpacaClient:
             return e.response.status_code if e.response is not None else 400
         
     async def get_actions(self) -> dict[str, List[Dict[str, Any]]]:
-        return {
+        return dict(**{
             agent["agentId"]: agent["actions"] for agent in self.actions_dict
-        }
+        }, **self.internal_tools.get_internal_tools())
 
     async def get_agent_details(self) -> Dict[str, Dict[str, Any]]:
         try:
@@ -54,6 +55,9 @@ class OpacaClient:
         }
     
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
+        if agent == MAGIC_NAME:
+            return await self.internal_tools.call_internal_tool(action, params)
+
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)

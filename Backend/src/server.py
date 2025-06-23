@@ -21,6 +21,7 @@ from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
 from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
+from .internal_tools import InternalTools
 
 
 app = FastAPI(
@@ -146,7 +147,7 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
+            sessions[session_id].opaca_client = OpacaClient(InternalTools(session_id))
         response.set_cookie("session_id", session_id)
         return sessions[session_id]
 
@@ -169,7 +170,7 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
+            sessions[session_id].opaca_client = OpacaClient(InternalTools(session_id))
 
         # Return the session data for the session ID
         return sessions[session_id]
