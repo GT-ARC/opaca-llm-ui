@@ -43,7 +43,10 @@
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" :style="{'min-width': !isMobile && '320px'}">
+                            <div ref="connection_dropdown"
+                                 class="dropdown-menu show p-4"
+                                 aria-labelledby="connectionSelector"
+                                 :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
                                     <input :disabled="connected"
                                            type="text"
@@ -293,6 +296,13 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
+
+                // force-close dropdown if connected, force-open if not
+                if (this.connected) {
+                    this.$refs.connection_dropdown.classList.remove('show');
+                } else {
+                    this.$refs.connection_dropdown.classList.add('show');
+                }
             }
         },
 

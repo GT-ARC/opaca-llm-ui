@@ -65,7 +65,7 @@ export default {
         expandSectionByHeader(header) {
             const questions = this.getQuestions();
             const index = this.getQuestions().findIndex(section => section.header === header);
-            if (index != -1 && this.expandedSection !== index) {
+            if (index !== -1 && this.expandedSection !== index) {
                 this.expandedSection = index;
                 this.$emit('category-selected', index in questions ? questions[index].header : "None");
             }
@@ -91,12 +91,10 @@ export default {
     display: flex;
     align-items: center;
     padding: 0.75rem 1rem;
-    margin: 0.25rem 0;
     cursor: pointer;
     color: var(--text-primary-color);
     background-color: var(--background-color);
     border: 1px solid var(--border-color);
-    border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
 }
 
