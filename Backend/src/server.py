@@ -70,7 +70,7 @@ async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions()
+    return await session.opaca_client.get_actions_simple()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:

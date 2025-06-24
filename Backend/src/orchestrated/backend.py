@@ -430,7 +430,13 @@ Now, using the tools available to you and the previous results, continue with yo
             await send_to_websocket(websocket, agent="preparing", message="Initializing the OPACA AI Agents")
             
             # Get simplified agent summaries for the orchestrator
-            agent_details = await session.opaca_client.get_agent_details()
+            agent_details = {
+                agent["agentId"]: {
+                    "description": agent["description"],
+                    "functions": [action["name"] for action in agent["actions"]]
+                }
+                for agent in await session.opaca_client.get_actions()
+            }
 
             # Add GeneralAgent description
             agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["getGeneralCapabilities"]}
@@ -508,7 +514,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         agent_data = agent_details[agent_name]["description"]
                         
                         # Get functions from platform
-                        agent_tools = await session.opaca_client.get_actions_with_refs()
+                        agent_tools = await session.opaca_client.get_actions_openapi(inline_refs=True)
                         agent_tools = openapi_to_functions_strict(agent_tools, agent=agent_name, use_agent_names=True)
                         
                         # Create worker agents for each unique agent in the plan
