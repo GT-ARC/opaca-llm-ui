@@ -1,56 +1,61 @@
 import * as url from "node:url";
 
-var config = {
+// Available "backend methods"
+export const Backends = {
+    "simple": "Simple Prompt",
+    "tool-llm": "Tool LLM",
+    "self-orchestrated": "Self-Orchestrated",
+    "simple-tools": "Simple Tool Prompt"
+};
 
+/*
+// reminder, because it's currently not used: define one level of "sub-backends" like this:
+BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
+Backends: {
+    "opaca": {
+        name: "OPACA LLM",
+        subBackends: {
+            "simple": "Simple Prompt",
+            ...
+        }
+    },
+    "itdz-knowledge": "Knowledge Assistant",
+    ...
+},
+*/
+
+let config = {
+
+    // URL to the OPACA LLM UI backend
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "tool-llm",
-    Backends: {
-        "simple": "Simple Prompt",
-        "tool-llm": "Tool LLM",
-        "self-orchestrated": "Self-Orchestrated",
-	"simple-tools": "Simple Tool Prompt"
-    },
+    // The initially selected "backend method"
+    DefaultBackend: import.meta.env.VITE_BACKEND_DEFAULT ?? "tool-llm",
 
-    /*
-    // reminder, because it's currently not used: define one level of "sub-backends" like this:
-    BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
-    Backends: {
-        "opaca": {
-            name: "OPACA LLM",
-            subBackends: {
-                "simple": "Simple Prompt",
-                ...
-            }
-        },
-        "itdz-knowledge": "Knowledge Assistant",
-        ...
-    },
-    */
-
+    // Optional "back-link" that redirects the user to a pre-configured site.
     BackLink: import.meta.env.VITE_BACKLINK ?? null,
 
+    // URL to the OPACA Runtime platform
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    VoiceServerAddress: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
+    // URL to the audio server
+    VoiceServerUrl: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
 
-    ShowApiKey: parseEnvBool('VITE_SHOW_APIKEY', false),
-
-    // if true, attempt to connect to the configured platform on-load
+    // If true, attempt to connect to the configured platform on-load
     AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
 
-    // starting color scheme: light, dark, or system (default)
+    // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
 
-    // which set of questions is shown within the chat window on startup.
-    // this should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
+    // Which set of questions is shown within the chat window on startup.
+    // This should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
     DefaultQuestions: 'none',
 
-    // which sidebar view is shown by default.
-    // possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
+    // Which sidebar view is shown by default.
+    // Possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
-    // default UI language
+    // Default UI language
     DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
 }
 
@@ -84,4 +89,4 @@ function parseQueryParams() {
 
 parseQueryParams();
 
-export default config = config;
+export default config;
