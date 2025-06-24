@@ -73,6 +73,7 @@ The OPACA LLM can be configured in various ways using the `config.js` file in th
 * `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
 * `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `connect` (stay on connect page), `questions` (sample questions), `agents` (agents and actions), `config` and `debug`.
 * `samples`: Which category of sample questions to show; possible options see "headers" in the `sidebarQuestions` section in the config (special characters might have to be URL-encoded), plus `random` for a random selection.
+* `lang`: Which language to use by default; possible options: "GB" (english) and "DE" (german).
 * `colorscheme`: The starting color scheme, can be "light", "dark", or "system".
 
 

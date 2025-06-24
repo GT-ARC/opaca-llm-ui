@@ -441,5 +441,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer(conf.DefaultLanguage, conf.FallbackLanguage);
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
+const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;

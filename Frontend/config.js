@@ -50,8 +50,7 @@ var config = {
     // possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
     DefaultSidebarView: 'questions',
 
-    // localizer settings
-    FallbackLanguage: import.meta.env.VITE_FALLBACK_LANGUAGE ?? 'GB',
+    // default UI language
     DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
 }
 
@@ -76,10 +75,10 @@ function parseQueryParams() {
         urlParams[key.toLowerCase()] = value;
     }
 
-    config.AutoConnect = urlParams['autoconnect'] ?? config.AutoConnect;
+    config.AutoConnect = urlParams['autoconnect'] === 'true' ?? config.AutoConnect;
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
-    config.DefaultLanguage = urlParams['lang'] === 'true' ?? config.DefaultLanguage;
+    config.DefaultLanguage = urlParams['lang'] ?? config.DefaultLanguage;
     config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
 }
 
