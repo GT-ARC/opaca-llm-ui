@@ -296,13 +296,7 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
-
-                // force-close dropdown if connected, force-open if not
-                if (this.connected) {
-                    this.$refs.connection_dropdown.classList.remove('show');
-                } else {
-                    this.$refs.connection_dropdown.classList.add('show');
-                }
+                this.toggleConnectionDropdown(!this.connected)
             }
         },
 
@@ -324,8 +318,6 @@ export default {
                 // set backend directly
                 this.backend = key;
             }
-
-            console.log("BACKEND IS NOW:", this.backend);
         },
 
         getBackendName(key) {
@@ -352,15 +344,27 @@ export default {
             return key === this.backend;
         },
 
+        /**
+         * Force the connection dropdown opened or closed.
+         *
+         * @param show {boolean} If true, force-show the dropdown, hide otherwise.
+         */
+        toggleConnectionDropdown(show) {
+            if (show) {
+                this.$refs.connection_dropdown.classList.remove('show');
+            } else {
+                this.$refs.connection_dropdown.classList.add('show');
+            }
+        },
+
         switchTheme() {
-            console.log("IN SET THEME")
             this.isDarkMode = ! this.isDarkMode;
             this.setTheme();
         },
 
         setTheme() {
             const theme = this.isDarkMode ? "dark" : "light";
-            var colors = [
+            const colors = [
                 "--background-color",
                 "--surface-color",
                 "--primary-color",
@@ -376,7 +380,7 @@ export default {
                 "--input-color",
                 "--debug-console-color",
                 "--icon-invert-color",
-            ]
+            ];
             for (const color of colors) {
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
