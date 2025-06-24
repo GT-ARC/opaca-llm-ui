@@ -85,10 +85,8 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 * `VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
 * `VITE_BACKEND_BASE_URL`: The URL where to find the backend
-* `VITE_BACKEND_DEFAULT`: The default backend to use, see options in `config.js`
+* `VITE_DEFAULT_BACKEND`: The default backend to use, see options in `config.js`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
-* `VITE_SHOW_KEYBOARD`: Whether to show a virtual keyboard.
-* `VITE_SHOW_APIKEY`: Whether to show an input field for the OpenAI API key in the UI
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
 * `VITE_COLOR_SCHEME`: The starting color scheme, can be "light", "dark", or "system"; can be overwritten by `colorscheme` query param.

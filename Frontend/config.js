@@ -30,7 +30,7 @@ let config = {
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
     // The initially selected "backend method"
-    DefaultBackend: import.meta.env.VITE_BACKEND_DEFAULT ?? "tool-llm",
+    DefaultBackend: import.meta.env.VITE_DEFAULT_BACKEND ?? "tool-llm",
 
     // Optional "back-link" that redirects the user to a pre-configured site.
     BackLink: import.meta.env.VITE_BACKLINK ?? null,
