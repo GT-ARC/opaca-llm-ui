@@ -351,9 +351,9 @@ export default {
          */
         toggleConnectionDropdown(show) {
             if (show) {
-                this.$refs.connection_dropdown.classList.remove('show');
-            } else {
                 this.$refs.connection_dropdown.classList.add('show');
+            } else {
+                this.$refs.connection_dropdown.classList.remove('show');
             }
         },
 
