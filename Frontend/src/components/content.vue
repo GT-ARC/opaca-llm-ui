@@ -426,16 +426,16 @@ export default {
         },
 
         updateScrollbarThumb() {
-          this.$nextTick(() => {
-            const el = this.$refs.textInputRef;
-            if (!el) return;
+            this.$nextTick(() => {
+                const el = this.$refs.textInputRef;
+                if (!el) return;
 
-            const computedStyle = getComputedStyle(el);
-            const maxHeight = parseFloat(computedStyle.maxHeight);
+                const computedStyle = getComputedStyle(el);
+                const maxHeight = parseFloat(computedStyle.maxHeight);
 
-            // If current height is less than the max-height
-            this.isSmallScrollbar = el.offsetHeight < maxHeight;
-          });
+                // If current height is less than the max-height
+                this.isSmallScrollbar = el.offsetHeight < maxHeight;
+            });
         },
     },
 
@@ -453,9 +453,9 @@ export default {
         this.updateScrollbarThumb();
     },
     watch: {
-      textInput() {
-        this.updateScrollbarThumb();
-      },
+        textInput() {
+            this.updateScrollbarThumb();
+        },
     }
 }
 
@@ -508,7 +508,7 @@ export default {
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
 .input-area-button {
