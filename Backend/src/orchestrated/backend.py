@@ -105,7 +105,7 @@ class SelfOrchestratedBackend(AbstractMethod):
         base_urls = [model_config["base_url"], model_config["worker_base_url"], model_config["evaluator_base_url"],
                      model_config["generator_base_url"]]
         for model, base_url in zip(models, base_urls):
-            if (base_url or "gpt") not in session.llm_clients.keys():
+            if base_url not in session.llm_clients:
                 if model.startswith(("gpt", "o1", "o3")):
                     session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
                 else:
