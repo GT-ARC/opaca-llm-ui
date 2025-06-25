@@ -8,10 +8,6 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "gpt"
     generator_base_url: "gpt"
-    orchestrator_backend_type: "openai"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "openai"
-    generator_backend_type: "openai"
 
   "o3-mini-large":
     orchestrator_model: "o3-mini"
@@ -22,10 +18,6 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "gpt"
     generator_base_url: "gpt"
-    orchestrator_backend_type: "openai"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "openai"
-    generator_backend_type: "openai"
 
   "4o-mini":
     orchestrator_model: "gpt-4o-mini"
@@ -36,10 +28,6 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "gpt"
     generator_base_url: "gpt"
-    orchestrator_backend_type: "openai"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "openai"
-    generator_backend_type: "openai"
 
   "4o":
     orchestrator_model: "gpt-4o-2024-11-20"
@@ -50,10 +38,6 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "gpt"
     generator_base_url: "gpt"
-    orchestrator_backend_type: "openai"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "openai"
-    generator_backend_type: "openai"
 
   "vllm-faster":
     orchestrator_model: "Qwen25_32B_INT4"
@@ -64,10 +48,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.51:8001/v1"
     generator_base_url: "http://10.20.0.51:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
   
   "vllm":
     orchestrator_model: "Qwen25_32B_INT4"
@@ -78,10 +58,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.224:8000/v1"
     generator_base_url: "http://10.20.0.224:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
   
   "vllm-large":
     orchestrator_model: "Qwen25_32B_INT4"
@@ -92,10 +68,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.51:8000/v1"
     generator_base_url: "http://10.20.0.224:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
 
   "vllm-fast":
     orchestrator_model: "Qwen25_32B_INT4"
@@ -106,10 +78,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.224:8000/v1"
     generator_base_url: "http://10.20.0.224:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
 
   "vllm-superfast":
     orchestrator_model: "Mistral-Small-Instruct-INT4"
@@ -120,10 +88,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.51:8001/v1"
     generator_base_url: "http://10.20.0.51:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
 
   "vllm-superlarge":
     orchestrator_model: "Qwen25_72B_INT4"
@@ -134,10 +98,6 @@ model_configs:
     worker_base_url: "http://10.20.0.193:8000/v1"
     evaluator_base_url: "http://10.20.0.51:8000/v1"
     generator_base_url: "http://10.20.0.224:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "vllm"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
   
   "vllm-mixed":
     orchestrator_model: "Qwen25_32B_INT4"
@@ -148,10 +108,6 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "http://10.20.0.224:8001/v1"
     generator_base_url: "http://10.20.0.51:8001/v1"
-    orchestrator_backend_type: "vllm"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "vllm"
-    generator_backend_type: "vllm"
 
   "4o-mixed":
     orchestrator_model: "gpt-4o-2024-11-20"
@@ -162,7 +118,3 @@ model_configs:
     worker_base_url: "gpt"
     evaluator_base_url: "gpt"
     generator_base_url: "gpt"
-    orchestrator_backend_type: "openai"
-    worker_backend_type: "openai"
-    evaluator_backend_type: "openai"
-    generator_backend_type: "openai"
