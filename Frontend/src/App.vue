@@ -414,7 +414,7 @@ header {
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     padding: 0 1rem;
     position: sticky;
     top: 0;
@@ -451,7 +451,7 @@ header {
 
 .dropdown-menu {
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
@@ -473,7 +473,7 @@ header {
     left: 100%;
     top: -7px;
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
 }
 
@@ -535,19 +535,6 @@ header {
 
 .is-invalid::placeholder {
     color: #842029
-}
-
-@media (prefers-color-scheme: dark) {
-
-    header {
-        border-color: #2e2e2e;
-    }
-
-    .dropdown-menu {
-        border-color: #2e2e2e;
-        color: var(--text-primary-dark);
-    }
-
 }
 
 /* Voice Server Settings Styles */
