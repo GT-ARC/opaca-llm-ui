@@ -99,12 +99,9 @@ class SelfOrchestratedBackend(AbstractMethod):
         config = session.config.get(self.NAME, self.default_config())
         model_config = load_model_config(config)
 
-        # Initialize either OpenAI model or vllm model
-        models = [model_config["orchestrator_model"], model_config["worker_model"], model_config["evaluator_model"],
-                  model_config["generator_model"]]
-        base_urls = [model_config["base_url"], model_config["worker_base_url"], model_config["evaluator_base_url"],
-                     model_config["generator_base_url"]]
-        for model, base_url in zip(models, base_urls):
+        # Initialize either OpenAI model or vllm clients
+        base_urls = [model_config[f"{role}_base_url"] for role in ("orchestrator", "worker", "evaluator", "generator")]
+        for base_url in base_urls:
             if base_url not in session.llm_clients:
                 if base_url == "gpt":
                     session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
@@ -203,7 +200,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
-                    client=session.llm_clients[model_config["base_url"]],
+                    client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="AgentPlanner",
                     system_prompt=planner.system_prompt(),
@@ -466,7 +463,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
-                    client=session.llm_clients[model_config["base_url"]],
+                    client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="Orchestrator",
                     system_prompt=orchestrator.system_prompt(),
@@ -569,7 +566,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 
                     advisor_message = await self.call_llm(
-                        client=session.llm_clients[model_config["base_url"]],
+                        client=session.llm_clients[model_config["orchestrator_base_url"]],
                         model=model_config["orchestrator_model"],
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
