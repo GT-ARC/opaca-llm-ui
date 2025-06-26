@@ -291,12 +291,10 @@ export const voiceGenLocalesWebSpeech = {
 class Localizer {
 
     constructor(selectedLanguage, fallbackLanguage) {
+        this._fallbackLanguage = ref(fallbackLanguage)
         this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
             ? ref(selectedLanguage)
-            : ref('GB');
-        this._fallbackLanguage = this.isAvailableLanguage(fallbackLanguage)
-            ? ref(fallbackLanguage)
-            : ref('GB');
+            : ref(this.fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
