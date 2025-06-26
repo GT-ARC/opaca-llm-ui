@@ -37,14 +37,13 @@
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
                         <!-- Connection -->
-                        <li class="nav-item dropdown-center me-2">
+                        <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div ref="connection_dropdown"
-                                 class="dropdown-menu show p-4"
+                            <div class="dropdown-menu p-4"
                                  aria-labelledby="connectionSelector"
                                  :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
@@ -350,10 +349,12 @@ export default {
          * @param show {boolean} If true, force-show the dropdown, hide otherwise.
          */
         toggleConnectionDropdown(show) {
+            const toggle = document.getElementById('connectionSelector');
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
             if (show) {
-                this.$refs.connection_dropdown.classList.add('show');
+                dropdown.show();
             } else {
-                this.$refs.connection_dropdown.classList.remove('show');
+                dropdown.hide();
             }
         },
 
@@ -388,7 +389,7 @@ export default {
     },
 
     mounted() {
-        if (conf.ColorScheme != "system") {
+        if (conf.ColorScheme !== "system") {
             this.setTheme();
         }
         AudioManager.initVoiceServerConnection();
@@ -398,6 +399,8 @@ export default {
         } else {
             SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
         }
+
+        this.toggleConnectionDropdown(true);
     }
 }
 </script>
