@@ -4,6 +4,8 @@
         <div v-for="(section, index) in this.getQuestions()"
              :key="index"
              class="accordion-item">
+
+            <!-- header -->
             <div class="accordion-header text-center">
                 <button class="accordion-button collapsed text-center" type="button"
                         data-bs-toggle="collapse"
@@ -14,6 +16,7 @@
                 </button>
             </div>
 
+            <!-- body -->
             <div :id="'questions-' + index"
                  class="accordion-collapse collapse"
                  data-bs-parent="#sidebar-questions">
@@ -36,39 +39,40 @@ import {sidebarQuestions} from "../Localizer.js";
 
 export default {
     name: 'SidebarQuestions',
-    data() {
-        return {
-            expandedSection: null
-        }
-    },
     methods: {
         getQuestions() {
             return sidebarQuestions[Localizer.language];
         },
 
-        toggleSection(index) {
-            const questions = this.getQuestions();
-            if (this.expandedSection === index) {
-                this.expandedSection = null;
-                this.$emit('category-selected', null);
+        toggleSection(index, show = null) {
+            if (index < 0) return;
+            const toggle = document.getElementById('questions-' + index);
+            if (! toggle) return;
+            const collapse = bootstrap.Collapse.getOrCreateInstance(toggle);
+
+            // show not set -> invert current state
+            if (show === null) {
+                show = ! toggle.classList.contains('show');
+            }
+
+            if (show) {
+                collapse.show();
+                const questions = this.getQuestions();
+                const header = index in questions ? questions[index].header : 'none';
+                this.$emit('category-selected', header);
             } else {
-                this.expandedSection = index;
-                this.$emit('category-selected', index in questions ? questions[index].header : "None");
+                collapse.hide();
+                this.$emit('category-selected', null);
             }
         },
 
-        toggleSectionByHeader(header) {
+        toggleSectionByHeader(header, show = null) {
             const index = this.getQuestions().findIndex(section => section.header === header);
-            this.toggleSection(index);
+            this.toggleSection(index, show);
         },
 
         expandSectionByHeader(header) {
-            const questions = this.getQuestions();
-            const index = this.getQuestions().findIndex(section => section.header === header);
-            if (index !== -1 && this.expandedSection !== index) {
-                this.expandedSection = index;
-                this.$emit('category-selected', index in questions ? questions[index].header : "None");
-            }
+            this.toggleSectionByHeader(header, true);
         }
     }
 }

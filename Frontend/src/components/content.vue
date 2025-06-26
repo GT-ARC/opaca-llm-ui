@@ -449,7 +449,6 @@ export default {
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.showWelcomeMessage();
-
         this.updateScrollbarThumb();
     },
     watch: {
