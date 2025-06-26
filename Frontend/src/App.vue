@@ -66,7 +66,10 @@
 
                         <!-- languages -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="languageSelector"
+                               role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-globe me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
                             </a>
@@ -175,6 +178,33 @@
                                 <i class="fa fa-adjust me-1" />
                             </a>
                         </li>
+
+                        <!-- Options -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="options-dropdown"
+                               role="button" data-bs-toggle="dropdown">
+                                <i class="fa fa-gear me-1"/>
+                                <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="options-dropdown">
+                                <div class="dropdown-item d-flex">
+                                    <div class="d-flex me-3 p-1 accordion-header accordion-collapse" style="height: 100%;">
+                                        <i class="fa fa-server fs-2" />
+                                    </div>
+                                    <div class="d-flex flex-column">
+                                        <div class="fs-5">
+                                            {{ Localizer.get('name') }}
+                                        </div>
+                                        <div class="text-muted">
+                                            {{ Localizer.get('language') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+
                     </ul>
                 </div>
             </nav>
