@@ -222,13 +222,30 @@ export default {
         },
 
         getFormattedContent() {
-            try {
-                const content = marked.parse(this.content);
-                return DOMPurify.sanitize(content);
-            } catch (error) {
-                console.error('Failed to parse chat bubble content:', this.content, error);
-                return this.content;
-            }
+          try {
+            const rawHtml = marked.parse(this.content);
+
+            // Load into a temporary DOM element
+            const div = document.createElement('div');
+            div.innerHTML = rawHtml;
+
+            // Make sure links open in new tab
+            div.querySelectorAll('a').forEach(link => {
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener noreferrer');
+            });
+
+            // Sanitize html
+            const safeHtml = DOMPurify.sanitize(div.innerHTML, {
+              // Keep attributes we set
+              ADD_ATTR: ['target', 'rel'],
+            });
+
+            return safeHtml;
+          } catch (error) {
+            console.error('Failed to parse chat bubble content:', this.content, error);
+            return this.content;
+          }
         },
 
         setContent(newContent) {
