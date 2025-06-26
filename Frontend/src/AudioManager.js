@@ -78,7 +78,7 @@ class WhisperAudio extends TtsAudio {
     async setup() {
         this.isLoading = true;
         try {
-            const url = `${conf.VoiceServerAddress}/generate_audio`;
+            const url = `${conf.VoiceServerUrl}/generate_audio`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
@@ -266,7 +266,7 @@ class AudioManager {
     }
 
     isBackendConfigured() {
-        return !! conf.VoiceServerAddress
+        return !! conf.VoiceServerUrl
     }
 
     /**
@@ -280,7 +280,7 @@ class AudioManager {
         }
 
         try {
-            const response = await fetch(`${conf.VoiceServerAddress}/info`);
+            const response = await fetch(`${conf.VoiceServerUrl}/info`);
             if (response.ok) {
                 this.deviceInfo = await response.json();
                 this.isVoiceServerConnected = true;
