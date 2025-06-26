@@ -37,15 +37,17 @@
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
                         <!-- Connection -->
-                        <li class="nav-item dropdown-center me-2">
+                        <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div class="dropdown-menu show p-4" aria-labelledby="connectionSelector" :style="{'min-width': !isMobile && '320px'}">
+                            <div class="dropdown-menu p-4"
+                                 aria-labelledby="connectionSelector"
+                                 :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
-                                    <input v-if="!connected"
+                                    <input :disabled="connected"
                                            type="text"
                                            v-model="opacaRuntimePlatform"
                                            placeholder="Enter URL"
@@ -149,7 +151,7 @@
                                 </li>
                                 <li v-if="AudioManager.isVoiceServerConnected">
                                     <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accomodate smaller devices -->
+                                        <!-- add word-wrapping to accommodate smaller devices -->
                                         <div class="text-muted">
                                             {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
                                         </div>
@@ -163,7 +165,6 @@
                                 </li>
                                 <li>
                                     <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accomodate smaller devices -->
                                         <div class="text-muted">
                                             {{ conf.VoiceServerAddress }}
                                         </div>
@@ -324,6 +325,7 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
+                this.toggleConnectionDropdown(!this.connected)
             }
         },
 
@@ -345,8 +347,6 @@ export default {
                 // set backend directly
                 this.backend = key;
             }
-
-            console.log("BACKEND IS NOW:", this.backend);
         },
 
         getBackendName(key) {
@@ -373,15 +373,29 @@ export default {
             return key === this.backend;
         },
 
+        /**
+         * Force the connection dropdown opened or closed.
+         *
+         * @param show {boolean} If true, force-show the dropdown, hide otherwise.
+         */
+        toggleConnectionDropdown(show) {
+            const toggle = document.getElementById('connectionSelector');
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+            if (show) {
+                dropdown.show();
+            } else {
+                dropdown.hide();
+            }
+        },
+
         switchTheme() {
-            console.log("IN SET THEME")
             this.isDarkMode = ! this.isDarkMode;
             this.setTheme();
         },
 
         setTheme() {
             const theme = this.isDarkMode ? "dark" : "light";
-            var colors = [
+            const colors = [
                 "--background-color",
                 "--surface-color",
                 "--primary-color",
@@ -397,7 +411,7 @@ export default {
                 "--input-color",
                 "--debug-console-color",
                 "--icon-invert-color",
-            ]
+            ];
             for (const color of colors) {
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
@@ -405,7 +419,7 @@ export default {
     },
 
     mounted() {
-        if (conf.ColorScheme != "system") {
+        if (conf.ColorScheme !== "system") {
             this.setTheme();
         }
         AudioManager.initVoiceServerConnection();
@@ -415,6 +429,8 @@ export default {
         } else {
             SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
         }
+
+        this.toggleConnectionDropdown(true);
     }
 }
 </script>
@@ -431,7 +447,7 @@ header {
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     padding: 0 1rem;
     position: sticky;
     top: 0;
@@ -468,7 +484,7 @@ header {
 
 .dropdown-menu {
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     padding: 0.5rem;
     min-width: 200px;
@@ -490,7 +506,7 @@ header {
     left: 100%;
     top: -7px;
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
 }
 
@@ -503,6 +519,7 @@ header {
     display: block;
 }
 
+/* navbar stuff */
 .nav-link {
     padding: 0.5rem 1rem;
     border-radius: var(--bs-border-radius);
@@ -511,19 +528,18 @@ header {
 }
 
 .nav-link:hover {
-    background-color: var(--surface-color);
-    color: var(--primary-color);
+    background-color: var(--surface-color) !important;
+    color: var(--primary-color) !important;
+}
+
+.nav-link.show {
+    color: var(--text-primary-color) !important;
 }
 
 .dropdown-toggle {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-}
-
-.connection-indicator {
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .auth-overlay {
@@ -549,32 +565,7 @@ header {
     color: #842029
 }
 
-@media (prefers-color-scheme: dark) {
-
-    header {
-        border-color: #2e2e2e;
-    }
-
-    .dropdown-menu {
-        border-color: #2e2e2e;
-        color: var(--text-primary-dark);
-    }
-
-}
-
 /* Voice Server Settings Styles */
-.text-success {
-    color: var(--text-success-color) !important;
-}
-
-.text-danger {
-    color: var(--text-danger-color) !important;
-}
-
-.text-muted {
-    color: var(--text-secondary-color) !important;
-}
-
 .dropdown-item .fa {
     width: 1.25rem;
     text-align: center;
