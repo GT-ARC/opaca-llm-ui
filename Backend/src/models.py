@@ -2,6 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
+import sys
 from typing import List, Dict, Any, Optional, Self
 
 from pydantic import BaseModel, field_validator, model_validator, Field
@@ -31,25 +32,35 @@ class ColoredFormatter(logging.Formatter):
         agent_name = getattr(record, "agent_name", "Default")
         color = self.AGENT_COLORS.get(agent_name, self.AGENT_COLORS["Default"])
 
-        # Get formatted timestamp
+        # Get timestamp and formatted base string
         timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
+        base = f"{timestamp} [{record.levelname}] {agent_name} -"
 
-        # Indent multi-line messages
-        message = record.getMessage().replace("\n", f"\n{' ' * (len(timestamp) + len(agent_name) + len(record.levelname) + 7)}")
+        # Split messages into lines to make colorful logging work in docker
+        message_lines = record.getMessage().splitlines()
+        formatted_lines = [
+            f"{color}{base} {message_lines[0]}\x1b[0m",
+        ] + [
+            f"{color}{' ' * len(base)} {line}\x1b[0m"
+            for line in message_lines[1:]
+        ]
 
-        # Format log entry
-        log_entry = f"{timestamp} [{record.levelname}] {agent_name} - {message.strip()}"
-
-        return f"{color}{log_entry}\x1b[0m"
+        return "\n".join(formatted_lines)
 
 
 # Define a logger
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Reduce logging level for httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Create colorful logging handler for agent messages
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(ColoredFormatter())
+
+# Attach handler to root logger
 logger.addHandler(console_handler)
 
 
