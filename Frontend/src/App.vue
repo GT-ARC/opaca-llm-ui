@@ -512,11 +512,6 @@ header {
     gap: 0.5rem;
 }
 
-.connection-indicator {
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
-}
-
 .auth-overlay {
     position: fixed;
     top: 0;

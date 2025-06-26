@@ -443,7 +443,7 @@ export default {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
     padding: 1.5rem 0.75rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .sidebar-item {
