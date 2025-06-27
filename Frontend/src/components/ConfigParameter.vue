@@ -190,21 +190,6 @@ input[type="number"] {
   appearance: textfield;
 }
 
-.form-control {
-    background-color: var(--input-color);
-    border-color: var(--border-color);
-    color: var(--text-primary-color);
-}
-
-.form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.form-control:focus {
-    background-color: var(--input-color);
-    border-color: var(--primary-color);
-}
-
 .config-section {
     margin-bottom: 1.5rem;
 }

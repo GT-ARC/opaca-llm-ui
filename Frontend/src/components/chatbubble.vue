@@ -366,7 +366,7 @@ export default {
 .chatbubble-ai {
     width: 100%;
     will-change: box-shadow;
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.2s ease;
 }
 
 .message-text {
