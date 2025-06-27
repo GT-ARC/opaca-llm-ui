@@ -360,7 +360,7 @@ export default {
             formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
 
             try {
-                const response = await fetch(`${this.getConfig().VoiceServerAddress}/transcribe?is_final=true&language=${this.language}`, {
+                const response = await fetch(`${this.getConfig().VoiceServerUrl}/transcribe?is_final=true&language=${this.language}`, {
                     method: 'POST',
                     body: formData
                 });

@@ -290,9 +290,11 @@ export const voiceGenLocalesWebSpeech = {
 
 class Localizer {
 
-    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
-        this._selectedLanguage = ref(selectedLanguage);
-        this._fallbackLanguage = ref(fallbackLanguage);
+    constructor(selectedLanguage, fallbackLanguage) {
+        this._fallbackLanguage = ref(fallbackLanguage)
+        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
+            ? ref(selectedLanguage)
+            : ref(this.fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
@@ -418,6 +420,11 @@ class Localizer {
             ? voiceGenLocalesWhisper[this.language]
             : voiceGenLocalesWebSpeech[this.language];
     }
+
+    isAvailableLanguage(langName) {
+        if (!langName) return false;
+        return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
+    }
 }
 
 /**
@@ -432,5 +439,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
+const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;

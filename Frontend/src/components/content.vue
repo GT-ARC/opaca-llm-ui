@@ -107,7 +107,6 @@
 
 <script>
 import {nextTick} from "vue";
-import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
@@ -123,7 +122,6 @@ export default {
     name: 'main-content',
     components: {
         Sidebar,
-        SimpleKeyboard,
         RecordingPopup,
         Chatbubble
     },
