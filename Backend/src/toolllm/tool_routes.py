@@ -43,7 +43,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True), config['use_agent_names'])
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
