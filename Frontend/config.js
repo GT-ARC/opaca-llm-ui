@@ -90,8 +90,6 @@ function parseQueryParams() {
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
     config.DefaultLanguage = urlParams['lang'] ?? config.DefaultLanguage;
     config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
-
-    console.log(urlParams['autoconnect'], config.AutoConnect);
 }
 
 parseQueryParams();
