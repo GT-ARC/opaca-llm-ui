@@ -8,6 +8,13 @@ export const Backends = {
     "simple-tools": "Simple Tool Prompt"
 };
 
+export const BackendDescriptions = {
+    "simple": "Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.",
+    "tool-llm": "Two agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
+    "self-orchestrated": "A two-staged approach, were an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
+    "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
+};
+
 /*
 // reminder, because it's currently not used: define one level of "sub-backends" like this:
 BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
