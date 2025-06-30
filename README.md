@@ -39,9 +39,12 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * Simple: Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.
 
-* ToolLLM: Two agents using the built-in "tools" parameter of newer models.
+* ToolLLM: Two agents using the built-in 'tools' parameter of newer models.
 
 * Orchestration: A two-staged approach, were an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
+
+* Simple Tool: A single agent, as in 'Simple', but using the 'tools' parameter.
+
 
 The different approaches provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **vLLM** to use locally deployed models (e.g. Mistral, Llama, ...)
 
