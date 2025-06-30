@@ -295,11 +295,9 @@ class Localizer {
         this._fallbackLanguage = ref(fallbackLanguage)
         this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
             ? ref(selectedLanguage)
-            : ref(this.fallbackLanguage);
+            : ref(fallbackLanguage);
 
         this.randomSampleQuestions = null;
-
-        console.log('Localizer Setup:', this.language, this.fallbackLanguage)
     }
 
     set language(newLang) {
