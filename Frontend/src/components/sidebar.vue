@@ -121,12 +121,12 @@
                 <!-- backend config -->
                 <div v-show="SidebarManager.isViewSelected('config')"
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div class="py-2">
+                        <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
+                        <p>{{ BackendDescriptions[this.getBackend()] }}</p>
+                    </div>
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <div class="py-2">
-                            <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
-                            <p>{{ BackendDescriptions[this.getBackend()] }}</p>
-                        </div>
                         <ConfigParameter v-for="(value, name) in backendConfigSchema"
                                           :key="name"
                                           :name="name"
@@ -321,18 +321,17 @@ export default {
 
         async fetchBackendConfig() {
             const backend = this.getBackend();
+            this.backendConfig = this.backendConfigSchema = null;
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
                     this.backendConfig = response.data.value;
                     this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
                 console.error('Error fetching backend config:', error);
-                this.backendConfig = null;
             }
         },
 
@@ -404,15 +403,14 @@ export default {
     mounted() {
         this.setupResizer();
         this.buildFaqContent();
+        this.fetchBackendConfig();
     },
     updated() {
         this.scrollDownConfigView()
     },
     watch: {
         backend() {
-            if (this.connected) {
-                this.fetchBackendConfig();
-            }
+            this.fetchBackendConfig();
         },
         async connected(newVal) {
             if (newVal) {
@@ -421,7 +419,6 @@ export default {
                 const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
                 this.platformActions = res2.data;
             } else {
-                this.backendConfig = null;
                 this.platformActions = null;
             }
         }
