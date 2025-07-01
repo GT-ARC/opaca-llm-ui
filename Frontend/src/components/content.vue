@@ -18,7 +18,7 @@
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
              @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.selectedCategory = newCategory"
+             @category-selected="newCategory => this.updateQuestionCategory(newCategory)"
              @api-key-change="newValue => this.apiKey = newValue"
         />
 
@@ -130,6 +130,9 @@ export default {
         language: String,
         connected: Boolean,
     },
+    emits: [
+        'category-select',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
         return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
@@ -435,6 +438,11 @@ export default {
                 this.isSmallScrollbar = el.offsetHeight < maxHeight;
             });
         },
+
+        updateQuestionCategory(newCategory) {
+            this.selectedCategory = newCategory;
+            this.$emit('category-select', newCategory);
+        }
     },
 
     mounted() {
@@ -446,8 +454,8 @@ export default {
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        this.showWelcomeMessage();
         this.updateScrollbarThumb();
+        this.showWelcomeMessage();
     },
     watch: {
         textInput() {

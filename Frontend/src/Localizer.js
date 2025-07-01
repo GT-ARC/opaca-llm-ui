@@ -3,6 +3,7 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
+import SidebarManager from "./SidebarManager.js";
 
 
 export const localizationData = {
@@ -294,7 +295,7 @@ class Localizer {
         this._fallbackLanguage = ref(fallbackLanguage)
         this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
             ? ref(selectedLanguage)
-            : ref(this.fallbackLanguage);
+            : ref(fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
@@ -373,28 +374,33 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(categoryHeader) {
+    reloadSampleQuestions(categoryHeader) {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
         const howAssist = { question: this.get("howAssist"), icon: "❓" }
 
-        // if category could not be found, return random sample questions
-        if (!category) {
-            if (!this.randomSampleQuestions) {
-                this.randomSampleQuestions = this.getRandomSampleQuestions();
-                this.randomSampleQuestions.unshift(howAssist);
-            }
-            return this.randomSampleQuestions;
+        if (category) {
+            // take first 3 questions and use their individual icons
+            const sampleQuestions = category.questions.slice(0, 3).map(q => ({
+                question: q.question,
+                icon: q.icon || category.icon // Fallback to category icon if question has no icon
+            }));
+            sampleQuestions.unshift(howAssist);
+            this.randomSampleQuestions = sampleQuestions;
+        } else {
+            // if category could not be found, return random sample questions
+            const sampleQuestions = this.getRandomSampleQuestions();
+            sampleQuestions.unshift(howAssist);
+            this.randomSampleQuestions = sampleQuestions;
         }
+    }
 
-        // take first 3 questions and use their individual icons
-        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-            question: q.question,
-            icon: q.icon || category.icon // Fallback to category icon if question has no icon
-        }));
-        sampleQuestions.unshift(howAssist);
-        return sampleQuestions;
+    getSampleQuestions(categoryHeader) {
+        if (! this.randomSampleQuestions) {
+            this.reloadSampleQuestions(categoryHeader);
+        }
+        return this.randomSampleQuestions;
     }
 
     getRandomSampleQuestions(numQuestions = 3) {
