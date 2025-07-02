@@ -2,36 +2,38 @@
     <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
-             style="height: calc(100vh - 50px);">
+             class="d-flex flex-column justify-content-start align-items-center gap-2">
 
             <i @click="SidebarManager.toggleView('info')"
-               class="fa fa-circle-info p-2 sidebar-item"
+               class="fa fa-circle-info sidebar-item"
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
-               class="fa fa-book p-2 sidebar-item"
+               class="fa fa-book sidebar-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users p-2 sidebar-item"
+               class="fa fa-users sidebar-item"
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog p-2 sidebar-item"
+               class="fa fa-cog sidebar-item"
                :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug p-2 sidebar-item"
+               class="fa fa-bug sidebar-item"
                :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
 
+            <!-- spacer -->
+            <div class="flex-grow-1" />
+
             <i @click="SidebarManager.toggleView('faq')"
-               class="fa fa-question-circle p-2 sidebar-item"
+               class="fa fa-question-circle sidebar-item"
                :title="Localizer.get('tooltipSidebarFaq')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
@@ -170,7 +172,7 @@
 
                 <!-- Help/FAQ -->
                 <div v-show="SidebarManager.isViewSelected('faq')"
-                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2">
                     <div v-html="this.faqContent"
                          class="d-flex flex-column text-start faq-content">
                     </div>
@@ -444,8 +446,11 @@ export default {
 #sidebar-menu {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
-    padding: 1.5rem 0.75rem;
+    padding: .5em;
+    margin: 1em 0 0 1em;
     transition: all 0.2s ease;
+    border-radius: .5em;
+    height: calc(100vh - 100px);
 }
 
 .sidebar-item {
