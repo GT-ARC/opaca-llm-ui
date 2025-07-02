@@ -123,6 +123,10 @@
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
+                        <div class="py-2">
+                            <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
+                            <p>{{ BackendDescriptions[this.getBackend()] }}</p>
+                        </div>
                         <ConfigParameter v-for="(value, name) in backendConfigSchema"
                                           :key="name"
                                           :name="name"
@@ -179,7 +183,7 @@
 </template>
 
 <script>
-import conf from '../../config.js'
+import conf, {Backends, BackendDescriptions} from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
@@ -204,7 +208,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
