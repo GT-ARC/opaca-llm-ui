@@ -42,6 +42,9 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
+                    <div v-if="!this.isMobile" class="welcome-message">
+                        {{ Localizer.get("welcome") }}
+                    </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
                          :key="index"
                          class="sample-question"
@@ -326,16 +329,8 @@ export default {
         async resetChat() {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
-            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-        },
-
-        async showWelcomeMessage() {
-            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
-            if (!this.isMobile) {
-                await this.addChatBubble(Localizer.get('welcome'), false, false);
-            }
         },
 
         /**
@@ -455,7 +450,6 @@ export default {
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.updateScrollbarThumb();
-        this.showWelcomeMessage();
     },
     watch: {
         textInput() {
@@ -561,6 +555,13 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
+}
+
+.welcome-message {
+    width: 100%;
+    padding: 1em;
+    text-align: center;
+    font-size: 150%;
 }
 
 .sample-questions {
