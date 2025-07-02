@@ -57,7 +57,6 @@ export const localizationData = {
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "How can you assist me?",
     },
 
     DE: {
@@ -110,7 +109,6 @@ export const localizationData = {
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "Womit kannst du mir helfen?",
     },
 };
 
@@ -378,20 +376,16 @@ class Localizer {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
-        const howAssist = { question: this.get("howAssist"), icon: "❓" }
-
         if (category) {
             // take first 3 questions and use their individual icons
             const sampleQuestions = category.questions.slice(0, 3).map(q => ({
                 question: q.question,
                 icon: q.icon || category.icon // Fallback to category icon if question has no icon
             }));
-            sampleQuestions.unshift(howAssist);
             this.randomSampleQuestions = sampleQuestions;
         } else {
             // if category could not be found, return random sample questions
             const sampleQuestions = this.getRandomSampleQuestions();
-            sampleQuestions.unshift(howAssist);
             this.randomSampleQuestions = sampleQuestions;
         }
     }
