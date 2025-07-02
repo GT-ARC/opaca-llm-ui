@@ -18,6 +18,7 @@
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
+                <!--
                 <div class="me-2 w-auto text-start">
                     <a href="https://go-ki.org/" target="blank">
                         <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo"
@@ -30,6 +31,7 @@
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
+                -->
 
                 <!-- options -->
                 <div class="ms-auto me-0 w-auto"
