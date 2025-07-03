@@ -1,16 +1,16 @@
 <template>
-<div class="accordion-item m-0" style="max-width: 300px">
+<div class="accordion-item m-0">
 
     <!-- Header -->
     <div class="accordion-header options-header">
-        <div class="accordion-button collapsed d-flex p-2"
+        <div class="accordion-button collapsed d-flex p-2 rounded-0"
              data-bs-toggle="collapse"
              :data-bs-target="`#selector-${this.name}`">
             <div class="d-flex me-3 p-1" style="height: 100%;">
                 <i class="fa fs-2" :class="[this.icon]" />
             </div>
             <div class="d-flex flex-column">
-                <div class="fs-5">
+                <div class="">
                     {{ this.getSelectedItem() }}
                 </div>
                 <div class="text-muted">
@@ -28,9 +28,9 @@
             <div v-for="(item, itemId) in this.data"
                  :key="itemId"
                  class="options-item"
-                 @click="this.select(item, itemId)">
+                 @click="this.onItemClick ? this.onItemClick(item, itemId) : this.select(item, itemId)">
                 {{ item }}
-                <i class="fa fa-check-circle ms-1" v-if="itemId === this.itemId" />
+                <i class="fa fa-check-circle ms-1" v-if="this.showSelected && itemId === this.itemId" />
             </div>
         </div>
     </div>
@@ -47,6 +47,8 @@ export default {
         icon: String,
         data: Array | Object,
         initialSelect: Number | String,
+        showSelected: { type: Boolean, default: true },
+        onItemClick: { type: Function, default: null },
     },
     data() {
         return {
@@ -73,7 +75,6 @@ export default {
 <style scoped>
 .options-header {
     margin: 0;
-    border-radius: 0 !important;
     cursor: pointer;
 }
 
@@ -84,7 +85,18 @@ export default {
 }
 
 .options-item:hover {
-    color: var(--primary-color);
+    color: var(--primary-color) !important;
     transform: translateY(-1px);
+}
+
+.accordion-item {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 6rem);
+}
+
+.accordion-header,
+.accordion-item,
+.accordion-button {
+    border-radius: 0 !important;
 }
 </style>

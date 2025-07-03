@@ -38,12 +38,16 @@
 
                         <!-- Connection -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
+                            <a id="connectionSelector"
+                               class="nav-link dropdown-toggle"
+                               href="#" role="button"
+                               data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div class="dropdown-menu p-4"
+                            <div id="connection-menu"
+                                 class="dropdown-menu dropdown-menu-end p-4"
                                  aria-labelledby="connectionSelector"
                                  :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
@@ -56,18 +60,19 @@
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
                                         @click="connectToPlatform">
-                                    <template v-if="isConnecting">
-                                        <span class="fa fa-spin fa-spinner fa-dis"></span>
-                                    </template>
-                                    <template v-else>
+
+                                    <span v-if="isConnecting">
+                                        <i class="fa fa-spin fa-spinner"></i>
+                                    </span>
+                                    <span v-else>
                                         {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
-                                    </template>
+                                    </span>
                                 </button>
                             </div>
                         </li>
 
                         <!-- languages -->
-                        <li class="nav-item dropdown me-2">
+                        <li v-if="false" class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle"
                                href="#"
                                id="languageSelector"
@@ -89,7 +94,7 @@
                         </li>
 
                         <!-- backends -->
-                        <li class="nav-item dropdown me-2">
+                        <li v-if="false" class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-server me-1"/>
                                 <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
@@ -133,7 +138,7 @@
                         </li>
 
                         <!-- Voice Server Settings -->
-                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
+                        <li v-if="false" class="nav-item dropdown me-0">
 
                             <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i v-if="AudioManager.isVoiceServerConnected" class="fa fa-microphone me-1" />
@@ -174,7 +179,7 @@
                         </li>
 
                         <!-- color theme toggle -->
-                        <li class="nav-item me-2">
+                        <li v-if="false" class="nav-item me-2">
                             <a class="nav-link" href="#" role="button" @click="this.switchTheme()"  aria-expanded="false">
                                 <i class="fa fa-adjust me-1" />
                             </a>
@@ -186,22 +191,16 @@
                                href="#"
                                id="options-dropdown"
                                role="button" data-bs-toggle="dropdown">
-                                <i class="fa fa-gear me-1"/>
+                                <i class="fa fa-hamburger me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
-                            <div class="dropdown-menu" aria-labelledby="options-dropdown">
+                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
-                                    <div class="d-flex me-3 p-1 accordion-header accordion-collapse" style="height: 100%;">
-                                        <i class="fa fa-server fs-2" />
-                                    </div>
-                                    <div class="d-flex flex-column">
-                                        <div class="fs-5">
-                                            {{ Localizer.get('name') }}
-                                        </div>
-                                        <div class="text-muted">
-                                            {{ Localizer.get('language') }}
-                                        </div>
-                                    </div>
+                                    <OptionsSelect
+                                        @select-method="method => this.setBackend(method)"
+                                        @select-language="lang => Localizer.language = lang"
+                                        @select-color-mode="mode => this.setTheme(mode)"
+                                    />
                                 </div>
                             </div>
                         </li>
@@ -211,8 +210,6 @@
             </nav>
         </div>
     </header>
-
-
 
     <!-- Auth Modal -->
     <div v-if="showAuthInput" class="auth-overlay">
@@ -267,10 +264,11 @@ import Localizer from "./Localizer.js"
 import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import OptionsSelect from "./components/OptionsSelect.vue";
 
 export default {
     name: 'App',
-    components: {MainContent},
+    components: {OptionsSelect, MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
@@ -391,11 +389,11 @@ export default {
 
         switchTheme() {
             this.isDarkMode = ! this.isDarkMode;
-            this.setTheme();
+            const theme = this.isDarkMode ? 'dark' : 'light';
+            this.setTheme(theme);
         },
 
-        setTheme() {
-            const theme = this.isDarkMode ? "dark" : "light";
+        setTheme(theme) {
             const colors = [
                 "--background-color",
                 "--surface-color",
@@ -437,6 +435,12 @@ export default {
         }
 
         this.toggleConnectionDropdown(true);
+
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+        });
     }
 }
 </script>
@@ -471,9 +475,10 @@ header {
 
 .dropdown-item {
     cursor: pointer;
-    padding: 0.75rem 1rem;
+    padding: 0 !important;
     transition: all 0.2s ease;
     color: var(--text-primary-color);
+    margin: 0 !important;
 }
 
 .dropdown-item-text {
@@ -492,7 +497,7 @@ header {
     border-radius: var(--bs-border-radius);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
-    padding: 0.5rem;
+    padding: 0;
     min-width: 200px;
     background-color: var(--surface-color);
     color: var(--text-primary-color)
@@ -583,5 +588,20 @@ header {
     width: 100%;
     text-align: left;
     padding: 0;
+}
+
+#connection-menu {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 4rem);
+}
+
+@media (max-width: 576px) {
+    #connection-menu {
+        position: fixed !important;
+        top: auto !important;
+        bottom: auto !important;
+        left: 2rem !important;
+        right: auto !important;
+    }
 }
 </style>

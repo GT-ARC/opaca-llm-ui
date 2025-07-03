@@ -52,8 +52,6 @@
 
             </div>
 
-            <OptionsSelect />
-
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-group">
