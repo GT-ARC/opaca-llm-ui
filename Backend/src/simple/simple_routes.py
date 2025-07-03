@@ -46,7 +46,7 @@ ask_policies = {
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
 
-logger = logging.getLogger("src.models")
+logger = logging.getLogger(__name__)
 
 class SimpleBackend(AbstractMethod):
 

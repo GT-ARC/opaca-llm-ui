@@ -39,7 +39,7 @@ class SelfOrchestratedBackend(AbstractMethod):
 
     def __init__(self):
         # Set up logging
-        self.logger = logging.getLogger("src.models")
+        self.logger = logging.getLogger(__name__)
 
     @property
     def config_schema(self) -> Dict[str, ConfigParameter]:

@@ -74,7 +74,7 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
                                 <li v-for="{ key, name } in Localizer.getAvailableLocales()"
-                                    @click="Localizer.language = key">
+                                    @click="this.updateLanguage(key)">
                                     <a class="dropdown-item">
                                         <p :class="{ 'fw-bold': Localizer.language === key }">
                                             {{ name }}
@@ -92,7 +92,7 @@
                                 <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in conf.Backends"
+                                <li v-for="(value, key) in Backends"
                                     @click="this.setBackend(key)">
 
                                     <!-- top-level item/group -->
@@ -163,7 +163,7 @@
                                 <li>
                                     <div class="dropdown-item dropdown-item-text">
                                         <div class="text-muted">
-                                            {{ conf.VoiceServerAddress }}
+                                            {{ conf.VoiceServerUrl }}
                                         </div>
                                     </div>
                                 </li>
@@ -223,15 +223,15 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
+            @category-select="newCategory => this.selectedCategory = newCategory"
             ref="content"
         />
     </div>
 </template>
 
 <script>
-import conf from '../config.js';
+import conf, {Backends} from '../config.js';
 import MainContent from './components/content.vue';
-
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
 import {sendRequest} from "./utils.js";
@@ -243,12 +243,12 @@ export default {
     components: {MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, AudioManager, isMobile, screenWidth };
+        return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             language: 'GB',
-            backend: conf.BackendDefault,
+            backend: conf.DefaultBackend,
             sidebar: 'connect',
             isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
                          window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -259,6 +259,7 @@ export default {
             platformUser: "",
             platformPassword: "",
             loginError: false,
+            selectedCategory: null,
         }
     },
     methods: {
@@ -301,7 +302,7 @@ export default {
 
         setBackend(key) {
             const keyPath = key.split('/');
-            const value = conf.Backends[keyPath[0]];
+            const value = Backends[keyPath[0]];
             const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
 
             if (isGroupSelection) {
@@ -322,9 +323,9 @@ export default {
         getBackendName(key) {
             const path = key.split('/');
             if (path.length === 1) {
-                return conf.Backends[key];
+                return Backends[key];
             } else {
-                return conf.Backends[path[0]].subBackends[path[1]];
+                return Backends[path[0]].subBackends[path[1]];
             }
         },
 
@@ -334,7 +335,7 @@ export default {
         isBackendSelected(key) {
             const selectedPath = this.backend.split('/');
             const keyPath = key.split('/');
-            const value = conf.Backends[keyPath[0]];
+            const value = Backends[keyPath[0]];
             const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
             if (isGroupSelection && selectedPath.length > 1) {
                 // check if the currently selected backend is in the group
@@ -386,6 +387,11 @@ export default {
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
         },
+
+        updateLanguage(newLanguage) {
+            Localizer.language = newLanguage;
+            Localizer.reloadSampleQuestions(this.selectedCategory);
+        }
     },
 
     mounted() {

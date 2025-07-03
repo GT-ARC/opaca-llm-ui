@@ -3,6 +3,7 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
+import SidebarManager from "./SidebarManager.js";
 
 
 export const localizationData = {
@@ -290,9 +291,11 @@ export const voiceGenLocalesWebSpeech = {
 
 class Localizer {
 
-    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
-        this._selectedLanguage = ref(selectedLanguage);
-        this._fallbackLanguage = ref(fallbackLanguage);
+    constructor(selectedLanguage, fallbackLanguage) {
+        this._fallbackLanguage = ref(fallbackLanguage)
+        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
+            ? ref(selectedLanguage)
+            : ref(fallbackLanguage);
 
         this.randomSampleQuestions = null;
     }
@@ -371,28 +374,33 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(categoryHeader) {
+    reloadSampleQuestions(categoryHeader) {
         const category = sidebarQuestions[this.language]
             ?.find(c => c.header === categoryHeader);
 
         const howAssist = { question: this.get("howAssist"), icon: "❓" }
 
-        // if category could not be found, return random sample questions
-        if (!category) {
-            if (!this.randomSampleQuestions) {
-                this.randomSampleQuestions = this.getRandomSampleQuestions();
-                this.randomSampleQuestions.unshift(howAssist);
-            }
-            return this.randomSampleQuestions;
+        if (category) {
+            // take first 3 questions and use their individual icons
+            const sampleQuestions = category.questions.slice(0, 3).map(q => ({
+                question: q.question,
+                icon: q.icon || category.icon // Fallback to category icon if question has no icon
+            }));
+            sampleQuestions.unshift(howAssist);
+            this.randomSampleQuestions = sampleQuestions;
+        } else {
+            // if category could not be found, return random sample questions
+            const sampleQuestions = this.getRandomSampleQuestions();
+            sampleQuestions.unshift(howAssist);
+            this.randomSampleQuestions = sampleQuestions;
         }
+    }
 
-        // take first 3 questions and use their individual icons
-        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-            question: q.question,
-            icon: q.icon || category.icon // Fallback to category icon if question has no icon
-        }));
-        sampleQuestions.unshift(howAssist);
-        return sampleQuestions;
+    getSampleQuestions(categoryHeader) {
+        if (! this.randomSampleQuestions) {
+            this.reloadSampleQuestions(categoryHeader);
+        }
+        return this.randomSampleQuestions;
     }
 
     getRandomSampleQuestions(numQuestions = 3) {
@@ -418,6 +426,11 @@ class Localizer {
             ? voiceGenLocalesWhisper[this.language]
             : voiceGenLocalesWebSpeech[this.language];
     }
+
+    isAvailableLanguage(langName) {
+        if (!langName) return false;
+        return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
+    }
 }
 
 /**
@@ -432,5 +445,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
+const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;
