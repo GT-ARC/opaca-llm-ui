@@ -121,9 +121,13 @@
                 <!-- backend config -->
                 <div v-show="SidebarManager.isViewSelected('config')"
                      id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div class="py-2">
+                        <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
+                        <p>{{ BackendDescriptions[this.getBackend()] }}</p>
+                    </div>
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                        <ConfigParameter v-for="(value, name) in backendConfigSchema"
                                           :key="name"
                                           :name="name"
                                           :value="value"
@@ -179,7 +183,7 @@
 </template>
 
 <script>
-import conf from '../../config.js'
+import conf, {Backends, BackendDescriptions} from '../../config.js'
 import {sendRequest} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
@@ -204,7 +208,7 @@ export default {
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
@@ -230,12 +234,13 @@ export default {
             try {
                 this.howAssistContent = "Querying functionality, please wait...";
                 const body = {user_query: "How can you assist me?"};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/${this.getBackend()}/query`, body);
+                const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
                 console.log("result: " + JSON.stringify(res));
                 const answer = res.data.agent_messages[0].content;
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.log("ERROR " + error);
+                this.howAssistContent = `There was an error when querying the functionality: ${error}`
             }
         },
 
@@ -317,18 +322,17 @@ export default {
 
         async fetchBackendConfig() {
             const backend = this.getBackend();
+            this.backendConfig = this.backendConfigSchema = null;
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
                     this.backendConfig = response.data.value;
                     this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
                 console.error('Error fetching backend config:', error);
-                this.backendConfig = null;
             }
         },
 
@@ -400,15 +404,14 @@ export default {
     mounted() {
         this.setupResizer();
         this.buildFaqContent();
+        this.fetchBackendConfig();
     },
     updated() {
         this.scrollDownConfigView()
     },
     watch: {
         backend() {
-            if (this.connected) {
-                this.fetchBackendConfig();
-            }
+            this.fetchBackendConfig();
         },
         async connected(newVal) {
             if (newVal) {
@@ -417,7 +420,6 @@ export default {
                 const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
                 this.platformActions = res2.data;
             } else {
-                this.backendConfig = null;
                 this.platformActions = null;
             }
         }
@@ -443,7 +445,7 @@ export default {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
     padding: 1.5rem 0.75rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .sidebar-item {
@@ -474,21 +476,6 @@ export default {
 .sidebar-item-select:hover {
     background-color: var(--secondary-color);
     color: white !important;
-}
-
-.form-control {
-    background-color: var(--input-color);
-    border-color: var(--border-color);
-    color: var(--text-primary-color);
-}
-
-.form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.form-control:focus {
-    background-color: var(--input-color);
-    border-color: var(--primary-color);
 }
 
 .faq-content {
@@ -533,60 +520,6 @@ export default {
     flex-direction: column;
 }
 
-/* Accordion Styling */
-.accordion-item {
-    border-radius: var(--bs-border-radius);
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-    background-color: var(--surface-color);
-}
-
-.accordion-button {
-    border-radius: var(--bs-border-radius);
-    padding: 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    background-color: var(--surface-color);
-    color: var(--text-primary-color);
-}
-
-.accordion-button i {
-    margin-right: 0.75rem;
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: none;
-}
-
-.accordion-button:hover {
-    background-color: var(--secondary-color)
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: transparent;
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    width: 1rem;
-    height: 1rem;
-    transition: all 0.2s ease;
-    filter: invert(var(--icon-invert-color));
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--background-color);
-}
-
-.accordion-collapse {
-    background-color: var(--background-color);
-}
-
 .action-header-button {
     background-color: transparent;
     color: inherit;
@@ -613,27 +546,6 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
-}
-
-.list-group {
-    border-radius: var(--bs-border-radius);
-    overflow: hidden;
-    background-color: transparent;
-}
-
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-primary-color);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
 }
 
 .placeholder-container {
