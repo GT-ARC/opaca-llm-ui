@@ -481,7 +481,6 @@ export default {
         this.loadHistoryOrWelcomeMessage();
 
         this.updateScrollbarThumb();
-        this.showWelcomeMessage();
     },
     watch: {
         textInput() {
