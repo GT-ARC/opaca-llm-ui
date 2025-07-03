@@ -77,7 +77,7 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="languageSelector">
                                 <li v-for="{ key, name } in Localizer.getAvailableLocales()"
-                                    @click="Localizer.language = key">
+                                    @click="this.updateLanguage(key)">
                                     <a class="dropdown-item">
                                         <p :class="{ 'fw-bold': Localizer.language === key }">
                                             {{ name }}
@@ -253,6 +253,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
+            @category-select="newCategory => this.selectedCategory = newCategory"
             ref="content"
         />
     </div>
@@ -288,6 +289,7 @@ export default {
             platformUser: "",
             platformPassword: "",
             loginError: false,
+            selectedCategory: null,
         }
     },
     methods: {
@@ -415,6 +417,11 @@ export default {
                 document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
             }
         },
+
+        updateLanguage(newLanguage) {
+            Localizer.language = newLanguage;
+            Localizer.reloadSampleQuestions(this.selectedCategory);
+        }
     },
 
     mounted() {

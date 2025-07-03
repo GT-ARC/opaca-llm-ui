@@ -22,7 +22,7 @@ answer them with the required information. Tools can also be described as servic
 """
 
 
-logger = logging.getLogger("src.models")
+logger = logging.getLogger(__name__)
 
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"

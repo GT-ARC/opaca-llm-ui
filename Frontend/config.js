@@ -8,6 +8,13 @@ export const Backends = {
     "simple-tools": "Simple Tool Prompt"
 };
 
+export const BackendDescriptions = {
+    "simple": "Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.",
+    "tool-llm": "Two agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
+    "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
+    "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
+};
+
 /*
 // reminder, because it's currently not used: define one level of "sub-backends" like this:
 BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
@@ -42,7 +49,8 @@ let config = {
     VoiceServerUrl: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
 
     // If true, attempt to connect to the configured platform on-load
-    AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
+    // the boolean value is parsed later, together with the one passed as query param, if any
+    AutoConnect: import.meta.env.VITE_AUTOCONNECT ?? 'false',
 
     // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
@@ -60,18 +68,6 @@ let config = {
 }
 
 /**
- * Parse an environment variable value to a boolean.
- *
- * @param name {String} The variable's name.
- * @param defaultValue {boolean} The default value.
- * @private
- */
-function parseEnvBool(name, defaultValue = false) {
-    const value = import.meta.env[name];
-    return (value?.toLowerCase() === 'true') ?? defaultValue;
-}
-
-/**
  * Parse relevant query params and let their values override the default config values.
  */
 function parseQueryParams() {
@@ -80,7 +76,7 @@ function parseQueryParams() {
         urlParams[key.toLowerCase()] = value;
     }
 
-    config.AutoConnect = urlParams['autoconnect'] === 'true' ?? config.AutoConnect;
+    config.AutoConnect = (urlParams['autoconnect'] ?? config.AutoConnect) === 'true';
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
     config.DefaultLanguage = urlParams['lang'] ?? config.DefaultLanguage;
