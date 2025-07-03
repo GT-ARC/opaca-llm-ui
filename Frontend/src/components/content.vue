@@ -425,16 +425,40 @@ export default {
         },
 
         updateScrollbarThumb() {
-          this.$nextTick(() => {
-            const el = this.$refs.textInputRef;
-            if (!el) return;
+            this.$nextTick(() => {
+                const el = this.$refs.textInputRef;
+                if (!el) return;
 
-            const computedStyle = getComputedStyle(el);
-            const maxHeight = parseFloat(computedStyle.maxHeight);
+                const computedStyle = getComputedStyle(el);
+                const maxHeight = parseFloat(computedStyle.maxHeight);
 
-            // If current height is less than the max-height
-            this.isSmallScrollbar = el.offsetHeight < maxHeight;
-          });
+                // If current height is less than the max-height
+                this.isSmallScrollbar = el.offsetHeight < maxHeight;
+            });
+        },
+
+        async loadHistoryOrWelcomeMessage() {
+            try {
+                const res = await fetch(`${conf.BackendAddress}/history`, {
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch history");
+
+                const messages = await res.json();
+
+                for (const msg of messages) {
+                    const isUser = msg.role === 'user';
+                    await this.addChatBubble(msg.content, isUser);
+                }
+                if(messages.length === 0){
+                    await this.showWelcomeMessage();
+                }else{
+                    this.showExampleQuestions = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
         },
     },
 
@@ -447,7 +471,7 @@ export default {
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        this.showWelcomeMessage();
+        this.loadHistoryOrWelcomeMessage();
 
         this.updateScrollbarThumb();
     },
