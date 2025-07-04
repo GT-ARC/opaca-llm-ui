@@ -6,7 +6,8 @@
         <!-- Backend Methods -->
         <OptionsSelectItem
             parent="options-selector"
-            name="Methods"
+            elementId="methods"
+            :name="Localizer.get('method')"
             icon="fa-server"
             :data="Backends"
             :initialSelect="conf.DefaultBackend"
@@ -16,7 +17,8 @@
         <!-- Languages -->
         <OptionsSelectItem
             parent="options-selector"
-            name="Languages"
+            elementId="language"
+            :name="Localizer.get('language')"
             icon="fa-globe"
             :data="this.getLanguageData()"
             :initialSelect="Localizer.language"
@@ -25,7 +27,8 @@
 
         <OptionsSelectItem
             parent="options-selector"
-            name="Colors"
+            elementId="colors"
+            :name="Localizer.get('colorMode')"
             icon="fa-adjust"
             :data="{ 'light': 'Light', 'dark': 'Dark' }"
             :initialSelect="this.getInitialColorMode()"
@@ -33,13 +36,13 @@
         />
 
         <OptionsSelectItem
-            v-if="true"
+            v-if="AudioManager.isBackendConfigured()"
             parent="options-selector"
             name="Audio"
             :icon="AudioManager.isVoiceServerConnected ? 'fa-microphone' : 'fa-microphone-slash'"
             :show-selected="false"
             :data="this.getAudioData()"
-            initialSelect="address"
+            initialSelect="connectivity"
             :on-item-click="(item, itemId) => this.handleAudioClick(item, itemId)"
         />
 
@@ -83,16 +86,18 @@ export default {
         },
 
         getInitialColorMode() {
-            const isDarkMode = (conf.ColorScheme === "light"
-                ? false
-                : conf.ColorScheme === "dark"
-                    ? true
-                    : window.matchMedia('(prefers-color-scheme: dark)').matches);
-            return isDarkMode ? 'dark' : 'light';
+            if (conf.ColorScheme === 'system') {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light';
+            }
+            return conf.ColorScheme;
         },
 
         getAudioData() {
             const data = {
+                'connectivity': AudioManager.isVoiceServerConnected
+                    ? Localizer.get('ttsConnected')
+                    : Localizer.get('ttsDisconnected'),
                 'address': String(conf.VoiceServerUrl),
             };
             if (! AudioManager.isVoiceServerConnected) {

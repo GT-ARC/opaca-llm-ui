@@ -5,12 +5,12 @@
     <div class="accordion-header options-header">
         <div class="accordion-button collapsed d-flex p-2 rounded-0"
              data-bs-toggle="collapse"
-             :data-bs-target="`#selector-${this.name}`">
-            <div class="d-flex me-3 p-1" style="height: 100%;">
-                <i class="fa fs-2" :class="[this.icon]" />
+             :data-bs-target="`#selector-${this.elementId}`">
+            <div class="d-flex me-1 p-1 text-start" style="height: 100%">
+                <i class="fa fs-4" :class="[this.icon]" style="width: 30px" />
             </div>
             <div class="d-flex flex-column">
-                <div class="">
+                <div>
                     {{ this.getSelectedItem() }}
                 </div>
                 <div class="text-muted">
@@ -21,7 +21,7 @@
     </div>
 
     <!-- Body -->
-    <div :id="`selector-${this.name}`"
+    <div :id="`selector-${this.elementId}`"
          class="accordion-collapse collapse"
          :data-bs-parent="`#${this.parent}`">
         <div class="accordion-body">
@@ -43,6 +43,7 @@ export default {
     name: "OptionsSelectItem",
     props: {
         parent: String,
+        elementId: String,
         name: String,
         icon: String,
         data: Array | Object,
@@ -90,7 +91,7 @@ export default {
 }
 
 .accordion-item {
-    min-width: min(400px, 100vw - 6rem);
+    min-width: min(300px, 100vw - 6rem);
     max-width: calc(100vw - 6rem);
 }
 

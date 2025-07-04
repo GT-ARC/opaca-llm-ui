@@ -191,7 +191,7 @@
                                href="#"
                                id="options-dropdown"
                                role="button" data-bs-toggle="dropdown">
-                                <i class="fa fa-hamburger me-1"/>
+                                <i class="fa fa-gear me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
                             <div class="dropdown-menu dropdown-menu-end" aria-labelledby="options-dropdown">
