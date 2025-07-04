@@ -3,48 +3,89 @@
     <div id="options-selector"
          class="accordion">
 
-        <!-- Backend Methods -->
-        <OptionsSelectItem
-            parent="options-selector"
-            elementId="methods"
-            :name="Localizer.get('method')"
-            icon="fa-server"
-            :data="Backends"
-            :initialSelect="conf.DefaultBackend"
-            @select="(_, methodId) => this.$emit('select-method', methodId)"
-        />
+        <!-- Loop for methods, language and color mode -->
+        <div v-for="{ data, name, elementId, icon } in this.getCombinedSettingsData()"
+             class="accordion-item m-0">
 
-        <!-- Languages -->
-        <OptionsSelectItem
-            parent="options-selector"
-            elementId="language"
-            :name="Localizer.get('language')"
-            icon="fa-globe"
-            :data="this.getLanguageData()"
-            :initialSelect="Localizer.language"
-            @select="(_, langId) => this.$emit('select-language', langId)"
-        />
+            <!-- Header -->
+            <div class="accordion-header options-header">
+                <div class="accordion-button collapsed d-flex p-2 rounded-0"
+                     data-bs-toggle="collapse"
+                     :data-bs-target="`#selector-${elementId}`">
+                    <div class="d-flex me-1 p-1 text-start" style="height: 100%">
+                        <i class="fa fs-4" :class="[icon]" style="width: 30px" />
+                    </div>
+                    <div class="d-flex flex-column">
+                        <div>
+                            {{ data[this.getSelectedItem(elementId)] }}
+                        </div>
+                        <div class="text-muted">
+                            {{ name }}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <OptionsSelectItem
-            parent="options-selector"
-            elementId="colors"
-            :name="Localizer.get('colorMode')"
-            icon="fa-adjust"
-            :data="{ 'light': 'Light', 'dark': 'Dark' }"
-            :initialSelect="this.getInitialColorMode()"
-            @select="(_, modeId) => this.$emit('select-color-mode', modeId)"
-        />
+            <!-- Body -->
+            <div :id="`selector-${elementId}`"
+                 class="accordion-collapse collapse"
+                 data-bs-parent="#options-selector">
+                <div class="accordion-body">
+                    <div v-for="(name, itemId) in data"
+                         :key="itemId"
+                         class="options-item"
+                         @click="this.select(elementId, itemId)">
+                        {{ name }}
+                        <i class="fa fa-check-circle ms-1" v-if="this.isSelectedItem(elementId, itemId)" />
+                    </div>
+                </div>
+            </div>
 
-        <OptionsSelectItem
-            v-if="AudioManager.isBackendConfigured()"
-            parent="options-selector"
-            name="Audio"
-            :icon="AudioManager.isVoiceServerConnected ? 'fa-microphone' : 'fa-microphone-slash'"
-            :show-selected="false"
-            :data="this.getAudioData()"
-            initialSelect="connectivity"
-            :on-item-click="(item, itemId) => this.handleAudioClick(item, itemId)"
-        />
+        </div>
+
+        <!-- Audio -->
+        <div v-if="AudioManager.isBackendConfigured()"
+             class="accordion-item m-0">
+
+            <!-- Header -->
+            <div class="accordion-header options-header">
+                <div class="accordion-button collapsed d-flex p-2 rounded-0"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#selector-audio">
+                    <div class="d-flex me-1 p-1 text-start" style="height: 100%">
+                        <i class="fa fs-4" :class="[AudioManager.isVoiceServerConnected ? 'fa-microphone' : 'fa-microphone-slash']" style="width: 30px" />
+                    </div>
+                    <div class="d-flex flex-column">
+                        <div>
+                            {{Localizer.get(AudioManager.isVoiceServerConnected ? 'ttsConnected' : 'ttsDisconnected') }}
+                        </div>
+                        <div class="text-muted">
+                            {{ Localizer.get('audioServerSettings') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div id="selector-audio"
+                 class="accordion-collapse collapse"
+                 data-bs-parent="#options-selector">
+                <div class="accordion-body">
+                    <div class="text-muted options-item options-item-disabled">
+                        {{ String(conf.VoiceServerUrl) }}
+                    </div>
+                    <div v-if="! AudioManager.isVoiceServerConnected"
+                         class="options-item text-center">
+                        <button type="button" class="btn btn-outline-danger w-100"
+                                @click="() => AudioManager.initVoiceServerConnection()">
+                            <i class="fa fa-recycle"/>
+                            {{ Localizer.get('ttsRetry') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
 
 
     </div>
@@ -53,36 +94,64 @@
 
 <script>
 import conf, {Backends} from '../../config.js';
-import OptionsSelectItem from "./OptionsSelectItem.vue";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 
 export default {
     name: "OptionsSelect",
-    components: {
-        OptionsSelectItem,
-    },
+    components: {},
     props: {},
     data() {
-        return {};
+        return {
+            selectedItems: {}
+        };
     },
     setup() {
         return { conf, Backends, Localizer, AudioManager };
     },
     emits: [
-        'select-method',
-        'select-language',
-        'select-color-mode',
+        'select'
     ],
 
     methods: {
+        getCombinedSettingsData() {
+            return [
+                this.getMethodsData(),
+                this.getLanguageData(),
+                this.getColorModeData(),
+            ]
+        },
+
+        getMethodsData() {
+            return {
+                data: Backends,
+                name: Localizer.get('method'),
+                elementId: 'method',
+                icon: 'fa-server',
+            }
+        },
+
         getLanguageData() {
             const locales = Localizer.getAvailableLocales()
             const langData = {};
             for (let lang of locales) {
                 langData[lang.key] = lang.name;
             }
-            return langData;
+            return {
+                data: langData,
+                name: Localizer.get('language'),
+                elementId: 'language',
+                icon: 'fa-globe',
+            }
+        },
+
+        getColorModeData() {
+            return {
+                data: { light: 'Light', dark: 'Dark' },
+                name: Localizer.get('colorMode'),
+                elementId: 'colorMode',
+                icon: 'fa-adjust',
+            }
         },
 
         getInitialColorMode() {
@@ -93,30 +162,61 @@ export default {
             return conf.ColorScheme;
         },
 
-        getAudioData() {
-            const data = {
-                'address': String(conf.VoiceServerUrl),
-                'connectivity': AudioManager.isVoiceServerConnected
-                    ? Localizer.get('ttsConnected')
-                    : Localizer.get('ttsDisconnected'),
-            };
-            if (! AudioManager.isVoiceServerConnected) {
-                data['retry'] = Localizer.get('ttsRetry');
-            }
-            return data;
+        select(key, value) {
+            this.selectedItems[key] = value;
+            this.$emit('select', key, value);
         },
 
-        handleAudioClick(item, itemId) {
-            if (itemId === 'retry') {
-                AudioManager.initVoiceServerConnection();
-            }
+        getSelectedItem(key) {
+            return this.selectedItems[key];
+        },
+
+        isSelectedItem(key, value) {
+            return this.selectedItems[key] === value;
         },
     },
+
+    mounted() {
+        this.select('method', conf.DefaultBackend);
+        this.select('language', Localizer.language);
+        this.select('colorMode', this.getInitialColorMode());
+    }
 }
 </script>
 
 <style scoped>
 #options-selector {
     max-width: 800px;
+}
+
+.options-header {
+    margin: 0;
+    cursor: pointer;
+}
+
+.options-item {
+    color: var(--text-primary-color);
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.options-item:hover {
+    color: var(--primary-color) !important;
+    transform: translateY(-1px);
+}
+
+.options-item-disabled {
+    cursor: default;
+}
+
+.accordion-item {
+    min-width: min(300px, 100vw - 6rem);
+    max-width: calc(100vw - 6rem);
+}
+
+.accordion-header,
+.accordion-item,
+.accordion-button {
+    border-radius: 0 !important;
 }
 </style>

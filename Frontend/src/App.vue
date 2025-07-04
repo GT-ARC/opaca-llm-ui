@@ -197,9 +197,7 @@
                             <div class="dropdown-menu dropdown-menu-end" aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
-                                        @select-method="method => this.setBackend(method)"
-                                        @select-language="lang => Localizer.language = lang"
-                                        @select-color-mode="mode => this.setTheme(mode)"
+                                        @select="(key, value) => this.handleOptionSelect(key, value)"
                                     />
                                 </div>
                             </div>
@@ -419,6 +417,15 @@ export default {
         updateLanguage(newLanguage) {
             Localizer.language = newLanguage;
             Localizer.reloadSampleQuestions(this.selectedCategory);
+        },
+
+        handleOptionSelect(key, value) {
+            switch (key) {
+                case 'method': this.setBackend(value); break;
+                case 'language': Localizer.language = value; break;
+                case 'colorMode': this.setTheme(value); break;
+                default: break;
+            }
         }
     },
 
