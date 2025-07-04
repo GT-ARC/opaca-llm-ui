@@ -439,7 +439,7 @@ export default {
             });
         },
 
-        async loadHistoryOrWelcomeMessage() {
+        async loadHistory() {
             try {
                 const res = await fetch(`${conf.BackendAddress}/history`, {
                     credentials: 'include'
@@ -453,9 +453,7 @@ export default {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
                 }
-                if(messages.length === 0){
-                    await this.showWelcomeMessage();
-                }else{
+                if(messages.length !== 0) {
                     this.showExampleQuestions = false;
                 }
             } catch (err) {
@@ -478,7 +476,8 @@ export default {
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        this.loadHistoryOrWelcomeMessage();
+        this.showWelcomeMessage();
+        this.loadHistory();
 
         this.updateScrollbarThumb();
     },
