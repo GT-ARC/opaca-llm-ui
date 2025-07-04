@@ -95,10 +95,10 @@ export default {
 
         getAudioData() {
             const data = {
+                'address': String(conf.VoiceServerUrl),
                 'connectivity': AudioManager.isVoiceServerConnected
                     ? Localizer.get('ttsConnected')
                     : Localizer.get('ttsDisconnected'),
-                'address': String(conf.VoiceServerUrl),
             };
             if (! AudioManager.isVoiceServerConnected) {
                 data['retry'] = Localizer.get('ttsRetry');
