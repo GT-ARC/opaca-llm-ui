@@ -186,7 +186,7 @@
 
 <script>
 import conf, {Backends, BackendDescriptions} from '../../config.js'
-import {sendRequest} from "../utils.js";
+import {sendRequest, addDebugMessage} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
@@ -235,7 +235,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.howAssistContent = "Querying functionality, please wait...";
-                const body = {user_query: "How can you assist me?"};
+                const body = {user_query: "How can you assist me?", store_in_history: false};
                 const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
                 console.log("result: " + JSON.stringify(res));
                 const answer = res.data.agent_messages[0].content;
@@ -361,26 +361,7 @@ export default {
         },
 
         addDebugMessage(text, type) {
-            if (!text) return;
-            const message = {text: text, type: type};
-
-            // if there are no messages yet, just push the new one
-            if (this.debugMessages.length === 0) {
-                this.debugMessages.push(message);
-                return;
-            }
-
-            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator') {
-                // If the message includes tools, the message needs to be replaced instead of appended
-                this.debugMessages[this.debugMessages.length - 1] = message;
-            } else if (lastMessage.type === type) {
-                // If the message has the same type as before but is not a tool, append the token to the text
-                lastMessage.text += text;
-            } else {
-                // new message type
-                this.debugMessages.push(message);
-            }
+            addDebugMessage(this.debugMessages, text, type);
         },
 
         async buildFaqContent() {
