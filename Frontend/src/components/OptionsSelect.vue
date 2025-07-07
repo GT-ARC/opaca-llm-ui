@@ -216,6 +216,7 @@ export default {
 
 .accordion-button:hover .text-muted {
     color: var(--text-primary-color) !important;
+    transition: color 0.2s ease;
 }
 
 .accordion-button:not(.collapsed) .text-muted {
