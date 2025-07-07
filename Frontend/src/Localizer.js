@@ -56,7 +56,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
-        rerollQuestions: "Reroll Questions",
+        rerollQuestions: "More Questions ...",
     },
 
     DE: {
@@ -109,7 +109,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
-        rerollQuestions: "Fragen neu laden",
+        rerollQuestions: "Mehr Fragen ...",
     },
 };
 

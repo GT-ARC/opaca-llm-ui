@@ -54,7 +54,7 @@
                     <div class="w-100 text-center">
                         <button type="button" class="btn btn-outline-danger p-3"
                                 @click="Localizer.reloadSampleQuestions(null)">
-                            <i class="fa fa-refresh"/>
+                            <i class="fa fa-dice-five"/>
                             {{ Localizer.get('rerollQuestions') }}
                         </button>
                     </div>
