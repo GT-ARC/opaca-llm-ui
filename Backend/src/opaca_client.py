@@ -15,7 +15,7 @@ class OpacaClient:
     def __init__(self):
         self.url = None
         self.token = None
-        
+
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
         Returns the original HTTP Status code returned by the OPACA Platform as the result body.
@@ -32,9 +32,17 @@ class OpacaClient:
             print("CONNECTED WITH ERROR", e)
             return e.response.status_code if e.response is not None else 400
 
+    async def disconnect(self):
+        """Clears authentication and connection state."""
+        self.token = None
+        self.url = None
+        return 200
+
     async def get_actions(self) -> dict:
         """Get actions of OPACA agents, in original OPACA format."""
         try:
+            if not self.url:
+                return {}
             async with httpx.AsyncClient() as client:
                 res = await client.get(f"{self.url}/agents", headers=self._headers())
             res.raise_for_status()
@@ -50,7 +58,7 @@ class OpacaClient:
         }
 
     async def get_actions_openapi(self, inline_refs=False):
-        """Get actions of OPACA agents in OpenAPI format; if inline_refs is true, datatypes will be 
+        """Get actions of OPACA agents in OpenAPI format; if inline_refs is true, datatypes will be
         inlined directly into the action JSON instead of being a separate block.
         """
         try:
