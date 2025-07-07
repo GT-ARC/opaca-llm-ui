@@ -51,6 +51,13 @@
                          @click="this.askSampleQuestion(question.question)">
                         {{ question.icon }} <br> {{ question.question }}
                     </div>
+                    <div class="w-100 text-center">
+                        <button type="button" class="btn btn-outline-danger p-3"
+                                @click="Localizer.reloadSampleQuestions(null)">
+                            <i class="fa fa-refresh"/>
+                            {{ Localizer.get('rerollQuestions') }}
+                        </button>
+                    </div>
                 </div>
 
             </div>

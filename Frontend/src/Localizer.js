@@ -3,7 +3,6 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
-import SidebarManager from "./SidebarManager.js";
 
 
 export const localizationData = {
@@ -57,6 +56,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
+        rerollQuestions: "Reroll Questions",
     },
 
     DE: {
@@ -109,6 +109,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
+        rerollQuestions: "Fragen neu laden",
     },
 };
 
@@ -295,7 +296,7 @@ class Localizer {
             ? ref(selectedLanguage)
             : ref(fallbackLanguage);
 
-        this.randomSampleQuestions = null;
+        this._randomSampleQuestions = ref(null);
     }
 
     set language(newLang) {
@@ -314,6 +315,14 @@ class Localizer {
 
     get fallbackLanguage() {
         return this._fallbackLanguage.value;
+    }
+
+    set randomSampleQuestions(value) {
+        this._randomSampleQuestions.value = value;
+    }
+
+    get randomSampleQuestions() {
+        return this._randomSampleQuestions.value;
     }
 
     _verifySettings() {
@@ -384,9 +393,8 @@ class Localizer {
             }));
             this.randomSampleQuestions = sampleQuestions;
         } else {
-            // if category could not be found, return random sample questions
-            const sampleQuestions = this.getRandomSampleQuestions();
-            this.randomSampleQuestions = sampleQuestions;
+            // if category could not be found, roll random sample questions
+            this.randomSampleQuestions = this.getRandomSampleQuestions();
         }
     }
 
