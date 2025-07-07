@@ -55,7 +55,7 @@
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
-                                        @click="connectToPlatform">
+                                        @click="connected ? disconnectFromPlatform() : connectToPlatform()">
                                     <template v-if="isConnecting">
                                         <span class="fa fa-spin fa-spinner fa-dis"></span>
                                     </template>
@@ -293,6 +293,31 @@ export default {
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.connected = false;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.isConnecting = false;
+                this.toggleConnectionDropdown(!this.connected)
+            }
+        },
+
+        async disconnectFromPlatform() {
+            if(!this.connected) {
+                this.connected = true;
+                return
+            }
+            try {
+                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/disconnect`, body);
+                const rpStatus = parseInt(res.data);
+
+                if (rpStatus === 200) {
+                    this.connected = false;
+                } else {
+                    alert('Failed to disconnect.');
+                }
+            } catch (e) {
+                console.error(e);
+                this.connected = true;
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
