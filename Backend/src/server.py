@@ -77,7 +77,9 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     session = await handle_session_id(request, response)
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
-    session.messages.extend([ChatMessage(role="user", content=message.user_query),
+
+    if message.store_in_history:
+        session.messages.extend([ChatMessage(role="user", content=message.user_query),
                              ChatMessage(role="assistant", content=result.content)])
     return result
 
@@ -90,7 +92,9 @@ async def query_stream(websocket: WebSocket, backend: str):
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-        session.messages.extend([ChatMessage(role="user", content=message.user_query),
+
+        if message.store_in_history:
+            session.messages.extend([ChatMessage(role="user", content=message.user_query),
                                  ChatMessage(role="assistant", content=result.content)])
         await websocket.send_json(result.model_dump_json())
     finally:
@@ -138,7 +142,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
 async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
+    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")

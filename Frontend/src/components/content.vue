@@ -443,6 +443,28 @@ export default {
             });
         },
 
+        async loadHistory() {
+            try {
+                const res = await fetch(`${conf.BackendAddress}/history`, {
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch history");
+
+                const messages = await res.json();
+
+                for (const msg of messages) {
+                    const isUser = msg.role === 'user';
+                    await this.addChatBubble(msg.content, isUser);
+                }
+                if(messages.length !== 0) {
+                    this.showExampleQuestions = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
+        },
+
         updateQuestionCategory(newCategory) {
             this.selectedCategory = newCategory;
             this.$emit('category-select', newCategory);
@@ -458,8 +480,10 @@ export default {
         this.selectedCategory = questions;
         this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
-        this.updateScrollbarThumb();
         this.showWelcomeMessage();
+        this.loadHistory();
+
+        this.updateScrollbarThumb();
     },
     watch: {
         textInput() {
