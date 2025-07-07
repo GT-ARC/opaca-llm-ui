@@ -52,9 +52,9 @@
                         {{ question.icon }} <br> {{ question.question }}
                     </div>
                     <div class="w-100 text-center">
-                        <button type="button" class="btn btn-outline-danger p-3"
+                        <button type="button" class="btn btn-outline-primary p-3"
                                 @click="Localizer.reloadSampleQuestions(null)">
-                            <i class="fa fa-dice-five"/>
+                            <i class="fa fa-arrow-right"/>
                             {{ Localizer.get('rerollQuestions') }}
                         </button>
                     </div>
