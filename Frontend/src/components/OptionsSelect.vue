@@ -214,6 +214,14 @@ export default {
     max-width: calc(100vw - 6rem);
 }
 
+.accordion-button:hover .text-muted {
+    color: var(--text-primary-color) !important;
+}
+
+.accordion-button:not(.collapsed) .text-muted {
+    color: var(--text-primary-color) !important;
+}
+
 .accordion-header,
 .accordion-item,
 .accordion-button {

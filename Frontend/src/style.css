@@ -196,7 +196,7 @@ body {
 
 .accordion-button:not(.collapsed) {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-primary-color);
     box-shadow: none;
 }
 
