@@ -17,11 +17,6 @@
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start mb-4 w-100">
 
-        <!-- ai icon -->
-        <div v-if="!isMobile" class="chaticon">
-            <img src="/src/assets/Icons/ai.png" alt="AI">
-        </div>
-
         <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
              :class="{glow: this.isLoading}" :style="this.getGlowColors()">
 
@@ -337,7 +332,6 @@ export default {
 <style scoped>
 .chatbubble {
     color: var(--text-primary-color);
-    background-color: var(--chat-ai-color);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
