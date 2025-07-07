@@ -214,9 +214,12 @@ export default {
     max-width: calc(100vw - 6rem);
 }
 
+.accordion-button .text-muted {
+    transition: color 0.2s ease;
+}
+
 .accordion-button:hover .text-muted {
     color: var(--text-primary-color) !important;
-    transition: color 0.2s ease;
 }
 
 .accordion-button:not(.collapsed) .text-muted {

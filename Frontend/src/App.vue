@@ -198,6 +198,7 @@
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
                                         @select="(key, value) => this.handleOptionSelect(key, value)"
+                                        ref="OptionsSelect"
                                     />
                                 </div>
                             </div>
