@@ -78,7 +78,7 @@
                          class="options-item text-center">
                         <button type="button" class="btn btn-outline-danger w-100"
                                 @click="() => AudioManager.initVoiceServerConnection()">
-                            <i class="fa fa-recycle"/>
+                            <i class="fa fa-refresh"/>
                             {{ Localizer.get('ttsRetry') }}
                         </button>
                     </div>
