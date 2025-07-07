@@ -119,6 +119,7 @@
 </template>
 
 <script>
+import  {addDebugMessage} from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -180,32 +181,8 @@ export default {
             }
         },
 
-        /**
-         * todo: better way to do this, that doesnt copy the copy the code from the sidebar debug messages?
-         * @param text {string}
-         * @param type {string}
-         */
         addDebugMessage(text, type) {
-            if (!text) return;
-            const message = {text: text, type: type};
-
-            // if there are no messages yet, just push the new one
-            if (this.debugMessages.length === 0) {
-                this.debugMessages.push(message);
-                return;
-            }
-
-            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator') {
-                // If the message includes tools, the message needs to be replaced instead of appended
-                this.debugMessages[this.debugMessages.length - 1] = message;
-            } else if (lastMessage.type === type) {
-                // If the message has the same type as before but is not a tool, append the token to the text
-                lastMessage.text += text;
-            } else {
-                // new message type
-                this.debugMessages.push(message);
-            }
+            addDebugMessage(this.debugMessages, text, type);
         },
 
         /**

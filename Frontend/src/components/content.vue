@@ -208,6 +208,10 @@ export default {
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
 
+            // add debug entry for user message
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(userText, "user");
+
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             this.getLastBubble().addStatusMessage('preparing',

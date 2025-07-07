@@ -50,7 +50,7 @@ let config = {
 
     // If true, attempt to connect to the configured platform on-load
     // the boolean value is parsed later, together with the one passed as query param, if any
-    AutoConnect: import.meta.env.VITE_AUTOCONNECT ?? 'false',
+    AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
 
     // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
@@ -68,7 +68,21 @@ let config = {
 }
 
 /**
+ * Parse an environment variable value to a boolean.
+ *
+ * @param name {String} The variable's name.
+ * @param defaultValue {boolean} The default value.
+ * @private
+ */
+function parseEnvBool(name, defaultValue = false) {
+    const value = import.meta.env[name];
+    console.log(name, value);
+    return (value?.toLowerCase() === 'true') ?? defaultValue;
+}
+
+/**
  * Parse relevant query params and let their values override the default config values.
+ * @private
  */
 function parseQueryParams() {
     const urlParams = {};
@@ -76,7 +90,9 @@ function parseQueryParams() {
         urlParams[key.toLowerCase()] = value;
     }
 
-    config.AutoConnect = (urlParams['autoconnect'] ?? config.AutoConnect) === 'true';
+    config.AutoConnect = urlParams['autoconnect'] !== undefined
+        ? urlParams['autoconnect'] === 'true'
+        : config.AutoConnect;
     config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
     config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
     config.DefaultLanguage = urlParams['lang'] ?? config.DefaultLanguage;
