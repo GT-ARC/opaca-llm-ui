@@ -42,7 +42,7 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-if="!this.isMobile" class="welcome-message">
+                    <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
                         {{ Localizer.get("welcome") }}
                     </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
@@ -589,13 +589,6 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
-}
-
-.welcome-message {
-    width: 100%;
-    padding: 1em;
-    text-align: center;
-    font-size: 150%;
 }
 
 .sample-questions {
