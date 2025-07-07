@@ -249,9 +249,9 @@ export const loadingMessages = {
         "Tool Generator": "Calling the required tools",
         "Tool Evaluator": "Validating tool calls",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": " ",
+        "system": " ",
     },
     DE: {
         // System
@@ -271,9 +271,9 @@ export const loadingMessages = {
         "Tool Generator": "Aufrufen der benötigten Tools",
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": " ",
+        "system": " ",
     }
 }
 
