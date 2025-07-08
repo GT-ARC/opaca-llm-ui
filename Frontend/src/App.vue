@@ -214,47 +214,7 @@ export default {
         },
 
         setBackend(key) {
-            const keyPath = key.split('/');
-            const value = Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
-
-            if (isGroupSelection) {
-                if (!this.isBackendSelected(key)) {
-                    // select first entry in group
-                    const first = Array.from(Object.keys(value.subBackends))[0];
-                    this.backend = key + '/' + first;
-                } else {
-                    // do nothing, group already selected
-                    // click one of the items in the group directly to select it
-                }
-            } else {
-                // set backend directly
-                this.backend = key;
-            }
-        },
-
-        getBackendName(key) {
-            const path = key.split('/');
-            if (path.length === 1) {
-                return Backends[key];
-            } else {
-                return Backends[path[0]].subBackends[path[1]];
-            }
-        },
-
-        /**
-         * Checks if the given backend/group is currently selected.
-         */
-        isBackendSelected(key) {
-            const selectedPath = this.backend.split('/');
-            const keyPath = key.split('/');
-            const value = Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
-            if (isGroupSelection && selectedPath.length > 1) {
-                // check if the currently selected backend is in the group
-                return selectedPath[0] === keyPath[0];
-            }
-            return key === this.backend;
+            this.backend = key;
         },
 
         /**
@@ -270,12 +230,6 @@ export default {
             } else {
                 dropdown.hide();
             }
-        },
-
-        switchTheme() {
-            this.isDarkMode = ! this.isDarkMode;
-            const theme = this.isDarkMode ? 'dark' : 'light';
-            this.setTheme(theme);
         },
 
         setTheme(theme) {
