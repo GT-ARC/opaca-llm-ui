@@ -7,20 +7,12 @@
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
             <div v-html="this.getFormattedContent()"></div>
         </div>
-        <div class="chaticon">
-            <img src="/src/assets/Icons/nutzer.png" alt="User">
-        </div>
     </div>
 
 
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start mb-4 w-100">
-
-        <!-- ai icon -->
-        <div v-if="!isMobile" class="chaticon">
-            <img src="/src/assets/Icons/ai.png" alt="AI">
-        </div>
 
         <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
              :class="{glow: this.isLoading}" :style="this.getGlowColors()">
@@ -337,7 +329,6 @@ export default {
 <style scoped>
 .chatbubble {
     color: var(--text-primary-color);
-    background-color: var(--chat-ai-color);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
@@ -357,6 +348,7 @@ export default {
 }
 
 .chatbubble-ai {
+    background-color: var(--chat-ai-color);
     width: 100%;
     will-change: box-shadow;
     transition: box-shadow 0.2s ease;
@@ -368,26 +360,6 @@ export default {
     padding-right: 0.5rem;
     white-space: normal;
     gap: 1rem;
-}
-
-.chaticon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    background: var(--chat-ai-color);
-    border-radius: 50%;
-    border: 1px solid var(--border-color);
-    padding: 0.5rem;
-    aspect-ratio: 1 / 1;
-}
-
-.chaticon img {
-    object-fit: contain;
-    width: 100%;
-    height: 100%;
-    filter: invert(var(--icon-invert-color));
 }
 
 .footer-item {
@@ -427,11 +399,6 @@ export default {
 
     .chatbubble-ai {
         margin-left: 0;
-    }
-
-    .chaticon {
-        padding: 0.5rem;
-        margin: 0 0.25rem;
     }
 }
 
