@@ -3,7 +3,6 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
-import {Exception} from "sass";
 
 
 export const localizationData = {
