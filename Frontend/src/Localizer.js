@@ -3,6 +3,7 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
+import {Exception} from "sass";
 
 
 export const localizationData = {
@@ -381,23 +382,6 @@ class Localizer {
         );
     }
 
-    reloadSampleQuestions(categoryHeader) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        if (category) {
-            // take first 3 questions and use their individual icons
-            const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-                question: q.question,
-                icon: q.icon || category.icon // Fallback to category icon if question has no icon
-            }));
-            this.randomSampleQuestions = sampleQuestions;
-        } else {
-            // if category could not be found, roll random sample questions
-            this.randomSampleQuestions = this.getRandomSampleQuestions();
-        }
-    }
-
     getSampleQuestions(categoryHeader) {
         if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
@@ -405,13 +389,29 @@ class Localizer {
         return this.randomSampleQuestions;
     }
 
+    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        const category = sidebarQuestions[this.language]
+            ?.find(c => c.header === categoryHeader);
+
+        if (category) {
+            // take n random questions from category
+            const sampleQuestions = category.questions
+                .map(question => _mapCategoryIcons(question, category));
+            shuffleArray(sampleQuestions);
+            this.randomSampleQuestions = sampleQuestions.slice(0, numQuestions);
+        } else {
+            // if category could not be found, roll random sample questions
+            this.randomSampleQuestions = this.getRandomSampleQuestions(numQuestions);
+        }
+    }
+
     getRandomSampleQuestions(numQuestions = 3) {
         let questions = [];
 
         // assemble questions from all categories into a single array
         sidebarQuestions[this.language]
-            .forEach(group => questions = questions
-                .concat(group.questions.map(q => _mapCategoryIcons(q, group)))
+            .forEach(category => questions = questions
+                .concat(category.questions.map(question => _mapCategoryIcons(question, category)))
             );
 
         shuffleArray(questions);

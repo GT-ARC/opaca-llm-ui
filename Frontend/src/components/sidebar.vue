@@ -57,7 +57,7 @@
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                     <SidebarQuestions
                         @select-question="question => this.$emit('select-question', question)"
-                        @category-selected="category => this.$emit('category-selected', category)"
+                        @select-category="category => this.$emit('select-category', category)"
                         ref="sidebar_questions"
                     />
                 </div>
@@ -206,6 +206,10 @@ export default {
         connected: Boolean,
         isDarkScheme: Boolean,
     },
+    emits: [
+        'select-question',
+        'select-category',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};

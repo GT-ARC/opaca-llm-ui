@@ -57,7 +57,7 @@ let config = {
 
     // Which set of questions is shown within the chat window on startup.
     // This should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
-    DefaultQuestions: 'none',
+    DefaultQuestions: 'Information & Upskilling',
 
     // Which sidebar view is shown by default.
     // Possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'

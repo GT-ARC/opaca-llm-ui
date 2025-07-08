@@ -57,6 +57,10 @@ class SidebarManager {
         return this.getSelectedView() !== 'none';
     }
 
+    close() {
+        this.selectView('none');
+    }
+
 }
 
 const sidebarManager = new SidebarManager();

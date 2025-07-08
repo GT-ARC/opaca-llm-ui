@@ -223,7 +223,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            @category-select="newCategory => this.selectedCategory = newCategory"
+            @select-category="category => this.selectedCategory = category"
             ref="content"
         />
     </div>
@@ -398,15 +398,23 @@ export default {
         if (conf.ColorScheme !== "system") {
             this.setTheme();
         }
-        AudioManager.initVoiceServerConnection();
+
+        if (AudioManager.isBackendConfigured()) {
+            AudioManager.initVoiceServerConnection();
+        }
 
         if (conf.AutoConnect) {
             this.connectToPlatform();
         } else {
-            SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
+            this.toggleConnectionDropdown(true);
         }
 
-        this.toggleConnectionDropdown(true);
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            SidebarManager.selectView(conf.DefaultSidebarView);
+        }
+
     }
 }
 </script>
