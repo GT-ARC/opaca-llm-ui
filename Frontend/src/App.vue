@@ -263,7 +263,7 @@ export default {
         handleOptionSelect(key, value) {
             switch (key) {
                 case 'method': this.setBackend(value); break;
-                case 'language': Localizer.language = value; break;
+                case 'language': this.updateLanguage(value); break;
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
