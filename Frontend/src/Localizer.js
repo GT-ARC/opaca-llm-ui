@@ -395,32 +395,14 @@ class Localizer {
     }
 
     reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        if (category) {
-            // take n random questions from category
-            const sampleQuestions = category.questions
-                .map(question => _mapCategoryIcons(question, category));
-            shuffleArray(sampleQuestions);
-            this.randomSampleQuestions = sampleQuestions.slice(0, numQuestions);
-        } else {
-            // if category could not be found, roll random sample questions
-            this.randomSampleQuestions = this.getRandomSampleQuestions(numQuestions);
-        }
-    }
-
-    getRandomSampleQuestions(numQuestions = 3) {
+        // assemble questions from all or selected category into a single array
         let questions = [];
-
-        // assemble questions from all categories into a single array
         sidebarQuestions[this.language]
-            .forEach(category => questions = questions
-                .concat(category.questions.map(question => _mapCategoryIcons(question, category)))
-            );
-
+            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .forEach(category => questions.push(...category.questions.map(question => _mapCategoryIcons(question, category))));
+        // shuffle and get first k questions
         shuffleArray(questions);
-        return questions.slice(0, numQuestions);
+        this.randomSampleQuestions = questions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
