@@ -126,10 +126,12 @@ import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
 
 export default {
     name: 'main-content',
     components: {
+        OptionsSelect,
         Sidebar,
         RecordingPopup,
         Chatbubble
