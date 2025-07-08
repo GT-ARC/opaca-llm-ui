@@ -80,7 +80,9 @@
                                 <i class="fa fa-gear me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="options-dropdown">
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="options-menu"
+                                 aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
                                         @select="(key, value) => this.handleOptionSelect(key, value)"
@@ -291,11 +293,9 @@ export default {
             SidebarManager.selectView(conf.DefaultSidebarView);
         }
 
-        // prevent dropdown menus from closing once anything in them is clicked
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-            menu.addEventListener('click', function (event) {
-                event.stopPropagation();
-            });
+        // prevent options dropdown menu from closing once anything in it is clicked
+        document.getElementById('options-menu')?.addEventListener('click', e => {
+            e.stopPropagation();
         });
 
     }
