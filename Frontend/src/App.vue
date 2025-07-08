@@ -80,7 +80,9 @@
                                 <i class="fa fa-gear me-1"/>
                                 <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="options-dropdown">
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="options-menu"
+                                 aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
                                         @select="(key, value) => this.handleOptionSelect(key, value)"
@@ -135,7 +137,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            @category-select="newCategory => this.selectedCategory = newCategory"
+            @select-category="category => this.selectedCategory = category"
             ref="content"
         />
     </div>
@@ -274,21 +276,28 @@ export default {
         if (conf.ColorScheme !== "system") {
             this.setTheme();
         }
-        AudioManager.initVoiceServerConnection();
+
+        if (AudioManager.isBackendConfigured()) {
+            AudioManager.initVoiceServerConnection();
+        }
 
         if (conf.AutoConnect) {
             this.connectToPlatform();
         } else {
-            SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
+            this.toggleConnectionDropdown(true);
         }
 
-        this.toggleConnectionDropdown(true);
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            SidebarManager.selectView(conf.DefaultSidebarView);
+        }
 
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-            menu.addEventListener('click', function (event) {
-                event.stopPropagation();
-            });
+        // prevent options dropdown menu from closing once anything in it is clicked
+        document.getElementById('options-menu')?.addEventListener('click', e => {
+            e.stopPropagation();
         });
+
     }
 }
 </script>

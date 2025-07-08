@@ -24,7 +24,7 @@
                     <div v-for="(q, qIndex) in section.questions"
                          :key="qIndex"
                          class="question-item"
-                         @click="$emit('select-question', q.question)">
+                         @click="this.$emit('select-question', q.question)">
                         <span class="question-text">{{ q.question }}</span>
                     </div>
                 </div>
@@ -36,9 +36,17 @@
 <script>
 import Localizer from "../Localizer.js";
 import {sidebarQuestions} from "../Localizer.js";
+import conf from "../../config.js";
 
 export default {
     name: 'SidebarQuestions',
+    emits: [
+        'select-question',
+        'select-category'
+    ],
+    setup() {
+        return { conf };
+    },
     methods: {
         getQuestions() {
             return sidebarQuestions[Localizer.language];
@@ -59,10 +67,10 @@ export default {
                 collapse.show();
                 const questions = this.getQuestions();
                 const header = index in questions ? questions[index].header : 'none';
-                this.$emit('category-selected', header);
+                this.$emit('select-category', header);
             } else {
                 collapse.hide();
-                this.$emit('category-selected', null);
+                this.$emit('select-category', null);
             }
         },
 
@@ -74,6 +82,22 @@ export default {
         expandSectionByHeader(header) {
             this.toggleSectionByHeader(header, true);
         }
+    },
+
+    mounted() {
+        // attach listeners for category opening
+        for (let i = 0; i < this.getQuestions()?.length; ++i) {
+            const toggle = document.getElementById('questions-' + i);
+            if (! toggle) continue;
+
+            const header = this.getQuestions()[i].header;
+            toggle.addEventListener('show.bs.collapse', () => {
+                this.$emit('select-category', header);
+            });
+        }
+
+        // open default category
+        this.expandSectionByHeader(conf.DefaultQuestions);
     }
 }
 </script>

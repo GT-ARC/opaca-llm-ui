@@ -387,23 +387,6 @@ class Localizer {
         );
     }
 
-    reloadSampleQuestions(categoryHeader) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        if (category) {
-            // take first 3 questions and use their individual icons
-            const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-                question: q.question,
-                icon: q.icon || category.icon // Fallback to category icon if question has no icon
-            }));
-            this.randomSampleQuestions = sampleQuestions;
-        } else {
-            // if category could not be found, roll random sample questions
-            this.randomSampleQuestions = this.getRandomSampleQuestions();
-        }
-    }
-
     getSampleQuestions(categoryHeader) {
         if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
@@ -411,17 +394,15 @@ class Localizer {
         return this.randomSampleQuestions;
     }
 
-    getRandomSampleQuestions(numQuestions = 3) {
+    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        // assemble questions from all or selected category into a single array
         let questions = [];
-
-        // assemble questions from all categories into a single array
         sidebarQuestions[this.language]
-            .forEach(group => questions = questions
-                .concat(group.questions.map(q => _mapCategoryIcons(q, group)))
-            );
-
+            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .forEach(category => questions.push(...category.questions.map(question => _mapCategoryIcons(question, category))));
+        // shuffle and get first k questions
         shuffleArray(questions);
-        return questions.slice(0, numQuestions);
+        this.randomSampleQuestions = questions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
