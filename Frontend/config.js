@@ -15,22 +15,6 @@ export const BackendDescriptions = {
     "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
 };
 
-/*
-// reminder, because it's currently not used: define one level of "sub-backends" like this:
-BackendDefault: import.meta.env.VITE_BACKEND_DEFAULT ?? "opaca/self-orchestrated",
-Backends: {
-    "opaca": {
-        name: "OPACA LLM",
-        subBackends: {
-            "simple": "Simple Prompt",
-            ...
-        }
-    },
-    "itdz-knowledge": "Knowledge Assistant",
-    ...
-},
-*/
-
 let config = {
 
     // URL to the OPACA LLM UI backend
