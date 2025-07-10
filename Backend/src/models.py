@@ -73,6 +73,7 @@ class Url(BaseModel):
 class Message(BaseModel):
     user_query: str
     api_key: str = ""
+    store_in_history: bool = True
 
 
 class AgentMessage(BaseModel):
