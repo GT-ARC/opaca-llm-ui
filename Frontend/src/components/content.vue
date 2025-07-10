@@ -44,7 +44,7 @@
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
                         {{ Localizer.get("welcome") }}
                     </div>
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
