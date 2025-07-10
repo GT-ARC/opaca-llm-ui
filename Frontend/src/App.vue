@@ -56,12 +56,12 @@
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
                                         @click="connected ? disconnectFromPlatform() : connectToPlatform()">
-                                    <template v-if="isConnecting">
-                                        <span class="fa fa-spin fa-spinner fa-dis"></span>
-                                    </template>
-                                    <template v-else>
+                                    <span v-if="isConnecting">
+                                        <i class="fa fa-spin fa-spinner"></i>
+                                    </span>
+                                    <span v-else>
                                         {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
-                                    </template>
+                                    </span>
                                 </button>
                             </div>
                         </li>
