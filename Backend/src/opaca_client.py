@@ -32,11 +32,10 @@ class OpacaClient:
             print("CONNECTED WITH ERROR", e)
             return e.response.status_code if e.response is not None else 400
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Clears authentication and connection state."""
         self.token = None
         self.url = None
-        return 200
 
     async def get_actions(self) -> dict:
         """Get actions of OPACA agents, in original OPACA format."""

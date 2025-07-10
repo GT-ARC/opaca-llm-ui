@@ -264,10 +264,6 @@ export default {
     },
     methods: {
         async connectToPlatform() {
-            if (this.connected) {
-                this.connected = false;
-                return
-            }
             try {
                 this.isConnecting = true;
                 this.loginError = false;
@@ -296,32 +292,21 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
-                this.toggleConnectionDropdown(!this.connected)
+                this.toggleConnectionDropdown(!this.connected);
             }
         },
 
         async disconnectFromPlatform() {
-            if(!this.connected) {
-                this.connected = true;
-                return
-            }
             try {
                 const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/disconnect`, body);
-                const rpStatus = parseInt(res.data);
-
-                if (rpStatus === 200) {
-                    this.connected = false;
-                } else {
-                    alert('Failed to disconnect.');
-                }
+                await sendRequest("POST", `${conf.BackendAddress}/disconnect`, body);
+                this.connected = false;
             } catch (e) {
                 console.error(e);
                 this.connected = true;
                 alert('Backend server is unreachable.');
             } finally {
-                this.isConnecting = false;
-                this.toggleConnectionDropdown(!this.connected)
+                this.toggleConnectionDropdown(this.connected);
             }
         },
 

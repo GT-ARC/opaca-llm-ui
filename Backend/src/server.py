@@ -67,6 +67,12 @@ async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
+@app.post("/disconnect", description="Reset OPACA Runtime Connection.")
+async def disconnect(request: Request, response: FastAPIResponse) -> int:
+    session = await handle_session_id(request, response)
+    await session.opaca_client.disconnect()
+    return FastAPIResponse(status_code=204)
+
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
@@ -138,7 +144,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
 async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
+    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")
