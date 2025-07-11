@@ -40,12 +40,16 @@
 
                         <!-- Connection -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" id="connectionSelector" href="#" role="button" data-bs-toggle="dropdown">
+                            <a id="connectionSelector"
+                               class="nav-link dropdown-toggle"
+                               href="#" role="button"
+                               data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
                                 <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <div class="dropdown-menu p-4"
+                            <div id="connection-menu"
+                                 class="dropdown-menu dropdown-menu-end p-4"
                                  aria-labelledby="connectionSelector"
                                  :style="{'min-width': !isMobile && '320px'}">
                                 <div class="mb-3">
@@ -57,134 +61,43 @@
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
-                                        @click="connectToPlatform">
-                                    <template v-if="isConnecting">
-                                        <span class="fa fa-spin fa-spinner fa-dis"></span>
-                                    </template>
-                                    <template v-else>
+                                        @click="connected ? disconnectFromPlatform() : connectToPlatform()">
+                                    <span v-if="isConnecting">
+                                        <i class="fa fa-spin fa-spinner"></i>
+                                    </span>
+                                    <span v-else>
                                         {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
-                                    </template>
+                                    </span>
                                 </button>
                             </div>
                         </li>
 
-                        <!-- languages -->
+                        <!-- Options -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown">
-                                <i class="fa fa-globe me-1"/>
-                                <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="options-dropdown"
+                               role="button" data-bs-toggle="dropdown">
+                                <i class="fa fa-gear me-1"/>
+                                <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                                <li v-for="{ key, name } in Localizer.getAvailableLocales()"
-                                    @click="this.updateLanguage(key)">
-                                    <a class="dropdown-item">
-                                        <p :class="{ 'fw-bold': Localizer.language === key }">
-                                            {{ name }}
-                                            <i v-show="Localizer.language === key" class="fa fa-check-circle text-success" />
-                                        </p>
-                                    </a>
-                                </li>
-                            </ul>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="options-menu"
+                                 aria-labelledby="options-dropdown">
+                                <div class="dropdown-item d-flex">
+                                    <OptionsSelect
+                                        @select="(key, value) => this.handleOptionSelect(key, value)"
+                                        ref="OptionsSelect"
+                                    />
+                                </div>
+                            </div>
                         </li>
 
-                        <!-- backends -->
-                        <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown">
-                                <i class="fa fa-server me-1"/>
-                                <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in Backends"
-                                    @click="this.setBackend(key)">
-
-                                    <!-- top-level item/group -->
-                                    <a v-if="typeof value !== 'string'" class="dropdown-item">
-                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
-                                            {{ value.name }}
-                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
-                                        </p>
-                                    </a>
-                                    <a v-else class="dropdown-item">
-                                        <p :class="{ 'fw-bold': this.isBackendSelected(key) }">
-                                            {{ value }}
-                                            <i v-show="this.isBackendSelected(key)" class="fa fa-check-circle text-success" />
-                                        </p>
-                                    </a>
-
-                                    <!-- sub-level items -->
-                                    <ul v-if="typeof value !== 'string'"
-                                        class="dropdown-menu dropdown-submenu dropdown-submenu-left">
-                                        <li v-for="(subvalue, subkey) in value.subBackends"
-                                            @click="this.setBackend(key + '/' + subkey)">
-                                            <a class="dropdown-item">
-                                                <p v-if="this.isBackendSelected(key + '/' + subkey)" class="fw-bold">
-                                                    {{ subvalue }}
-                                                </p>
-                                                <p v-else>
-                                                    {{ subvalue }}
-                                                </p>
-                                            </a>
-                                        </li>
-                                    </ul>
-
-                                </li>
-                            </ul>
-                        </li>
-
-                        <!-- Voice Server Settings -->
-                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
-
-                            <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i v-if="AudioManager.isVoiceServerConnected" class="fa fa-microphone me-1" />
-                                <i v-else class="fa fa-microphone-slash me-1" />
-                                <span v-show="!isMobile">{{ Localizer.get('audioServerSettings') }}</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
-                                <li>
-                                    <div class="dropdown-item">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fa" :class="AudioManager.isVoiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ AudioManager.isVoiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li v-if="AudioManager.isVoiceServerConnected">
-                                    <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accommodate smaller devices -->
-                                        <div class="text-muted">
-                                            {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
-                                        </div>
-                                    </div>
-                                </li>
-                                <li v-if="!AudioManager.isVoiceServerConnected">
-                                    <button class="dropdown-item" @click="AudioManager.initVoiceServerConnection()">
-                                        <i class="fa fa-refresh me-2"/>
-                                        {{ Localizer.get('ttsRetry') }}
-                                    </button>
-                                </li>
-                                <li>
-                                    <div class="dropdown-item dropdown-item-text">
-                                        <div class="text-muted">
-                                            {{ conf.VoiceServerUrl }}
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
-                        </li>
-
-                        <!-- color theme toggle -->
-                        <li class="nav-item me-2">
-                            <a class="nav-link" href="#" role="button" @click="this.switchTheme()"  aria-expanded="false">
-                                <i class="fa fa-adjust me-1" />
-                            </a>
-                        </li>
                     </ul>
                 </div>
             </nav>
         </div>
     </header>
-
-
 
     <!-- Auth Modal -->
     <div v-if="showAuthInput" class="auth-overlay">
@@ -225,7 +138,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            @category-select="newCategory => this.selectedCategory = newCategory"
+            @select-category="category => this.selectedCategory = category"
             ref="content"
         />
     </div>
@@ -239,10 +152,11 @@ import Localizer from "./Localizer.js"
 import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import OptionsSelect from "./components/OptionsSelect.vue";
 
 export default {
     name: 'App',
-    components: {MainContent},
+    components: {OptionsSelect, MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
@@ -266,10 +180,6 @@ export default {
     },
     methods: {
         async connectToPlatform() {
-            if (this.connected) {
-                this.connected = false;
-                return
-            }
             try {
                 this.isConnecting = true;
                 this.loginError = false;
@@ -298,52 +208,25 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
-                this.toggleConnectionDropdown(!this.connected)
+                this.toggleConnectionDropdown(!this.connected);
+            }
+        },
+
+        async disconnectFromPlatform() {
+            try {
+                await sendRequest("POST", `${conf.BackendAddress}/disconnect`);
+                this.connected = false;
+            } catch (e) {
+                console.error(e);
+                this.connected = true;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.toggleConnectionDropdown(this.connected);
             }
         },
 
         setBackend(key) {
-            const keyPath = key.split('/');
-            const value = Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
-
-            if (isGroupSelection) {
-                if (!this.isBackendSelected(key)) {
-                    // select first entry in group
-                    const first = Array.from(Object.keys(value.subBackends))[0];
-                    this.backend = key + '/' + first;
-                } else {
-                    // do nothing, group already selected
-                    // click one of the items in the group directly to select it
-                }
-            } else {
-                // set backend directly
-                this.backend = key;
-            }
-        },
-
-        getBackendName(key) {
-            const path = key.split('/');
-            if (path.length === 1) {
-                return Backends[key];
-            } else {
-                return Backends[path[0]].subBackends[path[1]];
-            }
-        },
-
-        /**
-         * Checks if the given backend/group is currently selected.
-         */
-        isBackendSelected(key) {
-            const selectedPath = this.backend.split('/');
-            const keyPath = key.split('/');
-            const value = Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
-            if (isGroupSelection && selectedPath.length > 1) {
-                // check if the currently selected backend is in the group
-                return selectedPath[0] === keyPath[0];
-            }
-            return key === this.backend;
+            this.backend = key;
         },
 
         /**
@@ -361,13 +244,7 @@ export default {
             }
         },
 
-        switchTheme() {
-            this.isDarkMode = ! this.isDarkMode;
-            this.setTheme();
-        },
-
-        setTheme() {
-            const theme = this.isDarkMode ? "dark" : "light";
+        setTheme(theme) {
             const colors = [
                 "--background-color",
                 "--surface-color",
@@ -393,6 +270,15 @@ export default {
         updateLanguage(newLanguage) {
             Localizer.language = newLanguage;
             Localizer.reloadSampleQuestions(this.selectedCategory);
+        },
+
+        handleOptionSelect(key, value) {
+            switch (key) {
+                case 'method': this.setBackend(value); break;
+                case 'language': this.updateLanguage(value); break;
+                case 'colorMode': this.setTheme(value); break;
+                default: break;
+            }
         }
     },
 
@@ -400,15 +286,28 @@ export default {
         if (conf.ColorScheme !== "system") {
             this.setTheme();
         }
-        AudioManager.initVoiceServerConnection();
+
+        if (AudioManager.isBackendConfigured()) {
+            AudioManager.initVoiceServerConnection();
+        }
 
         if (conf.AutoConnect) {
             this.connectToPlatform();
         } else {
-            SidebarManager.selectView(this.isMobile ? 'none' : conf.DefaultSidebarView);
+            this.toggleConnectionDropdown(true);
         }
 
-        this.toggleConnectionDropdown(true);
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            SidebarManager.selectView(conf.DefaultSidebarView);
+        }
+
+        // prevent options dropdown menu from closing once anything in it is clicked
+        document.getElementById('options-menu')?.addEventListener('click', e => {
+            e.stopPropagation();
+        });
+
     }
 }
 </script>
@@ -443,9 +342,10 @@ header {
 
 .dropdown-item {
     cursor: pointer;
-    padding: 0.75rem 1rem;
+    padding: 0 !important;
     transition: all 0.2s ease;
     color: var(--text-primary-color);
+    margin: 0 !important;
 }
 
 .dropdown-item-text {
@@ -464,7 +364,7 @@ header {
     border-radius: var(--bs-border-radius);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
-    padding: 0.5rem;
+    padding: 0;
     min-width: 200px;
     background-color: var(--surface-color);
     color: var(--text-primary-color)
@@ -555,5 +455,20 @@ header {
     width: 100%;
     text-align: left;
     padding: 0;
+}
+
+#connection-menu {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 4rem);
+}
+
+@media (max-width: 576px) {
+    #connection-menu {
+        position: fixed !important;
+        top: auto !important;
+        bottom: auto !important;
+        left: 2rem !important;
+        right: auto !important;
+    }
 }
 </style>

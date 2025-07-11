@@ -111,6 +111,10 @@ body {
     background-color: transparent;
 }
 
+.btn-outline-primary:active {
+    background-color: var(--primary-color) !important;
+}
+
 .btn-outline-danger {
     border: 1px solid var(--text-primary-color);
     background-color: transparent;
@@ -196,7 +200,7 @@ body {
 
 .accordion-button:not(.collapsed) {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-primary-color);
     box-shadow: none;
 }
 

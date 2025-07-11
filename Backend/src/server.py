@@ -15,7 +15,7 @@ from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input
-from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -63,9 +63,15 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
+async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
+
+@app.post("/disconnect", description="Reset OPACA Runtime Connection.")
+async def disconnect(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    await session.opaca_client.disconnect()
+    return FastAPIResponse(status_code=204)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:

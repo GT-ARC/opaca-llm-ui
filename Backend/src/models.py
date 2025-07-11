@@ -64,7 +64,7 @@ console_handler.setFormatter(ColoredFormatter())
 logger.addHandler(console_handler)
 
 
-class Url(BaseModel):
+class ConnectInfo(BaseModel):
     url: str
     user: str | None
     pwd: str | None

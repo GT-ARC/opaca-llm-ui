@@ -17,9 +17,8 @@
             :connected="connected"
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
-             @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.updateQuestionCategory(newCategory)"
-             @api-key-change="newValue => this.apiKey = newValue"
+             @select-question="question => this.handleSelectQuestion(question)"
+             @select-category="category => this.handleSelectCategory(category)"
         />
 
 
@@ -127,10 +126,12 @@ import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
 
 export default {
     name: 'main-content',
     components: {
+        OptionsSelect,
         Sidebar,
         RecordingPopup,
         Chatbubble
@@ -141,7 +142,7 @@ export default {
         connected: Boolean,
     },
     emits: [
-        'category-select',
+        'select-category',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -158,7 +159,7 @@ export default {
             autoSpeakNextMessage: false,
             isDarkScheme: false,
             showRecordingPopup: false,
-            selectedCategory: 'Information & Upskilling',
+            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
         }
     },
@@ -467,20 +468,27 @@ export default {
             }
         },
 
-        updateQuestionCategory(newCategory) {
-            this.selectedCategory = newCategory;
-            this.$emit('category-select', newCategory);
+        handleSelectQuestion(question) {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            this.askSampleQuestion(question);
+        },
+
+        handleSelectCategory(category) {
+            if (this.selectedCategory !== category) {
+                if (this.showExampleQuestions) {
+                    Localizer.reloadSampleQuestions(category);
+                }
+                this.selectedCategory = category;
+                this.$emit('select-category', category);
+            }
         }
     },
 
     mounted() {
         this.updateTheme();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
-        // expand category in sidebar
-        const questions = conf.DefaultQuestions;
-        this.selectedCategory = questions;
-        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
 
         this.loadHistory();
         this.updateScrollbarThumb();
