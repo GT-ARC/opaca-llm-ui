@@ -41,12 +41,12 @@
         <!-- sidebar content -->
         <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   class="container-fluid d-flex flex-column position-relative"
                    :class="{'px-3': !isMobile}">
 
                 <!-- platform information -->
                 <div v-show="SidebarManager.isViewSelected('info')"
-                     id="sidebarConfig" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarInfo') }}
                      </div>
@@ -72,7 +72,7 @@
 
                 <!-- agents/actions overview -->
                 <div v-show="SidebarManager.isViewSelected('agents')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarAgents') }}
                      </div>
@@ -130,8 +130,8 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="SidebarManager.isViewSelected('config')"
-                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-show="SidebarManager.isViewSelected('config')" id="config-display" 
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarConfig') }}
                      </div>
@@ -167,13 +167,13 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div v-show="SidebarManager.isViewSelected('debug')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarLogs') }}
                      </div>
                     <div id="debug-console"
-                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start rounded-4">
                         <DebugMessage v-for="debugMessage in debugMessages"
                                       :key="debugMessage.text"
                                       :text="debugMessage.text"
@@ -187,7 +187,7 @@
 
                 <!-- Help/FAQ -->
                 <div v-show="SidebarManager.isViewSelected('faq')"
-                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarFaq') }}
                      </div>
@@ -440,10 +440,14 @@ export default {
 /* sidebar content */
 #sidebar {
     width: min(400px, 100vw - 3rem);
-    height: calc(100vh - 85px);
+    height: calc(100vh - 100px);
     min-width: 150px;
     max-width: 768px;
     z-index: 999;
+    background-color: var(--surface-color);
+    margin: 1em 0 0 1em;
+    border-radius: .5em;
+    padding: .5em;
 }
 
 #sidebar-menu {
@@ -494,7 +498,6 @@ export default {
 }
 
 .faq-content {
-    background-color: var(--background-color);
     color: var(--text-primary-color);
 }
 
@@ -526,11 +529,10 @@ export default {
     background-color: var(--primary-color);
 }
 
-#chatDebug {
+#debug-console {
     background-color: var(--debug-console-color);
     border: 1px solid var(--border-color);
     overflow: hidden;
-    height: 100%;
     display: flex;
     flex-direction: column;
 }

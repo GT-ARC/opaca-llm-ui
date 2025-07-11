@@ -190,7 +190,7 @@ body {
     padding: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    background-color: var(--surface-color);
+    background-color: var(--background-color);
     color: var(--text-primary-color);
 }
 
