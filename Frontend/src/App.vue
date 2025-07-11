@@ -153,6 +153,7 @@ import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import OptionsSelect from "./components/OptionsSelect.vue";
+import {setColorTheme} from './ColorThemes.js';
 
 export default {
     name: 'App',
@@ -245,26 +246,7 @@ export default {
         },
 
         setTheme(theme) {
-            const colors = [
-                "--background-color",
-                "--surface-color",
-                "--primary-color",
-                "--secondary-color",
-                "--accent-color",
-                "--text-primary-color",
-                "--text-secondary-color",
-                "--text-success-color",
-                "--text-danger-color",
-                "--border-color",
-                "--chat-user-color",
-                "--chat-ai-color",
-                "--input-color",
-                "--debug-console-color",
-                "--icon-invert-color",
-            ];
-            for (const color of colors) {
-                document.documentElement.style.setProperty(color, `var(${color.replace("color", theme)})`);
-            }
+            setColorTheme(document, theme);
         },
 
         updateLanguage(newLanguage) {
