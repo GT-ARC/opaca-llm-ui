@@ -2,10 +2,10 @@
     /* NOTE: If you add a color, make sure to add them to both the "light" and "dark" blocks, _and_ the "selected" block.
              Also add the variable to the list of colors to be switched/updated in App#setTheme() */
     /* Colors - Light Theme */
-    --background-light: #eceff5;
-    --surface-light: #dae0eb;
-    --primary-light: #33cc99;
-    --secondary-light: #33cc99;
+    --background-light: #ffffff;
+    --surface-light: #f9fafb;
+    --primary-light: #10a37f;  /* ChatGPT green */
+    --secondary-light: #0e906f;
     --accent-light: #11b48a;
     --text-primary-light: #1a1a1a;
     --text-secondary-light: #6b7280;

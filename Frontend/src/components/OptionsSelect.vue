@@ -96,6 +96,7 @@
 import conf, {Backends} from '../../config.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
+import { getColorThemes } from '../ColorThemes.js';
 
 export default {
     name: "OptionsSelect",
@@ -147,7 +148,7 @@ export default {
 
         getColorModeData() {
             return {
-                data: { light: 'Light', dark: 'Dark' },
+                data: getColorThemes(),
                 name: Localizer.get('colorMode'),
                 elementId: 'colorMode',
                 icon: 'fa-adjust',
