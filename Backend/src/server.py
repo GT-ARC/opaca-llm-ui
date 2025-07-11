@@ -68,7 +68,7 @@ async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
-async def disconnect(request: Request, response: FastAPIResponse) -> int:
+async def disconnect(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
     return FastAPIResponse(status_code=204)
