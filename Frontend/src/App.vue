@@ -59,8 +59,7 @@
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
-                                        @click="connectToPlatform">
-
+                                        @click="connected ? disconnectFromPlatform() : connectToPlatform()">
                                     <span v-if="isConnecting">
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
@@ -179,10 +178,6 @@ export default {
     },
     methods: {
         async connectToPlatform() {
-            if (this.connected) {
-                this.connected = false;
-                return
-            }
             try {
                 this.isConnecting = true;
                 this.loginError = false;
@@ -211,7 +206,20 @@ export default {
                 alert('Backend server is unreachable.');
             } finally {
                 this.isConnecting = false;
-                this.toggleConnectionDropdown(!this.connected)
+                this.toggleConnectionDropdown(!this.connected);
+            }
+        },
+
+        async disconnectFromPlatform() {
+            try {
+                await sendRequest("POST", `${conf.BackendAddress}/disconnect`);
+                this.connected = false;
+            } catch (e) {
+                console.error(e);
+                this.connected = true;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.toggleConnectionDropdown(this.connected);
             }
         },
 
