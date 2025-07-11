@@ -212,8 +212,7 @@ export default {
 
         async disconnectFromPlatform() {
             try {
-                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
-                await sendRequest("POST", `${conf.BackendAddress}/disconnect`, body);
+                await sendRequest("POST", `${conf.BackendAddress}/disconnect`);
                 this.connected = false;
             } catch (e) {
                 console.error(e);
