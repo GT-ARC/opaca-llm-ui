@@ -255,8 +255,8 @@ export const loadingMessages = {
         "Tool Evaluator": "Validating tool calls",
         // Simple
         "user": " ",
-        "assistant": " ",
-        "system": " ",
+        "assistant": "Working on it",
+        "system": "Calling tool",
     },
     DE: {
         // System
@@ -277,8 +277,8 @@ export const loadingMessages = {
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
         // Simple
         "user": " ",
-        "assistant": " ",
-        "system": " ",
+        "assistant": "Bearbeiten",
+        "system": "Tool-Aufruf",
     }
 }
 
