@@ -585,7 +585,7 @@ export default {
 }
 
 .chatbubble-container {
-    max-width: min(95%, 160ch);
+    width: min(95%, 160ch);
 }
 
 #mainContent {
@@ -637,7 +637,7 @@ export default {
     .input-group,
     .sample-questions,
     .chatbubble-container {
-        max-width: min(60%, 160ch);
+        width: min(60%, 160ch);
     }
 }
 
@@ -645,7 +645,7 @@ export default {
     .input-group,
     .sample-questions,
     .chatbubble-container {
-        max-width: min(50%, 160ch);
+        width: min(50%, 160ch);
     }
 }
 
