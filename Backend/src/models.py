@@ -64,7 +64,7 @@ console_handler.setFormatter(ColoredFormatter())
 logger.addHandler(console_handler)
 
 
-class Url(BaseModel):
+class ConnectInfo(BaseModel):
     url: str
     user: str | None
     pwd: str | None
@@ -73,6 +73,7 @@ class Url(BaseModel):
 class Message(BaseModel):
     user_query: str
     api_key: str = ""
+    store_in_history: bool = True
 
 
 class AgentMessage(BaseModel):

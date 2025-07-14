@@ -3,7 +3,6 @@ import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
-import SidebarManager from "./SidebarManager.js";
 
 
 export const localizationData = {
@@ -13,12 +12,15 @@ export const localizationData = {
         connect: "Connect",
         disconnect: "Disconnect",
         name: "English",
+        settings: "Settings",
+        method: "Method",
+        colorMode: "Color Mode",
         language: 'Language',
         submit: 'Submit',
         cancel: 'Cancel',
         username: 'Username',
         password: 'Password',
-        welcome: 'Welcome to the OPACA LLM! You can use me to interact with the assistants and services available on the OPACA platform, or ask me general questions. How can I help you today?',
+        welcome: 'What can I do for you today? Try one of the sample queries or ask me anything you like!',
         connected: 'Connected! Available assistants and services:',
         unreachable: 'Please connect to a running OPACA platform.',
         unauthenticated: 'Authentication Required',
@@ -57,7 +59,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "How can you assist me?",
+        rerollQuestions: "More ...",
     },
 
     DE: {
@@ -66,12 +68,15 @@ export const localizationData = {
         connect: "Verbinden",
         disconnect: "Trennen",
         name: "Deutsch",
+        settings: "Einstellungen",
         language: 'Sprache',
+        method: "Methode",
+        colorMode: "Farbmodus",
         submit: 'Senden',
         cancel: 'Abbrechen',
         username: 'Benutzer',
         password: 'Passwort',
-        welcome: 'Willkommen beim OPACA LLM! Sie können mich nutzen, um mit den Assistenten und Diensten auf der OPACA-Plattform zu interagieren, oder auch allgemeine Fragen stellen. Wie kann ich Ihnen heute helfen?',
+        welcome: 'Was kann ich heute für Dich tun? Versuch einen der Beispiel-Queries, oder frag mich alles was Du willst!',
         connected: 'Verbunden! Verfügbare Assistenten und Dienste:',
         unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
         unauthenticated: 'Authentifizierung Erforderlich',
@@ -110,7 +115,7 @@ export const localizationData = {
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "Womit kannst du mir helfen?",
+        rerollQuestions: "Mehr ...",
     },
 };
 
@@ -249,9 +254,9 @@ export const loadingMessages = {
         "Tool Generator": "Calling the required tools",
         "Tool Evaluator": "Validating tool calls",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Working on it",
+        "system": "Calling tool",
     },
     DE: {
         // System
@@ -271,9 +276,9 @@ export const loadingMessages = {
         "Tool Generator": "Aufrufen der benötigten Tools",
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Bearbeiten",
+        "system": "Tool-Aufruf",
     }
 }
 
@@ -297,7 +302,7 @@ class Localizer {
             ? ref(selectedLanguage)
             : ref(fallbackLanguage);
 
-        this.randomSampleQuestions = null;
+        this._randomSampleQuestions = ref(null);
     }
 
     set language(newLang) {
@@ -316,6 +321,14 @@ class Localizer {
 
     get fallbackLanguage() {
         return this._fallbackLanguage.value;
+    }
+
+    set randomSampleQuestions(value) {
+        this._randomSampleQuestions.value = value;
+    }
+
+    get randomSampleQuestions() {
+        return this._randomSampleQuestions.value;
     }
 
     _verifySettings() {
@@ -374,28 +387,6 @@ class Localizer {
         );
     }
 
-    reloadSampleQuestions(categoryHeader) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        const howAssist = { question: this.get("howAssist"), icon: "❓" }
-
-        if (category) {
-            // take first 3 questions and use their individual icons
-            const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-                question: q.question,
-                icon: q.icon || category.icon // Fallback to category icon if question has no icon
-            }));
-            sampleQuestions.unshift(howAssist);
-            this.randomSampleQuestions = sampleQuestions;
-        } else {
-            // if category could not be found, return random sample questions
-            const sampleQuestions = this.getRandomSampleQuestions();
-            sampleQuestions.unshift(howAssist);
-            this.randomSampleQuestions = sampleQuestions;
-        }
-    }
-
     getSampleQuestions(categoryHeader) {
         if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
@@ -403,17 +394,15 @@ class Localizer {
         return this.randomSampleQuestions;
     }
 
-    getRandomSampleQuestions(numQuestions = 3) {
+    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        // assemble questions from all or selected category into a single array
         let questions = [];
-
-        // assemble questions from all categories into a single array
         sidebarQuestions[this.language]
-            .forEach(group => questions = questions
-                .concat(group.questions.map(q => _mapCategoryIcons(q, group)))
-            );
-
+            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .forEach(category => questions.push(...category.questions.map(question => _mapCategoryIcons(question, category))));
+        // shuffle and get first k questions
         shuffleArray(questions);
-        return questions.slice(0, numQuestions);
+        this.randomSampleQuestions = questions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {

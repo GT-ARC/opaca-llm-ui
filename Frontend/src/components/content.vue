@@ -17,9 +17,8 @@
             :connected="connected"
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
-             @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.updateQuestionCategory(newCategory)"
-             @api-key-change="newValue => this.apiKey = newValue"
+             @select-question="question => this.handleSelectQuestion(question)"
+             @select-category="category => this.handleSelectCategory(category)"
         />
 
 
@@ -42,11 +41,21 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
+                    <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
+                        {{ Localizer.get("welcome") }}
+                    </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
                         {{ question.icon }} <br> {{ question.question }}
+                    </div>
+                    <div class="w-100 text-center">
+                        <button type="button" class="btn btn-outline-primary p-2"
+                                @click="Localizer.reloadSampleQuestions(null)">
+                            <i class="fa fa-arrow-right"/>
+                            {{ Localizer.get('rerollQuestions') }}
+                        </button>
                     </div>
                 </div>
 
@@ -117,10 +126,12 @@ import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
 
 export default {
     name: 'main-content',
     components: {
+        OptionsSelect,
         Sidebar,
         RecordingPopup,
         Chatbubble
@@ -131,7 +142,7 @@ export default {
         connected: Boolean,
     },
     emits: [
-        'category-select',
+        'select-category',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -148,7 +159,7 @@ export default {
             autoSpeakNextMessage: false,
             isDarkScheme: false,
             showRecordingPopup: false,
-            selectedCategory: 'Information & Upskilling',
+            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
         }
     },
@@ -204,6 +215,10 @@ export default {
 
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
+
+            // add debug entry for user message
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -326,16 +341,8 @@ export default {
         async resetChat() {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
-            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-        },
-
-        async showWelcomeMessage() {
-            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
-            if (!this.isMobile) {
-                await this.addChatBubble(Localizer.get('welcome'), false, false);
-            }
         },
 
         /**
@@ -439,9 +446,43 @@ export default {
             });
         },
 
-        updateQuestionCategory(newCategory) {
-            this.selectedCategory = newCategory;
-            this.$emit('category-select', newCategory);
+        async loadHistory() {
+            try {
+                const res = await fetch(`${conf.BackendAddress}/history`, {
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch history");
+
+                const messages = await res.json();
+
+                for (const msg of messages) {
+                    const isUser = msg.role === 'user';
+                    await this.addChatBubble(msg.content, isUser);
+                }
+                if(messages.length !== 0) {
+                    this.showExampleQuestions = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
+        },
+
+        handleSelectQuestion(question) {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            this.askSampleQuestion(question);
+        },
+
+        handleSelectCategory(category) {
+            if (this.selectedCategory !== category) {
+                if (this.showExampleQuestions) {
+                    Localizer.reloadSampleQuestions(category);
+                }
+                this.selectedCategory = category;
+                this.$emit('select-category', category);
+            }
         }
     },
 
@@ -449,13 +490,8 @@ export default {
         this.updateTheme();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
-        // expand category in sidebar
-        const questions = conf.DefaultQuestions;
-        this.selectedCategory = questions;
-        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
-
+        this.loadHistory();
         this.updateScrollbarThumb();
-        this.showWelcomeMessage();
     },
     watch: {
         textInput() {

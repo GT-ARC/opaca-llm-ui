@@ -14,7 +14,7 @@
     --button-primary-light: var(--text-primary-dark);
     --border-light: #e5e7eb;
     --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary light tint */
-    --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
+    --chat-ai-light: var(--background-light); /* #f7f7f8; */  /* Light grey for AI messages */
     --input-light: #ffffff;
     --debug-console-light: var(--surface-light);
     --icon-invert-light: 0;
@@ -32,7 +32,7 @@
     --button-primary-dark: var(--text-primary-dark);
     --border-dark: #414160;
     --chat-user-dark: #2a2a3c;
-    --chat-ai-dark: #313145;
+    --chat-ai-dark: var(--background-dark); /* #313145; */
     --input-dark: #252535;
     --debug-console-dark: #161628;
     --icon-invert-dark: 1;
@@ -109,6 +109,10 @@ body {
     border-color: var(--primary-color);
     color: var(--primary-color);
     background-color: transparent;
+}
+
+.btn-outline-primary:active {
+    background-color: var(--primary-color) !important;
 }
 
 .btn-outline-danger {
@@ -196,7 +200,7 @@ body {
 
 .accordion-button:not(.collapsed) {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-primary-color);
     box-shadow: none;
 }
 
