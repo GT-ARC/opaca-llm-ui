@@ -76,6 +76,10 @@ class SimpleToolsBackend(AbstractMethod):
                 response_metadata=response.response_metadata,
                 execution_time=response.execution_time,
             ))
+            
+            if session.abort_sent:
+                result.error = "Aborted by user"
+                break
 
             try:
                 if not response.tools:

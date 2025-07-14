@@ -62,6 +62,7 @@ class AbstractMethod(ABC):
 
     async def call_llm(
             self,
+            session: SessionData,
             client: AsyncOpenAI,
             model: str,
             agent: str,
@@ -156,6 +157,9 @@ class AbstractMethod(ABC):
 
             completion = await client.chat.completions.create(**kwargs)
             async for chunk in completion:
+
+                if session.abort_sent:
+                    raise Exception("Generation aborted by user.")
 
                 # Usage is present in the last chunk so break once it is available
                 if usage := chunk.usage:
