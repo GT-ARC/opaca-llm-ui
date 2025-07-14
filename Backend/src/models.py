@@ -119,6 +119,7 @@ class SessionData(BaseModel):
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
+    abort_sent: bool = False
 
 
 class ConfigArrayItem(BaseModel):

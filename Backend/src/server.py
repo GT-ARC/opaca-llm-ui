@@ -81,6 +81,7 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
+    session.abort_sent = False
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
 
@@ -93,6 +94,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
     session = await handle_session_id_for_websocket(websocket)
+    session.abort_sent = False
     try:
         data = await websocket.receive_json()
         message = Message(**data)
@@ -105,6 +107,11 @@ async def query_stream(websocket: WebSocket, backend: str):
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
+
+@app.post("/stop", description="Abort generation for last query.")
+async def history(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    session.abort_sent = True
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
