@@ -585,7 +585,7 @@ export default {
 }
 
 .chatbubble-container {
-    width: min(95%, 160ch);
+    width: min(95%, 100ch);
 }
 
 #mainContent {
@@ -630,23 +630,6 @@ export default {
     border-color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        width: min(60%, 160ch);
-    }
-}
-
-@media (min-width: 1800px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        width: min(50%, 160ch);
-    }
 }
 
 /* mobile layout style changes */
