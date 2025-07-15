@@ -82,13 +82,17 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
-    await BACKENDS[backend].init_models(session)
-    result = await BACKENDS[backend].query(message.user_query, session)
-
-    if message.store_in_history:
-        session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                             ChatMessage(role="assistant", content=result.content)])
-    return result
+    try:
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query(message.user_query, session)
+        if message.store_in_history:
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        return result
+    except Exception as e:
+        raise HTTPException(400, f'Generation failed: {e}')
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
@@ -100,10 +104,14 @@ async def query_stream(websocket: WebSocket, backend: str):
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-
         if message.store_in_history:
-            session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                                 ChatMessage(role="assistant", content=result.content)])
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        await websocket.send_json(result.model_dump_json())
+    except Exception as e:
+        result = Response(query=message.user_query, content='Generation failed', error=str(e))
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
