@@ -59,6 +59,7 @@ class SimpleToolsBackend(AbstractMethod):
 
             # call the LLM with function-calling enabled
             response = await self.call_llm(
+                session=session,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
@@ -76,10 +77,6 @@ class SimpleToolsBackend(AbstractMethod):
                 response_metadata=response.response_metadata,
                 execution_time=response.execution_time,
             ))
-            
-            if session.abort_sent:
-                result.error = "Aborted by user"
-                break
 
             try:
                 if not response.tools:

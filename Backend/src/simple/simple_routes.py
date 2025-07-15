@@ -74,6 +74,7 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
+                session=session,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
@@ -90,9 +91,6 @@ class SimpleBackend(AbstractMethod):
                 response_metadata=response.response_metadata,
                 execution_time=response.execution_time,
             ))
-            if session.abort_sent:
-                result.error = "Aborted by user"
-                break
 
             try:
                 d = json.loads(response.content.strip("`json\n")) # strip markdown, if included
