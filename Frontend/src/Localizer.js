@@ -60,7 +60,7 @@ export const localizationData = {
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
         rerollQuestions: "More ...",
-        regenerate: "Autogenerate Requests",
+        regenerate: "Suggest More",
     },
 
     DE: {
@@ -117,7 +117,7 @@ export const localizationData = {
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
         rerollQuestions: "Mehr ...",
-        regenerate: "Automatische Anfragen generieren",
+        regenerate: "Weitere Beispiele",
     },
 };
 
