@@ -2,36 +2,38 @@
     <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
-             style="height: calc(100vh - 50px);">
+             class="d-flex flex-column justify-content-start align-items-center gap-2">
 
             <i @click="SidebarManager.toggleView('info')"
-               class="fa fa-circle-info p-2 sidebar-item"
+               class="fa fa-circle-info sidebar-item"
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
-               class="fa fa-book p-2 sidebar-item"
+               class="fa fa-book sidebar-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users p-2 sidebar-item"
+               class="fa fa-users sidebar-item"
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog p-2 sidebar-item"
+               class="fa fa-cog sidebar-item"
                :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug p-2 sidebar-item"
+               class="fa fa-bug sidebar-item"
                :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
 
+            <!-- spacer -->
+            <div class="flex-grow-1" />
+
             <i @click="SidebarManager.toggleView('faq')"
-               class="fa fa-question-circle p-2 sidebar-item"
+               class="fa fa-question-circle sidebar-item"
                :title="Localizer.get('tooltipSidebarFaq')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
@@ -39,12 +41,15 @@
         <!-- sidebar content -->
         <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   class="container-fluid d-flex flex-column position-relative"
                    :class="{'px-3': !isMobile}">
 
                 <!-- platform information -->
                 <div v-show="SidebarManager.isViewSelected('info')"
-                     id="sidebarConfig" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarInfo') }}
+                     </div>
                     <div v-if="!connected" class="placeholder-container">
                         <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
                         <h5 class="p-4">It's a little quiet here...</h5>
@@ -55,6 +60,9 @@
                 <!-- sample questions -->
                 <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarPrompts') }}
+                     </div>
                     <SidebarQuestions
                         @select-question="question => this.$emit('select-question', question)"
                         @select-category="category => this.$emit('select-category', category)"
@@ -64,7 +72,10 @@
 
                 <!-- agents/actions overview -->
                 <div v-show="SidebarManager.isViewSelected('agents')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarAgents') }}
+                     </div>
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start" id="agents-accordion">
@@ -119,8 +130,11 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="SidebarManager.isViewSelected('config')"
-                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-show="SidebarManager.isViewSelected('config')" id="config-display" 
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarConfig') }}
+                     </div>
                      <div class="py-2">
                         <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
                         <p>{{ BackendDescriptions[this.getBackend()] }}</p>
@@ -153,10 +167,13 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div v-show="SidebarManager.isViewSelected('debug')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarLogs') }}
+                     </div>
                     <div id="debug-console"
-                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start rounded-4">
                         <DebugMessage v-for="debugMessage in debugMessages"
                                       :key="debugMessage.text"
                                       :text="debugMessage.text"
@@ -170,7 +187,10 @@
 
                 <!-- Help/FAQ -->
                 <div v-show="SidebarManager.isViewSelected('faq')"
-                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarFaq') }}
+                     </div>
                     <div v-html="this.faqContent"
                          class="d-flex flex-column text-start faq-content">
                     </div>
@@ -420,17 +440,31 @@ export default {
 /* sidebar content */
 #sidebar {
     width: min(400px, 100vw - 3rem);
-    height: calc(100vh - 85px);
+    height: calc(100vh - 100px);
     min-width: 150px;
     max-width: 768px;
     z-index: 999;
+    background-color: var(--surface-color);
+    margin: 1em 0 0 1em;
+    border-radius: .5em;
+    padding: .5em;
 }
 
 #sidebar-menu {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
-    padding: 1.5rem 0.75rem;
+    padding: .5em;
+    margin: 1em 0 0 1em;
     transition: all 0.2s ease;
+    border-radius: .5em;
+    height: calc(100vh - 100px);
+}
+
+.sidebar-title {
+    font-size: 150%;
+    border-left: 5px solid var(--primary-color);
+    padding-left: .5em;
+    margin-bottom: .5em;
 }
 
 .sidebar-item {
@@ -464,7 +498,6 @@ export default {
 }
 
 .faq-content {
-    background-color: var(--background-color);
     color: var(--text-primary-color);
 }
 
@@ -496,11 +529,10 @@ export default {
     background-color: var(--primary-color);
 }
 
-#chatDebug {
+#debug-console {
     background-color: var(--debug-console-color);
     border: 1px solid var(--border-color);
     overflow: hidden;
-    height: 100%;
     display: flex;
     flex-direction: column;
 }
