@@ -406,8 +406,11 @@ class Localizer {
             .filter(category => categoryHeader === null || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textinput === null || matches(question.question, textinput));
-        // shuffle and get first k questions
-        shuffleArray(questions);
+
+        // if no text input was given -> shuffle and get first k questions
+        if (!textinput) {
+            shuffleArray(questions);
+        }
         return questions.slice(0, numQuestions);
     }
 
