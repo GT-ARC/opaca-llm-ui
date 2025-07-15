@@ -387,22 +387,31 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(categoryHeader) {
-        if (! this.randomSampleQuestions) {
+    getSampleQuestions(textinput, categoryHeader) {
+        if (textinput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+        } else if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
         }
         return this.randomSampleQuestions;
     }
 
     reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
+    }
+
+    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
         // assemble questions from all or selected category into a single array
-        let questions = [];
-        sidebarQuestions[this.language]
+        let questions = sidebarQuestions[this.language]
             .filter(category => categoryHeader === null || category.header === categoryHeader)
-            .forEach(category => questions.push(...category.questions.map(question => _mapCategoryIcons(question, category))));
-        // shuffle and get first k questions
-        shuffleArray(questions);
-        this.randomSampleQuestions = questions.slice(0, numQuestions);
+            .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
+            .filter(question => textinput === null || matches(question.question, textinput));
+
+        // if no text input was given -> shuffle and get first k questions
+        if (!textinput) {
+            shuffleArray(questions);
+        }
+        return questions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
@@ -432,6 +441,11 @@ function _mapCategoryIcons(question, category) {
         question: question.question,
         icon: question.icon ?? category.icon
     };
+}
+
+function matches(question, textinput) {
+    return textinput.toLowerCase().split(/\s+/)
+        .every(word => question.toLowerCase().includes(word));
 }
 
 // hard-code the most complete language as fallback language
