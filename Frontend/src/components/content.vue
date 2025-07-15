@@ -48,7 +48,9 @@
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
-                        {{ question.icon }} <br> {{ question.question }}
+                        {{ question.icon }} <br>
+                        <span v-if="question.question === '__loading__'"><i class="fa fa-ellipsis fa-beat-fade"/></span>
+                        <span v-else>{{ question.question }}</span>
                     </div>
                     <div class="w-100 text-center">
                         <button type="button" class="btn btn-outline-primary p-2"
@@ -187,6 +189,9 @@ export default {
         },
 
         async askSampleQuestion(questionText) {
+            // Do not send questions during autogeneration
+            if (questionText === "__loading__") return;
+
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();

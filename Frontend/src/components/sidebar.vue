@@ -259,7 +259,6 @@ export default {
                 this.howAssistContent = "Querying functionality, please wait...";
                 const body = {user_query: "How can you assist me?", store_in_history: false};
                 const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
-                console.log("result: " + JSON.stringify(res));
                 const answer = res.data.agent_messages[0].content;
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {

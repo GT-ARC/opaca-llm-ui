@@ -1,4 +1,4 @@
-import {ref} from 'vue';
+import {reactive, ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
@@ -59,6 +59,7 @@ export const localizationData = {
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
         rerollQuestions: "More ...",
+        regenerate: "Suggest More",
     },
 
     DE: {
@@ -114,11 +115,12 @@ export const localizationData = {
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
         rerollQuestions: "Mehr ...",
+        regenerate: "Weitere Beispiele",
     },
 };
 
 
-export const sidebarQuestions = {
+export const sidebarQuestions = reactive({
     GB: [
         {
             "id": "taskAutomation",
@@ -229,7 +231,7 @@ export const sidebarQuestions = {
             ]
         },
     ],
-}
+})
 
 
 // Placeholder messages for streaming in different languages
