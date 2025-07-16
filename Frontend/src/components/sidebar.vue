@@ -167,7 +167,7 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')"
+                <div v-show="SidebarManager.isViewSelected('debug')" id="debug-display"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarLogs') }}
@@ -377,6 +377,11 @@ export default {
             configContainer.scrollTop = configContainer.scrollHeight;
         },
 
+        scrollDownDebugView() {
+            const configContainer = document.getElementById('debug-display');
+            configContainer.scrollTop = configContainer.scrollHeight;
+        },
+
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
         },
@@ -412,6 +417,7 @@ export default {
     },
     updated() {
         this.scrollDownConfigView()
+        this.scrollDownDebugView()
     },
     watch: {
         backend() {
