@@ -8,6 +8,7 @@
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
+            ref="RecordingPopup"
         />
 
         <Sidebar
@@ -16,9 +17,8 @@
             :connected="connected"
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
-             @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.selectedCategory = newCategory"
-             @api-key-change="newValue => this.apiKey = newValue"
+             @select-question="question => this.handleSelectQuestion(question)"
+             @select-category="category => this.handleSelectCategory(category)"
         />
 
 
@@ -41,11 +41,23 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
+                    <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
+                        {{ Localizer.get("welcome") }}
+                    </div>
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
-                        {{ question.icon }} <br> {{ question.question }}
+                        {{ question.icon }} <br>
+                        <span v-if="question.question === '__loading__'"><i class="fa fa-ellipsis fa-beat-fade"/></span>
+                        <span v-else>{{ question.question }}</span>
+                    </div>
+                    <div class="w-100 text-center">
+                        <button type="button" class="btn btn-outline-primary p-2"
+                                @click="Localizer.reloadSampleQuestions(null)">
+                            <i class="fa fa-arrow-right"/>
+                            {{ Localizer.get('rerollQuestions') }}
+                        </button>
                     </div>
                 </div>
 
@@ -94,7 +106,7 @@
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
                             v-if="this.isSendAvailable()"
-                            class="btn btn-primary"
+                            class="btn btn-primary input-area-button"
                             @click="submitText"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
@@ -103,7 +115,7 @@
                     </button>
                     <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary"
+                            class="btn btn-outline-primary input-area-button"
                             @click="this.startRecognition()"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonRecord')">
@@ -112,7 +124,7 @@
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger"
+                            class="btn btn-outline-danger input-area-button"
                             @click="resetChat"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonReset')">
@@ -136,7 +148,6 @@
 
 <script>
 import {nextTick} from "vue";
-import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
@@ -147,12 +158,13 @@ import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
 
 export default {
     name: 'main-content',
     components: {
+        OptionsSelect,
         Sidebar,
-        SimpleKeyboard,
         RecordingPopup,
         Chatbubble
     },
@@ -161,6 +173,9 @@ export default {
         language: String,
         connected: Boolean,
     },
+    emits: [
+        'select-category',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
         return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
@@ -176,7 +191,7 @@ export default {
             autoSpeakNextMessage: false,
             isDarkScheme: false,
             showRecordingPopup: false,
-            selectedCategory: 'Information & Upskilling',
+            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
             uploadStatus: {
@@ -284,6 +299,9 @@ export default {
 
 
         async askSampleQuestion(questionText) {
+            // Do not send questions during autogeneration
+            if (questionText === "__loading__") return;
+
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
@@ -494,16 +512,8 @@ export default {
         async resetChat() {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
-            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-        },
-
-        async showWelcomeMessage() {
-            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
-            if (!this.isMobile) {
-                await this.addChatBubble(Localizer.get('welcome'), false, false);
-            }
         },
 
         /**
@@ -595,36 +605,69 @@ export default {
         },
 
         updateScrollbarThumb() {
-          this.$nextTick(() => {
-            const el = this.$refs.textInputRef;
-            if (!el) return;
+            this.$nextTick(() => {
+                const el = this.$refs.textInputRef;
+                if (!el) return;
 
-            const computedStyle = getComputedStyle(el);
-            const maxHeight = parseFloat(computedStyle.maxHeight);
+                const computedStyle = getComputedStyle(el);
+                const maxHeight = parseFloat(computedStyle.maxHeight);
 
-            // If current height is less than the max-height
-            this.isSmallScrollbar = el.offsetHeight < maxHeight;
-          });
+                // If current height is less than the max-height
+                this.isSmallScrollbar = el.offsetHeight < maxHeight;
+            });
         },
+
+        async loadHistory() {
+            try {
+                const res = await fetch(`${conf.BackendAddress}/history`, {
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch history");
+
+                const messages = await res.json();
+
+                for (const msg of messages) {
+                    const isUser = msg.role === 'user';
+                    await this.addChatBubble(msg.content, isUser);
+                }
+                if(messages.length !== 0) {
+                    this.showExampleQuestions = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
+        },
+
+        handleSelectQuestion(question) {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            this.askSampleQuestion(question);
+        },
+
+        handleSelectCategory(category) {
+            if (this.selectedCategory !== category) {
+                if (this.showExampleQuestions) {
+                    Localizer.reloadSampleQuestions(category);
+                }
+                this.selectedCategory = category;
+                this.$emit('select-category', category);
+            }
+        }
     },
 
     mounted() {
         this.updateTheme();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
-        // expand category in sidebar
-        const questions = conf.DefaultQuestions;
-        this.selectedCategory = questions;
-        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
-
-        this.showWelcomeMessage();
-
+        this.loadHistory();
         this.updateScrollbarThumb();
     },
     watch: {
-      textInput() {
-        this.updateScrollbarThumb();
-      },
+        textInput() {
+            this.updateScrollbarThumb();
+        },
     }
 }
 
@@ -652,25 +695,8 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
-.scroll-wrapper {
-    border-radius: 1.5rem;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-}
-
-.input-group {
-    width: 100%;
-    max-width: min(95%, 100ch);
-    margin: 0 auto;
-    padding: 0 1rem;
-}
-
-.input-group .form-control {
+#textInput {
     box-shadow: 0 0 0 1px var(--border-color);
-    background-color: var(--input-color);
-    color: var(--text-primary-color);
     padding: 0.75rem 1rem;
     height: 3rem;
     min-height: 3rem;
@@ -680,24 +706,24 @@ export default {
     border-radius: 1.5rem !important;
 }
 
-.input-group .form-control[rows] {
+#textInput[rows] {
     height: auto;
     overflow-y: auto;
 }
 
-.input-group .form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.input-group .form-control:focus {
-    box-shadow: 0 0 0 1px var(--primary-color);
+.scroll-wrapper {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
-.input-group .btn {
+.input-area-button {
     padding: 0;
     width: 3rem;
     height: 3rem;
@@ -710,16 +736,16 @@ export default {
     transition: all 0.2s ease;
 }
 
-.input-group .btn:hover {
+.input-area-button:hover {
     transform: translateY(-1px);
 }
 
-.input-group .btn:disabled {
+.input-area-button:disabled {
     animation: bounce 1s infinite;
     opacity: 0.7;
 }
 
-.input-group .btn i {
+.input-area-button i {
     font-size: 1.25rem;
     line-height: 1;
     display: inline-flex;

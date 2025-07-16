@@ -14,7 +14,7 @@ from starlette.websockets import WebSocket
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage
 from .utils import transform_schema
 
-logger = logging.getLogger("src.models")
+logger = logging.getLogger(__name__)
 
 
 class AbstractMethod(ABC):

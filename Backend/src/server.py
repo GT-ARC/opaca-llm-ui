@@ -19,7 +19,7 @@ import logging
 import traceback
 
 from .utils import validate_config_input
-from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -70,22 +70,29 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
-    session, session_id = await handle_session_id(request, response)
-    session.opaca_client = OpacaClient()
+async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo) -> int:
+    session = await handle_session_id(request, response)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
+
+@app.post("/disconnect", description="Reset OPACA Runtime Connection.")
+async def disconnect(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    await session.opaca_client.disconnect()
+    return FastAPIResponse(status_code=204)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
-    session, session_id = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions()
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.get_actions_simple()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session, session_id = await handle_session_id(request, response)
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
-    session.messages.extend([ChatMessage(role="user", content=message.user_query),
+
+    if message.store_in_history:
+        session.messages.extend([ChatMessage(role="user", content=message.user_query),
                              ChatMessage(role="assistant", content=result.content)])
     return result
 
@@ -101,7 +108,9 @@ async def query_stream(websocket: WebSocket, backend: str):
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-        session.messages.extend([ChatMessage(role="user", content=message.user_query),
+
+        if message.store_in_history:
+            session.messages.extend([ChatMessage(role="user", content=message.user_query),
                                  ChatMessage(role="assistant", content=result.content)])
         await websocket.send_json(result.model_dump_json())
     finally:
@@ -176,7 +185,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
 async def handle_session_id(request: Request, response: FastAPIResponse) -> tuple[SessionData, str]:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
+    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
     response and return the SessionData associated with that session-id.
     """
     print(">>> [HANDLE_SESSION] Session ID in request.cookies:", request.cookies.get("session_id"))
