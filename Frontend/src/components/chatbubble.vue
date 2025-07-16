@@ -37,7 +37,7 @@
             </div>
 
             <!-- footer: debug, generate audio, ... -->
-            <div class="d-flex justify-content-start small">
+            <div class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
                 <div v-show="this.content.length > 0"
@@ -47,6 +47,22 @@
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- audio stuff -->
+                <div v-show="!this.isLoading"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.startAudioPlayback()">
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                    <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
 
                 <!-- debug messages -->
@@ -67,27 +83,11 @@
                     <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
 
-                <!-- audio stuff -->
-                <div v-show="!this.isLoading"
-                     class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
-                     @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
-                    <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
-                </div>
-
             </div>
 
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
@@ -98,7 +98,7 @@
             </div>
 
             <div v-show="this.isErrorExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                     <div class="message-text w-auto text-danger"
                          v-html="this.error"
@@ -323,6 +323,10 @@ export default {
 .message-text img {
     max-width: 100%;
     display: block;
+}
+
+.chatbubble p:last-of-type {
+    margin-bottom: 0 !important;
 }
 </style>
 
