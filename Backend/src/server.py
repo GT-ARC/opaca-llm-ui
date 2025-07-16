@@ -107,38 +107,29 @@ async def query_stream(websocket: WebSocket, backend: str):
     finally:
         await websocket.close()
 
-@app.post("/{backend}/upload_files", description="Upload one or more files along with a JSON message.")
+@app.post("/{backend}/upload")
 async def upload_files(
-    request: Request,
     backend: str,
-    files: List[UploadFile] = File(...),
-    json_data: str = Form(...)
+    request: Request,
+    response: FastAPIResponse,
+    files: Optional[List[UploadFile]] = File(None), 
 ):
-    print("upload_files triggered")
-    print("received files:", files)
+    session = await handle_session_id(request, response)
     
-    # Parse user query and API key
-    try:
-        parsed_data = json.loads(json_data)
-        message = Message(**parsed_data)  # Expecting fields like user_query, api_key
-    except Exception as e:
-        return {"error": "Invalid JSON payload", "detail": str(e)}
+    uploaded = []
+    for file in files:
+        try:
+            contents = await file.read()
+            session.uploaded_files[file.filename] = {
+                "content_type": file.content_type,
+                "content": io.BytesIO(contents),
+                "sent": False
+            }
+            uploaded.append(file.filename)
+        except Exception as e:
+            return {"error": f"Failed to process file {file.filename}: {str(e)}"}
 
-    # Mimic WebSocket session setup
-    session = await handle_session_id_for_request(request)
-    await BACKENDS[backend].init_models(session)
-
-    # Call a non-streaming version of the model
-    # Re-serialize the parsed message into a string again
-    json_string = json.dumps(parsed_data)
-    result = await BACKENDS[backend].upload_files(session, json_string, files)
-    # Save the messages in the session
-    session.messages.extend([
-        ChatMessage(role="user", content=message.user_query),
-        ChatMessage(role="assistant", content=result.content)
-    ])
-
-    return {"content": result.content}
+    return {"status": "success", "uploaded_files": uploaded}
 
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")

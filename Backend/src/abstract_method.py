@@ -61,269 +61,98 @@ class AbstractMethod(ABC):
 
 
     async def call_llm(
-            self,
-            client: AsyncOpenAI,
-            model: str,
-            agent: str,
-            system_prompt: str,
-            messages: List[ChatMessage],
-            temperature: Optional[float] = .0,
-            tools: Optional[List[Dict[str, Any]]] = None,
-            tool_choice: Optional[str] = "auto",
-            response_format: Optional[Type[ResponseFormatT]] = None,
-            guided_choice: Optional[List[str]] = None,
-            websocket: Optional[WebSocket] = None,
-    ) -> AgentMessage:
-        """
-        Calls an LLM with given parameters. Optionally streams intermediate results
-        via the provided websocket. Returns the complete response as an AgentMessage.
-
-        Args:
-            client (AsyncOpenAI): An already initialized AsyncOpenAI instance.
-            model (str): The name of the model to call.
-            agent (str): The name of the agent which got invoked.
-            system_prompt (str): The system prompt for the model.
-            messages (List[ChatMessage]): The list of messages to call the model with.
-            temperature (float): The temperature to pass to the model
-            tools (List[Dict[str, Any]]): The list of tools to pass to the model
-            tool_choice (Optional[str]): Set the behavior of tool generation.
-            response_format (Optional[Dict]): The output schema the model should answer in.
-            guided_choice (Optional[List[str]]): A list of choices the LLM should choose between.
-            websocket (WebSocket): The websocket to use for streaming intermediate results.
-
-        Returns:
-            AgentMessage: The AgentMessage instance representing the response.
-        """
-
-        # Initialize variables
-        exec_time = time.time()
-        tool_call_buffers = {}
-        content = ''
-
-        # Initialize agent message
-        agent_message = AgentMessage(
-            agent=agent,
-            content='',
-            tools=[]
-        )
-
-        # Set settings for model invocation
-        kwargs = {
-            'model': model,
-            'messages': [{"role": "system", "content": system_prompt}] + messages,
-            'tools': tools or [],
-            'tool_choice': tool_choice if tools else 'none',
-        }
-
-        # o1/o3 don't support temperature param
-        if not model.startswith(('o1', 'o3')):
-            kwargs['temperature'] = temperature
-
-        # There is currently no token streaming available when using built-in response format
-        if response_format:
-            if self._is_gpt(model):
-                completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
-                content = completion.choices[0].message.content
-                agent_message.formatted_output = completion.choices[0].message.parsed
-            else:
-                guided_json = transform_schema(response_format.model_json_schema())
-                kwargs['extra_body'] = {'guided_json': guided_json}
-                kwargs['messages'][0]['content'] += (f"\nYou MUST provide your response as a JSON object that follows "
-                                                  f"this schema. Your response must include ALL required fields.\n\n"
-                                                  f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
-                                                  f"the schema itself. Return a valid JSON object matching the schema.")
-                completion = await client.chat.completions.create(**kwargs)
-                content = completion.choices[0].message.content
-                cleaned_content = self.extract_json_like_content(content)
-                try:
-                    agent_message.formatted_output = response_format.model_validate_json(cleaned_content)
-                except ValidationError:
-                    agent_message.formatted_output = {}
-            agent_message.response_metadata = completion.usage.to_dict()
-        else:
-            if guided_choice:
-                if self._is_gpt(model):
-                    kwargs['messages'][0]['content'] += (
-                        f"\nYou MUST select one AND ONLY ONE of these choices to answer "
-                        f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
-                        f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
-                else:
-                    kwargs["extra_body"] = {"guided_choice": guided_choice}
-
-            # Enable streaming and include token usage
-            kwargs['stream'] = True
-            kwargs['stream_options'] = {'include_usage': True}
-
-            completion = await client.chat.completions.create(**kwargs)
-            async for chunk in completion:
-
-                # Usage is present in the last chunk so break once it is available
-                if usage := chunk.usage:
-                    agent_message.response_metadata = usage.to_dict()
-                    break
-
-                choice = chunk.choices[0].delta
-                tool_calls = choice.tool_calls
-
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        tool_call_id = tool_call.id
-
-                        if tool_call_id:
-                            tool_call_buffers[tool_call_id] = {
-                                'name': tool_call.function.name,
-                                'arguments': tool_call.function.arguments or '',
-                            }
-                        else:
-                            last_tool_call = next(reversed(tool_call_buffers.values()), None)
-                            if last_tool_call:
-                                # If the full arguments were generated (happens in mistral models)
-                                # then set the arguments rather than append to them
-                                if model.startswith(('gpt', 'o1', 'o3')):
-                                    last_tool_call['arguments'] += tool_call.function.arguments or ''
-                                else:
-                                    try:
-                                        json.loads(tool_call.function.arguments)
-                                        last_tool_call['arguments'] = tool_call.function.arguments
-                                    except json.JSONDecodeError:
-                                        last_tool_call['arguments'] += tool_call.function.arguments or ''
-
-                    agent_message.tools = [
-                        {
-                            'id': i,
-                            'name': function['name'],
-                            'args': function['arguments'],
-                            'result': '',
-                        }
-                        for i, function in enumerate(tool_call_buffers.values())
-                    ]
-                else:
-                    agent_message.content = choice.content or ''
-                    content += choice.content or ''
-                if websocket:
-                    await websocket.send_json(agent_message.model_dump_json())
-
-        # Transform generated arguments into JSON
-        for tool in agent_message.tools:
-            try:
-                tool['args'] = json.loads(tool['args'])
-            except json.JSONDecodeError:
-                tool['args'] = {}
-            if not tool["args"]:
-                tool["args"] = {}
-                continue
-
-        agent_message.execution_time = time.time() - exec_time
-
-        # Final stream to transmit execution time and response metadata
-        if websocket:
-            agent_message.content = ''
-            await websocket.send_json(agent_message.model_dump_json())
-
-        agent_message.content = content
-
-        logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
-
-        return agent_message
-    
-    async def call_llm_with_pdf(
         self,
         client: AsyncOpenAI,
         model: str,
         agent: str,
         system_prompt: str,
-        user_question: str,
-        pdf_file_path: str,
+        messages: List[ChatMessage],
         temperature: Optional[float] = 0.0,
         tools: Optional[List[Dict[str, Any]]] = None,
         tool_choice: Optional[str] = "auto",
         response_format: Optional[Type[ResponseFormatT]] = None,
+        guided_choice: Optional[List[str]] = None,
+        websocket: Optional[WebSocket] = None,
+        session: Optional[SessionData] = None,
     ) -> AgentMessage:
         """
-        Calls an LLM with a PDF file input and an accompanying user question.
-        Uses OpenAI's file upload + input_file mechanism.
+        Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            client (AsyncOpenAI): An initialized OpenAI client.
-            model (str): The model name.
-            agent (str): The agent name.
-            system_prompt (str): The system prompt.
-            user_question (str): The question to ask about the PDF.
-            pdf_file_path (str): Path to the local PDF file to upload.
-            temperature (float): Temperature for sampling.
-            tools (List): Tool definitions if any.
-            tool_choice (str): Tool choice policy.
-            response_format (Type): Optional pydantic schema for parsing.
+            client (AsyncOpenAI): An already initialized OpenAI client.
+            model (str): Model name (e.g., "gpt-4-turbo").
+            agent (str): The agent name (e.g. "simple-tools").
+            system_prompt (str): The system prompt to start the conversation.
+            messages (List[ChatMessage]): The list of chat messages.
+            temperature (float): The model temperature to use.
+            tools (Optional[List[Dict]]): List of tool definitions (functions).
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
+            response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
+            guided_choice (Optional[List[str]]): List of strings for the model to pick from.
+            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
+            session (Optional[SessionData]): Session to track uploaded files, etc.
 
         Returns:
-            AgentMessage: Standard response object.
+            AgentMessage: The final message returned by the LLM with metadata.
         """
-
         exec_time = time.time()
+        tool_call_buffers = {}
+        content = ''
+        agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        agent_message = AgentMessage(
-            agent=agent,
-            content='',
-            tools=[]
-        )
+        # Handle uploaded files (PDFs) from session
+        file_message_parts = []
+        if session and session.uploaded_files:
+            unsent_files = [
+                (filename, filedata)
+                for filename, filedata in session.uploaded_files.items()
+                if not filedata.get("sent", False)
+            ]
 
-        logger.info(f"model type: {model}")
+            for filename, filedata in unsent_files:
+                file_bytes = filedata["content"].getvalue()  # content is BytesIO
+                file_obj = io.BytesIO(file_bytes)
+                file_obj.name = filename  # Required by OpenAI SDK
 
+                uploaded = await client.files.create(
+                    file=file_obj,
+                    purpose="assistants"
+                )
+                file_message_parts.append({
+                    "type": "file",
+                    "file": {"file_id": uploaded.id}
+                })
+                filedata["sent"] = True  # Mark as sent
 
-        # --- STEP 1: Upload PDF ---
-        uploaded_file = await client.files.create(
-            file=open(pdf_file_path, "rb"),
-            purpose="assistants"
-        )
+        # Add user question
+        user_text = messages[-1].content
+        file_message_parts.append({"type": "text", "text": user_text})
 
-        logger.info("file upload status:")
-        logger.info(uploaded_file.status)
-        logger.info(f"Uploaded file ID: {uploaded_file.id}")
-        logger.info(f"Uploaded file details: {uploaded_file}")
-
-        # --- STEP 2: Build proper messages ---
-        messages = [
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "file",
-                        "file": {"file_id": uploaded_file.id}
-                    },
-                    {
-                        "type": "text",
-                        "text": user_question
-                    }
-                ]
-            }
+        full_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": file_message_parts}
         ]
 
-        # --- STEP 3: Prepare kwargs ---
+        # Build kwargs for the OpenAI client
         kwargs = {
             "model": model,
-            "messages": messages,
+            "messages": full_messages,
             "tools": tools or [],
-            "tool_choice": tool_choice if tools else "none"
+            "tool_choice": tool_choice if tools else "none",
         }
 
-        if not model.startswith(("o1", "o3")):
+        if not model.startswith(('o1', 'o3')):
             kwargs["temperature"] = temperature
 
-        # --- STEP 4: Call the LLM with or without response_format ---
+        # Handle structured response parsing
         if response_format:
-            logger.info("response_format present")
             if self._is_gpt(model):
                 completion = await client.beta.chat.completions.parse(
                     **kwargs, response_format=response_format
                 )
-                agent_message.content = completion.choices[0].message.content
+                content = completion.choices[0].message.content
                 agent_message.formatted_output = completion.choices[0].message.parsed
             else:
-                # For non-GPT models: fallback
                 guided_json = transform_schema(response_format.model_json_schema())
                 kwargs["extra_body"] = {"guided_json": guided_json}
                 kwargs["messages"][0]["content"] += (
@@ -336,16 +165,59 @@ class AbstractMethod(ABC):
                     agent_message.formatted_output = response_format.model_validate_json(cleaned)
                 except ValidationError:
                     agent_message.formatted_output = {}
-                agent_message.content = raw_content
+                content = raw_content
             agent_message.response_metadata = completion.usage.to_dict()
         else:
-            logger.info("no response-format")
+            # Handle tool choice options
+            if guided_choice and self._is_gpt(model):
+                kwargs["messages"][0]["content"] += (
+                    f"\nYou MUST select one AND ONLY ONE of these choices:\n\n{json.dumps(guided_choice, indent=2)}\n\n"
+                    f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!"
+                )
+            elif guided_choice:
+                kwargs["extra_body"] = {"guided_choice": guided_choice}
+
+            kwargs["stream"] = True
+            kwargs["stream_options"] = {"include_usage": True}
+
             completion = await client.chat.completions.create(**kwargs)
-            # no streaming here: just grab the single-shot response
-            agent_message.content = completion.choices[0].message.content
-            agent_message.response_metadata = completion.usage.to_dict()
+            async for chunk in completion:
+                if usage := chunk.usage:
+                    agent_message.response_metadata = usage.to_dict()
+                    break
+
+                choice = chunk.choices[0].delta
+                tool_calls = choice.tool_calls
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        tool_call_buffers[tool_call.id] = {
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments or '',
+                        }
+                    agent_message.tools = [
+                        {"id": i, "name": fn["name"], "args": fn["arguments"], "result": ''}
+                        for i, fn in enumerate(tool_call_buffers.values())
+                    ]
+                else:
+                    chunk_text = choice.content or ''
+                    if chunk_text:
+                        content += chunk_text
+                        agent_message.content = content  # always set full content
+                        if websocket:
+                            await websocket.send_json(agent_message.model_dump_json())
+
+        # Final response packaging
+        for tool in agent_message.tools:
+            try:
+                tool["args"] = json.loads(tool["args"])
+            except json.JSONDecodeError:
+                tool["args"] = {}
 
         agent_message.execution_time = time.time() - exec_time
+        agent_message.content = content
+
+        if websocket:
+            await websocket.send_json(agent_message.model_dump_json())
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output,
                     extra={"agent_name": agent})

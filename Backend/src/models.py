@@ -107,8 +107,9 @@ class SessionData(BaseModel):
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
-    uploaded_files: Dict[str, Dict[str, Any]] = {} 
-
+    
+    # Each PDF is stored as: {"filename": {"content": BytesIO, "content_type": str, "sent": bool}}
+    uploaded_files: Dict[str, Dict[str, Any]] = {}
 
 class ConfigArrayItem(BaseModel):
     type: str

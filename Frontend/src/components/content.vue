@@ -200,11 +200,11 @@ export default {
 
         async submitText() {
             if (this.textInput && this.isFinished) {
-                // ⬇ Copy current input and reset field
+                // Copy current input and reset field
                 let userInput = this.textInput;
                 this.textInput = '';
 
-                // ⬇ If a file is uploaded, append info about it to the input
+                // If a file is uploaded, append info about it to the input
                 if (this.selectedFiles.length > 0) {
                 const file = this.selectedFiles[0];
                 userInput += `\n\n[Attached PDF: ${file.name}]`;
@@ -213,10 +213,10 @@ export default {
                 await nextTick();
                 this.resizeTextInput();
 
-                // ⬇ Call your existing handler for sending the message
+                // Call your existing handler for sending the message
                 await this.askChatGpt(userInput);
 
-                // ✅ Clear file and status after sending
+                // Clear file and status after sending
                 this.selectedFiles = [];
                 this.uploadStatus.uploadedFileName = '';
                 this.uploadStatus.isUploading = false;
@@ -309,93 +309,85 @@ export default {
         async askChatGpt(userText) {
             this.isFinished = false;
             this.showExampleQuestions = false;
-            console.log("askChatGpt triggered");
 
-            await this.addChatBubble(userText, true, false); // User message
+            // add user chat bubble
+            await this.addChatBubble(userText, true, false);
             await this.addChatBubble('', false, true);       // Loading AI bubble
-            this.getLastBubble().addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
-            // If no uploaded files, just submit the user text
-            const hasUploadedFile = this.selectedFiles && this.selectedFiles.length > 0;
+            // add debug entry for user message
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(userText, "user");
 
-            if (!hasUploadedFile) {
-                console.log("No file uploaded, sending only text.");
-                try {
-                    const jsonMessage = JSON.stringify({
-                        user_query: userText,
-                        api_key: this.apiKey
-                    });
+            this.getLastBubble().addStatusMessage('preparing',
+                Localizer.getLoadingMessage('preparing'), false);
 
-                    const backend = this.getBackend();
-                    const response = await fetch(`${conf.BackendAddress}/${backend}/upload_files`, {
-                        method: "POST",
-                        body: jsonMessage,
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        credentials: "include"
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    console.log("Text-only result:", result);
-
-                    const fakeEvent = { data: JSON.stringify(JSON.stringify(result)) };
-                    await this.handleStreamingSocketMessage(fakeEvent);
-
-                } catch (error) {
-                    console.error("Text-only request failed:", error);
-                    this.getLastBubble().setContent("Request failed: " + error.message);
-                    this.getLastBubble().toggleLoading(false);
-                    this.isFinished = true;
+           try {
+                // Upload selected files before starting the chat
+                if (this.selectedFiles && this.selectedFiles.length > 0) {
+                    await this.uploadSelectedFiles(this.selectedFiles);
                 }
 
-                return;
-            }
-
-            // If files were uploaded, proceed with file upload logic
-            console.log(`Found ${this.selectedFiles.length} uploaded file(s). Uploading with text...`);
-
-            const formData = new FormData();
-            this.selectedFiles.forEach(file => {
-                formData.append("files", file);
-            });
-
-            const jsonMessage = JSON.stringify({
-                user_query: userText,
-                api_key: this.apiKey
-            });
-            formData.append("json_data", jsonMessage);
-
-            try {
                 const backend = this.getBackend();
-                const response = await fetch(`${conf.BackendAddress}/${backend}/upload_files`, {
-                    method: "POST",
-                    body: formData,
-                    credentials: "include"
-                });
+                console.log(backend)
+                const socketURL = `${conf.BackendAddress}/${backend}/query_stream`;
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                this.socket = new WebSocket(socketURL);
 
-                const result = await response.json();
-                console.log("Upload result:", result);
-
-                const fakeEvent = { data: JSON.stringify(JSON.stringify(result)) };
-                await this.handleStreamingSocketMessage(fakeEvent);
-
+                // Event handlers
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
-                console.error("Upload failed:", error);
-                this.getLastBubble().setContent("Upload failed: " + error.message);
-                this.getLastBubble().toggleLoading(false);
-                this.isFinished = true;
+                await this.handleStreamingSocketError(error);
             }
         },
 
+
+        async fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        },
+
+        async uploadSelectedFiles(files) {
+            const backend = this.getBackend();
+            const uploadURL = `${conf.BackendAddress}/${backend}/upload`;
+
+            const formData = new FormData();
+
+            // Append all selected files using key "files"
+            for (const file of files) {
+                formData.append("files", file); // Make sure this matches the backend key
+            }
+
+            try {
+                const response = await fetch(uploadURL, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include', // include cookies if needed
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}` // optional if auth required
+                        // Don't set Content-Type manually — fetch will handle it for FormData
+                    }
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || `Upload failed with status ${response.status}`);
+                }
+
+                console.log("Uploaded files:", result.uploaded_files);
+                return result;
+            } catch (error) {
+                console.error("File upload failed:", error);
+                throw error;
+            }
+        },
 
 
         async handleStreamingSocketOpen(socket, userText) {
