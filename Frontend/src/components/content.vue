@@ -15,7 +15,7 @@
             :backend="backend"
             :language="language"
             :connected="connected"
-            :is-dark-scheme="isDarkScheme"
+            :color-scheme="colorScheme"
              ref="sidebar"
              @select-question="question => this.handleSelectQuestion(question)"
              @select-category="category => this.handleSelectCategory(category)"
@@ -32,7 +32,7 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-dark-scheme="this.isDarkScheme"
+                        :color-scheme="this.colorScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :ref="elementId"
@@ -142,7 +142,7 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
-        isDarkScheme: Boolean,
+        colorScheme: String,
     },
     emits: [
         'select-category',

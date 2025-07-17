@@ -138,7 +138,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            :is-dark-scheme="isDarkMode"
+            :color-scheme="this.colorScheme"
             @select-category="category => this.selectedCategory = category"
             ref="content"
         />
@@ -168,8 +168,7 @@ export default {
             language: 'GB',
             backend: conf.DefaultBackend,
             sidebar: 'connect',
-            isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
-                         window.matchMedia('(prefers-color-scheme: dark)').matches),
+            colorScheme: this.getColorScheme(),
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
@@ -247,8 +246,16 @@ export default {
         },
 
         setTheme(theme) {
-            this.isDarkMode = (theme === 'dark');
+            this.colorScheme = theme;
             setColorTheme(document, theme);
+        },
+
+        getColorScheme() {
+            if (conf.ColorScheme === 'system') {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light';
+            }
+            return conf.ColorScheme;
         },
 
         updateLanguage(newLanguage) {

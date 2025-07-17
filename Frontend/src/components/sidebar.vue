@@ -181,7 +181,7 @@
                                       :key="debugMessage.text"
                                       :text="debugMessage.text"
                                       :type="debugMessage.type"
-                                      :is-dark-scheme="this.isDarkScheme"
+                                      :color-scheme="this.colorScheme"
                                       :execution-time="debugMessage.executionTime"
                                       :response-metadata="debugMessage.responseMetadata"
                         />
@@ -227,7 +227,7 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
-        isDarkScheme: Boolean,
+        colorScheme: String,
     },
     emits: [
         'select-question',

@@ -26,8 +26,8 @@ export default {
             type: String,
             required: true
         },
-        isDarkScheme: {
-            type: Boolean,
+        colorScheme: {
+            type: String,
             required: true
         },
         executionTime: {
@@ -42,7 +42,8 @@ export default {
 
     methods: {
         getDebugColoring (agentName) {
-            const color = getDebugColor(agentName, this.isDarkScheme);
+            const isDarkScheme = (this.colorScheme === 'dark');
+            const color = getDebugColor(agentName, isDarkScheme);
             return {color: color ?? null};
         }
     }

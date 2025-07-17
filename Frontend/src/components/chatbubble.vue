@@ -92,7 +92,7 @@
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
                         :type="type"
-                        :is-dark-scheme="this.isDarkScheme"
+                        :color-scheme="this.colorScheme"
                     />
                 </div>
             </div>
@@ -127,7 +127,7 @@ export default {
     props: {
         elementId: String,
         isUser: Boolean,
-        isDarkScheme: Boolean,
+        colorScheme: String,
         initialContent: String,
         initialLoading: Boolean,
     },
@@ -235,8 +235,9 @@ export default {
 
         getGlowColors() {
             const agentName = this.debugMessages.at(-1)?.type;
+            const isDarkMode = (this.colorScheme === 'dark');
             const baseColor = agentName
-                ? getDebugColor(agentName, this.isDarkScheme)
+                ? getDebugColor(agentName, isDarkMode)
                 : null;
             if (!baseColor) return null;
             return {
