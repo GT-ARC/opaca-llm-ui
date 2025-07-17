@@ -1,5 +1,8 @@
 // names of the CSS-variables for individual colors
 // theme-variants replace "color" with the name of the theme
+import conf from "../config.js";
+import {ref} from "vue";
+
 const cssColors = [
     "background",
     "surface",
@@ -40,6 +43,16 @@ const colorThemes = {
     },
 }
 
+const currentTheme = ref(initColorTheme());
+
+export function initColorTheme() {
+    if (conf.ColorScheme === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark' : 'light';
+    }
+    return conf.ColorScheme;
+}
+
 export function getColorThemes() {
     return Object.fromEntries(
         Object.entries(colorThemes).map(([k,v]) => [k, v.name])
@@ -47,9 +60,14 @@ export function getColorThemes() {
 }
 
 export function setColorTheme(document, theme) {
+    currentTheme.value = theme;
     for (const color of cssColors) {
         document.documentElement.style.setProperty(`--${color}-color`, getColor(theme, color));
     }
+}
+
+export function getCurrentTheme() {
+    return currentTheme.value;
 }
 
 function getColor(theme, color) {

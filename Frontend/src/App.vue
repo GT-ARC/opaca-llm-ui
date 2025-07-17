@@ -138,7 +138,6 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
-            :color-scheme="this.colorScheme"
             @select-category="category => this.selectedCategory = category"
             ref="content"
         />
@@ -154,7 +153,7 @@ import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import OptionsSelect from "./components/OptionsSelect.vue";
-import {setColorTheme} from './ColorThemes.js';
+import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 
 export default {
     name: 'App',
@@ -168,7 +167,6 @@ export default {
             language: 'GB',
             backend: conf.DefaultBackend,
             sidebar: 'connect',
-            colorScheme: this.getColorScheme(),
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
@@ -246,16 +244,7 @@ export default {
         },
 
         setTheme(theme) {
-            this.colorScheme = theme;
             setColorTheme(document, theme);
-        },
-
-        getColorScheme() {
-            if (conf.ColorScheme === 'system') {
-                return window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'dark' : 'light';
-            }
-            return conf.ColorScheme;
         },
 
         updateLanguage(newLanguage) {
@@ -275,7 +264,7 @@ export default {
 
     mounted() {
         if (conf.ColorScheme !== "system") {
-            this.setTheme();
+            this.setTheme(conf.ColorScheme);
         }
 
         if (AudioManager.isBackendConfigured()) {
