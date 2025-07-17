@@ -170,7 +170,7 @@ export default {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
-                this.resizeTextInput()
+                this.resizeTextInput();
             }
         },
 
