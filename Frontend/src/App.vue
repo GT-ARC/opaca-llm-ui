@@ -138,6 +138,7 @@
             :backend="this.backend"
             :language="this.language"
             :connected="this.connected"
+            :is-dark-scheme="isDarkMode"
             @select-category="category => this.selectedCategory = category"
             ref="content"
         />
@@ -246,6 +247,7 @@ export default {
         },
 
         setTheme(theme) {
+            this.isDarkMode = (theme === 'dark');
             setColorTheme(document, theme);
         },
 

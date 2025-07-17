@@ -142,6 +142,7 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
+        isDarkScheme: Boolean,
     },
     emits: [
         'select-category',
@@ -159,17 +160,12 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
         }
     },
     methods: {
-        updateTheme() {
-            this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        },
-
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -492,9 +488,6 @@ export default {
     },
 
     mounted() {
-        this.updateTheme();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
         this.loadHistory();
         this.updateScrollbarThumb();
     },
