@@ -40,7 +40,7 @@
             <div class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
-                <div v-show="this.content.length > 0"
+                <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
                      @click="this.copyContentToClipboard()"
@@ -294,6 +294,12 @@ export default {
 
         isAudioLoading() {
             return this.ttsAudio && this.ttsAudio.isLoading;
+        },
+
+        isCopyAvailable() {
+            return this.content.length > 0 && (!this.isMobile
+                || window.location.protocol === 'https'
+                || window.location.hostname === 'localhost');
         },
 
         clearStatusMessages() {
