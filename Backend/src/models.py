@@ -112,15 +112,38 @@ class Response(BaseModel):
 
 class SessionData(BaseModel):
     """
-    Stores relevant information regarding the session
+    Stores relevant information regarding the session, including messages, configuration,
+    client instances, API keys, and uploaded files.
+
+    Attributes:
+        messages: List of conversation messages.
+        config: Configuration dictionary.
+        opaca_client: Client instance for Opaca (or similar).
+        api_key: API key string.
+        llm_clients: Dictionary of LLM client instances.
+
+        uploaded_files: Dictionary storing each uploaded PDF file with the following structure:
+            {
+                "filename.pdf": {
+                    "content": BytesIO,        # File content in-memory buffer
+                    "content_type": str,       # MIME type of the file (e.g. "application/pdf")
+                    "sent": bool,              # Whether this file has been uploaded/sent to OpenAI API
+                    "file_id": Optional[str]   # The file ID returned by OpenAI after uploading
+                },
+                ...
+            }
     """
     messages: List[Any] = []
     config: Dict[str, Any] = {}
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
-    
-    # Each PDF is stored as: {"filename": {"content": BytesIO, "content_type": str, "sent": bool}}
+
+    # Each PDF is stored as a dictionary with:
+    # - "content": a BytesIO object containing the file's binary data
+    # - "content_type": the MIME type of the file
+    # - "sent": a boolean indicating if the file has been uploaded to OpenAI
+    # - "file_id": the string ID assigned by OpenAI after successful upload
     uploaded_files: Dict[str, Dict[str, Any]] = {}
 
 class ConfigArrayItem(BaseModel):

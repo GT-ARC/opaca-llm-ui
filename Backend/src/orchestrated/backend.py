@@ -48,7 +48,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             "model_config_name": ConfigParameter(
                 type="string", 
                 required=True, 
-                default="4o-mini",
+                default="4o",
                 enum=["vllm", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-large", "vllm-superlarge", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
@@ -158,7 +158,8 @@ class SelfOrchestratedBackend(AbstractMethod):
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
                 temperature=config["temperature"],
-                tools=worker_agent.tools
+                tools=worker_agent.tools,
+                session=session,
             )
 
             # Update the tool ids
@@ -209,6 +210,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                     tools=planner.tools,
                     tool_choice="none",
                     response_format=planner.schema,
+                    session=session,
                 )
                 agent_messages.append(planner_message)
                 plan = planner_message.formatted_output
@@ -304,6 +306,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         messages=agent.messages(task),
                         temperature=config["temperature"],
                         tools=agent.tools,
+                        session=session,    
                     )
 
                     # Update the tool ids
@@ -333,6 +336,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config["temperature"],
                         guided_choice=agent_evaluator.guided_choice(),
+                        session=session,
                     )
                     agent_messages.append(evaluation_message)
                     evaluation = evaluation_message.content
@@ -382,7 +386,8 @@ Now, using the tools available to you and the previous results, continue with yo
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(retry_task),
                     temperature=config["temperature"],
-                    tools=agent.tools
+                    tools=agent.tools,
+                    session=session,
                 )
 
                 # Update the tool ids
@@ -472,6 +477,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
+                    session=session,
                 )
 
                 # Extract pre-formatted Orchestrator Plan
@@ -554,6 +560,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config["temperature"],
                         guided_choice=overall_evaluator.guided_choice,
+                        session=session,
                     )
                     evaluation = evaluation_message.content
                     response.agent_messages.append(evaluation_message)
@@ -572,7 +579,8 @@ Now, using the tools available to you and the previous results, continue with yo
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
                         temperature=config["temperature"],
-                        response_format=iteration_advisor.schema
+                        response_format=iteration_advisor.schema,
+                        session=session,
                     )
                     advice = advisor_message.formatted_output
                     response.agent_messages.append(advisor_message)
@@ -624,6 +632,7 @@ Please address these specific improvements:
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config["temperature"],
                 websocket=websocket,
+                session=session,
             )
             # 'output_generator' is a special agent type to let the UI know to stream the results directly in chat
             # Agent is changed afterwards properly

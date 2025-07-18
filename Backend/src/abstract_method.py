@@ -3,8 +3,10 @@ import logging
 import os
 import re
 import time
+import io
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
+import datetime 
 
 from openai import AsyncOpenAI
 from openai.lib import ResponseFormatT
@@ -100,38 +102,78 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
+        logger.info(model)
+
         # Handle uploaded files (PDFs) from session
         file_message_parts = []
-        if session and session.uploaded_files:
-            unsent_files = [
-                (filename, filedata)
-                for filename, filedata in session.uploaded_files.items()
-                if not filedata.get("sent", False)
-            ]
 
-            for filename, filedata in unsent_files:
-                file_bytes = filedata["content"].getvalue()  # content is BytesIO
-                file_obj = io.BytesIO(file_bytes)
-                file_obj.name = filename  # Required by OpenAI SDK
+        manual_file_id = ""  # <-- Insert a manual file_id here for testing, or leave empty ""
 
-                uploaded = await client.files.create(
-                    file=file_obj,
-                    purpose="assistants"
-                )
-                file_message_parts.append({
-                    "type": "file",
-                    "file": {"file_id": uploaded.id}
-                })
-                filedata["sent"] = True  # Mark as sent
+        file_ids = []
 
-        # Add user question
-        user_text = messages[-1].content
-        file_message_parts.append({"type": "text", "text": user_text})
+        if manual_file_id:
+            logger.info(f"Using manual file_id for testing: {manual_file_id}")
+            file_ids.append(manual_file_id)
+        else:
+            if session and session.uploaded_files:
+                # Upload all unsent files
+                for filename, filedata in session.uploaded_files.items():
+                    file_id = filedata.get("file_id")
+
+                    if not file_id:
+                        # Upload the file
+                        file_bytes = filedata["content"].getvalue()
+                        file_obj = io.BytesIO(file_bytes)
+                        file_obj.name = filename  # Required by OpenAI SDK
+
+                        uploaded = await client.files.create(
+                            file=file_obj,
+                            purpose="assistants"
+                        )
+
+                        logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
+
+                        file_id = uploaded.id
+                        filedata["file_id"] = file_id
+                        filedata["sent"] = True
+
+                    else:
+                        logger.info(f"Reusing existing file_id: {file_id} for {filename}")
+
+                    file_ids.append(file_id)
+
+        # Build file message parts for all file_ids
+        for fid in file_ids:
+            file_message_parts.append({
+                "type": "file",
+                "file": {"file_id": fid}
+            })
+
+        # Now build the full messages list including all prior messages from session.messages
+        # For each message in session.messages, add it as is
+        # Finally, append the current user message with attached file parts
 
         full_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": file_message_parts}
+            {"role": "system", "content": system_prompt}
         ]
+
+        # Add all prior messages from session (assumed to be dicts with 'role' and 'content')
+        for msg in session.messages:
+            full_messages.append(msg)
+
+        # Append the current user message with file parts
+        #logger.info(messages[-1])
+        last_message = messages[-1]
+
+        if isinstance(last_message, dict):
+            user_text = last_message.get("content", "")
+        else:
+            user_text = getattr(last_message, "content", "")
+
+        full_messages.append({
+            "role": "user",
+            "content": file_message_parts + [{"type": "text", "text": user_text}]
+        })
 
         # Build kwargs for the OpenAI client
         kwargs = {

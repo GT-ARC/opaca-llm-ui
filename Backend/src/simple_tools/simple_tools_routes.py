@@ -22,7 +22,7 @@ answer them with the required information. Tools can also be described as servic
 """
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("models")
 
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"
@@ -131,7 +131,7 @@ class SimpleToolsBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+            "model": ConfigParameter(type="string", required=True, default="gpt-4o"),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
             "use_agent_names": ConfigParameter(type="boolean", required=False, default=True),
             "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),

@@ -7,13 +7,13 @@ import os
 import uuid
 from typing import List, Dict, Any
 import asyncio
-
+import io
 from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
-from typing import List, Optional
+from typing import List, Optional, Union
 import json
 import logging
 import traceback
@@ -87,7 +87,7 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     await BACKENDS[backend].init_models(session)
     result = await BACKENDS[backend].query(message.user_query, session)
 
@@ -102,7 +102,10 @@ async def query_stream(websocket: WebSocket, backend: str):
     logger.info("query_stream getriggert")
 
     await websocket.accept()
-    session = await handle_session_id_for_websocket(websocket)
+    #session = await handle_session_id_for_websocket(websocket)
+    session = await handle_session_id(websocket)
+    #logger.info(f"[WS ENDPOINT] Session established: {session}")
+    
     try:
         data = await websocket.receive_json()
         message = Message(**data)
@@ -123,7 +126,9 @@ async def upload_files(
     response: FastAPIResponse,
     files: Optional[List[UploadFile]] = File(None), 
 ):
-    session = await handle_session_id(request, response)
+    #session = await handle_session_id(request, response)
+    session = await handle_session_id(request, set_cookie=True, response=response)
+    logger.info(f"[UPLOAD ENDPOINT] Session established: {session}")
     
     uploaded = []
     for file in files:
@@ -143,13 +148,13 @@ async def upload_files(
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
 
     return session.messages
 
 @app.post("/reset", description="Reset message history for the current session.")
 async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     session.messages.clear()
     return FastAPIResponse(status_code=204)
 
@@ -160,14 +165,14 @@ async def reset_all():
 
 @app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 @app.put("/{backend}/config", description="Update configuration of the given LLM client.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     try:
         validate_config_input(conf, BACKENDS[backend].config_schema)
     except HTTPException as e:
@@ -177,31 +182,41 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
 
 @app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
-    session, session_id = await handle_session_id(request, response)
+    session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-#async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
-async def handle_session_id(request: Request, response: FastAPIResponse) -> tuple[SessionData, str]:
-    """
-    Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
-    response and return the SessionData associated with that session-id.
-    """
-    print(">>> [HANDLE_SESSION] Session ID in request.cookies:", request.cookies.get("session_id"))
 
-    # Existing logic
-    session_id = request.cookies.get("session_id")
+async def handle_session_id(source: Union[Request, WebSocket], set_cookie: bool = False, response: FastAPIResponse = None) -> SessionData:
+    """
+    Unified session handler for both HTTP requests and WebSocket connections.
+    If no valid session ID is found, a new one is created and optionally set in the response cookie.
+    """
+    headers = Headers(scope=source.scope)
+    cookies = headers.get("cookie")
+    session_id = None
+
+    # Extract session_id from cookies
+    if cookies:
+        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
+        session_id = cookie_dict.get("session_id")
+
+    # Session lock to avoid race conditions
     async with sessions_lock:
+        created_new = False
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
             sessions[session_id].opaca_client = OpacaClient()
-        response.set_cookie("session_id", session_id)
+            created_new = True
 
-        print(">>> [HANDLE_SESSION] Using session ID:", session_id)
-        #return sessions[session_id]
-        return sessions[session_id], session_id
+        # If it's an HTTP request and you want to set a cookie
+        if set_cookie and response is not None:
+            response.set_cookie("session_id", session_id)
+
+        logger.info(f"[SESSION] {'Created' if created_new else 'Reused'} session ID: {session_id}")
+
+        return sessions[session_id]
 
 async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     """

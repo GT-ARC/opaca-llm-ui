@@ -82,6 +82,7 @@ class SimpleBackend(AbstractMethod):
                 temperature=config["temperature"],
                 tool_choice="none",
                 websocket=websocket,
+                session=session,
             )
             messages.append(ChatMessage(role="assistant", content=response.content))
             result.agent_messages.append(AgentMessage(

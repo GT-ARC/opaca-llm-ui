@@ -14,7 +14,7 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
+                "model": ConfigParameter(type="string", required=True, default='gpt-4o'),
                 "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
@@ -67,6 +67,7 @@ class ToolLLMBackend(AbstractMethod):
                 temperature=config['temperature'],
                 tools=tools,
                 websocket=websocket,
+                session=session,
             )
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -86,6 +87,7 @@ class ToolLLMBackend(AbstractMethod):
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
+                    session=session,
                 )
                 correction_limit += 1
 
@@ -141,6 +143,7 @@ class ToolLLMBackend(AbstractMethod):
                     tools=tools,
                     tool_choice="none",
                     websocket=websocket,
+                    session=session,
                 )
                 response.agent_messages.append(result)
 
