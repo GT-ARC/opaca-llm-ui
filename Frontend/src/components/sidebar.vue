@@ -136,7 +136,10 @@
                         {{ Localizer.get('tooltipSidebarConfig') }}
                      </div>
                      <div class="py-2">
-                        <p class="fw-bold">Config for: <i class="fa fa-server me-1"/>{{ Backends[this.getBackend()] }}</p>
+                        <p class="fw-bold">Config for
+                            <i class="fa fa-server ms-1"/>
+                            {{ Backends[this.getBackend()] }}
+                        </p>
                         <p>{{ BackendDescriptions[this.getBackend()] }}</p>
                     </div>
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
