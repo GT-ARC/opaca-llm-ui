@@ -8,16 +8,17 @@
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
+            ref="RecordingPopup"
         />
 
         <Sidebar
             :backend="backend"
             :language="language"
+            :connected="connected"
             :is-dark-scheme="isDarkScheme"
              ref="sidebar"
-             @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.selectedCategory = newCategory"
-             @api-key-change="newValue => this.apiKey = newValue"
+             @select-question="question => this.handleSelectQuestion(question)"
+             @select-category="category => this.handleSelectCategory(category)"
         />
 
 
@@ -40,11 +41,23 @@
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
+                    <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
+                        {{ Localizer.get("welcome") }}
+                    </div>
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
-                        {{ question.icon }} <br> {{ question.question }}
+                        {{ question.icon }} <br>
+                        <span v-if="question.question === '__loading__'"><i class="fa fa-ellipsis fa-beat-fade"/></span>
+                        <span v-else>{{ question.question }}</span>
+                    </div>
+                    <div class="w-100 text-center">
+                        <button type="button" class="btn btn-outline-primary p-2"
+                                @click="Localizer.reloadSampleQuestions(null)">
+                            <i class="fa fa-arrow-right"/>
+                            {{ Localizer.get('rerollQuestions') }}
+                        </button>
                     </div>
                 </div>
 
@@ -69,17 +82,24 @@
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
-                            v-if="this.isSendAvailable()"
-                            class="btn btn-primary"
+                            v-if="this.isSendAvailable() && isFinished"
+                            class="btn btn-primary input-area-button"
                             @click="submitText"
-                            :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
                             style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
                     </button>
                     <button type="button"
+                            v-if="!isFinished"
+                            class="btn btn-outline-danger input-area-button"
+                            @click="stopGeneration"
+                            :title="Localizer.get('tooltipButtonStop')"
+                            style="margin-left: -2px">
+                        <i class="fa fa-stop"/>
+                    </button>
+                    <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary"
+                            class="btn btn-outline-primary input-area-button"
                             @click="this.startRecognition()"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonRecord')">
@@ -88,7 +108,7 @@
                     </button>
                     <button type="button"
                             v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger"
+                            class="btn btn-outline-danger input-area-button"
                             @click="resetChat"
                             :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonReset')">
@@ -105,7 +125,6 @@
 
 <script>
 import {nextTick} from "vue";
-import SimpleKeyboard from "./SimpleKeyboard.vue";
 import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
@@ -116,19 +135,24 @@ import AudioManager from "../AudioManager.js";
 
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
 
 export default {
     name: 'main-content',
     components: {
+        OptionsSelect,
         Sidebar,
-        SimpleKeyboard,
         RecordingPopup,
         Chatbubble
     },
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
     },
+    emits: [
+        'select-category',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
         return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
@@ -144,7 +168,7 @@ export default {
             autoSpeakNextMessage: false,
             isDarkScheme: false,
             showRecordingPopup: false,
-            selectedCategory: 'Information & Upskilling',
+            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
         }
     },
@@ -171,7 +195,14 @@ export default {
             }
         },
 
+        async stopGeneration() {
+            await sendRequest("POST", `${conf.BackendAddress}/stop`);
+        },
+
         async askSampleQuestion(questionText) {
+            // Do not send questions during autogeneration
+            if (questionText === "__loading__") return;
+
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
@@ -200,6 +231,10 @@ export default {
 
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
+
+            // add debug entry for user message
+            const sidebar = this.$refs.sidebar;
+            sidebar.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -322,16 +357,8 @@ export default {
         async resetChat() {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
-            await this.showWelcomeMessage();
             this.showExampleQuestions = true;
             await sendRequest("POST", `${conf.BackendAddress}/reset`);
-        },
-
-        async showWelcomeMessage() {
-            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
-            if (!this.isMobile) {
-                await this.addChatBubble(Localizer.get('welcome'), false, false);
-            }
         },
 
         /**
@@ -423,36 +450,69 @@ export default {
         },
 
         updateScrollbarThumb() {
-          this.$nextTick(() => {
-            const el = this.$refs.textInputRef;
-            if (!el) return;
+            this.$nextTick(() => {
+                const el = this.$refs.textInputRef;
+                if (!el) return;
 
-            const computedStyle = getComputedStyle(el);
-            const maxHeight = parseFloat(computedStyle.maxHeight);
+                const computedStyle = getComputedStyle(el);
+                const maxHeight = parseFloat(computedStyle.maxHeight);
 
-            // If current height is less than the max-height
-            this.isSmallScrollbar = el.offsetHeight < maxHeight;
-          });
+                // If current height is less than the max-height
+                this.isSmallScrollbar = el.offsetHeight < maxHeight;
+            });
         },
+
+        async loadHistory() {
+            try {
+                const res = await fetch(`${conf.BackendAddress}/history`, {
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch history");
+
+                const messages = await res.json();
+
+                for (const msg of messages) {
+                    const isUser = msg.role === 'user';
+                    await this.addChatBubble(msg.content, isUser);
+                }
+                if(messages.length !== 0) {
+                    this.showExampleQuestions = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
+        },
+
+        handleSelectQuestion(question) {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            this.askSampleQuestion(question);
+        },
+
+        handleSelectCategory(category) {
+            if (this.selectedCategory !== category) {
+                if (this.showExampleQuestions) {
+                    Localizer.reloadSampleQuestions(category);
+                }
+                this.selectedCategory = category;
+                this.$emit('select-category', category);
+            }
+        }
     },
 
     mounted() {
         this.updateTheme();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
 
-        // expand category in sidebar
-        const questions = conf.DefaultQuestions;
-        this.selectedCategory = questions;
-        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
-
-        this.showWelcomeMessage();
-
+        this.loadHistory();
         this.updateScrollbarThumb();
     },
     watch: {
-      textInput() {
-        this.updateScrollbarThumb();
-      },
+        textInput() {
+            this.updateScrollbarThumb();
+        },
     }
 }
 
@@ -471,13 +531,29 @@ export default {
 
 .input-container {
     width: 100%;
-    background-color: var(--background-light);
-    border-top: 1px solid var(--border-light);
+    background-color: var(--background-color);
+    border-top: 1px solid var(--border-color);
     padding: 1rem 0;
     margin-bottom: 1rem;
     flex-shrink: 0;
     position: relative;
     z-index: 11; /* Above the fade effect */
+}
+
+#textInput {
+    box-shadow: 0 0 0 1px var(--border-color);
+    padding: 0.75rem 1rem;
+    height: 3rem;
+    min-height: 3rem;
+    resize: none;
+    max-height: min(40vh, 20rem);
+    line-height: 1.5;
+    border-radius: 1.5rem !important;
+}
+
+#textInput[rows] {
+    height: auto;
+    overflow-y: auto;
 }
 
 .scroll-wrapper {
@@ -488,44 +564,11 @@ export default {
     flex: 1 1 auto;
 }
 
-.input-group {
-    width: 100%;
-    max-width: min(95%, 100ch);
-    margin: 0 auto;
-    padding: 0 1rem;
-}
-
-.input-group .form-control {
-    box-shadow: 0 0 0 1px var(--border-light);
-    background-color: var(--background-light);
-    color: var(--text-primary-light);
-    padding: 0.75rem 1rem;
-    height: 3rem;
-    min-height: 3rem;
-    resize: none;
-    max-height: min(40vh, 20rem);
-    line-height: 1.5;
-    border-radius: 1.5rem !important;
-}
-
-.input-group .form-control[rows] {
-    height: auto;
-    overflow-y: auto;
-}
-
-.input-group .form-control::placeholder {
-    color: var(--text-secondary-light);
-}
-
-.input-group .form-control:focus {
-    box-shadow: 0 0 0 1px var(--primary-light);
-}
-
 .small-scrollbar::-webkit-scrollbar-thumb {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
-.input-group .btn {
+.input-area-button {
     padding: 0;
     width: 3rem;
     height: 3rem;
@@ -538,16 +581,16 @@ export default {
     transition: all 0.2s ease;
 }
 
-.input-group .btn:hover {
+.input-area-button:hover {
     transform: translateY(-1px);
 }
 
-.input-group .btn:disabled {
+.input-area-button:disabled {
     animation: bounce 1s infinite;
     opacity: 0.7;
 }
 
-.input-group .btn i {
+.input-area-button i {
     font-size: 1.25rem;
     line-height: 1;
     display: inline-flex;
@@ -558,7 +601,7 @@ export default {
 }
 
 .chatbubble-container {
-    max-width: min(95%, 160ch);
+    width: min(95%, 100ch);
 }
 
 #mainContent {
@@ -569,7 +612,7 @@ export default {
     flex-direction: column;
     overflow: hidden;
     position: relative; /* For fade positioning */
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 .sample-questions {
@@ -590,78 +633,19 @@ export default {
     align-items: center;
     cursor: pointer;
     padding: 1.5rem;
-    background-color: var(--background-light);
-    border: 1px solid var(--border-light);
+    background-color: var(--chat-user-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
     transition: all 0.2s ease;
     text-align: center;
 }
 
 .sample-question:hover {
-    background-color: var(--surface-light);
-    border-color: var(--primary-light);
+    background-color: var(--surface-color);
+    border-color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-/* dark scheme styling */
-@media (prefers-color-scheme: dark) {
-    body {
-        background-color: var(--background-dark);
-    }
-
-    #mainContent {
-        background-color: var(--background-dark);
-    }
-
-    .input-container {
-        background-color: var(--background-dark);
-        border-color: var(--border-dark);
-    }
-
-    .input-group .form-control {
-        background-color: var(--input-dark);
-        box-shadow: 0 0 0 1px var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .input-group .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .input-group .form-control:focus {
-        box-shadow: 0 0 0 1px var(--primary-dark);
-    }
-
-    .sample-question {
-        background-color: var(--chat-user-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sample-question:hover {
-        background-color: var(--chat-ai-dark);
-        border-color: var(--primary-dark);
-    }
-
-}
-
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(60%, 160ch);
-    }
-}
-
-@media (min-width: 1800px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(50%, 160ch);
-    }
 }
 
 /* mobile layout style changes */

@@ -46,7 +46,7 @@ ask_policies = {
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
 
-logger = logging.getLogger("src.models")
+logger = logging.getLogger(__name__)
 
 class SimpleBackend(AbstractMethod):
 
@@ -65,7 +65,7 @@ class SimpleBackend(AbstractMethod):
 
         # initialize messages
         policy = ask_policies[config["ask_policy"]]
-        actions = session.opaca_client.actions if session.opaca_client else "(No services, not connected yet.)"
+        actions = await self.get_actions(session)
         messages = session.messages.copy()
 
         # new conversation starts here
@@ -74,6 +74,7 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
+                session=session,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
@@ -138,3 +139,9 @@ class SimpleBackend(AbstractMethod):
             "ask_policy": ConfigParameter(type="string", required=True, default="never",
                                           enum=list(ask_policies.keys())),
         }
+
+    async def get_actions(self, session):
+        try:
+            return await session.opaca_client.get_actions_simple()
+        except:
+            return "(No services, not connected yet.)"

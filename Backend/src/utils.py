@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Any
 import jsonref
 from fastapi import HTTPException
 
-from .models import ConfigParameter, ConfigArrayItem
+from .models import ConfigParameter, ConfigArrayItem, OpacaException, Response
 
 
 class Parameter:
@@ -472,3 +472,12 @@ def transform_schema(schema):
     }
 
     return final_schema
+
+
+def exception_to_result(user_query: str, exception: Exception) -> Response:
+    """Convert an exception (generic or OpacaException) to a Response to be
+    returned to the Chat-UI."""
+    if isinstance(exception, OpacaException):
+        return Response(query=user_query, content=exception.user_message, error=exception.error_message)
+    else:
+        return Response(query=user_query, content='Generation failed', error=str(exception))

@@ -2,36 +2,38 @@
     <div id="sidebar-base" class="d-flex">
         <!-- sidebar selection -->
         <div id="sidebar-menu"
-             class="d-flex flex-column justify-content-start align-items-center p-2 gap-2"
-             style="height: calc(100vh - 50px);">
+             class="d-flex flex-column justify-content-start align-items-center gap-2">
 
-            <i @click="SidebarManager.toggleView('connect')"
-               class="fa fa-link p-2 sidebar-item"
-               :title="Localizer.get('tooltipSidebarConnection')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('connect')}" />
+            <i @click="SidebarManager.toggleView('info')"
+               class="fa fa-circle-info sidebar-item"
+               :title="Localizer.get('tooltipSidebarInfo')"
+               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
-               class="fa fa-book p-2 sidebar-item"
+               class="fa fa-book sidebar-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users p-2 sidebar-item"
+               class="fa fa-users sidebar-item"
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog p-2 sidebar-item"
+               class="fa fa-cog sidebar-item"
                :title="Localizer.get('tooltipSidebarConfig')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug p-2 sidebar-item"
+               class="fa fa-bug sidebar-item"
                :title="Localizer.get('tooltipSidebarLogs')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
 
+            <!-- spacer -->
+            <div class="flex-grow-1" />
+
             <i @click="SidebarManager.toggleView('faq')"
-               class="fa fa-question-circle p-2 sidebar-item"
+               class="fa fa-question-circle sidebar-item"
                :title="Localizer.get('tooltipSidebarFaq')"
                v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
@@ -39,73 +41,41 @@
         <!-- sidebar content -->
         <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-                   class="container-fluid d-flex flex-column position-relative mt-4"
+                   class="container-fluid d-flex flex-column position-relative"
                    :class="{'px-3': !isMobile}">
 
-                <!-- connection settings -->
-                <div v-show="SidebarManager.isViewSelected('connect')">
-                    <div id="sidebarConfig"
-                         class="container d-flex flex-column">
-
-                        <form @submit.prevent="initRpConnection()">
-
-                            <div class="py-2 text-start">
-                                <input id="opacaUrlInput" type="text"
-                                    class="form-control m-0"
-                                    v-model="opacaRuntimePlatform"
-                                    :placeholder="Localizer.get('opacaLocation')" />
-                            </div>
-
-                            <div class="py-2 text-start">
-                                <div class="row opaca-credentials">
-                                    <div class="col-md-6">
-                                        <input id="opacaUser" type="text"
-                                            class="form-control m-0"
-                                            v-model="opacaUser"
-                                            autocomplete="username"
-                                            placeholder="Username" />
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input id="opacaPwd" type="password"
-                                            class="form-control m-0"
-                                            v-model="opacaPwd"
-                                            autocomplete="current-password" 
-                                            placeholder="Password" />
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            <div class="py-2 text-start" v-if="conf.ShowApiKey">
-                                <input id="apiKey" type="password"
-                                    class="form-control m-0"
-                                    placeholder="OpenAI API Key"
-                                    v-model="this.apiKey"
-                                    @input="this.$emit('api-key-change', this.apiKey)" />
-                            </div>
-
-                            <div class="text-center py-2">
-                                <button class="btn btn-primary w-100" type="submit" id="button-connect">
-                                    <i class="fa fa-link me-1"/>Connect
-                                </button>
-                            </div>
-                        </form>
+                <!-- platform information -->
+                <div v-show="SidebarManager.isViewSelected('info')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarInfo') }}
+                     </div>
+                    <div v-if="!connected" class="placeholder-container">
+                        <img src="../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+                        <h5 class="p-4">It's a little quiet here...</h5>
                     </div>
+                    <div v-else v-html="this.howAssistContent" class="faq-content w-auto"/>
                 </div>
 
                 <!-- sample questions -->
                 <div v-show="SidebarManager.isViewSelected('questions')"
                      class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarPrompts') }}
+                     </div>
                     <SidebarQuestions
                         @select-question="question => this.$emit('select-question', question)"
-                        @category-selected="category => this.$emit('category-selected', category)"
+                        @select-category="category => this.$emit('select-category', category)"
                         ref="sidebar_questions"
                     />
                 </div>
 
                 <!-- agents/actions overview -->
                 <div v-show="SidebarManager.isViewSelected('agents')"
-                     id="containers-agents-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarAgents') }}
+                     </div>
                     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
                     <div v-else class="flex-row" >
                         <div class="accordion text-start" id="agents-accordion">
@@ -160,11 +130,21 @@
                 </div>
 
                 <!-- backend config -->
-                <div v-show="SidebarManager.isViewSelected('config')"
-                     id="config-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-show="SidebarManager.isViewSelected('config')" id="config-display" 
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarConfig') }}
+                     </div>
+                     <div class="py-2">
+                        <p class="fw-bold">Config for
+                            <i class="fa fa-server ms-1"/>
+                            {{ Backends[this.getBackend()] }}
+                        </p>
+                        <p>{{ BackendDescriptions[this.getBackend()] }}</p>
+                    </div>
                     <div v-if="!backendConfig || Object.keys(backendConfig).length === 0">No config available.</div>
                     <div v-else class="flex-row text-start">
-                        <config-parameter v-for="(value, name) in backendConfigSchema"
+                        <ConfigParameter v-for="(value, name) in backendConfigSchema"
                                           :key="name"
                                           :name="name"
                                           :value="value"
@@ -190,10 +170,13 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')" id="chatDebug"
-                     class="container flex-grow-1 mb-4 p-2 rounded rounded-4">
+                <div v-show="SidebarManager.isViewSelected('debug')"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarLogs') }}
+                     </div>
                     <div id="debug-console"
-                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start p-2">
+                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start rounded-4">
                         <DebugMessage v-for="debugMessage in debugMessages"
                                       :key="debugMessage.text"
                                       :text="debugMessage.text"
@@ -207,7 +190,10 @@
 
                 <!-- Help/FAQ -->
                 <div v-show="SidebarManager.isViewSelected('faq')"
-                     class="container flex-grow-1 overflow-y-auto overflow-x-hidden mb-4 p-2" style="height: 100%">
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                     <div v-if="!isMobile" class="sidebar-title">
+                        {{ Localizer.get('tooltipSidebarFaq') }}
+                     </div>
                     <div v-html="this.faqContent"
                          class="d-flex flex-column text-start faq-content">
                     </div>
@@ -220,8 +206,8 @@
 </template>
 
 <script>
-import conf from '../../config.js'
-import {sendRequest} from "../utils.js";
+import conf, {Backends, BackendDescriptions} from '../../config.js'
+import {sendRequest, addDebugMessage} from "../utils.js";
 import DebugMessage from './DebugMessage.vue';
 import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../useIsMobile.js";
@@ -240,11 +226,16 @@ export default {
     props: {
         backend: String,
         language: String,
+        connected: Boolean,
         isDarkScheme: Boolean,
     },
+    emits: [
+        'select-question',
+        'select-category',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {
@@ -256,45 +247,26 @@ export default {
             backendConfig: null,
             backendConfigSchema: null,
             debugMessages: [],
-            isConnected: false,
             configMessage: "",
             configChangeSuccess: false,
             shouldFadeOut: false,
             fadeTimeout: null,
             faqContent: '',
+            howAssistContent: '',
         };
     },
     methods: {
-        async initRpConnection() {
-            const connectButton = document.getElementById('button-connect');
-            connectButton.disabled = true;
-            console.log(`CONNECTING as ${this.opacaUser}`);
+
+        async showHowCanYouHelpInSidebar() {
             try {
-                const body = {url: this.opacaRuntimePlatform, user: this.opacaUser, pwd: this.opacaPwd};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
-                const rpStatus = parseInt(res.data);
-                if (rpStatus === 200) {
-                    const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                    this.platformActions = res2.data;
-                    this.isConnected = true;
-                    await this.fetchBackendConfig();
-                    SidebarManager.selectView(conf.DefaultSidebarView);
-                } else if (rpStatus === 403) {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unauthorized'));
-                } else {
-                    this.platformActions = null;
-                    this.isConnected = false;
-                    alert(Localizer.get('unreachable'));
-                }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.platformActions = null;
-                this.isConnected = false;
-                alert('Backend server is unreachable.');
-            } finally {
-                connectButton.disabled = false;
+                this.howAssistContent = "Querying functionality, please wait...";
+                const body = {user_query: "How can you assist me?", store_in_history: false};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
+                const answer = res.data.agent_messages[0].content;
+                this.howAssistContent = marked.parse(answer);
+            } catch (error) {
+                console.log("ERROR " + error);
+                this.howAssistContent = `There was an error when querying the functionality: ${error}`
             }
         },
 
@@ -375,23 +347,18 @@ export default {
         },
 
         async fetchBackendConfig() {
-            if (!this.isConnected) {
-                this.backendConfig = null;
-                return;
-            }
             const backend = this.getBackend();
+            this.backendConfig = this.backendConfigSchema = null;
             try {
                 const response = await sendRequest('GET', `${conf.BackendAddress}/${backend}/config`);
                 if (response.status === 200) {
                     this.backendConfig = response.data.value;
                     this.backendConfigSchema = response.data.config_schema;
                 } else {
-                    this.backendConfig = this.backendConfigSchema = null;
                     console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
                 }
             } catch (error) {
                 console.error('Error fetching backend config:', error);
-                this.backendConfig = null;
             }
         },
 
@@ -418,26 +385,7 @@ export default {
         },
 
         addDebugMessage(text, type) {
-            if (!text) return;
-            const message = {text: text, type: type};
-
-            // if there are no messages yet, just push the new one
-            if (this.debugMessages.length === 0) {
-                this.debugMessages.push(message);
-                return;
-            }
-
-            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator') {
-                // If the message includes tools, the message needs to be replaced instead of appended
-                this.debugMessages[this.debugMessages.length - 1] = message;
-            } else if (lastMessage.type === type) {
-                // If the message has the same type as before but is not a tool, append the token to the text
-                lastMessage.text += text;
-            } else {
-                // new message type
-                this.debugMessages.push(message);
-            }
+            addDebugMessage(this.debugMessages, text, type);
         },
 
         async buildFaqContent() {
@@ -462,14 +410,8 @@ export default {
     },
     mounted() {
         this.setupResizer();
-        this.fetchBackendConfig();
-
-        if (conf.AutoConnect) {
-            this.initRpConnection();
-        } else {
-            SidebarManager.selectView('connect');
-        }
         this.buildFaqContent();
+        this.fetchBackendConfig();
     },
     updated() {
         this.scrollDownConfigView()
@@ -478,29 +420,53 @@ export default {
         backend() {
             this.fetchBackendConfig();
         },
+        async connected(newVal) {
+            if (newVal) {
+                await this.fetchBackendConfig()
+                this.showHowCanYouHelpInSidebar() // Intentionally no await
+                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
+                this.platformActions = res2.data;
+            } else {
+                this.platformActions = null;
+            }
+        }
     }
 }
 </script>
 
 <style scoped>
 #sidebar-base {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
 }
 
 /* sidebar content */
 #sidebar {
     width: min(400px, 100vw - 3rem);
-    height: calc(100vh - 85px);
+    height: calc(100vh - 100px);
     min-width: 150px;
     max-width: 768px;
     z-index: 999;
+    background-color: var(--surface-color);
+    margin: 1em 0 0 1em;
+    border-radius: .5em;
+    padding: .5em;
 }
 
 #sidebar-menu {
-    background-color: var(--surface-light);
-    border-right: 1px solid var(--border-light);
-    padding: 1.5rem 0.75rem;
-    transition: all 0.3s ease;
+    background-color: var(--surface-color);
+    border-right: 1px solid var(--border-color);
+    padding: .5em;
+    margin: 1em 0 0 1em;
+    transition: all 0.2s ease;
+    border-radius: .5em;
+    height: calc(100vh - 100px);
+}
+
+.sidebar-title {
+    font-size: 150%;
+    border-left: 5px solid var(--primary-color);
+    padding-left: .5em;
+    margin-bottom: .5em;
 }
 
 .sidebar-item {
@@ -512,30 +478,29 @@ export default {
     align-items: center;
     justify-content: center;
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
     transition: all 0.2s ease;
 }
 
 .sidebar-item:hover {
-    background-color: var(--background-light);
-    color: var(--primary-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
 
 .sidebar-item-select {
-    background-color: var(--primary-light) !important;
+    background-color: var(--primary-color) !important;
     color: white !important;
 }
 
 .sidebar-item-select:hover {
-    background-color: var(--secondary-light);
+    background-color: var(--secondary-color);
     color: white !important;
 }
 
 .faq-content {
-    background-color: var(--background-light);
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
 }
 
 @media screen and (max-width: 768px) {
@@ -558,74 +523,20 @@ export default {
     top: 0;
     right: 0;
     border-radius: var(--bs-border-radius-sm);
-    background-color: var(--border-light);
+    background-color: var(--border-color);
     transition: background-color 0.2s ease;
 }
 
 .resizer:hover {
-    background-color: var(--primary-light);
+    background-color: var(--primary-color);
 }
 
-#chatDebug {
-    background-color: var(--debug-console-light);
-    border: 1px solid var(--border-light);
+#debug-console {
+    background-color: var(--debug-console-color);
+    border: 1px solid var(--border-color);
     overflow: hidden;
-    height: 100%;
     display: flex;
     flex-direction: column;
-}
-
-/* Accordion Styling */
-.accordion-item {
-    border-radius: var(--bs-border-radius);
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-light);
-    overflow: hidden;
-    background-color: var(--surface-light);
-}
-
-.accordion-button {
-    border-radius: var(--bs-border-radius);
-    padding: 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    background-color: var(--surface-light);
-    color: var(--text-primary-light);
-}
-
-.accordion-button i {
-    margin-right: 0.75rem;
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--primary-light);
-    color: white;
-    box-shadow: none;
-}
-
-.accordion-button:hover {
-    background-color: var(--secondary-light)
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: transparent;
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    width: 1rem;
-    height: 1rem;
-    transition: all 0.2s ease;
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--background-light);
-}
-
-.accordion-collapse {
-    background-color: var(--background-light);
 }
 
 .action-header-button {
@@ -648,141 +559,29 @@ export default {
 }
 
 .json-box {
-    background-color: var(--bs-gray-200);
-    color: var(--text-primary-light);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
     padding: 0.75rem;
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
 }
 
-.list-group {
-    border-radius: var(--bs-border-radius);
-    overflow: hidden;
-    background-color: transparent;
+.placeholder-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    color: var(--text-secondary-light);
 }
 
-.list-group-item {
-    padding: 0.75rem 1rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text-primary-light);
-    transition: all 0.2s ease;
-}
-
-.list-group-flush .list-group-item {
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-}
-
-/* dark mode styling */
-@media (prefers-color-scheme: dark) {
-    #sidebar-base {
-        background-color: var(--background-dark);
-    }
-
-    #sidebar-menu {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .sidebar-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .sidebar-item:hover {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .sidebar-item-select:hover {
-        background-color: var(--secondary-dark);
-    }
-
-    .resizer {
-        background-color: var(--border-dark);
-    }
-
-    .resizer:hover {
-        background-color: var(--primary-dark);
-    }
-
-    #chatDebug {
-        background-color: var(--debug-console-dark);
-        border-color: var(--border-dark);
-        border: 1px solid var(--border-dark);
-    }
-
-    .accordion-item {
-        background-color: var(--surface-dark);
-        border-color: var(--border-dark);
-    }
-
-    .accordion-button {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .accordion-button:not(.collapsed) {
-        background-color: var(--primary-dark);
-        color: var(--text-primary-dark);
-        box-shadow: none;
-    }
-
-    .accordion-button:focus {
-        box-shadow: none;
-        border-color: transparent;
-    }
-
-    .accordion-button::after {
-        filter: invert(1);
-    }
-
-    .accordion-body {
-        background-color: var(--background-dark);
-    }
-
-    .accordion-collapse {
-        background-color: var(--background-dark);
-    }
-
-    .json-box {
-        background-color: var(--surface-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control {
-        background-color: var(--input-dark);
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .form-control::placeholder {
-        color: var(--text-secondary-dark);
-    }
-
-    .form-control:focus {
-        background-color: var(--input-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .list-group-item {
-        border-color: var(--border-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .faq-content {
-        background-color: var(--background-dark);
-        color: var(--text-primary-dark);
-    }
-
+.placeholder-image {
+    width: 180px;
+    margin-bottom: 1rem;
+    opacity: 0.6;
 }
 
 /* mobile design */

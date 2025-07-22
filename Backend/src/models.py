@@ -2,6 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
+import sys
 from typing import List, Dict, Any, Optional, Self
 
 from pydantic import BaseModel, field_validator, model_validator, Field
@@ -31,29 +32,39 @@ class ColoredFormatter(logging.Formatter):
         agent_name = getattr(record, "agent_name", "Default")
         color = self.AGENT_COLORS.get(agent_name, self.AGENT_COLORS["Default"])
 
-        # Get formatted timestamp
+        # Get timestamp and formatted base string
         timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
+        base = f"{timestamp} [{record.levelname}] {agent_name} -"
 
-        # Indent multi-line messages
-        message = record.getMessage().replace("\n", f"\n{' ' * (len(timestamp) + len(agent_name) + len(record.levelname) + 7)}")
+        # Split messages into lines to make colorful logging work in docker
+        message_lines = record.getMessage().splitlines()
+        formatted_lines = [
+            f"{color}{base} {message_lines[0]}\x1b[0m",
+        ] + [
+            f"{color}{' ' * len(base)} {line}\x1b[0m"
+            for line in message_lines[1:]
+        ]
 
-        # Format log entry
-        log_entry = f"{timestamp} [{record.levelname}] {agent_name} - {message.strip()}"
-
-        return f"{color}{log_entry}\x1b[0m"
+        return "\n".join(formatted_lines)
 
 
 # Define a logger
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Reduce logging level for httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Create colorful logging handler for agent messages
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(ColoredFormatter())
+
+# Attach handler to root logger
 logger.addHandler(console_handler)
 
 
-class Url(BaseModel):
+class ConnectInfo(BaseModel):
     url: str
     user: str | None
     pwd: str | None
@@ -62,6 +73,7 @@ class Url(BaseModel):
 class Message(BaseModel):
     user_query: str
     api_key: str = ""
+    store_in_history: bool = True
 
 
 class AgentMessage(BaseModel):
@@ -107,6 +119,7 @@ class SessionData(BaseModel):
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
+    abort_sent: bool = False
 
 
 class ConfigArrayItem(BaseModel):
@@ -158,3 +171,12 @@ class ConfigParameter(BaseModel):
 class ConfigPayload(BaseModel):
     value: Any
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
+class OpacaException(Exception):
+
+    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+        super().__init__(user_message)
+        self.user_message = user_message
+        self.error_message = error_message
+        self.status_code = status_code

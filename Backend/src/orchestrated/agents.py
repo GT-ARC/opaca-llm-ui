@@ -26,7 +26,7 @@ from ..utils import enforce_strictness
 class BaseAgent:
     
     def __init__(self):
-        self.logger = logging.getLogger("src.models")
+        self.logger = logging.getLogger(__name__)
         self.chat_history = None
         self.response_metadata = {}
 
@@ -86,7 +86,7 @@ class AgentPlanner(BaseAgent):
             enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
-        self.logger = logging.getLogger("src.models")
+        self.logger = logging.getLogger(__name__)
 
     @staticmethod
     def system_prompt():
@@ -300,7 +300,7 @@ class WorkerAgent(BaseAgent):
         self.summary = summary
         self.tools = tools
         self.session_client = session_client
-        self.logger = logging.getLogger("src.models")
+        self.logger = logging.getLogger(__name__)
 
     def system_prompt(self):
         return get_current_time() + BACKGROUND_INFO + AGENT_SYSTEM_PROMPT.format(

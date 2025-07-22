@@ -14,12 +14,12 @@ services:
     environment:
       VITE_PLATFORM_BASE_URL:
       VITE_BACKEND_BASE_URL:
-      VITE_BACKEND_DEFAULT:
+      VITE_DEFAULT_BACKEND:
       VITE_BACKLINK:
-      VITE_SHOW_KEYBOARD:
-      VITE_SHOW_APIKEY:
       VITE_VOICE_SERVER_URL:
       VITE_AUTOCONNECT:
+      VITE_COLOR_SCHEME:
+      VITE_DEFAULT_LANGUAGE:
 
   # FastAPI-based backend for the OPACA LLM Integration
   opaca-llm-backend:
@@ -32,6 +32,7 @@ services:
       VLLM_BASE_URL:
       VLLM_API_KEY:
       FRONTEND_BASE_URL:
+      SMARTSPACE_BASE_URL:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:

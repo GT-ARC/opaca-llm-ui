@@ -1,4 +1,4 @@
-import {ref} from 'vue';
+import {reactive, ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
@@ -7,13 +7,23 @@ import conf from '../config.js';
 
 export const localizationData = {
     GB: {
+        pltConnected: "Connected",
+        pltDisconnected: "Disconnected",
+        connect: "Connect",
+        disconnect: "Disconnect",
         name: "English",
+        settings: "Settings",
+        method: "Method",
+        colorMode: "Color Scheme",
         language: 'Language',
         submit: 'Submit',
-        welcome: 'Welcome to the OPACA LLM! You can use me to interact with the assistants and services available on the OPACA platform, or ask me general questions. How can I help you today?',
-        connected: 'Connected! Available assistants and services:',
+        cancel: 'Cancel',
+        username: 'Username',
+        password: 'Password',
+        welcome: 'What can I do for you today? Try one of the sample queries or ask me anything you like!',
         unreachable: 'Please connect to a running OPACA platform.',
-        unauthorized: 'Please provide your login credentials to connect to the OPACA platform.',
+        unauthenticated: 'Authentication Required',
+        authError: 'Invalid username or password.',
         none: 'None',
         speechRecognition: 'Speak' ,
         readLastMessage: 'Read Last',
@@ -27,7 +37,7 @@ export const localizationData = {
         ttsRetry: 'Retry Connection',
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
-        tooltipSidebarConnection: "Connection",
+        tooltipSidebarInfo: "General Information",
         tooltipSidebarPrompts: "Prompt Library",
         tooltipSidebarAgents: "Agents and Actions",
         tooltipSidebarConfig: "Configuration",
@@ -37,7 +47,9 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
+        tooltipChatbubbleCopy: "Copy",
         tooltipButtonSend: "Submit",
+        tooltipButtonStop: "Cancel",
         tooltipButtonRecord: "Dictate",
         tooltipButtonReset: "Reset Chat",
         agentActionDescription: "Description",
@@ -46,17 +58,29 @@ export const localizationData = {
         buttonBackendConfigSave: "Save Config",
         buttonBackendConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
-        howAssist: "How can you assist me?",
+        audioServerSettings: "Audio",
+        rerollQuestions: "More ...",
+        regenerate: "Suggest More",
     },
 
     DE: {
+        pltConnected: "Verbunden",
+        pltDisconnected: "Nicht verbunden",
+        connect: "Verbinden",
+        disconnect: "Trennen",
         name: "Deutsch",
+        settings: "Einstellungen",
         language: 'Sprache',
+        method: "Methode",
+        colorMode: "Farbschema",
         submit: 'Senden',
-        welcome: 'Willkommen beim OPACA LLM! Sie können mich nutzen, um mit den Assistenten und Diensten auf der OPACA-Plattform zu interagieren, oder auch allgemeine Fragen stellen. Wie kann ich Ihnen heute helfen?',
-        connected: 'Verbunden! Verfügbare Assistenten und Dienste:',
+        cancel: 'Abbrechen',
+        username: 'Benutzer',
+        password: 'Passwort',
+        welcome: 'Was kann ich heute für Dich tun? Versuch einen der Beispiel-Queries, oder frag mich alles was Du willst!',
         unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
-        unauthorized: 'Bitte geben Sie Ihre Zugangsdaten an, um sich mit der OPACA Plattform zu verbinden.',
+        unauthenticated: 'Authentifizierung erforderlich',
+        authError: 'Benutzer oder Passwort falsch.',
         none: 'Keine',
         speechRecognition: 'Sprechen' ,
         readLastMessage: 'Vorlesen',
@@ -70,7 +94,7 @@ export const localizationData = {
         ttsRetry: 'Erneut verbinden',
         ttsServerInfo: '%1 auf %2',
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
-        tooltipSidebarConnection: "Verbindung",
+        tooltipSidebarInfo: "Generelle Informationen",
         tooltipSidebarPrompts: "Prompt-Bibliothek",
         tooltipSidebarAgents: "Agenten und Aktionen",
         tooltipSidebarConfig: "Konfiguration",
@@ -80,21 +104,25 @@ export const localizationData = {
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
+        tooltipChatbubbleCopy: "Kopieren",
         tooltipButtonSend: "Absenden",
+        tooltipButtonStop: "Abbrechen",
         tooltipButtonRecord: "Diktieren",
-        tooltipButtonReset: "Chat Zurücksetzen",
+        tooltipButtonReset: "Chat zurücksetzen",
         agentActionDescription: "Beschreibung",
         agentActionParameters: "Parameter",
         agentActionResult: "Ergebnis",
         buttonBackendConfigSave: "Speichern",
         buttonBackendConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
-        howAssist: "Womit kannst du mir helfen?",
+        audioServerSettings: "Audio",
+        rerollQuestions: "Mehr ...",
+        regenerate: "Weitere Beispiele",
     },
 };
 
 
-export const sidebarQuestions = {
+export const sidebarQuestions = reactive({
     GB: [
         {
             "id": "taskAutomation",
@@ -207,7 +235,7 @@ export const sidebarQuestions = {
             ]
         },
     ],
-}
+})
 
 
 // Placeholder messages for streaming in different languages
@@ -230,9 +258,9 @@ export const loadingMessages = {
         "Tool Generator": "Calling the required tools",
         "Tool Evaluator": "Validating tool calls",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Working on it",
+        "system": "Calling tool",
     },
     DE: {
         // System
@@ -252,9 +280,9 @@ export const loadingMessages = {
         "Tool Generator": "Aufrufen der benötigten Tools",
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Bearbeiten",
+        "system": "Tool-Aufruf",
     }
 }
 
@@ -272,11 +300,13 @@ export const voiceGenLocalesWebSpeech = {
 
 class Localizer {
 
-    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
-        this._selectedLanguage = ref(selectedLanguage);
-        this._fallbackLanguage = ref(fallbackLanguage);
+    constructor(selectedLanguage, fallbackLanguage) {
+        this._fallbackLanguage = ref(fallbackLanguage)
+        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
+            ? ref(selectedLanguage)
+            : ref(fallbackLanguage);
 
-        this.randomSampleQuestions = null;
+        this._randomSampleQuestions = ref(null);
     }
 
     set language(newLang) {
@@ -295,6 +325,14 @@ class Localizer {
 
     get fallbackLanguage() {
         return this._fallbackLanguage.value;
+    }
+
+    set randomSampleQuestions(value) {
+        this._randomSampleQuestions.value = value;
+    }
+
+    get randomSampleQuestions() {
+        return this._randomSampleQuestions.value;
     }
 
     _verifySettings() {
@@ -353,40 +391,30 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(categoryHeader) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        const howAssist = { question: this.get("howAssist"), icon: "❓" }
-
-        // if category could not be found, return random sample questions
-        if (!category) {
-            if (!this.randomSampleQuestions) {
-                this.randomSampleQuestions = this.getRandomSampleQuestions();
-                this.randomSampleQuestions.unshift(howAssist);
-            }
-            return this.randomSampleQuestions;
+    getSampleQuestions(textinput, categoryHeader) {
+        if (textinput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+        } else if (! this.randomSampleQuestions) {
+            this.reloadSampleQuestions(categoryHeader);
         }
-
-        // take first 3 questions and use their individual icons
-        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-            question: q.question,
-            icon: q.icon || category.icon // Fallback to category icon if question has no icon
-        }));
-        sampleQuestions.unshift(howAssist);
-        return sampleQuestions;
+        return this.randomSampleQuestions;
     }
 
-    getRandomSampleQuestions(numQuestions = 3) {
-        let questions = [];
+    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
+    }
 
-        // assemble questions from all categories into a single array
-        sidebarQuestions[this.language]
-            .forEach(group => questions = questions
-                .concat(group.questions.map(q => _mapCategoryIcons(q, group)))
-            );
+    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
+        // assemble questions from all or selected category into a single array
+        let questions = sidebarQuestions[this.language]
+            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
+            .filter(question => textinput === null || matches(question.question, textinput));
 
-        shuffleArray(questions);
+        // if no text input was given -> shuffle and get first k questions
+        if (!textinput) {
+            shuffleArray(questions);
+        }
         return questions.slice(0, numQuestions);
     }
 
@@ -399,6 +427,11 @@ class Localizer {
         return AudioManager.isVoiceServerConnected
             ? voiceGenLocalesWhisper[this.language]
             : voiceGenLocalesWebSpeech[this.language];
+    }
+
+    isAvailableLanguage(langName) {
+        if (!langName) return false;
+        return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
     }
 }
 
@@ -414,5 +447,13 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
+function matches(question, textinput) {
+    return textinput.toLowerCase().split(/\s+/)
+        .every(word => question.toLowerCase().includes(word));
+}
+
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
+const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;

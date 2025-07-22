@@ -43,7 +43,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_with_refs(), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True), config['use_agent_names'])
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -59,6 +59,7 @@ class ToolLLMBackend(AbstractMethod):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
             result = await self.call_llm(
+                session=session,
                 client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
@@ -78,6 +79,7 @@ class ToolLLMBackend(AbstractMethod):
             while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
+                    session=session,
                     client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Generator',
@@ -127,6 +129,7 @@ class ToolLLMBackend(AbstractMethod):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.call_llm(
+                    session=session,
                     client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Evaluator',

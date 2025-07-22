@@ -14,10 +14,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .utils import validate_config_input
-from .models import Url, Message, Response, SessionData, ConfigPayload, ChatMessage
+from .utils import validate_config_input, exception_to_result
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
 from .toolllm import *
 from .simple import SimpleBackend
+from .simple_tools import SimpleToolsBackend
 from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
 
@@ -30,6 +31,7 @@ app = FastAPI(
 # Configure CORS settings
 origins = [
     f"{os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')}",
+    f"{os.getenv('SMARTSPACE_BASE_URL', 'http://localhost:5174')}",
 ]
 
 app.add_middleware(
@@ -45,6 +47,7 @@ BACKENDS = {
     SimpleBackend.NAME: SimpleBackend(),
     SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
     ToolLLMBackend.NAME: ToolLLMBackend(),
+    SimpleToolsBackend.NAME: SimpleToolsBackend(),
 }
 
 
@@ -60,38 +63,63 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, url: Url) -> int:
+async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
+
+@app.post("/disconnect", description="Reset OPACA Runtime Connection.")
+async def disconnect(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    await session.opaca_client.disconnect()
+    return FastAPIResponse(status_code=204)
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions()
+    return await session.opaca_client.get_actions_simple()
 
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    await BACKENDS[backend].init_models(session)
-    result = await BACKENDS[backend].query(message.user_query, session)
-    session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                             ChatMessage(role="assistant", content=result.content)])
-    return result
+    session.abort_sent = False
+    try:
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query(message.user_query, session)
+        if message.store_in_history:
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        return result
+    except Exception as e:
+        return exception_to_result(message.user_query, e)
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
     session = await handle_session_id_for_websocket(websocket)
+    session.abort_sent = False
     try:
         data = await websocket.receive_json()
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-        session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                                 ChatMessage(role="assistant", content=result.content)])
+        if message.store_in_history:
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        await websocket.send_json(result.model_dump_json())
+    except Exception as e:
+        result = exception_to_result(message.user_query, e)
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
+
+@app.post("/stop", description="Abort generation for last query.")
+async def history(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    session.abort_sent = True
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
@@ -135,7 +163,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
 async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
     """
     Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the 
+    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")

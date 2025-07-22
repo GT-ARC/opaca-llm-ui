@@ -18,6 +18,7 @@
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
+                <!--
                 <div class="me-2 w-auto text-start">
                     <a href="https://go-ki.org/" target="blank">
                         <img src="./assets/goki-gray-alpha.png" class="logo" alt="Go-KI Logo"
@@ -30,207 +31,282 @@
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
+                -->
 
                 <!-- options -->
                 <div class="ms-auto me-0 w-auto"
                      v-bind:class="{ 'me-1': this.isMobile, 'me-3': !this.isMobile }">
                     <ul class="navbar-nav me-auto my-0 navbar-nav-scroll">
 
-                        <!-- languages -->
+                        <!-- Connection -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="languageSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-globe me-1"/>
-                                <span v-show="!isMobile">{{ Localizer.get('name') }}</span>
+                            <a id="connectionSelector"
+                               class="nav-link dropdown-toggle"
+                               href="#" role="button"
+                               data-bs-toggle="dropdown">
+                                <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
+                                <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="languageSelector">
-                                <li v-for="{ key, name } in Localizer.getAvailableLocales()"
-                                    @click="Localizer.language = key">
-                                    <a class="dropdown-item">
-                                        <p :style= "{'font-weight': Localizer.language === key ? 'bold' : 'normal'}">
-                                            {{ name }}
-                                        </p>
-                                    </a>
-                                </li>
-                            </ul>
+                            <div id="connection-menu"
+                                 class="dropdown-menu dropdown-menu-end p-4"
+                                 aria-labelledby="connectionSelector"
+                                 :style="{'min-width': !isMobile && '320px'}">
+                                <div class="mb-3">
+                                    <input :disabled="connected"
+                                           type="text"
+                                           v-model="opacaRuntimePlatform"
+                                           placeholder="Enter URL"
+                                           class="form-control form-control-sm me-2"/>
+                                </div>
+                                <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
+                                        :disabled="isConnecting"
+                                        @click="connected ? disconnectFromPlatform() : connectToPlatform()">
+                                    <span v-if="isConnecting">
+                                        <i class="fa fa-spin fa-spinner"></i>
+                                    </span>
+                                    <span v-else>
+                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
+                                    </span>
+                                </button>
+                            </div>
                         </li>
 
-                        <!-- backends -->
+                        <!-- Options -->
                         <li class="nav-item dropdown me-2">
-                            <a class="nav-link dropdown-toggle" href="#" id="backendSelector" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-server me-1"/>
-                                <span v-show="!isMobile">{{ getBackendName(backend) }}</span>
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="options-dropdown"
+                               role="button" data-bs-toggle="dropdown">
+                                <i class="fa fa-gear me-1"/>
+                                <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="backendSelector">
-                                <li v-for="(value, key) in conf.Backends"
-                                    @click="setBackend(key)">
-
-                                    <!-- top-level item/group -->
-                                    <a v-if="typeof value !== 'string'" class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value.name }}</p>
-                                        <p v-else>{{ value.name }}</p>
-                                    </a>
-                                    <a v-else class="dropdown-item">
-                                        <p v-if="this.isBackendSelected(key)" class="fw-bold">{{ value }}</p>
-                                        <p v-else>{{ value }}</p>
-                                    </a>
-
-                                    <!-- sub-level items -->
-                                    <ul v-if="typeof value !== 'string'"
-                                        class="dropdown-menu dropdown-submenu dropdown-submenu-left">
-                                        <li v-for="(subvalue, subkey) in value.subBackends"
-                                            @click="this.setBackend(key + '/' + subkey)">
-                                            <a class="dropdown-item">
-                                                <p v-if="this.isBackendSelected(key + '/' + subkey)" class="fw-bold">
-                                                    {{ subvalue }}
-                                                </p>
-                                                <p v-else>
-                                                    {{ subvalue }}
-                                                </p>
-                                            </a>
-                                        </li>
-                                    </ul>
-
-                                </li>
-                            </ul>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="options-menu"
+                                 aria-labelledby="options-dropdown">
+                                <div class="dropdown-item d-flex">
+                                    <OptionsSelect
+                                        @select="(key, value) => this.handleOptionSelect(key, value)"
+                                        ref="OptionsSelect"
+                                    />
+                                </div>
+                            </div>
                         </li>
 
-                        <!-- Voice Server Settings -->
-                        <li v-if="AudioManager.isBackendConfigured()" class="nav-item dropdown me-0">
-
-                            <a class="nav-link dropdown-toggle" href="#" id="voiceServerSettings" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa fa-microphone me-1"/>
-                                <span v-show="!isMobile">Voice Server</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="voiceServerSettings">
-                                <li>
-                                    <div class="dropdown-item">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fa" :class="AudioManager.isVoiceServerConnected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'" />
-                                            <span class="ms-2">{{ AudioManager.isVoiceServerConnected ? Localizer.get('ttsConnected') : Localizer.get('ttsDisconnected') }}</span>
-                                        </div>
-                                    </div>
-                                </li>
-                                <li v-if="AudioManager.isVoiceServerConnected">
-                                    <div class="dropdown-item dropdown-item-text">
-                                        <!-- add word-wrapping to accomodate smaller devices -->
-                                        <div class="text-muted"
-                                             style=" min-width: min(400px, 100vw - 6rem); max-width: calc(100vw - 6rem); word-wrap: break-word; white-space: normal;">
-                                            {{ Localizer.get('ttsServerInfo', AudioManager.deviceInfo.model, AudioManager.deviceInfo.device) }}
-                                        </div>
-                                    </div>
-                                </li>
-                                <li v-if="!AudioManager.isVoiceServerConnected">
-                                    <button class="dropdown-item" @click="AudioManager.initVoiceServerConnection()">
-                                        <i class="fa fa-refresh me-2"/>
-                                        {{ Localizer.get('ttsRetry') }}
-                                    </button>
-                                </li>
-                            </ul>
-                        </li>
                     </ul>
                 </div>
             </nav>
         </div>
     </header>
 
+    <!-- Auth Modal -->
+    <div v-if="showAuthInput" class="auth-overlay">
+        <div class="dropdown-menu show p-4">
+            <form @submit.prevent="connectToPlatform">
+                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
+                <input
+                        v-model="platformUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('username')"
+                        @input="loginError = false"
+                />
+                <input
+                        v-model="platformPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('password')"
+                        @input="loginError = false"
+                />
+                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    {{ Localizer.get('authError') }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
+                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
+                    <span v-else>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :backend="this.backend"
             :language="this.language"
+            :connected="this.connected"
+            @select-category="category => this.selectedCategory = category"
             ref="content"
         />
     </div>
 </template>
 
 <script>
-import conf from '../config.js';
+import conf, {Backends} from '../config.js';
 import MainContent from './components/content.vue';
-
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
+import {sendRequest} from "./utils.js";
+import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import OptionsSelect from "./components/OptionsSelect.vue";
+import {setColorTheme} from './ColorThemes.js';
 
 export default {
     name: 'App',
-    components: {MainContent},
+    components: {OptionsSelect, MainContent},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, AudioManager, isMobile, screenWidth };
+        return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             language: 'GB',
-            backend: conf.BackendDefault,
+            backend: conf.DefaultBackend,
             sidebar: 'connect',
+            isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
+                         window.matchMedia('(prefers-color-scheme: dark)').matches),
+            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
+            connected: false,
+            isConnecting: false,
+            showAuthInput: false,
+            platformUser: "",
+            platformPassword: "",
+            loginError: false,
+            selectedCategory: null,
         }
     },
     methods: {
-        setBackend(key) {
-            const keyPath = key.split('/');
-            const value = conf.Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
+        async connectToPlatform() {
+            try {
+                this.isConnecting = true;
+                this.loginError = false;
 
-            if (isGroupSelection) {
-                if (!this.isBackendSelected(key)) {
-                    // select first entry in group
-                    const first = Array.from(Object.keys(value.subBackends))[0];
-                    this.backend = key + '/' + first;
+                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
+                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                this.platformPassword = "";
+                const rpStatus = parseInt(res.data);
+
+                if (rpStatus === 200) {
+                    this.connected = true;
+                    this.showAuthInput = false;
+                } else if (rpStatus === 403) {
+                    this.connected = false;
+                    if (this.showAuthInput) {
+                        this.loginError = true;
+                    }
+                    this.showAuthInput = true;
                 } else {
-                    // do nothing, group already selected
-                    // click one of the items in the group directly to select it
+                    this.connected = false;
+                    alert(Localizer.get('unreachable'));
                 }
-            } else {
-                // set backend directly
-                this.backend = key;
+            } catch (e) {
+                console.error('Error while initiating prompt:', e);
+                this.connected = false;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.isConnecting = false;
+                this.toggleConnectionDropdown(!this.connected);
             }
-
-            console.log("BACKEND IS NOW:", this.backend);
         },
 
-        getBackendName(key) {
-            const path = key.split('/');
-            if (path.length === 1) {
-                return conf.Backends[key];
-            } else {
-                return conf.Backends[path[0]].subBackends[path[1]];
+        async disconnectFromPlatform() {
+            try {
+                await sendRequest("POST", `${conf.BackendAddress}/disconnect`);
+                this.connected = false;
+            } catch (e) {
+                console.error(e);
+                this.connected = true;
+                alert('Backend server is unreachable.');
+            } finally {
+                this.toggleConnectionDropdown(this.connected);
             }
+        },
+
+        setBackend(key) {
+            this.backend = key;
         },
 
         /**
-         * Checks if the given backend/group is currently selected.
+         * Force the connection dropdown opened or closed.
+         *
+         * @param show {boolean} If true, force-show the dropdown, hide otherwise.
          */
-        isBackendSelected(key) {
-            const selectedPath = this.backend.split('/');
-            const keyPath = key.split('/');
-            const value = conf.Backends[keyPath[0]];
-            const isGroupSelection = keyPath.length === 1 && typeof value !== 'string';
-            if (isGroupSelection && selectedPath.length > 1) {
-                // check if the currently selected backend is in the group
-                return selectedPath[0] === keyPath[0];
+        toggleConnectionDropdown(show) {
+            const toggle = document.getElementById('connectionSelector');
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+            if (show) {
+                dropdown.show();
+            } else {
+                dropdown.hide();
             }
-            return key === this.backend;
         },
+
+        setTheme(theme) {
+            setColorTheme(document, theme);
+        },
+
+        updateLanguage(newLanguage) {
+            Localizer.language = newLanguage;
+            Localizer.reloadSampleQuestions(this.selectedCategory);
+        },
+
+        handleOptionSelect(key, value) {
+            switch (key) {
+                case 'method': this.setBackend(value); break;
+                case 'language': this.updateLanguage(value); break;
+                case 'colorMode': this.setTheme(value); break;
+                default: break;
+            }
+        }
     },
 
     mounted() {
-        AudioManager.initVoiceServerConnection();
+        if (conf.ColorScheme !== "system") {
+            this.setTheme();
+        }
+
+        if (AudioManager.isBackendConfigured()) {
+            AudioManager.initVoiceServerConnection();
+        }
+
+        if (conf.AutoConnect) {
+            this.connectToPlatform();
+        } else {
+            this.toggleConnectionDropdown(true);
+        }
+
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            SidebarManager.selectView(conf.DefaultSidebarView);
+        }
+
+        // prevent options dropdown menu from closing once anything in it is clicked
+        document.getElementById('options-menu')?.addEventListener('click', e => {
+            e.stopPropagation();
+        });
+
     }
 }
 </script>
 
 <style scoped>
 .background {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
 }
 
 header {
-    background-color: var(--background-light);
+    background-color: var(--background-color);
     width: 100%;
     height: 50px;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-sm);
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     padding: 0 1rem;
     position: sticky;
     top: 0;
@@ -239,6 +315,7 @@ header {
 
 .logo {
     transition: transform 0.2s ease;
+    filter: invert(var(--icon-invert-color));
 }
 
 .logo:hover {
@@ -247,24 +324,40 @@ header {
 
 .dropdown-item {
     cursor: pointer;
-    padding: 0.75rem 1rem;
+    padding: 0 !important;
     transition: all 0.2s ease;
+    color: var(--text-primary-color);
+    margin: 0 !important;
+}
+
+.dropdown-item-text {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 6rem);
+    word-wrap: break-word;
+    white-space: normal;
 }
 
 .dropdown-item:hover {
-    background-color: var(--surface-light);
+    background-color: var(--background-color);
+    color: var(--primary-color);
 }
 
 .dropdown-menu {
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
-    padding: 0.5rem;
+    padding: 0;
     min-width: 200px;
+    background-color: var(--surface-color);
+    color: var(--text-primary-color)
 }
 
 .dropdown-menu li {
     position: relative;
+}
+
+.dropdown-menu h5 {
+    color: var(--text-primary-color);
 }
 
 .dropdown-menu .dropdown-submenu {
@@ -273,7 +366,7 @@ header {
     left: 100%;
     top: -7px;
     border-radius: var(--bs-border-radius);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
 }
 
@@ -286,16 +379,21 @@ header {
     display: block;
 }
 
+/* navbar stuff */
 .nav-link {
     padding: 0.5rem 1rem;
     border-radius: var(--bs-border-radius);
     transition: all 0.2s ease;
-    color: var(--text-primary-light);
+    color: var(--text-primary-color);
 }
 
 .nav-link:hover {
-    background-color: var(--surface-light);
-    color: var(--primary-light);
+    background-color: var(--surface-color) !important;
+    color: var(--primary-color) !important;
+}
+
+.nav-link.show {
+    color: var(--text-primary-color) !important;
 }
 
 .dropdown-toggle {
@@ -304,61 +402,30 @@ header {
     gap: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-    .background {
-        background-color: var(--background-dark);
-    }
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; /* Should appear above all other items */
+}
 
-    header {
-        background-color: var(--background-dark);
-        border-color: #2e2e2e;
-    }
+.is-invalid {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+    color: #842029;
+}
 
-    .logo {
-        filter: invert(1);
-    }
-
-    .nav-link {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:focus {
-        color: var(--text-primary-dark);
-    }
-
-    .nav-link:hover {
-        background-color: var(--surface-dark);
-        color: var(--primary-dark);
-    }
-
-    .dropdown-menu {
-        background-color: var(--surface-dark);
-        border-color: #2e2e2e;
-    }
-
-    .dropdown-item {
-        color: var(--text-primary-dark);
-    }
-
-    .dropdown-item:hover {
-        background-color: var(--background-dark);
-        color: var(--primary-dark);
-    }
-
-    .text-muted {
-        color: var(--text-secondary-dark) !important;
-    }
+.is-invalid::placeholder {
+    color: #842029
 }
 
 /* Voice Server Settings Styles */
-.text-success {
-    color: #10b981 !important;
-}
-
-.text-danger {
-    color: #ef4444 !important;
-}
-
 .dropdown-item .fa {
     width: 1.25rem;
     text-align: center;
@@ -372,13 +439,18 @@ header {
     padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-    .text-success {
-        color: #34d399 !important;
-    }
+#connection-menu {
+    min-width: min(400px, 100vw - 6rem);
+    max-width: calc(100vw - 4rem);
+}
 
-    .text-danger {
-        color: #f87171 !important;
+@media (max-width: 576px) {
+    #connection-menu {
+        position: fixed !important;
+        top: auto !important;
+        bottom: auto !important;
+        left: 2rem !important;
+        right: auto !important;
     }
 }
 </style>

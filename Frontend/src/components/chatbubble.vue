@@ -5,10 +5,7 @@
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
-            <div v-html="this.content"></div>
-        </div>
-        <div class="chaticon">
-            <img src="/src/assets/Icons/nutzer.png" alt="User">
+            <div v-html="this.getFormattedContent()"></div>
         </div>
     </div>
 
@@ -16,11 +13,6 @@
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start mb-4 w-100">
-
-        <!-- ai icon -->
-        <div v-if="!isMobile" class="chaticon">
-            <img src="/src/assets/Icons/ai.png" alt="AI">
-        </div>
 
         <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
              :class="{glow: this.isLoading}" :style="this.getGlowColors()">
@@ -45,21 +37,19 @@
             </div>
 
             <!-- footer: debug, generate audio, ... -->
-            <div class="d-flex justify-content-start small">
-                <div v-show="this.debugMessages.length > 0"
+            <div class="d-flex justify-content-start small mt-2">
+
+                <!-- copy to clipboard -->
+                <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
-                     @click="this.isDebugExpanded = !this.isDebugExpanded"
-                     :title="Localizer.get('tooltipChatbubbleDebug')">
-                    <i class="fa fa-bug" />
+                     @click="this.copyContentToClipboard()"
+                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                    <i v-if="this.copySuccess" class="fa fa-check" />
+                    <i v-else class="fa fa-copy" />
                 </div>
-                <div v-show="this.error !== null"
-                     class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
-                     @click="this.isErrorExpanded = !this.isErrorExpanded"
-                     :title="Localizer.get('tooltipChatbubbleError')">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
+
+                <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
@@ -74,11 +64,30 @@
                        data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
                 </div>
+
+                <!-- debug messages -->
+                <div v-show="this.debugMessages.length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isDebugExpanded = !this.isDebugExpanded"
+                     :title="Localizer.get('tooltipChatbubbleDebug')">
+                    <i class="fa fa-bug" />
+                </div>
+
+                <!-- error handling -->
+                <div v-show="this.error !== null"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isErrorExpanded = !this.isErrorExpanded"
+                     :title="Localizer.get('tooltipChatbubbleError')">
+                    <i class="fa fa-exclamation-circle text-danger me-1" />
+                </div>
+
             </div>
 
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
@@ -89,7 +98,7 @@
             </div>
 
             <div v-show="this.isErrorExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                     <div class="message-text w-auto text-danger"
                          v-html="this.error"
@@ -102,7 +111,9 @@
 </template>
 
 <script>
+import  {addDebugMessage} from "../utils.js"
 import {marked} from "marked";
+import DOMPurify from "dompurify";
 import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
@@ -134,6 +145,7 @@ export default {
             error: null,
             isErrorExpanded: false,
             ttsAudio: null,
+            copySuccess: false,
         }
     },
 
@@ -161,32 +173,8 @@ export default {
             }
         },
 
-        /**
-         * todo: better way to do this, that doesnt copy the copy the code from the sidebar debug messages?
-         * @param text {string}
-         * @param type {string}
-         */
         addDebugMessage(text, type) {
-            if (!text) return;
-            const message = {text: text, type: type};
-
-            // if there are no messages yet, just push the new one
-            if (this.debugMessages.length === 0) {
-                this.debugMessages.push(message);
-                return;
-            }
-
-            const lastMessage = this.debugMessages[this.debugMessages.length - 1];
-            if (lastMessage.type === type && type === 'Tool Generator') {
-                // If the message includes tools, the message needs to be replaced instead of appended
-                this.debugMessages[this.debugMessages.length - 1] = message;
-            } else if (lastMessage.type === type) {
-                // If the message has the same type as before but is not a tool, append the token to the text
-                lastMessage.text += text;
-            } else {
-                // new message type
-                this.debugMessages.push(message);
-            }
+            addDebugMessage(this.debugMessages, text, type);
         },
 
         /**
@@ -204,7 +192,24 @@ export default {
 
         getFormattedContent() {
             try {
-                return marked.parse(this.content);
+                const rawHtml = marked.parse(this.content);
+
+                // Load into a temporary DOM element
+                const div = document.createElement('div');
+                div.innerHTML = rawHtml;
+
+                // Make sure links open in new tab
+                div.querySelectorAll('a').forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+
+                // Sanitize html
+                const safeHtml = DOMPurify.sanitize(div.innerHTML, {
+                    // Keep attributes we set
+                    ADD_ATTR: ['target', 'rel'],
+                });
+                return safeHtml;
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
@@ -238,6 +243,16 @@ export default {
                 '--glow-color-1': baseColor ? `${baseColor}40` : '#00ff0040',
                 '--glow-color-2': baseColor ? `${baseColor}90` : '#00ff0090',
             };
+        },
+
+        copyContentToClipboard() {
+            if (this.content.length <= 0 || this.copySuccess) return;
+            navigator.clipboard.writeText(this.content)
+                .then(() => {
+                    this.copySuccess = true;
+                    setTimeout(() => this.copySuccess = false, 2000);
+                })
+                .catch(error => console.error('Failed to copy text: ', error));
         },
 
         /**
@@ -281,6 +296,12 @@ export default {
             return this.ttsAudio && this.ttsAudio.isLoading;
         },
 
+        isCopyAvailable() {
+            return this.content.length > 0 && (!this.isMobile
+                || window.location.protocol === 'https'
+                || window.location.hostname === 'localhost');
+        },
+
         clearStatusMessages() {
             this.statusMessages = new Map();
         },
@@ -309,11 +330,15 @@ export default {
     max-width: 100%;
     display: block;
 }
+
+.chatbubble p:last-of-type {
+    margin-bottom: 0 !important;
+}
 </style>
 
 <style scoped>
 .chatbubble {
-    background-color: var(--chat-ai-light);
+    color: var(--text-primary-color);
     border-radius: 1.25rem;
     text-align: left;
     position: relative;
@@ -323,6 +348,7 @@ export default {
 }
 
 .chatbubble-user {
+    background-color: var(--chat-user-color);
     margin-left: auto;
     margin-right: 1rem;
     padding: 0.75rem 1.25rem;
@@ -332,9 +358,10 @@ export default {
 }
 
 .chatbubble-ai {
+    background-color: var(--chat-ai-color);
     width: 100%;
     will-change: box-shadow;
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.2s ease;
 }
 
 .message-text {
@@ -345,36 +372,18 @@ export default {
     gap: 1rem;
 }
 
-.chaticon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    background: var(--chat-ai-light);
-    border-radius: 50%;
-    border: 1px solid var(--border-light);
-    padding: 0.5rem;
-    aspect-ratio: 1 / 1;
-}
-
-.chaticon img {
-    object-fit: contain;
-    width: 100%;
-    height: 100%;
-}
-
 .footer-item {
-    color: var(--text-secondary-light);
+    color: var(--text-secondary-color);
+    font-weight: bold;
 }
 
 .footer-item:hover {
-    color: var(--primary-light);
+    color: var(--primary-color);
 }
 
 .bubble-debug-text {
-    background-color: var(--debug-console-light);
-    color: var(--text-secondary-light);
+    background-color: var(--debug-console-color);
+    color: var(--text-secondary-color);
 }
 
 .glow {
@@ -393,36 +402,6 @@ export default {
     }
 }
 
-@media (prefers-color-scheme: dark) {
-    .footer-item {
-        color: var(--text-secondary-dark);
-    }
-
-    .footer-item:hover {
-        color: var(--text-primary-dark);
-    }
-
-    .bubble-debug-text {
-        background-color: var(--debug-console-dark);
-        color: var(--text-secondary-dark);
-    }
-
-    .chatbubble {
-        background: var(--chat-ai-dark);
-        color: var(--text-primary-dark);
-    }
-
-    .chaticon {
-        background: var(--chat-ai-dark);
-        border-color: var(--border-dark);
-    }
-
-    .chaticon img {
-        filter: invert(100%);
-    }
-
-}
-
 @media screen and (max-width: 768px) {
     .chatbubble-user {
         margin-right: 0;
@@ -430,11 +409,6 @@ export default {
 
     .chatbubble-ai {
         margin-left: 0;
-    }
-
-    .chaticon {
-        padding: 0.5rem;
-        margin: 0 0.25rem;
     }
 }
 

@@ -1,132 +1,268 @@
 :root {
-  /* Colors - Light Theme */
-  --background-light: #ffffff;
-  --surface-light: #f9fafb;
-  --primary-light: #10a37f;  /* ChatGPT green */
-  --secondary-light: #0e906f;
-  --accent-light: #11b48a;
-  --text-primary-light: #1a1a1a;
-  --text-secondary-light: #6b7280;
-  --border-light: #e5e7eb;
-  --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary color tint */
-  --chat-ai-light: #f7f7f8;  /* Light grey for AI messages */
-  --debug-console-light: var(--surface-light);
-  
-  /* Colors - Dark Theme */
-  --background-dark: #1e1e2e;
-  --surface-dark: #252535;
-  --primary-dark: #10a37f;
-  --secondary-dark: #0e906f;
-  --accent-dark: #11b48a;
-  --text-primary-dark: #ffffff;
-  --text-secondary-dark: #9ca3af;
-  --border-dark: #313145;
-  --chat-user-dark: #2a2a3c;
-  --chat-ai-dark: #313145;
-  --input-dark: #252535;
-  --debug-console-dark: #161628;
+    /* NOTE: If you add a color, make sure to add them to both the "light" and "dark" blocks, _and_ the "selected" block.
+             Also add the variable to the list of colors to be switched/updated in App#setTheme() */
+    /* Colors - Light Theme */
+    --background-light: #ffffff;
+    --surface-light: #f9fafb;
+    --primary-light: #10a37f;  /* ChatGPT green */
+    --secondary-light: #0e906f;
+    --accent-light: #11b48a;
+    --text-primary-light: #1a1a1a;
+    --text-secondary-light: #6b7280;
+    --text-success-light: #10b981;
+    --text-danger-light: #ef4444;
+    --button-primary-light: var(--text-primary-dark);
+    --border-light: #e5e7eb;
+    --chat-user-light: rgba(16, 163, 127, 0.08);  /* Very subtle primary light tint */
+    --chat-ai-light: var(--background-light); /* #f7f7f8; */  /* Light grey for AI messages */
+    --input-light: #ffffff;
+    --debug-console-light: var(--surface-light);
+    --icon-invert-light: 0;
 
-  /* additional colors */
-  --glow-color-1: var(--primary-light)40;
-  --glow-color-2: var(--primary-light)90;
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    /* Colors - Dark Theme */
+    --background-dark: #1e1e2e;
+    --surface-dark: #252535;
+    --primary-dark: #10a37f;
+    --secondary-dark: #0e906f;
+    --accent-dark: #11b48a;
+    --text-primary-dark: #ffffff;
+    --text-secondary-dark: #9ca3af;
+    --text-success-dark: #34d399;
+    --text-danger-dark: #f87171;
+    --button-primary-dark: var(--text-primary-dark);
+    --border-dark: #414160;
+    --chat-user-dark: #2a2a3c;
+    --chat-ai-dark: var(--background-dark); /* #313145; */
+    --input-dark: #252535;
+    --debug-console-dark: #161628;
+    --icon-invert-dark: 1;
+
+    /* Colors - Selected */
+    --background-color: var(--background-light);
+    --surface-color: var(--surface-light);
+    --primary-color: var(--primary-light);
+    --secondary-color: var(--secondary-light);
+    --accent-color: var(--accent-light);
+    --text-primary-color: var(--text-primary-light);
+    --text-secondary-color: var(--text-secondary-light);
+    --text-success-color: var(--text-success-light);
+    --text-danger-color: var(--text-danger-light);
+    --button-primary-color: var(--button-primary-light);
+    --border-color: var(--border-light);
+    --chat-user-color: var(--chat-user-light);
+    --chat-ai-color: var(--chat-ai-light);
+    --input-color: var(--input-light);
+    --debug-console-color: var(--debug-console-light);
+    --icon-invert-color: var(--icon-invert-light);
+
+    /* additional colors */
+    --glow-color-1: var(--primary-color)40;
+    --glow-color-2: var(--primary-color)90;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 /* Global Styles */
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  transition: all 0.2s ease;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: all 0.2s ease;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
 }
 
-/* Modern Button Styles */
+/* override bootstrap button styles */
 .btn {
-  border-radius: var(--bs-border-radius-pill);
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+    border-radius: var(--bs-border-radius-pill);
+    padding: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .btn-primary {
-  background-color: var(--primary-light) !important;
-  color: var(--text-primary-light);
-  border: none;
+    background-color: var(--primary-color) !important;
+    color: var(--button-primary-color);
+    border: none;
 }
 
 .btn-primary:hover {
-  background-color: var(--secondary-light);
-  transform: translateY(-1px);
+    background-color: var(--secondary-color);
+    transform: translateY(-1px);
 }
 
 .btn-outline-primary {
-  border: 1px solid var(--border-light);
-  background-color: transparent;
-  color: var(--text-primary-light);
+    border: 1px solid var(--text-primary-color);
+    background-color: transparent;
+    color: var(--text-primary-color);
 }
 
 .btn-outline-primary:hover {
-  border-color: var(--primary-light);
-  color: var(--primary-light);
-  background-color: transparent;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: transparent;
+}
+
+.btn-outline-primary:active {
+    background-color: var(--primary-color) !important;
 }
 
 .btn-outline-danger {
-  border: 1px solid var(--border-light);
-  background-color: transparent;
-  color: var(--text-primary-light);
+    border: 1px solid var(--text-primary-color);
+    background-color: transparent;
+    color: var(--text-primary-color);
 }
 
 .btn-outline-danger:hover {
-  border-color: #ef4444;
-  color: #ef4444;
-  background-color: transparent;
+    border-color: #ef4444;
+    color: #ef4444;
+    background-color: transparent;
 }
 
-/* Form Controls */
+/* override bootstrap input-group styling */
+.input-group {
+    width: 100%;
+    max-width: min(95%, 100ch);
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* override bootstrap form-control styling */
 .form-control {
-  border-radius: var(--bs-border-radius-pill);
-  padding: 0.875rem 1.25rem;
-  border: 1px solid var(--border-light);
-  transition: all 0.2s ease;
-  font-size: 1rem;
-  line-height: 1.5;
-  background-color: var(--background-light);
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: var(--bs-border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--input-color);
+    color: var(--text-primary-color);
 }
 
 .form-control:focus {
-  border-color: var(--primary-light);
-  box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
+    background-color: var(--surface-color);
+    color: var(--text-primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary-color);
+}
+
+.form-control:disabled {
+    background-color: var(--surface-color);
+    color: var(--text-secondary-color);
 }
 
 /* Input Groups */
 .input-group {
-  gap: 0.5rem;
+    gap: 0.5rem;
 }
 
 .input-group > .form-control {
-  border-radius: var(--bs-border-radius-pill) !important;
+    border-radius: var(--bs-border-radius-pill) !important;
 }
 
 .input-group > .btn {
-  border-radius: var(--bs-border-radius-pill) !important;
+    border-radius: var(--bs-border-radius-pill) !important;
 }
 
-/* Override any Bootstrap input group border radius styles */
-.input-group > :first-child,
-.input-group > :last-child,
-.input-group > .form-control:not(:last-child),
-.input-group > .form-control:not(:first-child) {
-  border-radius: 1.5rem !important;
+/* override bootstrap accordion styling */
+.accordion-item {
+    border-radius: var(--bs-border-radius);
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    background-color: var(--surface-color);
+}
+
+.accordion-button {
+    border-radius: var(--bs-border-radius);
+    padding: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
+}
+
+.accordion-button i {
+    margin-right: 0.75rem;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: var(--primary-color);
+    color: var(--text-primary-color);
+    box-shadow: none;
+}
+
+.accordion-button:hover {
+    background-color: var(--secondary-color)
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: transparent;
+}
+
+.accordion-button::after {
+    background-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    transition: all 0.2s ease;
+    filter: invert(var(--icon-invert-color));
+}
+
+.accordion-body {
+    padding: 0;
+    background-color: var(--background-color);
+}
+
+.accordion-collapse {
+    background-color: var(--background-color);
+}
+
+/* override bootstrap list-group styling */
+.list-group {
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+    background-color: transparent;
+}
+
+.list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary-color);
+    transition: all 0.2s ease;
+}
+
+.list-group-flush .list-group-item {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+/* custom text colors classes */
+.text-success {
+    color: var(--text-success-color) !important;
+}
+
+.text-danger {
+    color: var(--text-danger-color) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary-color) !important;
 }
 
 /* nicer scrollbar (esp for within the input field) */
@@ -137,45 +273,28 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-light) !important;
+    background-color: var(--text-secondary-color) !important;
     border-radius: 1rem;
     cursor: default !important;
 }
 
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
-  body {
-    background-color: var(--background-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .form-control {
-    background-color: var(--surface-dark);
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .btn-primary {
-    background-color: var(--primary-dark) !important;
-    color: var(--text-primary-dark);
-  }
-
-  .btn-outline-primary {
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  .btn-outline-primary:hover {
-    border-color: var(--primary-dark);
-    color: var(--primary-dark);
-  }
-
-  .btn-outline-danger {
-    border-color: var(--border-dark);
-    color: var(--text-primary-dark);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background-color: var(--text-secondary-dark) !important;
-  }
+    :root {
+        --background-color: var(--background-dark);
+        --surface-color: var(--surface-dark);
+        --primary-color: var(--primary-dark);
+        --secondary-color: var(--secondary-dark);
+        --accent-color: var(--accent-dark);
+        --text-primary-color: var(--text-primary-dark);
+        --text-secondary-color: var(--text-secondary-dark);
+        --text-success-color: var(--text-success-dark);
+        --text-danger-color: var(--text-danger-dark);
+        --border-color: var(--border-dark);
+        --chat-user-color: var(--chat-user-dark);
+        --chat-ai-color: var(--chat-ai-dark);
+        --input-color: var(--input-dark);
+        --debug-console-color: var(--debug-console-dark);
+        --icon-invert-color: var(--icon-invert-dark);
+    }
 }
