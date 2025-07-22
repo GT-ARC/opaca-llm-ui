@@ -131,12 +131,11 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
-                {"question": "Draft an out-of-office email explaining that Robert is my stand-in for the next 2 weeks.", "icon": "✉️"},
-                {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "👥"},
-                {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
-                {"question": "Find a meeting slot with the LLM team next week.", "icon": "📆"},
-                {"question": "Show my calendar for next week.", "icon": "📅"}
+                {"question": "Quick, fetch my next meeting and give me some background information on the topic!", "icon": "?"},
+                {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
+                {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧠"},
+                {"question": "Find a meeting slot for tomorrow that works for myself, Robert and Aray.", "icon": "👥"},
+                {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
             ]
         },
         {
@@ -144,11 +143,10 @@ export const sidebarQuestions = reactive({
             "header": "Data Analysis",
             "icon": "📊",
             "questions": [
-                {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
+                {"question": "Find the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
                 {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
                 {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize them in a meaningful way.", "icon": "🌤️"},
-
+                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
             ]
         },
         {
@@ -158,12 +156,12 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What documents do I need for a residence permit in Germany?", "icon": "📄"},
-                {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
                 {"question": "How can I get an appointment at the Berlin Bürgeramt?", "icon": "📅"},
                 {"question": "What are 'Large Language Models'?", "icon": "🧠"},
                 {"question": "What are the most exciting tech trends for 2025?", "icon": "🚀"},
                 {"question": "Explain Agile methodology.", "icon": "🔄"},
-                {"question": "How to build a simple website?", "icon": "💻"}
+                {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
+                {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
             ]
         },
         {
@@ -171,12 +169,24 @@ export const sidebarQuestions = reactive({
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
+                {"question": "Which room is quieter, the Co-Working Space or Focus Space?", "icon": "🔊"},
+                {"question": "What is the temperature and CO2 level in the conference room?", "icon": "🌡️"},
                 {"question": "Set the height of my smart desk to 120 cm.", "icon": "⬆️"},
-                {"question": "Open the shelf where I I can store a glass.", "icon": "🥃"},
                 {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
+                {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
                 {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
-
+                {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
+            ]
+        },
+        {
+            "id": "mobility",
+            "header": "Mobility",
+            "icon": "🚗",
+            "questions": [
+                {"question": "Where is my Tiguan Car?", "icon": "📍"},
+                {"question": "Find a route from Berlin Ernst-Reuter-Platz to Berlin Hauptbahnhof.", "icon": "🧭"},
+                {"question": "Find a parking spot near the current location of my Tiguan car.", "icon": "🅿️"},
+                {"question": "What's the current air quality near Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
             ]
         },
     ],
