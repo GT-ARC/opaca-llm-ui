@@ -82,13 +82,20 @@
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
-                            v-if="this.isSendAvailable()"
+                            v-if="this.isSendAvailable() && isFinished"
                             class="btn btn-primary input-area-button"
                             @click="submitText"
-                            :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
                             style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
+                    </button>
+                    <button type="button"
+                            v-if="!isFinished"
+                            class="btn btn-outline-danger input-area-button"
+                            @click="stopGeneration"
+                            :title="Localizer.get('tooltipButtonStop')"
+                            style="margin-left: -2px">
+                        <i class="fa fa-stop"/>
                     </button>
                     <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
@@ -186,6 +193,10 @@ export default {
                 this.resizeTextInput();
                 await this.askChatGpt(userInput);
             }
+        },
+
+        async stopGeneration() {
+            await sendRequest("POST", `${conf.BackendAddress}/stop`);
         },
 
         async askSampleQuestion(questionText) {
