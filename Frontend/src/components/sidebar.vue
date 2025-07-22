@@ -372,11 +372,6 @@ export default {
             }, 3000)
         },
 
-        scrollDownConfigView() {
-            const configContainer = document.getElementById('config-display');
-            configContainer.scrollTop = configContainer.scrollHeight;
-        },
-
         scrollDownDebugView() {
             const configContainer = document.getElementById('debug-display');
             configContainer.scrollTop = configContainer.scrollHeight;
@@ -416,7 +411,6 @@ export default {
         this.fetchBackendConfig();
     },
     updated() {
-        this.scrollDownConfigView()
         this.scrollDownDebugView()
     },
     watch: {
