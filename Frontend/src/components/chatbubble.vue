@@ -87,8 +87,9 @@
 
             <!-- footer: debug messages -->
             <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2"
-                     style="max-height: 200px">
+                <div class="bubble-debug-text overflow-y-auto p-2 rounded-2" :id="'debug-message-' + this.elementId"
+                     style="max-height: 200px"
+                     @scroll="handleDebugScroll">
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
                         :type="type"
@@ -146,6 +147,7 @@ export default {
             isErrorExpanded: false,
             ttsAudio: null,
             copySuccess: false,
+            autoScrollDebugMessage: true,
         }
     },
 
@@ -175,6 +177,18 @@ export default {
 
         addDebugMessage(text, type) {
             addDebugMessage(this.debugMessages, text, type);
+        },
+
+        scrollDownDebugMsg() {
+            if (!this.autoScrollDebugMessage) return;
+            const configContainer = document.getElementById(`debug-message-${this.elementId}`);
+            configContainer.scrollTop = configContainer.scrollHeight;
+        },
+
+        handleDebugScroll() {
+            // Disable autoscroll for debug message if user scrolled up
+            const debugMsg = document.getElementById(`debug-message-${this.elementId}`);
+            this.autoScrollDebugMessage = debugMsg.scrollTop + debugMsg.clientHeight >= debugMsg.scrollHeight - 10;
         },
 
         /**
@@ -314,6 +328,10 @@ export default {
             this.error = null;
             this.ttsAudio = null;
         }
+    },
+
+    updated() {
+        this.scrollDownDebugMsg();
     },
 
 }
