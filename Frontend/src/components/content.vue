@@ -194,7 +194,7 @@ export default {
         },
 
         async stopGeneration() {
-            sendRequest("POST", `${conf.BackendAddress}/stop`);
+            await sendRequest("POST", `${conf.BackendAddress}/stop`);
         },
 
         async askSampleQuestion(questionText) {
