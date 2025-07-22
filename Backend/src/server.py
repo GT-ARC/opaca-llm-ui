@@ -14,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .utils import validate_config_input
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage
+from .utils import validate_config_input, exception_to_result
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -81,30 +81,45 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
 @app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    await BACKENDS[backend].init_models(session)
-    result = await BACKENDS[backend].query(message.user_query, session)
-
-    if message.store_in_history:
-        session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                             ChatMessage(role="assistant", content=result.content)])
-    return result
+    session.abort_sent = False
+    try:
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query(message.user_query, session)
+        if message.store_in_history:
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        return result
+    except Exception as e:
+        return exception_to_result(message.user_query, e)
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
     session = await handle_session_id_for_websocket(websocket)
+    session.abort_sent = False
     try:
         data = await websocket.receive_json()
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-
         if message.store_in_history:
-            session.messages.extend([ChatMessage(role="user", content=message.user_query),
-                                 ChatMessage(role="assistant", content=result.content)])
+            session.messages.extend([
+                ChatMessage(role="user", content=message.user_query),
+                ChatMessage(role="assistant", content=result.content)
+            ])
+        await websocket.send_json(result.model_dump_json())
+    except Exception as e:
+        result = exception_to_result(message.user_query, e)
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
+
+@app.post("/stop", description="Abort generation for last query.")
+async def history(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    session.abort_sent = True
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:

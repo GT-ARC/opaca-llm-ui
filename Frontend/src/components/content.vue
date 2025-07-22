@@ -82,13 +82,20 @@
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
-                            v-if="this.isSendAvailable()"
+                            v-if="this.isSendAvailable() && isFinished"
                             class="btn btn-primary input-area-button"
                             @click="submitText"
-                            :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
                             style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
+                    </button>
+                    <button type="button"
+                            v-if="!isFinished"
+                            class="btn btn-outline-danger input-area-button"
+                            @click="stopGeneration"
+                            :title="Localizer.get('tooltipButtonStop')"
+                            style="margin-left: -2px">
+                        <i class="fa fa-stop"/>
                     </button>
                     <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
@@ -186,6 +193,10 @@ export default {
                 this.resizeTextInput();
                 await this.askChatGpt(userInput);
             }
+        },
+
+        async stopGeneration() {
+            await sendRequest("POST", `${conf.BackendAddress}/stop`);
         },
 
         async askSampleQuestion(questionText) {
@@ -590,7 +601,7 @@ export default {
 }
 
 .chatbubble-container {
-    max-width: min(95%, 160ch);
+    width: min(95%, 100ch);
 }
 
 #mainContent {
@@ -635,23 +646,6 @@ export default {
     border-color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
-}
-
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(60%, 160ch);
-    }
-}
-
-@media (min-width: 1800px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(50%, 160ch);
-    }
 }
 
 /* mobile layout style changes */
