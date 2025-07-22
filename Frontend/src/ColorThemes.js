@@ -70,6 +70,13 @@ export function getCurrentTheme() {
     return currentTheme.value;
 }
 
+export function isDarkTheme(theme = null) {
+    if (theme === null) return isDarkTheme(getCurrentTheme());
+    if (theme === 'light') return false;
+    if (theme === 'dark') return true;
+    return isDarkTheme(colorThemes[theme].basedOn);
+}
+
 function getColor(theme, color) {
     if (colorThemes[theme].basedOn === null) {
         return `var(--${color}-${theme})`

@@ -119,7 +119,7 @@ import DebugMessage from "./DebugMessage.vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-import {getCurrentTheme} from "../ColorThemes.js";
+import {isDarkTheme} from "../ColorThemes.js";
 
 export default {
     name: 'chatbubble',
@@ -234,7 +234,7 @@ export default {
 
         getGlowColors() {
             const agentName = this.debugMessages.at(-1)?.type;
-            const isDarkMode = (getCurrentTheme() === 'dark');
+            const isDarkMode = isDarkTheme();
             const baseColor = agentName
                 ? getDebugColor(agentName, isDarkMode)
                 : null;
