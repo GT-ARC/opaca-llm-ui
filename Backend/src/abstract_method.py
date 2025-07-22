@@ -11,7 +11,7 @@ from openai.lib import ResponseFormatT
 from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage
+from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException
 from .utils import transform_schema
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,10 @@ class AbstractMethod(ABC):
             async for chunk in completion:
 
                 if session.abort_sent:
-                    raise Exception("Generation aborted by user.")
+                    raise OpacaException(
+                        user_message="(The generation of the response has been stopped.)",
+                        error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
+                    )
 
                 # Usage is present in the last chunk so break once it is available
                 if usage := chunk.usage:

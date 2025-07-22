@@ -14,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .utils import validate_config_input
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage
+from .utils import validate_config_input, exception_to_result
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -92,7 +92,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
             ])
         return result
     except Exception as e:
-        raise HTTPException(400, f'Generation failed: {e}')
+        return exception_to_result(message.user_query, e)
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
@@ -111,7 +111,7 @@ async def query_stream(websocket: WebSocket, backend: str):
             ])
         await websocket.send_json(result.model_dump_json())
     except Exception as e:
-        result = Response(query=message.user_query, content='Generation failed', error=str(e))
+        result = exception_to_result(message.user_query, e)
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()

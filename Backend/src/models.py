@@ -171,3 +171,12 @@ class ConfigParameter(BaseModel):
 class ConfigPayload(BaseModel):
     value: Any
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
+class OpacaException(Exception):
+
+    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+        super().__init__(user_message)
+        self.user_message = user_message
+        self.error_message = error_message
+        self.status_code = status_code
