@@ -132,7 +132,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Create a tabular comparison of all application mails in my inbox.", "icon": "📜"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Quick, fetch my next meeting and give me some background information on the topic!", "icon": "?"},
+                {"question": "Fetch my next meeting and give me some background information on the topic!", "icon": "?"},
                 {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
                 {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧠"},
                 {"question": "Find a meeting slot for tomorrow that works for myself, Robert and Aray.", "icon": "👥"},
@@ -198,13 +198,13 @@ export const sidebarQuestions = reactive({
             "icon": "🤖",
             "questions": [
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
+                {"question": "Erstelle einen tabellarischen Vergleich aller Bewerbungen in meiner Inbox.", "icon": "📜"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
-                {"question": "Erstelle eine Abwesenheitsmail, in der Robert als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
-                {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "👥"},
-                {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
-                {"question": "Finde einen Meetingtermin mit dem LLM-Team nächste Woche.", "icon": "📆"},
-                {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
+                {"question": "Ruf mein nächstes Meeting ab und gib mir ein paar Hintergrundinformationen zu dem Thema!", "icon": "?"},
+                {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "📞"},
+                {"question": "Plane ein Brainstorming-Meeting mit Tobias.", "icon": "🧠"},
+                {"question": "Finde eine Zeit für ein Meeting Morgen, die für mich, Robert und Aray passt.", "icon": "👥"},
+                {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
             ]
         },
         {
@@ -212,10 +212,10 @@ export const sidebarQuestions = reactive({
             "header": "Data Analysis",
             "icon": "📊",
             "questions": [
-                {"question": "Visualisiere den aktuellen Strommix von Deutschland auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
                 {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
                 {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
+                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
             ]
         },
         {
@@ -225,12 +225,12 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
-                {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
                 {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?", "icon": "📅"},
                 {"question": "Was sind 'Large Language Models'?", "icon": "🧠"},
                 {"question": "Was sind die spannendsten Tech-Trends für 2025?", "icon": "🚀"},
                 {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
-                {"question": "Wie erstelle ich eine einfache Website?", "icon": "💻"}
+                {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
+                {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
             ]
         },
         {
@@ -238,11 +238,24 @@ export const sidebarQuestions = reactive({
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
+                {"question": "Welcher Raum ist ruhiger, der Co-Working-Space oder der Focus-Space?", "icon": "🔊"},
+                {"question": "Wie ist die Temperatur und das CO2-Level im Conference Space?", "icon": "🌡️"},
                 {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
-                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
+                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
+                {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
+            ]
+        },
+        {
+            "id": "mobility",
+            "header": "Mobilität",
+            "icon": "🚗",
+            "questions": [
+                {"question": "Wo ist mein Tiguan Auto?", "icon": "📍"},
+                {"question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.", "icon": "🧭"},
+                {"question": "Finde einen Parkplatz in der Nähe der aktuellen Position meines Tiguan Autos.", "icon": "🅿️"},
+                {"question": "Wie ist die aktuelle Luftqualität am Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
             ]
         },
     ],
