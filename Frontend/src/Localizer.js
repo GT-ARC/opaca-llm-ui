@@ -130,6 +130,7 @@ export const sidebarQuestions = reactive({
             "icon": "🤖",
             "questions": [
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
+                {"question": "Create a tabular comparison of all application mails in my inbox.", "icon": "📜"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
                 {"question": "Quick, fetch my next meeting and give me some background information on the topic!", "icon": "?"},
                 {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
@@ -143,7 +144,7 @@ export const sidebarQuestions = reactive({
             "header": "Data Analysis",
             "icon": "📊",
             "questions": [
-                {"question": "Find the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
+                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
                 {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
                 {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
                 {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
@@ -184,7 +185,7 @@ export const sidebarQuestions = reactive({
             "icon": "🚗",
             "questions": [
                 {"question": "Where is my Tiguan Car?", "icon": "📍"},
-                {"question": "Find a route from Berlin Ernst-Reuter-Platz to Berlin Hauptbahnhof.", "icon": "🧭"},
+                {"question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.", "icon": "🧭"},
                 {"question": "Find a parking spot near the current location of my Tiguan car.", "icon": "🅿️"},
                 {"question": "What's the current air quality near Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
             ]
