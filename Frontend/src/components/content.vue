@@ -15,7 +15,6 @@
             :backend="backend"
             :language="language"
             :connected="connected"
-            :is-dark-scheme="isDarkScheme"
              ref="sidebar"
              @select-question="question => this.handleSelectQuestion(question)"
              @select-category="category => this.handleSelectCategory(category)"
@@ -32,7 +31,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :ref="elementId"
@@ -166,22 +164,17 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
         }
     },
     methods: {
-        updateTheme() {
-            this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        },
-
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
-                this.resizeTextInput()
+                this.resizeTextInput();
             }
         },
 
@@ -503,9 +496,6 @@ export default {
     },
 
     mounted() {
-        this.updateTheme();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
         this.loadHistory();
         this.updateScrollbarThumb();
     },

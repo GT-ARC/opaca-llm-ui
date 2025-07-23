@@ -14,6 +14,7 @@
 
 <script>
 import {getDebugColor} from "../config/debug-colors.js";
+import {isDarkTheme} from "../ColorThemes.js";
 
 export default {
     name: 'DebugMessage',
@@ -24,10 +25,6 @@ export default {
         },
         type: {
             type: String,
-            required: true
-        },
-        isDarkScheme: {
-            type: Boolean,
             required: true
         },
         executionTime: {
@@ -42,7 +39,8 @@ export default {
 
     methods: {
         getDebugColoring (agentName) {
-            const color = getDebugColor(agentName, this.isDarkScheme);
+            const isDarkScheme = isDarkTheme();
+            const color = getDebugColor(agentName, isDarkScheme);
             return {color: color ?? null};
         }
     }
