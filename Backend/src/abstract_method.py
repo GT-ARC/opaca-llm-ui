@@ -183,9 +183,11 @@ class AbstractMethod(ABC):
             "tool_choice": tool_choice if tools else "none",
         }
 
+        # o1/o3 don't support temperature param
         if not model.startswith(('o1', 'o3')):
             kwargs["temperature"] = temperature
 
+        # There is currently no token streaming available when using built-in response format
         # Handle structured response parsing
         if response_format:
             if self._is_gpt(model):
@@ -219,11 +221,14 @@ class AbstractMethod(ABC):
             elif guided_choice:
                 kwargs["extra_body"] = {"guided_choice": guided_choice}
 
+            # Enable streaming and include token usage
             kwargs["stream"] = True
             kwargs["stream_options"] = {"include_usage": True}
 
             completion = await client.chat.completions.create(**kwargs)
             async for chunk in completion:
+
+                # Usage is present in the last chunk so break once it is available
                 if usage := chunk.usage:
                     agent_message.response_metadata = usage.to_dict()
                     break
@@ -258,6 +263,7 @@ class AbstractMethod(ABC):
         agent_message.execution_time = time.time() - exec_time
         agent_message.content = content
 
+        # Final stream to transmit execution time and response metadata
         if websocket:
             await websocket.send_json(agent_message.model_dump_json())
 
