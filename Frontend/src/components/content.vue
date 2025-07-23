@@ -15,7 +15,6 @@
             :backend="backend"
             :language="language"
             :connected="connected"
-            :is-dark-scheme="isDarkScheme"
              ref="sidebar"
              @select-question="question => this.handleSelectQuestion(question)"
              @select-category="category => this.handleSelectCategory(category)"
@@ -32,7 +31,6 @@
                     <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :ref="elementId"
@@ -105,13 +103,20 @@
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
-                            v-if="this.isSendAvailable()"
+                            v-if="this.isSendAvailable() && isFinished"
                             class="btn btn-primary input-area-button"
                             @click="submitText"
-                            :disabled="!isFinished"
                             :title="Localizer.get('tooltipButtonSend')"
                             style="margin-left: -2px">
                         <i class="fa fa-paper-plane"/>
+                    </button>
+                    <button type="button"
+                            v-if="!isFinished"
+                            class="btn btn-outline-danger input-area-button"
+                            @click="stopGeneration"
+                            :title="Localizer.get('tooltipButtonStop')"
+                            style="margin-left: -2px">
+                        <i class="fa fa-stop"/>
                     </button>
                     <button type="button"
                             v-if="AudioManager.isRecognitionSupported()"
@@ -189,7 +194,6 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            isDarkScheme: false,
             showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
@@ -201,15 +205,11 @@ export default {
         }
     },
     methods: {
-        updateTheme() {
-            this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        },
-
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 await this.submitText();
-                this.resizeTextInput()
+                this.resizeTextInput();
             }
         },
 
@@ -296,7 +296,9 @@ export default {
             //}, 500); // 500ms delay — adjust as needed
         },
 
-
+        async stopGeneration() {
+            await sendRequest("POST", `${conf.BackendAddress}/stop`);
+        },
 
         async askSampleQuestion(questionText) {
             // Do not send questions during autogeneration
@@ -658,9 +660,6 @@ export default {
     },
 
     mounted() {
-        this.updateTheme();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
         this.loadHistory();
         this.updateScrollbarThumb();
     },

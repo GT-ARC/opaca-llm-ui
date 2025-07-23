@@ -92,7 +92,6 @@
                     <DebugMessage v-for="{ text, type } in this.debugMessages"
                         :text="text"
                         :type="type"
-                        :is-dark-scheme="this.isDarkScheme"
                     />
                 </div>
             </div>
@@ -120,6 +119,7 @@ import DebugMessage from "./DebugMessage.vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
+import {isDarkTheme} from "../ColorThemes.js";
 
 export default {
     name: 'chatbubble',
@@ -127,7 +127,6 @@ export default {
     props: {
         elementId: String,
         isUser: Boolean,
-        isDarkScheme: Boolean,
         initialContent: String,
         initialLoading: Boolean,
     },
@@ -235,8 +234,9 @@ export default {
 
         getGlowColors() {
             const agentName = this.debugMessages.at(-1)?.type;
+            const isDarkMode = isDarkTheme();
             const baseColor = agentName
-                ? getDebugColor(agentName, this.isDarkScheme)
+                ? getDebugColor(agentName, isDarkMode)
                 : null;
             if (!baseColor) return null;
             return {

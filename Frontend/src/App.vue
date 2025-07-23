@@ -153,7 +153,7 @@ import {sendRequest} from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import OptionsSelect from "./components/OptionsSelect.vue";
-import {setColorTheme} from './ColorThemes.js';
+import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 
 export default {
     name: 'App',
@@ -167,8 +167,6 @@ export default {
             language: 'GB',
             backend: conf.DefaultBackend,
             sidebar: 'connect',
-            isDarkMode: (conf.ColorScheme === "light" ? false : conf.ColorScheme === "dark" ? true :
-                         window.matchMedia('(prefers-color-scheme: dark)').matches),
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
@@ -266,7 +264,7 @@ export default {
 
     mounted() {
         if (conf.ColorScheme !== "system") {
-            this.setTheme();
+            this.setTheme(conf.ColorScheme);
         }
 
         if (AudioManager.isBackendConfigured()) {

@@ -138,6 +138,7 @@ class SessionData(BaseModel):
     opaca_client: Any = None
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
+    abort_sent: bool = False
 
     # Each PDF is stored as a dictionary with:
     # - "content": a BytesIO object containing the file's binary data
@@ -195,3 +196,12 @@ class ConfigParameter(BaseModel):
 class ConfigPayload(BaseModel):
     value: Any
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
+class OpacaException(Exception):
+
+    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+        super().__init__(user_message)
+        self.user_message = user_message
+        self.error_message = error_message
+        self.status_code = status_code
