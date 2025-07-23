@@ -170,13 +170,14 @@
                 </div>
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                <div v-show="SidebarManager.isViewSelected('debug')" id="debug-display"
+                     class="container flex-grow-1 overflow-hidden overflow-y-auto"
+                     @scroll="handleDebugScroll">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarLogs') }}
                      </div>
                     <div id="debug-console"
-                         class="d-flex flex-column overflow-y-auto overflow-x-hidden text-start rounded-4">
+                         class="d-flex flex-column text-start rounded-4">
                         <DebugMessage v-for="debugMessage in debugMessages"
                                       :key="debugMessage.text"
                                       :text="debugMessage.text"
@@ -251,6 +252,7 @@ export default {
             fadeTimeout: null,
             faqContent: '',
             howAssistContent: '',
+            autoScrollEnabled: true,
         };
     },
     methods: {
@@ -373,13 +375,20 @@ export default {
             }, 3000)
         },
 
-        scrollDownConfigView() {
-            const configContainer = document.getElementById('config-display');
+        scrollDownDebugView() {
+            if (!this.autoScrollEnabled) return;
+            const configContainer = document.getElementById('debug-display');
             configContainer.scrollTop = configContainer.scrollHeight;
         },
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
+        },
+
+        handleDebugScroll() {
+            // Disable autoscroll for debug console if user scrolled up
+            const debugConsole = document.getElementById('debug-display');
+            this.autoScrollEnabled = debugConsole.scrollTop + debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
         },
 
         addDebugMessage(text, type) {
@@ -412,7 +421,7 @@ export default {
         this.fetchBackendConfig();
     },
     updated() {
-        this.scrollDownConfigView()
+        this.scrollDownDebugView()
     },
     watch: {
         backend() {
