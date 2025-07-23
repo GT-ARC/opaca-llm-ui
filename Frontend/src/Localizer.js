@@ -177,6 +177,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
                 {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
                 {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
+                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
             ]
         },
         {
@@ -245,6 +246,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
                 {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
+                {"question": "Bitte zeig mit den Weg zum Konferenzraum.", "icon": "🧭"},
             ]
         },
         {
