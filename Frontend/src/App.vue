@@ -1,4 +1,7 @@
 <template>
+
+    <CookieBanner />
+
     <header>
         <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
@@ -154,10 +157,11 @@ import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
+import CookieBanner from './components/CookieBanner.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent},
+    components: {OptionsSelect, MainContent, CookieBanner},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
