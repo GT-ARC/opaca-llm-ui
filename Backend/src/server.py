@@ -169,7 +169,7 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
     session_id = request.cookies.get("session_id")
     persistent = request.cookies.get("persistentSession")
     async with sessions_lock:
-        get_or_create_session(session_id)
+        session_id = get_or_create_session(session_id)
         
         # create Cookie (or update max-age is already exists)
         max_age = 60 * 60 * 24 * 30 if persistent else None  # 30 days or until browser is closed
@@ -190,7 +190,7 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         session_id = cookie_dict.get("session_id")
 
     async with sessions_lock:
-        get_or_create_session(session_id)
+        session_id = get_or_create_session(session_id)
         return sessions[session_id]
 
 def get_or_create_session(session_id):
@@ -198,6 +198,7 @@ def get_or_create_session(session_id):
         session_id = str(uuid.uuid4())
         sessions[session_id] = SessionData()
         sessions[session_id].opaca_client = OpacaClient()
+    return session_id
 
 
 # run as `python3 -m Backend.server`
