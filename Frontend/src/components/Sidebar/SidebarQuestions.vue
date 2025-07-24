@@ -48,9 +48,9 @@
 </template>
 
 <script>
-import Localizer, {sidebarQuestions} from "../Localizer.js";
-import conf from "../../config.js";
-import {sendRequest} from "../utils.js";
+import Localizer, {sidebarQuestions} from "../../Localizer.js";
+import conf from "../../../config.js";
+import {sendRequest} from "../../utils.js";
 import {nextTick} from "vue";
 
 export default {
