@@ -167,37 +167,38 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")
+    persistent = request.cookies.get("persistentSession")
     async with sessions_lock:
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-        response.set_cookie("session_id", session_id)
+        get_or_create_session(session_id)
+        
+        # create Cookie (or update max-age is already exists)
+        max_age = 60 * 60 * 24 * 30 if persistent else None  # 30 days or until browser is closed
+        response.set_cookie("session_id", session_id, max_age=max_age)
         return sessions[session_id]
 
 async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     """
     Gets the session id from a websocket and returns the corresponding session data. If no session id was found
     or the id is unknown, creates a new session id and adds an empty list of messages to that session id.
+    NOTE: The session-id is NOT stored in a Cookie, so the created session will be valid for one interaction only.
     """
-    # Extract cookies from headers
     headers = Headers(scope=websocket.scope)
     cookies = headers.get("cookie")
     session_id = None
-
     if cookies:
-        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
+        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
         session_id = cookie_dict.get("session_id")
 
     async with sessions_lock:
-        # If session ID is not found or invalid, create a new one
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-
-        # Return the session data for the session ID
+        get_or_create_session(session_id)
         return sessions[session_id]
+
+def get_or_create_session(session_id):
+    if not session_id or session_id not in sessions:
+        session_id = str(uuid.uuid4())
+        sessions[session_id] = SessionData()
+        sessions[session_id].opaca_client = OpacaClient()
+
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":
