@@ -23,7 +23,7 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+                :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
@@ -139,7 +139,7 @@
                         <i class="fa fa-upload"></i>
                         <input type="file"
                                 accept=".pdf"
-                                @change="handleFileUpload"
+                                @change="storeFileForUpload"
                                 style="display: none;" />
                     </label>
                 </div>
@@ -240,7 +240,7 @@ export default {
 
 
         // Triggered when a file is selected; checks that it's a PDF and calls upload
-        async handleFileUpload(event) {
+        async storeFileForUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -256,25 +256,6 @@ export default {
 
             // Optionally call uploadFile here if you want immediate upload
             // But not necessary if you wait for askChatGpt() to do the upload
-        },
-
-        // Sends the selected file to the backend using a POST request
-        // not needed if askChatGPT is used
-        async uploadFile(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            try {
-            const response = await fetch("/your-upload-endpoint", {
-                method: "POST",
-                body: formData,
-            });
-
-            const result = await response.json();
-            console.log("Upload successful:", result);
-            } catch (error) {
-            console.error("Upload failed:", error);
-            }
         },
 
         handleDrop(event) {
@@ -363,15 +344,6 @@ export default {
             }
         },
 
-
-        async fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        },
 
         async uploadSelectedFiles(files) {
             const backend = this.getBackend();

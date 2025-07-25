@@ -48,7 +48,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             "model_config_name": ConfigParameter(
                 type="string", 
                 required=True, 
-                default="4o",
+                default="4o-mini",
                 enum=["vllm", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-large", "vllm-superlarge", "vllm-mixed",
                       "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
                 description="Which model to use for the orchestrator and worker agents"),
@@ -152,7 +152,6 @@ class SelfOrchestratedBackend(AbstractMethod):
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
-                session=session,
                 client=session.llm_clients[model_config["worker_base_url"]],
                 model=model_config["worker_model"],
                 agent="WorkerAgent",
@@ -202,7 +201,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
-                    session=session,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="AgentPlanner",
@@ -301,7 +299,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
                     worker_message = await self.call_llm(
-                        session=session,
                         client=session.llm_clients[model_config["worker_base_url"]],
                         model=model_config["worker_model"],
                         agent="WorkerAgent",
@@ -332,7 +329,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (evaluation := agent_evaluator.evaluate_results(result)):
                     evaluation_message = await self.call_llm(
-                        session=session,
                         client=session.llm_clients[model_config["evaluator_base_url"]],
                         model=model_config["evaluator_model"],
                         agent="AgentEvaluator",
@@ -384,7 +380,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Execute retry
                 worker_message = await self.call_llm(
-                    session=session,
                     client=session.llm_clients[model_config["worker_base_url"]],
                     model=model_config["worker_model"],
                     agent="WorkerAgent",
@@ -473,7 +468,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
-                    session=session,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="Orchestrator",
@@ -559,7 +553,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Evaluate overall progress
                 if not (evaluation := overall_evaluator.evaluate_results(all_results)):
                     evaluation_message = await self.call_llm(
-                        session=session,
                         client=session.llm_clients[model_config["evaluator_base_url"]],
                         model=model_config["evaluator_model"],
                         agent="OverallEvaluator",
@@ -580,7 +573,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 
                     advisor_message = await self.call_llm(
-                        session=session,
                         client=session.llm_clients[model_config["orchestrator_base_url"]],
                         model=model_config["orchestrator_model"],
                         agent="IterationAdvisor",
@@ -633,7 +625,6 @@ Please address these specific improvements:
 
             # Stream the final response
             final_output = await self.call_llm(
-                session=session,
                 client=session.llm_clients[model_config["generator_base_url"]],
                 model=model_config["generator_model"],
                 agent="output_generator",

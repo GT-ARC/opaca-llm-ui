@@ -14,9 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 from typing import List, Optional, Union
-import json
 import logging
-import traceback
 
 from .utils import validate_config_input, exception_to_result
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
@@ -61,9 +59,6 @@ sessions_lock = asyncio.Lock()
 sessions = {}
 
 logger = logging.getLogger("models")
-logger.info("Server running")
-print("Server running")
-
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
@@ -103,12 +98,9 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
-    print("query_stream triggered")
-    logger.info("query_stream getriggert")
 
     await websocket.accept()
     session = await handle_session_id(websocket)
-    #logger.info(f"[WS ENDPOINT] Session established: {session}")
     session.abort_sent = False
     
     try:
@@ -131,7 +123,7 @@ async def query_stream(websocket: WebSocket, backend: str):
 async def history(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
-    
+
 @app.post("/{backend}/upload")
 async def upload_files(
     backend: str,
@@ -139,9 +131,7 @@ async def upload_files(
     response: FastAPIResponse,
     files: Optional[List[UploadFile]] = File(None), 
 ):
-    #session = await handle_session_id(request, response)
-    session = await handle_session_id(request, set_cookie=True, response=response)
-    logger.info(f"[UPLOAD ENDPOINT] Session established: {session}")
+    session = await handle_session_id(request, response)
     
     uploaded = []
     for file in files:
@@ -200,7 +190,7 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
-async def handle_session_id(source: Union[Request, WebSocket], set_cookie: bool = False, response: FastAPIResponse = None) -> SessionData:
+async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
     """
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
@@ -224,57 +214,11 @@ async def handle_session_id(source: Union[Request, WebSocket], set_cookie: bool 
             created_new = True
 
         # If it's an HTTP request and you want to set a cookie
-        if set_cookie and response is not None:
+        if response is not None:
             response.set_cookie("session_id", session_id)
 
-        logger.info(f"[SESSION] {'Created' if created_new else 'Reused'} session ID: {session_id}")
-
         return sessions[session_id]
 
-async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
-    """
-    Gets the session id from a websocket and returns the corresponding session data. If no session id was found
-    or the id is unknown, creates a new session id and adds an empty list of messages to that session id.
-    """
-    # Extract cookies from headers
-    headers = Headers(scope=websocket.scope)
-    cookies = headers.get("cookie")
-    session_id = None
-
-    if cookies:
-        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
-        session_id = cookie_dict.get("session_id")
-
-    async with sessions_lock:
-        # If session ID is not found or invalid, create a new one
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-
-        # Return the session data for the session ID
-        return sessions[session_id]
-    
-async def handle_session_id_for_request(request: Request) -> SessionData:
-    """
-    Gets the session id from an HTTP request and returns the corresponding session data.
-    If no session id was found or the id is unknown, creates a new session id and adds
-    an empty list of messages to that session id.
-    """
-    headers = Headers(scope=request.scope)
-    cookies = headers.get("cookie")
-    session_id = None
-
-    if cookies:
-        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
-        session_id = cookie_dict.get("session_id")
-
-    async with sessions_lock:
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-
-        return sessions[session_id]
 
 # run as `python3 -m Backend.server`
 if __name__ == "__main__":
