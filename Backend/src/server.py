@@ -195,6 +195,8 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
     """
+
+    # Extract cookies from headers
     headers = Headers(scope=source.scope)
     cookies = headers.get("cookie")
     session_id = None
@@ -206,6 +208,7 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
 
     # Session lock to avoid race conditions
     async with sessions_lock:
+        # If session ID is not found or invalid, create a new one
         created_new = False
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
@@ -217,6 +220,7 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
         if response is not None:
             response.set_cookie("session_id", session_id)
 
+        # Return the session data for the session ID
         return sessions[session_id]
 
 

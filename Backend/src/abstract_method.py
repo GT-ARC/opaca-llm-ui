@@ -97,6 +97,8 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
+
+        # Initialize variables
         exec_time = time.time()
         tool_call_buffers = {}
         content = ''
