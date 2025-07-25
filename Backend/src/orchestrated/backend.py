@@ -152,6 +152,7 @@ class SelfOrchestratedBackend(AbstractMethod):
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
+                session=session,
                 client=session.llm_clients[model_config["worker_base_url"]],
                 model=model_config["worker_model"],
                 agent="WorkerAgent",
@@ -159,7 +160,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 messages=worker_agent.messages(subtask),
                 temperature=config["temperature"],
                 tools=worker_agent.tools,
-                session=session,
             )
 
             # Update the tool ids
@@ -201,6 +201,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
+                    session=session,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="AgentPlanner",
@@ -210,7 +211,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                     tools=planner.tools,
                     tool_choice="none",
                     response_format=planner.schema,
-                    session=session,
                 )
                 agent_messages.append(planner_message)
                 plan = planner_message.formatted_output
@@ -299,6 +299,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
                     worker_message = await self.call_llm(
+                        session=session,
                         client=session.llm_clients[model_config["worker_base_url"]],
                         model=model_config["worker_model"],
                         agent="WorkerAgent",
@@ -306,7 +307,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                         messages=agent.messages(task),
                         temperature=config["temperature"],
                         tools=agent.tools,
-                        session=session,    
                     )
 
                     # Update the tool ids
@@ -329,6 +329,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (evaluation := agent_evaluator.evaluate_results(result)):
                     evaluation_message = await self.call_llm(
+                        session=session,
                         client=session.llm_clients[model_config["evaluator_base_url"]],
                         model=model_config["evaluator_model"],
                         agent="AgentEvaluator",
@@ -336,7 +337,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config["temperature"],
                         guided_choice=agent_evaluator.guided_choice(),
-                        session=session,
                     )
                     agent_messages.append(evaluation_message)
                     evaluation = evaluation_message.content
@@ -380,6 +380,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Execute retry
                 worker_message = await self.call_llm(
+                    session=session,
                     client=session.llm_clients[model_config["worker_base_url"]],
                     model=model_config["worker_model"],
                     agent="WorkerAgent",
@@ -387,7 +388,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     messages=agent.messages(retry_task),
                     temperature=config["temperature"],
                     tools=agent.tools,
-                    session=session,
                 )
 
                 # Update the tool ids
@@ -468,6 +468,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
+                    session=session,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="Orchestrator",
@@ -477,7 +478,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
-                    session=session,
                 )
 
                 # Extract pre-formatted Orchestrator Plan
@@ -553,6 +553,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Evaluate overall progress
                 if not (evaluation := overall_evaluator.evaluate_results(all_results)):
                     evaluation_message = await self.call_llm(
+                        session=session,
                         client=session.llm_clients[model_config["evaluator_base_url"]],
                         model=model_config["evaluator_model"],
                         agent="OverallEvaluator",
@@ -560,7 +561,6 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config["temperature"],
                         guided_choice=overall_evaluator.guided_choice,
-                        session=session,
                     )
                     evaluation = evaluation_message.content
                     response.agent_messages.append(evaluation_message)
@@ -573,6 +573,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 
                     advisor_message = await self.call_llm(
+                        session=session,
                         client=session.llm_clients[model_config["orchestrator_base_url"]],
                         model=model_config["orchestrator_model"],
                         agent="IterationAdvisor",
@@ -580,7 +581,6 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=iteration_advisor.messages(message, all_results),
                         temperature=config["temperature"],
                         response_format=iteration_advisor.schema,
-                        session=session,
                     )
                     advice = advisor_message.formatted_output
                     response.agent_messages.append(advisor_message)
@@ -625,6 +625,7 @@ Please address these specific improvements:
 
             # Stream the final response
             final_output = await self.call_llm(
+                session=session,
                 client=session.llm_clients[model_config["generator_base_url"]],
                 model=model_config["generator_model"],
                 agent="output_generator",
@@ -632,7 +633,6 @@ Please address these specific improvements:
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config["temperature"],
                 websocket=websocket,
-                session=session,
             )
             # 'output_generator' is a special agent type to let the UI know to stream the results directly in chat
             # Agent is changed afterwards properly
