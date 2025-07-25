@@ -144,9 +144,16 @@ class AbstractMethod(ABC):
         # Modify the last user message to include file parts
         last_message = messages[-1]
 
-        #logger.info(type(last_message))
-        user_text = getattr(last_message, "content", "")
-        last_message.content = file_message_parts + [{"type": "text", "text": user_text}]
+        logger.info(type(last_message))
+
+        # Add user question
+
+        if isinstance(last_message, dict):        
+            user_text = last_message["content"]
+            last_message["content"] = file_message_parts + [{"type": "text", "text": user_text}]
+        else:
+            user_text = getattr(last_message, "content", "")
+            last_message.content = file_message_parts + [{"type": "text", "text": user_text}]
         
         # Set settings for model invocation
         kwargs = {
@@ -266,12 +273,13 @@ class AbstractMethod(ABC):
                 continue
 
         agent_message.execution_time = time.time() - exec_time
-        agent_message.content = content
 
         # Final stream to transmit execution time and response metadata
         if websocket:
             agent_message.content = ''
             await websocket.send_json(agent_message.model_dump_json())
+
+        agent_message.content = content
 
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})

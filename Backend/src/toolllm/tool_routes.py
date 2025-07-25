@@ -58,17 +58,12 @@ class ToolLLMBackend(AbstractMethod):
 
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < self.max_iter:
-
-            session.messages.append(ChatMessage(role="user", content= message))
-            for response in tool_responses:
-                session.messages.append(response)
-
             result = await self.call_llm(
                 client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
-                messages=session.messages,
+                messages=session.messages + [{"role": "user", "content": message}] + tool_responses,
                 temperature=config['temperature'],
                 tools=tools,
                 websocket=websocket,
@@ -88,7 +83,7 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
-                    messages=session.messages + ChatMessage(role="user", content= message) + tool_responses + [{"role": "user", "content": full_err}],
+                    messages=session.messages + [{"role": "user", "content": message}] + tool_responses + [{"role": "user", "content": full_err}],
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
