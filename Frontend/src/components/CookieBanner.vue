@@ -52,8 +52,7 @@ export default {
     margin: 1em;
     border-radius: 1em;
     text-align: center;
-    color: white;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
+    background-color: rgba(196, 196, 196, 0.5); /* Transparent overlay */
     z-index: 9999; /* Should appear above all other items */
 }
 </style>
