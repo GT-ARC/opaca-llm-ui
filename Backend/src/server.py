@@ -17,7 +17,7 @@ from typing import List, Optional, Union
 import logging
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -58,7 +58,7 @@ BACKENDS = {
 sessions_lock = asyncio.Lock()
 sessions = {}
 
-logger = logging.getLogger("models")
+logging.getLogger(__name__)
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
@@ -99,6 +99,8 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
 
+    logging.info("query_stream triggered")
+
     await websocket.accept()
     session = await handle_session_id(websocket)
     session.abort_sent = False
@@ -119,6 +121,7 @@ async def query_stream(websocket: WebSocket, backend: str):
         await websocket.send_json(result.model_dump_json())
     finally:
         await websocket.close()
+        
 @app.post("/stop", description="Abort generation for last query.")
 async def history(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
@@ -126,23 +129,27 @@ async def history(request: Request, response: FastAPIResponse) -> None:
 
 @app.post("/{backend}/upload")
 async def upload_files(
-    backend: str,
     request: Request,
     response: FastAPIResponse,
-    files: Optional[List[UploadFile]] = File(None), 
+    files: List[UploadFile], 
 ):
     session = await handle_session_id(request, response)
-    
+    logging.info("upload triggered")
     uploaded = []
     for file in files:
-        try:
+        try:            
             contents = await file.read()
-            session.uploaded_files[file.filename] = {
-                "content_type": file.content_type,
-                "content": io.BytesIO(contents),
-                "sent": False
-            }
+            
+            file_model = OpacaFile(
+                content_type=file.content_type,
+                sent=False
+            )
+            file_model._content = io.BytesIO(contents)
+
+            # Store in session.uploaded_files
+            session.uploaded_files.files[file.filename] = file_model
             uploaded.append(file.filename)
+
         except Exception as e:
             return {"error": f"Failed to process file {file.filename}: {str(e)}"}
 
@@ -209,12 +216,10 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
     # Session lock to avoid race conditions
     async with sessions_lock:
         # If session ID is not found or invalid, create a new one
-        created_new = False
         if not session_id or session_id not in sessions:
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
             sessions[session_id].opaca_client = OpacaClient()
-            created_new = True
 
         # If it's an HTTP request and you want to set a cookie
         if response is not None:

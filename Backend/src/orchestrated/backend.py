@@ -159,7 +159,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
                 temperature=config["temperature"],
-                tools=worker_agent.tools,
+                tools=worker_agent.tools
             )
 
             # Update the tool ids
@@ -387,7 +387,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(retry_task),
                     temperature=config["temperature"],
-                    tools=agent.tools,
+                    tools=agent.tools
                 )
 
                 # Update the tool ids
@@ -580,7 +580,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
                         temperature=config["temperature"],
-                        response_format=iteration_advisor.schema,
+                        response_format=iteration_advisor.schema
                     )
                     advice = advisor_message.formatted_output
                     response.agent_messages.append(advisor_message)

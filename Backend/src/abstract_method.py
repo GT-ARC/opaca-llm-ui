@@ -64,13 +64,13 @@ class AbstractMethod(ABC):
 
     async def call_llm(
             self,
+            session: SessionData,
             client: AsyncOpenAI,
             model: str,
             agent: str,
             system_prompt: str,
             messages: List[ChatMessage],
-            session: SessionData = None,
-            temperature: Optional[float] = 0.0,
+            temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[ResponseFormatT]] = None,
@@ -113,12 +113,12 @@ class AbstractMethod(ABC):
         file_ids = []
 
         # Upload all unsent files
-        for filename, filedata in session.uploaded_files.items():
-            file_id = filedata.get("file_id")
+        for filename, filedata in session.uploaded_files.files.items():
+            file_id = filedata.file_id
 
             if not file_id:
                 # Upload the file
-                file_bytes = filedata["content"].getvalue()
+                file_bytes = filedata._content.getvalue()   # Access private content
                 file_obj = io.BytesIO(file_bytes)
                 file_obj.name = filename  # Required by OpenAI SDK
 
@@ -129,9 +129,10 @@ class AbstractMethod(ABC):
 
                 logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
 
-                file_id = uploaded.id
-                filedata["file_id"] = file_id
-                filedata["sent"] = True
+                file_id = uploaded.id              
+                filedata.file_id = file_id      # Set attribute
+                filedata.sent = True            # Set attribute
+
             else:
                 logger.info(f"Reusing existing file_id: {file_id} for {filename}")
 

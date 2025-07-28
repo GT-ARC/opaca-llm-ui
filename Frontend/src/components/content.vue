@@ -63,28 +63,28 @@
 
                 <!-- Upload Preview -->
                 <div
-                v-if="selectedFiles.length"
-                class="upload-status-preview text-muted small mb-2 text-center"
-                >
-                <!-- Show spinner while uploading -->
-                <i v-if="uploadStatus.isUploading" class="fa fa-spinner fa-spin me-1"></i>
+                    v-if="selectedFiles.length"
+                    class="upload-status-preview text-muted small mb-2 text-center"
+                    >
+                    <!-- Show spinner while uploading -->
+                    <i v-if="uploadStatus.isUploading" class="fa fa-spinner fa-spin me-1"></i>
 
-                <!-- Show PDF icon after upload -->
-                <i v-else class="fa fa-file-pdf text-secondary me-1"></i>
+                    <!-- Show PDF icon after upload -->
+                    <i v-else class="fa fa-file-pdf text-secondary me-1"></i>
 
-                <!-- Show file name -->
-                {{ selectedFiles[0].name }}
+                    <!-- Show file name -->
+                    {{ selectedFiles[0].name }}
 
-                <!-- Upload status text -->
-                <span v-if="uploadStatus.isUploading">uploading…</span>
-                <span v-else>uploaded — will be sent with your message</span>
+                    <!-- Upload status text -->
+                    <span v-if="uploadStatus.isUploading">uploading…</span>
+                    <span v-else>uploaded — will be sent with your message</span>
                 </div>
 
-                <!-- Input Area (now handles drag-and-drop) -->
+                <!-- Input Area with drag and drop -->
                 <div class="input-container"
                     @dragover.prevent
                     @dragenter.prevent
-                    @drop.prevent="handleDrop">
+                    @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
 
                     <div class="input-group">
                         <div class="scroll-wrapper">
@@ -139,7 +139,7 @@
                         <i class="fa fa-upload"></i>
                         <input type="file"
                                 accept=".pdf"
-                                @change="storeFileForUpload"
+                                @change="e => uploadFiles(e.target.files)"
                                 style="display: none;" />
                     </label>
                 </div>
@@ -228,7 +228,6 @@ export default {
                 await nextTick();
                 this.resizeTextInput();
 
-                // Call your existing handler for sending the message
                 await this.askChatGpt(userInput);
 
                 // Clear file and status after sending
@@ -236,45 +235,6 @@ export default {
                 this.uploadStatus.uploadedFileName = '';
                 this.uploadStatus.isUploading = false;
             }
-        },
-
-
-        // Triggered when a file is selected; checks that it's a PDF and calls upload
-        async storeFileForUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (file.type !== "application/pdf") {
-                alert("Only PDF files are allowed.");
-                return;
-            }
-
-            console.log("PDF selected:", file.name);
-
-            // Set this.selectedFiles correctly
-            this.selectedFiles = [file];
-
-            // Optionally call uploadFile here if you want immediate upload
-            // But not necessary if you wait for askChatGpt() to do the upload
-        },
-
-        handleDrop(event) {
-            const file = event.dataTransfer.files[0];
-            if (!file || file.type !== "application/pdf") {
-                alert("Only PDF files are allowed.");
-                return;
-            }
-
-            this.uploadStatus.isUploading = true;
-            
-            this.selectedFiles = [file];
-
-            this.uploadStatus.isUploading = false;
-
-            // Simulate upload delay so spinner is visible
-            // setTimeout(() => {
-            //    this.uploadStatus.isUploading = false;
-            //}, 500); // 500ms delay — adjust as needed
         },
 
         async stopGeneration() {
@@ -313,21 +273,17 @@ export default {
 
             // add user chat bubble
             await this.addChatBubble(userText, true, false);
-            await this.addChatBubble('', false, true);       // Loading AI bubble
 
             // add debug entry for user message
             const sidebar = this.$refs.sidebar;
             sidebar.addDebugMessage(userText, "user");
 
+            // add AI chat bubble in loading state, add prepare message
+            await this.addChatBubble('', false, true);
             this.getLastBubble().addStatusMessage('preparing',
                 Localizer.getLoadingMessage('preparing'), false);
 
            try {
-                // Upload selected files before starting the chat
-                if (this.selectedFiles && this.selectedFiles.length > 0) {
-                    await this.uploadSelectedFiles(this.selectedFiles);
-                }
-
                 const backend = this.getBackend();
                 console.log(backend)
                 const socketURL = `${conf.BackendAddress}/${backend}/query_stream`;
@@ -345,41 +301,57 @@ export default {
         },
 
 
-        async uploadSelectedFiles(files) {
+        async uploadFiles(fileList) {
+            const files = Array.from(fileList);
+
+            // Filter out non-PDFs
+            const pdfFiles = files.filter(file => file.type === "application/pdf");
+
+            if (pdfFiles.length === 0) {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            this.uploadStatus.isUploading = true;
+
+            // Save selected files to state
+            // Files will remain here while component instance is alive (i.e. till page reload)   
+            this.selectedFiles.push(...pdfFiles);
+
+            // Prepare FormData for upload
+            const formData = new FormData();
+            for (const file of pdfFiles) {
+                formData.append("files", file); // Backend must accept 'files' as the key
+            }
+
             const backend = this.getBackend();
             const uploadURL = `${conf.BackendAddress}/${backend}/upload`;
 
-            const formData = new FormData();
-
-            // Append all selected files using key "files"
-            for (const file of files) {
-                formData.append("files", file); // Make sure this matches the backend key
-            }
-
             try {
                 const response = await fetch(uploadURL, {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include', // include cookies if needed
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}` // optional if auth required
-                        // Don't set Content-Type manually — fetch will handle it for FormData
-                    }
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
                 });
 
                 const result = await response.json();
 
                 if (!response.ok || result.error) {
-                    throw new Error(result.error || `Upload failed with status ${response.status}`);
+                throw new Error(result.error || `Upload failed with status ${response.status}`);
                 }
 
                 console.log("Uploaded files:", result.uploaded_files);
-                return result;
             } catch (error) {
                 console.error("File upload failed:", error);
-                throw error;
+                alert("File upload failed. See console for details.");
+            } finally {
+                this.uploadStatus.isUploading = false;
             }
         },
+
 
 
         async handleStreamingSocketOpen(socket, userText) {

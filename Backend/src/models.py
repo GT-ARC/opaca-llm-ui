@@ -4,8 +4,9 @@ Request and response models used in the FastAPI routes (and in some of the imple
 import logging
 import sys
 from typing import List, Dict, Any, Optional, Self
+from io import BytesIO
 
-from pydantic import BaseModel, field_validator, model_validator, Field
+from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
 
 class ColoredFormatter(logging.Formatter):
@@ -109,6 +110,21 @@ class Response(BaseModel):
     content: str = ''
     error: str = ''
 
+class OpacaFile(BaseModel):
+    """
+    Represents a single uploaded PDF file.
+    """
+    _content: BytesIO = PrivateAttr() # Private attribute to store binary content (not part of schema or validation)
+    content_type: str  # MIME type of the file
+    sent: bool = False  # Whether the file has been sent/uploaded
+    file_id: Optional[str] = None  # ID assigned after upload
+
+
+class OpacaFiles(BaseModel):
+    """
+    Container for all uploaded files, mapping filename to file data.
+    """
+    files: Dict[str, OpacaFile] = {}
 
 class SessionData(BaseModel):
     """
@@ -121,17 +137,7 @@ class SessionData(BaseModel):
         opaca_client: Client instance for Opaca (or similar).
         api_key: API key string.
         llm_clients: Dictionary of LLM client instances.
-
-        uploaded_files: Dictionary storing each uploaded PDF file with the following structure:
-            {
-                "filename.pdf": {
-                    "content": BytesIO,        # File content in-memory buffer
-                    "content_type": str,       # MIME type of the file (e.g. "application/pdf")
-                    "sent": bool,              # Whether this file has been uploaded/sent to OpenAI API
-                    "file_id": Optional[str]   # The file ID returned by OpenAI after uploading
-                },
-                ...
-            }
+        uploaded_files: Dictionary storing each uploaded PDF file
     """
     messages: List[Any] = []
     config: Dict[str, Any] = {}
@@ -145,7 +151,7 @@ class SessionData(BaseModel):
     # - "content_type": the MIME type of the file
     # - "sent": a boolean indicating if the file has been uploaded to OpenAI
     # - "file_id": the string ID assigned by OpenAI after successful upload
-    uploaded_files: Dict[str, Dict[str, Any]] = {}
+    uploaded_files: OpacaFiles = OpacaFiles()
 
 class ConfigArrayItem(BaseModel):
     type: str

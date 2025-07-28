@@ -1,6 +1,6 @@
 openai>=1.61.0
 requests
-fastapi
+fastapi>=0.115.12
 uvicorn
 jsonref
 websockets

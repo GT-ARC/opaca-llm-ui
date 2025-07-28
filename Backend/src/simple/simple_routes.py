@@ -74,6 +74,7 @@ class SimpleBackend(AbstractMethod):
         while True:
             result.iterations += 1
             response = await self.call_llm(
+                session=session,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
@@ -82,7 +83,6 @@ class SimpleBackend(AbstractMethod):
                 temperature=config["temperature"],
                 tool_choice="none",
                 websocket=websocket,
-                session=session,
             )
             messages.append(ChatMessage(role="assistant", content=response.content))
             result.agent_messages.append(AgentMessage(
