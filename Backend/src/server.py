@@ -87,14 +87,11 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     try:
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query(message.user_query, session)
-        if message.store_in_history:
-            session.messages.extend([
-                ChatMessage(role="user", content=message.user_query),
-                ChatMessage(role="assistant", content=result.content)
-            ])
-        return result
     except Exception as e:
-        return exception_to_result(message.user_query, e)
+        result = exception_to_result(message.user_query, e)
+    finally:
+        await store_message(session, message, result)
+        return result
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
@@ -104,22 +101,17 @@ async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
     session.abort_sent = False
-    
+    message = None
     try:
         data = await websocket.receive_json()
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-        if message.store_in_history:
-            session.messages.extend([
-                ChatMessage(role="user", content=message.user_query),
-                ChatMessage(role="assistant", content=result.content)
-            ])
-        await websocket.send_json(result.model_dump_json())
     except Exception as e:
         result = exception_to_result(message.user_query, e)
-        await websocket.send_json(result.model_dump_json())
     finally:
+        await store_message(session, message, result)
+        await websocket.send_json(result.model_dump_json())
         await websocket.close()
         
 @app.post("/stop", description="Abort generation for last query.")
@@ -227,6 +219,13 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
 
         # Return the session data for the session ID
         return sessions[session_id]
+
+async def store_message(session: SessionData, message: Message, result: Response):
+    if message and message.store_in_history:
+        session.messages.extend([
+            ChatMessage(role="user", content=message.user_query),
+            ChatMessage(role="assistant", content=result.content)
+        ])
 
 
 # run as `python3 -m Backend.server`
