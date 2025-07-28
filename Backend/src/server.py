@@ -95,9 +95,6 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
-
-    logging.info("query_stream triggered")
-
     await websocket.accept()
     session = await handle_session_id(websocket)
     session.abort_sent = False
@@ -126,7 +123,6 @@ async def upload_files(
     files: List[UploadFile], 
 ):
     session = await handle_session_id(request, response)
-    logging.info("upload triggered")
     uploaded = []
     for file in files:
         try:            
@@ -151,7 +147,6 @@ async def upload_files(
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
     session = await handle_session_id(request, response)
-
     return session.messages
 
 @app.post("/reset", description="Reset message history for the current session.")

@@ -81,6 +81,7 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
+            session (SessionData): The current session
             client (AsyncOpenAI): An already initialized OpenAI client.
             model (str): Model name (e.g., "gpt-4-turbo").
             agent (str): The agent name (e.g. "simple-tools").
@@ -92,7 +93,6 @@ class AbstractMethod(ABC):
             response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
             guided_choice (Optional[List[str]]): List of strings for the model to pick from.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
-            session (Optional[SessionData]): Session to track uploaded files, etc.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -284,11 +284,9 @@ class AbstractMethod(ABC):
 
         agent_message.content = content
 
-
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
-
 
 
     @staticmethod

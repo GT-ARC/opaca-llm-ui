@@ -49,7 +49,6 @@ class SimpleToolsBackend(AbstractMethod):
                       f"of 128. All tools after index 128 will be ignored!\n")
             tools = tools[:128]
 
-
         # initialize message history
         messages = session.messages.copy()
         messages.append(ChatMessage(role="user", content=message))

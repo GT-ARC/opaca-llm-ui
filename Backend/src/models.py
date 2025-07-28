@@ -145,12 +145,6 @@ class SessionData(BaseModel):
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
-
-    # Each PDF is stored as a dictionary with:
-    # - "content": a BytesIO object containing the file's binary data
-    # - "content_type": the MIME type of the file
-    # - "sent": a boolean indicating if the file has been uploaded to OpenAI
-    # - "file_id": the string ID assigned by OpenAI after successful upload
     uploaded_files: OpacaFiles = OpacaFiles()
 
 class ConfigArrayItem(BaseModel):
