@@ -14,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 from typing import List, Optional, Union
-import logging
 
 from .utils import validate_config_input, exception_to_result
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
@@ -58,7 +57,6 @@ BACKENDS = {
 sessions_lock = asyncio.Lock()
 sessions = {}
 
-logging.getLogger(__name__)
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
@@ -116,7 +114,7 @@ async def history(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
 
-@app.post("/{backend}/upload")
+@app.post("/upload")
 async def upload_files(
     request: Request,
     response: FastAPIResponse,
@@ -135,7 +133,7 @@ async def upload_files(
             file_model._content = io.BytesIO(contents)
 
             # Store in session.uploaded_files
-            session.uploaded_files.files[file.filename] = file_model
+            session.uploaded_files[file.filename] = file_model
             uploaded.append(file.filename)
 
         except Exception as e:

@@ -113,7 +113,7 @@ class AbstractMethod(ABC):
         file_ids = []
 
         # Upload all unsent files
-        for filename, filedata in session.uploaded_files.files.items():
+        for filename, filedata in session.uploaded_files.items():
             file_id = filedata.file_id
 
             if not file_id:

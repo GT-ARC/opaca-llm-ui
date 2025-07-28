@@ -120,12 +120,6 @@ class OpacaFile(BaseModel):
     file_id: Optional[str] = None  # ID assigned after upload
 
 
-class OpacaFiles(BaseModel):
-    """
-    Container for all uploaded files, mapping filename to file data.
-    """
-    files: Dict[str, OpacaFile] = {}
-
 class SessionData(BaseModel):
     """
     Stores relevant information regarding the session, including messages, configuration,
@@ -145,7 +139,8 @@ class SessionData(BaseModel):
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
-    uploaded_files: OpacaFiles = OpacaFiles()
+    uploaded_files: Dict[str, OpacaFile] = {}
+
 
 class ConfigArrayItem(BaseModel):
     type: str

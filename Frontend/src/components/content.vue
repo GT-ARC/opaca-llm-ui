@@ -325,7 +325,7 @@ export default {
             }
 
             const backend = this.getBackend();
-            const uploadURL = `${conf.BackendAddress}/${backend}/upload`;
+            const uploadURL = `${conf.BackendAddress}/upload`;
 
             try {
                 const response = await fetch(uploadURL, {
