@@ -6,3 +6,4 @@ jsonref
 websockets
 pytz
 pyyaml
+python-multipart
