@@ -1,6 +1,10 @@
 import re
 import time
+from collections import defaultdict
 from typing import List
+
+from pydantic import BaseModel
+
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
@@ -10,6 +14,10 @@ from ..utils import openapi_to_functions
 class ToolLLMBackend(AbstractMethod):
     max_iter: int = 5
     NAME = 'tool-llm'
+
+    class EvaluatorResponse(BaseModel):
+        reason: str
+        decision: str
 
     @property
     def config_schema(self):
@@ -26,9 +34,9 @@ class ToolLLMBackend(AbstractMethod):
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Initialize parameters
-        tool_names = []
-        tool_params = []
-        tool_results = []
+        tool_names = defaultdict(list)
+        tool_params = defaultdict(list)
+        tool_results = defaultdict(list)
         tool_responses = []
         result = None
         c_it = 0
@@ -49,9 +57,9 @@ class ToolLLMBackend(AbstractMethod):
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
             return response
         if len(tools) > 128:
-            tools = tools[:128]
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of 128. All tools after index 128 will be ignored!\n")
+            tools = tools[:128]
 
         # Save time before execution
         total_exec_time = time.time()
@@ -64,7 +72,7 @@ class ToolLLMBackend(AbstractMethod):
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
-                messages=session.messages + [{"role": "user", "content": message}] + tool_responses,
+                messages=session.messages + [ChatMessage(role="user", content=message)] + tool_responses,
                 temperature=config['temperature'],
                 tools=tools,
                 websocket=websocket,
@@ -84,7 +92,7 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
-                    messages=session.messages + [{"role": "user", "content": message}] + tool_responses + [{"role": "user", "content": full_err}],
+                    messages=session.messages + [ChatMessage(role="user", content=message)] + tool_responses + [ChatMessage(role="user", content=full_err)],
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
@@ -96,34 +104,36 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             for i, call in enumerate(result.tools):
 
-                tool_names.append(call['name'])
-                tool_params.append(call['args'])
+                tool_names[c_it].append(call['name'])
+                tool_params[c_it].append(call['args'])
                 try:
                     if config['use_agent_names']:
                         agent_name, action_name = call['name'].split('--', maxsplit=1)
                     else:
                         agent_name = None
                         action_name = call['name']
-                    tool_results.append(
+                    tool_results[c_it].append(
                         await session.opaca_client.invoke_opaca_action(
                             action_name,
                             agent_name,
                             call['args'].get('requestBody', {})
                         ))
                 except Exception as e:
-                    tool_results.append(str(e))
+                    tool_results[c_it].append(str(e))
 
                 # The format should match the one in the StreamCallbackHandler
                 result.tools[i] = {
-                    'id': len(tool_names),
+                    'id': len(tool_names[c_it]),
                     'name': call['name'],
                     'args': call['args'],
-                    'result': tool_results[-1]
+                    'result': tool_results[c_it][-1]
                 }
 
             # If a websocket was defined, send the tools WITH their results to the frontend
             if websocket:
                 await websocket.send_json(result.model_dump_json())
+
+            called_tools = self._build_tool_desc(c_it, tool_names, tool_params, tool_results)
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
@@ -136,9 +146,7 @@ class ToolLLMBackend(AbstractMethod):
                     system_prompt='',
                     messages=[ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                         message=message,
-                        tool_names=tool_names,
-                        tool_params=tool_params,
-                        tool_results=tool_results,
+                        called_tools=called_tools,
                     ))],
                     temperature=config['temperature'],
                     tools=tools,
@@ -213,3 +221,10 @@ class ToolLLMBackend(AbstractMethod):
                             f'definition.\n')
 
         return err_out
+
+    @staticmethod
+    def _build_tool_desc(c_it, t_names, t_params, t_results):
+        called_tools = {it: [{"name": name, "parameters": params, "result": result} for name, params, result in zip(t_names[it], t_params[it], t_results[it])] for it in range(c_it + 1)}
+        print(called_tools)
+        return called_tools
+
