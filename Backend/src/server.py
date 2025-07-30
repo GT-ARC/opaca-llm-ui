@@ -7,6 +7,8 @@ import os
 import uuid
 from typing import List, Dict, Any
 import asyncio
+import logging
+import time
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
@@ -54,8 +56,9 @@ BACKENDS = {
 # Simple dict to store session data
 # Keep in mind: The session data is only reset upon restarting the application
 sessions_lock = asyncio.Lock()
-sessions = {}
+sessions: Dict[str, SessionData] = {}
 
+logger = logging.getLogger("uvicorn")
 
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
@@ -162,10 +165,14 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
     session_id = request.cookies.get("session_id")
     async with sessions_lock:
         if not session_id or session_id not in sessions:
+            logger.info("Creating new Session...")
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
             sessions[session_id].opaca_client = OpacaClient()
         response.set_cookie("session_id", session_id)
+        # refresh session life time: one more day
+        #  XXX set to cookie life time when using persistent cookies
+        sessions[session_id].valid_until = time.time() + 60 #* 60 * 24
         return sessions[session_id]
 
 async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
@@ -185,9 +192,11 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     async with sessions_lock:
         # If session ID is not found or invalid, create a new one
         if not session_id or session_id not in sessions:
+            logger.info("Creating new Session...")
             session_id = str(uuid.uuid4())
             sessions[session_id] = SessionData()
             sessions[session_id].opaca_client = OpacaClient()
+            sessions[session_id].valid_until = time.time() + 60 # throw-away sessions, not stored in cookie
 
         # Return the session data for the session ID
         return sessions[session_id]
@@ -198,6 +207,23 @@ async def store_message(session: SessionData, message: Message, result: Response
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
+
+
+async def cleanup_old_sessions(delay_seconds=3600):
+    while True:
+        logger.info("Checking for old Sessions...")
+        now = time.time()
+        async with sessions_lock:
+            for session_id, session_data in list(sessions.items()):
+                if 0 < session_data.valid_until < now:
+                    logger.info(f"Removing old session {session_id}")
+                    sessions.pop(session_id)
+        await asyncio.sleep(delay_seconds)
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_old_sessions(60))
 
 
 # run as `python3 -m Backend.server`
