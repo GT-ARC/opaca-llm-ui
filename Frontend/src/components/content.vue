@@ -355,12 +355,9 @@ export default {
 
             try {
                 const response = await fetch(uploadURL, {
-                method: 'POST',
-                body: formData,
-                credentials: 'include',
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`
-                }
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include',
                 });
 
                 if (!response.ok) {
