@@ -219,10 +219,12 @@ export default {
                 let userInput = this.textInput;
                 this.textInput = '';
 
-                // If a file is uploaded, append info about it to the input
+                // If files are uploaded, append info about them to the input
                 if (this.selectedFiles.length > 0) {
-                const file = this.selectedFiles[0];
-                userInput += `\n\n[Attached PDF: ${file.name}]`;
+                    const fileNotes = this.selectedFiles
+                        .map(file => `[Attached PDF: ${file.name}]`)
+                        .join('\n');
+                    userInput += `\n\n${fileNotes}`;
                 }
 
                 await nextTick();
@@ -337,10 +339,9 @@ export default {
                 }
                 });
 
-                const result = await response.json();
-
-                if (!response.ok || result.error) {
-                throw new Error(result.error || `Upload failed with status ${response.status}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
                 }
 
                 console.log("Uploaded files:", result.uploaded_files);

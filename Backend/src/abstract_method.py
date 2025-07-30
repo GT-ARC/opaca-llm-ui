@@ -138,11 +138,10 @@ class AbstractMethod(ABC):
 
             file_ids.append(file_id)
 
-        for fid in file_ids:
-            file_message_parts.append({
-                "type": "file",
-                "file": {"file_id": fid}
-            })
+        file_message_parts += [
+            {"type": "file", "file": {"file_id": fid}}
+            for fid in file_ids
+        ]
 
         # Modify the last user message to include file parts
         last_message = messages[-1]
@@ -150,7 +149,6 @@ class AbstractMethod(ABC):
         logger.info(type(last_message))
 
         # Add user question
-
         if isinstance(last_message, dict):        
             user_text = last_message["content"]
             last_message["content"] = file_message_parts + [{"type": "text", "text": user_text}]

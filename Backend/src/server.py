@@ -8,7 +8,7 @@ import uuid
 from typing import List, Dict, Any
 import asyncio
 import io
-from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
+from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
@@ -137,7 +137,10 @@ async def upload_files(
             uploaded.append(file.filename)
 
         except Exception as e:
-            return {"error": f"Failed to process file {file.filename}: {str(e)}"}
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}"
+            )
 
     return {"status": "success", "uploaded_files": uploaded}
 
