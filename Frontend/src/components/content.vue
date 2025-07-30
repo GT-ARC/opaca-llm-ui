@@ -343,6 +343,8 @@ export default {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
                 }
+                
+                const result = await response.json(); // valid result if .ok was true
 
                 console.log("Uploaded files:", result.uploaded_files);
             } catch (error) {
