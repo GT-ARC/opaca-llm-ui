@@ -116,7 +116,6 @@ class OpacaFile(BaseModel):
     """
     _content: BytesIO = PrivateAttr() # Private attribute to store binary content (not part of schema or validation)
     content_type: str  # MIME type of the file
-    sent: bool = False  # Whether the file has been sent/uploaded
     file_id: Optional[str] = None  # ID assigned after upload
 
 

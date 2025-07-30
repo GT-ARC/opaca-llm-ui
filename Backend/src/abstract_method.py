@@ -104,57 +104,28 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        logger.info(model)
-
-        # Handle uploaded files (PDFs) from session
-        file_message_parts = []
-
-        # Set settings for model invocation
-        file_ids = []
-
         # Upload all unsent files
         for filename, filedata in session.uploaded_files.items():
-            file_id = filedata.file_id
-
-            if not file_id:
-                # Upload the file
+            if not filedata.file_id:
+                # prepare file for upload
                 file_bytes = filedata._content.getvalue()   # Access private content
                 file_obj = io.BytesIO(file_bytes)
                 file_obj.name = filename  # Required by OpenAI SDK
 
-                uploaded = await client.files.create(
-                    file=file_obj,
-                    purpose="assistants"
-                )
-
+                # Upload the file
+                uploaded = await client.files.create(file=file_obj, purpose="assistants")
                 logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
+                filedata.file_id = uploaded.id
 
-                file_id = uploaded.id              
-                filedata.file_id = file_id      # Set attribute
-                filedata.sent = True            # Set attribute
-
-            else:
-                logger.info(f"Reusing existing file_id: {file_id} for {filename}")
-
-            file_ids.append(file_id)
-
-        file_message_parts += [
-            {"type": "file", "file": {"file_id": fid}}
-            for fid in file_ids
+        file_message_parts = [
+            {"type": "file", "file": {"file_id": file.file_id}}
+            for file in session.uploaded_files.values()
         ]
 
         # Modify the last user message to include file parts
-        last_message = messages[-1]
-
-        logger.info(type(last_message))
-
-        # Add user question
-        if isinstance(last_message, dict):        
-            user_text = last_message["content"]
-            last_message["content"] = file_message_parts + [{"type": "text", "text": user_text}]
-        else:
-            user_text = getattr(last_message, "content", "")
-            last_message.content = file_message_parts + [{"type": "text", "text": user_text}]
+        if isinstance(messages[-1], dict):
+            messages[-1] = ChatMessage(**messages[-1])
+        messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
         
         # Set settings for model invocation
         kwargs = {
