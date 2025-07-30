@@ -61,23 +61,41 @@
 
             </div>
 
-                <!-- Upload Preview -->
+                <!-- Upload Preview for Each File -->
                 <div
                     v-if="selectedFiles.length"
-                    class="upload-status-preview text-muted small mb-2 text-center"
+                    class="upload-status-preview text-muted small mb-2 text-start"
+                >
+                    <!-- Loop through each selected file -->
+                    <div
+                        v-for="(file, index) in selectedFiles"
+                        :key="file.name + index"
+                        class="d-flex align-items-center justify-content-between border rounded p-2 mb-1 bg-light"
                     >
-                    <!-- Show spinner while uploading -->
-                    <i v-if="uploadStatus.isUploading" class="fa fa-spinner fa-spin me-1"></i>
+                        <div class="d-flex align-items-center">
+                            <!-- Icon changes based on upload status -->
+                            <i
+                                :class="uploadStatus.isUploading ? 'fa fa-spinner fa-spin text-secondary me-2' : 'fa fa-file-pdf text-danger me-2'"
+                            ></i>
 
-                    <!-- Show PDF icon after upload -->
-                    <i v-else class="fa fa-file-pdf text-secondary me-1"></i>
+                            <!-- File name -->
+                            <span class="me-2">{{ file.name }}</span>
 
-                    <!-- Show file name -->
-                    {{ selectedFiles[0].name }}
+                            <!-- Upload status text -->
+                            <span v-if="uploadStatus.isUploading">uploading…</span>
+                        </div>
 
-                    <!-- Upload status text -->
-                    <span v-if="uploadStatus.isUploading">uploading…</span>
-                    <span v-else>uploaded — will be sent with your message</span>
+                        <!-- Remove file from preview (but not from disk or server) -->
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            @click="removeSelectedFile(index)"
+                            :disabled="uploadStatus.isUploading"
+                            title="Remove file"
+                        >
+                            <i class="fa fa-times" />
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Input Area with drag and drop -->
@@ -205,6 +223,12 @@ export default {
         }
     },
     methods: {
+
+        // Remove selected file at given index from the preview list
+        removeSelectedFile(index) {
+            this.selectedFiles.splice(index, 1);
+        },
+
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
