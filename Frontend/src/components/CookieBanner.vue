@@ -51,6 +51,7 @@ export default {
     border-radius: 1em;
     text-align: center;
     background-color: rgba(196, 196, 196, 0.5); /* Transparent overlay */
+    backdrop-filter: blur(3px);
     z-index: 9999; /* Should appear above all other items */
 }
 </style>
