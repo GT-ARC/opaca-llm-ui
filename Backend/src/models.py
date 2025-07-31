@@ -120,6 +120,7 @@ class SessionData(BaseModel):
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
+    valid_until: float = -1
 
 
 class ConfigArrayItem(BaseModel):
