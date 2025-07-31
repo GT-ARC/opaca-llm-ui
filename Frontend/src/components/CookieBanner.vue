@@ -1,20 +1,19 @@
 <template>
     <div v-if="!isCookieAccepted" class="cookie-banner">
         <p>
-            This website uses cookies to associate your chat session (message history and settings) with you.
-            This cookie is kept for 30 days after the last interaction, or until manually deleted.
-            The session data is stored in the backend and the messages are sent to the configured LLM.
-            The session data will be deleted from the backend when the cookie expires, or by clicking the "Reset" button.
-            The cookies and session data are used for the sole purpose of the chat interaction.
-            Without, no continued conversation with the LLM is possible.
-            By using this website, you consent to the above policy.
-        </p>
-        <button class="btn btn-primary" @click="acceptCookies()">Accept Cookies</button>
+            {{ Localizer.get('cookiesText') }}
+        </p>         
+        <button class="btn btn-primary" @click="acceptCookies()">{{ Localizer.get('cookiesAccept') }}</button>
     </div>
 </template>
 
 <script>
+import Localizer from "./../Localizer.js"
+
 export default {
+    setup() {
+        return { Localizer };
+    },
 
     data() {
         return {
