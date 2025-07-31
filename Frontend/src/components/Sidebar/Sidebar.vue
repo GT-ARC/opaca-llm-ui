@@ -127,10 +127,7 @@ export default {
         return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
-        return {
-            platformActions: null,
-            debugMessages: [],
-        };
+        return {};
     },
     methods: {
         getBackend() {
@@ -264,7 +261,7 @@ export default {
 .resizer {
     width: 4px;
     cursor: ew-resize;
-    height: calc(100vh - 85px - 25px);
+    height: calc(100vh - 85px - 25px); /* where are these values coming from? */
     position: absolute;
     top: 0;
     right: 0;
