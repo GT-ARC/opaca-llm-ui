@@ -42,6 +42,24 @@ class BackendClient {
         await this.sendRequest("POST", "reset");
     }
 
+    async uploadFiles(files) {
+        const formData = new FormData();
+        for (const file of files) {
+            formData.append("files", file);
+        }
+        // XXX extend sendRequest for this case?
+        const response = await fetch(`${conf.BackendAddress}/upload`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
+        }
+        return await response.json();
+    }
+
     // config
 
     async getConfig(backend) {

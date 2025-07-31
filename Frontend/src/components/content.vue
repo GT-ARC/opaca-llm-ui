@@ -326,7 +326,6 @@ export default {
             }
         },
 
-
         async uploadFiles(fileList) {
             const files = Array.from(fileList);
 
@@ -344,29 +343,8 @@ export default {
             // Files will remain here while component instance is alive (i.e. till page reload)   
             this.selectedFiles.push(...pdfFiles);
 
-            // Prepare FormData for upload
-            const formData = new FormData();
-            for (const file of pdfFiles) {
-                formData.append("files", file); // Backend must accept 'files' as the key
-            }
-
-            const backend = this.getBackend();
-            const uploadURL = `${conf.BackendAddress}/upload`;
-
             try {
-                const response = await fetch(uploadURL, {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include',
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
-                }
-                
-                const result = await response.json(); // valid result if .ok was true
-
+                const result = await backendClient.uploadFiles(files);
                 console.log("Uploaded files:", result.uploaded_files);
             } catch (error) {
                 console.error("File upload failed:", error);
@@ -375,8 +353,6 @@ export default {
                 this.uploadStatus.isUploading = false;
             }
         },
-
-
 
         async handleStreamingSocketOpen(socket, userText) {
             try {
