@@ -1,25 +1,82 @@
+import conf from '../config.js';
+
 import axios from "axios";
 
-/**
- * @param method {string}
- * @param url {string}
- * @param body {any}
- * @param timeout {number|null}
- * @returns {Promise<axios.AxiosResponse<any>>}
- */
-export async function sendRequest(method, url, body = null, timeout = 10000) {
-    return await axios.request({
-        method: method,
-        url: url,
-        data: body,
-        timeout: timeout,
-        withCredentials: true,
-        headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-        }
-    });
+
+class BackendClient {
+
+    // OPACA connection
+
+    async connect(url, user, pwd) {
+        const body = {url: url, user: user, pwd: pwd};
+        const res = await this.sendRequest("POST", "connect", body);
+        return parseInt(res);
+    }
+
+    async disconnect() {
+        await this.sendRequest("POST", "disconnect");
+    }
+
+    async getActions() {
+        return await this.sendRequest("GET", "actions");
+    }
+
+    // chat
+
+    async query(backend, user_query, store_in_history = true) {
+        const body = {user_query: user_query, store_in_history: store_in_history};
+        return await this.sendRequest("POST", `${backend}/query`, body);
+    }
+    
+    // TODO query stream
+
+    async stop() {
+        await this.sendRequest("POST", "stop");
+    }
+
+    async history() {
+        return await this.sendRequest("GET", "history");
+    }
+
+    async reset() {
+        await this.sendRequest("POST", "reset");
+    }
+
+    // config
+
+    async getConfig(backend) {
+        return await this.sendRequest('GET', `${backend}/config`);
+    }
+
+    async updateConfig(backend, config) {
+        return await this.sendRequest('PUT', `${backend}/config`, config);
+    }
+
+    async resetConfig(backend) {
+        return await this.sendRequest('POST', `${backend}/config/reset`);
+    }
+
+    // internal helper
+
+    async sendRequest(method, path, body = null, timeout = 10000) {
+        const response = await axios.request({
+            method: method,
+            url: `${conf.BackendAddress}/${path}`,
+            data: body,
+            timeout: timeout,
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        });
+        return response.data;
+    }
+
 }
+
+const backendClient = new BackendClient();
+export default backendClient;
 
 
 // randomly shuffle array in-place

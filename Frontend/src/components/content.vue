@@ -127,7 +127,7 @@ import Sidebar from "./sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import {sendRequest} from "../utils.js";
+import backendClient from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 
@@ -189,7 +189,7 @@ export default {
         },
 
         async stopGeneration() {
-            await sendRequest("POST", `${conf.BackendAddress}/stop`);
+            await backendClient.stop();
         },
 
         async askSampleQuestion(questionText) {
@@ -351,7 +351,7 @@ export default {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
             this.showExampleQuestions = true;
-            await sendRequest("POST", `${conf.BackendAddress}/reset`);
+            await backendClient.reset();
         },
 
         /**
