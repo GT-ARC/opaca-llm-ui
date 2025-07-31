@@ -7,6 +7,9 @@ import os
 import uuid
 from typing import List, Dict, Any
 import asyncio
+import logging
+import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
@@ -23,9 +26,19 @@ from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
 
 
+@asynccontextmanager
+async def lifespan(app):
+    # before start
+    asyncio.create_task(cleanup_old_sessions())
+    # app running
+    yield
+    # after shutdown
+    pass
+
 app = FastAPI(
     title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly."
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    lifespan=lifespan
 )
 
 # Configure CORS settings
@@ -54,8 +67,9 @@ BACKENDS = {
 # Simple dict to store session data
 # Keep in mind: The session data is only reset upon restarting the application
 sessions_lock = asyncio.Lock()
-sessions = {}
+sessions: Dict[str, SessionData] = {}
 
+logger = logging.getLogger("uvicorn")
 
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
@@ -161,36 +175,40 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
     """
     session_id = request.cookies.get("session_id")
     async with sessions_lock:
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-        response.set_cookie("session_id", session_id)
+        max_age = 60 * 60 * 24 * 30  # 30 days
+        session_id = create_or_refresh_session(session_id, max_age)
+        # create Cookie (or just update max-age if already exists)
+        response.set_cookie("session_id", session_id, max_age=max_age)
         return sessions[session_id]
 
 async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
     """
     Gets the session id from a websocket and returns the corresponding session data. If no session id was found
     or the id is unknown, creates a new session id and adds an empty list of messages to that session id.
+    NOTE: The session-id is NOT stored in a Cookie, so the created session will be valid for one interaction only.
     """
-    # Extract cookies from headers
     headers = Headers(scope=websocket.scope)
     cookies = headers.get("cookie")
     session_id = None
-
     if cookies:
-        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
+        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
         session_id = cookie_dict.get("session_id")
 
     async with sessions_lock:
-        # If session ID is not found or invalid, create a new one
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-
-        # Return the session data for the session ID
+        session_id = create_or_refresh_session(session_id) # throw away session for just this interaction
         return sessions[session_id]
+
+
+def create_or_refresh_session(session_id, max_age=None):
+    if not session_id or session_id not in sessions:
+        session_id = str(uuid.uuid4())
+        logger.info(f"Creating new Session {session_id}")
+        sessions[session_id] = SessionData()
+        sessions[session_id].opaca_client = OpacaClient()
+    if max_age is not None:
+        sessions[session_id].valid_until = time.time() + max_age
+    return session_id
+
 
 async def store_message(session: SessionData, message: Message, result: Response):
     if message and message.store_in_history:
@@ -198,6 +216,19 @@ async def store_message(session: SessionData, message: Message, result: Response
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
+
+
+async def cleanup_old_sessions(delay_seconds=3600):
+    while True:
+        logger.info("Checking for old Sessions...")
+        now = time.time()
+        async with sessions_lock:
+            for session_id, session_data in list(sessions.items()):
+                if session_data.valid_until < now:
+                    logger.info(f"Removing old session {session_id}")
+                    sessions.pop(session_id)
+        await asyncio.sleep(delay_seconds)
+
 
 
 # run as `python3 -m Backend.server`
