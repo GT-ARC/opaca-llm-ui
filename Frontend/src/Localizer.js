@@ -61,6 +61,10 @@ export const localizationData = {
         audioServerSettings: "Audio",
         rerollQuestions: "More ...",
         regenerate: "Suggest More",
+        platformInfoRequest: "How can you assist me?",
+        platformInfoMissing: "It's a little quiet here...",
+        platformInfoLoading: "Querying functionality, please wait...",
+        platformInfoFailed: "There was an error when querying the functionality: %1",
     },
 
     DE: {
@@ -118,6 +122,10 @@ export const localizationData = {
         audioServerSettings: "Audio",
         rerollQuestions: "Mehr ...",
         regenerate: "Weitere Beispiele",
+        platformInfoRequest: "Wie kannst du mir helfen?",
+        platformInfoMissing: "Hier gibt es gerade nichts...",
+        platformInfoLoading: "Frage Funktionalitäten an, bitte warten...",
+        platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
     },
 };
 
@@ -341,7 +349,6 @@ class Localizer {
 
     /**
      * Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments.
-     * Also does in-line markdown parsing on the text.
      * @param text
      * @param args
      * @returns {string|null}
@@ -352,7 +359,7 @@ class Localizer {
             text = text.replace(/%(\d+)/g, (match, number) => {
                 return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
             });
-            return marked.parseInline(text);
+            return text;
         } catch (error) {
             console.error('Formatting error:', error);
             return null;

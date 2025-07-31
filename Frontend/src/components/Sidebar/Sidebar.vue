@@ -50,11 +50,10 @@
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarInfo') }}
                      </div>
-                    <div v-if="!connected" class="placeholder-container">
-                        <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
-                        <h5 class="p-4">It's a little quiet here...</h5>
-                    </div>
-                    <div v-else v-html="this.howAssistContent" class="faq-content w-auto"/>
+                    <SidebarInfo
+                        :is-platform-connected="connected"
+                        @update-platform-info="this.updatePlatformInfo()"
+                    />
                 </div>
 
                 <!-- sample questions -->
@@ -87,10 +86,9 @@
                     <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarConfig') }}
                     </div>
-
                     <SidebarConfig
                         :backend="this.getBackend()"
-                    /><
+                    />
                 </div>
 
                 <!-- debug console -->
@@ -141,10 +139,12 @@ import Localizer from "../../Localizer.js";
 import {marked} from "marked";
 import SidebarAgents from "./SidebarAgents.vue";
 import SidebarConfig from "./SidebarConfig.vue";
+import SidebarInfo from "./SidebarInfo.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarInfo,
         SidebarConfig,
         SidebarAgents,
         DebugMessage,
@@ -181,20 +181,6 @@ export default {
         };
     },
     methods: {
-
-        async showHowCanYouHelpInSidebar() {
-            try {
-                this.howAssistContent = "Querying functionality, please wait...";
-                const body = {user_query: "How can you assist me?", store_in_history: false};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
-                const answer = res.data.agent_messages[0].content;
-                this.howAssistContent = marked.parse(answer);
-            } catch (error) {
-                console.log("ERROR " + error);
-                this.howAssistContent = `There was an error when querying the functionality: ${error}`
-            }
-        },
-
         getBackend() {
             const parts = this.backend.split('/');
             return parts[parts.length - 1];
@@ -258,6 +244,16 @@ export default {
             }
         },
 
+        async updatePlatformInfo(isPlatformConnected) {
+            if (isPlatformConnected) {
+                const url = `${conf.BackendAddress}/actions`;
+                const response = await sendRequest("GET", url);
+                this.platformActions = response.data;
+            } else {
+                this.platformActions = null;
+            }
+        },
+
         clearDebugMessage() {
             this.debugMessages = [];
         },
@@ -268,19 +264,8 @@ export default {
         this.buildFaqContent();
     },
     updated() {
-        this.scrollDownDebugView()
+        this.scrollDownDebugView();
     },
-    watch: {
-        async connected(newVal) {
-            if (newVal) {
-                this.showHowCanYouHelpInSidebar() // Intentionally no await
-                const res2 = await sendRequest("GET", `${conf.BackendAddress}/actions`)
-                this.platformActions = res2.data;
-            } else {
-                this.platformActions = null;
-            }
-        }
-    }
 }
 </script>
 
@@ -387,23 +372,6 @@ export default {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-}
-
-.placeholder-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 2rem;
-    box-sizing: border-box;
-    color: var(--text-secondary-light);
-}
-
-.placeholder-image {
-    width: 180px;
-    margin-bottom: 1rem;
-    opacity: 0.6;
 }
 
 /* mobile design */
