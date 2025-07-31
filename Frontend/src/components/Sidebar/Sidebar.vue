@@ -45,68 +45,50 @@
                    :class="{'px-3': !isMobile}">
 
                 <!-- platform information -->
-                <div v-show="SidebarManager.isViewSelected('info')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                     <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarInfo') }}
-                     </div>
-                    <SidebarInfo
-                        :is-platform-connected="connected"
-                        @update-platform-info="this.updatePlatformInfo()"
-                    />
-                </div>
+                <SidebarInfo
+                    v-show="SidebarManager.isViewSelected('info')"
+                    :is-platform-connected="connected"
+                    @update-platform-info="this.updatePlatformInfo()"
+                />
 
                 <!-- sample questions -->
-                <div v-show="SidebarManager.isViewSelected('questions')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                     <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarPrompts') }}
-                     </div>
-                    <SidebarQuestions
-                        @select-question="question => this.$emit('select-question', question)"
-                        @select-category="category => this.$emit('select-category', category)"
-                        ref="sidebar_questions"
-                    />
-                </div>
+                <SidebarQuestions
+                    v-show="SidebarManager.isViewSelected('questions')"
+                    @select-question="question => this.$emit('select-question', question)"
+                    @select-category="category => this.$emit('select-category', category)"
+                    ref="sidebar_questions"
+                />
 
                 <!-- agents/actions overview -->
-                <div v-show="SidebarManager.isViewSelected('agents')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                     <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarAgents') }}
-                     </div>
-                    <SidebarAgents
-                        :platformActions="platformActions"
-                    />
-                </div>
+                <SidebarAgents
+                    v-show="SidebarManager.isViewSelected('agents')"
+                    :platformActions="platformActions"
+                />
 
                 <!-- backend config -->
-                <div v-show="SidebarManager.isViewSelected('config')" id="config-display"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                    <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarConfig') }}
-                    </div>
-                    <SidebarConfig
-                        :backend="this.getBackend()"
-                    />
-                </div>
+                <SidebarConfig
+                    v-show="SidebarManager.isViewSelected('config')"
+                    :backend="this.getBackend()"
+                />
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')" id="debug-display"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto"
+                <div v-show="SidebarManager.isViewSelected('debug')"
+                     class="container"
                      @scroll="handleDebugScroll">
                      <div v-if="!isMobile" class="sidebar-title">
                         {{ Localizer.get('tooltipSidebarLogs') }}
                      </div>
-                    <div id="debug-console"
-                         class="d-flex flex-column text-start rounded-4">
-                        <DebugMessage v-for="debugMessage in debugMessages"
-                                      :key="debugMessage.text"
-                                      :text="debugMessage.text"
-                                      :type="debugMessage.type"
-                                      :execution-time="debugMessage.executionTime"
-                                      :response-metadata="debugMessage.responseMetadata"
-                        />
+                    <div id="debug-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+                        <div id="debug-console"
+                             class="d-flex flex-column text-start rounded-4">
+                            <DebugMessage v-for="debugMessage in debugMessages"
+                                          :key="debugMessage.text"
+                                          :text="debugMessage.text"
+                                          :type="debugMessage.type"
+                                          :execution-time="debugMessage.executionTime"
+                                          :response-metadata="debugMessage.responseMetadata"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -222,7 +204,8 @@ export default {
         handleDebugScroll() {
             // Disable autoscroll for debug console if user scrolled up
             const debugConsole = document.getElementById('debug-display');
-            this.autoScrollEnabled = debugConsole.scrollTop + debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
+            this.autoScrollEnabled = debugConsole.scrollTop +
+                debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
         },
 
         addDebugMessage(text, type) {
@@ -269,6 +252,15 @@ export default {
 }
 </script>
 
+<style>
+.sidebar-title {
+    font-size: 150%;
+    border-left: 5px solid var(--primary-color);
+    padding-left: .5em;
+    margin-bottom: .5em;
+}
+</style>
+
 <style scoped>
 #sidebar-base {
     background-color: var(--background-color);
@@ -295,13 +287,6 @@ export default {
     transition: all 0.2s ease;
     border-radius: .5em;
     height: calc(100vh - 100px);
-}
-
-.sidebar-title {
-    font-size: 150%;
-    border-left: 5px solid var(--primary-color);
-    padding-left: .5em;
-    margin-bottom: .5em;
 }
 
 .sidebar-item {

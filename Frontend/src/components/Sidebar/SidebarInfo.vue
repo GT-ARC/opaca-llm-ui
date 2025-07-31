@@ -61,7 +61,6 @@ export default {
     mounted() {},
     watch: {
         isPlatformConnected(newVal) {
-            console.log('watch isPlatformConnected', newVal);
             if (newVal) {
                 this.showHowCanYouHelpInSidebar();
             }

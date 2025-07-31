@@ -1,5 +1,10 @@
 <template>
-<div>
+<div id="config-display"
+     class="container flex-grow-1 overflow-hidden overflow-y-auto">
+    <div v-if="!isMobile" class="sidebar-title">
+        {{ Localizer.get('tooltipSidebarConfig') }}
+    </div>
+
     <div class="py-2">
         <p class="fw-bold">Config for
             <i class="fa fa-server ms-1"/>

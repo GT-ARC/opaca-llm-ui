@@ -1,6 +1,9 @@
 <template>
+<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+    <div v-if="!isMobile" class="sidebar-title">
+        {{ Localizer.get('tooltipSidebarAgents') }}
+    </div>
 
-<div>
     <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
