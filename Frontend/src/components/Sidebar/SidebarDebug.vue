@@ -24,15 +24,15 @@ import conf from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import DebugMessage from "../DebugMessage.vue";
+import {addDebugMessage} from "../../utils.js";
 
 export default {
     name: "SidebarDebug",
-    props: {
-        debugMessages: Array,
-    },
+    props: {},
     components: {DebugMessage},
     data() {
         return {
+            debugMessages: [],
             autoScrollEnabled: true,
         }
     },
@@ -54,6 +54,14 @@ export default {
             const debugConsole = document.getElementById('debug-display');
             this.autoScrollEnabled = debugConsole.scrollTop +
                 debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
+        },
+
+        addDebugMessage(text, type) {
+            addDebugMessage(this.debugMessages, text, type);
+        },
+
+        clearDebugMessage() {
+            this.debugMessages = [];
         },
 
     },

@@ -65,17 +65,27 @@ import conf from '../../../config.js';
 import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
+import backendClient from "../../utils.js";
 
 export default {
     name: 'SidebarAgents',
-    props: {
-        platformActions: Object,
-    },
+    props: {},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Localizer, SidebarManager, isMobile, screenWidth };
     },
+    data() {
+        return {
+            platformActions: null,
+        };
+    },
     methods: {
+        async updatePlatformInfo(isPlatformConnected) {
+            this.platformActions = isPlatformConnected
+                ? await backendClient.getActions()
+                : null;
+        },
+
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
         },

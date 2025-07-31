@@ -41,14 +41,13 @@
         <!-- sidebar content -->
         <div v-show="SidebarManager.isSidebarOpen()">
             <aside id="sidebar"
-                   class="container-fluid d-flex flex-column position-relative"
-                   :class="{'px-3': !isMobile}">
+                   class="container-fluid d-flex flex-column position-relative">
 
                 <!-- platform information -->
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.updatePlatformInfo"
+                    @update-platform-info="this.handleUpdatePlatformInfo"
                     ref="info"
                 />
 
@@ -63,7 +62,6 @@
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
-                    :platformActions="platformActions"
                     ref="agents"
                 />
 
@@ -77,7 +75,6 @@
                 <!-- debug console -->
                 <SidebarDebug
                     v-show="SidebarManager.isViewSelected('debug')"
-                    :debug-messages="this.debugMessages"
                     ref="debug"
                 />
 
@@ -131,10 +128,6 @@ export default {
     },
     data() {
         return {
-            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
-            opacaUser: '',
-            opacaPwd: '',
-            apiKey: '',
             platformActions: null,
             debugMessages: [],
         };
@@ -143,6 +136,11 @@ export default {
         getBackend() {
             const parts = this.backend.split('/');
             return parts[parts.length - 1];
+        },
+
+        handleUpdatePlatformInfo(isPlatformConnected) {
+            if (!this.$refs.agents) return;
+            this.$refs.agents.updatePlatformInfo(isPlatformConnected);
         },
 
         setupResizer() {
@@ -173,17 +171,8 @@ export default {
         },
 
         addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type);
-        },
-
-        async updatePlatformInfo(isPlatformConnected) {
-            this.platformActions = isPlatformConnected
-                ? await backendClient.getActions()
-                : null;
-        },
-
-        clearDebugMessage() {
-            this.debugMessages = [];
+            if (!this.$refs.debug) return;
+            this.$refs.debug.addDebugMessage(text, type);
         },
 
     },
