@@ -48,7 +48,8 @@
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.updatePlatformInfo()"
+                    @update-platform-info="this.updatePlatformInfo"
+                    ref="info"
                 />
 
                 <!-- sample questions -->
@@ -56,41 +57,29 @@
                     v-show="SidebarManager.isViewSelected('questions')"
                     @select-question="question => this.$emit('select-question', question)"
                     @select-category="category => this.$emit('select-category', category)"
-                    ref="sidebar_questions"
+                    ref="questions"
                 />
 
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
                     :platformActions="platformActions"
+                    ref="agents"
                 />
 
                 <!-- backend config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
                     :backend="this.getBackend()"
+                    ref="config"
                 />
 
                 <!-- debug console -->
-                <div v-show="SidebarManager.isViewSelected('debug')"
-                     class="container"
-                     @scroll="handleDebugScroll">
-                     <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarLogs') }}
-                     </div>
-                    <div id="debug-display" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                        <div id="debug-console"
-                             class="d-flex flex-column text-start rounded-4">
-                            <DebugMessage v-for="debugMessage in debugMessages"
-                                          :key="debugMessage.text"
-                                          :text="debugMessage.text"
-                                          :type="debugMessage.type"
-                                          :execution-time="debugMessage.executionTime"
-                                          :response-metadata="debugMessage.responseMetadata"
-                            />
-                        </div>
-                    </div>
-                </div>
+                <SidebarDebug
+                    v-show="SidebarManager.isViewSelected('debug')"
+                    :debug-messages="this.debugMessages"
+                    ref="debug"
+                />
 
                 <!-- Help/FAQ -->
                 <div v-show="SidebarManager.isViewSelected('faq')"
@@ -122,10 +111,12 @@ import {marked} from "marked";
 import SidebarAgents from "./SidebarAgents.vue";
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
+import SidebarDebug from "./SidebarDebug.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarDebug,
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
@@ -195,19 +186,6 @@ export default {
             });
         },
 
-        scrollDownDebugView() {
-            if (!this.autoScrollEnabled) return;
-            const configContainer = document.getElementById('debug-display');
-            configContainer.scrollTop = configContainer.scrollHeight;
-        },
-
-        handleDebugScroll() {
-            // Disable autoscroll for debug console if user scrolled up
-            const debugConsole = document.getElementById('debug-display');
-            this.autoScrollEnabled = debugConsole.scrollTop +
-                debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
-        },
-
         addDebugMessage(text, type) {
             addDebugMessage(this.debugMessages, text, type);
         },
@@ -245,9 +223,6 @@ export default {
     mounted() {
         this.setupResizer();
         this.buildFaqContent();
-    },
-    updated() {
-        this.scrollDownDebugView();
     },
 }
 </script>
@@ -349,14 +324,6 @@ export default {
 
 .resizer:hover {
     background-color: var(--primary-color);
-}
-
-#debug-console {
-    background-color: var(--debug-console-color);
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 /* mobile design */
