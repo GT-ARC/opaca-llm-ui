@@ -184,17 +184,18 @@ async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
         session_id = cookie_dict.get("session_id")
 
     async with sessions_lock:
-        session_id = create_or_refresh_session(session_id, 60) # throw away session for just this interaction
+        session_id = create_or_refresh_session(session_id) # throw away session for just this interaction
         return sessions[session_id]
 
 
-def create_or_refresh_session(session_id, max_age):
+def create_or_refresh_session(session_id, max_age=None):
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
         logger.info(f"Creating new Session {session_id}")
         sessions[session_id] = SessionData()
         sessions[session_id].opaca_client = OpacaClient()
-    sessions[session_id].valid_until = time.time() + max_age
+    if max_age is not None:
+        sessions[session_id].valid_until = time.time() + max_age
     return session_id
 
 
@@ -212,7 +213,7 @@ async def cleanup_old_sessions(delay_seconds=3600):
         now = time.time()
         async with sessions_lock:
             for session_id, session_data in list(sessions.items()):
-                if 0 < session_data.valid_until < now:
+                if session_data.valid_until < now:
                     logger.info(f"Removing old session {session_id}")
                     sessions.pop(session_id)
         await asyncio.sleep(delay_seconds)
@@ -220,7 +221,7 @@ async def cleanup_old_sessions(delay_seconds=3600):
 
 @app.on_event("startup")
 async def startup_event():
-    asyncio.create_task(cleanup_old_sessions(30))
+    asyncio.create_task(cleanup_old_sessions())
 
 
 # run as `python3 -m Backend.server`
