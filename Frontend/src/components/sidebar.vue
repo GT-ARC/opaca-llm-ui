@@ -296,7 +296,7 @@ export default {
 
         async resetBackendConfig() {
             try {
-                const res = backendClient.resetConfig(this.getBackend());
+                const res = await backendClient.resetConfig(this.getBackend());
                 console.log('Reset backend config.');
                 this.backendConfig = res.value;
                 this.backendConfigSchema = res.config_schema;
