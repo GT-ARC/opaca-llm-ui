@@ -31,7 +31,7 @@
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@popperjs/core": "^2.11.8",
     "apiai": "^4.0.3",
-    "axios": "^1.5.0",
+    "axios": "^1.11.0",
     "body-parser": "^1.20.2",
     "bootstrap": "^5.3.2",
     "concurrently": "^8.2.2",
@@ -48,9 +48,9 @@
   },
   "devDependencies": {
     "@iconify/vue": "^4.1.1",
-    "@vitejs/plugin-vue": "^4.2.3",
+    "@vitejs/plugin-vue": "^6.0.0",
     "sass": "^1.69.0",
     "typescript": "^5.2.2",
-    "vite": "^4.4.5"
+    "vite": "^7.0.5"
   }
 }

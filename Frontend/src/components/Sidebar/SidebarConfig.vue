@@ -50,7 +50,7 @@ import conf, {Backends, BackendDescriptions} from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import ConfigParameter from "../ConfigParameter.vue";
-import {sendRequest} from "../../utils.js";
+import backendClient from "../../utils.js";
 
 export default {
     name: 'SidebarConfig',
@@ -74,46 +74,39 @@ export default {
     methods: {
         async saveBackendConfig() {
             try {
-                const url = `${conf.BackendAddress}/${backend}/config`;
-                const response = await sendRequest('PUT', url, this.backendConfig);
-                if (response.status === 200) {
-                    console.log('Saved backend config.');
-                    this.configChangeSuccess = true;
-                    this.configMessage = "Configuration Changed";
-                    this.startFadeOut();
-                } else {
-                    console.error('Error saving backend config.');
-                    this.configChangeSuccess = false;
-                    this.configMessage = "Unexpected Error";
-                    this.startFadeOut();
-                }
+                await backendClient.updateConfig(this.backend, this.backendConfig);
+                console.log('Saved backend config.');
+                this.configChangeSuccess = true
+                this.configMessage = "Configuration Changed"
             } catch (error) {
                 if (error.response.status === 400) {
-                    console.log("Invalid Configuration Values: ", error.response.data.detail);
-                    this.configChangeSuccess = false;
-                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail;
-                    this.startFadeOut();
+                    console.log("Invalid Configuration Values: ", error.response.data.detail)
+                    this.configChangeSuccess = false
+                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail
+                } else {
+                    console.error('Error saving backend config.');
+                    this.configChangeSuccess = false
+                    this.configMessage = "Unexpected Error"
                 }
             }
+            this.startFadeOut()
         },
 
         async resetBackendConfig() {
-            const url = `${conf.BackendAddress}/${this.backend}/config/reset`;
-            const response = await sendRequest('POST', url);
-            if (response.status === 200) {
-                this.backendConfig = response.data.value;
-                this.backendConfigSchema = response.data.config_schema;
+            try {
+                const res = await backendClient.resetConfig(this.backend);
+                console.log('Reset backend config.');
+                this.backendConfig = res.value;
+                this.backendConfigSchema = res.config_schema;
                 this.configChangeSuccess = true
                 this.configMessage = "Reset Configuration to default values"
-                this.startFadeOut()
-                console.log('Reset backend config.');
-            } else {
+            } catch (error) {
+                console.error('Error resetting backend config.');
                 this.backendConfig = this.backendConfigSchema = null;
                 this.configChangeSuccess = false
                 this.configMessage = "Unexpected error occurred during configuration reset"
-                this.startFadeOut()
-                console.error('Error resetting backend config.');
             }
+            this.startFadeOut()
         },
 
         startFadeOut() {
@@ -126,21 +119,16 @@ export default {
 
             this.fadeTimeout = setTimeout(() => {
                 this.shouldFadeOut = true;
-            }, 3000)
+            }, 3000);
         },
 
         async fetchBackendConfig() {
-            this.backendConfig = null;
-            this.backendConfigSchema = null;
+            const backend = this.backend;
+            this.backendConfig = this.backendConfigSchema = null;
             try {
-                const url = `${conf.BackendAddress}/${this.backend}/config`;
-                const response = await sendRequest('GET', url);
-                if (response.status === 200) {
-                    this.backendConfig = response.data.value;
-                    this.backendConfigSchema = response.data.config_schema;
-                } else {
-                    console.error(`Failed to fetch backend config for backend ${this.getBackend()}`);
-                }
+                const res = await backendClient.getConfig(backend);
+                this.backendConfig = res.value;
+                this.backendConfigSchema = res.config_schema;
             } catch (error) {
                 console.error('Error fetching backend config:', error);
             }

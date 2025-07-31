@@ -1,5 +1,10 @@
 <template>
-<div>
+<div class="container flex-grow-1 overflow-hidden overflow-y-auto"
+>
+    <div v-if="!isMobile" class="sidebar-title">
+        {{ Localizer.get('tooltipSidebarInfo') }}
+    </div>
+
     <div v-if="!isPlatformConnected" class="placeholder-container">
         <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
         <h5 class="p-4">
@@ -21,7 +26,7 @@
 import conf from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
-import {sendRequest} from "../../utils.js";
+import backendClient from "../../utils.js";
 import {marked} from "marked";
 
 export default {
@@ -44,10 +49,8 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const url = `${conf.BackendAddress}/tool-llm/query`;
-                const body = {user_query: Localizer.get('platformInfoRequest'), store_in_history: false};
-                const response = await sendRequest("POST", url, body);
-                const answer = response.data.agent_messages[0].content;
+                const response = await backendClient.query("tool-llm", Localizer.get('platformInfoRequest'), false);
+                const answer = response.agent_messages[0].content;
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);

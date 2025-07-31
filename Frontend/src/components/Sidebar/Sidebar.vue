@@ -95,7 +95,7 @@
 
 <script>
 import conf, {Backends, BackendDescriptions} from '../../../config.js'
-import {sendRequest, addDebugMessage} from "../../utils.js";
+import backendClient, {addDebugMessage} from "../../utils.js";
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -177,13 +177,9 @@ export default {
         },
 
         async updatePlatformInfo(isPlatformConnected) {
-            if (isPlatformConnected) {
-                const url = `${conf.BackendAddress}/actions`;
-                const response = await sendRequest("GET", url);
-                this.platformActions = response.data;
-            } else {
-                this.platformActions = null;
-            }
+            this.platformActions = isPlatformConnected
+                ? await backendClient.getActions()
+                : null;
         },
 
         clearDebugMessage() {
