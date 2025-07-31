@@ -5,43 +5,43 @@
              class="d-flex flex-column justify-content-start align-items-center gap-2">
 
             <i @click="SidebarManager.toggleView('info')"
-               class="fa fa-circle-info sidebar-item"
+               class="fa fa-circle-info sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarInfo')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('info')}" />
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
-               class="fa fa-book sidebar-item"
+               class="fa fa-book sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('questions')}" />
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users sidebar-item"
+               class="fa fa-users sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarAgents')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('agents')}"/>
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog sidebar-item"
+               class="fa fa-cog sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarConfig')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('config')}"/>
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
 
             <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug sidebar-item"
+               class="fa fa-bug sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarLogs')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('debug')}"/>
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
 
             <!-- spacer -->
             <div class="flex-grow-1" />
 
             <i @click="SidebarManager.toggleView('faq')"
-               class="fa fa-question-circle sidebar-item"
+               class="fa fa-question-circle sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarFaq')"
-               v-bind:class="{'sidebar-item-select': SidebarManager.isViewSelected('faq')}"/>
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
         <!-- sidebar content -->
         <div v-show="SidebarManager.isSidebarOpen()">
-            <aside id="sidebar"
-                   class="container-fluid d-flex flex-column position-relative">
+            <aside id="sidebar-content"
+                   class="d-flex flex-column position-relative">
 
                 <!-- platform information -->
                 <SidebarInfo
@@ -84,7 +84,7 @@
                     ref="faq"
                 />
 
-                <div v-show="!isMobile" class="resizer me-1" id="resizer" />
+                <div v-show="!isMobile" class="resizer" id="resizer" />
             </aside>
         </div>
     </div>
@@ -145,7 +145,7 @@ export default {
 
         setupResizer() {
             const resizer = document.getElementById('resizer');
-            const sidebar = document.getElementById('sidebar');
+            const sidebar = document.getElementById('sidebar-content');
             let isResizing = false;
 
             resizer.addEventListener('mousedown', (e) => {
@@ -183,6 +183,7 @@ export default {
 </script>
 
 <style>
+/* used in the sub-components! */
 .sidebar-title {
     font-size: 150%;
     border-left: 5px solid var(--primary-color);
@@ -197,29 +198,27 @@ export default {
 }
 
 /* sidebar content */
-#sidebar {
+#sidebar-content {
     width: min(400px, 100vw - 3rem);
     height: calc(100vh - 100px);
     min-width: 150px;
     max-width: 768px;
+    padding-right: 1rem;
     z-index: 999;
     background-color: var(--surface-color);
-    margin: 1em 0 0 1em;
-    border-radius: .5em;
-    padding: .5em;
+    border-radius: .5rem;
 }
 
 #sidebar-menu {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
-    padding: .5em;
-    margin: 1em 0 0 1em;
+    padding: 0.5rem;
     transition: all 0.2s ease;
-    border-radius: .5em;
+    border-radius: 0.5rem;
     height: calc(100vh - 100px);
 }
 
-.sidebar-item {
+.sidebar-menu-item {
     font-size: 1.25rem;
     cursor: pointer;
     width: 3rem;
@@ -232,29 +231,30 @@ export default {
     transition: all 0.2s ease;
 }
 
-.sidebar-item:hover {
+.sidebar-menu-item:hover {
     background-color: var(--background-color);
     color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
 
-.sidebar-item-select {
+.sidebar-menu-item-select {
     background-color: var(--primary-color) !important;
     color: white !important;
 }
 
-.sidebar-item-select:hover {
+.sidebar-menu-item-select:hover {
     background-color: var(--secondary-color);
     color: white !important;
 }
 
 @media screen and (max-width: 768px) {
-    #sidebar {
+    #sidebar-content {
         width: min(600px, 100vw - 3rem);
+        padding-right: 0;
     }
 
-    .sidebar-item {
+    .sidebar-menu-item {
         font-size: 0.8rem;
         width: 2rem;
         height: 2rem;
@@ -284,10 +284,10 @@ export default {
     }
 
     #sidebar-menu {
-        padding: 0.75rem;
+        padding: 0.25rem;
     }
 
-    .sidebar-item {
+    .sidebar-menu-item {
         font-size: 1rem;
         width: 2rem;
         height: 2rem;

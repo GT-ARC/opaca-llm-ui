@@ -6,7 +6,8 @@
             {{ Localizer.get('tooltipSidebarLogs') }}
         </div>
         <div id="debug-console"
-             class="d-flex flex-column text-start rounded-4">
+             class="d-flex flex-column text-start rounded-4"
+             :class="{'p-1': this.debugMessages.length > 0}" >
             <DebugMessage v-for="debugMessage in debugMessages"
                           :key="debugMessage.text"
                           :text="debugMessage.text"

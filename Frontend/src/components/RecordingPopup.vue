@@ -456,7 +456,7 @@ export default {
     -webkit-backdrop-filter: blur(8px);
 }
 
-#sidebar {
+#sidebar-content {
     position: relative;
     z-index: 999;
 }
