@@ -82,15 +82,10 @@
                 />
 
                 <!-- Help/FAQ -->
-                <div v-show="SidebarManager.isViewSelected('faq')"
-                     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-                     <div v-if="!isMobile" class="sidebar-title">
-                        {{ Localizer.get('tooltipSidebarFaq') }}
-                     </div>
-                    <div v-html="this.faqContent"
-                         class="d-flex flex-column text-start faq-content">
-                    </div>
-                </div>
+                <SidebarFaq
+                    v-show="SidebarManager.isViewSelected('faq')"
+                    ref="faq"
+                />
 
                 <div v-show="!isMobile" class="resizer me-1" id="resizer" />
             </aside>
@@ -101,28 +96,25 @@
 <script>
 import conf, {Backends, BackendDescriptions} from '../../../config.js'
 import {sendRequest, addDebugMessage} from "../../utils.js";
-import DebugMessage from '../DebugMessage.vue';
-import SidebarQuestions from './SidebarQuestions.vue';
 import { useDevice } from "../../useIsMobile.js";
-import ConfigParameter from '../ConfigParameter.vue';
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
-import {marked} from "marked";
+import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
+import SidebarFaq from "./SidebarFaq.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarFaq,
         SidebarDebug,
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
-        DebugMessage,
         SidebarQuestions,
-        ConfigParameter
     },
     props: {
         backend: String,
@@ -145,12 +137,6 @@ export default {
             apiKey: '',
             platformActions: null,
             debugMessages: [],
-            configChangeSuccess: false,
-            shouldFadeOut: false,
-            fadeTimeout: null,
-            faqContent: '',
-            howAssistContent: '',
-            autoScrollEnabled: true,
         };
     },
     methods: {
@@ -190,21 +176,6 @@ export default {
             addDebugMessage(this.debugMessages, text, type);
         },
 
-        async buildFaqContent() {
-            const readmeUrl = '/src/assets/about.md';
-            try {
-                const response = await fetch(readmeUrl);
-                if (response.ok) {
-                    const faqRaw = await response.text();
-                    this.faqContent = marked.parse(faqRaw);
-                } else {
-                    console.error('Failed to fetch FAQ content:', response.status, response);
-                }
-            } catch (error) {
-                console.error('Failed to fetch FAQ content:', error);
-            }
-        },
-
         async updatePlatformInfo(isPlatformConnected) {
             if (isPlatformConnected) {
                 const url = `${conf.BackendAddress}/actions`;
@@ -222,7 +193,6 @@ export default {
     },
     mounted() {
         this.setupResizer();
-        this.buildFaqContent();
     },
 }
 </script>
@@ -292,10 +262,6 @@ export default {
 .sidebar-item-select:hover {
     background-color: var(--secondary-color);
     color: white !important;
-}
-
-.faq-content {
-    color: var(--text-primary-color);
 }
 
 @media screen and (max-width: 768px) {

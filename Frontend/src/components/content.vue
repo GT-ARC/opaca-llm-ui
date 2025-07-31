@@ -384,8 +384,7 @@ export default {
         },
 
         scrollDownDebug() {
-            const div = document.getElementById('debug-console');
-            div.scrollTop = div.scrollHeight;
+            this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
         processAgentStatusMessage(agentMessage) {
