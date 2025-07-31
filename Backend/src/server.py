@@ -9,6 +9,7 @@ from typing import List, Dict, Any
 import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi import Response as FastAPIResponse
@@ -25,9 +26,19 @@ from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
 
 
+@asynccontextmanager
+async def lifespan(app):
+    # before start
+    asyncio.create_task(cleanup_old_sessions())
+    # app running
+    yield
+    # after shutdown
+    pass
+
 app = FastAPI(
     title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly."
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    lifespan=lifespan
 )
 
 # Configure CORS settings
@@ -218,10 +229,6 @@ async def cleanup_old_sessions(delay_seconds=3600):
                     sessions.pop(session_id)
         await asyncio.sleep(delay_seconds)
 
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(cleanup_old_sessions())
 
 
 # run as `python3 -m Backend.server`
