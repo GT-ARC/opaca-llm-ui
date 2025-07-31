@@ -310,13 +310,8 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
            try {
-                const backend = this.getBackend();
-                console.log(backend)
-                const socketURL = `${conf.BackendAddress}/${backend}/query_stream`;
-
-                this.socket = new WebSocket(socketURL);
-
-                // Event handlers
+                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`;
+                this.socket = new WebSocket(url);
                 this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
                 this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
                 this.socket.onclose   = ()    => this.handleStreamingSocketClose();
