@@ -1,9 +1,9 @@
 # Contributing Guidelines
 
-Copyright 2024 GT-ARC & DAI-Labor, TU Berlin
+Copyright 2024 - 2025, GT-ARC & DAI-Labor, TU Berlin
 
-* Main Contributors: Robert Strehlow, Tobias Küster
-* Further contributions by: Oskar Kupke, Benjamin Acar, Abdullah Kiwan
+* Main Contributors: Robert Strehlow, Daniel Wetzel, Tobias Küster
+* Further contributions by: Oskar Kupke, Cedric Braun, Brandon Llanque Kurps, Abdullah Kiwan, Benjamin Acar
 
 Note that this (https://github.com/gt-arc/opaca-llm-ui/) is the public repository of the OPACA LLM UI project, but the main development work still happens in the internal/private repository at https://gitlab.dai-labor.de, including most (internal) tickets, development branches, merge requests, build pipelines, etc.
 
