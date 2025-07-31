@@ -172,6 +172,11 @@ export default {
             this.$refs.debug.addDebugMessage(text, type);
         },
 
+        clearDebugMessage() {
+            if (!this.$refs.debug) return;
+            this.$refs.debug.clearDebugMessage();
+        },
+
     },
     mounted() {
         this.setupResizer();

@@ -351,6 +351,7 @@ export default {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
             this.showExampleQuestions = true;
+            Localizer.reloadSampleQuestions(null);
             await backendClient.reset();
         },
 
