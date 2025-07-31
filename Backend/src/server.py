@@ -160,12 +160,11 @@ async def handle_session_id(request: Request, response: FastAPIResponse) -> Sess
     response and return the SessionData associated with that session-id.
     """
     session_id = request.cookies.get("session_id")
-    persistent = request.cookies.get("persistentSession")
     async with sessions_lock:
         session_id = get_or_create_session(session_id)
         
-        # create Cookie (or update max-age is already exists)
-        max_age = 60 * 60 * 24 * 30 if persistent else None  # 30 days or until browser is closed
+        # create Cookie (or just update max-age if already exists)
+        max_age = 60 * 60 * 24 * 30  # 30 days
         response.set_cookie("session_id", session_id, max_age=max_age)
         return sessions[session_id]
 

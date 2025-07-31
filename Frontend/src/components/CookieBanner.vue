@@ -1,13 +1,15 @@
 <template>
     <div v-if="!isCookieAccepted" class="cookie-banner">
         <p>
-            This website uses cookies to associate your message history and settings (stored in the backend) with you.
-            Without those cookies, no continued conversation with the LLM is possible. You can chose to either accept the cookies
-            for only this browser session (a new session-cookie will be created for each session), or permanently (your message 
-            history can be restored if you restart the browser). You can always check, change or revoke this in your browser settings.
+            This website uses cookies to associate your chat session (message history and settings) with you.
+            This cookie is kept for 30 days after the last interaction, or until manually deleted.
+            The session data is stored in the backend and the messages are sent to the configured LLM.
+            The session data will be deleted from the backend when the cookie expires, or by clicking the "Reset" button.
+            The cookies and session data are used for the sole purpose of the chat interaction.
+            Without, no continued conversation with the LLM is possible.
+            By using this website, you consent to the above policy.
         </p>
-        <button class="btn btn-secondary" @click="acceptCookies(false)">Accept for this Session</button>
-        <button class="btn btn-primary" @click="acceptCookies(true)">Accept Persistently</button>
+        <button class="btn btn-primary" @click="acceptCookies()">Accept Cookies</button>
     </div>
 </template>
 
@@ -30,12 +32,9 @@ export default {
             this.isCookieAccepted = document.cookie.split(';').some((item) => item.trim().startsWith('cookieConsent='));
         },
 
-        acceptCookies(persistentSession) {
-            const max_age = 60 * 60 * 24 * 30; // 30 days
+        acceptCookies() {
+            const max_age = 60 * 60 * 24 * 365 * 10; // 10 years...
             document.cookie = "cookieConsent=true; max-age=" + max_age;
-            if (persistentSession) {
-                document.cookie = "persistentSession=true; max-age=" + max_age;
-            }
             this.isCookieAccepted = true;
         },
     },
