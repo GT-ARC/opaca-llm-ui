@@ -200,7 +200,8 @@ export default {
     height: calc(100vh - 100px);
     min-width: 150px;
     max-width: 768px;
-    padding-right: 1rem;
+    padding: .5rem;
+    margin: 1rem 0 0 1rem;
     z-index: 999;
     background-color: var(--surface-color);
     border-radius: .5rem;
@@ -210,6 +211,7 @@ export default {
     background-color: var(--surface-color);
     border-right: 1px solid var(--border-color);
     padding: 0.5rem;
+    margin: 1rem 0 0 1rem;
     transition: all 0.2s ease;
     border-radius: 0.5rem;
     height: calc(100vh - 100px);
