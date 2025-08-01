@@ -13,10 +13,13 @@
         <p>{{ BackendDescriptions[this.backend] }}</p>
     </div>
 
-    <div v-if="!this.backendConfig || Object.keys(this.backendConfig).length === 0">
-        No config available.
+    <div v-if="this.isLoading">
+        <i class="fa fa-circle-notch fa-spin me-1" />
+        {{ Localizer.get('sidebarConfigLoading', this.backend) }}
     </div>
-
+    <div v-else-if="!this.backendConfig || Object.keys(this.backendConfig).length === 0">
+        {{ Localizer.get('sidebarConfigMissing', this.backend) }}
+    </div>
     <div v-else class="flex-row text-start">
         <ConfigParameter v-for="(value, name) in backendConfigSchema"
                          :key="name"
@@ -69,24 +72,24 @@ export default {
             configMessage: '',
             backendConfig: null,
             backendConfigSchema: null,
+            isLoading: false,
         };
     },
     methods: {
         async saveBackendConfig() {
             try {
                 await backendClient.updateConfig(this.backend, this.backendConfig);
-                console.log('Saved backend config.');
                 this.configChangeSuccess = true
-                this.configMessage = "Configuration Changed"
+                this.configMessage = Localizer.get('configSaveSuccess');
             } catch (error) {
                 if (error.response.status === 400) {
                     console.log("Invalid Configuration Values: ", error.response.data.detail)
                     this.configChangeSuccess = false
-                    this.configMessage = "Invalid Configuration Values: " + error.response.data.detail
+                    this.configMessage = Localizer.get('configSaveInvalid', error.response.data.detail);
                 } else {
                     console.error('Error saving backend config.');
                     this.configChangeSuccess = false
-                    this.configMessage = "Unexpected Error"
+                    this.configMessage = Localizer.get('configSaveError');
                 }
             }
             this.startFadeOut()
@@ -99,12 +102,12 @@ export default {
                 this.backendConfig = res.value;
                 this.backendConfigSchema = res.config_schema;
                 this.configChangeSuccess = true
-                this.configMessage = "Reset Configuration to default values"
+                this.configMessage = Localizer.get('configReset')
             } catch (error) {
                 console.error('Error resetting backend config.');
                 this.backendConfig = this.backendConfigSchema = null;
                 this.configChangeSuccess = false
-                this.configMessage = "Unexpected error occurred during configuration reset"
+                this.configMessage = Localizer.get('configSaveError');
             }
             this.startFadeOut()
         },

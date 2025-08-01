@@ -5,15 +5,15 @@
         {{ Localizer.get('tooltipSidebarInfo') }}
     </div>
 
-    <div v-if="!isPlatformConnected" class="placeholder-container">
+    <div v-if="this.isLoading">
+        <i class="fa fa-circle-notch fa-spin me-1" />
+        {{ Localizer.get('platformInfoLoading') }}
+    </div>
+    <div v-else-if="!isPlatformConnected" class="placeholder-container">
         <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
         <h5 class="p-4">
             {{ Localizer.get('platformInfoMissing') }}
         </h5>
-    </div>
-    <div v-else-if="this.isLoading"
-         class="placeholder-loading w-auto">
-        {{ Localizer.get('platformInfoLoading') }}
     </div>
     <div v-else
          v-html="this.howAssistContent"
@@ -95,16 +95,4 @@ export default {
     opacity: 0.6;
 }
 
-.placeholder-loading {
-    animation: loading 2s infinite;
-}
-
-@keyframes loading {
-    0%, 100% {
-        color: var(--text-secondary-color);
-    }
-    50% {
-        color: var(--text-primary-color);
-    }
-}
 </style>
