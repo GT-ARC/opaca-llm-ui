@@ -170,6 +170,7 @@ async def history(request: Request, response: FastAPIResponse) -> list:
 async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
     session = await handle_session_id(request, response)
     session.messages.clear()
+    session.uploaded_files.clear()
     return FastAPIResponse(status_code=204)
 
 @app.post("/reset_all", description="Reset all sessions")
