@@ -1,5 +1,10 @@
 <!-- SidebarQuestions Component -->
 <template>
+<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+    <div v-if="!isMobile" class="sidebar-title">
+        {{ Localizer.get('tooltipSidebarPrompts') }}
+    </div>
+
     <div id="sidebar-questions" class="accordion">
         <div v-for="(section, index) in this.getQuestions()"
              :key="index"
@@ -45,12 +50,13 @@
             <i :class="['fa', 'fa-sync', isRegenerating ? 'fa-spin' : '']"></i>{{ Localizer.get('regenerate')}}
         </button>
     </div>
+</div>
 </template>
 
 <script>
-import Localizer, {sidebarQuestions} from "../Localizer.js";
-import conf from "../../config.js";
-import backendClient from "../utils.js";
+import Localizer, {sidebarQuestions} from "../../Localizer.js";
+import conf from "../../../config.js";
+import backendClient from "../../utils.js";
 import {nextTick} from "vue";
 
 export default {

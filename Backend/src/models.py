@@ -139,6 +139,7 @@ class SessionData(BaseModel):
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}
+    valid_until: float = -1
 
 
 class ConfigArrayItem(BaseModel):

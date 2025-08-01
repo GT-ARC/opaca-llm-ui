@@ -171,7 +171,7 @@
 
 <script>
 import {nextTick} from "vue";
-import Sidebar from "./sidebar.vue";
+import Sidebar from "./Sidebar/Sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
@@ -454,6 +454,7 @@ export default {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
             this.showExampleQuestions = true;
+            Localizer.reloadSampleQuestions(null);
             await backendClient.reset();
         },
 
@@ -487,8 +488,7 @@ export default {
         },
 
         scrollDownDebug() {
-            const div = document.getElementById('debug-console');
-            div.scrollTop = div.scrollHeight;
+            this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
         processAgentStatusMessage(agentMessage) {
