@@ -456,16 +456,6 @@ export default {
     -webkit-backdrop-filter: blur(8px);
 }
 
-#sidebar {
-    position: relative;
-    z-index: 999;
-}
-
-.sidebar-menu {
-    position: relative;
-    z-index: 999;
-}
-
 .fixed {
     position: fixed;
     top: 0;
