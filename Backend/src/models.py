@@ -130,7 +130,8 @@ class SessionData(BaseModel):
         opaca_client: Client instance for Opaca (or similar).
         api_key: API key string.
         llm_clients: Dictionary of LLM client instances.
-        uploaded_files: Dictionary storing each uploaded PDF file
+        uploaded_files: Dictionary storing each uploaded PDF file.
+        valid_until: Timestamp until session is active. 
     """
     messages: List[Any] = []
     config: Dict[str, Any] = {}

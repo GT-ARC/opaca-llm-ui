@@ -309,7 +309,7 @@ export default {
             this.getLastBubble().addStatusMessage('preparing',
                 Localizer.getLoadingMessage('preparing'), false);
 
-           try {
+            try {
                 const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`;
                 this.socket = new WebSocket(url);
                 this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
