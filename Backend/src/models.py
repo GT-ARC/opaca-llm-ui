@@ -4,8 +4,9 @@ Request and response models used in the FastAPI routes (and in some of the imple
 import logging
 import sys
 from typing import List, Dict, Any, Optional, Self
+from io import BytesIO
 
-from pydantic import BaseModel, field_validator, model_validator, Field
+from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
 
 class ColoredFormatter(logging.Formatter):
@@ -109,10 +110,28 @@ class Response(BaseModel):
     content: str = ''
     error: str = ''
 
+class OpacaFile(BaseModel):
+    """
+    Represents a single uploaded PDF file.
+    """
+    _content: BytesIO = PrivateAttr() # Private attribute to store binary content (not part of schema or validation)
+    content_type: str  # MIME type of the file
+    file_id: Optional[str] = None  # ID assigned after upload
+
 
 class SessionData(BaseModel):
     """
-    Stores relevant information regarding the session
+    Stores relevant information regarding the session, including messages, configuration,
+    client instances, API keys, and uploaded files.
+
+    Attributes:
+        messages: List of conversation messages.
+        config: Configuration dictionary.
+        opaca_client: Client instance for Opaca (or similar).
+        api_key: API key string.
+        llm_clients: Dictionary of LLM client instances.
+        uploaded_files: Dictionary storing each uploaded PDF file.
+        valid_until: Timestamp until session is active. 
     """
     messages: List[Any] = []
     config: Dict[str, Any] = {}
@@ -120,6 +139,7 @@ class SessionData(BaseModel):
     api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
+    uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
 
 
