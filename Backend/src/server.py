@@ -15,14 +15,13 @@ import io
 from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from typing import List, Union
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, OpacaException
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -86,7 +85,7 @@ async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
-async def disconnect(request: Request, response: FastAPIResponse) -> None:
+async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
     return FastAPIResponse(status_code=204)
@@ -160,7 +159,7 @@ async def upload_files(
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
 
-    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
+    return FastAPIResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
