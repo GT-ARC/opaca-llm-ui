@@ -48,16 +48,18 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await fetch(`${conf.BackendAddress}/upload`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
+        const response = await axios.post(`${conf.BackendAddress}/upload`, formData, {
+            timeout: 10000,
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'Access-Control-Allow-Origin': '*'
+            }
+        }).catch(error => {
+            console.error('Upload failed:', error);
+            throw new Error(error.toJSON());
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
-        }
-        return await response.json();
+        return response.data;
     }
 
     // config

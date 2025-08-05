@@ -340,7 +340,6 @@ export default {
 
             try {
                 const result = await backendClient.uploadFiles(files);
-                console.log("Uploaded files:", result.uploaded_files);
             } catch (error) {
                 console.error("File upload failed:", error);
                 alert("File upload failed. See console for details.");

@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 import io
 from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi import Response as FastAPIResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
@@ -159,7 +160,7 @@ async def upload_files(
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
 
-    return FastAPIResponse(status_code=201, content={"uploaded_files": uploaded})
+    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
