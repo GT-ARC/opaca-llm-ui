@@ -661,6 +661,10 @@ export default {
     .input-group {
         padding: 0;
     }
+
+    .sample-questions {
+        padding: 0;
+    }
 }
 
 /* animations */
