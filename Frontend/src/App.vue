@@ -3,7 +3,7 @@
     <CookieBanner />
 
     <header>
-        <div class="text-center py-0 my-0 mx-auto col" style="max-width: 100vh;">
+        <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
