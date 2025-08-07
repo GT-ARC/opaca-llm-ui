@@ -516,7 +516,7 @@ export default {
     display: flex;
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
-    padding: 2rem 0; /* Increased top padding for first message */
+    padding: 1rem 0;
 }
 
 .input-container {
@@ -642,16 +642,6 @@ export default {
 @media screen and (max-width: 768px) {
     #mainContent {
         display: none;
-    }
-
-    #mainContent::before {
-        background: none;
-        content: none;
-    }
-
-    #mainContent::after {
-        background: none;
-        content: none;
     }
 
     .input-container {

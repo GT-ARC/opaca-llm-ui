@@ -362,7 +362,6 @@ export default {
     position: relative;
     transition: all 0.2s ease;
     width: fit-content;
-    max-width: 800px;
 }
 
 .chatbubble-user {
@@ -373,6 +372,7 @@ export default {
     width: auto !important; /* Override any width constraints */
     word-wrap: break-word;
     overflow-wrap: anywhere;
+    max-width: 80ch;
 }
 
 .chatbubble-ai {
