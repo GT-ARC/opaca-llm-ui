@@ -4,7 +4,7 @@
     <div v-if="this.isUser" :id="this.elementId"
          class="d-flex flex-row justify-content-end">
 
-        <div class="chatbubble chatbubble-user me-2 w-auto">
+        <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
             <div v-html="this.getFormattedContent()"></div>
         </div>
     </div>
