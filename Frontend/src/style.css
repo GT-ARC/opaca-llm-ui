@@ -264,6 +264,23 @@ body {
 .text-muted {
     color: var(--text-secondary-color) !important;
 }
+.upload-status-popup {
+  background-color: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.upload-status-preview {
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: #f8f9fa; /* light gray */
+  display: inline-block;
+}
 
 /* nicer scrollbar (esp for within the input field) */
 ::-webkit-scrollbar {
