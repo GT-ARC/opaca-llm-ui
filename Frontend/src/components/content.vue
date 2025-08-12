@@ -62,40 +62,16 @@
             </div>
 
                 <!-- Upload Preview for Each File -->
-                <div
-                    v-if="selectedFiles.length"
-                    class="upload-status-preview text-muted small mb-2 text-start"
-                >
+                <div v-if="selectedFiles.length"
+                     class="upload-status-preview mx-auto">
+
                     <!-- Loop through each selected file -->
-                    <div
-                        v-for="(file, index) in selectedFiles"
-                        :key="file.name + index"
-                        class="d-flex align-items-center justify-content-between border rounded p-2 mb-1 bg-light"
-                    >
-                        <div class="d-flex align-items-center">
-                            <!-- Icon changes based on upload status -->
-                            <i
-                                :class="uploadStatus.isUploading ? 'fa fa-spinner fa-spin text-secondary me-2' : 'fa fa-file-pdf text-danger me-2'"
-                            ></i>
-
-                            <!-- File name -->
-                            <span class="me-2">{{ file.name }}</span>
-
-                            <!-- Upload status text -->
-                            <span v-if="uploadStatus.isUploading">uploading…</span>
-                        </div>
-
-                        <!-- Remove file from preview (but not from disk or server) -->
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            @click="removeSelectedFile(index)"
-                            :disabled="uploadStatus.isUploading"
-                            title="Remove file"
-                        >
-                            <i class="fa fa-times" />
-                        </button>
-                    </div>
+                    <FilePreview v-for="(file, index) in selectedFiles"
+                                 :key="file.name + index"
+                                 :file="file"
+                                 :index="index"
+                                 @remove-file="this.removeSelectedFile"
+                    />
                 </div>
 
                 <!-- Input Area with drag and drop -->
@@ -153,7 +129,7 @@
                             :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
-                    <label class="btn btn-secondary" style="margin-left: 4px;" title="Upload PDF">
+                    <label class="btn btn-secondary input-area-button" title="Upload PDF">
                         <i class="fa fa-upload"></i>
                         <input type="file"
                                 accept=".pdf"
@@ -182,10 +158,12 @@ import AudioManager from "../AudioManager.js";
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
+import FilePreview from "./FilePreview.vue";
 
 export default {
     name: 'main-content',
     components: {
+        FilePreview,
         OptionsSelect,
         Sidebar,
         RecordingPopup,
@@ -658,6 +636,16 @@ export default {
 
 .small-scrollbar::-webkit-scrollbar-thumb {
     background-color: transparent !important;
+}
+
+.upload-status-preview {
+    font-size: 0.9rem;
+    border-radius: 6px;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
+    display: flex;
+    width: min(95%, 100ch);
+    padding: 1rem;
 }
 
 .input-area-button {
