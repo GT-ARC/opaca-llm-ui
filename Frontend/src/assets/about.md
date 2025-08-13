@@ -21,7 +21,14 @@ The frontend includes different sidebars that can be expanded or collapsed, prov
 For more detailed information, please visit the project's GitHub page (link at the bottom of this page).
 
 
-## Frequently Asked Questions
+## What happens with my data?
+
+Your chat history is stored in the Backend and associated with you via a browser cookie. The cookie has a life-time of 30 days, which is renewed each time you make a request. Once the cookie expires, the chat histories will be removed from the backend. You can also at any time use the "Reset" function to clear your chat history. Note: If you delete the cookie from your browser, a new cookie will be issued and you lose the ability to Reset the old history (it will then be deleted when the old cookie expires).
+
+You chat prompts are forwarded to the configured LLM (e.g. GPT, or some locally installed LLM), and may be in some way evaluated by the companies running those LLM. The OPACA-LLM itself (the Frontend and Backend) does in no way inspect or evaluate your chat prompts or the results other than what's necessary for e.g. invoking the respective tools and formatting the response.
+
+
+## Other Frequently Asked Questions
 
 **What is OPACA and why do I need to connect to it?**
 OPACA is a frameworks combining multi-agent systems with container-technologies and microservices. OPACA enables the assistant to use tools. Without connecting, tool-based actions cannot be performed.
