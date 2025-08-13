@@ -71,6 +71,7 @@ export const localizationData = {
         tooltipUploadFile: "Upload File",
         tooltipChatbubbleFiles: "Attached Files",
         uploadingFileText: "Uploading…",
+        fileOverflow: "+%1 more…",
     },
 
     DE: {
@@ -138,6 +139,7 @@ export const localizationData = {
         tooltipUploadFile: "Datei hochladen",
         tooltipChatbubbleFiles: "Angehängte Dateien",
         uploadingFileText: "Lade hoch…",
+        fileOverflow: "+%1 weitere…",
     },
 };
 

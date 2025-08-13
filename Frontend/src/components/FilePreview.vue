@@ -1,5 +1,5 @@
 <template>
-<div class="file-preview d-flex">
+<div v-if="this.index < 3" class="file-preview d-flex">
 
     <div class="d-flex align-items-center">
         <!-- Icon changes based on upload status -->
@@ -67,7 +67,7 @@ export default {
 .file-preview {
     padding: 0.5rem;
     margin: 0.5rem;
-    max-width: 40ch;
+    max-width: 32ch;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     text-align: left;
@@ -78,6 +78,5 @@ export default {
     width: 1.5rem;
     height: 1.5rem;
     aspect-ratio: 1 / 1;
-    z-index: 6789;
 }
 </style>

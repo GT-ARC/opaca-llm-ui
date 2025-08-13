@@ -74,6 +74,10 @@
                                  :index="index"
                                  @remove-file="this.removeSelectedFile"
                     />
+
+                    <div v-if="selectedFiles && selectedFiles.length > 3" class="d-flex p-3">
+                        {{ Localizer.get('fileOverflow', selectedFiles.length - 3) }}
+                    </div>
                 </div>
 
                 <!-- Input Area with drag and drop -->
@@ -648,6 +652,7 @@ export default {
     background-color: var(--background-color);
     color: var(--text-primary-color);
     display: flex;
+    flex-wrap: wrap;
     width: min(95%, 100ch);
     padding: 1rem;
 }
