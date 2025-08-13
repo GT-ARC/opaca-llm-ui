@@ -11,7 +11,7 @@
         </span>
 
         <!-- Upload status text -->
-        <span v-if="this.isUploading">uploading…</span>
+        <span v-if="this.isUploading">{{ Localizer.get('uploadingFileText') }}</span>
     </div>
 
     <!-- Remove file from preview (but not from disk or server) -->
@@ -20,7 +20,7 @@
         class="btn btn-sm btn-outline-danger file-delete-button"
         @click="this.removeFile()"
         :disabled="this.isUploading"
-        title="Remove file"
+        :title="Localizer.get('tooltipRemoveUploadedFile')"
     >
         <i class="fa fa-remove" />
     </button>

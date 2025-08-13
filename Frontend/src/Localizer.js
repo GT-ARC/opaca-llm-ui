@@ -67,6 +67,10 @@ export const localizationData = {
         platformInfoFailed: "There was an error when querying the functionality: %1",
         cookiesText: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
         cookiesAccept: "Accept",
+        tooltipRemoveUploadedFile: "Remove File",
+        tooltipUploadFile: "Upload File",
+        uploadingFileText: "Uploading…",
+        attachedFileText: "Attached File: %1",
     },
 
     DE: {
@@ -130,6 +134,10 @@ export const localizationData = {
         platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
         cookiesText: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
         cookiesAccept: "Annehmen",
+        tooltipRemoveUploadedFile: "Datei entfernen",
+        tooltipUploadFile: "Datei hochladen",
+        uploadingFileText: "Lade hoch…",
+        attachedFileText: "Angehängte Datei: %1",
     },
 };
 

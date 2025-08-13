@@ -129,7 +129,7 @@
                             :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
-                    <label class="btn btn-secondary input-area-button" title="Upload PDF">
+                    <label class="btn btn-secondary input-area-button" :title="Localizer.get('tooltipUploadFile')">
                         <i class="fa fa-upload"></i>
                         <input type="file"
                                 accept=".pdf"
@@ -224,7 +224,7 @@ export default {
                 // If files are uploaded, append info about them to the input
                 if (this.selectedFiles.length > 0) {
                     const fileNotes = this.selectedFiles
-                        .map(file => `[Attached PDF: ${file.name}]`)
+                        .map(file => `[${Localizer.get('attachedFileText', file.name)}]`)
                         .join('\n');
                     userInput += `\n\n${fileNotes}`;
                 }
