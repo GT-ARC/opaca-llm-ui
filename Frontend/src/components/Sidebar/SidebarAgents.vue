@@ -4,7 +4,13 @@
         {{ Localizer.get('tooltipSidebarAgents') }}
     </div>
 
-    <div v-if="!platformActions || Object.keys(platformActions).length === 0">No actions available.</div>
+    <div v-if="this.isLoading">
+        <i class="fa fa-circle-notch fa-spin me-1" />
+        {{ Localizer.get('sidebarAgentsLoading') }}
+    </div>
+    <div v-else-if="!platformActions || Object.keys(platformActions).length === 0">
+        {{ Localizer.get('sidebarAgentsMissing') }}
+    </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
             <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
@@ -77,13 +83,16 @@ export default {
     data() {
         return {
             platformActions: null,
+            isLoading: false,
         };
     },
     methods: {
         async updatePlatformInfo(isPlatformConnected) {
+            this.isLoading = true;
             this.platformActions = isPlatformConnected
                 ? await backendClient.getActions()
                 : null;
+            this.isLoading = false;
         },
 
         formatJSON(obj) {
