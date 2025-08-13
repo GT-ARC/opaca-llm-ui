@@ -74,6 +74,15 @@
                     <i class="fa fa-bug" />
                 </div>
 
+                <!-- tool calls -->
+                <div v-show="this.getToolCalls().length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isToolsExpanded = !this.isToolsExpanded"
+                     :title="Localizer.get('tooltipChatbubbleTools')">
+                    <i class="fa fa-cogs" />
+                </div>
+
                 <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
@@ -97,6 +106,17 @@
                 </div>
             </div>
 
+            <!-- footer: tool calls -->
+            <div v-show="this.isToolsExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                     style="max-height: 200px">
+                     <p v-for="text in this.getToolCalls()">
+                        {{ text }}
+                     </p>
+                </div>
+            </div>
+
+            <!-- footer: errors -->
             <div v-show="this.isErrorExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
@@ -147,6 +167,7 @@ export default {
             ttsAudio: null,
             copySuccess: false,
             autoScrollDebugMessage: true,
+            isToolsExpanded: false,
         }
     },
 
@@ -172,6 +193,21 @@ export default {
                 this.markStatusMessagesDone(agentName);
                 this.statusMessages.set(agentName, {text: text, completed: completed});
             }
+        },
+
+        getToolCalls() {
+            const regex = /Tool\s+([^\n]+):\nName:\s*([^\n]+)\nArguments:\s*([^\n]+)\nResult:\s*([^\n]+)/gs
+            return this.debugMessages
+                .flatMap( debug => [...debug.text.matchAll(regex)] )
+                .map( match => {
+                    const id = match[1];
+                    const name = match[2];
+                    var params = match[3];
+                    const results = match[4];
+                    if (params.includes("requestBody")) params = params.substring(16, params.length-2);
+                    // TODO abbreviate result if very long
+                    return `${id}: ${name}(${params}) -> ${results}`;
+                });
         },
 
         addDebugMessage(text, type) {
