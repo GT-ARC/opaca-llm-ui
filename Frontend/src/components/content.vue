@@ -28,11 +28,13 @@
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
-                    <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
+                    <Chatbubble
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
+                        :files="files"
                         :ref="elementId"
                     />
                 </div>
@@ -221,18 +223,13 @@ export default {
                 let userInput = this.textInput;
                 this.textInput = '';
 
-                // If files are uploaded, append info about them to the input
-                if (this.selectedFiles.length > 0) {
-                    const fileNotes = this.selectedFiles
-                        .map(file => `[${Localizer.get('attachedFileText', file.name)}]`)
-                        .join('\n');
-                    userInput += `\n\n${fileNotes}`;
-                }
-
                 await nextTick();
                 this.resizeTextInput();
 
-                await this.askChatGpt(userInput);
+                const files = this.selectedFiles
+                    ? this.selectedFiles.map(file => file.name)
+                    : [];
+                await this.askChatGpt(userInput, files);
 
                 // Clear file and status after sending
                 this.selectedFiles = [];
@@ -271,12 +268,12 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText) {
+        async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
 
             // add user chat bubble
-            await this.addChatBubble(userText, true, false);
+            await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
             const sidebar = this.$refs.sidebar;
@@ -439,11 +436,18 @@ export default {
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
          * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
+         * @param files {Array} files attached to the message
          * later (streaming responses etc.)
          */
-        async addChatBubble(content, isUser = false, isLoading = false) {
+        async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
-            const message = { elementId: elementId, isUser: isUser, content: content, isLoading: isLoading };
+            const message = {
+                elementId: elementId,
+                isUser: isUser,
+                content: content,
+                isLoading: isLoading,
+                files: files,
+            };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted

@@ -5,7 +5,56 @@
          class="d-flex flex-row justify-content-end mb-4">
 
         <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
-            <div v-html="this.getFormattedContent()"></div>
+            <div v-html="this.getFormattedContent()" />
+
+            <!-- footer: debug, generate audio, ... -->
+            <div class="d-flex justify-content-start small mt-2">
+
+                <!-- copy to clipboard -->
+                <div v-show="this.isCopyAvailable()"
+                     class="footer-item w-auto me-2"
+                     @click="this.copyContentToClipboard()"
+                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                    <i v-if="this.copySuccess" class="fa fa-check" />
+                    <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- audio stuff -->
+                <div v-show="!this.isLoading"
+                     class="footer-item w-auto me-2"
+                     @click="this.startAudioPlayback()">
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                    <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                </div>
+
+                <!-- attached files -->
+                <div v-show="this.files"
+                     class="footer-item w-auto me-2"
+                     @click="this.isFilesExpanded = !this.isFilesExpanded"
+                     :title="Localizer.get('tooltipChatbubbleFiles')">
+                    <i class="fa fa-file-pdf" />
+                </div>
+
+            </div>
+
+            <!-- footer: attached files -->
+            <div v-show="this.isFilesExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                     style="max-height: 200px; max-width: 600px;">
+                    <div class="message-text w-auto"
+                         v-for="file in this.files">
+                        {{ file }}
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -36,13 +85,12 @@
 
             </div>
 
-            <!-- footer: debug, generate audio, ... -->
+            <!-- footer: icons -->
             <div class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
                 <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.copyContentToClipboard()"
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
@@ -52,7 +100,6 @@
                 <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down"
@@ -68,7 +115,6 @@
                 <!-- debug messages -->
                 <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
@@ -77,7 +123,6 @@
                 <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.isErrorExpanded = !this.isErrorExpanded"
                      :title="Localizer.get('tooltipChatbubbleError')">
                     <i class="fa fa-exclamation-circle text-danger me-1" />
@@ -97,6 +142,7 @@
                 </div>
             </div>
 
+            <!-- footer: error message -->
             <div v-show="this.isErrorExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
@@ -111,7 +157,7 @@
 </template>
 
 <script>
-import  {addDebugMessage} from "../utils.js"
+import {addDebugMessage} from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -130,6 +176,7 @@ export default {
         isUser: Boolean,
         initialContent: String,
         initialLoading: Boolean,
+        files: Array,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -147,6 +194,7 @@ export default {
             ttsAudio: null,
             copySuccess: false,
             autoScrollDebugMessage: true,
+            isFilesExpanded: false,
         }
     },
 
@@ -181,6 +229,7 @@ export default {
         scrollDownDebugMsg() {
             if (!this.autoScrollDebugMessage) return;
             const configContainer = document.getElementById(`debug-message-${this.elementId}`);
+            if (!configContainer) return;
             configContainer.scrollTop = configContainer.scrollHeight;
         },
 
@@ -298,7 +347,7 @@ export default {
         },
 
         canPlayAudio() {
-            return !this.isUser && this.content && !this.isLoading
+            return this.content && !this.isLoading
                 && !this.isAudioLoading();
         },
 
@@ -393,6 +442,7 @@ export default {
 .footer-item {
     color: var(--text-secondary-color);
     font-weight: bold;
+    cursor: pointer;
 }
 
 .footer-item:hover {

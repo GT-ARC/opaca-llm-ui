@@ -69,8 +69,8 @@ export const localizationData = {
         cookiesAccept: "Accept",
         tooltipRemoveUploadedFile: "Remove File",
         tooltipUploadFile: "Upload File",
+        tooltipChatbubbleFiles: "Attached Files",
         uploadingFileText: "Uploading…",
-        attachedFileText: "Attached File: %1",
     },
 
     DE: {
@@ -136,8 +136,8 @@ export const localizationData = {
         cookiesAccept: "Annehmen",
         tooltipRemoveUploadedFile: "Datei entfernen",
         tooltipUploadFile: "Datei hochladen",
+        tooltipChatbubbleFiles: "Angehängte Dateien",
         uploadingFileText: "Lade hoch…",
-        attachedFileText: "Angehängte Datei: %1",
     },
 };
 
