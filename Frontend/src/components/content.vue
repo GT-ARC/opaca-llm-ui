@@ -631,7 +631,6 @@ export default {
     background-color: var(--background-color);
     border-top: 1px solid var(--border-color);
     padding: 1rem 0;
-    margin-bottom: 1rem;
     flex-shrink: 0;
     position: relative;
     z-index: 11; /* Above the fade effect */
@@ -683,7 +682,7 @@ export default {
     display: flex;
     flex-wrap: wrap;
     width: min(95%, 100ch);
-    padding: 1rem;
+    padding: 0.25rem 0;
 }
 
 .input-area-button {
