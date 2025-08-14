@@ -29,6 +29,10 @@
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
+                    <hr />
+                    <div v-for="text in this.getToolCalls()">
+                        {{ text }}
+                    </div>
                 </div>
                 <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
@@ -110,9 +114,9 @@
             <div v-show="this.isToolsExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
-                     <p v-for="text in this.getToolCalls()">
+                     <div v-for="text in this.getToolCalls()">
                         {{ text }}
-                     </p>
+                     </div>
                 </div>
             </div>
 
