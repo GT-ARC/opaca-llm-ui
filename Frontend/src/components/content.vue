@@ -63,91 +63,101 @@
 
             </div>
 
-                <!-- Upload Preview for Each File -->
-                <div v-if="selectedFiles?.length"
-                     class="upload-status-preview mx-auto">
+            <!-- Upload Preview for Each File -->
+            <div v-if="selectedFiles?.length"
+                 class="upload-status-preview mx-auto">
 
-                    <!-- Loop through each selected file -->
-                    <div v-for="(file, fileId) in selectedFiles">
-                        <FilePreview
-                            v-if="fileId < this.maxDisplayedFiles()"
-                            :key="file.name + fileId"
-                            :file="file"
-                            :index="fileId"
-                            :upload-status="this.uploadStatus"
-                            @remove-file="this.removeSelectedFile"
-                        />
-                    </div>
-
-                    <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
-                         class="d-flex p-2 align-items-center"
-                         :class="{'w-100': !this.isMobile}" >
-                        {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
-                    </div>
+                <!-- Loop through each selected file -->
+                <div v-for="(file, fileId) in selectedFiles">
+                    <FilePreview
+                        v-if="fileId < this.maxDisplayedFiles()"
+                        :key="file.name + fileId"
+                        :file="file"
+                        :index="fileId"
+                        :upload-status="this.uploadStatus"
+                        @remove-file="this.removeSelectedFile"
+                    />
                 </div>
 
-                <!-- Input Area with drag and drop -->
-                <div class="input-container"
-                    @dragover.prevent
-                    @dragenter.prevent
-                    @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+                <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
+                     class="d-flex p-2 align-items-center">
+                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                </div>
+            </div>
 
-                    <div class="input-group">
-                        <div class="scroll-wrapper">
-                        <textarea id="textInput"
-                                    v-model="textInput"
-                                    ref="textInputRef"
-                                    :placeholder="Localizer.get('inputPlaceholder')"
-                                    class="form-control"
-                                    :class="{ 'small-scrollbar': isSmallScrollbar }"
-                                    style="resize: none; height: auto; max-height: 150px;"
-                                    rows="1"
-                                    @keydown="textInputCallback"
-                                    @input="resizeTextInput"
-                        ></textarea>
+            <!-- Input Area with drag and drop -->
+            <div class="input-container"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+
+                <div class="input-group input-area">
+                    <div class="scroll-wrapper w-100">
+                        <textarea
+                            id="textInput"
+                            v-model="textInput"
+                            class="text-input form-control"
+                            :class="{ 'small-scrollbar': isSmallScrollbar }"
+                            :placeholder="Localizer.get('inputPlaceholder')"
+                            rows="1"
+                            @keydown="textInputCallback"
+                            @input="resizeTextInput"
+                            ref="textInputRef"
+                        />
                     </div>
 
                     <!-- user has entered text into message box -> send button available -->
                     <button type="button"
-                            v-if="this.isSendAvailable() && isFinished"
-                            class="btn btn-primary input-area-button"
-                            @click="submitText"
-                            :title="Localizer.get('tooltipButtonSend')"
-                            style="margin-left: -2px">
-                        <i class="fa fa-paper-plane"/>
-                    </button>
-                    <button type="button"
                             v-if="!isFinished"
-                            class="btn btn-outline-danger input-area-button"
+                            class="btn btn-outline-danger input-area-button me-1"
                             @click="stopGeneration"
                             :title="Localizer.get('tooltipButtonStop')"
                             style="margin-left: -2px">
                         <i class="fa fa-stop"/>
                     </button>
-                    <button type="button"
-                            v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary input-area-button"
-                            @click="this.startRecognition()"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonRecord')">
-                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                        <i v-else class="fa fa-spin fa-spinner" />
-                    </button>
-                    <button type="button"
-                            v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger input-area-button"
-                            @click="resetChat"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonReset')">
-                        <i class="fa fa-refresh"/>
-                    </button>
-                    <label class="btn btn-secondary input-area-button" :title="Localizer.get('tooltipUploadFile')">
-                        <i class="fa fa-upload"></i>
-                        <input type="file"
-                                accept=".pdf"
-                                @change="e => uploadFiles(e.target.files)"
-                                style="display: none;" />
+
+                    <label class="btn btn-secondary input-area-button me-1"
+                           :title="Localizer.get('tooltipUploadFile')">
+                        <i class="fa fa-upload" />
+                        <input
+                            type="file"
+                            accept=".pdf"
+                            class="d-none"
+                            @change="e => uploadFiles(e.target.files)"
+                        />
                     </label>
+
+                    <!-- reset, audio, send (right-bound) -->
+                    <div class="ms-auto">
+                        <button type="button"
+                                v-if="this.isResetAvailable()"
+                                class="btn btn-outline-danger input-area-button ms-1"
+                                @click="resetChat"
+                                :disabled="!isFinished"
+                                :title="Localizer.get('tooltipButtonReset')">
+                            <i class="fa fa-refresh"/>
+                        </button>
+
+                        <button type="button"
+                                v-if="AudioManager.isRecognitionSupported()"
+                                class="btn btn-outline-primary input-area-button ms-1"
+                                @click="this.startRecognition()"
+                                :disabled="!isFinished"
+                                :title="Localizer.get('tooltipButtonRecord')">
+                            <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                            <i v-else class="fa fa-spin fa-spinner" />
+                        </button>
+
+                        <button type="button"
+                                v-if="this.isSendAvailable() && isFinished"
+                                class="btn btn-primary input-area-button ms-1"
+                                @click="submitText"
+                                :title="Localizer.get('tooltipButtonSend')"
+                                style="margin-left: -2px">
+                            <i class="fa fa-paper-plane"/>
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -627,24 +637,32 @@ export default {
     z-index: 11; /* Above the fade effect */
 }
 
-#textInput {
-    box-shadow: 0 0 0 1px var(--border-color);
-    padding: 0.75rem 1rem;
-    height: 3rem;
+.text-input {
+    padding: 0.75rem;
+    margin: 0;
     min-height: 3rem;
-    resize: none;
-    max-height: min(40vh, 20rem);
+    max-height: min(33vh, 20rem);
     line-height: 1.5;
-    border-radius: 1.5rem !important;
+    border-radius: 0 !important;
+    resize: none;
+    height: auto;
+    border: none;
+    box-shadow: none;
 }
 
-#textInput[rows] {
+.text-input[rows] {
     height: auto;
     overflow-y: auto;
 }
 
+.input-area {
+    background-color: var(--input-color);
+    padding: 0.5rem;
+    width: 100%;
+    border-radius: 1rem;
+}
+
 .scroll-wrapper {
-    border-radius: 1.5rem;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -668,14 +686,14 @@ export default {
 
 .input-area-button {
     padding: 0;
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     align-self: flex-end;
     margin-bottom: 2px;
-    border-radius: 1.5rem !important;
+    border-radius: 1.25rem !important;
     transition: all 0.2s ease;
 }
 

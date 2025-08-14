@@ -35,11 +35,12 @@
                 </div>
 
                 <!-- attached files -->
-                <div v-show="this.files"
+                <div v-show="this.files?.length > 0"
                      class="footer-item w-auto me-2"
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
                      :title="Localizer.get('tooltipChatbubbleFiles')">
                     <i class="fa fa-file-pdf" />
+                    {{}}
                 </div>
 
             </div>

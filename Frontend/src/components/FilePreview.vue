@@ -3,7 +3,7 @@
 
     <div class="d-flex flex-row text-break">
         <!-- Icon changes based on upload status -->
-        <div class="d-flex  h-100 align-items-center me-1">
+        <div class="d-flex h-100 align-items-center me-1">
             <i :class="this.uploadStatus?.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file-pdf'" />
         </div>
 
