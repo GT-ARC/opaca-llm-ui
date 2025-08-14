@@ -252,19 +252,6 @@ export default {
     color: white !important;
 }
 
-@media screen and (max-width: 768px) {
-    #sidebar-content {
-        width: min(600px, 100vw - 3rem);
-        padding-right: 0;
-    }
-
-    .sidebar-menu-item {
-        font-size: 0.8rem;
-        width: 2rem;
-        height: 2rem;
-    }
-}
-
 .resizer {
     width: 4px;
     cursor: ew-resize;
@@ -289,13 +276,22 @@ export default {
 
     #sidebar-menu {
         padding: 0.25rem;
+        margin: 0;
     }
 
     .sidebar-menu-item {
         font-size: 1rem;
-        width: 2rem;
-        height: 2rem;
+        width: 2.5rem;
+        height: 2.5rem;
     }
+
+    #sidebar-content {
+        width: min(600px, 100vw - 3rem);
+        padding-left: 0;
+        padding-right: 0;
+        margin: 0;
+    }
+
 }
 
 </style>
