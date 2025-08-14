@@ -154,7 +154,7 @@
                                 class="btn btn-primary input-area-button ms-1"
                                 @click="submitText"
                                 :title="Localizer.get('tooltipButtonSend')">
-                            <i class="fa fa-paper-plane"/>
+                            <i class="fa fa-arrow-up"/>
                         </button>
                     </div>
 
