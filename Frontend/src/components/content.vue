@@ -92,7 +92,7 @@
                 @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
 
                 <div class="input-group input-area">
-                    <div class="scroll-wrapper w-100">
+                    <div class="scroll-wrapper">
                         <textarea
                             id="textInput"
                             v-model="textInput"
@@ -106,23 +106,15 @@
                         />
                     </div>
 
-                    <!-- user has entered text into message box -> send button available -->
-                    <button type="button"
-                            v-if="!isFinished"
-                            class="btn btn-outline-danger input-area-button me-1"
-                            @click="stopGeneration"
-                            :title="Localizer.get('tooltipButtonStop')"
-                            style="margin-left: -2px">
-                        <i class="fa fa-stop"/>
-                    </button>
-
+                    <!-- upload file button -->
                     <label class="btn btn-secondary input-area-button me-1"
-                           :title="Localizer.get('tooltipUploadFile')">
+                           :title="Localizer.get('tooltipUploadFile')" >
                         <i class="fa fa-upload" />
                         <input
                             type="file"
                             accept=".pdf"
                             class="d-none"
+                            :disabled="!this.isFinished"
                             @change="e => uploadFiles(e.target.files)"
                         />
                     </label>
@@ -148,12 +140,20 @@
                             <i v-else class="fa fa-spin fa-spinner" />
                         </button>
 
+                        <!-- stop generate button -->
+                        <button type="button"
+                                v-if="!isFinished"
+                                class="btn btn-outline-danger input-area-button ms-1"
+                                @click="stopGeneration"
+                                :title="Localizer.get('tooltipButtonStop')">
+                            <i class="fa fa-stop"/>
+                        </button>
+
                         <button type="button"
                                 v-if="this.isSendAvailable() && isFinished"
                                 class="btn btn-primary input-area-button ms-1"
                                 @click="submitText"
-                                :title="Localizer.get('tooltipButtonSend')"
-                                style="margin-left: -2px">
+                                :title="Localizer.get('tooltipButtonSend')">
                             <i class="fa fa-paper-plane"/>
                         </button>
                     </div>
@@ -648,6 +648,7 @@ export default {
     height: auto;
     border: none;
     box-shadow: none;
+    width: 100%;
 }
 
 .text-input[rows] {
@@ -663,6 +664,7 @@ export default {
 }
 
 .scroll-wrapper {
+    width: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;

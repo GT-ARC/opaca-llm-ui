@@ -40,7 +40,6 @@
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
                      :title="Localizer.get('tooltipChatbubbleFiles')">
                     <i class="fa fa-file-pdf" />
-                    {{}}
                 </div>
 
             </div>
