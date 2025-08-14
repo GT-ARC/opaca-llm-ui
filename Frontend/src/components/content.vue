@@ -64,19 +64,25 @@
             </div>
 
                 <!-- Upload Preview for Each File -->
-                <div v-if="selectedFiles.length"
+                <div v-if="selectedFiles?.length"
                      class="upload-status-preview mx-auto">
 
                     <!-- Loop through each selected file -->
-                    <FilePreview v-for="(file, index) in selectedFiles"
-                                 :key="file.name + index"
-                                 :file="file"
-                                 :index="index"
-                                 @remove-file="this.removeSelectedFile"
-                    />
+                    <div v-for="(file, fileId) in selectedFiles">
+                        <FilePreview
+                            v-if="fileId < this.maxDisplayedFiles()"
+                            :key="file.name + fileId"
+                            :file="file"
+                            :index="fileId"
+                            :upload-status="this.uploadStatus"
+                            @remove-file="this.removeSelectedFile"
+                        />
+                    </div>
 
-                    <div v-if="selectedFiles && selectedFiles.length > 3" class="d-flex p-3">
-                        {{ Localizer.get('fileOverflow', selectedFiles.length - 3) }}
+                    <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
+                         class="d-flex p-2 align-items-center"
+                         :class="{'w-100': !this.isMobile}" >
+                        {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
                     </div>
                 </div>
 
@@ -207,12 +213,6 @@ export default {
         }
     },
     methods: {
-
-        // Remove selected file at given index from the preview list
-        removeSelectedFile(index) {
-            this.selectedFiles.splice(index, 1);
-        },
-
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -325,6 +325,15 @@ export default {
             } finally {
                 this.uploadStatus.isUploading = false;
             }
+        },
+
+        // Remove selected file at given index from the preview list
+        removeSelectedFile(index) {
+            this.selectedFiles.splice(index, 1);
+        },
+
+        maxDisplayedFiles() {
+            return this.isMobile ? 2 : 4;
         },
 
         async handleStreamingSocketOpen(socket, userText) {
