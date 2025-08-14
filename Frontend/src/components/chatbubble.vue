@@ -80,7 +80,7 @@
                      style="cursor: pointer;"
                      @click="this.isToolsExpanded = !this.isToolsExpanded"
                      :title="Localizer.get('tooltipChatbubbleTools')">
-                    <i class="fa fa-cogs" />
+                    <i class="fa fa-wrench" />
                 </div>
 
                 <!-- error handling -->
@@ -201,12 +201,12 @@ export default {
                 .flatMap( debug => [...debug.text.matchAll(regex)] )
                 .map( match => {
                     const id = match[1];
-                    const name = match[2];
-                    var params = match[3];
-                    const results = match[4];
-                    if (params.includes("requestBody")) params = params.substring(16, params.length-2);
-                    // TODO abbreviate result if very long
-                    return `${id}: ${name}(${params}) -> ${results}`;
+                    const name = match[2].replace("--", ": ");
+                    var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
+                    var results = match[4];
+                    if (params.includes("requestBody")) params = params.substring(14, params.length-2);
+                    if (results.length > 30) results = results.substring(0, 30) + " [...]";
+                    return `${id}. ${name}(${params}) → ${results}`;
                 });
         },
 
