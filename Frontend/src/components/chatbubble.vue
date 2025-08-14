@@ -2,9 +2,9 @@
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end mb-4">
+         class="d-flex flex-row justify-content-end">
 
-        <div class="chatbubble chatbubble-user me-2 p-3 mb-2 w-auto ms-auto">
+        <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
             <div v-html="this.getFormattedContent()" />
 
             <!-- footer: debug, generate audio, ... -->
@@ -61,9 +61,9 @@
 
     <!-- ai bubble -->
     <div v-else :id="this.elementId"
-         class="d-flex flex-row justify-content-start mb-4 w-100">
+         class="d-flex flex-row justify-content-start w-100">
 
-        <div class="chatbubble chatbubble-ai me-auto ms-2 p-3 mb-2"
+        <div class="chatbubble chatbubble-ai ms-2"
              :class="{glow: this.isLoading}" :style="this.getGlowColors()">
 
             <div class="d-flex justify-content-start">
@@ -228,9 +228,11 @@ export default {
 
         scrollDownDebugMsg() {
             if (!this.autoScrollDebugMessage) return;
-            const configContainer = document.getElementById(`debug-message-${this.elementId}`);
-            if (!configContainer) return;
-            configContainer.scrollTop = configContainer.scrollHeight;
+            const debugId = `debug-message-${this.elementId}`;
+            const debug = document.getElementById(debugId);
+            if (debug) {
+                debug.scrollTop = debug.scrollHeight;
+            }
         },
 
         handleDebugScroll() {
@@ -411,7 +413,7 @@ export default {
     position: relative;
     transition: all 0.2s ease;
     width: fit-content;
-    max-width: 800px;
+    margin-bottom: 1rem;
 }
 
 .chatbubble-user {
@@ -422,6 +424,7 @@ export default {
     width: auto !important; /* Override any width constraints */
     word-wrap: break-word;
     overflow-wrap: anywhere;
+    max-width: 80ch;
 }
 
 .chatbubble-ai {
@@ -429,6 +432,7 @@ export default {
     width: 100%;
     will-change: box-shadow;
     transition: box-shadow 0.2s ease;
+    padding: 0.5rem;
 }
 
 .message-text {

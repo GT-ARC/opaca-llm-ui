@@ -2,9 +2,11 @@
     <div id="debug-display"
          class="container flex-grow-1 overflow-hidden overflow-y-auto"
          @scroll="this.handleDebugScroll">
+
         <div v-if="!isMobile" class="sidebar-title">
             {{ Localizer.get('tooltipSidebarLogs') }}
         </div>
+
         <div id="debug-console"
              class="d-flex flex-column text-start rounded-4"
              :class="{'p-1': this.debugMessages.length > 0}" >

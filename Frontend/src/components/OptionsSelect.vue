@@ -77,8 +77,8 @@
                     <div v-if="! AudioManager.isVoiceServerConnected"
                          class="options-item text-center">
                         <button type="button" class="btn btn-outline-danger w-100"
-                                @click="() => AudioManager.initVoiceServerConnection()">
-                            <i class="fa fa-refresh"/>
+                                @click="() => this.connectToAudioServer()">
+                            <i class="fa fa-refresh" :class="{'fa-spin': this.isAudioConnecting}" />
                             {{ Localizer.get('ttsRetry') }}
                         </button>
                     </div>
@@ -104,7 +104,8 @@ export default {
     props: {},
     data() {
         return {
-            selectedItems: {}
+            selectedItems: {},
+            isAudioConnecting: false,
         };
     },
     setup() {
@@ -174,6 +175,12 @@ export default {
 
         isSelectedItem(key, value) {
             return this.selectedItems[key] === value;
+        },
+
+        async connectToAudioServer() {
+            this.isAudioConnecting = true;
+            await AudioManager.initVoiceServerConnection();
+            this.isAudioConnecting = false;
         },
     },
 

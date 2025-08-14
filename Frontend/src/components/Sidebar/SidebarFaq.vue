@@ -3,8 +3,13 @@
     <div v-if="!isMobile" class="sidebar-title">
         {{ Localizer.get('tooltipSidebarFaq') }}
     </div>
-    <div v-html="this.faqContent"
+
+    <div v-if="this.faqContent"
+         v-html="this.faqContent"
          class="d-flex flex-column text-start faq-content">
+    </div>
+    <div v-else>
+        {{ Localizer.get('sidebarFaqMissing') }}
     </div>
 </div>
 </template>
