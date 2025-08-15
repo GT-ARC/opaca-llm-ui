@@ -93,7 +93,7 @@
 
                 <div class="input-group input-area"
                      @click="this.$refs.textInputRef?.focus()" >
-                    <div class="scroll-wrapper">
+                    <div class="scroll-wrapper w-25" :class="{'w-100': this.isMobile}">
                         <textarea
                             id="textInput"
                             v-model="textInput"
@@ -107,56 +107,62 @@
                         />
                     </div>
 
-                    <!-- upload file button -->
-                    <label class="btn btn-secondary input-area-button me-1"
-                           :title="Localizer.get('tooltipUploadFile')" >
-                        <i class="fa fa-upload" />
-                        <input
-                            type="file"
-                            accept=".pdf"
-                            class="d-none"
-                            :disabled="!this.isFinished"
-                            @change="e => uploadFiles(e.target.files)"
-                        />
-                    </label>
+                    <!-- buttons -->
+                    <div class="my-auto d-flex" :class="{'w-100': this.isMobile}">
 
-                    <!-- reset, audio, send (right-bound) -->
-                    <div class="ms-auto">
-                        <button type="button"
-                                v-if="this.isResetAvailable()"
-                                class="btn btn-outline-danger input-area-button ms-1"
-                                @click="resetChat"
-                                :disabled="!isFinished"
-                                :title="Localizer.get('tooltipButtonReset')">
-                            <i class="fa fa-refresh"/>
-                        </button>
+                        <!-- upload file button -->
+                        <label class="btn btn-secondary input-area-button align-items-center"
+                               :class="[this.isMobile ? 'me-1': 'ms-1']"
+                               :title="Localizer.get('tooltipUploadFile')" >
+                            <i class="fa fa-upload" />
+                            <input
+                                type="file"
+                                accept=".pdf"
+                                class="d-none"
+                                :disabled="!this.isFinished"
+                                @change="e => uploadFiles(e.target.files)"
+                            />
+                        </label>
 
-                        <button type="button"
-                                v-if="AudioManager.isRecognitionSupported()"
-                                class="btn btn-outline-primary input-area-button ms-1"
-                                @click="this.startRecognition()"
-                                :disabled="!isFinished"
-                                :title="Localizer.get('tooltipButtonRecord')">
-                            <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                            <i v-else class="fa fa-spin fa-spinner" />
-                        </button>
+                        <!-- reset, audio, send (right-bound) -->
+                        <div :class="{'ms-auto': this.isMobile}">
+                            <button type="button"
+                                    v-if="this.isResetAvailable()"
+                                    class="btn btn-outline-danger input-area-button ms-1"
+                                    @click="resetChat"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonReset')">
+                                <i class="fa fa-refresh"/>
+                            </button>
 
-                        <!-- stop generate button -->
-                        <button type="button"
-                                v-if="!isFinished"
-                                class="btn btn-outline-danger input-area-button ms-1"
-                                @click="stopGeneration"
-                                :title="Localizer.get('tooltipButtonStop')">
-                            <i class="fa fa-stop"/>
-                        </button>
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported()"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="this.startRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                                <i v-else class="fa fa-spin fa-spinner" />
+                            </button>
 
-                        <button type="button"
-                                v-if="this.isSendAvailable() && isFinished"
-                                class="btn btn-primary input-area-button ms-1"
-                                @click="submitText"
-                                :title="Localizer.get('tooltipButtonSend')">
-                            <i class="fa fa-arrow-up"/>
-                        </button>
+                            <!-- stop generate button -->
+                            <button type="button"
+                                    v-if="!isFinished"
+                                    class="btn btn-outline-danger input-area-button ms-1"
+                                    @click="stopGeneration"
+                                    :title="Localizer.get('tooltipButtonStop')">
+                                <i class="fa fa-stop"/>
+                            </button>
+
+                            <button type="button"
+                                    v-if="this.isSendAvailable() && isFinished"
+                                    class="btn btn-primary input-area-button ms-1"
+                                    @click="submitText"
+                                    :title="Localizer.get('tooltipButtonSend')">
+                                <i class="fa fa-arrow-up"/>
+                            </button>
+                        </div>
+
                     </div>
 
                 </div>
@@ -630,8 +636,7 @@ export default {
 .input-container {
     width: 100%;
     background-color: var(--background-color);
-    border-top: 1px solid var(--border-color);
-    padding: 1rem 0;
+    padding: 0.5rem;
     flex-shrink: 0;
     position: relative;
     z-index: 11; /* Above the fade effect */
@@ -648,7 +653,6 @@ export default {
     height: auto;
     border: none;
     box-shadow: none;
-    width: 100%;
 }
 
 .text-input[rows] {
@@ -658,14 +662,14 @@ export default {
 
 .input-area {
     background-color: var(--input-color);
-    padding: 0.5rem;
+    border: 1px solid var(--border-color);
     width: 100%;
     border-radius: 1rem;
     cursor: text;
+    padding: 0.25rem !important;
 }
 
 .scroll-wrapper {
-    width: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
