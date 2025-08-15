@@ -202,7 +202,7 @@ export default {
 /* sidebar content */
 #sidebar-content {
     width: min(400px, 100vw - 3rem);
-    height: calc(100vh - 100px);
+    height: calc(100vh - 50px - 1rem);
     min-width: 150px;
     max-width: 768px;
     padding: .5rem;
@@ -219,7 +219,7 @@ export default {
     margin: 1rem 0 0 1rem;
     transition: all 0.2s ease;
     border-radius: 0.5rem;
-    height: calc(100vh - 100px);
+    height: calc(100vh - 50px - 1rem);
 }
 
 .sidebar-menu-item {
@@ -277,6 +277,7 @@ export default {
     #sidebar-menu {
         padding: 0.25rem;
         margin: 0;
+        height: calc(100vh - 50px);
     }
 
     .sidebar-menu-item {
@@ -287,6 +288,7 @@ export default {
 
     #sidebar-content {
         width: min(600px, 100vw - 3rem);
+        height: calc(100vh - 50px);
         padding-left: 0;
         padding-right: 0;
         margin: 0;

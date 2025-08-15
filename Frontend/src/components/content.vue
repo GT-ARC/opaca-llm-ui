@@ -91,7 +91,8 @@
                 @dragenter.prevent
                 @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
 
-                <div class="input-group input-area">
+                <div class="input-group input-area"
+                     @click="this.$refs.textInputRef?.focus()" >
                     <div class="scroll-wrapper">
                         <textarea
                             id="textInput"
@@ -660,6 +661,7 @@ export default {
     padding: 0.5rem;
     width: 100%;
     border-radius: 1rem;
+    cursor: text;
 }
 
 .scroll-wrapper {
