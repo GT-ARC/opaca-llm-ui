@@ -674,6 +674,7 @@ export default {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    min-width: 16ch;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
