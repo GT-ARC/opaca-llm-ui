@@ -11,8 +11,6 @@ export const debugColors = {
     // Multi-Agent System - Overall Level
     "OverallEvaluator": ["#96ceb4", "#96ceb4"], // Sage green for overall evaluation
     "IterationAdvisor": ["#9d4edd", "#9d4edd"],  // Purple for iteration advisor
-    // Multi-Agent System - Output Level
-    "OutputGenerator": ["#ffbe0b", "#ffbe0b"],  // Orange for output generation
     // Tools
     "Tool Generator": ["#ff0000", "#9c0000"],
     "Tool Generator-Tools": ["#ff0000", "#9c0000"],     // Special class needed for streaming

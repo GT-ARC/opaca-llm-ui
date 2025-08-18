@@ -1,5 +1,4 @@
 import json
-import re
 import time
 from collections import defaultdict
 from typing import List
