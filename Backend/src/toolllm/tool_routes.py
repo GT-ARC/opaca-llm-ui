@@ -1,3 +1,4 @@
+import json
 import re
 import time
 from collections import defaultdict
@@ -5,7 +6,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
 from ..utils import openapi_to_functions
@@ -38,7 +39,7 @@ class ToolLLMBackend(AbstractMethod):
         tool_params = defaultdict(list)
         tool_results = defaultdict(list)
         tool_responses = []
-        result = None
+        called_tools = {}
         c_it = 0
         should_continue = True
 
@@ -155,11 +156,13 @@ class ToolLLMBackend(AbstractMethod):
                 )
                 response.agent_messages.append(result)
 
-                # Check if llm agent thinks user query has not been fulfilled yet
-                should_continue = True if re.search(r"\bCONTINUE\b", result.content) else False
-
-                # Remove the keywords from the generated response
-                result.content = re.sub(r'\b(CONTINUE|FINISHED)\b', '', result.content).strip()
+                try:
+                    formatted_result = json.loads(result.content)
+                    should_continue = formatted_result["decision"] == 'CONTINUE'
+                    result.content = formatted_result["reason"]
+                except json.JSONDecodeError:
+                    should_continue = False
+                    result.content = "ERROR: The response from the Tool Evaluator was not in the correct format!"
 
                 # Add generated response to internal history to give result to first llm agent
                 tool_responses.append(ChatMessage(role="assistant", content=result.content))
@@ -167,6 +170,23 @@ class ToolLLMBackend(AbstractMethod):
                 should_continue = False
 
             c_it += 1
+
+        result = await self.call_llm(
+            session=session,
+            client=session.llm_clients[config['vllm_base_url']],
+            model=config['model'],
+            agent='Output Generator',
+            system_prompt='',
+            messages=session.messages + [ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
+                message=message,
+                called_tools=called_tools or "",
+            ))],
+            temperature=config['temperature'],
+            tools=tools,
+            tool_choice="none",
+            websocket=websocket,
+        )
+        response.agent_messages.append(result)
 
         response.execution_time = time.time() - total_exec_time
         response.iterations = c_it

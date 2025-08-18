@@ -26,6 +26,13 @@ call could result in a successful call in the next iteration.
 also be returned, if the same tool calls have failed in two or more subsequent iterations.
 
 Additionally, always output a reason for your decision.
+
+Formate your output as a JSON output, such as:
+
+{{
+  "reason": "Your reason for the following decision",
+  "decision": "FINISHED"
+}}
 """
 
 OUTPUT_GENERATOR_TEMPLATE = """I want you to generate a user response to the following information:
