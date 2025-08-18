@@ -39,10 +39,11 @@ OUTPUT_GENERATOR_TEMPLATE = """I want you to generate a user response to the fol
 A user had the following request: {message}
 
 Following is a list of tools that were called, including their used parameters and returned results. These tools 
-were not provided by the user, but from a connected multi-agent platform called "OPACA".
+were not provided by the user, but from a connected multi-agent platform.
 
 {called_tools}
 
 Please generate a response directly addressing the user and NOT me. Also include a short explanation of what tools 
-were called and how necessary information were retrieved. If no tools were called, just answer the user directly.
+were called and how necessary information were retrieved. If no tools were called, just answer the user directly. 
+Never mention that you are generating a response or say things like "Sure, here is...".
 """

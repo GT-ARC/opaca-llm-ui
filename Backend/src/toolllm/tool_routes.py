@@ -1,6 +1,6 @@
+import asyncio
 import json
 import time
-from collections import defaultdict
 from typing import List
 
 from pydantic import BaseModel
@@ -34,13 +34,12 @@ class ToolLLMBackend(AbstractMethod):
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Initialize parameters
-        tool_names = defaultdict(list)
-        tool_params = defaultdict(list)
-        tool_results = defaultdict(list)
-        tool_responses = []
-        called_tools = {}
-        c_it = 0
-        should_continue = True
+        tool_responses = []         # Internal messages between llm-components
+        t_called = 0                # Track how many tools have been called in total
+        called_tools = {}           # Formatted list of tool calls including their results
+        c_it = 0                    # Current internal iteration
+        should_continue = True      # Whether the internal iteration should continue or not
+        no_tools = False            # If no tools were generated, the Output Generator will include available tools
 
         # Initialize the response object
         response = Response()
@@ -79,6 +78,7 @@ class ToolLLMBackend(AbstractMethod):
             )
 
             if not result.tools:
+                no_tools = True
                 break
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -105,38 +105,18 @@ class ToolLLMBackend(AbstractMethod):
             response.agent_messages.append(result)
 
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
+            tasks = []
             for i, call in enumerate(result.tools):
+                tasks.append(self.invoke_tool(session, config['use_agent_names'], call['name'], call['args'], t_called))
+                t_called += 1
 
-                tool_names[c_it].append(call['name'])
-                tool_params[c_it].append(call['args'])
-                try:
-                    if config['use_agent_names']:
-                        agent_name, action_name = call['name'].split('--', maxsplit=1)
-                    else:
-                        agent_name = None
-                        action_name = call['name']
-                    tool_results[c_it].append(
-                        await session.opaca_client.invoke_opaca_action(
-                            action_name,
-                            agent_name,
-                            call['args'].get('requestBody', {})
-                        ))
-                except Exception as e:
-                    tool_results[c_it].append(str(e))
-
-                # The format should match the one in the StreamCallbackHandler
-                result.tools[i] = {
-                    'id': len(tool_names[c_it]),
-                    'name': call['name'],
-                    'args': call['args'],
-                    'result': tool_results[c_it][-1]
-                }
+            result.tools = await asyncio.gather(*tasks)
 
             # If a websocket was defined, send the tools WITH their results to the frontend
             if websocket:
                 await websocket.send_json(result.model_dump_json())
 
-            called_tools = self._build_tool_desc(c_it, tool_names, tool_params, tool_results)
+            called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
             # If tools were created, summarize their result in natural language
             # either for the user or for the first model for better understanding
@@ -187,7 +167,7 @@ class ToolLLMBackend(AbstractMethod):
                 called_tools=called_tools or "",
             ))],
             temperature=config['temperature'],
-            tools=tools,
+            tools=tools if no_tools else [],
             tool_choice="none",
             websocket=websocket,
         )
@@ -248,8 +228,26 @@ class ToolLLMBackend(AbstractMethod):
         return err_out
 
     @staticmethod
-    def _build_tool_desc(c_it, t_names, t_params, t_results):
-        called_tools = {it: [{"name": name, "parameters": params, "result": result} for name, params, result in zip(t_names[it], t_params[it], t_results[it])] for it in range(c_it + 1)}
-        print(called_tools)
-        return called_tools
+    def _build_tool_desc(c_it, tools):
+        return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
 
+    @staticmethod
+    async def invoke_tool(session, use_agent_name, t_name, t_args, t_id):
+        if use_agent_name:
+            agent_name, action_name = t_name.split('--', maxsplit=1)
+        else:
+            agent_name = None
+            action_name = t_name
+
+        t_result = await session.opaca_client.invoke_opaca_action(
+            action_name,
+            agent_name,
+            t_args.get('requestBody', {})
+        )
+
+        return {
+            "id": t_id,
+            "name": t_name,
+            "args": t_args.get('requestBody', {}),
+            "result": t_result
+        }

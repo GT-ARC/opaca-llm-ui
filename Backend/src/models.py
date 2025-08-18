@@ -18,6 +18,7 @@ class ColoredFormatter(logging.Formatter):
         # Tool-llm
         "Tool Generator": "\x1b[31;20m",  # Dim Red
         "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
+        "Output Generator": "\x1b[32;20m", # Dim Green
 
         # Simple Roles
         "system": "\x1b[93m",  # Light Yellow
