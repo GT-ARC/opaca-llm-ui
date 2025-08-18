@@ -78,6 +78,9 @@ class ToolLLMBackend(AbstractMethod):
                 websocket=websocket,
             )
 
+            if not result.tools:
+                break
+
             # Check the generated tool calls for errors and regenerate them if necessary
             # Correction limit is set to 3 to check iteratively:
             # 1. Valid action name 2. Parameters were generated in the "requestBody" field 3. Parameter validity
