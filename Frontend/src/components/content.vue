@@ -108,7 +108,7 @@
                     </div>
 
                     <!-- buttons -->
-                    <div class="my-auto d-flex" :class="{'w-100': this.isMobile}">
+                    <div class="mt-auto d-flex" :class="{'w-100': this.isMobile}">
 
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
@@ -145,7 +145,6 @@
                                 <i v-else class="fa fa-spin fa-spinner" />
                             </button>
 
-                            <!-- stop generate button -->
                             <button type="button"
                                     v-if="!isFinished"
                                     class="btn btn-outline-danger input-area-button ms-1"
@@ -158,6 +157,7 @@
                                     v-if="this.isSendAvailable() && isFinished"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
+                                    :disabled="this.textInput.length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
                                 <i class="fa fa-arrow-up"/>
                             </button>
@@ -639,13 +639,12 @@ export default {
     padding: 0.5rem;
     flex-shrink: 0;
     position: relative;
-    z-index: 11; /* Above the fade effect */
 }
 
 .text-input {
     padding: 0.75rem;
     margin: 0;
-    min-height: 3rem;
+    min-height: 2.5rem;
     max-height: min(33vh, 20rem);
     line-height: 1.5;
     border-radius: 0 !important;
@@ -662,11 +661,10 @@ export default {
 
 .input-area {
     background-color: var(--input-color);
-    border: 1px solid var(--border-color);
     width: 100%;
     border-radius: 1rem;
     cursor: text;
-    padding: 0.25rem !important;
+    padding: 0.5rem !important;
 }
 
 .scroll-wrapper {
@@ -710,7 +708,6 @@ export default {
 }
 
 .input-area-button:disabled {
-    animation: bounce 1s infinite;
     opacity: 0.7;
 }
 
