@@ -296,7 +296,7 @@ complex_questions = [
         "output": "The answer should tell the user, the curtains were located in 'zone-E'. It should then have sent specifically the logistic robot number 2 to the 'zone-E' and should have made it pick up exactly 2 sets of curtains.",
         "tools": [
             EvalTool(name="GetItemLocation", id=0, args=[EvalToolParam(key="item", value="curtain")]),
-            EvalTool(name="MoveToLocation", id=1, depends=[0], args=[EvalToolParam(key="zone", value="zone-E")]),
+            EvalTool(name="MoveToZone", id=1, depends=[0], args=[EvalToolParam(key="zone", value="zone-E")]),
             EvalTool(name="PickupItem", id=2, depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
             EvalTool(name="PickupItem", id=3, depends=[1], args=[EvalToolParam(key="item", value="curtain")]),
         ]
@@ -342,9 +342,9 @@ complex_questions = [
         "input": "Please move every logistics robot to 'zone-A'.",
         "output": "The answer should confirm, that the logistics robots number 1, 2, and 3 were all moved to 'zone-A'.",
         "tools": [
-            EvalTool(name="MoveToLocation", args=[EvalToolParam(key="zone", value="zone-A")]),
-            EvalTool(name="MoveToLocation", args=[EvalToolParam(key="zone", value="zone-A")]),
-            EvalTool(name="MoveToLocation", args=[EvalToolParam(key="zone", value="zone-A")]),
+            EvalTool(name="MoveToZone", args=[EvalToolParam(key="zone", value="zone-A")]),
+            EvalTool(name="MoveToZone", args=[EvalToolParam(key="zone", value="zone-A")]),
+            EvalTool(name="MoveToZone", args=[EvalToolParam(key="zone", value="zone-A")]),
         ]
     },
     {
@@ -359,9 +359,9 @@ complex_questions = [
         "output": "The answer should confirm, that the logistics robot number 1 has moved the 'broom' from zone-D to zone-A.",
         "tools": [
             EvalTool(name="GetZone", id=0, optional=True),
-            EvalTool(name="MoveToLocation", id=1, args=[EvalToolParam(key="zone", value="d", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="MoveToZone", id=1, args=[EvalToolParam(key="zone", value="d", match=EvalMatch.PARTIAL)]),
             EvalTool(name="PickupItem", id=2, depends=[1], args=[EvalToolParam(key="item", value="broom", match=EvalMatch.PARTIAL)]),
-            EvalTool(name="MoveToLocation", id=3, depends=[2], args=[EvalToolParam(key="zone", value="a", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="MoveToZone", id=3, depends=[2], args=[EvalToolParam(key="zone", value="a", match=EvalMatch.PARTIAL)]),
             EvalTool(name="DropItem", id=4, depends=[3], args=[EvalToolParam(key="item", value="broom", match=EvalMatch.PARTIAL)]),
         ]
     },
