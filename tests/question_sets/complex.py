@@ -115,8 +115,8 @@ complex_questions = [
         "output": "The answer should include the status of every device in the system. In total, there are 5 devices in the system. For each device that was damaged, the answer should further indicate, that it has restarted that device and also give the updated status of that device. It might happen, that a restarted device is still damaged, but in context of correctness, this is okay as long as the answer states that it has restarted every damaged device.",
         "tools": [
             EvalTool(name="RunFullSystemCheck", id=0),
-            EvalTool(name="GetDeviceId", id=1, depends=[0], args=[EvalToolParam(key="device_id", value=0)]),
-            EvalTool(name="GetDeviceId", id=2, depends=[0], args=[EvalToolParam(key="device_id", value=2)]),
+            EvalTool(name="GetDeviceId", id=1, depends=[0], args=[EvalToolParam(key="device_id", value="thermostat", match=EvalMatch.PARTIAL)]),
+            EvalTool(name="GetDeviceId", id=2, depends=[0], args=[EvalToolParam(key="device_id", value="camera", match=EvalMatch.PARTIAL)]),
             EvalTool(name="RestartDevice", id=3, depends=[1], args=[EvalToolParam(key="device_id", value=0)]),
             EvalTool(name="RestartDevice", id=4, depends=[2], args=[EvalToolParam(key="device_id", value=2)]),
             EvalTool(name="CheckDeviceHealth", id=5, depends=[3], args=[EvalToolParam(key="device_id", value=0)]),
