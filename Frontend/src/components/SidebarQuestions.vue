@@ -122,7 +122,7 @@ export default {
                 }
 
                 // Let backend generate user questions
-                const res = await sendRequest("POST", `${conf.BackendAddress}/tool-llm/query`, body);
+                const res = await sendRequest("POST", `${conf.BackendAddress}/simple-tools/query`, body);
                 const questions = res.data.agent_messages[0].content;
                 const parsedQuestions = JSON.parse(questions);
                 newQuestions.questions = Object.values(parsedQuestions);
