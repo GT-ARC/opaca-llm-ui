@@ -165,7 +165,10 @@ class ToolLLMBackend(AbstractMethod):
                     result.content = "ERROR: The response from the Tool Evaluator was not in the correct format!"
 
                 # Add generated response to internal history to give result to first llm agent
-                tool_responses.append(ChatMessage(role="assistant", content=result.content))
+                tool_responses.append(ChatMessage(role="assistant", content=str(called_tools)))
+                tool_responses.append(ChatMessage(role="user", content=f"Based on the called tools, another LLM has "
+                                                                       f"decided to continue the process with the "
+                                                                       f"following reason: {result.content}"))
             else:
                 should_continue = False
 
