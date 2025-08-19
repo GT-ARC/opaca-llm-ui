@@ -207,7 +207,6 @@ export default {
         return {
             messages: [],
             socket: null,
-            apiKey: '',
             textInput: '',
             isFinished: true,
             showExampleQuestions: true,
@@ -350,7 +349,7 @@ export default {
 
         async handleStreamingSocketOpen(socket, userText) {
             try {
-                const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
+                const inputData = JSON.stringify({user_query: userText});
                 socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);

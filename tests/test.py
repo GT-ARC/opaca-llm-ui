@@ -241,7 +241,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
         for i, call in enumerate(question_set):
             # Generate a response by the OPACA LLM
             server_time = time.time()
-            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"], 'api_key': ""}, timeout=None)
+            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"]}, timeout=None)
             result = result.content
             server_time = time.time() - server_time
 
