@@ -31,7 +31,10 @@
                     </div>
                     <div v-if="this.getToolCalls().length > 0">
                         <hr />
-                        <div v-for="text in this.getToolCalls()">
+                        <div v-if="this.getToolCalls().length > 3">
+                            ...
+                        </div>
+                        <div v-for="text in this.getToolCalls().slice(-3)">
                             <i class="fa fa-wrench" /> {{ text }}
                         </div>
                     </div>
