@@ -45,13 +45,10 @@ class SelfOrchestratedBackend(AbstractMethod):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         return {
             # Which model to use for the orchestrator and worker agents
-            "model_config_name": ConfigParameter(
-                type="string", 
-                required=True, 
-                default="4o-mini",
-                enum=["vllm", "vllm-fast", "vllm-faster", "vllm-superfast", "vllm-large", "vllm-superlarge", "vllm-mixed",
-                      "4o-mixed", "4o", "4o-mini", "o3-mini", "o3-mini-large"],
-                description="Which model to use for the orchestrator and worker agents"),
+            "orchestrator_model": self.make_llm_config_param("For delegating tasks"),
+            "worker_model": self.make_llm_config_param("For selecting tools"),
+            "evaluator_model": self.make_llm_config_param("For evaluating tool results"),
+            "generator_model": self.make_llm_config_param("For generating the response"),
             # Temperature for the orchestrator and worker agents
             "temperature": ConfigParameter(
                 type="number", 
@@ -110,7 +107,6 @@ class SelfOrchestratedBackend(AbstractMethod):
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
         tool_counter = num_tools
         tool_counter_lock = asyncio.Lock()
-        model_config = load_model_config(config)
 
         async def execute_round_task(worker_agent, subtask, orchestrator_context, round_context,
                                      round_num):
@@ -138,7 +134,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
                 session=session,
-                model=model_config["worker_model"],
+                model=config["worker_model"],
                 agent="WorkerAgent",
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
@@ -186,7 +182,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
                     session=session,
-                    model=model_config["orchestrator_model"],
+                    model=config["orchestrator_model"],
                     agent="AgentPlanner",
                     system_prompt=planner.system_prompt(),
                     messages=planner.messages(task, previous_results=all_results),
@@ -283,7 +279,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                     # Generate a concrete tool call by the worker agent with its tools
                     worker_message = await self.call_llm(
                         session=session,
-                        model=model_config["worker_model"],
+                        model=config["worker_model"],
                         agent="WorkerAgent",
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(task),
@@ -312,7 +308,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 if not (evaluation := agent_evaluator.evaluate_results(result)):
                     evaluation_message = await self.call_llm(
                         session=session,
-                        model=model_config["evaluator_model"],
+                        model=config["evaluator_model"],
                         agent="AgentEvaluator",
                         system_prompt=agent_evaluator.system_prompt(),
                         messages=agent_evaluator.messages(task_str, result),
@@ -362,7 +358,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Execute retry
                 worker_message = await self.call_llm(
                     session=session,
-                    model=model_config["worker_model"],
+                    model=config["worker_model"],
                     agent="WorkerAgent",
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(retry_task),
@@ -403,7 +399,6 @@ Now, using the tools available to you and the previous results, continue with yo
         try:
             # Get base config and merge with model config
             config = session.config.get(self.NAME, self.default_config())
-            model_config = load_model_config(config)
             
             # Send initial waiting message
             await send_to_websocket(websocket, agent="preparing", message="Initializing the OPACA AI Agents")
@@ -449,7 +444,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
                     session=session,
-                    model=model_config["orchestrator_model"],
+                    model=config["orchestrator_model"],
                     agent="Orchestrator",
                     system_prompt=orchestrator.system_prompt(),
                     messages=orchestrator.messages(message),
@@ -533,7 +528,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 if not (evaluation := overall_evaluator.evaluate_results(all_results)):
                     evaluation_message = await self.call_llm(
                         session=session,
-                        model=model_config["evaluator_model"],
+                        model=config["evaluator_model"],
                         agent="OverallEvaluator",
                         system_prompt=overall_evaluator.system_prompt(),
                         messages=overall_evaluator.messages(message, all_results),
@@ -552,7 +547,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     advisor_message = await self.call_llm(
                         session=session,
-                        model=model_config["orchestrator_model"],
+                        model=config["orchestrator_model"],
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
@@ -603,7 +598,7 @@ Please address these specific improvements:
             # Stream the final response
             final_output = await self.call_llm(
                 session=session,
-                model=model_config["generator_model"],
+                model=config["generator_model"],
                 agent="Output Generator",
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
@@ -690,8 +685,3 @@ async def send_to_websocket(websocket = None, agent: str = "system", message: st
         if message:
             agent_message.content = message
         await websocket.send_json(agent_message.model_dump_json())
-
-def load_model_config(config):
-    with open(f'{Path(__file__).parent}/model_config.yaml', 'r') as f:
-        data = yaml.load(f, Loader=yaml.CLoader)
-        return data['model_configs'][config.get('model_config_name')]
