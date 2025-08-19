@@ -34,7 +34,7 @@ class ToolLLMBackend(AbstractMethod):
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Initialize parameters
-        tool_responses = []         # Internal messages between llm-components
+        tool_messages = []         # Internal messages between llm-components
         t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
@@ -71,7 +71,7 @@ class ToolLLMBackend(AbstractMethod):
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
-                messages=session.messages + [ChatMessage(role="user", content=message)] + tool_responses,
+                messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages,
                 temperature=config['temperature'],
                 tools=tools,
                 websocket=websocket,
@@ -95,7 +95,7 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
-                    messages=session.messages + [ChatMessage(role="user", content=message)] + tool_responses + [ChatMessage(role="user", content=full_err)],
+                    messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages + [ChatMessage(role="user", content=full_err)],
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
@@ -147,8 +147,8 @@ class ToolLLMBackend(AbstractMethod):
                     result.content = "ERROR: The response from the Tool Evaluator was not in the correct format!"
 
                 # Add generated response to internal history to give result to first llm agent
-                tool_responses.append(ChatMessage(role="assistant", content=str(called_tools)))
-                tool_responses.append(ChatMessage(role="user", content=f"Based on the called tools, another LLM has "
+                tool_messages.append(ChatMessage(role="assistant", content=str(called_tools)))
+                tool_messages.append(ChatMessage(role="user", content=f"Based on the called tools, another LLM has "
                                                                        f"decided to continue the process with the "
                                                                        f"following reason: {result.content}"))
             else:

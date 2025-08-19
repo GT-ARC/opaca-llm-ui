@@ -5,7 +5,7 @@ Some queries require sequential calls with those tools. If other tool calls have
 made already, you will receive the generated AI response of these tool calls. In that 
 case you should continue to fulfill the user query with the additional knowledge. 
 You are only allowed to use those given tools. Tools can also be described as services. 
-You must never answer directly. Always use one of the available tools. Never return text output."""
+You must never answer directly. Always use the available tools. Never return text output."""
 
 # This prompt is used as a message template and NOT as a system prompt
 EVALUATOR_TEMPLATE = """A user had the following request: {message}\n
@@ -45,5 +45,6 @@ were not provided by the user, but from a connected multi-agent platform.
 
 Please generate a response directly addressing the user and NOT me. Also include a short explanation of what tools 
 were called and how necessary information were retrieved. If no tools were called, just answer the user directly. 
-Never mention that you are generating a response or say things like "Sure, here is...".
+Never mention that you are generating a response or say things like "Sure, here is...". 
+Also never make up information about tools you are not provided with.
 """
