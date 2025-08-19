@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException
-from .utils import transform_schema
+from .utils import transform_schema, get_supported_models
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,23 @@ class AbstractMethod(ABC):
     @abstractmethod
     def config_schema(self) -> Dict[str, ConfigParameter]:
         pass
+
+    @staticmethod
+    def make_llm_config_param(description: str = None):
+        models = [m for _, _, models in get_supported_models() for m in models]
+        return ConfigParameter(
+                type="string", 
+                required=True, 
+                default=models[0],
+                enum=models,
+                description=description)
+
+    async def get_llm_client(self, session: SessionData, model: str) -> AsyncOpenAI:
+        # use this instead of get models
+        # iterate base-url, model, api-key pairs until model found
+        # return existing client for base-url or create new one
+        pass
+
 
     async def init_models(self, session: SessionData) -> None:
         """
