@@ -31,8 +31,7 @@ services:
       OPENAI_API_KEY:
       VLLM_BASE_URL:
       VLLM_API_KEY:
-      FRONTEND_BASE_URL:
-      SMARTSPACE_BASE_URL:
+      CORS_WHITELIST:
 
   # TTS Server for voice synthesis
   #opaca-tts-server:
