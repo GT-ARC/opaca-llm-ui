@@ -1,4 +1,7 @@
 <template>
+
+    <CookieBanner />
+
     <header>
         <div class="text-center py-0 my-0 mx-auto col">
             <nav class="navbar navbar-expand" type="light">
@@ -149,15 +152,16 @@ import conf, {Backends} from '../config.js';
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
-import {sendRequest} from "./utils.js";
+import backendClient from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
+import CookieBanner from './components/CookieBanner.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent},
+    components: {OptionsSelect, MainContent, CookieBanner},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
@@ -183,10 +187,8 @@ export default {
                 this.isConnecting = true;
                 this.loginError = false;
 
-                const body = {url: this.opacaRuntimePlatform, user: this.platformUser, pwd: this.platformPassword};
-                const res = await sendRequest("POST", `${conf.BackendAddress}/connect`, body);
+                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, this.platformUser, this.platformPassword);
                 this.platformPassword = "";
-                const rpStatus = parseInt(res.data);
 
                 if (rpStatus === 200) {
                     this.connected = true;
@@ -213,7 +215,7 @@ export default {
 
         async disconnectFromPlatform() {
             try {
-                await sendRequest("POST", `${conf.BackendAddress}/disconnect`);
+                await backendClient.disconnect();
                 this.connected = false;
             } catch (e) {
                 console.error(e);

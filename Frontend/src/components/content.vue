@@ -23,7 +23,7 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
@@ -61,21 +61,62 @@
 
             </div>
 
-            <!-- Input Area -->
-            <div class="input-container">
-                <div class="input-group">
-                    <div class="scroll-wrapper">
-                      <textarea id="textInput"
-                                v-model="textInput"
-                                ref="textInputRef"
-                                :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control"
-                                :class="{ 'small-scrollbar': isSmallScrollbar }"
-                                style="resize: none; height: auto; max-height: 150px;"
-                                rows="1"
-                                @keydown="textInputCallback"
-                                @input="resizeTextInput"
-                      ></textarea>
+                <!-- Upload Preview for Each File -->
+                <div
+                    v-if="selectedFiles.length"
+                    class="upload-status-preview text-muted small mb-2 text-start"
+                >
+                    <!-- Loop through each selected file -->
+                    <div
+                        v-for="(file, index) in selectedFiles"
+                        :key="file.name + index"
+                        class="d-flex align-items-center justify-content-between border rounded p-2 mb-1 bg-light"
+                    >
+                        <div class="d-flex align-items-center">
+                            <!-- Icon changes based on upload status -->
+                            <i
+                                :class="uploadStatus.isUploading ? 'fa fa-spinner fa-spin text-secondary me-2' : 'fa fa-file-pdf text-danger me-2'"
+                            ></i>
+
+                            <!-- File name -->
+                            <span class="me-2">{{ file.name }}</span>
+
+                            <!-- Upload status text -->
+                            <span v-if="uploadStatus.isUploading">uploading…</span>
+                        </div>
+
+                        <!-- Remove file from preview (but not from disk or server) -->
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            @click="removeSelectedFile(index)"
+                            :disabled="uploadStatus.isUploading"
+                            title="Remove file"
+                        >
+                            <i class="fa fa-times" />
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Area with drag and drop -->
+                <div class="input-container"
+                    @dragover.prevent
+                    @dragenter.prevent
+                    @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+
+                    <div class="input-group">
+                        <div class="scroll-wrapper">
+                        <textarea id="textInput"
+                                    v-model="textInput"
+                                    ref="textInputRef"
+                                    :placeholder="Localizer.get('inputPlaceholder')"
+                                    class="form-control"
+                                    :class="{ 'small-scrollbar': isSmallScrollbar }"
+                                    style="resize: none; height: auto; max-height: 150px;"
+                                    rows="1"
+                                    @keydown="textInputCallback"
+                                    @input="resizeTextInput"
+                        ></textarea>
                     </div>
 
                     <!-- user has entered text into message box -> send button available -->
@@ -112,6 +153,13 @@
                             :title="Localizer.get('tooltipButtonReset')">
                         <i class="fa fa-refresh"/>
                     </button>
+                    <label class="btn btn-secondary" style="margin-left: 4px;" title="Upload PDF">
+                        <i class="fa fa-upload"></i>
+                        <input type="file"
+                                accept=".pdf"
+                                @change="e => uploadFiles(e.target.files)"
+                                style="display: none;" />
+                    </label>
                 </div>
             </div>
 
@@ -123,11 +171,11 @@
 
 <script>
 import {nextTick} from "vue";
-import Sidebar from "./sidebar.vue";
+import Sidebar from "./Sidebar/Sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import {sendRequest} from "../utils.js";
+import backendClient from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 
@@ -167,9 +215,20 @@ export default {
             showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
+            selectedFiles: [],
+            uploadStatus: {
+                isUploading: false,
+                uploadedFileName: '',
+            },
         }
     },
     methods: {
+
+        // Remove selected file at given index from the preview list
+        removeSelectedFile(index) {
+            this.selectedFiles.splice(index, 1);
+        },
+
         async textInputCallback(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -180,16 +239,32 @@ export default {
 
         async submitText() {
             if (this.textInput && this.isFinished) {
-                const userInput = this.textInput;
+                // Copy current input and reset field
+                let userInput = this.textInput;
                 this.textInput = '';
+
+                // If files are uploaded, append info about them to the input
+                if (this.selectedFiles.length > 0) {
+                    const fileNotes = this.selectedFiles
+                        .map(file => `[Attached PDF: ${file.name}]`)
+                        .join('\n');
+                    userInput += `\n\n${fileNotes}`;
+                }
+
                 await nextTick();
                 this.resizeTextInput();
+
                 await this.askChatGpt(userInput);
+
+                // Clear file and status after sending
+                this.selectedFiles = [];
+                this.uploadStatus.uploadedFileName = '';
+                this.uploadStatus.isUploading = false;
             }
         },
 
         async stopGeneration() {
-            await sendRequest("POST", `${conf.BackendAddress}/stop`);
+            await backendClient.stop();
         },
 
         async askSampleQuestion(questionText) {
@@ -235,7 +310,7 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
+                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`;
                 this.socket = new WebSocket(url);
                 this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
                 this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
@@ -243,6 +318,33 @@ export default {
                 this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
+            }
+        },
+
+        async uploadFiles(fileList) {
+            const files = Array.from(fileList);
+
+            // Filter out non-PDFs
+            const pdfFiles = files.filter(file => file.type === "application/pdf");
+
+            if (pdfFiles.length === 0) {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            this.uploadStatus.isUploading = true;
+
+            // Save selected files to state
+            // Files will remain here while component instance is alive (i.e. till page reload)   
+            this.selectedFiles.push(...pdfFiles);
+
+            try {
+                const result = await backendClient.uploadFiles(files);
+            } catch (error) {
+                console.error("File upload failed:", error);
+                alert("File upload failed. See console for details.");
+            } finally {
+                this.uploadStatus.isUploading = false;
             }
         },
 
@@ -353,7 +455,8 @@ export default {
             this.messages = [];
             this.$refs.sidebar.clearDebugMessage();
             this.showExampleQuestions = true;
-            await sendRequest("POST", `${conf.BackendAddress}/reset`);
+            Localizer.reloadSampleQuestions(null);
+            await backendClient.reset();
         },
 
         /**
@@ -386,8 +489,7 @@ export default {
         },
 
         scrollDownDebug() {
-            const div = document.getElementById('debug-console');
-            div.scrollTop = div.scrollHeight;
+            this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
         processAgentStatusMessage(agentMessage) {
@@ -518,7 +620,7 @@ export default {
     display: flex;
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
-    padding: 2rem 0; /* Increased top padding for first message */
+    padding: 1rem 0;
 }
 
 .input-container {
@@ -646,21 +748,15 @@ export default {
         display: none;
     }
 
-    #mainContent::before {
-        background: none;
-        content: none;
-    }
-
-    #mainContent::after {
-        background: none;
-        content: none;
-    }
-
     .input-container {
         padding: 0.5rem;
     }
 
     .input-group {
+        padding: 0;
+    }
+
+    .sample-questions {
         padding: 0;
     }
 }

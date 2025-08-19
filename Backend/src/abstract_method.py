@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+import io
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
@@ -76,38 +77,55 @@ class AbstractMethod(ABC):
             websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
-        Calls an LLM with given parameters. Optionally streams intermediate results
-        via the provided websocket. Returns the complete response as an AgentMessage.
+        Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            client (AsyncOpenAI): An already initialized AsyncOpenAI instance.
-            model (str): The name of the model to call.
-            agent (str): The name of the agent which got invoked.
-            system_prompt (str): The system prompt for the model.
-            messages (List[ChatMessage]): The list of messages to call the model with.
-            temperature (float): The temperature to pass to the model
-            tools (List[Dict[str, Any]]): The list of tools to pass to the model
-            tool_choice (Optional[str]): Set the behavior of tool generation.
-            response_format (Optional[Dict]): The output schema the model should answer in.
-            guided_choice (Optional[List[str]]): A list of choices the LLM should choose between.
-            websocket (WebSocket): The websocket to use for streaming intermediate results.
+            session (SessionData): The current session
+            client (AsyncOpenAI): An already initialized OpenAI client.
+            model (str): Model name (e.g., "gpt-4-turbo").
+            agent (str): The agent name (e.g. "simple-tools").
+            system_prompt (str): The system prompt to start the conversation.
+            messages (List[ChatMessage]): The list of chat messages.
+            temperature (float): The model temperature to use.
+            tools (Optional[List[Dict]]): List of tool definitions (functions).
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
+            response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
+            guided_choice (Optional[List[str]]): List of strings for the model to pick from.
+            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
-            AgentMessage: The AgentMessage instance representing the response.
+            AgentMessage: The final message returned by the LLM with metadata.
         """
 
         # Initialize variables
         exec_time = time.time()
         tool_call_buffers = {}
         content = ''
+        agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        # Initialize agent message
-        agent_message = AgentMessage(
-            agent=agent,
-            content='',
-            tools=[]
-        )
+        # Upload all unsent files
+        for filename, filedata in session.uploaded_files.items():
+            if not filedata.file_id:
+                # prepare file for upload
+                file_bytes = filedata._content.getvalue()   # Access private content
+                file_obj = io.BytesIO(file_bytes)
+                file_obj.name = filename  # Required by OpenAI SDK
 
+                # Upload the file
+                uploaded = await client.files.create(file=file_obj, purpose="assistants")
+                logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
+                filedata.file_id = uploaded.id
+
+        file_message_parts = [
+            {"type": "file", "file": {"file_id": file.file_id}}
+            for file in session.uploaded_files.values()
+        ]
+
+        # Modify the last user message to include file parts
+        if isinstance(messages[-1], dict):
+            messages[-1] = ChatMessage(**messages[-1])
+        messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
+        
         # Set settings for model invocation
         kwargs = {
             'model': model,
@@ -121,9 +139,12 @@ class AbstractMethod(ABC):
             kwargs['temperature'] = temperature
 
         # There is currently no token streaming available when using built-in response format
+        # Handle structured response parsing
         if response_format:
             if self._is_gpt(model):
-                completion = await client.beta.chat.completions.parse(**kwargs, response_format=response_format)
+                completion = await client.beta.chat.completions.parse(
+                    **kwargs, response_format=response_format
+                )
                 content = completion.choices[0].message.content
                 agent_message.formatted_output = completion.choices[0].message.parsed
             else:
@@ -133,6 +154,7 @@ class AbstractMethod(ABC):
                                                   f"this schema. Your response must include ALL required fields.\n\n"
                                                   f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
+
                 completion = await client.chat.completions.create(**kwargs)
                 content = completion.choices[0].message.content
                 cleaned_content = self.extract_json_like_content(content)
@@ -142,6 +164,7 @@ class AbstractMethod(ABC):
                     agent_message.formatted_output = {}
             agent_message.response_metadata = completion.usage.to_dict()
         else:
+            # Handle tool choice options
             if guided_choice:
                 if self._is_gpt(model):
                     kwargs['messages'][0]['content'] += (
@@ -232,6 +255,7 @@ class AbstractMethod(ABC):
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
+
 
     @staticmethod
     def _is_gpt(model: str):

@@ -5,17 +5,24 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import uuid
-from typing import List, Dict, Any
+from typing import Dict, Any
 import asyncio
+import logging
+import time
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException
+import io
+from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi import Response as FastAPIResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
+from typing import List, Union
+
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaException
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -23,9 +30,19 @@ from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
 
 
+@asynccontextmanager
+async def lifespan(app):
+    # before start
+    asyncio.create_task(cleanup_old_sessions())
+    # app running
+    yield
+    # after shutdown
+    pass
+
 app = FastAPI(
     title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly."
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    lifespan=lifespan
 )
 
 # Configure CORS settings
@@ -54,8 +71,9 @@ BACKENDS = {
 # Simple dict to store session data
 # Keep in mind: The session data is only reset upon restarting the application
 sessions_lock = asyncio.Lock()
-sessions = {}
+sessions: Dict[str, SessionData] = {}
 
+logger = logging.getLogger("uvicorn")
 
 
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
@@ -68,7 +86,7 @@ async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo)
     return await session.opaca_client.connect(url.url, url.user, url.pwd)
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
-async def disconnect(request: Request, response: FastAPIResponse) -> None:
+async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
     return FastAPIResponse(status_code=204)
@@ -94,7 +112,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
-    session = await handle_session_id_for_websocket(websocket)
+    session = await handle_session_id(websocket)
     session.abort_sent = False
     message = None
     try:
@@ -114,6 +132,37 @@ async def history(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
 
+@app.post("/upload")
+async def upload_files(
+    request: Request,
+    response: FastAPIResponse,
+    files: List[UploadFile],
+):
+    session = await handle_session_id(request, response)
+    uploaded = []
+    for file in files:
+        try:
+            contents = await file.read()
+
+            file_model = OpacaFile(
+                content_type=file.content_type,
+                sent=False
+            )
+            file_model._content = io.BytesIO(contents)
+
+            # Store in session.uploaded_files
+            session.uploaded_files[file.filename] = file_model
+            uploaded.append(file.filename)
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}"
+            )
+
+    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
+
+
 @app.get("/history", description="Get full message history of given LLM client since last reset.")
 async def history(request: Request, response: FastAPIResponse) -> list:
     session = await handle_session_id(request, response)
@@ -123,6 +172,7 @@ async def history(request: Request, response: FastAPIResponse) -> list:
 async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
     session = await handle_session_id(request, response)
     session.messages.clear()
+    session.uploaded_files.clear()
     return FastAPIResponse(status_code=204)
 
 @app.post("/reset_all", description="Reset all sessions")
@@ -153,44 +203,45 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-async def handle_session_id(request: Request, response: FastAPIResponse) -> SessionData:
+async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
     """
-    Gets the session id from the request object. If no session id was found or the id is unknown, creates a new
-    session id and adds an empty list of messages to that session id. Also sets the same session-id in the
-    response and return the SessionData associated with that session-id.
+    Unified session handler for both HTTP requests and WebSocket connections.
+    If no valid session ID is found, a new one is created and optionally set in the response cookie.
     """
-    session_id = request.cookies.get("session_id")
-    async with sessions_lock:
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
-        response.set_cookie("session_id", session_id)
-        return sessions[session_id]
 
-async def handle_session_id_for_websocket(websocket: WebSocket) -> SessionData:
-    """
-    Gets the session id from a websocket and returns the corresponding session data. If no session id was found
-    or the id is unknown, creates a new session id and adds an empty list of messages to that session id.
-    """
     # Extract cookies from headers
-    headers = Headers(scope=websocket.scope)
+    headers = Headers(scope=source.scope)
     cookies = headers.get("cookie")
     session_id = None
 
+    # Extract session_id from cookies
     if cookies:
-        cookie_dict = {cookie.split("=")[0]: cookie.split("=")[1] for cookie in cookies.split("; ")}
+        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
         session_id = cookie_dict.get("session_id")
 
+    # Session lock to avoid race conditions
     async with sessions_lock:
-        # If session ID is not found or invalid, create a new one
-        if not session_id or session_id not in sessions:
-            session_id = str(uuid.uuid4())
-            sessions[session_id] = SessionData()
-            sessions[session_id].opaca_client = OpacaClient()
+        max_age = 60 * 60 * 24 * 30  # 30 days
+        # create Cookie (or just update max-age if already exists)
+        session_id = create_or_refresh_session(session_id, max_age)
+
+        # If it's an HTTP request and you want to set a cookie
+        if response is not None:
+            response.set_cookie("session_id", session_id, max_age=max_age)
 
         # Return the session data for the session ID
         return sessions[session_id]
+
+
+def create_or_refresh_session(session_id, max_age=None):
+    if not session_id or session_id not in sessions:
+        session_id = str(uuid.uuid4())
+        logger.info(f"Creating new Session {session_id}")
+        sessions[session_id] = SessionData()
+        sessions[session_id].opaca_client = OpacaClient()
+    if max_age is not None:
+        sessions[session_id].valid_until = time.time() + max_age
+    return session_id
 
 async def store_message(session: SessionData, message: Message, result: Response):
     if message and message.store_in_history:
@@ -198,6 +249,19 @@ async def store_message(session: SessionData, message: Message, result: Response
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
+
+
+async def cleanup_old_sessions(delay_seconds=3600):
+    while True:
+        logger.info("Checking for old Sessions...")
+        now = time.time()
+        async with sessions_lock:
+            for session_id, session_data in list(sessions.items()):
+                if session_data.valid_until < now:
+                    logger.info(f"Removing old session {session_id}")
+                    sessions.pop(session_id)
+        await asyncio.sleep(delay_seconds)
+
 
 
 # run as `python3 -m Backend.server`

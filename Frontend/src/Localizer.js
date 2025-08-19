@@ -61,6 +61,21 @@ export const localizationData = {
         audioServerSettings: "Audio",
         rerollQuestions: "More ...",
         regenerate: "Suggest More",
+        platformInfoRequest: "How can you assist me?",
+        platformInfoMissing: "It's a little quiet here...",
+        platformInfoLoading: "Querying functionality, please wait...",
+        platformInfoFailed: "There was an error when querying the functionality: %1",
+        cookiesText: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
+        cookiesAccept: "Accept",
+        sidebarAgentsLoading: "Loading available agents...",
+        sidebarAgentsMissing: "No agents available.",
+        sidebarConfigLoading: "Loading config for %1...",
+        sidebarConfigMissing: "No config available for %1.",
+        configSaveSuccess: "Config saved",
+        configSaveInvalid: "Invalid data: %1",
+        configSaveError: "An error occurred",
+        configReset: "Configuration was reset",
+        sidebarFaqMissing: "Unable to load FAQ.",
     },
 
     DE: {
@@ -118,6 +133,21 @@ export const localizationData = {
         audioServerSettings: "Audio",
         rerollQuestions: "Mehr ...",
         regenerate: "Weitere Beispiele",
+        platformInfoRequest: "Wie kannst du mir helfen?",
+        platformInfoMissing: "Hier gibt es gerade nichts...",
+        platformInfoLoading: "Frage Funktionalitäten an, bitte warten...",
+        platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
+        cookiesText: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
+        cookiesAccept: "Annehmen",
+        sidebarAgentsLoading: "Lade verfügbare Agenten...",
+        sidebarAgentsMissing: "Keine Agenten verfügbar.",
+        sidebarConfigLoading: "Lade Konfiguration für %1...",
+        sidebarConfigMissing: "Keine Konfiguration für %1 verfügbar.",
+        configSaveSuccess: "Konfiguration gespeichert",
+        configSaveInvalid: "Fehlerhafte Daten: %1",
+        configSaveError: "Es ist ein Fehler aufgretreten",
+        configReset: "Konfiguration wurde zurückgesetzt",
+        sidebarFaqMissing: "FAQ konnte nicht geladen werden.",
     },
 };
 
@@ -132,7 +162,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Create a tabular comparison of all application mails in my inbox.", "icon": "📜"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Fetch my next meeting and give me some background information on the topic!", "icon": "?"},
+                {"question": "Fetch my next meeting and give me some background information on the topic!", "icon": "📑"},
                 {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
                 {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧠"},
                 {"question": "Find a meeting slot for tomorrow that works for myself, Robert and Aray.", "icon": "👥"},
@@ -201,7 +231,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                 {"question": "Erstelle einen tabellarischen Vergleich aller Bewerbungen in meiner Inbox.", "icon": "📜"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Ruf mein nächstes Meeting ab und gib mir ein paar Hintergrundinformationen zu dem Thema!", "icon": "?"},
+                {"question": "Ruf mein nächstes Meeting ab und gib mir ein paar Hintergrundinformationen zu dem Thema!", "icon": "📑"},
                 {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "📞"},
                 {"question": "Plane ein Brainstorming-Meeting mit Tobias.", "icon": "🧠"},
                 {"question": "Finde eine Zeit für ein Meeting Morgen, die für mich, Robert und Aray passt.", "icon": "👥"},
@@ -369,7 +399,6 @@ class Localizer {
 
     /**
      * Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments.
-     * Also does in-line markdown parsing on the text.
      * @param text
      * @param args
      * @returns {string|null}
@@ -380,7 +409,7 @@ class Localizer {
             text = text.replace(/%(\d+)/g, (match, number) => {
                 return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
             });
-            return marked.parseInline(text);
+            return text;
         } catch (error) {
             console.error('Formatting error:', error);
             return null;
