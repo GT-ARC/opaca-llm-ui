@@ -362,9 +362,11 @@ export default {
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
             if (result.hasOwnProperty('agent')) {
-                if (result.agent === 'output_generator') {
+                if (result.agent === 'Output Generator') {
                     // put output_generator content directly in the bubble
+                    aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
+                    await this.addDebugToken(result, false);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);

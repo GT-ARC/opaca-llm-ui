@@ -621,22 +621,19 @@ Please address these specific improvements:
                 rounds += 1
             
             # Generate final output with streaming
-            await send_to_websocket(websocket, "OutputGenerator", "Generating final response...\n\n")
+            await send_to_websocket(websocket, "Output Generator", "Generating final response...\n\n")
 
             # Stream the final response
             final_output = await self.call_llm(
                 session=session,
                 client=session.llm_clients[model_config["generator_base_url"]],
                 model=model_config["generator_model"],
-                agent="output_generator",
+                agent="Output Generator",
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config["temperature"],
                 websocket=websocket,
             )
-            # 'output_generator' is a special agent type to let the UI know to stream the results directly in chat
-            # Agent is changed afterwards properly
-            final_output.agent = "OutputGenerator"
             response.agent_messages.append(final_output)
             await send_to_websocket(websocket, agent_message=final_output)
 
@@ -647,7 +644,7 @@ Please address these specific improvements:
             response.execution_time = time.time() - overall_start_time
             
             # Send completion message for output generator
-            await send_to_websocket(websocket, "OutputGenerator", "Final response generated ✓")
+            await send_to_websocket(websocket, "Output Generator", "Final response generated ✓")
 
             self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {response.execution_time:.2f} seconds\n\n")
 
