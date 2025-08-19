@@ -29,9 +29,11 @@
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
-                    <hr />
-                    <div v-for="text in this.getToolCalls()">
-                        {{ text }}
+                    <div v-if="this.getToolCalls().length > 0">
+                        <hr />
+                        <div v-for="text in this.getToolCalls()">
+                            <i class="fa fa-wrench" /> {{ text }}
+                        </div>
                     </div>
                 </div>
                 <div v-else class="message-text w-auto"
