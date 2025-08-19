@@ -39,7 +39,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 
 * Simple: Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.
 
-* Tool-LLM: Two agents using the built-in 'tools' parameter of newer models.
+* Tool-LLM: Three agents using the built-in 'tools' parameter of newer models.
 
 * Orchestration: A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
 
