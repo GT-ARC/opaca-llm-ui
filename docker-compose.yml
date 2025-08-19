@@ -28,9 +28,9 @@ services:
     ports:
       - "3001:3001"
     environment:
-      OPENAI_API_KEY:
-      VLLM_BASE_URL:
-      VLLM_API_KEY:
+      LLM_URLS:
+      LLM_APIKEYS:
+      LLM_MODELS:
       FRONTEND_BASE_URL:
       SMARTSPACE_BASE_URL:
 

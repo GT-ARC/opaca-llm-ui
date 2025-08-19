@@ -21,7 +21,7 @@ from starlette.websockets import WebSocket
 
 from typing import List, Union
 
-from .utils import validate_config_input, exception_to_result
+from .utils import validate_config_input, exception_to_result, get_supported_models
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
 from .toolllm import *
 from .simple import SimpleBackend
@@ -79,6 +79,13 @@ logger = logging.getLogger("uvicorn")
 @app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
 async def get_backends() -> list:
     return list(BACKENDS)
+
+@app.get("/models", description="Get supported models, grouped by LLM server URL")
+async def get_models() -> dict[str, list[str]]:
+    return {
+        url: models
+        for url, _key, models in get_supported_models()
+    }
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo) -> int:
