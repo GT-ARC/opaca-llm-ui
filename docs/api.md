@@ -12,9 +12,9 @@ The OPACA LLM provides a RESTful API for most requests, while also providing a w
 
 ### GET `/backends`
 
-- Returns a dictionary containing all available backends. The keys refer to the backends names while the values represent the initialized method instances for each backend.
+- Returns a dictionary containing the names of all available backends.
 - inputs: `None`
-- outputs: `Dict[str, Any]`
+- outputs: `List[str]`
 
 ### GET `/{backend}/config`
 
