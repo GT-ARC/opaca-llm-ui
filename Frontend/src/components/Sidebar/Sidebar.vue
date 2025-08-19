@@ -202,7 +202,7 @@ export default {
 /* sidebar content */
 #sidebar-content {
     width: min(400px, 100vw - 3rem);
-    height: calc(100vh - 50px - 1rem);
+    height: calc(100vh - 50px - 1rem - 1rem); /* 100% - header - top margin - bottom margin */
     min-width: 150px;
     max-width: 768px;
     padding: .5rem;
@@ -219,7 +219,7 @@ export default {
     margin: 1rem 0 0 1rem;
     transition: all 0.2s ease;
     border-radius: 0.5rem;
-    height: calc(100vh - 50px - 1rem);
+    height: calc(100vh - 50px - 1rem - 1rem); /* 100% - header - top margin - bottom margin */
 }
 
 .sidebar-menu-item {

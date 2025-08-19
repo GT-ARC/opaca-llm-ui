@@ -91,9 +91,9 @@
                 @dragenter.prevent
                 @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
 
-                <div class="input-group input-area"
+                <div class="input-area"
                      @click="this.$refs.textInputRef?.focus()" >
-                    <div class="scroll-wrapper w-25" :class="{'w-100': this.isMobile}">
+                    <div class="scroll-wrapper" :class="{'w-100': this.isMobile}">
                         <textarea
                             id="textInput"
                             v-model="textInput"
@@ -636,7 +636,7 @@ export default {
 .input-container {
     width: 100%;
     background-color: var(--background-color);
-    padding: 0.5rem;
+    padding: 0.5rem 0.5rem 1rem 0.5rem; /* 1rem bottom padding so it's the same as sidebar */
     flex-shrink: 0;
     position: relative;
 }
@@ -660,11 +660,17 @@ export default {
 }
 
 .input-area {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
     background-color: var(--input-color);
-    width: 100%;
+    width: min(95%, 100ch);
     border-radius: 1rem;
     cursor: text;
-    padding: 0.5rem !important;
+    padding: 0.5rem;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .scroll-wrapper {
@@ -776,11 +782,13 @@ export default {
     }
 
     .input-container {
-        padding: 0.5rem;
+        padding: 0;
     }
 
-    .input-group {
-        padding: 0;
+    .input-area {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
     }
 
     .sample-questions {
