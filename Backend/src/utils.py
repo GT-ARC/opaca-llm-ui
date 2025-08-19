@@ -74,12 +74,13 @@ class Action:
 
 
 def get_supported_models():
-    urls = os.getenv("LLM_URLS").split(";")
-    keys = os.getenv("LLM_APIKEYS").split(";")
-    all_models = os.getenv("LLM_MODELS").split(";")
     return [
         (url, key, models.split(","))
-        for url, key, models in zip(urls, keys, all_models)
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"), 
+            os.getenv("LLM_APIKEYS", "").split(";"), 
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
     ]
 
 

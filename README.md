@@ -97,9 +97,9 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 ### Backend
 
-* `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
-* `VLLM_BASE_URL`: Alternatively to using OpenAI, location of vLLM API to use (e.g. for LLAMA and other models).
-* `VLLM_API_KEY`: API key for the vLLM API, if any.
+* `LLM_URLS`: semicolon-separated list of LLM server URLs, e.g. OpenAI, vLLM, LiteLLM, etc. (must follow the OpenAI API standard); default is `"openai"`, which can be used as a stand-in for the OpenAI API URL.
+* `LLM_APIKEYS`: semicolon-separated list of API-keys for each of the above URLs; default is `""` (for `openai`, the API Key is taken from the `OPENAI_API_KEY` env var).
+* `LLM_MODELS`: semicolon-separated list of comma-separated lists of supported models for each of the above URLs; default is `"gpt-4o-mini,gpt-4o"`.
 * `FRONTEND_BASE_URL`: The URL of the frontend, analogous to `VITE_BACKEND_BASE_URL` (may be needed for CORS; defaults to localhost)
 * `SMARTSPACE_BASE_URL`: The URL of the Smartspace UI (may be needed for CORS; defaults to localhost)
 
