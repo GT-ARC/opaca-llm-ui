@@ -710,14 +710,14 @@ simple_questions = [
         "input": "I need the second robot to move to zone B",
         "output": "The answer should tell the user that Logistics Robot 2 has moved to zone B.",
         "tools": [
-            EvalTool(name="MoveToLocation", args=[EvalToolParam(key="zone", value="B", match=EvalMatch.PARTIAL)])
+            EvalTool(name="MoveToZone", args=[EvalToolParam(key="zone", value="B", match=EvalMatch.PARTIAL)])
         ]
     },
     {
         "input": "The only robot I should be commanding right now is robot 2. Now it is necessary for the robot, in order to fulfill its current task, to be relocated to zone C, where all the necessary items are that it should be picking up, but we can deal with that once the robot is there. Make sure the robot is moved.",
         "output": "The answer should tell the user that Logistics Robot 2 has moved to zone C.",
         "tools": [
-            EvalTool(name="MoveToLocation", args=[EvalToolParam(key="zone", value="C", match=EvalMatch.PARTIAL)])
+            EvalTool(name="MoveToZone", args=[EvalToolParam(key="zone", value="C", match=EvalMatch.PARTIAL)])
         ]
     },
     {
