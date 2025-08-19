@@ -22,8 +22,9 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "model": self.make_llm_config_param(),
-                # TODO separate model per agent? would be easy now!
+                "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
+                "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
+                "output_model": self.make_llm_config_param("Generating the final output"),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
@@ -67,7 +68,7 @@ class ToolLLMBackend(AbstractMethod):
         while should_continue and c_it < self.max_iter:
             result = await self.call_llm(
                 session=session,
-                model=config['model'],
+                model=config['tool_gen_model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
                 messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages,
@@ -90,7 +91,7 @@ class ToolLLMBackend(AbstractMethod):
                 full_err += err_msg
                 result = await self.call_llm(
                     session=session,
-                    model=config['model'],
+                    model=config['tool_gen_model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
                     messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages + [ChatMessage(role="user", content=full_err)],
@@ -121,7 +122,7 @@ class ToolLLMBackend(AbstractMethod):
             if len(result.tools) > 0:
                 result = await self.call_llm(
                     session=session,
-                    model=config['model'],
+                    model=config['tool_eval_model'],
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
@@ -155,7 +156,7 @@ class ToolLLMBackend(AbstractMethod):
 
         result = await self.call_llm(
             session=session,
-            model=config['model'],
+            model=config['output_model'],
             agent='Output Generator',
             system_prompt='',
             messages=session.messages + [ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(

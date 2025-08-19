@@ -130,8 +130,7 @@ class SimpleToolsBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+            "model": self.make_llm_config_param(),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
             "use_agent_names": ConfigParameter(type="boolean", required=False, default=True),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
         }
