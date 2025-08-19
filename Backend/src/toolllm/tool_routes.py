@@ -239,11 +239,14 @@ class ToolLLMBackend(AbstractMethod):
             agent_name = None
             action_name = t_name
 
-        t_result = await session.opaca_client.invoke_opaca_action(
-            action_name,
-            agent_name,
-            t_args.get('requestBody', {})
-        )
+        try:
+            t_result = await session.opaca_client.invoke_opaca_action(
+                action_name,
+                agent_name,
+                t_args.get('requestBody', {})
+            )
+        except Exception as e:
+            t_result = f"Failed to invoke tool.\nCause: {e}"
 
         return {
             "id": t_id,
