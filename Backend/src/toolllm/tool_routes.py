@@ -67,7 +67,6 @@ class ToolLLMBackend(AbstractMethod):
         while should_continue and c_it < self.max_iter:
             result = await self.call_llm(
                 session=session,
-                client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
@@ -91,7 +90,6 @@ class ToolLLMBackend(AbstractMethod):
                 full_err += err_msg
                 result = await self.call_llm(
                     session=session,
-                    client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
@@ -123,7 +121,6 @@ class ToolLLMBackend(AbstractMethod):
             if len(result.tools) > 0:
                 result = await self.call_llm(
                     session=session,
-                    client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Evaluator',
                     system_prompt='',
@@ -158,7 +155,6 @@ class ToolLLMBackend(AbstractMethod):
 
         result = await self.call_llm(
             session=session,
-            client=session.llm_clients[config['vllm_base_url']],
             model=config['model'],
             agent='Output Generator',
             system_prompt='',
