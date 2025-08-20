@@ -43,7 +43,7 @@ class AbstractMethod(ABC):
                     logger.info("creating new client for URL " + url)
                     # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
                     session.llm_clients[url] = (
-                        AsyncOpenAI() if url == "openai" else
+                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
                         AsyncOpenAI(api_key=key, base_url=url)
                     )
                 return session.llm_clients[url]
