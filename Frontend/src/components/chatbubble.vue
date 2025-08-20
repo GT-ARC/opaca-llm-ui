@@ -29,6 +29,15 @@
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
+                    <div v-if="this.getToolCalls().length > 0">
+                        <hr />
+                        <div v-if="this.getToolCalls().length > 3">
+                            ...
+                        </div>
+                        <div v-for="text in this.getToolCalls().slice(-3)">
+                            <i class="fa fa-wrench" /> {{ text }}
+                        </div>
+                    </div>
                 </div>
                 <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
@@ -74,6 +83,15 @@
                     <i class="fa fa-bug" />
                 </div>
 
+                <!-- tool calls -->
+                <div v-show="this.getToolCalls().length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isToolsExpanded = !this.isToolsExpanded"
+                     :title="Localizer.get('tooltipChatbubbleTools')">
+                    <i class="fa fa-wrench" />
+                </div>
+
                 <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
@@ -97,6 +115,17 @@
                 </div>
             </div>
 
+            <!-- footer: tool calls -->
+            <div v-show="this.isToolsExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                     style="max-height: 200px">
+                     <div v-for="text in this.getToolCalls()">
+                        {{ text }}
+                     </div>
+                </div>
+            </div>
+
+            <!-- footer: errors -->
             <div v-show="this.isErrorExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
@@ -147,6 +176,7 @@ export default {
             ttsAudio: null,
             copySuccess: false,
             autoScrollDebugMessage: true,
+            isToolsExpanded: false,
         }
     },
 
@@ -172,6 +202,21 @@ export default {
                 this.markStatusMessagesDone(agentName);
                 this.statusMessages.set(agentName, {text: text, completed: completed});
             }
+        },
+
+        getToolCalls() {
+            const regex = /Tool\s+([^\n]+):\nName:\s*([^\n]+)\nArguments:\s*([^\n]+)\nResult:\s*([^\n]+)/gs
+            return this.debugMessages
+                .flatMap( debug => [...debug.text.matchAll(regex)] )
+                .map( match => {
+                    const id = match[1];
+                    const name = match[2].replace("--", ": ");
+                    var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
+                    var results = match[4];
+                    if (params.includes("requestBody")) params = params.substring(14, params.length-2);
+                    if (results.length > 30) results = results.substring(0, 30) + " [...]";
+                    return `${id}. ${name}(${params}) → ${results}`;
+                });
         },
 
         addDebugMessage(text, type) {
