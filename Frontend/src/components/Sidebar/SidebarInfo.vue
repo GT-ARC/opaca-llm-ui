@@ -49,7 +49,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.query("tool-llm", Localizer.get('platformInfoRequest'), false);
+                const response = await backendClient.query("simple-tools", Localizer.get('platformInfoRequest'), false);
                 const answer = response.agent_messages[0].content;
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
