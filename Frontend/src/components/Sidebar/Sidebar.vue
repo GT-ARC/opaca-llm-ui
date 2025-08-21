@@ -255,7 +255,7 @@ export default {
 .resizer {
     width: 4px;
     cursor: ew-resize;
-    height: calc(100vh - 85px - 25px); /* where are these values coming from? */
+    height: calc(100vh - 50px - 1rem - 1rem); /* same as content */
     position: absolute;
     top: 0;
     right: 0;
