@@ -127,10 +127,9 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    v-if="this.isResetAvailable()"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="resetChat"
-                                    :disabled="!isFinished"
+                                    :disabled="!isFinished || this.messages.length <= 0"
                                     :title="Localizer.get('tooltipButtonReset')">
                                 <i class="fa fa-refresh"/>
                             </button>
@@ -154,7 +153,7 @@
                             </button>
 
                             <button type="button"
-                                    v-if="this.isSendAvailable() && isFinished"
+                                    v-if="isFinished"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.length <= 0"
@@ -716,7 +715,7 @@ export default {
 }
 
 .input-area-button:disabled {
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
 .input-area-button i {
@@ -727,6 +726,11 @@ export default {
     justify-content: center;
     width: 1.25rem;
     height: 1.25rem;
+}
+
+.btn-outline-danger:disabled {
+    color: var(--text-primary-color);
+    border-color: var(--text-primary-color);
 }
 
 .chatbubble-container {
@@ -791,6 +795,10 @@ export default {
         width: 100%;
         margin: 0;
         border-radius: 0;
+    }
+
+    .text-input {
+        padding: 0.25rem;
     }
 
     .sample-questions {
