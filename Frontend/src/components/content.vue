@@ -156,7 +156,7 @@
                                     v-if="isFinished"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
-                                    :disabled="this.textInput.length <= 0"
+                                    :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
                                 <i class="fa fa-arrow-up"/>
                             </button>
@@ -230,7 +230,7 @@ export default {
     },
     methods: {
         async textInputCallback(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && !event.shiftKey && this.textInput.trim().length > 0) {
                 event.preventDefault();
                 await this.submitText();
                 this.resizeTextInput();
@@ -240,7 +240,7 @@ export default {
         async submitText() {
             if (this.textInput && this.isFinished) {
                 // Copy current input and reset field
-                let userInput = this.textInput;
+                let userInput = this.textInput.trim();
                 this.textInput = '';
 
                 await nextTick();
@@ -545,16 +545,6 @@ export default {
 
         isMainContentVisible() {
             return !(this.isMobile && SidebarManager.isSidebarOpen());
-        },
-
-        isSendAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length > 0;
-        },
-
-        isResetAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length === 0;
         },
 
         updateScrollbarThumb() {
