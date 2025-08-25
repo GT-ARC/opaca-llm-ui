@@ -1,6 +1,6 @@
 """
 FastAPI Server providing HTTP/REST routes to be used by the Frontend.
-Provides a list of available "backends", or LLM clients that can be used,
+Provides a list of available "backends", or LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
@@ -73,14 +73,16 @@ sessions: Dict[str, SessionData] = {}
 logger = logging.getLogger("uvicorn")
 
 
-@app.get("/backends", description="Get list of available backends/LLM client IDs, to be used as parameter for other routes.")
+@app.get("/backends", description="Get list of available 'backends'/LLM-prompting-methods, to be used as parameter for other routes.")
 async def get_backends() -> list:
     return list(BACKENDS)
+
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, connect: ConnectInfo) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
+
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
 async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
@@ -88,12 +90,14 @@ async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResp
     await session.opaca_client.disconnect()
     return FastAPIResponse(status_code=204)
 
-@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform.")
+
+@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
 async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
 
-@app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message.")
+
+@app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
@@ -105,6 +109,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     finally:
         await store_message(session, message, result)
         return result
+
 
 @app.websocket("/{backend}/query_stream")
 async def query_stream(websocket: WebSocket, backend: str):
@@ -124,12 +129,14 @@ async def query_stream(websocket: WebSocket, backend: str):
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
+
 @app.post("/stop", description="Abort generation for last query.")
 async def history(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
 
-@app.post("/upload")
+
+@app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
 async def upload_files(
     request: Request,
     response: FastAPIResponse,
@@ -160,10 +167,11 @@ async def upload_files(
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-@app.get("/history", description="Get full message history of given LLM client since last reset.")
+@app.get("/history", description="Get full message history in current session since last reset (user queries and LLM responses, no internal/intermediate messages).")
 async def history(request: Request, response: FastAPIResponse) -> list:
     session = await handle_session_id(request, response)
     return session.messages
+
 
 @app.post("/reset", description="Reset message history for the current session.")
 async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
@@ -172,19 +180,22 @@ async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
     session.uploaded_files.clear()
     return FastAPIResponse(status_code=204)
 
-@app.post("/reset_all", description="Reset all sessions")
+
+@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
 async def reset_all():
     async with sessions_lock:
         sessions.clear()
 
-@app.get("/{backend}/config", description="Get current configuration of the given LLM client.")
+
+@app.get("/{backend}/config", description="Get current configuration of the given prompting method.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-@app.put("/{backend}/config", description="Update configuration of the given LLM client.")
+
+@app.put("/{backend}/config", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
@@ -194,11 +205,13 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     session.config[backend] = conf
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
-@app.post("/{backend}/config/reset", description="Resets the configuration of the LLM client to its default.")
+
+@app.post("/{backend}/config/reset", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+
 
 async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
     """
@@ -239,6 +252,7 @@ def create_or_refresh_session(session_id, max_age=None):
     if max_age is not None:
         sessions[session_id].valid_until = time.time() + max_age
     return session_id
+
 
 async def store_message(session: SessionData, message: Message, result: Response):
     if message and message.store_in_history:
