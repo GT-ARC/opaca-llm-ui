@@ -129,7 +129,7 @@ class AbstractMethod(ABC):
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'messages': [{"role": "system", "content": system_prompt}] + messages,
+            'messages': [ChatMessage(role="system", content=system_prompt), *messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
         }

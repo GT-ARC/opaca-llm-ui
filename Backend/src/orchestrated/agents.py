@@ -47,20 +47,13 @@ class OrchestratorAgent(BaseAgent):
         return ORCHESTRATOR_PROMPT
 
     def messages(self, user_request: str):
-        return [{
-            "role": "assistant",
-            "content": "# CHAT HISTORY\n\nThe following messages are part of the previous chat history and do not follow my output schema. I can use information from the chat history for the latest user request if they are relevant."
-        }] + self.chat_history + [
-                {
-                "role": "assistant",
-                "content": "# END OF CHAT HISTORY"
-                }
-        ] + [
-                {
-                "role": "user",
-                "content": f'Now create a plan by outputting tool calls including ALL necessary tasks to fulfill the following request:\n'
-                           f'{user_request}'
-                }
+        return [
+            ChatMessage(role="assistant", content="# CHAT HISTORY\n\nThe following messages are part of the previous chat history and do not follow my output schema. " \
+                                                  "I can use information from the chat history for the latest user request if they are relevant."),
+            *self.chat_history,
+            ChatMessage(role="assistant", content="# END OF CHAT HISTORY"),
+            ChatMessage(role="user", content=f'Now create a plan by outputting tool calls including ALL necessary tasks to fulfill the following request:\n'
+                                             f'{user_request}')
         ]
 
     @property
@@ -106,7 +99,7 @@ class AgentPlanner(BaseAgent):
                 if result.tool_results:
                     context += f"### Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
 
-        return [{"role": "user", "content": f"""{context}
+        return [ChatMessage(role="user", content=f"""{context}
 
             # YOUR TASK:
             
@@ -123,7 +116,7 @@ class AgentPlanner(BaseAgent):
             
             YOU ABSOLUTELY HAVE TO PROVIDE ALL THE REQUIRED FUNCTION ARGUMENTS AND ALL THE INFORMATION NECESSARY FOR THE WORKER AGENT INTO THE TASK FIELD.
             EVERY INFORMATION THAT IS NECESSARY FOR THE WORKER AGENT TO EXECUTE THE TASK MUST BE PROVIDED IN THE TASK FIELD!"""
-        }]
+        )]
 
     @property
     def schema(self):
@@ -173,19 +166,21 @@ class AgentEvaluator(BaseAgent):
 
     @staticmethod
     def messages(task: Union[str, AgentTask], result: AgentResult):
-        task_str = task.task if isinstance(task, AgentTask) else task
+        results = json.dumps({
+            "task": task.task if isinstance(task, AgentTask) else task,
+            "agent_output": result.output,
+            "tool_calls": result.tool_calls,
+            "tool_results": result.tool_results
+        }, indent=2)
         return [
-            {
-                "role": "user",
-                "content": json.dumps({
-                    "task": task_str,
-                    "agent_output": result.output,
-                    "tool_calls": result.tool_calls,
-                    "tool_results": result.tool_results
-                },
-                    indent=2) + "\n\n" + "NOW: EVALUATE IF THE TASK HAS BEEN COMPLETED WITH THE GIVEN TOOL RESULTS. CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!" +
-                           "\n\n" + "IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
-            }
+            ChatMessage(
+                role = "user",
+                content = f"{results}\n\nNOW: EVALUATE IF THE TASK HAS BEEN COMPLETED WITH THE GIVEN TOOL RESULTS. "
+                          f"CHOOSE REITERATE OR FINISHED! KEEP IN MIND THAT YOU ARE ONLY ALLOWED TO REITERATE IF THERE IS "
+                          f"A CONCRETE IMPROVEMENT PATH FOR THE GIVEN USER REQUEST!\n\n"
+                          f"IT IS ABSOLUTELY IMPORTANT THAT YOU ANSWER ONLY WITH REITERATE OR FINISHED! DO NOT INCLUDE ANY OTHER TEXT! "
+                          f"ONLY CLASSIFY THE GIVEN RESULTS AS REITERATE OR FINISHED!"
+            )
         ]
 
     @staticmethod
@@ -221,13 +216,12 @@ class OverallEvaluator(BaseAgent):
     @staticmethod
     def messages(original_request: str, current_results: List[AgentResult]):
         return [
-            {
-                "role": "user",
-                "content": json.dumps({
+            ChatMessage(role="user",
+                content=json.dumps({
                     "original_request": original_request,
                     "current_results": [r.model_dump() for r in current_results]
                 }, indent=2)
-            }
+            )
         ]
 
     @property
@@ -273,13 +267,13 @@ class IterationAdvisor(BaseAgent):
     @staticmethod
     def messages(original_request: str, current_results: List[AgentResult]):
         return [
-            {
-                "role": "user",
-                "content": json.dumps({
+            ChatMessage(
+                role= "user",
+                content= json.dumps({
                     "original_request": original_request,
                     "current_results": [r.model_dump() for r in current_results]
                 }, indent=2)
-            }
+            )
         ]
 
     @property
@@ -312,16 +306,16 @@ class WorkerAgent(BaseAgent):
     def messages(task: Union[str, AgentTask]):
         task_str = task.task if isinstance(task, AgentTask) else task
         return [
-            {
-                "role": "user",
-                "content": f"""\nSolve the following task with the tools available to you: 
+            ChatMessage(
+                role= "user",
+                content= f"""\nSolve the following task with the tools available to you: 
 
         {task_str}
 
         Remember: 
         1. NEVER use placeholders - always use actual values.
         2. Be extremely careful with the data types you use for the function arguments. ALWAYS USE THE CORRECT DATA TYPE!"""
-            }
+            )
         ]
 
     async def invoke_tools(self, task_str, message) -> AgentResult:
