@@ -71,7 +71,11 @@ class ToolLLMBackend(AbstractMethod):
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
-                messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages,
+                messages=[
+                    *session.messages,
+                    ChatMessage(role="user", content=message),
+                    *tool_messages,
+                ],
                 temperature=config['temperature'],
                 tools=tools,
                 websocket=websocket,
@@ -95,7 +99,12 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
-                    messages=session.messages + [ChatMessage(role="user", content=message)] + tool_messages + [ChatMessage(role="user", content=full_err)],
+                    messages=[
+                        *session.messages,
+                        ChatMessage(role="user", content=message),
+                        *tool_messages,
+                        ChatMessage(role="user", content=full_err),
+                    ],
                     temperature=config['temperature'],
                     tools=tools,
                     websocket=websocket,
@@ -127,10 +136,12 @@ class ToolLLMBackend(AbstractMethod):
                     model=config['model'],
                     agent='Tool Evaluator',
                     system_prompt='',
-                    messages=[ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
-                        message=message,
-                        called_tools=called_tools,
-                    ))],
+                    messages=[
+                        ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
+                            message=message,
+                            called_tools=called_tools,
+                        )),
+                    ],
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
@@ -162,10 +173,13 @@ class ToolLLMBackend(AbstractMethod):
             model=config['model'],
             agent='Output Generator',
             system_prompt='',
-            messages=session.messages + [ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
-                message=message,
-                called_tools=called_tools or "",
-            ))],
+            messages=[
+                *session.messages,
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
+                    message=message,
+                    called_tools=called_tools or "",
+                )),
+            ],
             temperature=config['temperature'],
             tools=tools if no_tools else [],
             tool_choice="none",
