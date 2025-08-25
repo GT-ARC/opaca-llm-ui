@@ -122,7 +122,8 @@ class AbstractMethod(ABC):
         ]
 
         # Modify the last user message to include file parts
-        messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
+        if file_message_parts:
+            messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
         
         # Set settings for model invocation
         kwargs = {
