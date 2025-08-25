@@ -122,8 +122,6 @@ class AbstractMethod(ABC):
         ]
 
         # Modify the last user message to include file parts
-        if isinstance(messages[-1], dict):
-            messages[-1] = ChatMessage(**messages[-1])
         messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
         
         # Set settings for model invocation
