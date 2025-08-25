@@ -122,14 +122,12 @@ class AbstractMethod(ABC):
         ]
 
         # Modify the last user message to include file parts
-        if isinstance(messages[-1], dict):
-            messages[-1] = ChatMessage(**messages[-1])
         messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
         
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'messages': [{"role": "system", "content": system_prompt}] + messages,
+            'messages': [ChatMessage(role="system", content=system_prompt), *messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
         }
@@ -150,7 +148,7 @@ class AbstractMethod(ABC):
             else:
                 guided_json = transform_schema(response_format.model_json_schema())
                 kwargs['extra_body'] = {'guided_json': guided_json}
-                kwargs['messages'][0]['content'] += (f"\nYou MUST provide your response as a JSON object that follows "
+                kwargs['messages'][0].content += (f"\nYou MUST provide your response as a JSON object that follows "
                                                   f"this schema. Your response must include ALL required fields.\n\n"
                                                   f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
@@ -167,7 +165,7 @@ class AbstractMethod(ABC):
             # Handle tool choice options
             if guided_choice:
                 if self._is_gpt(model):
-                    kwargs['messages'][0]['content'] += (
+                    kwargs['messages'][0].content += (
                         f"\nYou MUST select one AND ONLY ONE of these choices to answer "
                         f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
                         f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
