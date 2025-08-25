@@ -148,7 +148,7 @@ class AbstractMethod(ABC):
             else:
                 guided_json = transform_schema(response_format.model_json_schema())
                 kwargs['extra_body'] = {'guided_json': guided_json}
-                kwargs['messages'][0]['content'] += (f"\nYou MUST provide your response as a JSON object that follows "
+                kwargs['messages'][0].content += (f"\nYou MUST provide your response as a JSON object that follows "
                                                   f"this schema. Your response must include ALL required fields.\n\n"
                                                   f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
                                                   f"the schema itself. Return a valid JSON object matching the schema.")
@@ -165,7 +165,7 @@ class AbstractMethod(ABC):
             # Handle tool choice options
             if guided_choice:
                 if self._is_gpt(model):
-                    kwargs['messages'][0]['content'] += (
+                    kwargs['messages'][0].content += (
                         f"\nYou MUST select one AND ONLY ONE of these choices to answer "
                         f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
                         f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
