@@ -99,8 +99,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 * `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
 * `VLLM_API_KEY`: API key for the vLLM API, if any; this is used if the `vllm_base_url` found in the configuration of the different LLM prompting methods has a value different than "gpt".
-* `FRONTEND_BASE_URL`: The URL of the frontend, analogous to `VITE_BACKEND_BASE_URL` (may be needed for CORS; defaults to localhost)
-* `SMARTSPACE_BASE_URL`: The URL of the Smartspace UI (may be needed for CORS; defaults to localhost)
+* `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 
 
 ## Getting Started

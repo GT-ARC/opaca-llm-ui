@@ -89,7 +89,6 @@ class Message(BaseModel):
         store_in_history: Whether the message should be stored in the Session's chat history
     """
     user_query: str
-    api_key: str = ""
     store_in_history: bool = True
 
 
@@ -161,7 +160,6 @@ class SessionData(BaseModel):
         messages: Chat history (user queries and final LLM responses), used in subsequent requests.
         config: Configuration dictionary, one sub-dict for each method.
         opaca_client: Client instance for OPACA, for calling agent actions.
-        api_key: API key string.
         llm_clients: Dictionary of LLM client instances.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
@@ -170,7 +168,6 @@ class SessionData(BaseModel):
     messages: List['ChatMessage'] = []
     config: Dict[str, Any] = {}
     opaca_client: Any = None
-    api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}
