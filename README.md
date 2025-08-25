@@ -51,6 +51,22 @@ The different approaches provide additional configuration parameters, e.g. for t
 [read more...](docs/methods_overview.md)
 
 
+### Backend API
+
+The OPACA LLM provides a RESTful API for most requests, while also providing a websocket for streaming responses. The API is used internally for communication between Frontend and Backend, so below are just the most relevant routes. 
+
+* `/connect`: Attempts to establish a connection to the given OPACA platform.
+* `/actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
+* `/backends`: Returns a list of available "backends", i.e. LLM prompting methods.
+* `/{backend}/config`: Used to get, update or reset the configuration of that prompting method (e.g. the used model)
+* `/{backend}/query`: Asks selected `backend` (prompting method) to generate an answer based on the given user query and the message history associated with the current session. There also exists a variant of this route that instead establishes a websocket connection to stream the message generation to the connected client.
+* `/upload`: Add files to be taken into account with the next requests.
+* `/history`: Get a list of the full message history associated with the current session
+* `/reset`: Reset the message history associated with the current session
+
+You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
+
+
 ### Sessions, Message History and Configuration
 
 The message history and configuration (model version, temperature, etc.) is stored in the backend, along with a session ID, associating it with a specific browser/user. The history is shared between different LLM backends, i.e. if the performance of one backend is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Clicking on the "Reset" button (lower right, red) will reset the message history, but not the configuration. To reset the configuration, a user can click the "Reset to Default" button in the configuration view, which resets the configuration for the currently selected backend to its default values.
