@@ -74,7 +74,6 @@ class ConnectInfo(BaseModel):
 
 class Message(BaseModel):
     user_query: str
-    api_key: str = ""
     store_in_history: bool = True
 
 
@@ -129,7 +128,6 @@ class SessionData(BaseModel):
         messages: List of conversation messages.
         config: Configuration dictionary.
         opaca_client: Client instance for Opaca (or similar).
-        api_key: API key string.
         llm_clients: Dictionary of LLM client instances.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active. 
@@ -137,7 +135,6 @@ class SessionData(BaseModel):
     messages: List[Any] = []
     config: Dict[str, Any] = {}
     opaca_client: Any = None
-    api_key: str = None
     llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}

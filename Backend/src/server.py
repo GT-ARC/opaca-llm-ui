@@ -46,10 +46,7 @@ app = FastAPI(
 )
 
 # Configure CORS settings
-origins = [
-    f"{os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')}",
-    f"{os.getenv('SMARTSPACE_BASE_URL', 'http://localhost:5174')}",
-]
+origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
 
 app.add_middleware(
     CORSMiddleware,
