@@ -81,9 +81,9 @@ async def get_backends() -> list:
     return list(BACKENDS)
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, url: ConnectInfo) -> int:
+async def connect(request: Request, response: FastAPIResponse, connect: ConnectInfo) -> int:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.connect(url.url, url.user, url.pwd)
+    return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
 async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
