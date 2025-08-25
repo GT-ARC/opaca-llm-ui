@@ -137,7 +137,6 @@ Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and
 * [User Interface](docs/ui.md)
 * [Backend API](docs/api.md)
 * [Models](docs/models.md)
-* [Communication](docs/communication.md)
 * [Session Handling](docs/session_handling.md)
 * [LLM Communication Methods](docs/methods_overview.md)
   * [Simple](docs/methods/simple.md)
