@@ -5,9 +5,10 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 ## Tool LLM
 
 - Transforms OPACA actions into tool definitions, given to an LLM within a special input field
-- 2 LLM Agents:
-  - Tool Generator: Generates tool calls in a special output field in a properly formatted JSON. If no tools are necessary, will answer the user directly.
-  - Tool Evaluator: Receives the responses of each generated tool call and summarizes the events in natural language. Also decides whether another iteration is necessary. Provides its summary directly to the user.
+- 3 LLM Agents:
+  - Tool Generator: Generates necessary tool calls for next step, if any.
+  - Tool Evaluator: If any tool-calls were made, checks if the results answer the original query and decides whether another iteration is necessary.
+  - Output Generator: Provides its summary directly to the user.
 - Only available for models supporting tool calling
 - Can formulate more than one action call per iteration
 
@@ -17,6 +18,13 @@ The OPACA LLM implements different methods/strategies to fulfill user queries. E
 
 - Only 1 agent per iteration
 - If agent outputs JSON, assume an action call was formatted. Otherwise, return output to user. 
+
+[read more...](methods/simple.md)
+
+## Simple-Tools
+
+- Only 1 agent per iteration
+- Like Simple, but using Tools parameter instead of injecting tools directly in the prompt and parsing results from answer.
 
 [read more...](methods/simple.md)
 

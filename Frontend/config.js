@@ -10,7 +10,7 @@ export const Backends = {
 
 export const BackendDescriptions = {
     "simple": "Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.",
-    "tool-llm": "Two agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
+    "tool-llm": "Three agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
     "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
     "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
 };

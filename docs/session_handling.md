@@ -6,6 +6,6 @@ Every time a client performs a request to the backend, the header of the HTTP re
 
 The session ID cookie is stored persistently, so that the last chat session can be restored when the browser is restarted. In this case, the cookie will have a time to live of 30 days, which will be renewed with each request.
 
-The `sessions` dictionary consists of the session IDs, which are used as unique keys and [`SessionData`](models.md#sessiondata) objects as their values. In these [`SessionData`](models.md#sessiondata) objects, all relevant information regarding the unique session is saved.
+The `sessions` dictionary consists of the session IDs, which are used as unique keys and `SessionData` objects as their values. In these `SessionData` objects, all relevant information regarding the unique session is saved.
 
 Currently, all saved session data can be reset by either calling the endpoint `POST /reset_all` or by simply restarting the backend. Additionally, the saved message history within the `SessionData` can be reset my calling `POST /reset` or by clicking the reset button in the UI.
