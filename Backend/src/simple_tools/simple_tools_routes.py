@@ -39,7 +39,7 @@ class SimpleToolsBackend(AbstractMethod):
         
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
         except AttributeError as e:
             result.error = str(e)
             result.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -87,7 +87,7 @@ class SimpleToolsBackend(AbstractMethod):
                 tool_entries = []
                 
                 for call in response.tools:
-                    if config['use_agent_names']:
+                    if "--" in call['name']:
                         agent_name, action_name = call['name'].split('--', maxsplit=1)
                     else:
                         agent_name = None
@@ -133,6 +133,5 @@ class SimpleToolsBackend(AbstractMethod):
         return {
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "use_agent_names": ConfigParameter(type="boolean", required=False, default=True),
             "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
         }

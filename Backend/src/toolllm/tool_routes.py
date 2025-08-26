@@ -25,7 +25,6 @@ class ToolLLMBackend(AbstractMethod):
                 "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
                 "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
                }
 
     async def query(self, message: str, session: SessionData) -> Response:
@@ -50,7 +49,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -116,7 +115,7 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(session, config['use_agent_names'], call['name'], call['args'], t_called))
+                tasks.append(self.invoke_tool(session, call['name'], call['args'], t_called))
                 t_called += 1
 
             result.tools = await asyncio.gather(*tasks)
@@ -246,8 +245,8 @@ class ToolLLMBackend(AbstractMethod):
         return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
 
     @staticmethod
-    async def invoke_tool(session, use_agent_name, t_name, t_args, t_id):
-        if use_agent_name:
+    async def invoke_tool(session, t_name, t_args, t_id):
+        if "--" in t_name:
             agent_name, action_name = t_name.split('--', maxsplit=1)
         else:
             agent_name = None
