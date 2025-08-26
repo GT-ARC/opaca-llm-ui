@@ -70,6 +70,7 @@ class SimpleBackend(AbstractMethod):
         
         while response.iterations < 10:
             response.iterations += 1
+            
             result = await self.call_llm(
                 session=session,
                 client=session.llm_clients[config["vllm_base_url"]],
