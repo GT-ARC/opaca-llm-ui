@@ -243,27 +243,3 @@ class ToolLLMBackend(AbstractMethod):
     @staticmethod
     def _build_tool_desc(c_it, tools):
         return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
-
-    @staticmethod
-    async def invoke_tool(session, t_name, t_args, t_id):
-        if "--" in t_name:
-            agent_name, action_name = t_name.split('--', maxsplit=1)
-        else:
-            agent_name = None
-            action_name = t_name
-
-        try:
-            t_result = await session.opaca_client.invoke_opaca_action(
-                action_name,
-                agent_name,
-                t_args.get('requestBody', {})
-            )
-        except Exception as e:
-            t_result = f"Failed to invoke tool.\nCause: {e}"
-
-        return {
-            "id": t_id,
-            "name": t_name,
-            "args": t_args.get('requestBody', {}),
-            "result": t_result
-        }

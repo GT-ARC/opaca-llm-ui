@@ -260,7 +260,30 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
     @staticmethod
-    def extract_json_like_content(text):
+    def extract_json_like_content(text: str):
         """Removes any string content before the first { and after the last }"""
         match = re.search(r'\{.*}', text, re.DOTALL)
         return match.group(0) if match else text
+
+    @staticmethod
+    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> dict:
+        if "--" in tool_name:
+            agent_name, action_name = tool_name.split('--', maxsplit=1)
+        else:
+            agent_name, action_name = None, tool_name
+
+        try:
+            t_result = await session.opaca_client.invoke_opaca_action(
+                action_name,
+                agent_name,
+                tool_args.get('requestBody', {})
+            )
+        except Exception as e:
+            t_result = f"Failed to invoke tool.\nCause: {e}"
+
+        return {
+            "id": tool_id,
+            "name": tool_name,
+            "args": tool_args.get('requestBody', {}),
+            "result": t_result
+        }

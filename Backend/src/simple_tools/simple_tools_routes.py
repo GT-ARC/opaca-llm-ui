@@ -54,7 +54,6 @@ class SimpleToolsBackend(AbstractMethod):
         messages.append(ChatMessage(role="user", content=message))
                    
         while result.iterations < 10:
-
             result.iterations += 1
 
             # call the LLM with function-calling enabled
@@ -83,41 +82,20 @@ class SimpleToolsBackend(AbstractMethod):
                     result.content = response.content
                     break
 
-                tool_contents = ""
-                tool_entries = []
-                
-                for call in response.tools:
-                    if "--" in call['name']:
-                        agent_name, action_name = call['name'].split('--', maxsplit=1)
-                    else:
-                        agent_name = None
-                        action_name = call['name']
-                    params = call["args"].get("requestBody", {})
-                
-                    # invoke via OPACA client
-                    try:
-                        action_result = await session.opaca_client.invoke_opaca_action(
-                            action_name, agent=agent_name, params=params
-                        )
-                    except Exception as e:
-                        action_result = None
-                        result.error += f"Failed to invoke action {action_name}. Cause: {e}"
-                
-                    # collect tool result details
-                    tool_contents += f"The result of tool '{action_name}' with parameters '{params}' was: {action_result}\n"
-                    tool_entries.append({
-                        "id": result.iterations,
-                        "name": call["name"],
-                        "args": params,
-                        "result": action_result
-                    })
-                
-                # Append one unified message after loop
-                if tool_contents:
-                    messages.append(ChatMessage(role="user",
-                                                content=f"A user had the following request: {message}\n"
-                                                        f"You have used the following tools: \n{tool_contents}"))
-                    result.agent_messages[-1].tools = tool_entries
+                tool_entries = [
+                    await self.invoke_tool(session, call["name"], call["args"], result.iterations)
+                    for call in response.tools
+                ]
+                tool_contents = "\n".join(
+                    f"The result of tool '{tool['name']}' with parameters '{tool['args']}' was: {tool['result']}"
+                    for tool in tool_entries
+                )
+                messages.append(ChatMessage(
+                    role="user",
+                    content=f"A user had the following request: {message}\n"
+                            f"You have used the following tools: \n{tool_contents}")
+                )
+                result.agent_messages[-1].tools = tool_entries
                 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
