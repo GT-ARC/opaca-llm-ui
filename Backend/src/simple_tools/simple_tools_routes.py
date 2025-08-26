@@ -27,9 +27,6 @@ logger = logging.getLogger(__name__)
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"
 
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
-
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})

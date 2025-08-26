@@ -27,9 +27,6 @@ class ToolLLMBackend(AbstractMethod):
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                }
 
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
-
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
         # Initialize parameters

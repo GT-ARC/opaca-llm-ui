@@ -409,9 +409,6 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)   
-    
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents and stream intermediate results"""
 
