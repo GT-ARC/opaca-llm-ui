@@ -149,7 +149,7 @@ class ConfigArrayItem(BaseModel):
 class ChatMessage(BaseModel):
     """Model for storing chat history messages"""
     role: str
-    content: str
+    content: str | List[Dict[str, Any]]
 
 
 class ConfigParameter(BaseModel):
