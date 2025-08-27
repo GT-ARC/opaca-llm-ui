@@ -6,6 +6,7 @@ from starlette.websockets import WebSocket
 from ..abstract_method import AbstractMethod
 from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
 from ..utils import openapi_to_functions
+from ..prompts import build_full_prompt
 
 
 system_prompt = """You are a helpful ai assistant who answers user queries with the help of 
@@ -63,7 +64,7 @@ class SimpleToolsBackend(AbstractMethod):
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
-                system_prompt=system_prompt,
+                system_prompt=build_full_prompt(system_prompt),
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,

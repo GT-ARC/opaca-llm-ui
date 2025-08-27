@@ -7,10 +7,9 @@ from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
 from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
+from ..prompts import build_full_prompt
 
 system_prompt = """
-You are an assistant, called the 'OPACA-LLM'.
-
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
 You are given the list of actions at the end of this prompt.
 Do not assume any other services.
@@ -78,7 +77,7 @@ class SimpleBackend(AbstractMethod):
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
-                system_prompt=system_prompt % (policy, actions),
+                system_prompt=build_full_prompt(system_prompt % (policy, actions)),
                 messages=messages,
                 temperature=config["temperature"],
                 tool_choice="none",

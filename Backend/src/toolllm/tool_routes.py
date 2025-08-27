@@ -9,6 +9,7 @@ from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMP
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter
 from ..utils import openapi_to_functions
+from ..prompts import build_full_prompt
 
 
 class ToolLLMBackend(AbstractMethod):
@@ -70,7 +71,7 @@ class ToolLLMBackend(AbstractMethod):
                 client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
-                system_prompt=GENERATOR_PROMPT,
+                system_prompt=build_full_prompt(GENERATOR_PROMPT),
                 messages=[
                     *session.messages,
                     ChatMessage(role="user", content=message),
@@ -172,7 +173,7 @@ class ToolLLMBackend(AbstractMethod):
             client=session.llm_clients[config['vllm_base_url']],
             model=config['model'],
             agent='Output Generator',
-            system_prompt='',
+            system_prompt=build_full_prompt('Your task is to formulate the final answer to the user.'),
             messages=[
                 *session.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
