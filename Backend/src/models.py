@@ -175,6 +175,7 @@ class Chat(BaseModel):
         abort_sent: Boolean indicating whether the current interaction should be aborted.
     """
     chat_id: str
+    name: str = ''
     messages: List[ChatMessage] = []
     abort_sent: bool = False
 

@@ -22,7 +22,7 @@ from starlette.websockets import WebSocket
 from typing import List, Union
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -97,21 +97,22 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+@app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
+async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    session.abort_sent = False
+    chat = handle_chat_id(session, chat_id)
+    chat.abort_sent = False
     try:
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query(message.user_query, session)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(session, message, result)
+        await store_message(chat, message, result)
         return result
 
 
-@app.websocket("/{backend}/query_stream")
+@app.websocket("/chats/{chat_id}/stream/{backend}")
 async def query_stream(websocket: WebSocket, backend: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
@@ -130,10 +131,11 @@ async def query_stream(websocket: WebSocket, backend: str):
         await websocket.close()
 
 
-@app.post("/stop", description="Abort generation for last query.")
-async def history(request: Request, response: FastAPIResponse) -> None:
+@app.post("/chats/{chat_id}/stop", description="Abort generation for last query.")
+async def history(request: Request, response: FastAPIResponse, chat_id: str) -> None:
     session = await handle_session_id(request, response)
-    session.abort_sent = True
+    chat = handle_chat_id(session, chat_id)
+    chat.abort_sent = True
 
 
 @app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
@@ -167,18 +169,22 @@ async def upload_files(
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-@app.get("/history", description="Get full message history in current session since last reset (user queries and LLM responses, no internal/intermediate messages).")
-async def history(request: Request, response: FastAPIResponse) -> list:
+@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+async def history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
-    return session.messages
+    chat = handle_chat_id(session, chat_id)
+    return chat
 
 
-@app.post("/reset", description="Reset message history for the current session.")
-async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
+@app.delete("/chats/{chat_id}", description="Delete a single chat.")
+async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    session.messages.clear()
-    session.uploaded_files.clear()
-    return FastAPIResponse(status_code=204)
+    chat = handle_chat_id(session, chat_id)
+    if chat is not None:
+        del session.chats[chat_id]
+        return True
+    else:
+        return False
 
 
 @app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
@@ -243,6 +249,14 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
         return sessions[session_id]
 
 
+def handle_chat_id(session: SessionData, chat_id: str) -> Chat:
+    chat = session.chats.get(chat_id, None)
+    if chat is None:
+        chat = Chat(chat_id=chat_id)
+        session.chats[chat_id] = chat
+    return chat
+
+
 def create_or_refresh_session(session_id, max_age=None):
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
@@ -254,9 +268,9 @@ def create_or_refresh_session(session_id, max_age=None):
     return session_id
 
 
-async def store_message(session: SessionData, message: Message, result: Response):
+async def store_message(chat: Chat, message: Message, result: Response):
     if message and message.store_in_history:
-        session.messages.extend([
+        chat.messages.extend([
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
