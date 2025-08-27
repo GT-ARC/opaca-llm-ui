@@ -70,7 +70,6 @@ class SimpleToolsBackend(AbstractMethod):
 
             try:
                 if not result.tools:
-                    response.content = result.content
                     break
 
                 tool_entries = [
@@ -94,6 +93,7 @@ class SimpleToolsBackend(AbstractMethod):
                 response.agent_messages.append(AgentMessage(agent="system", content=error))
                 response.error = +str(e)
 
+        response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
 

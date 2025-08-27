@@ -86,23 +86,24 @@ class SimpleBackend(AbstractMethod):
             response.agent_messages.append(result)
 
             try:
-                if (tool := await self.find_tool(result.content)):
-                    tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations)
-                    response.agent_messages.append(AgentMessage(
-                        agent="assistant",
-                        content=f"The result of this step was: {tool_call['result']}",
-                        tools=[tool_call]
-                    ))
-                    if websocket:
-                        await websocket.send_json(response.agent_messages[-1].model_dump_json())
-                else:
-                    response.content = result.content
+                if not (tool := await self.find_tool(result.content)):
                     break
+
+                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations)
+                response.agent_messages.append(AgentMessage(
+                    agent="assistant",
+                    content=f"The result of this step was: {tool_call['result']}",
+                    tools=[tool_call]
+                ))
+                if websocket:
+                    await websocket.send_json(response.agent_messages[-1].model_dump_json())
+                
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
                 response.agent_messages.append(AgentMessage(agent="system", content=f"There was an error: {e}"))
                 response.error += str(e)
 
+        response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
 
