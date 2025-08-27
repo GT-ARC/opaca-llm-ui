@@ -33,6 +33,7 @@ class SimpleToolsBackend(AbstractMethod):
         response = Response(query=message)
 
         config = session.config.get(self.NAME, self.default_config())
+        max_iters = config["max_rounds"]
         
         # Get tools and transform them into the OpenAI Function Schema
         try:
@@ -50,7 +51,7 @@ class SimpleToolsBackend(AbstractMethod):
         messages = session.messages.copy()
         messages.append(ChatMessage(role="user", content=message))
                    
-        while response.iterations < 10:
+        while response.iterations < max_iters:
             response.iterations += 1
 
             # call the LLM with function-calling enabled
@@ -102,4 +103,5 @@ class SimpleToolsBackend(AbstractMethod):
             "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
             "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
+            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
         }

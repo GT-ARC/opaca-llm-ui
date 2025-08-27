@@ -49,7 +49,6 @@ ask_policies = {
 logger = logging.getLogger(__name__)
 
 class SimpleBackend(AbstractMethod):
-
     NAME = "simple"
 
     async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
@@ -59,13 +58,14 @@ class SimpleBackend(AbstractMethod):
 
         # Get session config
         config = session.config.get(self.NAME, self.default_config())
+        max_iters = config["max_rounds"]
 
         prompt = SYSTEM_PROMPT.format(
             policy=ask_policies[config["ask_policy"]],
             actions=await self.get_actions(session),
         )
         
-        while response.iterations < 10:
+        while response.iterations < max_iters:
             response.iterations += 1
             
             result = await self.call_llm(
@@ -114,6 +114,7 @@ class SimpleBackend(AbstractMethod):
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
             "ask_policy": ConfigParameter(type="string", required=True, default="never",
                                           enum=list(ask_policies.keys())),
+            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
         }
 
     async def get_actions(self, session):

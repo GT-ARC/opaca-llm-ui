@@ -12,7 +12,6 @@ from ..utils import openapi_to_functions
 
 
 class ToolLLMBackend(AbstractMethod):
-    max_iter: int = 5
     NAME = 'tool-llm'
 
     class EvaluatorResponse(BaseModel):
@@ -25,6 +24,7 @@ class ToolLLMBackend(AbstractMethod):
                 "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
                 "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
+                "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
 
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
@@ -43,6 +43,7 @@ class ToolLLMBackend(AbstractMethod):
 
         # Use config set in session, if nothing was set yet, use default values
         config = session.config.get(self.NAME, self.default_config())
+        max_iters = config["max_rounds"]
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
@@ -60,7 +61,7 @@ class ToolLLMBackend(AbstractMethod):
         total_exec_time = time.time()
 
         # Run until request is finished or maximum number of iterations is reached
-        while should_continue and c_it < self.max_iter:
+        while should_continue and c_it < max_iters:
             result = await self.call_llm(
                 session=session,
                 client=session.llm_clients[config['vllm_base_url']],
