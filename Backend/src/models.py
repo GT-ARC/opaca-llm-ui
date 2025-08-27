@@ -197,7 +197,7 @@ class ChatMessage(BaseModel):
         content: The content of the message.
     """
     role: str
-    content: str
+    content: str | List[Dict[str, Any]]
 
 
 class ConfigParameter(BaseModel):
