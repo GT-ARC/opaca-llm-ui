@@ -151,25 +151,51 @@ class OpacaFile(BaseModel):
     file_id: Optional[str] = None
 
 
+class ChatMessage(BaseModel):
+    """
+    Model for storing chat history messages. Represents single messages that are generated
+    during the invocation of the OPACA-LLM. Can be stored as a list to be given as messages
+    to a model during invocation.
+
+    Attributes:
+        role: Role for the message, one of 'system', 'assistant', 'user', 'function', 'tool', or 'developer'.
+        content: The content of the message.
+    """
+    role: str
+    content: str | List[Dict[str, Any]]
+
+
+class Chat(BaseModel):
+    """
+    Stores information about each chat.
+
+    Attributes:
+        chat_id (str): The unique ID of the chat.
+        messages: Chat history (user queries and final LLM responses), used in subsequent requests.
+        abort_sent: Boolean indicating whether the current interaction should be aborted.
+    """
+    chat_id: str
+    messages: List[ChatMessage] = []
+    abort_sent: bool = False
+
+
 class SessionData(BaseModel):
     """
     Stores relevant information regarding the session, including messages, configuration,
     client instances, API keys, and uploaded files.
 
     Attributes:
-        messages: Chat history (user queries and final LLM responses), used in subsequent requests.
+        chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         opaca_client: Client instance for OPACA, for calling agent actions.
         llm_clients: Dictionary of LLM client instances.
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
-        valid_until: Timestamp until session is active. 
+        valid_until: Timestamp until session is active.
     """
-    messages: List['ChatMessage'] = []
+    chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
     opaca_client: Any = None
     llm_clients: Dict[str, Any] = {}
-    abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
 
@@ -184,20 +210,6 @@ class ConfigArrayItem(BaseModel):
     """
     type: str
     array_items: 'Optional[ConfigArrayItem]' = None
-
-
-class ChatMessage(BaseModel):
-    """
-    Model for storing chat history messages. Represents single messages that are generated 
-    during the invocation of the OPACA-LLM. Can be stored as a list to be given as messages
-    to a model during invocation.
-
-    Attributes:
-        role: Role for the message, one of 'system', 'assistant', 'user', 'function', 'tool', or 'developer'.
-        content: The content of the message.
-    """
-    role: str
-    content: str | List[Dict[str, Any]]
 
 
 class ConfigParameter(BaseModel):
