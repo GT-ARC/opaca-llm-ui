@@ -158,7 +158,7 @@
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
-                                <i class="fa fa-arrow-up"/>
+                                <i class="fa fa-paper-plane"/>
                             </button>
                         </div>
 
