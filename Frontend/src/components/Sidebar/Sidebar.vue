@@ -117,10 +117,12 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
+        selectedChatId: String,
     },
     emits: [
         'select-question',
         'select-category',
+        'select-chat',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();

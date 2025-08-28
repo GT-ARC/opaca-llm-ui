@@ -15,9 +15,11 @@
             :backend="backend"
             :language="language"
             :connected="connected"
-             ref="sidebar"
-             @select-question="question => this.handleSelectQuestion(question)"
-             @select-category="category => this.handleSelectCategory(category)"
+            :selected-chat-id="selectedChatId"
+            ref="sidebar"
+            @select-question="question => this.handleSelectQuestion(question)"
+            @select-category="category => this.handleSelectCategory(category)"
+            @select-chat="chatId => this.handleSelectChat(chatId)"
         />
 
 
@@ -175,6 +177,7 @@
 
 <script>
 import {nextTick} from "vue";
+import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
@@ -182,7 +185,6 @@ import conf from '../../config'
 import backendClient from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
@@ -225,6 +227,8 @@ export default {
                 isUploading: false,
                 uploadedFileName: '',
             },
+            selectedChatId: '',
+            newChat: true,
         }
     },
     methods: {
@@ -258,7 +262,7 @@ export default {
         },
 
         async stopGeneration() {
-            await backendClient.stop();
+            await backendClient.stop(this.selectedChatId);
         },
 
         async askSampleQuestion(questionText) {
@@ -304,7 +308,7 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`;
+                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.getBackend()}`;
                 this.socket = new WebSocket(url);
                 this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
                 this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
@@ -559,11 +563,9 @@ export default {
             });
         },
 
-        async loadHistory() {
+        async loadHistory(chatId) {
             try {
-                const res = await fetch(`${conf.BackendAddress}/history`, {
-                    credentials: 'include'
-                });
+                const res = backendClient.history(chatId);
 
                 if (!res.ok) throw new Error("Failed to fetch history");
 
@@ -573,8 +575,10 @@ export default {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
                 }
-                if(messages.length !== 0) {
+                if (messages.length !== 0) {
                     this.showExampleQuestions = false;
+                    this.selectedChatId = chatId;
+                    this.newChat = false;
                 }
             } catch (err) {
                 console.error("Failed to load chat history:", err);
@@ -596,11 +600,22 @@ export default {
                 this.selectedCategory = category;
                 this.$emit('select-category', category);
             }
-        }
+        },
+
+        handleSelectChat(chatId) {
+            this.selectedChatId = chatId;
+            const chat = backendClient.history(chatId);
+
+        },
+
+        startNewChat() {
+            this.selectedChatId = uuid.v4();
+            this.newChat = true;
+        },
+
     },
 
     mounted() {
-        this.loadHistory();
         this.updateScrollbarThumb();
     },
     watch: {
