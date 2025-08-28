@@ -123,6 +123,19 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
+
+# chat-independent query route. not super happy with this :/
+@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
+async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+    session = await handle_session_id(request, response)
+    try:
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query(message.user_query, session)
+    except Exception as e:
+        result = exception_to_result(message.user_query, e)
+    finally:
+        return result
+
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chat, just their names and IDs, but NOT the messages.")
