@@ -100,7 +100,7 @@ class SimpleBackend(AbstractMethod):
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
-                response.agent_messages.append(AgentMessage(agent="system", content=f"There was an error: {e}"))
+                response.agent_messages.append(AgentMessage(agent="assistant", content=f"There was an error: {e}"))
                 response.error += str(e)
 
         response.content = result.content
