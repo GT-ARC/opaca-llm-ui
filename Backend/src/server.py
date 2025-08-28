@@ -97,6 +97,50 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
     return await session.opaca_client.get_actions_simple()
 
 
+@app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
+async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+    session = await handle_session_id(request, response)
+    uploaded = []
+    for file in files:
+        try:
+            contents = await file.read()
+
+            file_model = OpacaFile(
+                content_type=file.content_type,
+                sent=False
+            )
+            file_model._content = io.BytesIO(contents)
+
+            # Store in session.uploaded_files
+            session.uploaded_files[file.filename] = file_model
+            uploaded.append(file.filename)
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}"
+            )
+
+    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
+
+### CHAT ROUTES
+
+@app.get("/chats", description="Get available chat, just their names and IDs, but NOT the messages.")
+async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
+    session = await handle_session_id(request, response)
+    return [
+        Chat(chat_id=chat.chat_id, name=chat.name)
+        for chat in session.chats.values()
+    ]
+
+
+@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
+    session = await handle_session_id(request, response)
+    chat = handle_chat_id(session, chat_id)
+    return chat
+
+
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
@@ -132,48 +176,17 @@ async def query_stream(websocket: WebSocket, backend: str):
 
 
 @app.post("/chats/{chat_id}/stop", description="Abort generation for last query.")
-async def history(request: Request, response: FastAPIResponse, chat_id: str) -> None:
+async def stop_query(request: Request, response: FastAPIResponse, chat_id: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     chat.abort_sent = True
 
 
-@app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
-async def upload_files(
-    request: Request,
-    response: FastAPIResponse,
-    files: List[UploadFile],
-):
-    session = await handle_session_id(request, response)
-    uploaded = []
-    for file in files:
-        try:
-            contents = await file.read()
-
-            file_model = OpacaFile(
-                content_type=file.content_type,
-                sent=False
-            )
-            file_model._content = io.BytesIO(contents)
-
-            # Store in session.uploaded_files
-            session.uploaded_files[file.filename] = file_model
-            uploaded.append(file.filename)
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to process file {file.filename}: {str(e)}"
-            )
-
-    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
-
-
-@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
-async def history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
+@app.put("/chats/{chat_id}", description="Update a chat's name.")
+async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
-    return chat
+    chat.name = new_name
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
@@ -192,8 +205,9 @@ async def reset_all():
     async with sessions_lock:
         sessions.clear()
 
+## CONFIG ROUTES
 
-@app.get("/{backend}/config", description="Get current configuration of the given prompting method.")
+@app.get("/config/{backend}", description="Get current configuration of the given prompting method.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if backend not in session.config:
@@ -201,7 +215,7 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
-@app.put("/{backend}/config", description="Update configuration of the given prompting method.")
+@app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
@@ -212,12 +226,13 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
-@app.post("/{backend}/config/reset", description="Resets the configuration of the prompting method to its default.")
+@app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
+## Utility functions
 
 async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
     """
