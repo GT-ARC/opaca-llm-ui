@@ -33,7 +33,7 @@
     --border-dark: #414160;
     --chat-user-dark: #2a2a3c;
     --chat-ai-dark: var(--background-dark); /* #313145; */
-    --input-dark: #252535;
+    --input-dark: #2f2f3f;
     --debug-console-dark: #161628;
     --icon-invert-dark: 1;
 
@@ -148,7 +148,7 @@ body {
 }
 
 .form-control:focus {
-    background-color: var(--surface-color);
+    background-color: var(--input-color);
     color: var(--text-primary-color);
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px var(--primary-color);
@@ -159,7 +159,7 @@ body {
 }
 
 .form-control:disabled {
-    background-color: var(--surface-color);
+    background-color: var(--input-color);
     color: var(--text-secondary-color);
 }
 
@@ -263,23 +263,6 @@ body {
 
 .text-muted {
     color: var(--text-secondary-color) !important;
-}
-.upload-status-popup {
-  background-color: #f8f9fa;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 0.9rem;
-  display: inline-block;
-  max-width: 100%;
-}
-
-.upload-status-preview {
-  font-size: 0.9rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background-color: #f8f9fa; /* light gray */
-  display: inline-block;
 }
 
 /* nicer scrollbar (esp for within the input field) */
