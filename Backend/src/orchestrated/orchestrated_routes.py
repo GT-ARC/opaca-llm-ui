@@ -409,9 +409,6 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)   
-    
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
         """Process a user message using multiple agents and stream intermediate results"""
 
@@ -515,7 +512,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform
                         agent_tools = await session.opaca_client.get_actions_openapi(inline_refs=True)
-                        agent_tools = openapi_to_functions_strict(agent_tools, agent=agent_name, use_agent_names=True)
+                        agent_tools = openapi_to_functions_strict(agent_tools, agent=agent_name)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(

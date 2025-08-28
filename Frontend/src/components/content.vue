@@ -28,11 +28,13 @@
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
-                    <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
+                    <Chatbubble
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
+                        :files="files"
                         :ref="elementId"
                     />
                 </div>
@@ -61,105 +63,107 @@
 
             </div>
 
-                <!-- Upload Preview for Each File -->
-                <div
-                    v-if="selectedFiles.length"
-                    class="upload-status-preview text-muted small mb-2 text-start"
-                >
-                    <!-- Loop through each selected file -->
-                    <div
-                        v-for="(file, index) in selectedFiles"
-                        :key="file.name + index"
-                        class="d-flex align-items-center justify-content-between border rounded p-2 mb-1 bg-light"
-                    >
-                        <div class="d-flex align-items-center">
-                            <!-- Icon changes based on upload status -->
-                            <i
-                                :class="uploadStatus.isUploading ? 'fa fa-spinner fa-spin text-secondary me-2' : 'fa fa-file-pdf text-danger me-2'"
-                            ></i>
+            <!-- Upload Preview for Each File -->
+            <div v-if="selectedFiles?.length"
+                 class="upload-status-preview mx-auto">
 
-                            <!-- File name -->
-                            <span class="me-2">{{ file.name }}</span>
-
-                            <!-- Upload status text -->
-                            <span v-if="uploadStatus.isUploading">uploading…</span>
-                        </div>
-
-                        <!-- Remove file from preview (but not from disk or server) -->
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            @click="removeSelectedFile(index)"
-                            :disabled="uploadStatus.isUploading"
-                            title="Remove file"
-                        >
-                            <i class="fa fa-times" />
-                        </button>
-                    </div>
+                <!-- Loop through each selected file -->
+                <div v-for="(file, fileId) in selectedFiles">
+                    <FilePreview
+                        v-if="fileId < this.maxDisplayedFiles()"
+                        :key="file.name + fileId"
+                        :file="file"
+                        :index="fileId"
+                        :upload-status="this.uploadStatus"
+                        @remove-file="this.removeSelectedFile"
+                    />
                 </div>
 
-                <!-- Input Area with drag and drop -->
-                <div class="input-container"
-                    @dragover.prevent
-                    @dragenter.prevent
-                    @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+                <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
+                     class="d-flex p-2 align-items-center">
+                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                </div>
+            </div>
 
-                    <div class="input-group">
-                        <div class="scroll-wrapper">
-                        <textarea id="textInput"
-                                    v-model="textInput"
-                                    ref="textInputRef"
-                                    :placeholder="Localizer.get('inputPlaceholder')"
-                                    class="form-control"
-                                    :class="{ 'small-scrollbar': isSmallScrollbar }"
-                                    style="resize: none; height: auto; max-height: 150px;"
-                                    rows="1"
-                                    @keydown="textInputCallback"
-                                    @input="resizeTextInput"
-                        ></textarea>
+            <!-- Input Area with drag and drop -->
+            <div class="input-container"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+
+                <div class="input-area"
+                     @click="this.$refs.textInputRef?.focus()" >
+                    <div class="scroll-wrapper" :class="{'w-100': this.isMobile}">
+                        <textarea
+                            id="textInput"
+                            v-model="textInput"
+                            class="text-input form-control"
+                            :class="{ 'small-scrollbar': isSmallScrollbar }"
+                            :placeholder="Localizer.get('inputPlaceholder')"
+                            rows="1"
+                            @keydown="textInputCallback"
+                            @input="resizeTextInput"
+                            ref="textInputRef"
+                        />
                     </div>
 
-                    <!-- user has entered text into message box -> send button available -->
-                    <button type="button"
-                            v-if="this.isSendAvailable() && isFinished"
-                            class="btn btn-primary input-area-button"
-                            @click="submitText"
-                            :title="Localizer.get('tooltipButtonSend')"
-                            style="margin-left: -2px">
-                        <i class="fa fa-paper-plane"/>
-                    </button>
-                    <button type="button"
-                            v-if="!isFinished"
-                            class="btn btn-outline-danger input-area-button"
-                            @click="stopGeneration"
-                            :title="Localizer.get('tooltipButtonStop')"
-                            style="margin-left: -2px">
-                        <i class="fa fa-stop"/>
-                    </button>
-                    <button type="button"
-                            v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary input-area-button"
-                            @click="this.startRecognition()"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonRecord')">
-                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                        <i v-else class="fa fa-spin fa-spinner" />
-                    </button>
-                    <button type="button"
-                            v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger input-area-button"
-                            @click="resetChat"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonReset')">
-                        <i class="fa fa-refresh"/>
-                    </button>
-                    <label class="btn btn-secondary" style="margin-left: 4px;" title="Upload PDF">
-                        <i class="fa fa-upload"></i>
-                        <input type="file"
+                    <!-- buttons -->
+                    <div class="mt-auto d-flex" :class="{'w-100': this.isMobile}">
+
+                        <!-- upload file button -->
+                        <label class="btn btn-secondary input-area-button align-items-center"
+                               :class="[this.isMobile ? 'me-1': 'ms-1']"
+                               :title="Localizer.get('tooltipUploadFile')" >
+                            <i class="fa fa-upload" />
+                            <input
+                                type="file"
                                 accept=".pdf"
+                                class="d-none"
+                                :disabled="!this.isFinished"
                                 @change="e => uploadFiles(e.target.files)"
-                                style="display: none;" />
-                    </label>
+                            />
+                        </label>
+
+                        <!-- reset, audio, send (right-bound) -->
+                        <div :class="{'ms-auto': this.isMobile}">
+                            <button type="button"
+                                    class="btn btn-outline-danger input-area-button ms-1"
+                                    @click="resetChat"
+                                    :disabled="!isFinished || this.messages.length <= 0"
+                                    :title="Localizer.get('tooltipButtonReset')">
+                                <i class="fa fa-refresh"/>
+                            </button>
+
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported()"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="this.startRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                                <i v-else class="fa fa-spin fa-spinner" />
+                            </button>
+
+                            <button type="button"
+                                    v-if="!isFinished"
+                                    class="btn btn-outline-danger input-area-button ms-1"
+                                    @click="stopGeneration"
+                                    :title="Localizer.get('tooltipButtonStop')">
+                                <i class="fa fa-stop"/>
+                            </button>
+
+                            <button type="button"
+                                    v-if="isFinished"
+                                    class="btn btn-primary input-area-button ms-1"
+                                    @click="submitText"
+                                    :disabled="this.textInput.trim().length <= 0"
+                                    :title="Localizer.get('tooltipButtonSend')">
+                                <i class="fa fa-paper-plane"/>
+                            </button>
+                        </div>
+
+                    </div>
+
                 </div>
             </div>
 
@@ -182,10 +186,12 @@ import AudioManager from "../AudioManager.js";
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
+import FilePreview from "./FilePreview.vue";
 
 export default {
     name: 'main-content',
     components: {
+        FilePreview,
         OptionsSelect,
         Sidebar,
         RecordingPopup,
@@ -222,14 +228,8 @@ export default {
         }
     },
     methods: {
-
-        // Remove selected file at given index from the preview list
-        removeSelectedFile(index) {
-            this.selectedFiles.splice(index, 1);
-        },
-
         async textInputCallback(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && !event.shiftKey && this.textInput.trim().length > 0) {
                 event.preventDefault();
                 await this.submitText();
                 this.resizeTextInput();
@@ -239,21 +239,16 @@ export default {
         async submitText() {
             if (this.textInput && this.isFinished) {
                 // Copy current input and reset field
-                let userInput = this.textInput;
+                let userInput = this.textInput.trim();
                 this.textInput = '';
-
-                // If files are uploaded, append info about them to the input
-                if (this.selectedFiles.length > 0) {
-                    const fileNotes = this.selectedFiles
-                        .map(file => `[Attached PDF: ${file.name}]`)
-                        .join('\n');
-                    userInput += `\n\n${fileNotes}`;
-                }
 
                 await nextTick();
                 this.resizeTextInput();
 
-                await this.askChatGpt(userInput);
+                const files = this.selectedFiles
+                    ? this.selectedFiles.map(file => file.name)
+                    : [];
+                await this.askChatGpt(userInput, files);
 
                 // Clear file and status after sending
                 this.selectedFiles = [];
@@ -292,12 +287,12 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText) {
+        async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
 
             // add user chat bubble
-            await this.addChatBubble(userText, true, false);
+            await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
             const sidebar = this.$refs.sidebar;
@@ -345,6 +340,15 @@ export default {
             } finally {
                 this.uploadStatus.isUploading = false;
             }
+        },
+
+        // Remove selected file at given index from the preview list
+        removeSelectedFile(index) {
+            this.selectedFiles.splice(index, 1);
+        },
+
+        maxDisplayedFiles() {
+            return this.isMobile ? 2 : 4;
         },
 
         async handleStreamingSocketOpen(socket, userText) {
@@ -462,11 +466,18 @@ export default {
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
          * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
+         * @param files {Array} files attached to the message
          * later (streaming responses etc.)
          */
-        async addChatBubble(content, isUser = false, isLoading = false) {
+        async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
-            const message = { elementId: elementId, isUser: isUser, content: content, isLoading: isLoading };
+            const message = {
+                elementId: elementId,
+                isUser: isUser,
+                content: content,
+                isLoading: isLoading,
+                files: files,
+            };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
@@ -533,16 +544,6 @@ export default {
 
         isMainContentVisible() {
             return !(this.isMobile && SidebarManager.isSidebarOpen());
-        },
-
-        isSendAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length > 0;
-        },
-
-        isResetAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length === 0;
         },
 
         updateScrollbarThumb() {
@@ -625,52 +626,76 @@ export default {
 .input-container {
     width: 100%;
     background-color: var(--background-color);
-    border-top: 1px solid var(--border-color);
-    padding: 1rem 0;
-    margin-bottom: 1rem;
+    padding: 0.5rem 0.5rem 1rem 0.5rem; /* 1rem bottom padding so it's the same as sidebar */
     flex-shrink: 0;
     position: relative;
-    z-index: 11; /* Above the fade effect */
 }
 
-#textInput {
-    box-shadow: 0 0 0 1px var(--border-color);
-    padding: 0.75rem 1rem;
-    height: 3rem;
-    min-height: 3rem;
-    resize: none;
-    max-height: min(40vh, 20rem);
+.text-input {
+    padding: 0.75rem;
+    margin: 0;
+    min-height: 2.5rem;
+    max-height: min(33vh, 20rem);
     line-height: 1.5;
-    border-radius: 1.5rem !important;
+    border-radius: 0 !important;
+    resize: none;
+    height: auto;
+    border: none;
+    box-shadow: none;
 }
 
-#textInput[rows] {
+.text-input[rows] {
     height: auto;
     overflow-y: auto;
 }
 
+.input-area {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    background-color: var(--input-color);
+    width: min(95%, 100ch);
+    border-radius: 1rem;
+    cursor: text;
+    padding: 0.5rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .scroll-wrapper {
-    border-radius: 1.5rem;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    min-width: 16ch;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
     background-color: transparent !important;
 }
 
+.upload-status-preview {
+    font-size: 0.9rem;
+    border-radius: 6px;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
+    display: flex;
+    flex-wrap: wrap;
+    width: min(95%, 100ch);
+    padding: 0.25rem 0;
+}
+
 .input-area-button {
     padding: 0;
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     align-self: flex-end;
     margin-bottom: 2px;
-    border-radius: 1.5rem !important;
+    border-radius: 1.25rem !important;
     transition: all 0.2s ease;
 }
 
@@ -679,8 +704,7 @@ export default {
 }
 
 .input-area-button:disabled {
-    animation: bounce 1s infinite;
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
 .input-area-button i {
@@ -691,6 +715,11 @@ export default {
     justify-content: center;
     width: 1.25rem;
     height: 1.25rem;
+}
+
+.btn-outline-danger:disabled {
+    color: var(--text-primary-color);
+    border-color: var(--text-primary-color);
 }
 
 .chatbubble-container {
@@ -748,11 +777,17 @@ export default {
     }
 
     .input-container {
-        padding: 0.5rem;
+        padding: 0;
     }
 
-    .input-group {
-        padding: 0;
+    .input-area {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .text-input {
+        padding: 0.5rem 0.25rem;
     }
 
     .sample-questions {

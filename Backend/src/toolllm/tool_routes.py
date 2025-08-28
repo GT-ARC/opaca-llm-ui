@@ -12,7 +12,6 @@ from ..utils import openapi_to_functions
 
 
 class ToolLLMBackend(AbstractMethod):
-    max_iter: int = 5
     NAME = 'tool-llm'
 
     class EvaluatorResponse(BaseModel):
@@ -25,11 +24,8 @@ class ToolLLMBackend(AbstractMethod):
                 "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
                 "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "use_agent_names": ConfigParameter(type="boolean", required=True, default=True),
+                "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
-
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
 
     async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
 
@@ -47,10 +43,11 @@ class ToolLLMBackend(AbstractMethod):
 
         # Use config set in session, if nothing was set yet, use default values
         config = session.config.get(self.NAME, self.default_config())
+        max_iters = config["max_rounds"]
 
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True), config['use_agent_names'])
+            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -64,7 +61,7 @@ class ToolLLMBackend(AbstractMethod):
         total_exec_time = time.time()
 
         # Run until request is finished or maximum number of iterations is reached
-        while should_continue and c_it < self.max_iter:
+        while should_continue and c_it < max_iters:
             result = await self.call_llm(
                 session=session,
                 client=session.llm_clients[config['vllm_base_url']],
@@ -116,7 +113,7 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(session, config['use_agent_names'], call['name'], call['args'], t_called))
+                tasks.append(self.invoke_tool(session, call['name'], call['args'], t_called))
                 t_called += 1
 
             result.tools = await asyncio.gather(*tasks)
@@ -244,27 +241,3 @@ class ToolLLMBackend(AbstractMethod):
     @staticmethod
     def _build_tool_desc(c_it, tools):
         return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
-
-    @staticmethod
-    async def invoke_tool(session, use_agent_name, t_name, t_args, t_id):
-        if use_agent_name:
-            agent_name, action_name = t_name.split('--', maxsplit=1)
-        else:
-            agent_name = None
-            action_name = t_name
-
-        try:
-            t_result = await session.opaca_client.invoke_opaca_action(
-                action_name,
-                agent_name,
-                t_args.get('requestBody', {})
-            )
-        except Exception as e:
-            t_result = f"Failed to invoke tool.\nCause: {e}"
-
-        return {
-            "id": t_id,
-            "name": t_name,
-            "args": t_args.get('requestBody', {}),
-            "result": t_result
-        }
