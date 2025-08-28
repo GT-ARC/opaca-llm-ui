@@ -5,7 +5,56 @@
          class="d-flex flex-row justify-content-end">
 
         <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
-            <div v-html="this.getFormattedContent()"></div>
+            <div v-html="this.getFormattedContent()" />
+
+            <!-- footer: debug, generate audio, ... -->
+            <div class="d-flex justify-content-start small mt-2">
+
+                <!-- copy to clipboard -->
+                <div v-show="this.isCopyAvailable()"
+                     class="footer-item w-auto me-2"
+                     @click="this.copyContentToClipboard()"
+                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                    <i v-if="this.copySuccess" class="fa fa-check" />
+                    <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- audio stuff -->
+                <div v-show="!this.isLoading"
+                     class="footer-item w-auto me-2"
+                     @click="this.startAudioPlayback()">
+                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                    <i v-else class="fa fa-volume-up"
+                       data-toggle="tooltip" data-placement="down"
+                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                </div>
+
+                <!-- attached files -->
+                <div v-show="this.files?.length > 0"
+                     class="footer-item w-auto me-2"
+                     @click="this.isFilesExpanded = !this.isFilesExpanded"
+                     :title="Localizer.get('tooltipChatbubbleFiles')">
+                    <i class="fa fa-file-pdf" />
+                </div>
+
+            </div>
+
+            <!-- footer: attached files -->
+            <div v-show="this.isFilesExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                     style="max-height: 200px; max-width: 600px;">
+                    <div class="message-text w-auto"
+                         v-for="file in this.files">
+                        {{ file }}
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -29,6 +78,15 @@
                         <div v-if="completed">{{ text }} ✓</div>
                         <div v-else>{{ text }} ...</div>
                     </div>
+                    <div v-if="this.getToolCalls().length > 0">
+                        <hr />
+                        <div v-if="this.getToolCalls().length > 3">
+                            ...
+                        </div>
+                        <div v-for="text in this.getToolCalls().slice(-3)">
+                            <i class="fa fa-wrench" /> {{ text }}
+                        </div>
+                    </div>
                 </div>
                 <div v-else class="message-text w-auto"
                      v-html="this.getFormattedContent()"
@@ -36,13 +94,12 @@
 
             </div>
 
-            <!-- footer: debug, generate audio, ... -->
+            <!-- footer: icons -->
             <div class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
                 <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.copyContentToClipboard()"
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
@@ -52,7 +109,6 @@
                 <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down"
@@ -68,16 +124,23 @@
                 <!-- debug messages -->
                 <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.isDebugExpanded = !this.isDebugExpanded"
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
 
+                <!-- tool calls -->
+                <div v-show="this.getToolCalls().length > 0"
+                     class="footer-item w-auto me-2"
+                     style="cursor: pointer;"
+                     @click="this.isToolsExpanded = !this.isToolsExpanded"
+                     :title="Localizer.get('tooltipChatbubbleTools')">
+                    <i class="fa fa-wrench" />
+                </div>
+
                 <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
                      @click="this.isErrorExpanded = !this.isErrorExpanded"
                      :title="Localizer.get('tooltipChatbubbleError')">
                     <i class="fa fa-exclamation-circle text-danger me-1" />
@@ -97,6 +160,17 @@
                 </div>
             </div>
 
+            <!-- footer: tool calls -->
+            <div v-show="this.isToolsExpanded">
+                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                     style="max-height: 200px">
+                     <div v-for="text in this.getToolCalls()">
+                        {{ text }}
+                     </div>
+                </div>
+            </div>
+
+            <!-- footer: errors -->
             <div v-show="this.isErrorExpanded">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
@@ -111,7 +185,7 @@
 </template>
 
 <script>
-import  {addDebugMessage} from "../utils.js"
+import {addDebugMessage} from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -130,6 +204,7 @@ export default {
         isUser: Boolean,
         initialContent: String,
         initialLoading: Boolean,
+        files: Array,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -147,6 +222,8 @@ export default {
             ttsAudio: null,
             copySuccess: false,
             autoScrollDebugMessage: true,
+            isFilesExpanded: false,
+            isToolsExpanded: false,
         }
     },
 
@@ -172,6 +249,21 @@ export default {
                 this.markStatusMessagesDone(agentName);
                 this.statusMessages.set(agentName, {text: text, completed: completed});
             }
+        },
+
+        getToolCalls() {
+            const regex = /Tool\s+([^\n]+):\nName:\s*([^\n]+)\nArguments:\s*([^\n]+)\nResult:\s*([^\n]+)/gs
+            return this.debugMessages
+                .flatMap( debug => [...debug.text.matchAll(regex)] )
+                .map( match => {
+                    const id = match[1];
+                    const name = match[2].replace("--", ": ");
+                    var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
+                    var results = match[4];
+                    if (params.includes("requestBody")) params = params.substring(14, params.length-2);
+                    if (results.length > 30) results = results.substring(0, 30) + " [...]";
+                    return `${id}. ${name}(${params}) → ${results}`;
+                });
         },
 
         addDebugMessage(text, type) {
@@ -301,7 +393,7 @@ export default {
         },
 
         canPlayAudio() {
-            return !this.isUser && this.content && !this.isLoading
+            return this.content && !this.isLoading
                 && !this.isAudioLoading();
         },
 
@@ -398,6 +490,7 @@ export default {
 .footer-item {
     color: var(--text-secondary-color);
     font-weight: bold;
+    cursor: pointer;
 }
 
 .footer-item:hover {
