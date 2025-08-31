@@ -12,7 +12,7 @@ from openai.lib import ResponseFormatT
 from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException
+from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
 from .utils import transform_schema
 
 logger = logging.getLogger(__name__)
@@ -57,17 +57,18 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
 
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
+    async def query(self, message: str, session: SessionData, chat: Chat | None = None) -> Response:
+        return await self.query_stream(message, session, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket: WebSocket = None) -> Response:
         pass
 
 
     async def call_llm(
             self,
             session: SessionData,
+            chat: Chat | None,
             client: AsyncOpenAI,
             model: str,
             agent: str,
@@ -184,7 +185,7 @@ class AbstractMethod(ABC):
             completion = await client.chat.completions.create(**kwargs)
             async for chunk in completion:
 
-                if session.abort_sent:
+                if chat is not None and chat.abort_sent:
                     raise OpacaException(
                         user_message="(The generation of the response has been stopped.)",
                         error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."

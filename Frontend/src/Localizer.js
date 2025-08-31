@@ -83,6 +83,7 @@ export const localizationData = {
         configSaveError: "An error occurred",
         configReset: "Configuration was reset",
         sidebarFaqMissing: "Unable to load FAQ.",
+        buttonNewChat: "New Chat",
     },
 
     DE: {
@@ -162,6 +163,7 @@ export const localizationData = {
         configSaveError: "Es ist ein Fehler aufgretreten",
         configReset: "Konfiguration wurde zurückgesetzt",
         sidebarFaqMissing: "FAQ konnte nicht geladen werden.",
+        buttonNewChat: "Neuer Chat",
     },
 };
 

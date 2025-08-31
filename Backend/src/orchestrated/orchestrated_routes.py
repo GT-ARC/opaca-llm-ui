@@ -16,7 +16,7 @@ from .prompts import (
 )
 from ..abstract_method import AbstractMethod
 
-from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage
+from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat
 
 from .agents import (
     OrchestratorAgent,
@@ -409,7 +409,7 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket=None) -> Response:
         """Process a user message using multiple agents and stream intermediate results"""
 
         # Initialize response
@@ -443,7 +443,7 @@ Now, using the tools available to you and the previous results, continue with yo
             # Initialize Orchestrator
             orchestrator = OrchestratorAgent(
                 agent_summaries=agent_details,
-                chat_history=session.messages,  # Pass chat history to orchestrator
+                chat_history=(chat.messages if chat is not None else []),  # Pass chat history to orchestrator
                 tools=orchestrator_tools,
             )
             
@@ -466,6 +466,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
                     session=session,
+                    chat=chat,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="Orchestrator",

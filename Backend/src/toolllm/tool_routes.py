@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
-from ..models import Response, SessionData, ChatMessage, ConfigParameter
+from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
 
 
@@ -27,7 +27,7 @@ class ToolLLMBackend(AbstractMethod):
                 "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
 
-    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket=None) -> Response:
 
         # Initialize parameters
         tool_messages = []         # Internal messages between llm-components
@@ -64,12 +64,13 @@ class ToolLLMBackend(AbstractMethod):
         while should_continue and c_it < max_iters:
             result = await self.call_llm(
                 session=session,
+                chat=chat,
                 client=session.llm_clients[config['vllm_base_url']],
                 model=config['model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
                 messages=[
-                    *session.messages,
+                    *(chat.messages if chat is not None else []),
                     ChatMessage(role="user", content=message),
                     *tool_messages,
                 ],
@@ -92,12 +93,13 @@ class ToolLLMBackend(AbstractMethod):
                 full_err += err_msg
                 result = await self.call_llm(
                     session=session,
+                    chat=chat,
                     client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
                     messages=[
-                        *session.messages,
+                        *(chat.messages if chat is not None else []),
                         ChatMessage(role="user", content=message),
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
@@ -129,6 +131,7 @@ class ToolLLMBackend(AbstractMethod):
             if len(result.tools) > 0:
                 result = await self.call_llm(
                     session=session,
+                    chat=chat,
                     client=session.llm_clients[config['vllm_base_url']],
                     model=config['model'],
                     agent='Tool Evaluator',
@@ -166,12 +169,13 @@ class ToolLLMBackend(AbstractMethod):
 
         result = await self.call_llm(
             session=session,
+            chat=chat,
             client=session.llm_clients[config['vllm_base_url']],
             model=config['model'],
             agent='Output Generator',
             system_prompt='',
             messages=[
-                *session.messages,
+                *(chat.messages if chat is not None else []),
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     called_tools=called_tools or "",

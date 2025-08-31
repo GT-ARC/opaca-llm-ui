@@ -30,7 +30,7 @@ class BackendClient {
 
     async queryNoChat(backend, user_query) {
         const body = {user_query: user_query, store_in_history: false};
-        return await this.sendRequest("POST", `/query/${backend}`, body);
+        return await this.sendRequest("POST", `query/${backend}`, body);
     }
 
     // TODO query stream

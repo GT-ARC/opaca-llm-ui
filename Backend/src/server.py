@@ -130,7 +130,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     session = await handle_session_id(request, response)
     try:
         await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query(message.user_query, session)
+        result = await BACKENDS[backend].query(message.user_query, session, None)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -161,7 +161,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, chat_
     chat.abort_sent = False
     try:
         await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query(message.user_query, session)
+        result = await BACKENDS[backend].query(message.user_query, session, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -180,7 +180,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         data = await websocket.receive_json()
         message = Message(**data)
         await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
+        result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:

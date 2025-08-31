@@ -22,6 +22,7 @@
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
+            @new-chat="() => this.startNewChat()"
         />
 
 
@@ -260,6 +261,9 @@ export default {
                 this.selectedFiles = [];
                 this.uploadStatus.uploadedFileName = '';
                 this.uploadStatus.isUploading = false;
+
+                // update chats list
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
@@ -567,11 +571,8 @@ export default {
 
         async loadHistory(chatId) {
             try {
-                const res = backendClient.history(chatId);
-
-                if (!res.ok) throw new Error("Failed to fetch history");
-
-                const messages = await res.json();
+                const res = await backendClient.history(chatId);
+                const messages = res.messages;
 
                 for (const msg of messages) {
                     const isUser = msg.role === 'user';
@@ -619,13 +620,16 @@ export default {
         startNewChat() {
             this.selectedChatId = uuid.v4();
             this.newChat = true;
+            this.messages = [];
+            this.showExampleQuestions = true;
+            this.textInput = '';
         },
 
     },
 
     mounted() {
-        this.updateScrollbarThumb();
         this.startNewChat();
+        this.updateScrollbarThumb();
     },
     watch: {
         textInput() {
