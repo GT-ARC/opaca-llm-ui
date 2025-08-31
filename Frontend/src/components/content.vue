@@ -20,6 +20,8 @@
             @select-question="question => this.handleSelectQuestion(question)"
             @select-category="category => this.handleSelectCategory(category)"
             @select-chat="chatId => this.handleSelectChat(chatId)"
+            @delete-chat="chatId => this.handleDeleteChat(chatId)"
+            @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
         />
 
 
@@ -602,10 +604,16 @@ export default {
             }
         },
 
-        handleSelectChat(chatId) {
-            this.selectedChatId = chatId;
-            const chat = backendClient.history(chatId);
+        async handleSelectChat(chatId) {
+            await this.loadHistory(chatId);
+        },
 
+        async handleDeleteChat(chatId) {
+            await backendClient.delete(chatId);
+        },
+
+        async handleRenameChat(chatId, newName) {
+            await backendClient.updateName(chatId, newName);
         },
 
         startNewChat() {
@@ -617,6 +625,7 @@ export default {
 
     mounted() {
         this.updateScrollbarThumb();
+        this.startNewChat();
     },
     watch: {
         textInput() {

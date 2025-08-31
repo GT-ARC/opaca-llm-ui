@@ -170,10 +170,11 @@ async def query(request: Request, response: FastAPIResponse, backend: str, chat_
 
 
 @app.websocket("/chats/{chat_id}/stream/{backend}")
-async def query_stream(websocket: WebSocket, backend: str):
+async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
-    session.abort_sent = False
+    chat = handle_chat_id(session, chat_id)
+    chat.abort_sent = False
     message = None
     try:
         data = await websocket.receive_json()
@@ -183,7 +184,7 @@ async def query_stream(websocket: WebSocket, backend: str):
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(session, message, result)
+        await store_message(chat, message, result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 

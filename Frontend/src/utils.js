@@ -51,10 +51,10 @@ class BackendClient {
         await this.sendRequest("DELETE", `chats/${chatId}`);
     }
 
-    async updateName(chatId, chat) {
+    async updateName(chatId, newName) {
         await this.sendRequest("PUT", `chats/${chatId}`, {
             chat_id: chatId,
-            name: chat.name,
+            name: newName,
         });
     }
 
