@@ -151,6 +151,8 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
 async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
 
@@ -173,7 +175,7 @@ async def query(request: Request, response: FastAPIResponse, backend: str, chat_
 async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
-    chat = handle_chat_id(session, chat_id)
+    chat = handle_chat_id(session, chat_id, True)
     chat.abort_sent = False
     message = None
     try:
@@ -208,7 +210,8 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     if chat is not None:
-        del session.chats[chat_id]
+        async with sessions_lock:
+            del session.chats[chat_id]
         return True
     else:
         return False
@@ -278,9 +281,9 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
         return sessions[session_id]
 
 
-def handle_chat_id(session: SessionData, chat_id: str) -> Chat:
+def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat:
     chat = session.chats.get(chat_id, None)
-    if chat is None:
+    if chat is None and create_if_missing:
         chat = Chat(chat_id=chat_id)
         session.chats[chat_id] = chat
     return chat

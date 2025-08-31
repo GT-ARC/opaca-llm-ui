@@ -570,6 +570,7 @@ export default {
         },
 
         async loadHistory(chatId) {
+            if (!chatId) return;
             try {
                 const res = await backendClient.history(chatId);
                 const messages = res.messages;
@@ -610,11 +611,14 @@ export default {
         },
 
         async handleDeleteChat(chatId) {
+            this.startNewChat();
             await backendClient.delete(chatId);
+            await this.$refs.sidebar.$refs.chats.updateChats(chatId);
         },
 
         async handleRenameChat(chatId, newName) {
             await backendClient.updateName(chatId, newName);
+            await this.$refs.sidebar.$refs.chats.updateChats(chatId);
         },
 
         startNewChat() {
