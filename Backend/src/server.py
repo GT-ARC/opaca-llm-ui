@@ -198,7 +198,7 @@ async def stop_query(request: Request, response: FastAPIResponse, chat_id: str) 
     chat.abort_sent = True
 
 
-@app.put("/chats/{chat_id}", description="Update a chat's name.")
+@app.post("/chats/{chat_id}/update", description="Update a chat's name.")
 async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)

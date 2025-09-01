@@ -52,10 +52,7 @@ class BackendClient {
     }
 
     async updateName(chatId, newName) {
-        await this.sendRequest("PUT", `chats/${chatId}`, {
-            chat_id: chatId,
-            name: newName,
-        });
+        await this.sendRequest("POST", `chats/${chatId}/update?new_name=${newName}`);
     }
 
     async uploadFiles(files) {

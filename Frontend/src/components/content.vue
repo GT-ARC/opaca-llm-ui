@@ -132,14 +132,6 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    class="btn btn-outline-danger input-area-button ms-1"
-                                    @click="resetChat"
-                                    :disabled="!isFinished || this.messages.length <= 0"
-                                    :title="Localizer.get('tooltipButtonReset')">
-                                <i class="fa fa-refresh"/>
-                            </button>
-
-                            <button type="button"
                                     v-if="AudioManager.isRecognitionSupported()"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
@@ -575,10 +567,12 @@ export default {
                 const res = await backendClient.history(chatId);
                 const messages = res.messages;
 
+                this.messages = [];
                 for (const msg of messages) {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
                 }
+
                 if (messages.length !== 0) {
                     this.showExampleQuestions = false;
                     this.selectedChatId = chatId;
