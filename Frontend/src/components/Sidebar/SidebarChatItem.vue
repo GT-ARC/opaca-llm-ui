@@ -99,6 +99,7 @@ export default {
     border: 1px solid var(--border-color);
     border-radius: 50rem;
     width: 100%;
+    background-color: var(--background-color);
 }
 
 .chat:hover {
@@ -127,7 +128,7 @@ export default {
 }
 
 .chat-name:disabled {
-    background-color: var(--surface-color);
+    background-color: var(--background-color);
     color: var(--text-primary-color);
     border: none;
     box-shadow: none;
