@@ -5,6 +5,7 @@
         class="chat-name"
         v-model="nameInput"
         ref="nameInput"
+        @click="e => this.handleInputClick(e)"
         @keyup.enter="e => this.handleSubmitName(e)"
         @change="e => this.handleSubmitName(e)"
         @blur="e => this.handleCancelName(e)"
@@ -43,10 +44,12 @@ export default {
     data() {
         return {
             nameInput: '',
+            isEditingName: false,
         };
     },
     methods: {
         startRenameChat() {
+            this.isEditingName = true;
             const input = this.$refs.nameInput;
             input.disabled = false;
             input.focus();
@@ -56,6 +59,7 @@ export default {
         handleSubmitName(event) {
             event.preventDefault();
             event.stopPropagation();
+            this.isEditingName = false;
             const name = this.nameInput;
             this.$emit('rename-chat', this.chatId, this.nameInput);
             console.log('rename-chat', this.chatId, name);
@@ -68,10 +72,17 @@ export default {
         handleCancelName(event) {
             event.preventDefault();
             event.stopPropagation();
+            this.isEditingName = false;
             const input = this.$refs.nameInput;
             input.disabled = true;
             input.blur();
             this.nameInput = this.chat.name ? this.chat.name : this.chatId;
+        },
+
+        handleInputClick(event) {
+            if (this.isEditingName) {
+                event.stopPropagation();
+            }
         },
     },
     mounted() {
@@ -121,6 +132,7 @@ export default {
     border: none;
     box-shadow: none;
     cursor: pointer;
+    pointer-events: none;
 }
 
 .chat-name:focus {

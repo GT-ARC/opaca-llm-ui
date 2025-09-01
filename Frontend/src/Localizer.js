@@ -166,7 +166,7 @@ export const localizationData = {
         configReset: "Konfiguration wurde zurückgesetzt",
         sidebarFaqMissing: "FAQ konnte nicht geladen werden.",
         buttonNewChat: "Neuer Chat",
-        tooltipEditChatName: "Namen bearbeiten",
+        tooltipEditChatName: "Name bearbeiten",
         tooltipDeleteChat: "Chat löschen",
     },
 };

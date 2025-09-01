@@ -11,7 +11,7 @@
     </button>
 
     <!-- List all the chats -->
-    <div v-for="chat in chats" :key="chat.chat_id">
+    <div v-for="chat in chats?.toReversed()" :key="chat.chat_id">
         <SidebarChatItem
             :selected-chat-id="this.selectedChatId"
             :chat-id="chat.chat_id"
