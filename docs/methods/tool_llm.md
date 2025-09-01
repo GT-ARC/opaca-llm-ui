@@ -37,11 +37,9 @@ The following values are **defaults**.
     "model": "gpt-4o-mini",
     "vllm_base_url": "gpt",
     "temperature": 0,
-    "use_agent_names": True,
 }
 ```
 
 - `model`: The model name that will be used. Also supports Llama models.
 - `vllm_base_url`: The base URL of the VLLM server where the given model is running. Defaults to `gpt` to use OpenAI server instead.
 - `temperature`: The temperature used for the given model.
-- `use_agent_names`: Whether the OPACA actions should include the name of their agent. Useful for environments with multiple agents of the same type.

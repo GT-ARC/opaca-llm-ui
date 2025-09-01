@@ -139,7 +139,7 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
     return action_list
 
 
-def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
+def openapi_to_functions(openapi_spec):
     functions = []
     error_msg = ""
 
@@ -197,7 +197,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
                 {
                     "type": "function",
                     "function": {
-                        "name": agent_name + '--' + function_name if use_agent_names else function_name,
+                        "name": agent_name + '--' + function_name,
                         "description": desc,
                         "parameters": schema
                     }
@@ -207,7 +207,7 @@ def openapi_to_functions(openapi_spec, use_agent_names: bool = False):
     return functions, error_msg
 
 
-def openapi_to_functions_strict(openapi_spec: dict, agent: str = "", use_agent_names: bool = False):
+def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
     """
     This is an alternative strategy to transform tools into OpenAI specification.
     Only used by orchestration currently.
@@ -266,7 +266,7 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = "", use_agent_n
             functions.append({
                 "type": "function",
                 "function": {
-                    "name":  agent_name + '--' + function_name if use_agent_names else function_name,
+                    "name":  agent_name + '--' + function_name,
                     "description": desc,
                     "parameters": args_schema,
                 }

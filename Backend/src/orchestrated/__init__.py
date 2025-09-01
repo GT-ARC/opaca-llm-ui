@@ -3,4 +3,4 @@ Self-orchestrated backend that assigns tasks to multiple specialized agents that
 Each agent has specific capabilities and functions, coordinated by an orchestrator.
 """
 
-from .backend import SelfOrchestratedBackend
+from .orchestrated_routes import SelfOrchestratedBackend
