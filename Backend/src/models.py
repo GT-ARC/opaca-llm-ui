@@ -5,6 +5,7 @@ import logging
 import sys
 from typing import List, Dict, Any, Optional, Self
 from io import BytesIO
+from datetime import datetime, tzinfo, UTC
 
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
@@ -170,12 +171,12 @@ class Chat(BaseModel):
     Attributes:
         chat_id (str): The unique ID of the chat.
         messages: Chat history (user queries and final LLM responses), used in subsequent requests.
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
     """
     chat_id: str
     name: str = ''
     messages: List[ChatMessage] = []
-    abort_sent: bool = False
+    time_created: datetime = datetime.now(tz=UTC)
+    time_modified: datetime = time_created
 
 
 class SessionData(BaseModel):
@@ -190,6 +191,7 @@ class SessionData(BaseModel):
         llm_clients: Dictionary of LLM client instances.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
+        abort_sent: Boolean indicating whether the current interaction should be aborted.
     """
     chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
@@ -197,6 +199,7 @@ class SessionData(BaseModel):
     llm_clients: Dict[str, Any] = {}
     uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
+    abort_sent: bool = False
 
 
 class ConfigArrayItem(BaseModel):

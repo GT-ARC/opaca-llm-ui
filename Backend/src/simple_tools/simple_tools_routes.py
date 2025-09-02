@@ -57,7 +57,6 @@ class SimpleToolsBackend(AbstractMethod):
             # call the LLM with function-calling enabled
             result = await self.call_llm(
                 session=session,
-                chat=chat,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",

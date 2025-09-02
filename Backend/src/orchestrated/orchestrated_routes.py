@@ -466,7 +466,6 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
                     session=session,
-                    chat=chat,
                     client=session.llm_clients[model_config["orchestrator_base_url"]],
                     model=model_config["orchestrator_model"],
                     agent="Orchestrator",

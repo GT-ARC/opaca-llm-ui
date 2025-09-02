@@ -5,6 +5,7 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import uuid
+from datetime import datetime, UTC
 from typing import Dict, Any
 import asyncio
 import logging
@@ -136,13 +137,19 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     finally:
         return result
 
+
+@app.post("/stop", description="Abort generation for every query of the current session.")
+async def stop_query(request: Request, response: FastAPIResponse) -> None:
+    session = await handle_session_id(request, response)
+    session.abort_sent = True
+
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chat, just their names and IDs, but NOT the messages.")
 async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
     session = await handle_session_id(request, response)
     return [
-        Chat(chat_id=chat.chat_id, name=chat.name)
+        Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
         for chat in session.chats.values()
     ]
 
@@ -161,7 +168,8 @@ async def query(request: Request, response: FastAPIResponse, backend: str, chat_
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     create_chat_name(chat, message)
-    chat.abort_sent = False
+    session.abort_sent = False
+    result = None
     try:
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query(message.user_query, session, chat)
@@ -177,8 +185,9 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
     chat = handle_chat_id(session, chat_id, True)
-    chat.abort_sent = False
+    session.abort_sent = False
     message = None
+    result = None
     try:
         data = await websocket.receive_json()
         message = Message(**data)
@@ -193,18 +202,12 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         await websocket.close()
 
 
-@app.post("/chats/{chat_id}/stop", description="Abort generation for last query.")
-async def stop_query(request: Request, response: FastAPIResponse, chat_id: str) -> None:
-    session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
-    chat.abort_sent = True
-
-
 @app.post("/chats/{chat_id}/update", description="Update a chat's name.")
 async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     chat.name = new_name
+    update_chat_time(chat)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
@@ -314,12 +317,19 @@ def create_chat_name(chat: Chat | None, message: Message | None, override_existi
         chat.name = message.user_query
 
 
+def update_chat_time(chat: Chat | None) -> None:
+    if chat is None:
+        return
+    chat.time_modified = datetime.now(tz=UTC)
+
+
 async def store_message(chat: Chat, message: Message, result: Response):
     if message:
         chat.messages.extend([
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
+        update_chat_time(chat)
 
 
 async def cleanup_old_sessions(delay_seconds=3600):

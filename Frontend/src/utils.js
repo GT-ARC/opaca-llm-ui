@@ -45,7 +45,7 @@ class BackendClient {
     // TODO query stream
 
     async stop(chatId) {
-        await this.sendRequest("POST", `chats/${chatId}/stop`);
+        await this.sendRequest("POST", `stop`);
     }
 
     async chats() {
