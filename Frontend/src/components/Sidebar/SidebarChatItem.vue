@@ -14,11 +14,13 @@
         disabled
     />
     <i class="fa fa-edit ms-auto chat-menu-button"
-       @click.stop="this.startRenameChat()"
+       :class="{'chat-selectable': this.isFinished}"
+       @click.stop="this.rename()"
        :title="Localizer.get('tooltipEditChatName')"
     />
     <i class="fa fa-remove chat-menu-button"
-       @click.stop="this.$emit('delete-chat', chatId)"
+       :class="{'chat-selectable': this.isFinished}"
+       @click.stop="this.delete()"
        :title="Localizer.get('tooltipDeleteChat')"
     />
 </div>
@@ -51,17 +53,22 @@ export default {
     },
     methods: {
         select() {
-            if (this.isFinished) {
-                this.$emit('select-chat', this.chatId);
-            }
+            if (!this.isFinished) return;
+            this.$emit('select-chat', this.chatId);
         },
 
-        startRenameChat() {
+        rename() {
+            if (!this.isFinished) return;
             this.isEditingName = true;
             const input = this.$refs.nameInput;
             input.disabled = false;
             input.focus();
             input.select();
+        },
+
+        delete() {
+            if (!this.isFinished) return;
+            this.$emit('delete-chat', this.chatId);
         },
 
         handleSubmitName(event) {
@@ -113,7 +120,7 @@ export default {
     border-radius: 50rem;
     width: 100%;
     background-color: var(--background-color);
-    color: var(--text-secondary-color);
+    color: var(--text-primary-color);
 }
 
 /* overwrite when selectable */
@@ -126,10 +133,8 @@ export default {
 }
 
 .chat-selectable:hover {
-    border-color: var(--primary-color);
-    color: var(--text-primary-color);
-    cursor: pointer;
-
+    border-color: var(--primary-color) !important;
+    cursor: pointer !important;
 }
 
 .chat-name {
@@ -176,7 +181,7 @@ export default {
     justify-content: center;
     align-self: flex-end;
     border-radius: 1rem !important;
-    cursor: pointer;
+    cursor: not-allowed;
     z-index: 9999 !important;
 }
 

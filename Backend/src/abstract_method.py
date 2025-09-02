@@ -184,7 +184,7 @@ class AbstractMethod(ABC):
             completion = await client.chat.completions.create(**kwargs)
             async for chunk in completion:
 
-                if session is not None and session.abort_sent:
+                if session.abort_sent:
                     raise OpacaException(
                         user_message="(The generation of the response has been stopped.)",
                         error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."

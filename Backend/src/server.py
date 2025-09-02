@@ -125,18 +125,12 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-# chat-independent query route. not super happy with this :/
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    result = None
-    try:
-        await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
-    except Exception as e:
-        result = exception_to_result(message.user_query, e)
-    finally:
-        return result
+    session.abort_sent = False
+    await BACKENDS[backend].init_models(session)
+    return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
@@ -149,10 +143,12 @@ async def stop_query(request: Request, response: FastAPIResponse) -> None:
 @app.get("/chats", description="Get available chat, just their names and IDs, but NOT the messages.")
 async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
     session = await handle_session_id(request, response)
-    return [
+    chats = [
         Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
         for chat in session.chats.values()
     ]
+    chats.sort(key=lambda chat: chat.time_modified, reverse=True)
+    return chats
 
 
 @app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")

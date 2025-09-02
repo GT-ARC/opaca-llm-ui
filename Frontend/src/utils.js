@@ -21,15 +21,6 @@ class BackendClient {
         return await this.sendRequest("GET", "actions");
     }
 
-    async makeChatName(userQuery) {
-        const query = "Given the following query, generate a VERY short description of it. " +
-        "This description MUST be AT MOST 2 to 5 words long, and MUST also NOT be longer than 30 characters." +
-        "Gemerate ONLY this description, you must generate ABSOLUTELY NO additional text whatsoever.\n"
-        `Query: "${userQuery}"`;
-        const body = {user_query: query};
-        await this.sendRequest("POST", "/query/simple-tools", body);
-    }
-
     // chat
 
     async query(chatId, backend, user_query) {

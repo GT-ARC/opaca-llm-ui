@@ -176,7 +176,7 @@ class Chat(BaseModel):
     name: str = ''
     messages: List[ChatMessage] = []
     time_created: datetime = datetime.now(tz=UTC)
-    time_modified: datetime = time_created
+    time_modified: datetime = datetime.now(tz=UTC)
 
 
 class SessionData(BaseModel):
