@@ -82,14 +82,12 @@ class ConnectInfo(BaseModel):
 
 class Message(BaseModel):
     """
-    Used as the expected body argument in the `/{backend}/query` endpoints
+    Used as the expected body argument in the `/query/{backend}` endpoints
 
     Attributes
         user_query: The query a user has input into the OPACA LLM ChatBot.
-        store_in_history: Whether the message should be stored in the Session's chat history
     """
     user_query: str
-    store_in_history: bool = True
 
 
 class AgentMessage(BaseModel):

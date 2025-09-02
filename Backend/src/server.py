@@ -301,7 +301,7 @@ def create_or_refresh_session(session_id, max_age=None):
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
-    if message and message.store_in_history:
+    if message:
         chat.messages.extend([
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)

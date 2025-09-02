@@ -23,13 +23,13 @@ class BackendClient {
 
     // chat
 
-    async query(chatId, backend, user_query, store_in_history = true) {
-        const body = {user_query: user_query, store_in_history: store_in_history};
+    async query(chatId, backend, user_query) {
+        const body = {user_query: user_query};
         return await this.sendRequest("POST", `chats/${chatId}/query/${backend}`, body);
     }
 
     async queryNoChat(backend, user_query) {
-        const body = {user_query: user_query, store_in_history: false};
+        const body = {user_query: user_query};
         return await this.sendRequest("POST", `query/${backend}`, body);
     }
 
