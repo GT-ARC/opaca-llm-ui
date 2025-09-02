@@ -155,8 +155,6 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
 async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
-    if chat is None:
-        raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
 
@@ -199,7 +197,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         await websocket.close()
 
 
-@app.post("/chats/{chat_id}/update", description="Update a chat's name.")
+@app.put("/chats/{chat_id}", description="Update a chat's name.")
 async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
@@ -294,11 +292,13 @@ def create_or_refresh_session(session_id, max_age=None):
     return session_id
 
 
-def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat:
+def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
     chat = session.chats.get(chat_id, None)
     if chat is None and create_if_missing:
         chat = Chat(chat_id=chat_id)
         session.chats[chat_id] = chat
+    elif chat is None and not create_if_missing:
+        raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
 

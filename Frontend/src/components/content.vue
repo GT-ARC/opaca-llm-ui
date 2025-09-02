@@ -615,8 +615,11 @@ export default {
         },
 
         async handleRenameChat(chatId, newName) {
-            await backendClient.updateName(chatId, newName);
-            await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+            try {
+                await backendClient.updateName(chatId, newName);
+            } finally {
+                await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+            }
         },
 
         startNewChat() {
