@@ -129,9 +129,10 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
+    result = None
     try:
         await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query(message.user_query, session, None)
+        result = await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:

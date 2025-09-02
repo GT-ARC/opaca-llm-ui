@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = Response(query=message)
@@ -48,7 +48,7 @@ class SimpleToolsBackend(AbstractMethod):
             tools = tools[:128]
 
         # initialize message history
-        messages = chat.messages.copy() if chat is not None else []
+        messages = chat.messages.copy()
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:

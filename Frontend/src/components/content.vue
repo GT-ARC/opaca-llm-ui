@@ -605,6 +605,7 @@ export default {
 
         async handleSelectChat(chatId) {
             await this.loadHistory(chatId);
+            this.$refs.textInputRef.focus();
         },
 
         async handleDeleteChat(chatId) {
@@ -626,6 +627,7 @@ export default {
             this.textInput = '';
             this.showExampleQuestions = true;
             Localizer.reloadSampleQuestions(null);
+            this.$refs.textInputRef.focus();
         },
 
     },

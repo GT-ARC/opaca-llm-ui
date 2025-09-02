@@ -27,7 +27,7 @@ class ToolLLMBackend(AbstractMethod):
                 "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
 
         # Initialize parameters
         tool_messages = []         # Internal messages between llm-components
@@ -69,7 +69,7 @@ class ToolLLMBackend(AbstractMethod):
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
                 messages=[
-                    *(chat.messages if chat is not None else []),
+                    *chat.messages,
                     ChatMessage(role="user", content=message),
                     *tool_messages,
                 ],
@@ -97,7 +97,7 @@ class ToolLLMBackend(AbstractMethod):
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
                     messages=[
-                        *(chat.messages if chat is not None else []),
+                        *chat.messages,
                         ChatMessage(role="user", content=message),
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
@@ -171,7 +171,7 @@ class ToolLLMBackend(AbstractMethod):
             agent='Output Generator',
             system_prompt='',
             messages=[
-                *(chat.messages if chat is not None else []),
+                *chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     called_tools=called_tools or "",

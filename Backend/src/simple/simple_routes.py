@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 class SimpleBackend(AbstractMethod):
     NAME = "simple"
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = Response(query=message)
@@ -70,13 +70,12 @@ class SimpleBackend(AbstractMethod):
             
             result = await self.call_llm(
                 session=session,
-                chat=chat,
                 client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=prompt,
                 messages=[
-                    *(chat.messages if chat is not None else []),
+                    *chat.messages,
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],

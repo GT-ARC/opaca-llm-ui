@@ -57,11 +57,11 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
 
-    async def query(self, message: str, session: SessionData, chat: Chat | None = None) -> Response:
+    async def query(self, message: str, session: SessionData, chat: Chat) -> Response:
         return await self.query_stream(message, session, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, chat: Chat | None = None, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
         pass
 
 
