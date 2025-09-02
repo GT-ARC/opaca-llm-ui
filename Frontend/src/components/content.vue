@@ -16,6 +16,7 @@
             :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
+            :is-finished="isFinished"
             ref="sidebar"
             @select-question="question => this.handleSelectQuestion(question)"
             @select-category="category => this.handleSelectCategory(category)"
@@ -209,7 +210,6 @@ export default {
     data() {
         return {
             messages: [],
-            socket: null,
             textInput: '',
             isFinished: true,
             showExampleQuestions: true,
@@ -223,7 +223,7 @@ export default {
                 uploadedFileName: '',
             },
             selectedChatId: '',
-            newChat: true,
+            newChat: false,
         }
     },
     methods: {
@@ -292,6 +292,7 @@ export default {
         async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
+            this.newChat = false;
 
             // add user chat bubble
             await this.addChatBubble(userText, true, false, files);
@@ -307,11 +308,11 @@ export default {
 
             try {
                 const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.getBackend()}`;
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
+                const socket = new WebSocket(url);
+                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
+                socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                socket.onclose   = ()    => this.handleStreamingSocketClose();
+                socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -404,6 +405,7 @@ export default {
             this.startAutoSpeak();
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         async handleStreamingSocketError(error) {
@@ -415,6 +417,7 @@ export default {
 
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         startAutoSpeak() {
@@ -616,11 +619,13 @@ export default {
         },
 
         startNewChat() {
+            if (this.newChat) return;
             this.selectedChatId = uuid.v4();
             this.newChat = true;
             this.messages = [];
-            this.showExampleQuestions = true;
             this.textInput = '';
+            this.showExampleQuestions = true;
+            Localizer.reloadSampleQuestions(null);
         },
 
     },

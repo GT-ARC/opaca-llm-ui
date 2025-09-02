@@ -11,9 +11,10 @@
     </button>
 
     <!-- List all the chats -->
-    <div v-for="chat in chats?.toReversed()" :key="chat.chat_id">
+    <div v-for="chat in chats.toReversed()" :key="chat.chat_id">
         <SidebarChatItem
             :selected-chat-id="this.selectedChatId"
+            :is-finished="this.isFinished"
             :chat-id="chat.chat_id"
             :chat="chat"
             @select-chat="chatId => this.$emit('select-chat', chatId)"
@@ -36,6 +37,7 @@ export default {
     components: {SidebarChatItem},
     props: {
         selectedChatId: String,
+        isFinished: Boolean,
     },
     setup() {
         const {isMobile} = useDevice();
@@ -59,6 +61,7 @@ export default {
                 this.chats = await backendClient.chats();
             } catch (error) {
                 console.log(error);
+                this.chats = [];
             }
         },
     },

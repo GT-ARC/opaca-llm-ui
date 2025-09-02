@@ -59,6 +59,7 @@
                 <SidebarChats
                     v-show="SidebarManager.isViewSelected('chats')"
                     :selected-chat-id="this.selectedChatId"
+                    :is-finished="this.isFinished"
                     @select-chat="chatId => this.$emit('select-chat', chatId)"
                     @delete-chat="chatId => this.$emit('delete-chat', chatId)"
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
@@ -135,6 +136,7 @@ export default {
         language: String,
         connected: Boolean,
         selectedChatId: String,
+        isFinished: Boolean,
     },
     emits: [
         'select-question',

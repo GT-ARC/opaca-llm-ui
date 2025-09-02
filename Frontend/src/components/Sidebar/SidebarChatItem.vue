@@ -1,6 +1,7 @@
 <template>
-<div class="chat align-items-center" :class="{'chat-selected': this.selectedChatId === chatId}"
-     @click="this.$emit('select-chat', chatId)" >
+<div class="chat align-items-center"
+     :class="{'chat-selected': this.selectedChatId === chatId, 'chat-selectable': this.isFinished}"
+     @click="this.select()" >
     <input
         class="chat-name"
         v-model="nameInput"
@@ -30,6 +31,7 @@ export default {
     name: 'SidebarChatItem',
     props: {
         selectedChatId: String,
+        isFinished: Boolean,
         chatId: String,
         chat: Object,
     },
@@ -48,6 +50,12 @@ export default {
         };
     },
     methods: {
+        select() {
+            if (this.isFinished) {
+                this.$emit('select-chat', this.chatId);
+            }
+        },
+
         startRenameChat() {
             this.isEditingName = true;
             const input = this.$refs.nameInput;
@@ -88,6 +96,11 @@ export default {
     mounted() {
         this.nameInput = this.chat.name ? this.chat.name : this.chatId;
     },
+    watch: {
+        chat() {
+            this.nameInput = this.chat.name ? this.chat.name : this.chatId;
+        }
+    }
 }
 </script>
 
@@ -100,15 +113,23 @@ export default {
     border-radius: 50rem;
     width: 100%;
     background-color: var(--background-color);
+    color: var(--text-secondary-color);
 }
 
+/* overwrite when selectable */
 .chat:hover {
-    border-color: var(--primary-color);
-    cursor: pointer;
+    cursor: not-allowed;
 }
 
 .chat-selected {
     border-color: var(--primary-color);
+}
+
+.chat-selectable:hover {
+    border-color: var(--primary-color);
+    color: var(--text-primary-color);
+    cursor: pointer;
+
 }
 
 .chat-name {
@@ -133,7 +154,7 @@ export default {
     border: none;
     box-shadow: none;
     cursor: pointer;
-    pointer-events: none;
+    pointer-events: none; /* to propagate underlying pointer events */
 }
 
 .chat-name:focus {

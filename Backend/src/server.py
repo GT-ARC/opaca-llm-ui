@@ -160,6 +160,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
+    create_chat_name(chat, message)
     chat.abort_sent = False
     try:
         await BACKENDS[backend].init_models(session)
@@ -181,6 +182,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     try:
         data = await websocket.receive_json()
         message = Message(**data)
+        create_chat_name(chat, message)
         await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
@@ -281,14 +283,6 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
         return sessions[session_id]
 
 
-def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat:
-    chat = session.chats.get(chat_id, None)
-    if chat is None and create_if_missing:
-        chat = Chat(chat_id=chat_id)
-        session.chats[chat_id] = chat
-    return chat
-
-
 def create_or_refresh_session(session_id, max_age=None):
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
@@ -298,6 +292,26 @@ def create_or_refresh_session(session_id, max_age=None):
     if max_age is not None:
         sessions[session_id].valid_until = time.time() + max_age
     return session_id
+
+
+def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat:
+    chat = session.chats.get(chat_id, None)
+    if chat is None and create_if_missing:
+        chat = Chat(chat_id=chat_id)
+        session.chats[chat_id] = chat
+    return chat
+
+
+def create_chat_name(chat: Chat | None, message: Message | None, override_existing: bool = False) -> None:
+    if chat is None or message is None:
+        return
+    if not override_existing and len(chat.name) > 0:
+        return
+
+    if len(message.user_query) > 32:
+        chat.name = f'{message.user_query[:32]}…'
+    else:
+        chat.name = message.user_query
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
