@@ -23,7 +23,7 @@ The web UI is implemented in Javascript using Node and Vue. It consists of sever
 
 * A main chat window, showing the messages in the current interaction and an input field for submitting messages. The LLM's output is interpreted and formatted as Markdown, allowing for text formatting, code snippets, and embedded images (the LLM itself an not generate images, but it can display images if e.g. the URL to an image was returned from an action). The UI also allows for speech input and output (if the last message was spoken, the response will automatically be read out aloud). Each response by the LLM includes additional "debug" output that can be expanded.
 
-* A collapsible sidebar providing different sections for, among others, browsing the list of available agents and actions, configuring details of the used LLM prompting method, and showing additional debug output.
+* A collapsible sidebar providing different sections for, among others, switchting between different chats, browsing the list of available agents and actions, configuring details of the used LLM prompting method, and showing additional debug output.
 
 * A Navigation/Header bar, allowing to connect to an OPACA Runtime Platform, switch the UI language or color schema, and the used LLM prompting method.
 
@@ -55,14 +55,30 @@ The different approaches provide additional configuration parameters, e.g. for t
 
 The OPACA LLM provides a RESTful API for most requests, while also providing a websocket for streaming responses. The API is used internally for communication between Frontend and Backend, so below are just the most relevant routes. 
 
-* `/connect`: Attempts to establish a connection to the given OPACA platform.
-* `/actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
-* `/backends`: Returns a list of available "backends", i.e. LLM prompting methods.
-* `/{backend}/config`: Used to get, update or reset the configuration of that prompting method (e.g. the used model)
-* `/{backend}/query`: Asks selected `backend` (prompting method) to generate an answer based on the given user query and the message history associated with the current session. There also exists a variant of this route that instead establishes a websocket connection to stream the message generation to the connected client.
-* `/upload`: Add files to be taken into account with the next requests.
-* `/history`: Get a list of the full message history associated with the current session
-* `/reset`: Reset the message history associated with the current session
+#### General routes
+
+* `GET /backends`: Returns a list of available "backends", i.e. LLM prompting methods.
+* `POST /connect`: Attempts to establish a connection to the given OPACA platform.
+* `POST /disconnect`: Severs the connection to the currently connected OPACA platform.
+* `GET /actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
+* `POST /upload`: Add files to be taken into account with the next requests.
+* `POST /stop`: Stop all generation currently in progress for the session.
+* `POST /query/{backend}`: Asks selected `backend` (prompting method) to generate an answer based on the given user query. This is independent of any existing chat histories (see below).
+
+#### Chat routes
+
+* `GET /chats`: Returns a list of all chats associated with the current session, but without their full message histories.
+* `GET /chats/{chat_id}`: Returns the full message history and other details for the given chat.
+* `POST /chats/{chat_id}/query/{backend}`: Makes a query to the given backend (prompting method) using a user query and the given chat's message history. The result is returned once, in full.
+* `WEBSOCKET /chats/{chat_id}/stream/{backend}`: Streaming version of the route above. Here, some intermediate status messages as well as the final result message are streamed back to the user.
+* `PUT /chats/{chat_id}`: Used to update a chat's displayed name.
+* `DELETE /chats/{chat_id}`: Deletes the given chat.
+
+#### Config routes
+
+* `GET /config/{backend}`: Get the configuration of that prompting method (e.g. the used model)
+* `PUT /config/{backend}`: Update the configuration of that prompting method (e.g. the used model)
+* `DELETE /config/{backend}`: Reset the configuration of that prompting method (e.g. the used model)
 
 You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
 
