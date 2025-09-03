@@ -135,6 +135,7 @@ export default {
 .chat-selectable:hover {
     border-color: var(--primary-color) !important;
     cursor: pointer !important;
+    transform: translateY(-1px);
 }
 
 .chat-name {
@@ -163,7 +164,7 @@ export default {
 }
 
 .chat-name:focus {
-    background-color: var(--input-color);
+    background-color: var(--input-color) !important;
     color: var(--text-primary-color);
     border: none !important;
     box-shadow: none !important;
