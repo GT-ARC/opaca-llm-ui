@@ -5,7 +5,10 @@
     </div>
 
     <!-- "New Chat" button -->
-    <button type="button" class="btn btn-primary w-100" @click="this.$emit('new-chat')" >
+    <button type="button"
+            class="btn btn-primary w-100"
+            @click="this.$emit('new-chat')"
+            :disabled="!this.isFinished" >
         <i class="fa fa-pen-to-square" />
         {{ Localizer.get('buttonNewChat') }}
     </button>
