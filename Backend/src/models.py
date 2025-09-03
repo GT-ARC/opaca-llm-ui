@@ -189,17 +189,17 @@ class SessionData(BaseModel):
         config: Configuration dictionary, one sub-dict for each method.
         opaca_client: Client instance for OPACA, for calling agent actions.
         llm_clients: Dictionary of LLM client instances.
+        abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
     """
     chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
     opaca_client: Any = None
     llm_clients: Dict[str, Any] = {}
+    abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
-    abort_sent: bool = False
 
 
 class ConfigArrayItem(BaseModel):

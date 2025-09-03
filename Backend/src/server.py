@@ -129,8 +129,11 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
-    await BACKENDS[backend].init_models(session)
-    return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
+    try:
+        await BACKENDS[backend].init_models(session)
+        return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
+    except Exception as e:
+        return exception_to_result(message.user_query, e)
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
@@ -302,22 +305,16 @@ def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool =
     return chat
 
 
-def create_chat_name(chat: Chat | None, message: Message | None, override_existing: bool = False) -> None:
-    if chat is None or message is None:
-        return
-    if not override_existing and len(chat.name) > 0:
-        return
-
-    if len(message.user_query) > 32:
-        chat.name = f'{message.user_query[:32]}…'
-    else:
-        chat.name = message.user_query
+def create_chat_name(chat: Chat | None, message: Message | None) -> None:
+    if (chat is not None) and (message is not None) and chat.name:
+        chat.name = (f'{message.user_query[:32]}…'
+            if len(message.user_query) > 32
+            else message.user_query)
 
 
 def update_chat_time(chat: Chat | None) -> None:
-    if chat is None:
-        return
-    chat.time_modified = datetime.now(tz=UTC)
+    if chat is not None:
+        chat.time_modified = datetime.now(tz=UTC)
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
