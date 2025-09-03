@@ -306,7 +306,7 @@ def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool =
 
 
 def create_chat_name(chat: Chat | None, message: Message | None) -> None:
-    if (chat is not None) and (message is not None) and chat.name:
+    if (chat is not None) and (message is not None) and not chat.name:
         chat.name = (f'{message.user_query[:32]}…'
             if len(message.user_query) > 32
             else message.user_query)
