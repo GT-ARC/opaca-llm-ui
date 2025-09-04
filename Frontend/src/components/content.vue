@@ -575,7 +575,7 @@ export default {
                     await this.addChatBubble(msg.content, isUser);
                 }
 
-                if (messages.length !== 0) {
+                if (this.messages.length !== 0) {
                     this.showExampleQuestions = false;
                     this.selectedChatId = chatId;
                     this.newChat = false;

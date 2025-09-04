@@ -68,7 +68,9 @@ export default {
 
         delete() {
             if (!this.isFinished) return;
-            this.$emit('delete-chat', this.chatId);
+            if (confirm(Localizer.get("confirmDeleteChat"))) {
+                this.$emit('delete-chat', this.chatId);
+            }
         },
 
         handleSubmitName(event) {
