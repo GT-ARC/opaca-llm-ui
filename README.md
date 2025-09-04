@@ -23,7 +23,7 @@ The web UI is implemented in Javascript using Node and Vue. It consists of sever
 
 * A main chat window, showing the messages in the current interaction and an input field for submitting messages. The LLM's output is interpreted and formatted as Markdown, allowing for text formatting, code snippets, and embedded images (the LLM itself an not generate images, but it can display images if e.g. the URL to an image was returned from an action). The UI also allows for speech input and output (if the last message was spoken, the response will automatically be read out aloud). Each response by the LLM includes additional "debug" output that can be expanded.
 
-* A collapsible sidebar providing different sections for, among others, switchting between different chats, browsing the list of available agents and actions, configuring details of the used LLM prompting method, and showing additional debug output.
+* A collapsible sidebar providing different sections for, among others, switching between different chats, browsing the list of available agents and actions, configuring details of the used LLM prompting method, and showing additional debug output.
 
 * A Navigation/Header bar, allowing to connect to an OPACA Runtime Platform, switch the UI language or color schema, and the used LLM prompting method.
 
