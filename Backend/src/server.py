@@ -5,6 +5,7 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import uuid
+from datetime import datetime, UTC
 from typing import Dict, Any
 import asyncio
 import logging
@@ -22,7 +23,7 @@ from starlette.websockets import WebSocket
 from typing import List, Union
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -97,51 +98,8 @@ async def actions(request: Request, response: FastAPIResponse) -> dict[str, List
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/{backend}/query", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
-    session = await handle_session_id(request, response)
-    session.abort_sent = False
-    try:
-        await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query(message.user_query, session)
-    except Exception as e:
-        result = exception_to_result(message.user_query, e)
-    finally:
-        await store_message(session, message, result)
-        return result
-
-
-@app.websocket("/{backend}/query_stream")
-async def query_stream(websocket: WebSocket, backend: str):
-    await websocket.accept()
-    session = await handle_session_id(websocket)
-    session.abort_sent = False
-    message = None
-    try:
-        data = await websocket.receive_json()
-        message = Message(**data)
-        await BACKENDS[backend].init_models(session)
-        result = await BACKENDS[backend].query_stream(message.user_query, session, websocket)
-    except Exception as e:
-        result = exception_to_result(message.user_query, e)
-    finally:
-        await store_message(session, message, result)
-        await websocket.send_json(result.model_dump_json())
-        await websocket.close()
-
-
-@app.post("/stop", description="Abort generation for last query.")
-async def history(request: Request, response: FastAPIResponse) -> None:
-    session = await handle_session_id(request, response)
-    session.abort_sent = True
-
-
 @app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
-async def upload_files(
-    request: Request,
-    response: FastAPIResponse,
-    files: List[UploadFile],
-):
+async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
@@ -167,18 +125,99 @@ async def upload_files(
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-@app.get("/history", description="Get full message history in current session since last reset (user queries and LLM responses, no internal/intermediate messages).")
-async def history(request: Request, response: FastAPIResponse) -> list:
+@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
+async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    return session.messages
+    session.abort_sent = False
+    try:
+        await BACKENDS[backend].init_models(session)
+        return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
+    except Exception as e:
+        return exception_to_result(message.user_query, e)
 
 
-@app.post("/reset", description="Reset message history for the current session.")
-async def reset(request: Request, response: FastAPIResponse) -> FastAPIResponse:
+@app.post("/stop", description="Abort generation for every query of the current session.")
+async def stop_query(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
-    session.messages.clear()
-    session.uploaded_files.clear()
-    return FastAPIResponse(status_code=204)
+    session.abort_sent = True
+
+### CHAT ROUTES
+
+@app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
+async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
+    session = await handle_session_id(request, response)
+    chats = [
+        Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
+        for chat in session.chats.values()
+    ]
+    chats.sort(key=lambda chat: chat.time_modified, reverse=True)
+    return chats
+
+
+@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
+    session = await handle_session_id(request, response)
+    chat = handle_chat_id(session, chat_id)
+    return chat
+
+
+@app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
+async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
+    session = await handle_session_id(request, response)
+    chat = handle_chat_id(session, chat_id)
+    create_chat_name(chat, message)
+    session.abort_sent = False
+    result = None
+    try:
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query(message.user_query, session, chat)
+    except Exception as e:
+        result = exception_to_result(message.user_query, e)
+    finally:
+        await store_message(chat, message, result)
+        return result
+
+
+@app.websocket("/chats/{chat_id}/stream/{backend}")
+async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
+    await websocket.accept()
+    session = await handle_session_id(websocket)
+    chat = handle_chat_id(session, chat_id, True)
+    session.abort_sent = False
+    message = None
+    result = None
+    try:
+        data = await websocket.receive_json()
+        message = Message(**data)
+        create_chat_name(chat, message)
+        await BACKENDS[backend].init_models(session)
+        result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
+    except Exception as e:
+        result = exception_to_result(message.user_query, e)
+    finally:
+        await store_message(chat, message, result)
+        await websocket.send_json(result.model_dump_json())
+        await websocket.close()
+
+
+@app.put("/chats/{chat_id}", description="Update a chat's name.")
+async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
+    session = await handle_session_id(request, response)
+    chat = handle_chat_id(session, chat_id)
+    chat.name = new_name
+    update_chat_time(chat)
+
+
+@app.delete("/chats/{chat_id}", description="Delete a single chat.")
+async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
+    session = await handle_session_id(request, response)
+    chat = handle_chat_id(session, chat_id)
+    if chat is not None:
+        async with sessions_lock:
+            del session.chats[chat_id]
+        return True
+    else:
+        return False
 
 
 @app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
@@ -186,8 +225,9 @@ async def reset_all():
     async with sessions_lock:
         sessions.clear()
 
+## CONFIG ROUTES
 
-@app.get("/{backend}/config", description="Get current configuration of the given prompting method.")
+@app.get("/config/{backend}", description="Get current configuration of the given prompting method.")
 async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if backend not in session.config:
@@ -195,7 +235,7 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
-@app.put("/{backend}/config", description="Update configuration of the given prompting method.")
+@app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
@@ -206,12 +246,13 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
-@app.post("/{backend}/config/reset", description="Resets the configuration of the prompting method to its default.")
+@app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
+## Utility functions
 
 async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
     """
@@ -254,12 +295,34 @@ def create_or_refresh_session(session_id, max_age=None):
     return session_id
 
 
-async def store_message(session: SessionData, message: Message, result: Response):
-    if message and message.store_in_history:
-        session.messages.extend([
+def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
+    chat = session.chats.get(chat_id, None)
+    if chat is None and create_if_missing:
+        chat = Chat(chat_id=chat_id)
+        session.chats[chat_id] = chat
+    elif chat is None and not create_if_missing:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return chat
+
+
+def create_chat_name(chat: Chat | None, message: Message | None) -> None:
+    if (chat is not None) and (message is not None) and not chat.name:
+        chat.name = (f'{message.user_query[:32]}…'
+            if len(message.user_query) > 32
+            else message.user_query)
+
+
+def update_chat_time(chat: Chat) -> None:
+    chat.time_modified = datetime.now(tz=UTC)
+
+
+async def store_message(chat: Chat, message: Message, result: Response):
+    if message:
+        chat.messages.extend([
             ChatMessage(role="user", content=message.user_query),
             ChatMessage(role="assistant", content=result.content)
         ])
+        update_chat_time(chat)
 
 
 async def cleanup_old_sessions(delay_seconds=3600):

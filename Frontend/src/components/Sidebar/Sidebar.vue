@@ -9,6 +9,11 @@
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
+            <i @click="SidebarManager.toggleView('chats')"
+               class="fa fa-message sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarChats')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
+
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
@@ -49,6 +54,17 @@
                     :is-platform-connected="connected"
                     @update-platform-info="this.handleUpdatePlatformInfo"
                     ref="info"
+                />
+
+                <SidebarChats
+                    v-show="SidebarManager.isViewSelected('chats')"
+                    :selected-chat-id="this.selectedChatId"
+                    :is-finished="this.isFinished"
+                    @select-chat="chatId => this.$emit('select-chat', chatId)"
+                    @delete-chat="chatId => this.$emit('delete-chat', chatId)"
+                    @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
+                    @new-chat="() => this.$emit('new-chat')"
+                    ref="chats"
                 />
 
                 <!-- sample questions -->
@@ -102,10 +118,12 @@ import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
+import SidebarChats from "./SidebarChats.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarChats,
         SidebarFaq,
         SidebarDebug,
         SidebarInfo,
@@ -117,10 +135,16 @@ export default {
         backend: String,
         language: String,
         connected: Boolean,
+        selectedChatId: String,
+        isFinished: Boolean,
     },
     emits: [
         'select-question',
         'select-category',
+        'select-chat',
+        'delete-chat',
+        'rename-chat',
+        'new-chat',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();

@@ -60,7 +60,6 @@ let config = {
  */
 function parseEnvBool(name, defaultValue = false) {
     const value = import.meta.env[name];
-    console.log(name, value);
     return (value?.toLowerCase() === 'true') ?? defaultValue;
 }
 

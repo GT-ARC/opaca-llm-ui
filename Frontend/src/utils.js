@@ -23,23 +23,36 @@ class BackendClient {
 
     // chat
 
-    async query(backend, user_query, store_in_history = true) {
-        const body = {user_query: user_query, store_in_history: store_in_history};
-        return await this.sendRequest("POST", `${backend}/query`, body);
+    async query(chatId, backend, user_query) {
+        const body = {user_query: user_query};
+        return await this.sendRequest("POST", `chats/${chatId}/query/${backend}`, body);
     }
-    
+
+    async queryNoChat(backend, user_query) {
+        const body = {user_query: user_query};
+        return await this.sendRequest("POST", `query/${backend}`, body);
+    }
+
     // TODO query stream
 
     async stop() {
-        await this.sendRequest("POST", "stop");
+        await this.sendRequest("POST", `stop`);
     }
 
-    async history() {
-        return await this.sendRequest("GET", "history");
+    async chats() {
+        return await this.sendRequest("GET", "chats");
     }
 
-    async reset() {
-        await this.sendRequest("POST", "reset");
+    async history(chatId) {
+        return await this.sendRequest("GET", `chats/${chatId}`);
+    }
+
+    async delete(chatId) {
+        await this.sendRequest("DELETE", `chats/${chatId}`);
+    }
+
+    async updateName(chatId, newName) {
+        await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
     async uploadFiles(files) {
@@ -65,15 +78,15 @@ class BackendClient {
     // config
 
     async getConfig(backend) {
-        return await this.sendRequest('GET', `${backend}/config`);
+        return await this.sendRequest('GET', `config/${backend}`);
     }
 
     async updateConfig(backend, config) {
-        return await this.sendRequest('PUT', `${backend}/config`, config);
+        return await this.sendRequest('PUT', `config/${backend}`, config);
     }
 
     async resetConfig(backend) {
-        return await this.sendRequest('POST', `${backend}/config/reset`);
+        return await this.sendRequest('DELETE', `config/${backend}`);
     }
 
     // internal helper
