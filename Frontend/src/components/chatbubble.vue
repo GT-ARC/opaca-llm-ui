@@ -228,6 +228,9 @@ export default {
     },
 
     methods: {
+        /**
+         * @returns {HTMLElement}
+         */
         getElement() {
             return document.getElementById(this.elementId);
         },

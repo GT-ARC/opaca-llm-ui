@@ -64,6 +64,7 @@
                     @delete-chat="chatId => this.$emit('delete-chat', chatId)"
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
+                    @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
                     ref="chats"
                 />
 
@@ -145,6 +146,7 @@ export default {
         'delete-chat',
         'rename-chat',
         'new-chat',
+        'goto-search-result',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();

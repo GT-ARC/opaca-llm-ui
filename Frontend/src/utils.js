@@ -89,6 +89,10 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${backend}`);
     }
 
+    async search(query) {
+        return await this.sendRequest("POST", `search?query=${query}`);
+    }
+
     // internal helper
 
     async sendRequest(method, path, body = null, timeout = 10000) {

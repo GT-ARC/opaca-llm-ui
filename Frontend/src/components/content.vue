@@ -24,6 +24,7 @@
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
             @new-chat="() => this.startNewChat()"
+            @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
 
@@ -565,7 +566,7 @@ export default {
         },
 
         async loadHistory(chatId) {
-            if (!chatId) return;
+            if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
 
@@ -630,6 +631,23 @@ export default {
             this.showExampleQuestions = true;
             Localizer.reloadSampleQuestions(null);
             this.$refs.textInputRef.focus();
+        },
+
+        scrollToMessage(messageId) {
+            const elementId = this.messages[messageId]?.elementId;
+            const ref = this.$refs[elementId]?.[0];
+            if (ref) {
+                ref.getElement().scrollIntoView({ behavior: 'smooth' });
+            }
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+        },
+
+        async gotoSearchResult(chatId, messageId) {
+            await this.loadHistory(chatId);
+            await nextTick();
+            this.scrollToMessage(messageId);
         },
 
     },
