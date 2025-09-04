@@ -23,7 +23,8 @@ from starlette.websockets import WebSocket
 from typing import List, Union
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
+    SearchResult
 from .toolllm import *
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
@@ -140,6 +141,39 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 async def stop_query(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
+
+
+@app.post("/search", description="Search through all chats for a given query.")
+async def search_chats(request: Request, response: FastAPIResponse, query: str) -> List[SearchResult]:
+    def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
+        start = max(0, index - buffer_length)
+        stop = min(len(text), index + len(query) + buffer_length)
+        excerpt = message.content[start:stop]
+        if start > 0:
+            excerpt = f'...{excerpt}'
+        if stop < len(text):
+            excerpt = f'{excerpt}...'
+        return excerpt
+
+    session = await handle_session_id(request, response)
+    results = []
+    query = query.lower()
+    for chat in session.chats.values():
+        for message_id, message in enumerate(chat.messages):
+            start = 0
+            while start < len(message.content):
+                index = message.content.lower().find(query, start)
+                if index >= 0:
+                    results.append(SearchResult(
+                        chat_id=chat.chat_id,
+                        chat_name=chat.name,
+                        message_id=message_id,
+                        excerpt=make_excerpt(message.content, query, index),
+                    ))
+                    start = index + len(query)
+                else:
+                    break
+    return results
 
 ### CHAT ROUTES
 

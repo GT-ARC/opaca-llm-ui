@@ -278,6 +278,13 @@ class ConfigPayload(BaseModel):
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
 
 
+class SearchResult(BaseModel):
+    chat_id: str
+    chat_name: str
+    message_id: int
+    excerpt: str
+
+
 class OpacaException(Exception):
     """
     Custom Exception class that allows to return both a user-message (shown directly in the chat bubble)
