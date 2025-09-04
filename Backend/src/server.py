@@ -143,7 +143,7 @@ async def stop_query(request: Request, response: FastAPIResponse) -> None:
 
 ### CHAT ROUTES
 
-@app.get("/chats", description="Get available chat, just their names and IDs, but NOT the messages.")
+@app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
 async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
     session = await handle_session_id(request, response)
     chats = [
@@ -312,9 +312,8 @@ def create_chat_name(chat: Chat | None, message: Message | None) -> None:
             else message.user_query)
 
 
-def update_chat_time(chat: Chat | None) -> None:
-    if chat is not None:
-        chat.time_modified = datetime.now(tz=UTC)
+def update_chat_time(chat: Chat) -> None:
+    chat.time_modified = datetime.now(tz=UTC)
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
