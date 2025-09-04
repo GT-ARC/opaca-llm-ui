@@ -35,7 +35,7 @@ class BackendClient {
 
     // TODO query stream
 
-    async stop(chatId) {
+    async stop() {
         await this.sendRequest("POST", `stop`);
     }
 

@@ -260,7 +260,7 @@ export default {
         },
 
         async stopGeneration() {
-            await backendClient.stop(this.selectedChatId);
+            await backendClient.stop();
         },
 
         async askSampleQuestion(questionText) {
@@ -568,10 +568,9 @@ export default {
             if (!chatId) return;
             try {
                 const res = await backendClient.history(chatId);
-                const messages = res.messages;
 
                 this.messages = [];
-                for (const msg of messages) {
+                for (const msg of res.messages) {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
                 }
