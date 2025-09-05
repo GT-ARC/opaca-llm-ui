@@ -155,6 +155,7 @@ async def search_chats(request: Request, response: FastAPIResponse, query: str) 
             excerpt = f'{excerpt}...'
         return excerpt
 
+    if len(query) < 1: return []
     session = await handle_session_id(request, response)
     results = []
     query = query.lower()

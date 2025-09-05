@@ -11,7 +11,7 @@
         />
 
         <div v-if="this.searchResults?.length > 0" class="search-result-list">
-            <div v-for="result in searchResults" :key="JSON.stringify(result)"
+            <div v-for="(result, index) in searchResults" :key="index"
                  class="search-result" @click="this.gotoResult(result)" >
                 <div class="small" style="color: var(--secondary-color)">
                     {{ result.chat_name }}
@@ -21,11 +21,13 @@
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 </template>
 
 <script>
+import conf from "../../config.js";
 import backendClient from "../utils.js";
 
 export default {
@@ -40,13 +42,19 @@ export default {
             searchResults: [],
         };
     },
+    setup() {
+        return { conf };
+    },
     emits: [
         'stop-search',
         'goto-search-result',
     ],
     methods: {
+        Localizer() {
+            return Localizer
+        },
         async updateSearchResults() {
-            if (this.searchText.length < 4) return;
+            if (this.searchText.length < 3) return;
             this.searchResults = await backendClient.search(this.searchText);
         },
 

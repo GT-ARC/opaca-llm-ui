@@ -609,7 +609,7 @@ export default {
         },
 
         async handleDeleteChat(chatId) {
-            this.startNewChat();
+            await this.startNewChat();
             await backendClient.delete(chatId);
             await this.$refs.sidebar.$refs.chats.updateChats(chatId);
         },
@@ -622,14 +622,19 @@ export default {
             }
         },
 
-        startNewChat() {
-            if (this.newChat) return;
-            this.selectedChatId = uuid.v4();
-            this.newChat = true;
-            this.messages = [];
-            this.textInput = '';
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
+        async startNewChat() {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            if (!this.newChat) {
+                this.selectedChatId = uuid.v4();
+                this.newChat = true;
+                this.messages = [];
+                this.textInput = '';
+                this.showExampleQuestions = true;
+                Localizer.reloadSampleQuestions(null);
+            }
+            await nextTick();
             this.$refs.textInputRef.focus();
         },
 

@@ -79,9 +79,9 @@ export default {
             this.isEditingName = false;
             const name = this.nameInput;
             this.$emit('rename-chat', this.chatId, this.nameInput);
-            console.log('rename-chat', this.chatId, name);
             const input = this.$refs.nameInput;
             input.disabled = true;
+            input.scrollLeft = 0;
             input.blur();
             this.nameInput = name; // reset input after blur triggered cancel
         },
