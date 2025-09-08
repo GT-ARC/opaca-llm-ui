@@ -37,6 +37,7 @@
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
                         v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
@@ -574,6 +575,7 @@ export default {
                 for (const msg of res.messages) {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
+                    console.log(isUser, msg.content);
                 }
 
                 if (this.messages.length !== 0) {
@@ -641,11 +643,14 @@ export default {
         scrollToMessage(messageId) {
             const elementId = this.messages[messageId]?.elementId;
             const ref = this.$refs[elementId]?.[0];
-            if (ref) {
-                ref.getElement().scrollIntoView({ behavior: 'smooth' });
-            }
-            if (this.isMobile) {
+            const messageDiv = ref?.getElement();
+            if (!messageDiv) return;
+            if (this.isMobile) { // scrollIntoView doesnt work reliably on mobile browsers
                 SidebarManager.close();
+                const container = document.getElementById('chat1');
+                container.scrollTop = messageDiv.offsetTop - container.offsetTop;
+            } else {
+                messageDiv.scrollIntoView({ behavior: 'smooth' });
             }
         },
 

@@ -228,7 +228,7 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")
-async def search_chats(request: Request, response: FastAPIResponse, query: str) -> List[SearchResult]:
+async def search_chats(request: Request, response: FastAPIResponse, query: str) -> Dict[str, List[SearchResult]]:
     def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
         start = max(0, index - buffer_length)
         stop = min(len(text), index + len(query) + buffer_length)
@@ -239,15 +239,17 @@ async def search_chats(request: Request, response: FastAPIResponse, query: str) 
             excerpt = f'{excerpt}...'
         return excerpt
 
-    if len(query) < 1: return []
+    if len(query) < 1: return {}
     session = await handle_session_id(request, response)
-    results = []
+    results = {}
     query = query.lower()
     for chat in session.chats.values():
         for message_id, message in enumerate(chat.messages):
             index = -1
             while (index := message.content.lower().find(query, index+1)) >= 0:
-                results.append(SearchResult(
+                if chat.chat_id not in results:
+                    results[chat.chat_id] = []
+                results[chat.chat_id].append(SearchResult(
                     chat_id=chat.chat_id,
                     chat_name=chat.name,
                     message_id=message_id,

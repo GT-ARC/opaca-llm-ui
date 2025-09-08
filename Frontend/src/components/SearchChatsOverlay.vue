@@ -10,13 +10,12 @@
                @keyup.enter="this.updateSearchResults"
         />
 
-        <div v-if="this.searchResults?.length > 0" class="search-result-list">
-            <div v-for="(result, index) in searchResults" :key="index"
-                 class="search-result" @click="this.gotoResult(result)" >
+        <div v-if="Array.from(Object.keys(this.searchResults)).length > 0" class="search-result-list">
+            <div v-for="(results, chatId) in searchResults" :key="chatId">
                 <div class="small" style="color: var(--secondary-color)">
-                    {{ result.chat_name }}
+                    {{ results?.[0].chat_name }}
                 </div>
-                <div>
+                <div v-for="(result, index) in results" :key="index" class="search-result" @click="this.gotoResult(result)">
                     {{ result.excerpt }}
                 </div>
             </div>
@@ -29,6 +28,7 @@
 <script>
 import conf from "../../config.js";
 import backendClient from "../utils.js";
+import Localizer from "../Localizer.js";
 
 export default {
     name: "SearchChatsOverlay",
@@ -43,19 +43,18 @@ export default {
         };
     },
     setup() {
-        return { conf };
+        return { conf, Localizer };
     },
     emits: [
         'stop-search',
         'goto-search-result',
     ],
     methods: {
-        Localizer() {
-            return Localizer
-        },
         async updateSearchResults() {
+            this.searchResults = [];
             if (this.searchText.length < 3) return;
             this.searchResults = await backendClient.search(this.searchText);
+            console.log(this.searchResults);
         },
 
         gotoResult(result) {

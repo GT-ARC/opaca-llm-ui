@@ -90,7 +90,7 @@ class BackendClient {
     }
 
     async search(query) {
-        return await this.sendRequest("POST", `search?query=${query}`);
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
     // internal helper
