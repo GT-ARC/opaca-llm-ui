@@ -54,7 +54,6 @@ export default {
             this.searchResults = [];
             if (this.searchText.length < 3) return;
             this.searchResults = await backendClient.search(this.searchText);
-            console.log(this.searchResults);
         },
 
         gotoResult(result) {

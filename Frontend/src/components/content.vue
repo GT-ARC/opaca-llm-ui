@@ -575,7 +575,6 @@ export default {
                 for (const msg of res.messages) {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
-                    console.log(isUser, msg.content);
                 }
 
                 if (this.messages.length !== 0) {
