@@ -15,9 +15,15 @@
             :backend="backend"
             :language="language"
             :connected="connected"
-             ref="sidebar"
-             @select-question="question => this.handleSelectQuestion(question)"
-             @select-category="category => this.handleSelectCategory(category)"
+            :selected-chat-id="selectedChatId"
+            :is-finished="isFinished"
+            ref="sidebar"
+            @select-question="question => this.handleSelectQuestion(question)"
+            @select-category="category => this.handleSelectCategory(category)"
+            @select-chat="chatId => this.handleSelectChat(chatId)"
+            @delete-chat="chatId => this.handleDeleteChat(chatId)"
+            @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
+            @new-chat="() => this.startNewChat()"
         />
 
 
@@ -127,14 +133,6 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    class="btn btn-outline-danger input-area-button ms-1"
-                                    @click="resetChat"
-                                    :disabled="!isFinished || this.messages.length <= 0"
-                                    :title="Localizer.get('tooltipButtonReset')">
-                                <i class="fa fa-refresh"/>
-                            </button>
-
-                            <button type="button"
                                     v-if="AudioManager.isRecognitionSupported()"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
@@ -175,6 +173,7 @@
 
 <script>
 import {nextTick} from "vue";
+import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
@@ -182,7 +181,6 @@ import conf from '../../config'
 import backendClient from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
@@ -212,7 +210,6 @@ export default {
     data() {
         return {
             messages: [],
-            socket: null,
             textInput: '',
             isFinished: true,
             showExampleQuestions: true,
@@ -225,6 +222,8 @@ export default {
                 isUploading: false,
                 uploadedFileName: '',
             },
+            selectedChatId: '',
+            newChat: false,
         }
     },
     methods: {
@@ -254,6 +253,9 @@ export default {
                 this.selectedFiles = [];
                 this.uploadStatus.uploadedFileName = '';
                 this.uploadStatus.isUploading = false;
+
+                // update chats list
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
@@ -290,6 +292,7 @@ export default {
         async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
+            this.newChat = false;
 
             // add user chat bubble
             await this.addChatBubble(userText, true, false, files);
@@ -304,12 +307,12 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`;
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
+                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.getBackend()}`;
+                const socket = new WebSocket(url);
+                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
+                socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                socket.onclose   = ()    => this.handleStreamingSocketClose();
+                socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -402,6 +405,7 @@ export default {
             this.startAutoSpeak();
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         async handleStreamingSocketError(error) {
@@ -413,6 +417,7 @@ export default {
 
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         startAutoSpeak() {
@@ -559,22 +564,21 @@ export default {
             });
         },
 
-        async loadHistory() {
+        async loadHistory(chatId) {
+            if (!chatId) return;
             try {
-                const res = await fetch(`${conf.BackendAddress}/history`, {
-                    credentials: 'include'
-                });
+                const res = await backendClient.history(chatId);
 
-                if (!res.ok) throw new Error("Failed to fetch history");
-
-                const messages = await res.json();
-
-                for (const msg of messages) {
+                this.messages = [];
+                for (const msg of res.messages) {
                     const isUser = msg.role === 'user';
                     await this.addChatBubble(msg.content, isUser);
                 }
-                if(messages.length !== 0) {
+
+                if (this.messages.length !== 0) {
                     this.showExampleQuestions = false;
+                    this.selectedChatId = chatId;
+                    this.newChat = false;
                 }
             } catch (err) {
                 console.error("Failed to load chat history:", err);
@@ -596,11 +600,42 @@ export default {
                 this.selectedCategory = category;
                 this.$emit('select-category', category);
             }
-        }
+        },
+
+        async handleSelectChat(chatId) {
+            await this.loadHistory(chatId);
+            this.$refs.textInputRef.focus();
+        },
+
+        async handleDeleteChat(chatId) {
+            this.startNewChat();
+            await backendClient.delete(chatId);
+            await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+        },
+
+        async handleRenameChat(chatId, newName) {
+            try {
+                await backendClient.updateName(chatId, newName);
+            } finally {
+                await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+            }
+        },
+
+        startNewChat() {
+            if (this.newChat) return;
+            this.selectedChatId = uuid.v4();
+            this.newChat = true;
+            this.messages = [];
+            this.textInput = '';
+            this.showExampleQuestions = true;
+            Localizer.reloadSampleQuestions(null);
+            this.$refs.textInputRef.focus();
+        },
+
     },
 
     mounted() {
-        this.loadHistory();
+        this.startNewChat();
         this.updateScrollbarThumb();
     },
     watch: {

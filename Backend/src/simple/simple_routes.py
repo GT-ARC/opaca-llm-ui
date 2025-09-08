@@ -6,7 +6,7 @@ import json
 from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
-from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
+from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 class SimpleBackend(AbstractMethod):
     NAME = "simple"
 
-    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = Response(query=message)
@@ -74,7 +74,7 @@ class SimpleBackend(AbstractMethod):
                 agent="assistant",
                 system_prompt=prompt,
                 messages=[
-                    *session.messages,
+                    *chat.messages,
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],

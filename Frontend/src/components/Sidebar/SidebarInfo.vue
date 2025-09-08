@@ -1,6 +1,5 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto"
->
+<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
         {{ Localizer.get('tooltipSidebarInfo') }}
     </div>
@@ -49,7 +48,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.query("simple-tools", Localizer.get('platformInfoRequest'), false);
+                const response = await backendClient.queryNoChat("simple-tools", Localizer.get('platformInfoRequest'), false);
                 const answer = response.agent_messages[0].content;
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {

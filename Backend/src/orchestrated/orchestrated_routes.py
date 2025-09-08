@@ -16,7 +16,7 @@ from .prompts import (
 )
 from ..abstract_method import AbstractMethod
 
-from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage
+from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat
 
 from .agents import (
     OrchestratorAgent,
@@ -385,7 +385,7 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query_stream(self, message: str, session: SessionData, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
         """Process a user message using multiple agents and stream intermediate results"""
 
         # Initialize response
@@ -418,7 +418,7 @@ Now, using the tools available to you and the previous results, continue with yo
             # Initialize Orchestrator
             orchestrator = OrchestratorAgent(
                 agent_summaries=agent_details,
-                chat_history=session.messages,  # Pass chat history to orchestrator
+                chat_history=chat.messages,  # Pass chat history to orchestrator
                 tools=orchestrator_tools,
             )
             
