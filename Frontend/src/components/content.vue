@@ -29,7 +29,18 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
+            @dragover.prevent="() => toggleFileDropOverlay(true)"
+            @dragenter.prevent="() => toggleFileDropOverlay(true)">
+
+            <!-- File Drop Overlay -->
+            <div v-if="showFileDropOverlay" id="fileDropOverlay"
+                 @dragleave.prevent="() => toggleFileDropOverlay(false)"
+                 @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
+                <div id="overlayContent">
+                    <p>Drop files here to upload</p>
+                </div>
+            </div>
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
@@ -92,10 +103,7 @@
             </div>
 
             <!-- Input Area with drag and drop -->
-            <div class="input-container"
-                @dragover.prevent
-                @dragenter.prevent
-                @drop.prevent="e => uploadFiles(e.dataTransfer.files)">
+            <div class="input-container">
 
                 <div class="input-area"
                      @click="this.$refs.textInputRef?.focus()" >
@@ -127,6 +135,7 @@
                                 class="d-none"
                                 :disabled="!this.isFinished"
                                 @change="e => uploadFiles(e.target.files)"
+                                multiple
                             />
                         </label>
 
@@ -224,6 +233,7 @@ export default {
             },
             selectedChatId: '',
             newChat: false,
+            showFileDropOverlay: false,
         }
     },
     methods: {
@@ -318,6 +328,10 @@ export default {
             }
         },
 
+        async toggleFileDropOverlay(show) {
+            this.showFileDropOverlay = show;
+        },
+
         async uploadFiles(fileList) {
             const files = Array.from(fileList);
 
@@ -332,7 +346,7 @@ export default {
             this.uploadStatus.isUploading = true;
 
             // Save selected files to state
-            // Files will remain here while component instance is alive (i.e. till page reload)   
+            // Files will remain here while component instance is alive (i.e. till page reload)
             this.selectedFiles.push(...pdfFiles);
 
             try {
@@ -770,6 +784,28 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
+}
+
+#fileDropOverlay {
+    position: absolute;
+    display: flex;
+    height: 100%;
+    width: 100%;
+    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
+    color: var(--primary-color);
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    transition: opacity 0.2s ease;
+}
+
+#overlayContent {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 40px 60px;
+    font-size: 1.25rem;
+    text-align: center;
+    pointer-events: none;
 }
 
 .sample-questions {
