@@ -11,7 +11,7 @@
         />
 
         <div v-if="Array.from(Object.keys(this.searchResults)).length > 0" class="search-result-list">
-            <div v-for="(results, chatId) in searchResults" :key="chatId">
+            <div v-for="(results, chatId) in searchResults" :key="chatId" class="mt-3">
                 <div class="small" style="color: var(--secondary-color)">
                     {{ results?.[0].chat_name }}
                 </div>
@@ -39,7 +39,8 @@ export default {
     data() {
         return {
             searchText: '',
-            searchResults: [],
+            searchResults: {},
+            isLoadingResults: false,
         };
     },
     setup() {
@@ -51,9 +52,19 @@ export default {
     ],
     methods: {
         async updateSearchResults() {
-            this.searchResults = [];
-            if (this.searchText.length < 3) return;
-            this.searchResults = await backendClient.search(this.searchText);
+            if (this.searchText.length < 3) {
+                this.searchResults = {};
+                return;
+            }
+            try {
+                this.isLoadingResults = true;
+                this.searchResults = await backendClient.search(this.searchText);
+            } catch (error) {
+                console.error(error);
+                this.searchResults = {};
+            } finally {
+                this.isLoadingResults = false;
+            }
         },
 
         gotoResult(result) {
@@ -62,7 +73,8 @@ export default {
 
         clear() {
             this.searchText = '';
-            this.searchResults = [];
+            this.searchResults = {};
+            this.isLoadingResults = false;
         },
     },
     mounted() {
@@ -87,7 +99,7 @@ export default {
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5); /* backdrop dim */
-    z-index: 10050;
+    z-index: 3000;
     display: flex;
     justify-content: center;
     align-items: flex-start;

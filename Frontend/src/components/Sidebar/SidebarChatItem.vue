@@ -185,7 +185,6 @@ export default {
     align-self: flex-end;
     border-radius: 1rem !important;
     cursor: not-allowed;
-    z-index: 9999 !important;
 }
 
 .chat-menu-button:hover {
