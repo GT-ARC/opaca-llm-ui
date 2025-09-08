@@ -127,7 +127,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
 
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+async def query_general(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
@@ -143,38 +143,10 @@ async def stop_query(request: Request, response: FastAPIResponse) -> None:
     session.abort_sent = True
 
 
-@app.post("/search", description="Search through all chats for a given query.")
-async def search_chats(request: Request, response: FastAPIResponse, query: str) -> List[SearchResult]:
-    def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
-        start = max(0, index - buffer_length)
-        stop = min(len(text), index + len(query) + buffer_length)
-        excerpt = message.content[start:stop]
-        if start > 0:
-            excerpt = f'...{excerpt}'
-        if stop < len(text):
-            excerpt = f'{excerpt}...'
-        return excerpt
-
-    if len(query) < 1: return []
-    session = await handle_session_id(request, response)
-    results = []
-    query = query.lower()
-    for chat in session.chats.values():
-        for message_id, message in enumerate(chat.messages):
-            start = 0
-            while start < len(message.content):
-                index = message.content.lower().find(query, start)
-                if index >= 0:
-                    results.append(SearchResult(
-                        chat_id=chat.chat_id,
-                        chat_name=chat.name,
-                        message_id=message_id,
-                        excerpt=make_excerpt(message.content, query, index),
-                    ))
-                    start = index + len(query)
-                else:
-                    break
-    return results
+@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
+async def reset_all():
+    async with sessions_lock:
+        sessions.clear()
 
 ### CHAT ROUTES
 
@@ -197,7 +169,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 
 
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
+async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     create_chat_name(chat, message)
@@ -255,10 +227,34 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
         return False
 
 
-@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
-async def reset_all():
-    async with sessions_lock:
-        sessions.clear()
+@app.post("/chats/search", description="Search through all chats for a given query.")
+async def search_chats(request: Request, response: FastAPIResponse, query: str) -> List[SearchResult]:
+    def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
+        start = max(0, index - buffer_length)
+        stop = min(len(text), index + len(query) + buffer_length)
+        excerpt = message.content[start:stop]
+        if start > 0:
+            excerpt = f'...{excerpt}'
+        if stop < len(text):
+            excerpt = f'{excerpt}...'
+        return excerpt
+
+    if len(query) < 1: return []
+    session = await handle_session_id(request, response)
+    results = []
+    query = query.lower()
+    for chat in session.chats.values():
+        for message_id, message in enumerate(chat.messages):
+            index = -1
+            while (index := message.content.lower().find(query, index+1)) >= 0:
+                results.append(SearchResult(
+                    chat_id=chat.chat_id,
+                    chat_name=chat.name,
+                    message_id=message_id,
+                    excerpt=make_excerpt(message.content, query, index),
+                ))
+
+    return results
 
 ## CONFIG ROUTES
 
