@@ -40,5 +40,4 @@ Further arbitrary agents could also be ingested into the backend to make answeri
 - `backend.py`: Contains the core logic of the orchestration method. Further handles connection and routing.
 - `agents.py`: Defines agent specific properties such as message structure or response schema.
 - `models.py`: Defines the Pydantic models for data structures used specifically in the multi-agent system (tasks, plans, results, etc.).
-- `model_config.yaml`: Contains specific model configurations for the different agents within the multi-agent system.
 - `prompts.py`: Contains the system prompts for each agent type that define their behaviour and responsibilities.

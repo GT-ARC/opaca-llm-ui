@@ -22,7 +22,8 @@ from starlette.websockets import WebSocket
 
 from typing import List, Union
 
-from .utils import validate_config_input, exception_to_result
+
+from .utils import validate_config_input, exception_to_result, get_supported_models
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat
 from .toolllm import *
 from .simple import SimpleBackend
@@ -78,6 +79,12 @@ logger = logging.getLogger("uvicorn")
 async def get_backends() -> list:
     return list(BACKENDS)
 
+@app.get("/models", description="Get supported models, grouped by LLM server URL")
+async def get_models() -> dict[str, list[str]]:
+    return {
+        url: models
+        for url, _key, models in get_supported_models()
+    }
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: FastAPIResponse, connect: ConnectInfo) -> int:
@@ -130,7 +137,6 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        await BACKENDS[backend].init_models(session)
         return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
     except Exception as e:
         return exception_to_result(message.user_query, e)
@@ -169,7 +175,6 @@ async def query(request: Request, response: FastAPIResponse, backend: str, chat_
     session.abort_sent = False
     result = None
     try:
-        await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query(message.user_query, session, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
@@ -190,7 +195,6 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         data = await websocket.receive_json()
         message = Message(**data)
         create_chat_name(chat, message)
-        await BACKENDS[backend].init_models(session)
         result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
         result = exception_to_result(message.user_query, e)

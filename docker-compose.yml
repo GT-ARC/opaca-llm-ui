@@ -27,7 +27,9 @@ services:
       - "3001:3001"
     environment:
       OPENAI_API_KEY:
-      VLLM_API_KEY:
+      LLM_URLS:
+      LLM_APIKEYS:
+      LLM_MODELS:
       CORS_WHITELIST:
 
   # TTS Server for voice synthesis

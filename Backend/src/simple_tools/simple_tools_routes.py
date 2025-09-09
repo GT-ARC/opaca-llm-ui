@@ -57,7 +57,6 @@ class SimpleToolsBackend(AbstractMethod):
             # call the LLM with function-calling enabled
             result = await self.call_llm(
                 session=session,
-                client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=SYSTEM_PROMPT,
@@ -100,8 +99,7 @@ class SimpleToolsBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
+            "model": self.make_llm_config_param(),
             "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
             "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
         }
