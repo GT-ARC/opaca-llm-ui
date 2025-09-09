@@ -39,6 +39,7 @@
                  @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
                 <div id="overlayContent">
                     <p>{{ Localizer.get("dropFiles") }}</p>
+                    <span class="fa fa-file-pdf" />
                 </div>
             </div>
 
@@ -804,10 +805,7 @@ export default {
 }
 
 #overlayContent {
-    border: 2px dashed var(--border-color);
-    border-radius: 12px;
-    padding: 40px 60px;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     text-align: center;
     pointer-events: none;
 }
