@@ -789,14 +789,18 @@ export default {
 #fileDropOverlay {
     position: absolute;
     display: flex;
-    height: 100%;
-    width: 100%;
+    height: calc(100% - 2rem); /* room for margin + border */
+    width: calc(100% - 2rem); /* room for margin + border */
     background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
     color: var(--primary-color);
     align-items: center;
     justify-content: center;
     z-index: 2000;
     transition: opacity 0.2s ease;
+    backdrop-filter: blur(3px);
+    border: 3px dashed var(--primary-color);
+    border-radius: 1rem;
+    margin: 1rem;
 }
 
 #overlayContent {
