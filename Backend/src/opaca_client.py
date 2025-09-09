@@ -1,10 +1,13 @@
 import decimal
 import functools
+import logging
 
 import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
+
+logger = logging.getLogger(__name__)
 
 class OpacaClient:
     """
@@ -24,18 +27,20 @@ class OpacaClient:
         try:
             await self._get_token(user, pwd)
             await self.get_actions_simple()
+            logger.info(f"Connected to {url}")
             return 200
         except httpx.ConnectError as e:
-            print("COULD NOT CONNECT", e)
+            logger.warning(f"Could not connect: {e}")
             return 404
         except httpx.HTTPStatusError as e:
-            print("CONNECTED WITH ERROR", e)
+            logger.warning(f"Connected with error: {e}")
             return e.response.status_code if e.response is not None else 400
 
     async def disconnect(self) -> None:
         """Clears authentication and connection state."""
         self.token = None
         self.url = None
+        logger.info(f"Disconnected")
 
     async def get_actions(self) -> dict:
         """Get actions of OPACA agents, in original OPACA format."""
@@ -47,7 +52,7 @@ class OpacaClient:
             res.raise_for_status()
             return res.json()
         except Exception as e:
-            print("COULD NOT GET ACTIONS", e)
+            logger.error(f"Could not get Actions: {e}")
             raise e
 
     async def get_actions_simple(self) -> dict[str, List[Dict[str, Any]]]:
@@ -61,6 +66,8 @@ class OpacaClient:
         inlined directly into the action JSON instead of being a separate block.
         """
         try:
+            if not self.url:
+                return {}
             async with httpx.AsyncClient() as client:
                 res = await client.get(f"{self.url}/v3/api-docs/actions", headers=self._headers())
             res.raise_for_status()
@@ -70,8 +77,8 @@ class OpacaClient:
             else:
                 return res.json()
         except Exception as e:
-            print("COULD NOT GET ACTIONS", e)
-            return {}
+            logger.error(f"Could not get Actions: {e}")
+            raise e
 
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         """Invoke the given OPACA agent at the given agent (or any agent) with given parameters."""
