@@ -131,18 +131,17 @@ export function shuffleArray(array) {
  * @param {*} text new message text
  * @param {*} type new message type 
  */
-export function addDebugMessage(debugMessages, text, type) {
+export function addDebugMessage(debugMessages, text, type, id=null) {
     if (! text) return;
-    const message = {text: text, type: type};
+    const message = {text: text, type: type, id: id};
 
     // if there are no messages yet, just push the new one
     if (debugMessages.length === 0) {
         debugMessages.push(message);
     } else {
         const lastMessage = debugMessages[debugMessages.length - 1];
-        if (lastMessage.type === type) {
-            // if the type is the same, the new message is a continuation of the last message
-            if (/^Tool \d+/.test(text)) {
+        if (id != null && lastMessage.id === id) {
+            if (/Tool \d/.test(text)) {
                 lastMessage.text = text;  // replace
             } else {
                 lastMessage.text += text; // append

@@ -191,9 +191,9 @@ export default {
             });
         },
 
-        addDebugMessage(text, type) {
+        addDebugMessage(text, type, id=null) {
             if (!this.$refs.debug) return;
-            this.$refs.debug.addDebugMessage(text, type);
+            this.$refs.debug.addDebugMessage(text, type, id);
         },
 
         clearDebugMessage() {

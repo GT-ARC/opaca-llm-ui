@@ -59,8 +59,8 @@ export default {
                 debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
         },
 
-        addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type);
+        addDebugMessage(text, type, id=null) {
+            addDebugMessage(this.debugMessages, text, type, id);
         },
 
         clearDebugMessage() {

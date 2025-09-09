@@ -539,22 +539,22 @@ export default {
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
-                this.addDebug(toolOutput, type);
+                this.addDebug(toolOutput, type, agentMessage.id);
             }
 
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
                 const type = agentMessage.agent;
-                this.addDebug(text, type);
+                this.addDebug(text, type, agentMessage.id);
             }
         },
 
-        addDebug(text, type) {
+        addDebug(text, type, id=null) {
             const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, type);
+            sidebar.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type);
+            aiBubble.addDebugMessage(text, type, id);
         },
 
         getBackend() {
