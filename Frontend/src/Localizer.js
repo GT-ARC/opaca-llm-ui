@@ -87,6 +87,7 @@ export const localizationData = {
         tooltipEditChatName: "Edit Name",
         tooltipDeleteChat: "Delete Chat",
         confirmDeleteChat: "Are you sure that you want to delete the Chat?",
+        dropFiles: "Drop files here to upload",
     },
 
     DE: {
@@ -170,6 +171,7 @@ export const localizationData = {
         tooltipEditChatName: "Name bearbeiten",
         tooltipDeleteChat: "Chat löschen",
         confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
+        dropFiles: "Dateien hier ablegen um sie hochzuladen",
     },
 };
 
