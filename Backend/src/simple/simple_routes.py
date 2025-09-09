@@ -88,11 +88,11 @@ class SimpleBackend(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations)
+                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations-1)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
-                    content=f"The result of this step was: {tool_call['result']}",
-                    tools=[tool_call]
+                    content=f"\nThe result of this step was: {tool_call['result']}",
+                    tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
                 if websocket:
                     await websocket.send_json(response.agent_messages[-1].model_dump_json())
