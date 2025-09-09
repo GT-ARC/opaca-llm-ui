@@ -38,7 +38,7 @@
                  @dragleave.prevent="() => toggleFileDropOverlay(false)"
                  @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
                 <div id="overlayContent">
-                    <p>Drop files here to upload</p>
+                    <p>{{ Localizer.get("dropFiles") }}</p>
                 </div>
             </div>
 
