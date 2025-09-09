@@ -5,7 +5,7 @@ import logging
 import sys
 from typing import List, Dict, Any, Optional, Self
 from io import BytesIO
-from datetime import datetime, tzinfo, UTC
+from datetime import datetime, tzinfo, timezone
 
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
@@ -175,8 +175,8 @@ class Chat(BaseModel):
     chat_id: str
     name: str = ''
     messages: List[ChatMessage] = []
-    time_created: datetime = datetime.now(tz=UTC)
-    time_modified: datetime = datetime.now(tz=UTC)
+    time_created: datetime = datetime.now(tz=timezone.utc)
+    time_modified: datetime = datetime.now(tz=timezone.utc)
 
 
 class SessionData(BaseModel):

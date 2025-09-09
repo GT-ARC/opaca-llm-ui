@@ -5,7 +5,7 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Dict, Any
 import asyncio
 import logging
@@ -346,7 +346,7 @@ def create_chat_name(chat: Chat | None, message: Message | None) -> None:
 
 
 def update_chat_time(chat: Chat) -> None:
-    chat.time_modified = datetime.now(tz=UTC)
+    chat.time_modified = datetime.now(tz=timezone.utc)
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
