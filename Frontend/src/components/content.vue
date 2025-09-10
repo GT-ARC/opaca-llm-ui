@@ -654,24 +654,27 @@ export default {
             this.$refs.textInputRef.focus();
         },
 
-        scrollToMessage(messageId) {
+        async scrollToMessage(messageId) {
             const elementId = this.messages[messageId]?.elementId;
             const ref = this.$refs[elementId]?.[0];
-            const messageDiv = ref?.getElement();
-            if (!messageDiv) return;
-            if (this.isMobile) { // scrollIntoView doesnt work reliably on mobile browsers
+            if (this.isMobile) {
                 SidebarManager.close();
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                const messageRect = messageDiv?.getBoundingClientRect();
                 const container = document.getElementById('chat1');
-                container.scrollTop = messageDiv.offsetTop - container.offsetTop;
+                const containerRect = container?.getBoundingClientRect();
+                container.scrollTop = messageRect.top - containerRect.top;
             } else {
+                await nextTick();
+                const messageDiv = ref?.getElement();
                 messageDiv.scrollIntoView({ behavior: 'smooth' });
             }
         },
 
         async gotoSearchResult(chatId, messageId) {
             await this.loadHistory(chatId);
-            await nextTick();
-            this.scrollToMessage(messageId);
+            await this.scrollToMessage(messageId);
         },
 
     },

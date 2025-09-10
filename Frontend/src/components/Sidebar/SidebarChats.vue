@@ -23,7 +23,7 @@
 
     <!-- "Search" button -->
     <button type="button"
-            class="btn btn-primary w-100 mt-2"
+            class="btn btn-secondary w-100 mt-2"
             @click="this.isSearching = true"
             :disabled="!this.isFinished" >
         <i class="fa fa-magnifying-glass" />
