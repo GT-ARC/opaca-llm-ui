@@ -53,6 +53,7 @@
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :files="files"
+                        :chat-id="this.selectedChatId"
                         :ref="elementId"
                     />
                 </div>

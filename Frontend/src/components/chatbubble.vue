@@ -205,6 +205,7 @@ export default {
         initialContent: String,
         initialLoading: Boolean,
         files: Array,
+        selectedChatId: String,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -267,7 +268,7 @@ export default {
         },
 
         addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type);
+            addDebugMessage(this.debugMessages, text, type, this.selectedChatId);
         },
 
         scrollDownDebugMsg() {

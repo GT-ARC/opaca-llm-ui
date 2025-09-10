@@ -131,13 +131,14 @@ export function shuffleArray(array) {
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
  * 
- * @param {*} debugMessages list of existing debug messages (modified)
- * @param {*} text new message text
- * @param {*} type new message type 
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {String} text new message text
+ * @param {String} type new message type
+ * @param {String} chatId ID of the chat the message belongs to
  */
-export function addDebugMessage(debugMessages, text, type) {
+export function addDebugMessage(debugMessages, text, type, chatId) {
     if (! text) return;
-    const message = {text: text, type: type};
+    const message = {text: text, type: type, chatId: chatId};
 
     // if there are no messages yet, just push the new one
     if (debugMessages.length === 0) {
