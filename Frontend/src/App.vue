@@ -273,11 +273,16 @@ export default {
             AudioManager.initVoiceServerConnection();
         }
 
-        if (conf.AutoConnect) {
-            this.connectToPlatform();
-        } else {
-            this.toggleConnectionDropdown(true);
-        }
+        backendClient.getConnection().then(url => {
+            if (url != null) {
+                this.connected = true;
+                this.opacaRuntimePlatform = url;
+            } else if (conf.AutoConnect) {
+                this.connectToPlatform();
+            } else {
+                this.toggleConnectionDropdown(true);
+            }
+        });
 
         if (this.isMobile) {
             SidebarManager.close()

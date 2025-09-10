@@ -13,6 +13,10 @@ class BackendClient {
         return parseInt(res);
     }
 
+    async getConnection() {
+        return await this.sendRequest("GET", "connection");
+    }
+
     async disconnect() {
         await this.sendRequest("POST", "disconnect");
     }
