@@ -92,7 +92,7 @@ async def connect(request: Request, response: FastAPIResponse, connect: ConnectI
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
-async def connect(request: Request, response: FastAPIResponse) -> str | None:
+async def get_connection(request: Request, response: FastAPIResponse) -> str | None:
     session = await handle_session_id(request, response)
     return session.opaca_client.url
 
@@ -104,7 +104,7 @@ async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResp
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
-async def actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
+async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
 
