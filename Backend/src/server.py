@@ -282,8 +282,7 @@ async def handle_session_id(source: Union[Request, WebSocket], response: FastAPI
 
         # If it's an HTTP request and you want to set a cookie
         if response is not None:
-            # samesite and secure params needed for embedding as iFrame in another site
-            response.set_cookie("session_id", session_id, max_age=max_age, samesite="none", secure=True)
+            response.set_cookie("session_id", session_id, max_age=max_age)
 
         # Return the session data for the session ID
         return sessions[session_id]
