@@ -34,12 +34,14 @@ The following values are **defaults**.
 
 ```
 {
-    "model": "gpt-4o-mini",
-    "vllm_base_url": "gpt",
+    "tool_gen_model": "gpt-4o-mini",
+    "tool_eval_model": "gpt-4o-mini",
+    "output_model": "gpt-4o-mini",
     "temperature": 0,
 }
 ```
 
-- `model`: The model name that will be used. Also supports Llama models.
-- `vllm_base_url`: The base URL of the VLLM server where the given model is running. Defaults to `gpt` to use OpenAI server instead.
+- `tool_gen_model`: The model name that will be used for tool generation. Also supports Llama models.
+- `tool_eval_model`: The model name that will be used for tool evaluation. Also supports Llama models.
+- `output_model`: The model name that will be used for output generation. Also supports Llama models.
 - `temperature`: The temperature used for the given model.

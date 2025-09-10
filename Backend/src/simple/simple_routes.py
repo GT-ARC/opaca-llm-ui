@@ -70,7 +70,6 @@ class SimpleBackend(AbstractMethod):
             
             result = await self.call_llm(
                 session=session,
-                client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=prompt,
@@ -110,8 +109,7 @@ class SimpleBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
+            "model": self.make_llm_config_param(),
             "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
             "ask_policy": ConfigParameter(type="string", required=True, default="never",
                                           enum=list(ask_policies.keys())),

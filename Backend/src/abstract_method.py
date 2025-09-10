@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
-from .utils import transform_schema
+from .utils import transform_schema, get_supported_models
 
 logger = logging.getLogger(__name__)
 
@@ -26,21 +26,28 @@ class AbstractMethod(ABC):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         pass
 
-    async def init_models(self, session: SessionData) -> None:
-        """
-        Initializes and caches single model instance based on the config parameter 'vllm_base_url'.
-        The GPT model family can use the same instance (gpt, o1, o3, ...).
-        Models are cached within the session data linked to a unique user.
+    @staticmethod
+    def make_llm_config_param(description: str = None):
+        models = [m for _, _, models in get_supported_models() for m in models]
+        return ConfigParameter(
+                type="string", 
+                required=True, 
+                default=models[0],
+                enum=models,
+                description=description)
 
-        :param session: The current session data of a unique user
-        """
-        # Initialize either OpenAI model or vllm model
-        base_url = session.config.get(self.NAME, self.default_config())["vllm_base_url"]
-        if base_url not in session.llm_clients.keys():
-            if base_url == "gpt":
-                session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
-            else:
-                session.llm_clients[base_url] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
+    async def get_llm_client(self, session: SessionData, model: str) -> AsyncOpenAI:
+        for url, key, models in get_supported_models():
+            if model in models:
+                if url not in session.llm_clients:
+                    logger.info("creating new client for URL " + url)
+                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
+                    session.llm_clients[url] = (
+                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
+                        AsyncOpenAI(api_key=key, base_url=url)
+                    )
+                return session.llm_clients[url]
+        raise Exception(f"Model not supported : {model}")
 
 
     def default_config(self):
@@ -68,7 +75,6 @@ class AbstractMethod(ABC):
     async def call_llm(
             self,
             session: SessionData,
-            client: AsyncOpenAI,
             model: str,
             agent: str,
             system_prompt: str,
@@ -85,7 +91,6 @@ class AbstractMethod(ABC):
 
         Args:
             session (SessionData): The current session
-            client (AsyncOpenAI): An already initialized OpenAI client.
             model (str): Model name (e.g., "gpt-4-turbo").
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
@@ -100,6 +105,7 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
+        client = await self.get_llm_client(session, model)
 
         # Initialize variables
         exec_time = time.time()

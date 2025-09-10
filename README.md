@@ -131,8 +131,9 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 ### Backend
 
-* `OPENAI_API_KEY`: OpenAI API key needed to use GPT models; go to [their website](https://platform.openai.com) to get one.
-* `VLLM_API_KEY`: API key for the vLLM API, if any; this is used if the `vllm_base_url` found in the configuration of the different LLM prompting methods has a value different than "gpt".
+* `LLM_URLS`: semicolon-separated list of LLM server URLs, e.g. OpenAI, vLLM, LiteLLM, etc. (must follow the OpenAI API standard); default is `"openai"`, which can be used as a stand-in for the OpenAI API URL.
+* `LLM_APIKEYS`: semicolon-separated list of API-keys for each of the above URLs; default is `""` (for `openai`, the API Key is taken from the `OPENAI_API_KEY` env var but can be overwritten here if a non-default key is explicitly provided).
+* `LLM_MODELS`: semicolon-separated list of comma-separated lists of supported models for each of the above URLs; default is `"gpt-4o-mini,gpt-4o"`.
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 
 

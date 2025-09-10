@@ -1,3 +1,5 @@
+import os
+import logging
 from typing import Dict, List, Optional, Any
 
 import jsonref
@@ -5,6 +7,8 @@ from fastapi import HTTPException
 
 from .models import ConfigParameter, ConfigArrayItem, OpacaException, Response
 
+
+logger = logging.getLogger(__name__)
 
 class Parameter:
     type: str
@@ -70,6 +74,17 @@ class Action:
         return (f'{{Name: {(self.agent_name + "--" + self.action_name) if agentName else self.action_name}, '
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
+
+
+def get_supported_models():
+    return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"), 
+            os.getenv("LLM_APIKEYS", "").split(";"), 
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
+    ]
 
 
 def add_dicts(d1: dict, d2: dict) -> dict:
@@ -220,7 +235,7 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
             try:
                 spec = jsonref.replace_refs(spec_with_ref)
             except Exception as e:
-                print(f'Error while replacing references for unknown action. Cause: {str(e)}\n')
+                logger.warning(f'Error while replacing references for unknown action. Cause: {str(e)}\n')
                 continue
 
             # 2. Extract a name for the functions
@@ -230,7 +245,7 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
                 if agent and agent_name != agent:
                     continue
             except Exception as e:
-                print(f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
+                logger.warning(f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
                       f'Cause: {str(e)}\n')
                 continue
 
@@ -239,7 +254,7 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
                 # OpenAI only allows up to 1024 characters in the description field
                 desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
             except Exception as e:
-                print(f'Error while getting description for operation ({agent_name}--{function_name}). '
+                logger.warning(f'Error while getting description for operation ({agent_name}--{function_name}). '
                       f'Cause: {str(e)}\n')
                 continue
 

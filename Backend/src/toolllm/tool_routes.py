@@ -21,8 +21,9 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "model": ConfigParameter(type="string", required=True, default='gpt-4o-mini'),
-                "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
+                "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
+                "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
+                "output_model": self.make_llm_config_param("Generating the final output"),
                 "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
                 "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
@@ -64,8 +65,7 @@ class ToolLLMBackend(AbstractMethod):
         while should_continue and c_it < max_iters:
             result = await self.call_llm(
                 session=session,
-                client=session.llm_clients[config['vllm_base_url']],
-                model=config['model'],
+                model=config['tool_gen_model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
                 messages=[
@@ -92,8 +92,7 @@ class ToolLLMBackend(AbstractMethod):
                 full_err += err_msg
                 result = await self.call_llm(
                     session=session,
-                    client=session.llm_clients[config['vllm_base_url']],
-                    model=config['model'],
+                    model=config['tool_gen_model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
                     messages=[
@@ -129,8 +128,7 @@ class ToolLLMBackend(AbstractMethod):
             if len(result.tools) > 0:
                 result = await self.call_llm(
                     session=session,
-                    client=session.llm_clients[config['vllm_base_url']],
-                    model=config['model'],
+                    model=config['tool_eval_model'],
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
@@ -166,8 +164,7 @@ class ToolLLMBackend(AbstractMethod):
 
         result = await self.call_llm(
             session=session,
-            client=session.llm_clients[config['vllm_base_url']],
-            model=config['model'],
+            model=config['output_model'],
             agent='Output Generator',
             system_prompt='',
             messages=[

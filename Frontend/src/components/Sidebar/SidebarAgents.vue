@@ -44,7 +44,7 @@
                             </button>
 
                             <!-- action body -->
-                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse action-body"
                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
                                 <p v-if="action.description">
                                     <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
@@ -106,7 +106,7 @@ export default {
 .action-header-button {
     background-color: transparent;
     color: inherit;
-    padding: 0.5rem 0;
+    padding: 0 1rem;
     border: none;
     box-shadow: none;
     text-align: left;
@@ -120,6 +120,10 @@ export default {
 
 .action-header-button::after {
     display: none;
+}
+
+.action-body {
+    padding: 0.5rem 0;
 }
 
 .json-box {
