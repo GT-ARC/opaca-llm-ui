@@ -90,7 +90,9 @@ class SimpleToolsBackend(AbstractMethod):
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
                 response.agent_messages.append(AgentMessage(agent="system", content=error))
-                response.error = +str(e)
+                response.error += f"{e}\n"
+        else:
+            response.error += "Maximum number of iterations reached.\n"
 
         response.content = result.content
         response.execution_time = time.time() - exec_time
