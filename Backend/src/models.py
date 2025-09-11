@@ -81,7 +81,7 @@ class ConnectInfo(BaseModel):
     pwd: str | None
 
 
-class Message(BaseModel):
+class QueryRequest(BaseModel):
     """
     Used as the expected body argument in the `/query/{backend}` endpoints
 
@@ -116,7 +116,7 @@ class AgentMessage(BaseModel):
     step: str = ""
 
 
-class Response(BaseModel):
+class QueryResponse(BaseModel):
     """
     The final response that will be sent back to the frontend. Contains a list of `AgentMessages`
     that were generated during the response generation as well as final response or error.
