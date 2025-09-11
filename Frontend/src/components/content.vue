@@ -535,29 +535,26 @@ export default {
             }
         },
 
-        async addDebugToken(agentMessage) {
+        async addDebugToken(agentMessage, sidebar=true, bubble=true) {
+            var text = null;
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
-                const toolOutput = agentMessage["tools"].map(tool =>
+                text = agentMessage["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
-                const type = agentMessage.agent;
-                this.addDebug(toolOutput, type, agentMessage.id);
             }
-
             // log agent message
             if (agentMessage.content) {
-                const text = agentMessage.content;
-                const type = agentMessage.agent;
-                this.addDebug(text, type, agentMessage.id);
+                text = agentMessage.content;
             }
-        },
-
-        addDebug(text, type, id=null) {
-            const debug = this.$refs.sidebar.$refs.debug;
-            debug.addDebugMessage(text, type, id);
-            const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type, id);
+            if (text) {
+                if (sidebar) {
+                    this.$refs.sidebar.$refs.debug.addDebugMessage(text, agentMessage.agent, agentMessage.id);
+                }
+                if (bubble) {
+                    this.getLastBubble().addDebugMessage(text, agentMessage.agent, agentMessage.id);
+                }
+            }
         },
 
         getBackend() {
@@ -589,8 +586,17 @@ export default {
 
                 this.messages = [];
                 for (const msg of res.messages) {
-                    const isUser = msg.role === 'user';
-                    await this.addChatBubble(msg.content, isUser);
+                    // request
+                    await this.addChatBubble(msg.query, isUser=true);
+                    // response
+                    await this.addChatBubble(msg.content, isUser=false);
+                    const bubble = this.getLastBubble();
+                    for (const x of msg.agent_messages) {
+                        this.addDebugToken(x, sidebar=false, bubble=true);
+                    }
+                    if (msg.error) {
+                        bubble.setError(msg.error);
+                    }
                 }
 
                 if (this.messages.length !== 0) {
