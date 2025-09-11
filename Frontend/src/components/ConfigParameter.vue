@@ -80,7 +80,7 @@ export default {
         configParam: Object,
 
         // is set by v-model in parent component
-        modelValue: [Boolean, Number, String, Array, Object],
+        modelValue: Object, // <- "Any" type
     },
     setup() {
         return { Localizer };
