@@ -136,7 +136,7 @@ export function shuffleArray(array) {
  * message may be added as a new message, or extend or replace the last received message.
  * 
  * @param {Array} debugMessages list of existing debug messages (modified)
- * @param {String} message new message object with fields id, type, text, chatId
+ * @param {object} message new message object with fields {id, type, text, chatId}
  */
 export function addDebugMessage(debugMessages, message) {
     if (! message || ! message.text) return;
