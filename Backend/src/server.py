@@ -5,8 +5,8 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Union
 import asyncio
 import logging
 import time
@@ -20,15 +20,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from typing import List, Union
-
-
 from .utils import validate_config_input, exception_to_result, get_supported_models
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat
-from .toolllm import *
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
+    SearchResult
+from .opaca_client import OpacaClient
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
-from .opaca_client import OpacaClient
+from .toolllm import ToolLLMBackend
 from .orchestrated import SelfOrchestratedBackend
 
 
@@ -136,8 +134,8 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
+async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
@@ -150,6 +148,12 @@ async def query(request: Request, response: FastAPIResponse, backend: str, messa
 async def stop_query(request: Request, response: FastAPIResponse) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
+
+
+@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
+async def reset_all():
+    async with sessions_lock:
+        sessions.clear()
 
 ### CHAT ROUTES
 
@@ -172,7 +176,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 
 
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
+async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     create_chat_name(chat, message)
@@ -228,10 +232,36 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
         return False
 
 
-@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
-async def reset_all():
-    async with sessions_lock:
-        sessions.clear()
+@app.post("/chats/search", description="Search through all chats for a given query.")
+async def search_chats(request: Request, response: FastAPIResponse, query: str) -> Dict[str, List[SearchResult]]:
+    def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
+        start = max(0, index - buffer_length)
+        stop = min(len(text), index + len(query) + buffer_length)
+        excerpt = message.content[start:stop]
+        if start > 0:
+            excerpt = f'...{excerpt}'
+        if stop < len(text):
+            excerpt = f'{excerpt}...'
+        return excerpt
+
+    if len(query) < 1: return {}
+    session = await handle_session_id(request, response)
+    results = {}
+    query = query.lower()
+    for chat in session.chats.values():
+        for message_id, message in enumerate(chat.messages):
+            index = -1
+            while (index := message.content.lower().find(query, index+1)) >= 0:
+                if chat.chat_id not in results:
+                    results[chat.chat_id] = []
+                results[chat.chat_id].append(SearchResult(
+                    chat_id=chat.chat_id,
+                    chat_name=chat.name,
+                    message_id=message_id,
+                    excerpt=make_excerpt(message.content, query, index),
+                ))
+
+    return results
 
 ## CONFIG ROUTES
 
@@ -321,7 +351,7 @@ def create_chat_name(chat: Chat | None, message: Message | None) -> None:
 
 
 def update_chat_time(chat: Chat) -> None:
-    chat.time_modified = datetime.now(tz=UTC)
+    chat.time_modified = datetime.now(tz=timezone.utc)
 
 
 async def store_message(chat: Chat, message: Message, result: Response):
