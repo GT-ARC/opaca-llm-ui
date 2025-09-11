@@ -279,6 +279,15 @@ class ConfigPayload(BaseModel):
 
 
 class SearchResult(BaseModel):
+    """
+    Result to some search query, showing in which chat and message the string was found.
+    
+    Attributes:
+        chat_id: id of the chat where the string was found
+        chat_name: name of the chat where the string was found
+        message_id: id of the message  where the string was found
+        excerpt: some "context" showing where the string was found
+    """
     chat_id: str
     chat_name: str
     message_id: int

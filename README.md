@@ -85,7 +85,7 @@ You can find all routes, their parameters and descriptions in the interactive Fa
 
 ### Sessions, Message History and Configuration
 
-The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM backends, i.e. if the performance of one backend is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them.
+The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM backends, i.e. if the performance of one backend is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them, and search in past and current chats.
 
 To reset the configuration, a user can click the "Reset to Default" button in the configuration view, which resets the configuration for the currently selected backend to its default values.
 

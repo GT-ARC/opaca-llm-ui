@@ -23,11 +23,10 @@ from starlette.websockets import WebSocket
 from .utils import validate_config_input, exception_to_result, get_supported_models
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
     SearchResult
-
-from .toolllm import *
+from .opaca_client import OpacaClient
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
-from .opaca_client import OpacaClient
+from .toolllm import ToolLLMBackend
 from .orchestrated import SelfOrchestratedBackend
 
 
@@ -131,8 +130,8 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
     return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
 
 
-@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query_general(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
+async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
