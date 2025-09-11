@@ -175,7 +175,7 @@ class Chat(BaseModel):
     """
     chat_id: str
     name: str = ''
-    messages: List[ChatMessage] = []
+    messages: List[QueryResponse] = []
     time_created: datetime = datetime.now(tz=timezone.utc)
     time_modified: datetime = datetime.now(tz=timezone.utc)
 

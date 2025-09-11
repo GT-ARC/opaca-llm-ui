@@ -186,7 +186,7 @@ async def query_chat(request: Request, response: Response, backend: str, chat_id
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         return result
 
 
@@ -206,7 +206,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -353,13 +353,9 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, message: Message, result: Response):
-    if message:
-        chat.messages.extend([
-            ChatMessage(role="user", content=message.user_query),
-            ChatMessage(role="assistant", content=result.content)
-        ])
-        update_chat_time(chat)
+async def store_message(chat: Chat, result: QueryResponse):
+    chat.messages.append(result)
+    update_chat_time(chat)
 
 
 async def cleanup_old_sessions(delay_seconds=3600):
