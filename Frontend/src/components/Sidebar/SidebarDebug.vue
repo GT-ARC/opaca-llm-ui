@@ -8,15 +8,17 @@
         </div>
 
         <div id="debug-console"
-             class="d-flex flex-column text-start rounded-4"
-             :class="{'p-1': this.debugMessages.length > 0}" >
-            <DebugMessage v-for="debugMessage in debugMessages"
-                          :key="debugMessage.text"
-                          :text="debugMessage.text"
-                          :type="debugMessage.type"
-                          :execution-time="debugMessage.executionTime"
-                          :response-metadata="debugMessage.responseMetadata"
-            />
+             v-if="this.getCurrentDebugMessages().length > 0"
+             class="d-flex flex-column text-start rounded-4 p-1">
+            <div v-for="(debugMessage, index) in this.getCurrentDebugMessages()"
+                 :key="`${debugMessage.text}-${index}`">
+                <DebugMessage
+                    :text="debugMessage.text"
+                    :type="debugMessage.type"
+                    :execution-time="debugMessage.executionTime"
+                    :response-metadata="debugMessage.responseMetadata"
+                />
+            </div>
         </div>
     </div>
 
@@ -31,7 +33,9 @@ import {addDebugMessage} from "../../utils.js";
 
 export default {
     name: "SidebarDebug",
-    props: {},
+    props: {
+        selectedChatId: String,
+    },
     components: {DebugMessage},
     data() {
         return {
@@ -60,7 +64,11 @@ export default {
         },
 
         addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type);
+            addDebugMessage(this.debugMessages, text, type, this.selectedChatId);
+        },
+
+        getCurrentDebugMessages() {
+            return this.debugMessages.filter(msg => msg.chatId === this.selectedChatId);
         },
 
         clearDebugMessage() {

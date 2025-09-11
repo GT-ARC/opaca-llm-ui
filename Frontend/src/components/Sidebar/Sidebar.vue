@@ -92,6 +92,7 @@
                 <!-- debug console -->
                 <SidebarDebug
                     v-show="SidebarManager.isViewSelected('debug')"
+                    :selected-chat-id="this.selectedChatId"
                     ref="debug"
                 />
 
