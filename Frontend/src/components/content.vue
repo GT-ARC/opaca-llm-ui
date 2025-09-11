@@ -24,6 +24,7 @@
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
             @new-chat="() => this.startNewChat()"
+            @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
 
@@ -48,11 +49,13 @@
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
                         v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :files="files"
+                        :chat-id="this.selectedChatId"
                         :ref="elementId"
                     />
                 </div>
@@ -309,8 +312,8 @@ export default {
             await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(userText, "user");
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -401,8 +404,8 @@ export default {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
-                    const sidebar = this.$refs.sidebar;
-                    sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    const debug = this.$refs.sidebar.$refs.debug;
+                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
@@ -551,8 +554,8 @@ export default {
         },
 
         addDebug(text, type, id=null) {
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, type, id);
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
             aiBubble.addDebugMessage(text, type, id);
         },
@@ -580,7 +583,7 @@ export default {
         },
 
         async loadHistory(chatId) {
-            if (!chatId) return;
+            if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
 
@@ -623,7 +626,7 @@ export default {
         },
 
         async handleDeleteChat(chatId) {
-            this.startNewChat();
+            await this.startNewChat();
             await backendClient.delete(chatId);
             await this.$refs.sidebar.$refs.chats.updateChats(chatId);
         },
@@ -636,15 +639,43 @@ export default {
             }
         },
 
-        startNewChat() {
-            if (this.newChat) return;
-            this.selectedChatId = uuid.v4();
-            this.newChat = true;
-            this.messages = [];
-            this.textInput = '';
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
+        async startNewChat() {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            if (!this.newChat) {
+                this.selectedChatId = uuid.v4();
+                this.newChat = true;
+                this.messages = [];
+                this.textInput = '';
+                this.showExampleQuestions = true;
+                Localizer.reloadSampleQuestions(null);
+            }
+            await nextTick();
             this.$refs.textInputRef.focus();
+        },
+
+        async scrollToMessage(messageId) {
+            const elementId = this.messages[messageId]?.elementId;
+            const ref = this.$refs[elementId]?.[0];
+            if (this.isMobile) {
+                SidebarManager.close();
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                const messageRect = messageDiv?.getBoundingClientRect();
+                const container = document.getElementById('chat1');
+                const containerRect = container?.getBoundingClientRect();
+                container.scrollTop = messageRect.top - containerRect.top;
+            } else {
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                messageDiv.scrollIntoView({ behavior: 'smooth' });
+            }
+        },
+
+        async gotoSearchResult(chatId, messageId) {
+            await this.loadHistory(chatId);
+            await this.scrollToMessage(messageId);
         },
 
     },

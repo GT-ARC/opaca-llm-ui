@@ -185,7 +185,7 @@
 </template>
 
 <script>
-import {addDebugMessage} from "../utils.js"
+import * as utils from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -205,6 +205,7 @@ export default {
         initialContent: String,
         initialLoading: Boolean,
         files: Array,
+        selectedChatId: String,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -228,6 +229,9 @@ export default {
     },
 
     methods: {
+        /**
+         * @returns {HTMLElement}
+         */
         getElement() {
             return document.getElementById(this.elementId);
         },
@@ -267,7 +271,8 @@ export default {
         },
 
         addDebugMessage(text, type, id=null) {
-            addDebugMessage(this.debugMessages, text, type, id);
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.addDebugMessage(this.debugMessages, message);
         },
 
         scrollDownDebugMsg() {

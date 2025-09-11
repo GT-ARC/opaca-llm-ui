@@ -2,10 +2,9 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
-import sys
 from typing import List, Dict, Any, Optional, Self
 from io import BytesIO
-from datetime import datetime, tzinfo, UTC
+from datetime import datetime, timezone
 import uuid
 
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
@@ -177,8 +176,8 @@ class Chat(BaseModel):
     chat_id: str
     name: str = ''
     messages: List[ChatMessage] = []
-    time_created: datetime = datetime.now(tz=UTC)
-    time_modified: datetime = datetime.now(tz=UTC)
+    time_created: datetime = datetime.now(tz=timezone.utc)
+    time_modified: datetime = datetime.now(tz=timezone.utc)
 
 
 class SessionData(BaseModel):
@@ -278,6 +277,22 @@ class ConfigPayload(BaseModel):
     """
     value: Any
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+
+
+class SearchResult(BaseModel):
+    """
+    Result to some search query, showing in which chat and message the string was found.
+    
+    Attributes:
+        chat_id: id of the chat where the string was found
+        chat_name: name of the chat where the string was found
+        message_id: id of the message  where the string was found
+        excerpt: some "context" showing where the string was found
+    """
+    chat_id: str
+    chat_name: str
+    message_id: int
+    excerpt: str
 
 
 class OpacaException(Exception):

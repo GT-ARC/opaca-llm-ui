@@ -13,6 +13,10 @@ class BackendClient {
         return parseInt(res);
     }
 
+    async getConnection() {
+        return await this.sendRequest("GET", "connection");
+    }
+
     async disconnect() {
         await this.sendRequest("POST", "disconnect");
     }
@@ -89,6 +93,10 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${backend}`);
     }
 
+    async search(query) {
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    }
+
     // internal helper
 
     async sendRequest(method, path, body = null, timeout = 10000) {
@@ -127,24 +135,23 @@ export function shuffleArray(array) {
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
  * 
- * @param {*} debugMessages list of existing debug messages (modified)
- * @param {*} text new message text
- * @param {*} type new message type 
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {String} message new message object with fields id, type, text, chatId
  */
-export function addDebugMessage(debugMessages, text, type, id=null) {
-    if (! text) return;
-    const message = {text: text, type: type, id: id};
+export function addDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    message = structuredClone(message); // since it may be modified later
 
     // if there are no messages yet, just push the new one
     if (debugMessages.length === 0) {
         debugMessages.push(message);
     } else {
         const lastMessage = debugMessages[debugMessages.length - 1];
-        if (id != null && lastMessage.id === id) {
-            if (/^Tool \d+/.test(text)) {
-                lastMessage.text = text;  // replace
+        if (message.id != null && lastMessage.id === message.id) {
+            if (/^Tool \d+/.test(message.text)) {
+                lastMessage.text = message.text;  // replace
             } else {
-                lastMessage.text += text; // append
+                lastMessage.text += message.text; // append
             }
         } else {
             // new message type

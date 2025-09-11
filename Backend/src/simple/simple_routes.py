@@ -100,7 +100,9 @@ class SimpleBackend(AbstractMethod):
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
                 response.agent_messages.append(AgentMessage(agent="assistant", content=f"There was an error: {e}"))
-                response.error += str(e)
+                response.error += f"{e}\n"
+        else:
+            response.error += "Maximum number of iterations reached.\n"
 
         response.content = result.content
         response.execution_time = time.time() - exec_time

@@ -64,6 +64,7 @@
                     @delete-chat="chatId => this.$emit('delete-chat', chatId)"
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
+                    @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
                     ref="chats"
                 />
 
@@ -91,6 +92,7 @@
                 <!-- debug console -->
                 <SidebarDebug
                     v-show="SidebarManager.isViewSelected('debug')"
+                    :selected-chat-id="this.selectedChatId"
                     ref="debug"
                 />
 
@@ -108,7 +110,6 @@
 
 <script>
 import conf, {Backends, BackendDescriptions} from '../../../config.js'
-import backendClient, {addDebugMessage} from "../../utils.js";
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -145,6 +146,7 @@ export default {
         'delete-chat',
         'rename-chat',
         'new-chat',
+        'goto-search-result',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -189,16 +191,6 @@ export default {
                 isResizing = false;
                 document.body.style.cursor = 'default';
             });
-        },
-
-        addDebugMessage(text, type, id=null) {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.addDebugMessage(text, type, id);
-        },
-
-        clearDebugMessage() {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.clearDebugMessage();
         },
 
     },

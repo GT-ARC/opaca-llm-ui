@@ -1,6 +1,6 @@
 <template>
 <div class="chat align-items-center"
-     :class="{'chat-selected': this.selectedChatId === chatId, 'chat-selectable': this.isFinished}"
+     :class="{'chat-selected': this.selectedChatId === chatId, 'chat-disabled': !this.isFinished}"
      @click="this.select()" >
     <input
         class="chat-name"
@@ -14,12 +14,12 @@
         disabled
     />
     <i class="fa fa-edit ms-auto chat-menu-button"
-       :class="{'chat-selectable': this.isFinished}"
+       :class="{'chat-disabled': !this.isFinished}"
        @click.stop="this.rename()"
        :title="Localizer.get('tooltipEditChatName')"
     />
     <i class="fa fa-remove chat-menu-button"
-       :class="{'chat-selectable': this.isFinished}"
+       :class="{'chat-disabled': !this.isFinished}"
        @click.stop="this.delete()"
        :title="Localizer.get('tooltipDeleteChat')"
     />
@@ -79,9 +79,9 @@ export default {
             this.isEditingName = false;
             const name = this.nameInput;
             this.$emit('rename-chat', this.chatId, this.nameInput);
-            console.log('rename-chat', this.chatId, name);
             const input = this.$refs.nameInput;
             input.disabled = true;
+            input.scrollLeft = 0;
             input.blur();
             this.nameInput = name; // reset input after blur triggered cancel
         },
@@ -125,19 +125,26 @@ export default {
     color: var(--text-primary-color);
 }
 
-/* overwrite when selectable */
 .chat:hover {
-    cursor: not-allowed;
+    cursor: pointer;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
 }
 
 .chat-selected {
     border-color: var(--primary-color);
 }
 
-.chat-selectable:hover {
-    border-color: var(--primary-color) !important;
-    cursor: pointer !important;
-    transform: translateY(-1px);
+.chat-disabled {
+    opacity: 0.5 !important;
+    transform: none !important;
+}
+
+.chat-disabled:hover {
+    cursor: default !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary-color) !important;
+    background-color: var(--background-color) !important;
 }
 
 .chat-name {
@@ -184,12 +191,11 @@ export default {
     justify-content: center;
     align-self: flex-end;
     border-radius: 1rem !important;
-    cursor: not-allowed;
-    z-index: 9999 !important;
+    cursor: pointer;
 }
 
 .chat-menu-button:hover {
-    background-color: var(--input-color) !important;
-    color: var(--text-danger-color) !important;
+    background-color: var(--input-color);
+    color: var(--text-danger-color);
 }
 </style>
