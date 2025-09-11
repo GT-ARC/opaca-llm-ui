@@ -21,12 +21,12 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
-                "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
-                "output_model": self.make_llm_config_param("Generating the final output"),
-                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
-               }
+            "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
+            "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
+            "output_model": self.make_llm_config_param("Generating the final output"),
+            "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0, step=0.25),
+            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10, step=1),
+       }
 
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
 

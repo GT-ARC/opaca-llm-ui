@@ -392,7 +392,7 @@ class Localizer {
     }
 
     set language(newLang) {
-        this._selectedLanguage.value = newLang;
+        this._selectedLanguage.configParam = newLang;
         this._verifySettings();
     }
 
@@ -401,7 +401,7 @@ class Localizer {
     }
 
     set fallbackLanguage(newLang) {
-        this._selectedLanguage.value = newLang;
+        this._selectedLanguage.configParam = newLang;
         this._verifySettings();
     }
 
@@ -410,7 +410,7 @@ class Localizer {
     }
 
     set randomSampleQuestions(value) {
-        this._randomSampleQuestions.value = value;
+        this._randomSampleQuestions.configParam = value;
     }
 
     get randomSampleQuestions() {

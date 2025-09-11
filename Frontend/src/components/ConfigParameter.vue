@@ -1,178 +1,111 @@
 <template>
-    <div class="config-section">
-        <div v-if="isObject">
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        class="question-mark"
-                        @mouseover="toggleTooltip"
-                        @mouseleave="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-            <div v-for="(subValue, subName) in value.default" :key="subName" class="nested-config">
-                <config-parameter
-                    :key="subName"
-                    :name="subName"
-                    :value="subValue"
-                    v-model="nestedConfig[subName]"/>
+<div class="config-section">
+
+    <!-- header: name and tooltip description -->
+    <div class="config-section-header">
+        <strong>{{ name }}</strong>
+        <div v-if="configParam?.description" class="tooltip-container">
+            <button
+                class="question-mark"
+                @mouseover="toggleTooltip"
+                @mouseleave="toggleTooltip">
+                ?
+            </button>
+            <div v-if="showTooltip" class="tooltip-bubble">
+                {{ configParam.description }}
             </div>
         </div>
-
-        <div v-else>
-            <!-- header: name and tooltip description -->
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        class="question-mark"
-                        @mouseover="toggleTooltip"
-                        @mouseleave="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- boolean type: checkbox -->
-            <div v-if="value.type === 'boolean'">
-                <input v-model="localValue"
-                       class="form-check-input"
-                       type="checkbox"/>
-            </div>
-
-            <!-- enums: dropdown menu -->
-            <div v-else-if="Array.isArray(value?.enum)">
-                <select v-model="localValue" class="form-control">
-                    <option v-for="option in value?.enum" :key="option" :value="option">
-                        {{ option }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- numbers: check min/max range -->
-            <div v-else-if="['number', 'integer'].includes(value.type)">
-                <input v-model="localValue"
-                       class="form-control"
-                       type="number"
-                       :min="value?.minimum"
-                       :max="value.maximum"
-                       :step="value.type === 'integer' ? 1 : 0.01"/>
-            </div>
-
-            <!-- array type: dynamic list (is this used?) -->
-            <div v-else-if="value.type === 'array'">
-                <div v-for="(item, index) in localValue" :key="index" class="array-item">
-                    <div class="input-with-minus">
-                        <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
-                        <button type="button" class="btn btn-outline-danger btn-sm remove-button" @click="removeItem(index)">
-                            &minus;
-                        </button>
-                    </div>
-                </div>
-                <button class="btn btn-primary btn-sm add-button" @click="addItem">Add Item</button>
-            </div>
-
-            <!-- other elements: plain text input -->
-            <div v-else>
-                <input v-model="localValue"
-                       class="form-control"
-                       type="text"/>
-            </div>
-
-        </div>
-
     </div>
+
+    <!-- boolean type: checkbox -->
+    <div v-if="configParam.type === 'boolean'">
+        <input v-model="localValue"
+               class="form-check-input"
+               type="checkbox"
+        />
+    </div>
+
+    <!-- enums -->
+    <div v-else-if="Array.isArray(configParam?.enum)">
+        <!-- no free input: dropdown menu -->
+        <div v-if="!configParam.free_input">
+            <select v-model="localValue" class="form-control">
+                <option v-for="option in configParam?.enum" :key="option" :value="option">
+                    {{ option }}
+                </option>
+            </select>
+        </div>
+
+        <!-- use input with datalist as combo-box -->
+        <div v-else>
+            <input v-model="localValue" class="form-control" :list="`datalist-${name}`" type="text"/>
+            <datalist :id="`datalist-${name}`">
+                <option v-for="option in configParam?.enum" :key="option" :value="option">
+                    {{ option }}
+                </option>
+            </datalist>
+        </div>
+    </div>
+
+    <!-- numbers: check min/max range -->
+    <div v-else-if="['number', 'integer'].includes(configParam.type)">
+        <input v-model="localValue"
+               class="form-control"
+               type="number"
+               :min="configParam.minimum"
+               :max="configParam.maximum"
+               :step="configParam.step"
+        />
+    </div>
+
+    <!-- other elements: plain text input -->
+    <div v-else>
+        <input v-model="localValue"
+               class="form-control"
+               type="text"
+        />
+    </div>
+
+</div>
 </template>
 
 
 <script>
+import Localizer from "../Localizer.js";
+
 export default {
     name: "ConfigParameter",
     props: {
-        name: {
-            type: String,
-            required: true,
-        },
-        value: {
-            type: Object,
-            required: true,
-        },
-        modelValue: {
-            type: [Boolean, Number, String, Array, Object],
-            required: true,
-        },
+        name: String,
+        configParam: Object,
+
+        // is set by v-model in parent component
+        modelValue: [Boolean, Number, String, Array, Object],
+    },
+    setup() {
+        return { Localizer };
     },
     emits: ["update:modelValue"],
     computed: {
-        isObject() {
-            return this.value.type === "object";
-        },
         localValue: {
             get() {
                 return this.modelValue;
             },
             set(newValue) {
-                this.$emit("update:modelValue", newValue)
-            },
-        },
-        nestedConfig: {
-            get() {
-                return this.modelValue || {};
-            },
-            set(newConfig) {
-                this.$emit("update:modelValue", newConfig);
+                this.$emit("update:modelValue", newValue);
             },
         },
     },
     data() {
         return {
-            showTooltip: false
+            showTooltip: false,
         }
     },
     methods: {
-        addItem() {
-            if (Array.isArray(this.localValue)) {
-                const itemType = this.value.array_items.type;
-                let newItem;
-
-                switch (itemType) {
-                    case "boolean":
-                        newItem = false;
-                        break;
-                    case "number":
-                    case "integer":
-                        newItem = 0;
-                        break;
-                    default:
-                        newItem = "";
-                }
-                this.localValue.push(newItem);
-            } else {
-                console.warn("Called the method 'addItem' for a non-array type!")
-            }
-        },
-
-        removeItem(index) {
-            if (Array.isArray(this.localValue)) {
-                this.localValue.splice(index, 1);
-            } else {
-                console.warn("Called the method 'removeItem' for a non-array type!")
-            }
-        },
-
         toggleTooltip() {
             this.showTooltip = !this.showTooltip;
         }
     },
-
 };
 </script>
 

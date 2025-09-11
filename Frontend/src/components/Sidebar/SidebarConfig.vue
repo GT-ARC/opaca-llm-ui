@@ -21,11 +21,11 @@
         {{ Localizer.get('sidebarConfigMissing', this.backend) }}
     </div>
     <div v-else class="flex-row text-start">
-        <ConfigParameter v-for="(value, name) in backendConfigSchema"
-                         :key="name"
-                         :name="name"
-                         :value="value"
-                         v-model="backendConfig[name]"
+        <ConfigParameter
+            v-for="(value, name) in backendConfigSchema" :key="name"
+            :name="name"
+            :config-param="value"
+            v-model="backendConfig[name]"
         />
 
         <div class="py-2 text-center">
@@ -99,7 +99,7 @@ export default {
             try {
                 const res = await backendClient.resetConfig(this.backend);
                 console.log('Reset backend config.');
-                this.backendConfig = res.value;
+                this.backendConfig = res.configParam;
                 this.backendConfigSchema = res.config_schema;
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configReset')
@@ -130,16 +130,18 @@ export default {
             this.backendConfig = this.backendConfigSchema = null;
             try {
                 const res = await backendClient.getConfig(backend);
-                this.backendConfig = res.value;
+                this.backendConfig = res.config_values;
                 this.backendConfigSchema = res.config_schema;
             } catch (error) {
                 console.error('Error fetching backend config:', error);
             }
+            console.log('backend config', this.backendConfig);
         },
 
     },
-    mounted() {
-        this.fetchBackendConfig();
+    async mounted() {
+        await this.fetchBackendConfig();
+        console.log(JSON.stringify(this.backendConfigSchema, null, 2));
     },
     watch: {
         backend() {
