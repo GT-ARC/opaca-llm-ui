@@ -81,7 +81,7 @@ class ConnectInfo(BaseModel):
     pwd: str | None
 
 
-class QueryRequest(BaseModel):
+class Message(BaseModel):
     """
     Used as the expected body argument in the `/query/{backend}` endpoints
 
@@ -116,7 +116,7 @@ class AgentMessage(BaseModel):
     step: str = ""
 
 
-class QueryResponse(BaseModel):
+class Response(BaseModel):
     """
     The final response that will be sent back to the frontend. Contains a list of `AgentMessages`
     that were generated during the response generation as well as final response or error.
@@ -175,7 +175,7 @@ class Chat(BaseModel):
     """
     chat_id: str
     name: str = ''
-    messages: List[QueryResponse] = []
+    messages: List[Response] = []
     time_created: datetime = datetime.now(tz=timezone.utc)
     time_modified: datetime = datetime.now(tz=timezone.utc)
 
