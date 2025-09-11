@@ -14,7 +14,13 @@
             <div v-if="showTooltip" class="tooltip-bubble">
                 {{ configParam.description }}
             </div>
+
         </div>
+        <output v-if="['number', 'integer'].includes(configParam.type)"
+                :id="`slider-value-${this.name}`"
+                class="small text-secondary w-auto ms-auto">
+            {{ localValue }}
+        </output>
     </div>
 
     <!-- boolean type: checkbox -->
@@ -38,8 +44,8 @@
 
         <!-- use input with datalist as combo-box -->
         <div v-else>
-            <input v-model="localValue" class="form-control" :list="`datalist-${name}`" type="text"/>
-            <datalist :id="`datalist-${name}`">
+            <input v-model="localValue" class="form-control" :list="`datalist-${this.name}`" type="text"/>
+            <datalist :id="`datalist-${this.name}`">
                 <option v-for="option in configParam?.enum" :key="option" :value="option">
                     {{ option }}
                 </option>
@@ -50,11 +56,12 @@
     <!-- numbers: check min/max range -->
     <div v-else-if="['number', 'integer'].includes(configParam.type)">
         <input v-model="localValue"
-               class="form-control"
-               type="number"
+               class="slider"
+               type="range"
                :min="configParam.minimum"
                :max="configParam.maximum"
                :step="configParam.step"
+               :aria-describedby="`slider-value-${this.name}`"
         />
     </div>
 
@@ -114,13 +121,33 @@ export default {
 /* Remove number spinner for Chrome, Safari, Edge, ... */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 /* Remove number spinner for Firefox */
 input[type="number"] {
-  appearance: textfield;
+    appearance: textfield;
+}
+
+.slider {
+    -webkit-appearance: none;
+    background-color: var(--input-color);
+    padding: 0;
+    border-radius: 50px;
+    width: 100%;
+}
+
+.slider::-webkit-slider-thumb,
+.slider::-moz-range-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--primary-color);
+    border: none;
+    border-radius: 50rem;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
 }
 
 .config-section {
@@ -141,22 +168,6 @@ input[type="number"] {
 
 .config-section-header strong {
     color: var(--text-primary-color);
-}
-
-.nested-config {
-  margin-left: 1.5em;
-  border-left: 2px solid #ddd;
-  padding-left: 1em;
-}
-
-.input-with-minus {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.add-button {
-    margin-top: 0.75rem;
 }
 
 .tooltip-container {
