@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
-from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
+from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
 
 
@@ -28,7 +28,7 @@ class ToolLLMBackend(AbstractMethod):
                 "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
                }
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []         # Internal messages between llm-components
@@ -39,7 +39,7 @@ class ToolLLMBackend(AbstractMethod):
         no_tools = False            # If no tools were generated, the Output Generator will include available tools
 
         # Initialize the response object
-        response = Response()
+        response = QueryResponse()
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values

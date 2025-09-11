@@ -12,7 +12,7 @@ from openai.lib import ResponseFormatT
 from pydantic import ValidationError
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat
 from .utils import transform_schema, get_supported_models
 
 logger = logging.getLogger(__name__)
@@ -64,11 +64,11 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
 
-    async def query(self, message: str, session: SessionData, chat: Chat) -> Response:
+    async def query(self, message: str, session: SessionData, chat: Chat) -> QueryResponse:
         return await self.query_stream(message, session, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
         pass
 
 
