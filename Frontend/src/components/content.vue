@@ -24,6 +24,8 @@
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
             @new-chat="() => this.startNewChat()"
+            @delete-file="fileId => this.handleDeleteFile(fileId)"
+            @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
         />
 
 
@@ -363,6 +365,16 @@ export default {
         // Remove selected file at given index from the preview list
         removeSelectedFile(index) {
             this.selectedFiles.splice(index, 1);
+            // TODO also delete file
+        },
+
+        async handleDeleteFile(fileId) {
+            await backendClient.deleteFile(fileId);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async handleSuspendFile(fileId, suspend) {
+            await backendClient.suspendFile(fileId, suspend);
         },
 
         maxDisplayedFiles() {

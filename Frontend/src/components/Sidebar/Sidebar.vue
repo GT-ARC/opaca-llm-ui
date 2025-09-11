@@ -14,6 +14,11 @@
                :title="Localizer.get('tooltipSidebarChats')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
+            <i @click="SidebarManager.toggleView('files')"
+               class="fa fa-file sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarFiles')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
+
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
@@ -56,6 +61,7 @@
                     ref="info"
                 />
 
+                <!-- chats -->
                 <SidebarChats
                     v-show="SidebarManager.isViewSelected('chats')"
                     :selected-chat-id="this.selectedChatId"
@@ -65,6 +71,14 @@
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
                     ref="chats"
+                />
+
+                <!-- uploaded files -->
+                <SidebarFiles
+                    v-show="SidebarManager.isViewSelected('files')"
+                    @delete-file="fileId => this.$emit('delete-file', fileId)"
+                    @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    ref="files"
                 />
 
                 <!-- sample questions -->
@@ -119,10 +133,12 @@ import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
+import SidebarFiles from "./SidebarFiles.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarFiles,
         SidebarChats,
         SidebarFaq,
         SidebarDebug,
@@ -145,6 +161,8 @@ export default {
         'delete-chat',
         'rename-chat',
         'new-chat',
+        'delete-file',
+        'suspend-file'
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();

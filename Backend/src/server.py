@@ -260,6 +260,31 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
+
+@app.get("/files", description="Get a list of all uploaded files.")
+async def get_files(request: Request, response: FastAPIResponse) -> list:
+    session = await handle_session_id(request, response)
+    # TODO return file list
+    return [{"id": "example-file", "suspended": True}, {"id": "example-file2", "suspended": False}]
+
+
+@app.delete("/files/{file_id}", description="Delete an uploaded file.")
+async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> None:
+    session = await handle_session_id(request, response)
+    # TODO delete file
+    return
+
+
+@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
+async def update_file(request: Request, response: FastAPIResponse, file_id: str, update: dict) -> None:
+    session = await handle_session_id(request, response)
+
+    if "suspend" in update:
+        # TODO update file
+        return
+    return
+
+
 ## Utility functions
 
 async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:

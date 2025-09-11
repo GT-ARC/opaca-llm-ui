@@ -59,6 +59,23 @@ class BackendClient {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
+
+    // files
+
+    async files() {
+        return await this.sendRequest("GET", "files");
+    }
+
+    async deleteFile(file_id) {
+        await this.sendRequest("DELETE", `files/${file_id}`);
+    }
+
+    async suspendFile(file_id, suspend) {
+        await this.sendRequest("PATCH", `files/${file_id}`, {
+            suspended: suspend
+        });
+    }
+
     async uploadFiles(files) {
         const formData = new FormData();
         for (const file of files) {
@@ -130,10 +147,10 @@ export function shuffleArray(array) {
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
- * 
+ *
  * @param {*} debugMessages list of existing debug messages (modified)
  * @param {*} text new message text
- * @param {*} type new message type 
+ * @param {*} type new message type
  */
 export function addDebugMessage(debugMessages, text, type) {
     if (! text) return;

@@ -24,7 +24,7 @@
         class="btn btn-sm btn-outline-danger file-delete-button"
         @click="this.removeFile()"
         :disabled="this.isUploading"
-        :title="Localizer.get('tooltipRemoveUploadedFile')" >
+        :title="Localizer.get('tooltipDeleteUploadedFile')" >
         <i class="fa fa-remove" />
     </button>
 </div>
