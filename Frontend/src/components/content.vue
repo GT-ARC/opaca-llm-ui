@@ -390,11 +390,11 @@ export default {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 }
 
                 this.scrollDownDebug();
@@ -587,15 +587,14 @@ export default {
                 this.messages = [];
                 for (const msg of res.messages) {
                     // request
-                    await this.addChatBubble(msg.query, isUser=true);
+                    await this.addChatBubble(msg.query, true);
                     // response
-                    await this.addChatBubble(msg.content, isUser=false);
-                    const bubble = this.getLastBubble();
+                    await this.addChatBubble(msg.content, false);
                     for (const x of msg.agent_messages) {
-                        this.addDebugToken(x, sidebar=false, bubble=true);
+                        this.addDebugToken(x, false, true);
                     }
                     if (msg.error) {
-                        bubble.setError(msg.error);
+                        this.getLastBubble().setError(msg.error);
                     }
                 }
 
