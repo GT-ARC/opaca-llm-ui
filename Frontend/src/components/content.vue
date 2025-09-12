@@ -536,24 +536,24 @@ export default {
         },
 
         async addDebugToken(agentMessage, sidebar=true, bubble=true) {
-            var text = null;
+            function addDebug(self, text) {
+                if (sidebar) {
+                    self.$refs.sidebar.$refs.debug.addDebugMessage(text, agentMessage.agent, agentMessage.id);
+                }
+                if (bubble) {
+                    self.getLastBubble().addDebugMessage(text, agentMessage.agent, agentMessage.id);
+                }
+            };
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
-                text = agentMessage["tools"].map(tool =>
+                const toolOutput = agentMessage["tools"].map(tool =>
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
+                addDebug(this, toolOutput);
             }
             // log agent message
             if (agentMessage.content) {
-                text = agentMessage.content;
-            }
-            if (text) {
-                if (sidebar) {
-                    this.$refs.sidebar.$refs.debug.addDebugMessage(text, agentMessage.agent, agentMessage.id);
-                }
-                if (bubble) {
-                    this.getLastBubble().addDebugMessage(text, agentMessage.agent, agentMessage.id);
-                }
+                addDebug(this, agentMessage.content);
             }
         },
 
