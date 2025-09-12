@@ -122,6 +122,8 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
 
     Output format:
     "[[action_name;description;[params_in];param_out;agent;container_id;[custom_params]], ...]"
+
+    NEVER USED
     """
     action_spec = jsonref.replace_refs(action_spec)
     action_list = []
@@ -154,59 +156,45 @@ def get_reduced_action_spec(action_spec: Dict) -> List:
     return action_list
 
 
-def openapi_to_functions(openapi_spec):
+def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
     functions = []
     error_msg = ""
 
     for path, methods in openapi_spec.get("paths", {}).items():
         for method, spec_with_ref in methods.items():
-            # 1. Resolve JSON references.
+            # Resolve JSON references.
             try:
                 spec = jsonref.replace_refs(spec_with_ref)
             except Exception as e:
-                error_msg += f'Error while replacing references for unknown action. Cause: {str(e)}\n'
+                error_msg += f'Error while replacing references for unknown action. Cause: {e}\n'
                 continue
 
-            # 2. Extract a name for the functions
+            # Extract a name for the functions
             try:
                 # The operation id is formatted as 'containerId-agentName-actionName'
                 container_id, agent_name, function_name = spec.get("operationId").split(';')
             except Exception as e:
-                error_msg += (f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
-                              f'Cause: {str(e)}\n')
+                error_msg += f'Error while splitting the operation id {spec.get("operationId")}. Cause: {e}\n'
                 continue
 
-            # 3. Extract a description and parameters.
-            try:
-                # OpenAI only allows up to 1024 characters in the description field
-                desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
-            except Exception as e:
-                error_msg += (f'Error while getting description for operation ({agent_name}--{function_name}). '
-                              f'Cause: {str(e)}\n')
+            # Extract a description and parameters.
+            desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
+
+            # action relevant for selected agent?
+            if agent and agent_name != agent:
                 continue
 
-            schema = {"type": "object", "properties": {}}
-
-            req_body = (
-                spec.get("requestBody", {})
-                .get("content", {})
-                .get("application/json", {})
-                .get("schema")
-            )
-            if req_body:
-                schema["properties"]["requestBody"] = req_body
-
-            params = spec.get("parameters", [])
-            if params:
-                param_properties = {
-                    param["name"]: param["schema"]
-                    for param in params
-                    if "schema" in param
-                }
-                schema["properties"]["parameters"] = {
-                    "type": "object",
-                    "properties": param_properties,
-                }
+            # assemble function block
+            # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
+            schema = (spec.get("requestBody", {})
+                        .get("content", {})
+                        .get("application/json", {})
+                        .get("schema"))
+            if "properties" not in schema:
+                schema["properties"] = {}
+            if strict:
+                schema["additionalProperties"] = False
+                schema["required"] = list(schema["properties"])
 
             functions.append(
                 {
@@ -220,74 +208,6 @@ def openapi_to_functions(openapi_spec):
             )
 
     return functions, error_msg
-
-
-def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
-    """
-    This is an alternative strategy to transform tools into OpenAI specification.
-    Only used by orchestration currently.
-    Main difference is, that no 'requestBody' field is used.
-    """
-    functions = []
-    for path, methods in openapi_spec["paths"].items():
-        for method, spec_with_ref in methods.items():
-            # 1. Resolve JSON references.
-            try:
-                spec = jsonref.replace_refs(spec_with_ref)
-            except Exception as e:
-                logger.warning(f'Error while replacing references for unknown action. Cause: {str(e)}\n')
-                continue
-
-            # 2. Extract a name for the functions
-            try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
-                container_id, agent_name, function_name = spec.get("operationId").split(';')
-                if agent and agent_name != agent:
-                    continue
-            except Exception as e:
-                logger.warning(f'Error while splitting the operation id: ({spec.get("operationId", "")}). '
-                      f'Cause: {str(e)}\n')
-                continue
-
-            # 3. Extract a description and parameters.
-            try:
-                # OpenAI only allows up to 1024 characters in the description field
-                desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
-            except Exception as e:
-                logger.warning(f'Error while getting description for operation ({agent_name}--{function_name}). '
-                      f'Cause: {str(e)}\n')
-                continue
-
-            request_body = spec.get("requestBody", {})
-
-            args_schema = {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False
-            }
-
-            if request_body:
-                content = request_body.get("content", {})
-                if "application/json" in content:
-                    body_schema = content["application/json"]["schema"]
-                    if body_schema.get("type") == "object":
-                        body_schema.setdefault("additionalProperties", False)
-                        args_schema["properties"].update(body_schema.get("properties", {}))
-                        args_schema["required"].extend(body_schema.get("required", []))
-
-            # Remove duplicates in 'required'
-            args_schema["required"] = list(set(args_schema["required"]))
-            functions.append({
-                "type": "function",
-                "function": {
-                    "name":  agent_name + '--' + function_name,
-                    "description": desc,
-                    "parameters": args_schema,
-                }
-            })
-
-    return functions
 
 
 def enforce_strictness(schema):
