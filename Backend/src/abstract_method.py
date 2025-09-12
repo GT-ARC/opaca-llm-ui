@@ -282,13 +282,12 @@ class AbstractMethod(ABC):
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
             agent_name, action_name = None, tool_name
-        params = tool_args.get('requestBody', tool_args)
 
         try:
             t_result = await session.opaca_client.invoke_opaca_action(
                 action_name,
                 agent_name,
-                params,
+                tool_args,
             )
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
@@ -296,6 +295,6 @@ class AbstractMethod(ABC):
         return {
             "id": tool_id,
             "name": tool_name,
-            "args": params,
+            "args": tool_args,
             "result": t_result
         }

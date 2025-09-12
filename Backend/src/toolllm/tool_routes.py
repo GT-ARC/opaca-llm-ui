@@ -197,7 +197,7 @@ class ToolLLMBackend(AbstractMethod):
 
             # Get the generated name and parameters
             action = call.get('name', '')
-            args = call.get('args', {}).get('requestBody', {})
+            args = call.get('args', {})
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
@@ -212,16 +212,7 @@ class ToolLLMBackend(AbstractMethod):
                 continue
 
             # Get the request body definition of the found action
-            req_body = action_def['parameters']['properties'].get('requestBody', {})
-
-            # Check if the generated parameters are in the right place (in the requestBody field) if the generated
-            # action requires at least one parameter
-            # If not, abort current iteration since we have to assume no parameters were generated at all
-            if req_body.get('required', []) and not args:
-                err_out += (f'For the function "{action}" you have not included any parameters in the request body, '
-                            f'even though the function requires certain parameters. Please make sure to always put '
-                            f'your generated parameters in the request body field.\n')
-                continue
+            req_body = action_def['parameters']
 
             # Check if all required parameters are present
             if missing := [p for p in req_body.get('required', []) if p not in args.keys()]:
