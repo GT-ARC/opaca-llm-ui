@@ -168,7 +168,7 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
     return chats
 
 
-@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+@app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
