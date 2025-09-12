@@ -45,7 +45,8 @@
             </div>
 
             <!-- Chat Window with Chat bubbles -->
-            <div class="container-fluid flex-grow-1 chat-container" id="chat1">
+            <div class="container-fluid flex-grow-1 chat-container" id="chat1"
+                @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
                         v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
@@ -238,6 +239,7 @@ export default {
             selectedChatId: '',
             newChat: false,
             showFileDropOverlay: false,
+            autoScrollEnabled: true,
         }
     },
     methods: {
@@ -516,7 +518,13 @@ export default {
             aiBubble.setError("Connection closed unexpectedly");
         },
 
+        handleChatScroll() {
+            const chat = document.getElementById('chat1');
+            this.autoScrollEnabled = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 50;
+        },
+
         scrollDownChat() {
+            if (!this.autoScrollEnabled) return;
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
