@@ -10,3 +10,4 @@ docker-compose.yml
 Backend/.DS_Store
 .DS_Store
 .env
+.pytest_cache
