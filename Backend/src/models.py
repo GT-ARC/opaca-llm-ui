@@ -170,14 +170,24 @@ class Chat(BaseModel):
     Stores information about each chat.
 
     Attributes:
-        chat_id (str): The unique ID of the chat.
-        messages: Chat history (user queries and final LLM responses), used in subsequent requests.
+        chat_id: The unique ID of the chat.
+        name: human-readable name of the chat (generated or assigned)
+        responses: list of full query-responses incl. intermediate messages and meta-infos
+        time_created: when the chat was created
+        time_modified: when the chat was last used
+        messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
     """
     chat_id: str
     name: str = ''
-    messages: List[Response] = []
+    responses: List[Response] = []
     time_created: datetime = datetime.now(tz=timezone.utc)
     time_modified: datetime = datetime.now(tz=timezone.utc)
+
+    @property
+    def messages(self):
+        for r in self.responses:
+            yield ChatMessage(role="user", content=r.query)
+            yield ChatMessage(role="assistant", content=r.content)
 
 
 class SessionData(BaseModel):

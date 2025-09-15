@@ -355,7 +355,7 @@ def update_chat_time(chat: Chat) -> None:
 
 
 async def store_message(chat: Chat, result: Response):
-    chat.messages.append(result)
+    chat.responses.append(result)
     update_chat_time(chat)
 
 

@@ -585,7 +585,7 @@ export default {
                 const res = await backendClient.history(chatId);
 
                 this.messages = [];
-                for (const msg of res.messages) {
+                for (const msg of res.responses) {
                     // request
                     await this.addChatBubble(msg.query, true);
                     // response
