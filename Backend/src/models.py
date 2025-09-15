@@ -146,14 +146,12 @@ class OpacaFile(BaseModel):
         file_id: ID assigned after upload
         file_name: Name of the file
         suspended: Whether the file should be excluded from future requests
-        backends: Which LLMs the file was uploaded to
     """
     _content: BytesIO = PrivateAttr()
     content_type: str
-    file_id: Optional[str] = None
+    file_id: str
     file_name: Optional[str] = ''
     suspended: bool = False
-    backends: Optional[list[str]] = []
 
 
 class ChatMessage(BaseModel):

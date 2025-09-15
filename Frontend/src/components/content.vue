@@ -358,6 +358,7 @@ export default {
                 console.error("File upload failed:", error);
                 alert("File upload failed. See console for details.");
             } finally {
+                await this.$refs.sidebar.$refs.files.updateFiles();
                 this.uploadStatus.isUploading = false;
             }
         },
@@ -375,6 +376,7 @@ export default {
 
         async handleSuspendFile(fileId, suspend) {
             await backendClient.suspendFile(fileId, suspend);
+            await this.$refs.sidebar.$refs.files.updateFiles();
         },
 
         maxDisplayedFiles() {

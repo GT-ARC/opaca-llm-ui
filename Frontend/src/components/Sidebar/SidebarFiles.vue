@@ -15,7 +15,7 @@
                 :file-id="file.file_id"
                 :file="file"
                 @delete-file="fileId => this.$emit('delete-file', fileId)"
-                @suspend-file="(fileId, suspended) => this.$emit('suspend-file', fileId, !suspended)"
+                @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
             />
         </div>
     </div>

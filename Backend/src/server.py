@@ -117,14 +117,19 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
         try:
             contents = await file.read()
 
+            file_id = str(uuid.uuid4())
+            base_name, _ = os.path.splitext(file.filename)
+
             file_model = OpacaFile(
                 content_type=file.content_type,
-                sent=False
+                file_id=file_id,
+                file_name=base_name,
+                suspended=False
             )
             file_model._content = io.BytesIO(contents)
 
             # Store in session.uploaded_files
-            session.uploaded_files[file.filename] = file_model
+            session.uploaded_files[file_id] = file_model
             uploaded.append(file.filename)
 
         except Exception as e:
@@ -262,27 +267,32 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
 
 
 @app.get("/files", description="Get a list of all uploaded files.")
-async def get_files(request: Request, response: FastAPIResponse) -> list:
+async def get_files(request: Request, response: FastAPIResponse) -> dict:
     session = await handle_session_id(request, response)
-    # TODO return file list
-    return [{"id": "example-file", "suspended": True}, {"id": "example-file2", "suspended": False}]
+    return session.uploaded_files
 
 
 @app.delete("/files/{file_id}", description="Delete an uploaded file.")
-async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> None:
+async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> FastAPIResponse:
     session = await handle_session_id(request, response)
-    # TODO delete file
-    return
+    files = session.uploaded_files
+
+    if file_id in files:
+        del files[file_id]
+        return FastAPIResponse(status_code=204)
+    return FastAPIResponse(status_code=404)
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
-async def update_file(request: Request, response: FastAPIResponse, file_id: str, update: dict) -> None:
+async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> FastAPIResponse:
     session = await handle_session_id(request, response)
+    files = session.uploaded_files
 
-    if "suspend" in update:
-        # TODO update file
-        return
-    return
+    if file_id in files:
+        file = files[file_id]
+        file.suspended = suspend
+        return FastAPIResponse(status_code=204)
+    return FastAPIResponse(status_code=404)
 
 
 ## Utility functions

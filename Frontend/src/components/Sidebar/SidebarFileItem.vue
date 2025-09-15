@@ -1,8 +1,9 @@
 <template>
     <div class="file align-items-center">
+        <div class="file-name"> {{file.file_name}}</div>
         <i :class="[
             'fa',
-            file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
+            !file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
             'ms-auto',
             'file-menu-button'
             ]"
@@ -32,7 +33,9 @@ export default {
     setup() {
         return { Localizer }
     },
-    data() {},
+    data() {
+        return {}
+    },
     methods: {
         deleteFile() {
             if (confirm(Localizer.get("confirmDeleteFile"))) {
@@ -45,7 +48,6 @@ export default {
         }
     },
     mounted() {
-        this.nameInput = this.file.name ? this.file.name : this.fileId;
     },
 }
 </script>

@@ -71,9 +71,7 @@ class BackendClient {
     }
 
     async suspendFile(file_id, suspend) {
-        await this.sendRequest("PATCH", `files/${file_id}`, {
-            suspended: suspend
-        });
+        await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
     }
 
     async uploadFiles(files) {
