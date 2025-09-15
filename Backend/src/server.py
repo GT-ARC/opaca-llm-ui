@@ -178,7 +178,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
+    chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
     session.abort_sent = False
     result = None
