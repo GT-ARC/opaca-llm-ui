@@ -27,6 +27,14 @@ class ColoredFormatter(logging.Formatter):
         "assistant": "\x1b[94m",  # Light Blue
         "user": "\x1b[97m",  # Light White
 
+        # Orchestration
+        "Orchestrator": "\x1b[93m", # bright red
+        "AgentPlanner": "\x1b[95m", # bright magenta
+        "WorkerAgent": "\x1b[96m", # bright cyan
+        "AgentEvaluator": "\x1b[94m", # bright blue
+        "OverallEvaluator": "\x1b[92m", # bright green
+        "IterationAdvisor": "\x1b[35m", # magenta
+
         # Default
         "Default": "\x1b[38;20m",  # Dim White
     }
