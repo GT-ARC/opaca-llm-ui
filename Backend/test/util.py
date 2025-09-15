@@ -63,6 +63,7 @@ class BackendTestClient:
     # HELPER METHODS
 
     def request(self, method, route, body=None):
-        res = self.session.request(method, f"{self.base_url}{route}", json=body, timeout=10)
+        res = self.session.request(method, f"{self.base_url}{route}", json=body, timeout=60)
+        assert res.status_code == 200
         #res.raise_for_status()
         return res.json()
