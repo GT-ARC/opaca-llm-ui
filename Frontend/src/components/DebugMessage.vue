@@ -1,7 +1,7 @@
 <!-- Debug Message Component -->
 <template>
-    <div class="debug-text" :style="this.getDebugColoring(this.type)" :data-type="type">
-        <div class="debug-header" @click.stop="this.toggleCollapsed()" >
+    <div class="debug-text" :style="this.getDebugColoring(this.type)" :data-type="type" @click.stop="this.toggleCollapsed()" >
+        <div class="debug-header">
             <i v-if="canCollapse() && collapsed" class="fa fa-caret-right" />
             <i v-if="canCollapse() && ! collapsed" class="fa fa-caret-down" />
             {{ type }}
