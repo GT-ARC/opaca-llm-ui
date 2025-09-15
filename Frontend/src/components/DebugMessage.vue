@@ -1,8 +1,14 @@
 <!-- Debug Message Component -->
 <template>
     <div class="debug-text" :style="this.getDebugColoring(this.type)" :data-type="type">
-        <div class="debug-header">{{ type }}</div>
-        <div class="debug-content">{{ text }}</div>
+        <div class="debug-header" @click.stop="this.toggleCollapsed()" >
+            <i v-if="canCollapse() && collapsed" class="fa fa-caret-right" />
+            <i v-if="canCollapse() && ! collapsed" class="fa fa-caret-down" />
+            {{ type }}
+        </div>
+        <div class="debug-content">
+            {{ getDisplayText() }}
+        </div>
         <div v-if="executionTime" class="debug-execution-time">
             Execution time: {{ executionTime.toFixed(2) }}s
         </div>
@@ -36,8 +42,30 @@ export default {
             default: null
         },
     },
+    data() {
+        return {
+            collapsed: true,    // defaults to true, but ignored if irrelevant
+            collapse_size: 300, // min text size when to show collapse toggle
+        }
+    },
 
     methods: {
+        canCollapse() {
+            return this.text.length > this.collapse_size;
+        },
+
+        toggleCollapsed() {
+            this.collapsed = ! this.collapsed;
+        },
+
+        getDisplayText() {
+            if (this.canCollapse() && this.collapsed) {
+                return this.text.substring(0, this.collapse_size) + '...';
+            } else {
+                return this.text;
+            }
+        },
+
         getDebugColoring (agentName) {
             const isDarkScheme = isDarkTheme();
             const color = getDebugColor(agentName, isDarkScheme);
