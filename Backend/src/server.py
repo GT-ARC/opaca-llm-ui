@@ -223,12 +223,12 @@ async def update_chat(request: Request, response: FastAPIResponse, chat_id: str,
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
 async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
-    if chat is not None:
+    try:
+        handle_chat_id(session, chat_id)
         async with sessions_lock:
             del session.chats[chat_id]
         return True
-    else:
+    except Exception:  # not found
         return False
 
 
