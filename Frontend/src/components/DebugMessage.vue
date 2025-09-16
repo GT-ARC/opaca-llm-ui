@@ -45,13 +45,13 @@ export default {
     data() {
         return {
             collapsed: true,    // defaults to true, but ignored if irrelevant
-            collapse_size: 300, // min text size when to show collapse toggle
+            collapseSize: 300,  // min text size when to show collapse toggle
         }
     },
 
     methods: {
         canCollapse() {
-            return this.text.length > this.collapse_size;
+            return this.text.length > this.collapseSize;
         },
 
         toggleCollapsed() {
@@ -60,7 +60,7 @@ export default {
 
         getDisplayText() {
             if (this.canCollapse() && this.collapsed) {
-                return this.text.substring(0, this.collapse_size) + '...';
+                return this.text.substring(0, this.collapseSize) + '...';
             } else {
                 return this.text;
             }

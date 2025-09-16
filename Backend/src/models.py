@@ -3,7 +3,8 @@ Request and response models used in the FastAPI routes (and in some of the imple
 """
 import logging
 import sys
-from typing import List, Dict, Any, Optional, Self
+from typing import List, Dict, Any, Optional
+Self=Any
 from io import BytesIO
 from datetime import datetime, tzinfo, timezone
 

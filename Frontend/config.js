@@ -27,7 +27,7 @@ let config = {
     BackLink: import.meta.env.VITE_BACKLINK ?? null,
 
     // URL to the OPACA Runtime platform
-    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
+    OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://10.42.6.107:8000',
 
     // URL to the audio server
     VoiceServerUrl: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
