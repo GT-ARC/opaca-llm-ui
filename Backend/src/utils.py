@@ -353,7 +353,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
                 raise HTTPException(400, f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
 
         # Validate enum
-        if config_param.get("enum", None) and value not in schema[key].enum:
+        if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
             raise HTTPException(400,f'Parameter "{key}" has to be one of "{schema[key].enum}"')
 
 
