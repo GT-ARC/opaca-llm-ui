@@ -100,7 +100,8 @@ export default {
                 return this.modelValue;
             },
             set(newValue) {
-                this.$emit("update:modelValue", this.parseLocalValue(newValue));
+                const value = this.parseValue(newValue, this.configParam?.type);
+                this.$emit("update:modelValue", value);
             },
         },
     },
@@ -113,13 +114,15 @@ export default {
         toggleTooltip() {
             this.showTooltip = !this.showTooltip;
         },
-        parseLocalValue(value) {
-            if (['number', 'integer'].includes(this.configParam?.type)) {
-                return Number(value);
-            } else if (this.configParam?.type === 'boolean') {
-                return value === 'true';
-            } else {
-                return value;
+        parseValue(value, type) {
+            switch (type) {
+                case 'number':
+                case 'integer':
+                    return Number(value);
+                case 'boolean':
+                    return Boolean(value);
+                default:
+                    return value;
             }
         },
     },
