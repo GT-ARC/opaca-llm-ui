@@ -5,7 +5,7 @@
         </div>
 
         <!-- Show info if no files -->
-        <div v-if="files.length === 0" class="empty-files text-gray-500 text-sm p-4">
+        <div v-if="Object.keys(files).length === 0" class="empty-files text-gray-500 text-sm p-4">
             {{ Localizer.get('sidebarFilesEmpty') }}
         </div>
 
@@ -42,7 +42,7 @@ export default {
     ],
     data() {
         return {
-            files: [],
+            files: {},
             showFileMenu: false,
         };
     },
@@ -52,7 +52,7 @@ export default {
                 this.files = await backendClient.files();
             } catch (error) {
                 console.log(error);
-                this.files = [];
+                this.files = {};
             }
         },
     },

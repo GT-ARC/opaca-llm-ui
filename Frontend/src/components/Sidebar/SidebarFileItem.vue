@@ -3,12 +3,12 @@
         <div class="file-name"> {{file.file_name}}</div>
         <i :class="[
             'fa',
-            !file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
+            file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
             'ms-auto',
             'file-menu-button'
             ]"
            @click.stop="this.suspendFile()"
-           :title="Localizer.get('tooltipSuspendUploadedFile')"
+           :title="Localizer.get(file.suspended ? 'tooltipUnsuspendUploadedFile' : 'tooltipSuspendUploadedFile')"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
