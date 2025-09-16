@@ -45,7 +45,10 @@
             </select>
         </div>
         <div v-else>
-            <ComboBox :items="configParam?.enum" v-model="localValue" :default-value="configParam?.default" />
+            <ComboBox
+                v-model="localValue"
+                :items="configParam?.enum"
+            />
         </div>
     </div>
 
@@ -97,7 +100,7 @@ export default {
                 return this.modelValue;
             },
             set(newValue) {
-                this.$emit("update:modelValue", newValue);
+                this.$emit("update:modelValue", this.parseLocalValue(newValue));
             },
         },
     },
@@ -109,7 +112,16 @@ export default {
     methods: {
         toggleTooltip() {
             this.showTooltip = !this.showTooltip;
-        }
+        },
+        parseLocalValue(value) {
+            if (['number', 'integer'].includes(this.configParam?.type)) {
+                return Number(value);
+            } else if (this.configParam?.type === 'boolean') {
+                return value === 'true';
+            } else {
+                return value;
+            }
+        },
     },
 };
 </script>

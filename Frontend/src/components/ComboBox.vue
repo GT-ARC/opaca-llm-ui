@@ -52,9 +52,8 @@ export default {
     name: "ComboBox",
     props: {
         modelValue: { type: String, default: "" },
-        items: { type: Array, default: () => [] }, // array of strings
+        items: { type: Array, default: () => [] },
         placeholder: { type: String, default: "" },
-        defaultValue: { type: String, default: "" },
     },
     emits: ["update:modelValue"],
     data() {
@@ -106,9 +105,6 @@ export default {
     mounted() {
         // close when clicking anywhere else
         document.addEventListener("mousedown", this.onDocClick);
-
-        // select default
-        this.$refs.input.value = this.defaultValue ?? this.items[0]
     },
     beforeUnmount() {
         document.removeEventListener("mousedown", this.onDocClick);
