@@ -32,7 +32,9 @@ if not client.alive():
 client.reset_all()
 
 
-# TODO find some faster test query for the LLM, find-temp takes too long...
+# TODO find some faster test query for the LLM? find-temp takes too long...
+#  maybe something with just one tool call (just get the sensor ID?)
+#  but at the same time it would also be good to test execution more iters.
 
 
 # TEST GENERAL STUFF (could also be part of the setup...)

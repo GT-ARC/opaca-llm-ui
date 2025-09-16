@@ -66,7 +66,7 @@ class BackendTestClient:
     # HELPER METHODS
 
     def request(self, method, route, body=None):
-        res = self.session.request(method, f"{self.base_url}{route}", json=body, timeout=60)
+        res = self.session.request(method, f"{self.base_url}{route}", json=body, timeout=120)
         try:
             res.raise_for_status()
         except Exception as e:
