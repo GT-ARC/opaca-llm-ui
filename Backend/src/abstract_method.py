@@ -27,15 +27,16 @@ class AbstractMethod(ABC):
         pass
 
     @staticmethod
-    def make_llm_config_param(description: str = None):
+    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
         models = [m for _, _, models in get_supported_models() for m in models]
         return ConfigParameter(
+            name=name,
+            description=description,
             type="string",
             required=True,
             default=models[0],
             enum=models,
             free_input=True,
-            description=description
         )
 
     async def get_llm_client(self, session: SessionData, model: str) -> AsyncOpenAI:

@@ -3,7 +3,7 @@
 
     <!-- header: name and tooltip description -->
     <div class="config-section-header">
-        <strong>{{ name }}</strong>
+        <strong>{{ configParam?.name ?? name }}</strong>
         <div v-if="configParam?.description" class="tooltip-container">
             <button
                 class="question-mark"

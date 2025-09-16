@@ -218,9 +218,10 @@ class ConfigParameter(BaseModel):
         maximum: Only for types `integer` or `number`. Defines a maximum limit for the number.
         step: Only for types `integer` or `number`. Defines the step size for the selector.
     """
+    name: Optional[str] = None
+    description: Optional[str] = None
     type: str
     required: bool
-    description: Optional[str] = None
     default: Any
 
     # choice settings
