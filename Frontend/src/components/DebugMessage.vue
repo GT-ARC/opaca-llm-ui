@@ -6,7 +6,7 @@
             <i v-if="canCollapse() && ! collapsed" class="fa fa-caret-down" />
             {{ type }}
         </div>
-        <div class="debug-content">
+        <div class="debug-content" @click.stop="">
             {{ getDisplayText() }}
         </div>
         <div v-if="executionTime" class="debug-execution-time">
