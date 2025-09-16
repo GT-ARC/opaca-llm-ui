@@ -4,6 +4,8 @@
     <!-- header: name and tooltip description -->
     <div class="config-section-header">
         <strong>{{ configParam?.name ?? name }}</strong>
+
+        <!-- param description -->
         <div v-if="configParam?.description" class="tooltip-container">
             <button
                 class="question-mark"
@@ -14,8 +16,9 @@
             <div v-if="showTooltip" class="tooltip-bubble">
                 {{ configParam.description }}
             </div>
-
         </div>
+
+        <!-- if param is a slider, display the slider value here -->
         <output v-if="['number', 'integer'].includes(configParam.type)"
                 :id="`slider-value-${this.name}`"
                 class="small text-secondary w-auto ms-auto">
@@ -41,15 +44,8 @@
                 </option>
             </select>
         </div>
-
-        <!-- use input with datalist as combo-box -->
         <div v-else>
-            <input v-model="localValue" class="form-control" :list="`datalist-${this.name}`" type="text"/>
-            <datalist :id="`datalist-${this.name}`">
-                <option v-for="option in configParam?.enum" :key="option" :value="option">
-                    {{ option }}
-                </option>
-            </datalist>
+            <ComboBox :items="configParam?.enum" v-model="localValue" :default-value="configParam?.default" />
         </div>
     </div>
 
@@ -79,9 +75,11 @@
 
 <script>
 import Localizer from "../Localizer.js";
+import ComboBox from "./ComboBox.vue";
 
 export default {
     name: "ConfigParameter",
+    components: {ComboBox},
     props: {
         name: String,
         configParam: Object,
