@@ -30,6 +30,9 @@ class BackendTestClient:
         body = {"user_query": query}
         return self.request("POST", f"/query/{backend}", body)
 
+    def reset_all(self):
+        return self.request("POST", "/reset_all")
+
     def get_chats(self) -> list[dict]:
         return self.request("GET", f"/chats")
 
@@ -64,6 +67,9 @@ class BackendTestClient:
 
     def request(self, method, route, body=None):
         res = self.session.request(method, f"{self.base_url}{route}", json=body, timeout=60)
-        assert res.status_code == 200
-        #res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except Exception as e:
+            print("ERROR", repr(e))
+            assert False
         return res.json()
