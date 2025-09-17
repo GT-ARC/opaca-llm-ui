@@ -105,7 +105,6 @@ export default {
             this.platformActions = isPlatformConnected
                 ? await backendClient.getActions()
                 : null;
-            console.log(JSON.stringify(this.platformActions));
             this.isLoading = false;
         },
 
