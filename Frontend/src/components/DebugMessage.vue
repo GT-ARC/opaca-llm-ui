@@ -7,6 +7,7 @@
             {{ type }}
         </div>
         <div class="debug-content" @click.stop="">
+            <!-- @click="" is intentional, else problems with select-copy-paste -> collapse/expand on header and left margin, not on text -->
             {{ getDisplayText() }}
         </div>
         <div v-if="executionTime" class="debug-execution-time">
