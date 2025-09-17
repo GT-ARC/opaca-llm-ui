@@ -21,11 +21,11 @@
         {{ Localizer.get('sidebarConfigMissing', this.backend) }}
     </div>
     <div v-else class="flex-row text-start">
-        <ConfigParameter v-for="(value, name) in backendConfigSchema"
-                         :key="name"
-                         :name="name"
-                         :value="value"
-                         v-model="backendConfig[name]"
+        <ConfigParameter
+            v-for="(value, name) in backendConfigSchema" :key="name"
+            :name="name"
+            :config-param="value"
+            v-model="backendConfig[name]"
         />
 
         <div class="py-2 text-center">
@@ -70,12 +70,24 @@ export default {
             shouldFadeOut: false,
             configChangeSuccess: false,
             configMessage: '',
-            backendConfig: null,
+            backendConfig: {},
             backendConfigSchema: null,
             isLoading: false,
         };
     },
     methods: {
+        async fetchBackendConfig() {
+            const backend = this.backend;
+            this.backendConfig = this.backendConfigSchema = null;
+            try {
+                const res = await backendClient.getConfig(backend);
+                this.backendConfig = res.config_values;
+                this.backendConfigSchema = res.config_schema;
+            } catch (error) {
+                console.error('Error fetching backend config:', error);
+            }
+        },
+
         async saveBackendConfig() {
             try {
                 await backendClient.updateConfig(this.backend, this.backendConfig);
@@ -99,13 +111,14 @@ export default {
             try {
                 const res = await backendClient.resetConfig(this.backend);
                 console.log('Reset backend config.');
-                this.backendConfig = res.value;
+                this.backendConfig = res.config_values;
                 this.backendConfigSchema = res.config_schema;
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configReset')
             } catch (error) {
                 console.error('Error resetting backend config.');
-                this.backendConfig = this.backendConfigSchema = null;
+                this.backendConfig = null;
+                this.backendConfigSchema = null;
                 this.configChangeSuccess = false
                 this.configMessage = Localizer.get('configSaveError');
             }
@@ -125,21 +138,9 @@ export default {
             }, 3000);
         },
 
-        async fetchBackendConfig() {
-            const backend = this.backend;
-            this.backendConfig = this.backendConfigSchema = null;
-            try {
-                const res = await backendClient.getConfig(backend);
-                this.backendConfig = res.value;
-                this.backendConfigSchema = res.config_schema;
-            } catch (error) {
-                console.error('Error fetching backend config:', error);
-            }
-        },
-
     },
-    mounted() {
-        this.fetchBackendConfig();
+    async mounted() {
+        await this.fetchBackendConfig();
     },
     watch: {
         backend() {

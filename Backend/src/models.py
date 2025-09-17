@@ -211,18 +211,6 @@ class SessionData(BaseModel):
     valid_until: float = -1
 
 
-class ConfigArrayItem(BaseModel):
-    """
-    Defines the schema of an array item. Mainly used in connection with `ConfigParameter`.
-
-    Attributes
-        type: The type of all the items the array contains (must all be the same)
-        array_items: If the array nested (`type` is `array`) defines the data types of the items.
-    """
-    type: str
-    array_items: 'Optional[ConfigArrayItem]' = None
-
-
 class ConfigParameter(BaseModel):
     """
     A custom parameter definition for the configuration of each implemented method
@@ -231,21 +219,28 @@ class ConfigParameter(BaseModel):
     Attributes
         type: The data type of the configuration parameter.
         required: Whether the parameter is required or not.
-        default: The default value of the parameter.
-        array_items: Specifies the type of the array items, if `type` is set to `array`
         description: An optional description of the parameter.
+        default: The default value of the parameter.
+        free_input: When supplying a list of options with enum, also allow free input?
+        enum: If set, defines all available values the parameter can have.
         minimum: Only for types `integer` or `number`. Defines a minimum limit for the number.
         maximum: Only for types `integer` or `number`. Defines a maximum limit for the number.
-        enum: If set, defines all available values the parameter can have.
+        step: Only for types `integer` or `number`. Defines the step size for the selector.
     """
+    name: Optional[str] = None
+    description: Optional[str] = None
     type: str
     required: bool
     default: Any
-    array_items: Optional[ConfigArrayItem] = None
-    description: Optional[str] = None
+
+    # choice settings
+    enum: Optional[List[Any]] = None
+    free_input: bool = False
+
+    # number settings
     minimum: Optional[int | float] = None
     maximum: Optional[int | float] = None
-    enum: Optional[List[Any]] = None
+    step: Optional[int | float] = None
 
     @model_validator(mode='after')
     def validate_after(self: Self) -> Self:
@@ -253,8 +248,8 @@ class ConfigParameter(BaseModel):
         Uses the `@model_validator` decorator of Pydantic, to check upon initialization that various
         consistency constraints are satisfied
         """
-        if self.type == 'array' and self.array_items is None:
-            raise ValueError(f'ConfigParameter.array_items cannot be "None" if ConfigParameter.type is "array"')
+        if self.type not in ['integer', 'number', 'string', 'boolean']:
+            raise ValueError(f'{self.type} is not a valid type')
         if self.minimum is not None and self.maximum is not None and self.maximum < self.minimum:
             raise ValueError(f'ConfigParameter.maximum has to be larger than ConfigParameter.minimum')
         if self.enum is not None and self.default not in self.enum:
@@ -283,7 +278,7 @@ class ConfigPayload(BaseModel):
         value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
         config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
     """
-    value: Any
+    config_values: Dict[str, Any]
     config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
 
 

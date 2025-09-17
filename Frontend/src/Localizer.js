@@ -488,7 +488,7 @@ class Localizer {
     getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
         // assemble questions from all or selected category into a single array
         let questions = sidebarQuestions[this.language]
-            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textinput === null || matches(question.question, textinput));
 
