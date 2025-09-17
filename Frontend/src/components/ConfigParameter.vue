@@ -21,7 +21,7 @@
         <!-- if param is a slider, display the slider value here -->
         <output v-if="['number', 'integer'].includes(configParam.type)"
                 :id="`slider-value-${this.name}`"
-                class="small text-secondary w-auto ms-auto">
+                class="small w-auto ms-auto">
             {{ localValue }}
         </output>
     </div>
