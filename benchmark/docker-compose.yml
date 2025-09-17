@@ -1,0 +1,53 @@
+services:
+
+  # THE MAIN OPACA RUNTIME PLATFORM RUNNING IN DOCKER
+  # (Agent Containers can run in the same Docker or somewhere else)
+  opaca-platform:
+    image: registry.gitlab.dai-labor.de/jiacpp/deployment/opaca-platform:latest
+    ports:
+      - "8000:8000"
+    # Environment variables with no value after ":" are taken from .env file
+    environment:
+      # General Settings; NOTE: PUBLIC_URL must be set for PLATFORM_ENVIRONMENT 'DOCKER'!
+      PORT:
+      PUBLIC_URL: ${OPACA_URL}
+      CONTAINER_ENVIRONMENT:
+      PLATFORM_ENVIRONMENT: DOCKER
+      SESSION_POLICY:
+      CONTAINER_TIMEOUT_SEC:
+      DEFAULT_IMAGE_DIRECTORY:
+      EVENT_HISTORY_SIZE:
+      ALWAYS_PULL_IMAGES:
+      # Security & Authentication
+      ENABLE_AUTH:
+      SECRET:
+      PLATFORM_ADMIN_USER:
+      PLATFORM_ADMIN_PWD:
+      # User Management DB
+      DB_EMBED: true
+      DB_URI: mongodb://user:pass@opaca-platform-userdb:27017/admin
+      DB_NAME: opaca-user-data
+      # Image Registry Credentials
+      REGISTRY_SEPARATOR:
+      REGISTRY_NAMES:
+      REGISTRY_LOGINS:
+      REGISTRY_PASSWORDS:
+      # Docker (only for CONTAINER_ENVIRONMENT: DOCKER)
+      REMOTE_DOCKER_HOST:
+      REMOTE_DOCKER_PORT:
+      # Kubernetes (only for PLATFORM_ENVIRONMENT: KUBERNETES)
+      KUBERNETES_NAMESPACE:
+      KUBERNETES_CONFIG:
+    # for running containers on the same Docker as the platform itself
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # FastAPI-based backend for the OPACA LLM Integration
+  opaca-llm-backend:
+    build: ../Backend
+    image: opaca-llm-backend
+    ports:
+      - "3001:3001"
+    environment:
+      OPENAI_API_KEY:
+      VLLM_API_KEY:
