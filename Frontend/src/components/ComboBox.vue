@@ -21,7 +21,7 @@
         <button
             class="btn btn-outline-secondary"
             type="button"
-            @click="toggleDropdown"
+            @click="() => toggleDropdown()"
             aria-label="Toggle options">
             <i v-if="open" class="fa fa-caret-up" />
             <i v-else class="fa fa-caret-down" />
@@ -79,6 +79,7 @@ export default {
             this.open = (value === null)
                 ? !this.open
                 : value;
+            console.log('open?', this.open);
             if (this.open) this.highlighted = -1;
         },
         select(item) {
@@ -126,7 +127,9 @@ export default {
 }
 
 .list-group {
-    border: 1px solid var(--border-color)
+    border: 1px solid var(--border-color);
+    max-height: 8rem !important;
+    overflow-y: auto !important;
 }
 
 .list-group-item {
