@@ -111,7 +111,8 @@
             <div class="input-container">
 
                 <div class="input-area"
-                     @click="this.$refs.textInputRef?.focus()" >
+                     @click="this.$refs.textInputRef?.focus()"
+                     ref="inputArea">
                     <div class="scroll-wrapper" :class="{'w-100': this.isMobile}">
                         <textarea
                             id="textInput"
@@ -170,7 +171,7 @@
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
-                                <i class="fa fa-paper-plane"/>
+                                <i class="fa fa-paper-plane" style="transform: translateX(-2px)" />
                             </button>
                         </div>
 
@@ -691,6 +692,14 @@ export default {
     mounted() {
         this.startNewChat();
         this.updateScrollbarThumb();
+
+        const inputArea = this.$refs.inputArea;
+        inputArea.addEventListener("focusin", () => {
+            inputArea.style.outline = "2px solid var(--primary-color)";
+        });
+        inputArea.addEventListener("focusout", () => {
+            inputArea.style.outline = "";
+        });
     },
     watch: {
         textInput() {
@@ -750,6 +759,7 @@ export default {
     padding: 0.5rem;
     margin-left: auto;
     margin-right: auto;
+    transition: outline-width 0.1s ease;
 }
 
 .scroll-wrapper {
