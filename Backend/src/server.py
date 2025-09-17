@@ -30,6 +30,7 @@ from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
 from .opaca_client import OpacaClient
 from .orchestrated import SelfOrchestratedBackend
+from .abstract_method import delete_file_from_all_clients
 
 
 @asynccontextmanager
@@ -123,7 +124,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
             file_model = OpacaFile(
                 content_type=file.content_type,
                 file_id=file_id,
-                file_name=base_name,
+                file_name=file.filename,
                 suspended=False
             )
             file_model._content = io.BytesIO(contents)
@@ -281,7 +282,8 @@ async def delete_file(request: Request, response: FastAPIResponse, file_id: str)
     files = session.uploaded_files
 
     if file_id in files:
-        del files[file_id]
+        await delete_file_from_all_clients(session, file_id)
+
         return FastAPIResponse(status_code=204)
     return FastAPIResponse(status_code=404)
 

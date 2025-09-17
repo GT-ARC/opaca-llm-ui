@@ -30,8 +30,8 @@ class AbstractMethod(ABC):
     def make_llm_config_param(description: str = None):
         models = [m for _, _, models in get_supported_models() for m in models]
         return ConfigParameter(
-                type="string", 
-                required=True, 
+                type="string",
+                required=True,
                 default=models[0],
                 enum=models,
                 description=description)
@@ -107,34 +107,55 @@ class AbstractMethod(ABC):
         """
         client = await self.get_llm_client(session, model)
 
-        # Initialize variables
+        # figure out which backend this model belongs to
+        backend_url = None
+        for url, key, models in get_supported_models():
+            if model in models:
+                backend_url = url
+                break
+        if backend_url is None:
+            raise Exception(f"Model {model} not supported by any backend.")
+
         exec_time = time.time()
         tool_call_buffers = {}
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        # Upload all unsent files
-        for filename, filedata in session.uploaded_files.items():
-            if not filedata.file_id:
-                # prepare file for upload
-                file_bytes = filedata._content.getvalue()   # Access private content
-                file_obj = io.BytesIO(file_bytes)
-                file_obj.name = filename  # Required by OpenAI SDK
+        # Upload all files that haven't been uploaded to THIS backend yet.
+        # Note: session.uploaded_files is expected to be { file_id: OpacaFile, ... }
+        for frontend_id, filedata in list(session.uploaded_files.items()):
+            # Skip suspended files
+            if getattr(filedata, "suspended", False):
+                continue
 
-                # Upload the file
-                uploaded = await client.files.create(file=file_obj, purpose="assistants")
-                logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
-                filedata.file_id = uploaded.id
+            # If this backend already has an uploaded id for this file, skip
+            if backend_url in filedata.backend_ids:
+                continue
 
+            # prepare file for upload
+            file_bytes = filedata._content.getvalue()  # Access private content
+            file_obj = io.BytesIO(file_bytes)
+            file_obj.name = filedata.file_name  # Required by OpenAI SDK
+
+            # Upload to the current backend and store backend-specific id
+            uploaded = await client.files.create(file=file_obj, purpose="assistants")
+            logger.info(f"Uploaded file ID={uploaded.id} for frontend_id={frontend_id} (backend={backend_url})")
+            # record backend id under this backend_url
+            filedata.backend_ids[backend_url] = uploaded.id
+
+        # Build file parts for the current backend only (and only non-suspended)
         file_message_parts = [
-            {"type": "file", "file": {"file_id": file.file_id}}
-            for file in session.uploaded_files.values()
+            {"type": "file", "file": {"file_id": filedata.backend_ids[backend_url]}}
+            for filedata in session.uploaded_files.values()
+            if (not getattr(filedata, "suspended", False)) and (backend_url in filedata.backend_ids)
         ]
 
-        # Modify the last user message to include file parts
-        if file_message_parts:
+        # Insert file parts into the last user message
+        if file_message_parts and messages:
+            # keep the existing behavior: include file parts plus original text as a text block
             messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
-        
+
+
         # Set settings for model invocation
         kwargs = {
             'model': model,
@@ -299,3 +320,42 @@ class AbstractMethod(ABC):
             "args": params,
             "result": t_result
         }
+
+
+async def delete_file_from_all_clients(session: SessionData, file_id: str) -> None:
+    """
+    Delete a file (identified by frontend-generated file_id) from all LLM backends
+    it was uploaded to. Also removes it from session.uploaded_files.
+
+    Args:
+        session (SessionData): Current session containing uploaded_files and clients.
+        file_id (str): The frontend-generated file identifier.
+    """
+    filedata = session.uploaded_files.get(file_id)
+    if not filedata:
+        return  # nothing to do
+
+    for backend_url, backend_file_id in filedata.backend_ids.items():
+        try:
+            # Reuse or create a client for this backend
+            if backend_url not in session.llm_clients:
+                for url, key, _ in get_supported_models():
+                    if url == backend_url:
+                        session.llm_clients[url] = (
+                            AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY"))
+                            if url == "openai"
+                            else AsyncOpenAI(api_key=key, base_url=url)
+                        )
+                        break
+
+            client = session.llm_clients[backend_url]
+            await client.files.delete(backend_file_id)
+            logger.info(f"Deleted file {backend_file_id} from backend {backend_url}")
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to delete file {backend_file_id} from backend {backend_url}: {e}"
+            )
+
+    # Remove from session after deletion attempts
+    session.uploaded_files.pop(file_id, None)

@@ -150,6 +150,7 @@ class OpacaFile(BaseModel):
     _content: BytesIO = PrivateAttr()
     content_type: str
     file_id: str
+    backend_ids: Dict[str, str] = {}
     file_name: Optional[str] = ''
     suspended: bool = False
 
