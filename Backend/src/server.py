@@ -109,7 +109,7 @@ async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, 
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
+@app.post("/upload", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
 async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
@@ -130,7 +130,10 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
             # Store in session.uploaded_files
             session.uploaded_files[file_id] = file_model
-            uploaded.append(file.filename)
+            uploaded.append({
+                "file_id": file_id,
+                "file_name": file.filename
+            })
 
         except Exception as e:
             raise HTTPException(

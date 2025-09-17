@@ -88,12 +88,13 @@
                  class="upload-status-preview mx-auto">
 
                 <!-- Loop through each selected file -->
-                <div v-for="(file, fileId) in selectedFiles">
+                <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.fileId || fileObj.file.name + index">
                     <FilePreview
-                        v-if="fileId < this.maxDisplayedFiles()"
-                        :key="file.name + fileId"
-                        :file="file"
-                        :index="fileId"
+                        v-if="index < this.maxDisplayedFiles()"
+                        :key="fileObj.fileId"
+                        :file="fileObj.file"
+                        :file-id="fileObj.fileId"
+                        :index="index"
                         :upload-status="this.uploadStatus"
                         @remove-file="this.removeSelectedFile"
                     />
@@ -350,10 +351,19 @@ export default {
 
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
-            this.selectedFiles.push(...pdfFiles);
+            const wrappedFiles = pdfFiles.map(file => ({
+                file,
+                fileId: null
+            }));
+            this.selectedFiles.push(...wrappedFiles);
 
             try {
                 const result = await backendClient.uploadFiles(files);
+
+                result.uploaded_files.forEach((uploaded, idx) => {
+                    const wrapper = wrappedFiles[idx];
+                    wrapper.fileId = uploaded.file_id;
+                });
             } catch (error) {
                 console.error("File upload failed:", error);
                 alert("File upload failed. See console for details.");
@@ -363,10 +373,15 @@ export default {
             }
         },
 
-        // Remove selected file at given index from the preview list
+        // Remove selected file at given index
         removeSelectedFile(index) {
+            const file = this.selectedFiles[index];
+            if(file?.fileId) {
+                // From backend
+                this.handleDeleteFile(file.fileId);
+            }
+            // From preview
             this.selectedFiles.splice(index, 1);
-            // TODO also delete file
         },
 
         async handleDeleteFile(fileId) {

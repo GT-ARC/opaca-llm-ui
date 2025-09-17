@@ -39,7 +39,7 @@ export default {
     name: "FilePreview",
     props: {
         file: Object,
-        index: length,
+        index: Number,
         uploadStatus: Object,
     },
     setup() {
