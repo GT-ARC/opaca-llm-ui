@@ -4,16 +4,14 @@
         {{ Localizer.get('tooltipSidebarAgents') }}
     </div>
 
-    <div class="input-group my-2">
+    <div v-if="platformActions && Object.keys(platformActions).length > 0"
+         class="my-2">
         <input
             type="text"
             class="form-control"
-            placeholder="Search ..."
+            :placeholder="Localizer.get('searchAgentsPlaceholder')"
             v-model="this.searchQuery"
         />
-        <button type="button" class="btn btn-primary" disabled>
-            <i class="fa fa-magnifying-glass" />
-        </button>
     </div>
 
     <div v-if="this.isLoading">
