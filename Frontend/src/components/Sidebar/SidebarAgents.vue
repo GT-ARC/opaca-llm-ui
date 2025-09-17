@@ -112,14 +112,12 @@ export default {
 
         getAgents() {
             return Object.keys(this.platformActions)
-                .sort()
+                .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
                 .filter(agent => {
-                    const query = this.searchQuery.toLowerCase();
-                    const actions = this.platformActions[agent];
-                    return agent.includes(query) || actions.some(action => {
-                        return action.name?.toLowerCase()?.includes(query)
-                            || action.description?.toLowerCase()?.includes(query);
-                    });
+                    const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+                    return matches(agent) || this.platformActions[agent].some(action => 
+                            matches(action.name) || matches(action.description)
+                    );
                 })
                 .reduce((acc, agent) => {
                     acc[agent] = this.platformActions[agent];
