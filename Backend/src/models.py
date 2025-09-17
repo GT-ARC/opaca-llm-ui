@@ -2,11 +2,10 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
-import sys
-from typing import List, Dict, Any, Optional
-Self=Any
+from typing import List, Dict, Any, Optional, Self
 from io import BytesIO
-from datetime import datetime, tzinfo, timezone
+from datetime import datetime, timezone
+import uuid
 
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
@@ -27,6 +26,14 @@ class ColoredFormatter(logging.Formatter):
         "system": "\x1b[93m",  # Light Yellow
         "assistant": "\x1b[94m",  # Light Blue
         "user": "\x1b[97m",  # Light White
+
+        # Orchestration
+        "Orchestrator": "\x1b[93m", # bright red
+        "AgentPlanner": "\x1b[95m", # bright magenta
+        "WorkerAgent": "\x1b[96m", # bright cyan
+        "AgentEvaluator": "\x1b[94m", # bright blue
+        "OverallEvaluator": "\x1b[92m", # bright green
+        "IterationAdvisor": "\x1b[35m", # magenta
 
         # Default
         "Default": "\x1b[38;20m",  # Dim White
@@ -106,6 +113,7 @@ class AgentMessage(BaseModel):
         status: Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')
         step: Current step being executed 
     """
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     agent: str
     content: str = ''
     tools: List[Dict[str, Any]] = []

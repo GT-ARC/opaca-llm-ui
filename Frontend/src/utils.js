@@ -136,25 +136,22 @@ export function shuffleArray(array) {
  * message may be added as a new message, or extend or replace the last received message.
  * 
  * @param {Array} debugMessages list of existing debug messages (modified)
- * @param {String} text new message text
- * @param {String} type new message type
- * @param {String} chatId ID of the chat the message belongs to
+ * @param {object} message new message object with fields {id, type, text, chatId}
  */
-export function addDebugMessage(debugMessages, text, type, chatId) {
-    if (! text) return;
-    const message = {text: text, type: type, chatId: chatId};
+export function addDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    message = structuredClone(message); // since it may be modified later
 
     // if there are no messages yet, just push the new one
     if (debugMessages.length === 0) {
         debugMessages.push(message);
     } else {
         const lastMessage = debugMessages[debugMessages.length - 1];
-        if (lastMessage.type === type) {
-            // if the type is the same, the new message is a continuation of the last message
-            if (/^Tool \d+/.test(text)) {
-                lastMessage.text = text;  // replace
+        if (message.id != null && lastMessage.id === message.id) {
+            if (/^Tool \d+/.test(message.text)) {
+                lastMessage.text = message.text;  // replace
             } else {
-                lastMessage.text += text; // append
+                lastMessage.text += message.text; // append
             }
         } else {
             // new message type
