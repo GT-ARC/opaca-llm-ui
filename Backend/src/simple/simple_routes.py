@@ -111,7 +111,7 @@ class SimpleBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": self.make_llm_config_param(),
+            "model": self.make_llm_config_param(name="Model", description="The model to use."),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",
@@ -122,14 +122,6 @@ class SimpleBackend(AbstractMethod):
                 maximum=2.0,
                 step=0.1,
             ),
-            "ask_policy": ConfigParameter(
-                name="Ask Policy",
-                description="Determine how much confirmation the LLM will require",
-                type="string",
-                required=True,
-                default="never",
-                enum=list(ask_policies.keys()),
-            ),
             "max_rounds": ConfigParameter(
                 name="Max Rounds",
                 description="Maximum number of retries",
@@ -139,6 +131,14 @@ class SimpleBackend(AbstractMethod):
                 minimum=1,
                 maximum=10,
                 step=1,
+            ),
+            "ask_policy": ConfigParameter(
+                name="Ask Policy",
+                description="Determine how much confirmation the LLM will require",
+                type="string",
+                required=True,
+                default="never",
+                enum=list(ask_policies.keys()),
             ),
         }
 

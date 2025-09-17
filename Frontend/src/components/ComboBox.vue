@@ -11,16 +11,17 @@
             @keydown.down.prevent="moveSelection(1)"
             @keydown.up.prevent="moveSelection(-1)"
             @keydown.enter.prevent="commitHighlighted"
-            @keydown.esc.prevent="toggle(false)"
+            @keydown.esc.prevent="toggleDropdown(false)"
             role="combobox"
             :aria-expanded="open ? 'true' : 'false'"
             aria-autocomplete="list"
             autocomplete="off"
+            :disabled="disabled"
         />
         <button
             class="btn btn-outline-secondary"
             type="button"
-            @click="toggle"
+            @click="toggleDropdown"
             aria-label="Toggle options">
             <i v-if="open" class="fa fa-caret-up" />
             <i v-else class="fa fa-caret-down" />
@@ -54,13 +55,15 @@ export default {
         modelValue: { type: String, default: "" },
         items: { type: Array, default: () => [] },
         placeholder: { type: String, default: "" },
+        defaultDisabled: { type: Boolean, default: false },
     },
     emits: ["update:modelValue"],
     data() {
         return {
             open: false,
             highlighted: -1,
-            localValue: this.modelValue
+            localValue: this.modelValue,
+            disabled: this.defaultDisabled,
         };
     },
     watch: {
@@ -72,7 +75,7 @@ export default {
         onInput() {
             this.$emit("update:modelValue", this.localValue);
         },
-        toggle(value = null) {
+        toggleDropdown(value = null) {
             this.open = (value === null)
                 ? !this.open
                 : value;
@@ -81,7 +84,7 @@ export default {
         select(item) {
             this.localValue = item;
             this.$emit("update:modelValue", item);
-            this.toggle(false);
+            this.toggleDropdown(false);
         },
         moveSelection(offset) {
             if (!this.open) this.open = true;
@@ -93,13 +96,16 @@ export default {
             if (this.open && this.highlighted >= 0) {
                 this.select(this.items[this.highlighted]);
             } else {
-                this.toggle(false);
+                this.toggleDropdown(false);
             }
+        },
+        toggleDisabled(value = null) {
+            this.disabled = (value === null) ? !this.disabled : value;
         },
         onDocClick(e) {
             const root = this.$refs.root;
             if (!root) return;
-            if (!root.contains(e.target)) this.toggle(false);
+            if (!root.contains(e.target)) this.toggleDropdown(false);
         }
     },
     mounted() {
@@ -130,6 +136,6 @@ export default {
 
 .list-group-item.active {
     background-color: var(--primary-color);
-    color: var(--text-primary-color);
+    color: var(--button-primary-color);
 }
 </style>

@@ -101,7 +101,7 @@ class SimpleToolsBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": self.make_llm_config_param(),
+            "model": self.make_llm_config_param(name="Model", description="The model to use."),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",

@@ -6,7 +6,7 @@
         <strong>{{ configParam?.name ?? name }}</strong>
 
         <!-- param description -->
-        <div v-if="configParam?.description" class="tooltip-container">
+        <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
             <button
                 class="question-mark"
                 @mouseover="toggleTooltip"
@@ -36,20 +36,11 @@
 
     <!-- enums -->
     <div v-else-if="Array.isArray(configParam?.enum)">
-        <!-- no free input: dropdown menu -->
-        <div v-if="!configParam.free_input">
-            <select v-model="localValue" class="form-control">
-                <option v-for="option in configParam?.enum" :key="option" :value="option">
-                    {{ option }}
-                </option>
-            </select>
-        </div>
-        <div v-else>
-            <ComboBox
-                v-model="localValue"
-                :items="configParam?.enum"
-            />
-        </div>
+        <ComboBox
+            v-model="localValue"
+            :items="configParam?.enum"
+            :default-disabled="!configParam?.free_input"
+        />
     </div>
 
     <!-- numbers: check min/max range -->
@@ -79,6 +70,7 @@
 <script>
 import Localizer from "../Localizer.js";
 import ComboBox from "./ComboBox.vue";
+import {useDevice} from "../useIsMobile.js";
 
 export default {
     name: "ConfigParameter",
@@ -91,7 +83,8 @@ export default {
         modelValue: Object, // <- "Any" type
     },
     setup() {
-        return { Localizer };
+        const {isMobile} = useDevice();
+        return { Localizer, isMobile };
     },
     emits: ["update:modelValue"],
     computed: {
