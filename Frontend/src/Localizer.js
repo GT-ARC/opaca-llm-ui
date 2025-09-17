@@ -89,6 +89,7 @@ export const localizationData = {
         confirmDeleteChat: "Are you sure that you want to delete the Chat?",
         buttonSearchChats: "Search Chats",
         dropFiles: "Drop files here to upload",
+        searchAgentsPlaceholder: "Search…",
     },
 
     DE: {
@@ -174,6 +175,7 @@ export const localizationData = {
         confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
         buttonSearchChats: "Chats Durchsuchen",
         dropFiles: "Dateien hier ablegen um sie hochzuladen",
+        searchAgentsPlaceholder: "Suchen…",
     },
 };
 
