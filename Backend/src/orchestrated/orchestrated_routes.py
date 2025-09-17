@@ -45,49 +45,54 @@ class SelfOrchestratedBackend(AbstractMethod):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         return {
             # Which model to use for the orchestrator and worker agents
-            "orchestrator_model": self.make_llm_config_param("For delegating tasks"),
-            "worker_model": self.make_llm_config_param("For selecting tools"),
-            "evaluator_model": self.make_llm_config_param("For evaluating tool results"),
-            "generator_model": self.make_llm_config_param("For generating the response"),
-            # Temperature for the orchestrator and worker agents
+            "orchestrator_model": self.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
+            "worker_model": self.make_llm_config_param(name="Workers", description="For selecting tools"),
+            "evaluator_model": self.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
+            "generator_model": self.make_llm_config_param(name="Output", description="For generating the final response"),
             "temperature": ConfigParameter(
-                type="number", 
+                name="Temperature",
+                description="Temperature for the orchestrator and worker agents",
+                type="number",
                 required=True, 
                 default=0.0, 
                 minimum=0.0, 
                 maximum=2.0,
-                enum=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
-                description="Temperature for the orchestrator and worker agents"),
-            # Maximum number of orchestration and worker rounds
+                step=0.1,
+            ),
             "max_rounds": ConfigParameter(
-                type="integer", 
+                name="Max Rounds",
+                description="Maximum number of orchestration and worker rounds",
+                type="integer",
                 required=True, 
                 default=5, 
                 minimum=1, 
                 maximum=10,
-                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                description="Maximum number of orchestration and worker rounds"),
-            # Maximum number of re-iterations (retries after failed attempts)
+                step=1,
+            ),
             "max_iterations": ConfigParameter(
-                type="integer", 
+                name="Max Iterations",
+                description="Maximum number of re-iterations (retries after failed attempts)",
+                type="integer",
                 required=True, 
                 default=3, 
                 minimum=1, 
                 maximum=10,
-                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                description="Maximum number of re-iterations (retries after failed attempts)"),
-            # Whether to use the planner agent or not
+                step=1,
+            ),
             "use_agent_planner": ConfigParameter(
-                type="boolean", 
+                name="Use Agent Planner?",
+                description="Whether to use the planner agent or not",
+                type="boolean",
                 required=True, 
                 default=True,
-                description="Whether to use the planner agent or not"),
-            # Whether to use the agent evaluator or not
+            ),
             "use_agent_evaluator": ConfigParameter(
-                type="boolean", 
+                name="Use Agent Evaluator?",
+                description="Whether to use the agent evaluator or not",
+                type="boolean",
                 required=True, 
                 default=False,
-                description="Whether to use the agent evaluator or not"),
+            ),
         }
 
     async def _execute_round(

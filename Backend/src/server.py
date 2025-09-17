@@ -270,8 +270,8 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
-
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    
 
 @app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
@@ -281,14 +281,14 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     except HTTPException as e:
         raise e
     session.config[backend] = conf
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
 @app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 ## Utility functions
 

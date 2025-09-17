@@ -27,18 +27,21 @@ class AbstractMethod(ABC):
         pass
 
     @staticmethod
-    def make_llm_config_param(description: str = None):
-        models = [m for _, _, models in get_supported_models() for m in models]
+    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
+        models = [f"{url}: {model}" for url, _, models in get_supported_models() for model in models]
         return ConfigParameter(
-                type="string", 
-                required=True, 
-                default=models[0],
-                enum=models,
-                description=description)
+            name=name,
+            description=description,
+            type="string",
+            required=True,
+            default=models[0],
+            enum=models,
+            free_input=True,
+        )
 
-    async def get_llm_client(self, session: SessionData, model: str) -> AsyncOpenAI:
-        for url, key, models in get_supported_models():
-            if model in models:
+    async def get_llm_client(self, session: SessionData, the_url: str) -> AsyncOpenAI:
+        for url, key, _ in get_supported_models():
+            if url == the_url:
                 if url not in session.llm_clients:
                     logger.info("creating new client for URL " + url)
                     # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
@@ -47,7 +50,7 @@ class AbstractMethod(ABC):
                         AsyncOpenAI(api_key=key, base_url=url)
                     )
                 return session.llm_clients[url]
-        raise Exception(f"Model not supported : {model}")
+        raise Exception(f"LLM host not supported : {the_url}")
 
 
     def default_config(self):
@@ -91,7 +94,7 @@ class AbstractMethod(ABC):
 
         Args:
             session (SessionData): The current session
-            model (str): Model name (e.g., "gpt-4-turbo").
+            model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
             messages (List[ChatMessage]): The list of chat messages.
@@ -105,7 +108,11 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
-        client = await self.get_llm_client(session, model)
+        try:
+            url, model = model.split(": ")
+        except Exception:
+            raise Exception(f"Invalid format: Must be '<llm-host>: <model>': {model}")
+        client = await self.get_llm_client(session, url)
 
         # Initialize variables
         exec_time = time.time()
