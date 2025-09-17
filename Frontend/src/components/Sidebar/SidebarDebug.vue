@@ -29,7 +29,7 @@ import conf from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import DebugMessage from "../DebugMessage.vue";
-import {addDebugMessage} from "../../utils.js";
+import * as utils from "../../utils.js";
 
 export default {
     name: "SidebarDebug",
@@ -63,8 +63,9 @@ export default {
                 debugConsole.clientHeight >= debugConsole.scrollHeight - 10;
         },
 
-        addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type, this.selectedChatId);
+        addDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.addDebugMessage(this.debugMessages, message);
         },
 
         getCurrentDebugMessages() {

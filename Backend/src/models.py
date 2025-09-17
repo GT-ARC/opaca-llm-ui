@@ -2,10 +2,10 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
-import sys
 from typing import List, Dict, Any, Optional, Self
 from io import BytesIO
-from datetime import datetime, tzinfo, timezone
+from datetime import datetime, timezone
+import uuid
 
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
@@ -113,6 +113,7 @@ class AgentMessage(BaseModel):
         status: Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')
         step: Current step being executed 
     """
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     agent: str
     content: str = ''
     tools: List[Dict[str, Any]] = []

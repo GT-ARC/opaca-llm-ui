@@ -314,8 +314,8 @@ export default {
             await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(userText, "user");
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -406,8 +406,8 @@ export default {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
-                    const sidebar = this.$refs.sidebar;
-                    sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    const debug = this.$refs.sidebar.$refs.debug;
+                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
@@ -550,22 +550,22 @@ export default {
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
-                this.addDebug(toolOutput, type);
+                this.addDebug(toolOutput, type, agentMessage.id);
             }
 
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
                 const type = agentMessage.agent;
-                this.addDebug(text, type);
+                this.addDebug(text, type, agentMessage.id);
             }
         },
 
-        addDebug(text, type) {
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, type);
+        addDebug(text, type, id=null) {
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type);
+            aiBubble.addDebugMessage(text, type, id);
         },
 
         getBackend() {

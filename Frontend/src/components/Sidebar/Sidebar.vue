@@ -110,7 +110,6 @@
 
 <script>
 import conf, {Backends, BackendDescriptions} from '../../../config.js'
-import backendClient, {addDebugMessage} from "../../utils.js";
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -192,16 +191,6 @@ export default {
                 isResizing = false;
                 document.body.style.cursor = 'default';
             });
-        },
-
-        addDebugMessage(text, type) {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.addDebugMessage(text, type);
-        },
-
-        clearDebugMessage() {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.clearDebugMessage();
         },
 
     },
