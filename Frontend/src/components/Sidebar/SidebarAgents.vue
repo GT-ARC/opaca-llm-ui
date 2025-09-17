@@ -4,6 +4,18 @@
         {{ Localizer.get('tooltipSidebarAgents') }}
     </div>
 
+    <div class="input-group my-2">
+        <input
+            type="text"
+            class="form-control"
+            placeholder="Search ..."
+            v-model="this.searchQuery"
+        />
+        <button type="button" class="btn btn-primary" disabled>
+            <i class="fa fa-magnifying-glass" />
+        </button>
+    </div>
+
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebarAgentsLoading') }}
@@ -13,7 +25,7 @@
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
-            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
+            <div v-for="(actions, agent, agentIndex) in this.getAgents()" class="accordion-item" :key="agentIndex">
 
                 <!-- header -->
                 <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
@@ -84,6 +96,7 @@ export default {
         return {
             platformActions: null,
             isLoading: false,
+            searchQuery: '',
         };
     },
     methods: {
@@ -92,11 +105,29 @@ export default {
             this.platformActions = isPlatformConnected
                 ? await backendClient.getActions()
                 : null;
+            console.log(JSON.stringify(this.platformActions));
             this.isLoading = false;
         },
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
+        },
+
+        getAgents() {
+            return Object.keys(this.platformActions)
+                .sort()
+                .filter(agent => {
+                    const query = this.searchQuery.toLowerCase();
+                    const actions = this.platformActions[agent];
+                    return agent.includes(query) || actions.some(action => {
+                        return action.name?.toLowerCase()?.includes(query)
+                            || action.description?.toLowerCase()?.includes(query);
+                    });
+                })
+                .reduce((acc, agent) => {
+                    acc[agent] = this.platformActions[agent];
+                    return acc;
+                }, {});
         },
     }
 }
