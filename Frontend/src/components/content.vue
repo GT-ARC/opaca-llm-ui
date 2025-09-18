@@ -171,7 +171,7 @@
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
-                                <i class="fa fa-paper-plane" style="transform: translateX(-2px)" />
+                                <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
 
@@ -692,14 +692,6 @@ export default {
     mounted() {
         this.startNewChat();
         this.updateScrollbarThumb();
-
-        const inputArea = this.$refs.inputArea;
-        inputArea.addEventListener("focusin", () => {
-            inputArea.style.outline = "2px solid var(--primary-color)";
-        });
-        inputArea.addEventListener("focusout", () => {
-            inputArea.style.outline = "";
-        });
     },
     watch: {
         textInput() {
@@ -759,7 +751,10 @@ export default {
     padding: 0.5rem;
     margin-left: auto;
     margin-right: auto;
-    transition: outline-width 0.1s ease;
+}
+
+.input-area:focus-within {
+    outline: 2px solid var(--primary-color);
 }
 
 .scroll-wrapper {
