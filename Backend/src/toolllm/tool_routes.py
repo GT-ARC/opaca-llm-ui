@@ -5,7 +5,8 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, FILE_EVALUATOR_MESSAGE, \
+    OUTPUT_GENERATOR_NO_TOOLS
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
@@ -49,12 +50,13 @@ class ToolLLMBackend(AbstractMethod):
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
 
         # Initialize parameters
-        tool_messages = []         # Internal messages between llm-components
+        tool_messages = []          # Internal messages between llm-components
         t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
         no_tools = False            # If no tools were generated, the Output Generator will include available tools
+        skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
 
         # Initialize the response object
         response = Response()
@@ -79,8 +81,39 @@ class ToolLLMBackend(AbstractMethod):
         # Save time before execution
         total_exec_time = time.time()
 
+        # If files were uploaded, check if any tools need to be called with extracted information
+        if session.uploaded_files:
+            result = await self.call_llm(
+                session=session,
+                model=config['tool_eval_model'],
+                agent='Tool Evaluator',
+                system_prompt='',
+                messages=[
+                    ChatMessage(role="user", content=FILE_EVALUATOR_MESSAGE.format(
+                        message=message,
+                    )),
+                ],
+                response_format=self.EvaluatorResponse,
+                temperature=config['temperature'],
+                tools=tools,
+                tool_choice="none",
+                websocket=websocket,
+            )
+            response.agent_messages.append(result)
+            try:
+                formatted_result = json.loads(result.content)
+                skip_chain = formatted_result["decision"] == 'FINISHED'
+            except json.JSONDecodeError as e:
+                print(f'Encountered error when parsing json content: {e}')
+
+        # If no tools are available, skip the internal chain and go straight to the output generation
+        if len(tools) == 0:
+            skip_chain = True
+            no_tools = True
+
+
         # Run until request is finished or maximum number of iterations is reached
-        while should_continue and c_it < max_iters:
+        while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
                 session=session,
                 model=config['tool_gen_model'],
@@ -155,6 +188,7 @@ class ToolLLMBackend(AbstractMethod):
                             called_tools=called_tools,
                         )),
                     ],
+                    response_format=self.EvaluatorResponse,
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
@@ -184,10 +218,15 @@ class ToolLLMBackend(AbstractMethod):
             session=session,
             model=config['output_model'],
             agent='Output Generator',
-            system_prompt='',
+            system_prompt='You are an output response generator agent. Your task is to generate visually pleasing '
+                          'responses to user requests with the help of an internal message history. Format your answer '
+                          'using markdown. Always show images directly embedded in markdown. Use emojis when '
+                          'appropriate. Make use of lists, line separators and other markdown styles to visually '
+                          'enhance your output and make the information more clear to the user.',
             messages=[
                 *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
+                OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     called_tools=called_tools or "",
                 )),
