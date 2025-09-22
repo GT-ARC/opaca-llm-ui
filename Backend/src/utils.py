@@ -115,47 +115,6 @@ def resolve_reference(action_spec: Dict, ref: str) -> Dict:
     return out
 
 
-def get_reduced_action_spec(action_spec: Dict) -> List:
-    """
-    Takes in the openapi specification of the available actions form the connected opaca platform.
-    Results in a string in a list-like format.
-
-    Output format:
-    "[[action_name;description;[params_in];param_out;agent;container_id;[custom_params]], ...]"
-
-    NEVER USED
-    """
-    action_spec = jsonref.replace_refs(action_spec)
-    action_list = []
-    action_paths = action_spec["paths"]
-    for _, content in action_paths.items():
-        action = Action()
-        action.container_id, action.agent_name, action.action_name = content["post"]["operationId"].split(';')
-        action.description = content["post"]["description"] if "description" in content["post"] else ""
-
-        param_schema = content["post"]["requestBody"]["content"]["application/json"]["schema"]
-        required = param_schema["required"] if "required" in param_schema.keys() else []
-        if "properties" in param_schema:
-            for p_name, p_type in content["post"]["requestBody"]["content"]["application/json"]["schema"]["properties"].items():
-                if "$ref" in p_type.keys():
-                    p = resolve_reference(action_spec, p_type["$ref"])
-                    p_required = p["required"] if "required" in p.keys() else []
-                    p_parameters = {}
-                    for name, p_content in p["properties"].items():
-                        p_parameters[name] = Parameter(p_content["type"], True if name in p_required else False)
-                    action.custom_params[p["title"]] = p_parameters
-                is_type = p_type["type"] if "type" in p_type else p_type["$ref"].split("/")[-1]
-                is_required = True if p_name in required else False
-                action.params_in[p_name] = Parameter(is_type, is_required)
-                if "type" in p_type and p_type["type"] == "array":
-                    action.params_in[p_name].items = resolve_array_items(p_type)
-
-        res_schema = content["post"]["responses"]["200"]["content"]["*/*"]["schema"]
-        action.param_out = res_schema["type"] if "type" in res_schema.keys() else ""
-        action_list.append(action)
-    return action_list
-
-
 def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
     functions = []
     error_msg = ""
