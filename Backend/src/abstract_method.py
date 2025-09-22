@@ -101,7 +101,6 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
             response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
-            guided_choice (Optional[List[str]]): List of strings for the model to pick from.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:

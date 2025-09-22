@@ -1,14 +1,10 @@
 import json
-import os
 import logging
 import time
 import traceback
 from collections import defaultdict
 from typing import Dict, Any, List, Tuple
-from pathlib import Path
 
-from openai import AsyncOpenAI
-import yaml
 import asyncio
 
 from .prompts import (
@@ -27,7 +23,6 @@ from .agents import (
     AgentPlanner, get_current_time
 )
 from .models import (
-    AgentEvaluation,
     AgentResult,
     AgentTask
 )
@@ -304,13 +299,15 @@ class SelfOrchestratedBackend(AbstractMethod):
                 
                 # Send tool calls and results via websocket or generic GeneralAgent message
                 await send_to_websocket(websocket, agent_message=worker_message)
-            
+
+            evaluation = True
+
             if agent_evaluator and task.agent_name != "GeneralAgent":
                 # Now evaluate the result after we have it
                 await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n")
 
                 # If manual evaluation passes, run the AgentEvaluator
-                if not (evaluation := agent_evaluator.evaluate_results(result)):
+                if not agent_evaluator.evaluate_results(result):
                     evaluation_message = await self.call_llm(
                         session=session,
                         model=config["evaluator_model"],
@@ -318,21 +315,19 @@ class SelfOrchestratedBackend(AbstractMethod):
                         system_prompt=agent_evaluator.system_prompt(),
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config["temperature"],
-                        guided_choice=agent_evaluator.guided_choice(),
+                        response_format=agent_evaluator.schema,
                     )
                     agent_messages.append(evaluation_message)
-                    evaluation = evaluation_message.content
+                    evaluation = evaluation_message.formatted_output.reiterate
             
                     # Send evaluation results via websocket
                     await send_to_websocket(websocket, agent_message=evaluation_message)
 
                 else:
                     await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}")
-            else:
-                evaluation = None
             
             # If evaluation indicates we need to retry, do so
-            if evaluation and evaluation == AgentEvaluation.REITERATE:
+            if evaluation:
                 # Update task for retry
                 retry_task = f"""# Evaluation 
                 
@@ -535,15 +530,15 @@ Now, using the tools available to you and the previous results, continue with yo
                         system_prompt=overall_evaluator.system_prompt(),
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config["temperature"],
-                        guided_choice=overall_evaluator.guided_choice,
+                        response_format=overall_evaluator.schema,
                     )
-                    evaluation = evaluation_message.content
+                    evaluation = evaluation_message.formatted_output.reiterate
                     response.agent_messages.append(evaluation_message)
                     await send_to_websocket(websocket, agent_message=evaluation_message)
                 else:
                     await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}\n\nOverall evaluation complete ✓")
                             
-                if evaluation == AgentEvaluation.REITERATE:
+                if evaluation:
                     # Get iteration advice before continuing
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 
@@ -653,27 +648,25 @@ Please address these specific improvements:
         for name, content in agent_details.items():
             tools.append({
                 "type": "function",
-                "function": {
-                    "name": name,
-                    "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "task": {
-                                "type": "string",
-                                "description": "A clear task description including all necessary steps and information "
-                                               "to be fulfilled by this agent."
-                            },
-                            "round": {
-                                "type": "integer",
-                                "description": "The round in which this tool should be executed. First round is 1."
-                            }
+                "name": name,
+                "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "string",
+                            "description": "A clear task description including all necessary steps and information "
+                                           "to be fulfilled by this agent."
                         },
-                        "required": ["task", "round"],
-                        "additionalProperties": False
+                        "round": {
+                            "type": "integer",
+                            "description": "The round in which this tool should be executed. First round is 1."
+                        }
                     },
-                    "strict": True
-                }
+                    "required": ["task", "round"],
+                    "additionalProperties": False
+                },
+                "strict": True
             })
         return tools
 
