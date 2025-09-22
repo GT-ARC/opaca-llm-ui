@@ -477,15 +477,6 @@ export default {
             }
         },
 
-        async resetChat() {
-            // XXX unused
-            this.messages = [];
-            this.$refs.sidebar.clearDebugMessage();
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
-            await backendClient.reset();
-        },
-
         /**
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
