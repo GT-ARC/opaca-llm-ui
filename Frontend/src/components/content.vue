@@ -111,8 +111,7 @@
             <div class="input-container">
 
                 <div class="input-area"
-                     @click="this.$refs.textInputRef?.focus()"
-                     ref="inputArea">
+                     @click="this.$refs.textInputRef?.focus()" >
                     <div class="scroll-wrapper" :class="{'w-100': this.isMobile}">
                         <textarea
                             id="textInput"
