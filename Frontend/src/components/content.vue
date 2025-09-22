@@ -586,11 +586,17 @@ export default {
             if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
+                const debug = this.$refs.sidebar.$refs.debug;
 
+                // clear messages
                 this.messages = [];
+                debug.clearDebugMessages();
+
+                // add messages from history
                 for (const msg of res.responses) {
                     // request
                     await this.addChatBubble(msg.query, true);
+                    debug.addDebugMessage(msg.query, "user");
                     // response
                     await this.addChatBubble(msg.content, false);
                     for (const x of msg.agent_messages) {
@@ -655,6 +661,7 @@ export default {
                 this.selectedChatId = uuid.v4();
                 this.newChat = true;
                 this.messages = [];
+                this.$refs.sidebar.$refs.debug.clearDebugMessages();
                 this.textInput = '';
                 this.showExampleQuestions = true;
                 Localizer.reloadSampleQuestions(null);
