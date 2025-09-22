@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any, Type
 
 from openai import AsyncOpenAI
 from openai.lib import ResponseFormatT
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
@@ -85,8 +85,7 @@ class AbstractMethod(ABC):
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
-            response_format: Optional[Type[ResponseFormatT]] = None,
-            guided_choice: Optional[List[str]] = None,
+            response_format: Optional[Type[BaseModel]] = None,
             websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
@@ -120,144 +119,59 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        # Upload all unsent files
-        for filename, filedata in session.uploaded_files.items():
-            if not filedata.file_id:
-                # prepare file for upload
-                file_bytes = filedata._content.getvalue()   # Access private content
-                file_obj = io.BytesIO(file_bytes)
-                file_obj.name = filename  # Required by OpenAI SDK
-
-                # Upload the file
-                uploaded = await client.files.create(file=file_obj, purpose="assistants")
-                logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
-                filedata.file_id = uploaded.id
-
-        file_message_parts = [
-            {"type": "file", "file": {"file_id": file.file_id}}
-            for file in session.uploaded_files.values()
-        ]
+        file_message_parts = await self.upload_files(session, client)
 
         # Modify the last user message to include file parts
         if file_message_parts:
-            messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
+            messages[-1].content = [*file_message_parts, {"type": "text", "text": messages[-1].content}]
         
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'messages': [ChatMessage(role="system", content=system_prompt), *messages],
+            'input': [ChatMessage(role="system", content=system_prompt), *messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
+            'text': {'format': {'type': 'text'}},
+            'stream': True
         }
 
-        # o1/o3 don't support temperature param
-        if not model.startswith(('o1', 'o3')):
+        if response_format:
+            kwargs['text'] = transform_schema(response_format.model_json_schema())
+
+        # o1/o3/o4 don't support temperature param
+        if not model.startswith(('o1', 'o3', 'o4')):
             kwargs['temperature'] = temperature
 
-        # There is currently no token streaming available when using built-in response format
-        # Handle structured response parsing
-        if response_format:
-            if self._is_gpt(model):
-                completion = await client.beta.chat.completions.parse(
-                    **kwargs, response_format=response_format
-                )
-                content = completion.choices[0].message.content
-                agent_message.formatted_output = completion.choices[0].message.parsed
-            else:
-                guided_json = transform_schema(response_format.model_json_schema())
-                kwargs['extra_body'] = {'guided_json': guided_json}
-                kwargs['messages'][0].content += (f"\nYou MUST provide your response as a JSON object that follows "
-                                                  f"this schema. Your response must include ALL required fields.\n\n"
-                                                  f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
-                                                  f"the schema itself. Return a valid JSON object matching the schema.")
-
-                completion = await client.chat.completions.create(**kwargs)
-                content = completion.choices[0].message.content
-                cleaned_content = self.extract_json_like_content(content)
+        # Main stream logic
+        stream = await client.responses.create(**kwargs)
+        async for event in stream:
+            if event.type == 'response.output_item.added' and event.item.type == 'function_call':
+                agent_message.tools.append({'name': event.item.name, 'args': {}, 'result': '', 'id': event.output_index})
+                tool_call_buffers[event.output_index] = ""
+            elif event.type == 'response.function_call_arguments.delta':
+                # We assume that the entry has been created already
+                tool_call_buffers[event.output_index] += event.delta
+            elif event.type == 'response.output_text.delta':
+                agent_message.content = event.delta
+                content += event.delta
+            elif event.type == 'response.completed':
+                if response_format:
+                    try:
+                        agent_message.formatted_output = response_format.model_validate_json(content)
+                    except json.decoder.JSONDecodeError:
+                        raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+                agent_message.response_metadata = event.response.usage.to_dict()
+            elif event.type == 'response.function_call_arguments.done':
+                tool_idx = next((t['id'] for t in agent_message.tools if t['id'] == event.output_index), -1)
                 try:
-                    agent_message.formatted_output = response_format.model_validate_json(cleaned_content)
-                except ValidationError:
-                    agent_message.formatted_output = {}
-            agent_message.response_metadata = completion.usage.to_dict()
-        else:
-            # Handle tool choice options
-            if guided_choice:
-                if self._is_gpt(model):
-                    kwargs['messages'][0].content += (
-                        f"\nYou MUST select one AND ONLY ONE of these choices to answer "
-                        f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
-                        f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
-                else:
-                    kwargs["extra_body"] = {"guided_choice": guided_choice}
+                    agent_message.tools[tool_idx]['args'] = json.loads(tool_call_buffers[event.output_index])
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    agent_message.tools[tool_idx]['args'] = {}
 
-            # Enable streaming and include token usage
-            kwargs['stream'] = True
-            kwargs['stream_options'] = {'include_usage': True}
-
-            completion = await client.chat.completions.create(**kwargs)
-            async for chunk in completion:
-
-                if session.abort_sent:
-                    raise OpacaException(
-                        user_message="(The generation of the response has been stopped.)",
-                        error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
-                    )
-
-                # Usage is present in the last chunk so break once it is available
-                if usage := chunk.usage:
-                    agent_message.response_metadata = usage.to_dict()
-                    break
-
-                choice = chunk.choices[0].delta
-                tool_calls = choice.tool_calls
-
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        tool_call_id = tool_call.id
-
-                        if tool_call_id:
-                            tool_call_buffers[tool_call_id] = {
-                                'name': tool_call.function.name,
-                                'arguments': tool_call.function.arguments or '',
-                            }
-                        else:
-                            last_tool_call = next(reversed(tool_call_buffers.values()), None)
-                            if last_tool_call:
-                                # If the full arguments were generated (happens in mistral models)
-                                # then set the arguments rather than append to them
-                                if model.startswith(('gpt', 'o1', 'o3')):
-                                    last_tool_call['arguments'] += tool_call.function.arguments or ''
-                                else:
-                                    try:
-                                        json.loads(tool_call.function.arguments)
-                                        last_tool_call['arguments'] = tool_call.function.arguments
-                                    except json.JSONDecodeError:
-                                        last_tool_call['arguments'] += tool_call.function.arguments or ''
-
-                    agent_message.tools = [
-                        {
-                            'id': i,
-                            'name': function['name'],
-                            'args': function['arguments'],
-                            'result': '',
-                        }
-                        for i, function in enumerate(tool_call_buffers.values())
-                    ]
-                else:
-                    agent_message.content = choice.content or ''
-                    content += choice.content or ''
-                if websocket:
-                    await websocket.send_json(agent_message.model_dump_json())
-
-        # Transform generated arguments into JSON
-        for tool in agent_message.tools:
-            try:
-                tool['args'] = json.loads(tool['args'])
-            except json.JSONDecodeError:
-                tool['args'] = {}
-            if not tool["args"]:
-                tool["args"] = {}
-                continue
+            if websocket:
+                await websocket.send_json(agent_message.model_dump_json())
+                agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
@@ -278,10 +192,25 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
     @staticmethod
-    def extract_json_like_content(text: str):
-        """Removes any string content before the first { and after the last }"""
-        match = re.search(r'\{.*}', text, re.DOTALL)
-        return match.group(0) if match else text
+    async def upload_files(session: SessionData, client: AsyncOpenAI):
+        """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
+        # Upload all unsent files
+        for filename, filedata in session.uploaded_files.items():
+            if not filedata.file_id:
+                # prepare file for upload
+                file_bytes = filedata._content.getvalue()  # Access private content
+                file_obj = io.BytesIO(file_bytes)
+                file_obj.name = filename  # Required by OpenAI SDK
+
+                # Upload the file
+                uploaded = await client.files.create(file=file_obj, purpose="assistants")
+                logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
+                filedata.file_id = uploaded.id
+
+        return [
+            {"type": "input_file", "file_id": file.file_id}
+            for file in session.uploaded_files.values()
+        ]
 
     @staticmethod
     async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> dict:
