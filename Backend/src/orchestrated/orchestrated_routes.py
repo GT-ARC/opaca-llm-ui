@@ -300,7 +300,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # Send tool calls and results via websocket or generic GeneralAgent message
                 await send_to_websocket(websocket, agent_message=worker_message)
 
-            evaluation = True
+            evaluation = task.agent_name != "GeneralAgent"
 
             if agent_evaluator and task.agent_name != "GeneralAgent":
                 # Now evaluate the result after we have it
@@ -410,7 +410,7 @@ Now, using the tools available to you and the previous results, continue with yo
             }
 
             # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["getGeneralCapabilities"]}
+            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
 
             # Create tools from agent details
             orchestrator_tools = self.get_agents_as_tools(agent_details)

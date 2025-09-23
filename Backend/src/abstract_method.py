@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import re
 import time
 import io
 from abc import ABC, abstractmethod
@@ -9,7 +8,7 @@ from typing import Dict, List, Optional, Any, Type
 
 from openai import AsyncOpenAI
 from openai.lib import ResponseFormatT
-from pydantic import ValidationError, BaseModel
+from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
@@ -122,7 +121,7 @@ class AbstractMethod(ABC):
 
         # Modify the last user message to include file parts
         if file_message_parts:
-            messages[-1].content = [*file_message_parts, {"type": "text", "text": messages[-1].content}]
+            messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
         
         # Set settings for model invocation
         kwargs = {
