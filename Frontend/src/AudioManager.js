@@ -394,9 +394,13 @@ class AudioManager {
 
     isRecognitionSupported() {
         return this.isVoiceServerConnected
-            || (this._isGoogleChrome()
-            && this._isWebSpeechSupported()
+            || (this.isWebSpeechSupported()
+            && this._isGoogleChrome()
             && this._isSecureConnection());
+    }
+
+    isWebSpeechSupported() {
+        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     }
 
     /**
@@ -409,10 +413,6 @@ class AudioManager {
             && window.navigator.userAgentData !== undefined
             && Array.from(window.navigator.userAgentData?.brands)?.some(b => b?.brand === 'Google Chrome')
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
-    }
-
-    _isWebSpeechSupported() {
-        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     }
 
     _isSecureConnection() {

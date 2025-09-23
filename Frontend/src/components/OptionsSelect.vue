@@ -98,7 +98,7 @@
                             <i v-else class="fa fa-toggle-off" />
                         </span>
                     </div>
-                    <div v-if="AudioManager._isGoogleChrome()"
+                    <div v-if="AudioManager.isWebSpeechSupported()"
                          class="options-item d-flex flex-row align-items-center"
                          @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
                         <span>
