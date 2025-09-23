@@ -91,7 +91,7 @@ class SimpleBackend(AbstractMethod):
                 tool_call = await self.invoke_tool(session, tool.name, tool.args, response.iterations-1)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
-                    content=f"\nThe result of this step was: {tool_call['result']}",
+                    content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
                 if websocket:
@@ -152,7 +152,7 @@ class SimpleBackend(AbstractMethod):
         try:
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
-                return ToolCall(name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
+                return ToolCall(id=0, name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass
         return None

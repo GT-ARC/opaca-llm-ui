@@ -202,7 +202,7 @@ class AgentEvaluator(BaseAgent):
         # If we have multiple tool calls and one uses a placeholder that wasn't replaced
         if len(result.tool_calls) > 1:
             for tool_call in result.tool_calls:
-                if '<' in tool_call["args"] and '>' in tool_call["args"]:
+                if '<' in tool_call.args and '>' in tool_call.args:
                     self.logger.info("Found unresolved placeholder in tool call")
                     return True
         return False
@@ -246,7 +246,8 @@ class OverallEvaluator(BaseAgent):
             if len(result.tool_calls) > 1:
                 # Look for unresolved placeholders
                 for tool_call in result.tool_calls:
-                    if '<' in tool_call["args"] and '>' in tool_call["args"]:
+                    # XXX THIS DOES NOT MAKE SENSE! (did it before? can this be removed?)
+                    if '<' in tool_call.args and '>' in tool_call.args:
                         self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
                         return True
 
@@ -381,7 +382,7 @@ class WorkerAgent(BaseAgent):
 
             # Add the result to the tool outputs list
             tool_outputs.append(
-                f"\n- Worker Agent Executed: {tool_call['name']}.")  # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
+                f"\n- Worker Agent Executed: {tool_call.name}.")  # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
 
         # Join all tool outputs into a single string
         output = "\n\n".join(tool_outputs)

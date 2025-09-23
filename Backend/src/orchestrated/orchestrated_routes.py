@@ -139,7 +139,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             # Update the tool ids
             async with tool_counter_lock:
                 for tool in worker_message.tools:
-                    tool["id"] = tool_counter
+                    tool.id = tool_counter
                     tool_counter += 1
 
             # Invoke the action on the connected opaca platform
@@ -284,7 +284,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                     # Update the tool ids
                     async with tool_counter_lock:
                         for tool in worker_message.tools:
-                            tool["id"] = tool_counter
+                            tool.id = tool_counter
                             tool_counter += 1
 
                     # Invoke the tool call on the connected opaca platform
@@ -363,7 +363,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Update the tool ids
                 async with tool_counter_lock:
                     for tool in worker_message.tools:
-                        tool["id"] = tool_counter
+                        tool.id = tool_counter
                         tool_counter += 1
 
                 result = await agent.invoke_tools(task.task, worker_message)
