@@ -89,7 +89,7 @@
 
                     <!-- Toggle TTS/STT -->
                     <div class="options-item d-flex flex-row align-items-center"
-                         @click="() => this.toggleWhisperTts()">
+                         @click="AudioManager.useWhisperTts = !AudioManager.useWhisperTts;">
                         <span>
                             {{ Localizer.get('useWhisperTts') }}
                         </span>
@@ -100,7 +100,7 @@
                     </div>
                     <div v-if="AudioManager._isGoogleChrome()"
                          class="options-item d-flex flex-row align-items-center"
-                         @click="() => this.toggleWhisperStt()">
+                         @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
                         <span>
                             {{ Localizer.get('useWhisperStt') }}
                         </span>
@@ -212,15 +212,11 @@ export default {
         },
 
         toggleWhisperTts() {
-            console.log('toggleWhisperTts', AudioManager.useWhisperTts);
             AudioManager.useWhisperTts = !AudioManager.useWhisperTts;
-            console.log('toggleWhisperTts', AudioManager.useWhisperTts);
         },
 
         toggleWhisperStt() {
-            console.log('toggleWhisperStt', AudioManager.useWhisperStt);
             AudioManager.useWhisperStt = !AudioManager.useWhisperStt;
-            console.log('toggleWhisperStt', AudioManager.useWhisperStt);
         },
     },
 
