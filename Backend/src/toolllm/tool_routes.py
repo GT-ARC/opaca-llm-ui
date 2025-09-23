@@ -260,8 +260,8 @@ class ToolLLMBackend(AbstractMethod):
             # If not, abort current iteration since no reference parameters can be found
             action_def = None
             for a in tools:
-                if a['function']['name'] == action:
-                    action_def = a['function']
+                if a['name'] == action:
+                    action_def = a
             if not action_def:
                 err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
                             f'defined in your tool section. Please make sure to separate the agent name and function '

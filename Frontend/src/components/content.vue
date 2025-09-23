@@ -170,7 +170,7 @@
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
-                                <i class="fa fa-paper-plane"/>
+                                <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
 
@@ -750,6 +750,10 @@ export default {
     padding: 0.5rem;
     margin-left: auto;
     margin-right: auto;
+}
+
+.input-area:focus-within {
+    outline: 2px solid var(--primary-color);
 }
 
 .scroll-wrapper {

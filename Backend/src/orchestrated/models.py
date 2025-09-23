@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
@@ -20,10 +19,9 @@ class PlannerPlan(BaseModel):
     thinking: str = Field(description="Short and precise step by step reasoning about how to break down and solve the task")
     tasks: List[AgentTask] = Field(description="List of tasks to be executed")
 
-class AgentEvaluation(str, Enum):
+class AgentEvaluation(BaseModel):
     """Possible outcomes from the agent evaluator"""
-    REITERATE = "REITERATE"  # Should try again with new context
-    FINISHED = "FINISHED"    # Completed task successfully
+    reiterate: bool  # True: Try again with new context, False: Completed task successfully
 
 class AgentResult(BaseModel):
     """Model for storing results from an agent's execution"""
