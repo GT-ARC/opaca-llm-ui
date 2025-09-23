@@ -103,15 +103,15 @@ def test_chat_histories():
 
 def test_config():
     conf = client.get_config("simple")
-    conf["value"]["temperature"] = 1.5
+    conf["config_values"]["temperature"] = 1.5
 
-    client.set_config("simple", conf["value"])
+    client.set_config("simple", conf["config_values"])
     conf = client.get_config("simple")
-    assert conf["value"]["temperature"] == 1.5
+    assert conf["config_values"]["temperature"] == 1.5
 
     client.reset_config("simple")
     conf = client.get_config("simple")
-    assert conf["value"]["temperature"] == 1.0
+    assert conf["config_values"]["temperature"] == 1.0
 
 
 # HELPER METHODS

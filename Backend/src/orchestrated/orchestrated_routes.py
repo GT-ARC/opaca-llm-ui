@@ -4,16 +4,13 @@ import time
 import traceback
 from collections import defaultdict
 from typing import Dict, Any, List, Tuple
-
 import asyncio
 
 from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod
-
 from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat
-
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -22,11 +19,8 @@ from .agents import (
     IterationAdvisor,
     AgentPlanner, get_current_time
 )
-from .models import (
-    AgentResult,
-    AgentTask
-)
-from ..utils import openapi_to_functions_strict
+from .models import AgentResult, AgentTask
+from ..utils import openapi_to_functions
 
 
 class SelfOrchestratedBackend(AbstractMethod):
@@ -486,7 +480,9 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform
                         agent_tools = await session.opaca_client.get_actions_openapi(inline_refs=True)
-                        agent_tools = openapi_to_functions_strict(agent_tools, agent=agent_name)
+                        agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name, strict=True)
+                        if errors:
+                            self.logger.warning(errors)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
