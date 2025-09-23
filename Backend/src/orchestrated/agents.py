@@ -75,7 +75,7 @@ class AgentPlanner(BaseAgent):
         self.tools = deepcopy(tools)
         # The agent planner needs tools to be strict
         for tool in self.tools:
-            tool["function"]["strict"] = True
+            tool["strict"] = True
             enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
@@ -183,11 +183,12 @@ class AgentEvaluator(BaseAgent):
             )
         ]
 
-    @staticmethod
-    def guided_choice():
-        return [e.value for e in AgentEvaluation]
+    @property
+    def schema(self):
+        return AgentEvaluation
 
-    def evaluate_results(self, result: AgentResult) -> AgentEvaluation | None:
+    def evaluate_results(self, result: AgentResult) -> bool:
+        """Manually checks for errors in the results and returns True if any are found."""
         for tool_result in result.tool_results:
             if isinstance(tool_result.get("result"), str) and (
                     "error" in tool_result["result"].lower() or
@@ -195,7 +196,7 @@ class AgentEvaluator(BaseAgent):
                     "502" in tool_result["result"]
             ):
                 self.logger.info(f"Found failed tool call: {tool_result}")
-                return AgentEvaluation.REITERATE
+                return True
 
         # Check for incomplete sequential operations
         # If we have multiple tool calls and one uses a placeholder that wasn't replaced
@@ -203,8 +204,8 @@ class AgentEvaluator(BaseAgent):
             for tool_call in result.tool_calls:
                 if '<' in tool_call["args"] and '>' in tool_call["args"]:
                     self.logger.info("Found unresolved placeholder in tool call")
-                    return AgentEvaluation.REITERATE
-        return None
+                    return True
+        return False
 
 
 class OverallEvaluator(BaseAgent):
@@ -225,10 +226,11 @@ class OverallEvaluator(BaseAgent):
         ]
 
     @property
-    def guided_choice(self):
-        return [e.value for e in AgentEvaluation]
+    def schema(self):
+        return AgentEvaluation
 
-    def evaluate_results(self, current_results: List[AgentResult]) -> AgentEvaluation | None:
+    def evaluate_results(self, current_results: List[AgentResult]) -> bool:
+        """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
             # Check for errors in tool results
             for tool_result in result.tool_results:
@@ -238,7 +240,7 @@ class OverallEvaluator(BaseAgent):
                         "502" in tool_result["result"]
                 ):
                     self.logger.info(f"Found failed tool call in {result.agent_name}: {tool_result}")
-                    return AgentEvaluation.REITERATE
+                    return True
 
             # Check for incomplete sequential operations
             if len(result.tool_calls) > 1:
@@ -246,15 +248,15 @@ class OverallEvaluator(BaseAgent):
                 for tool_call in result.tool_calls:
                     if '<' in tool_call["args"] and '>' in tool_call["args"]:
                         self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
-                        return AgentEvaluation.REITERATE
+                        return True
 
                 # Check if we have all necessary results for sequential operations
                 tool_names = [tc["name"] for tc in result.tool_calls]
                 result_names = [tr["name"] for tr in result.tool_results]
                 if not all(tn in result_names for tn in tool_names):
                     self.logger.info(f"Missing tool results in {result.agent_name}")
-                    return AgentEvaluation.REITERATE
-        return None
+                    return True
+        return False
 
 
 class IterationAdvisor(BaseAgent):

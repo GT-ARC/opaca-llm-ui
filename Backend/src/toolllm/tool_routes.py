@@ -21,12 +21,30 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
-                "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
-                "output_model": self.make_llm_config_param("Generating the final output"),
-                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
-               }
+            "tool_gen_model": self.make_llm_config_param(name="Generator", description="Generating tool calls"),
+            "tool_eval_model": self.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
+            "output_model": self.make_llm_config_param(name="Output", description="Generating the final output"),
+            "temperature": ConfigParameter(
+                name="Temperature",
+                description="Temperature for the models",
+                type="number",
+                required=True,
+                default=0.0,
+                minimum=0.0,
+                maximum=2.0,
+                step=0.1,
+            ),
+            "max_rounds": ConfigParameter(
+                name="Max Rounds",
+                description="Maximum number of retries",
+                type="integer",
+                required=True,
+                default=5,
+                minimum=1,
+                maximum=10,
+                step=1
+            ),
+       }
 
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
 
@@ -203,8 +221,8 @@ class ToolLLMBackend(AbstractMethod):
             # If not, abort current iteration since no reference parameters can be found
             action_def = None
             for a in tools:
-                if a['function']['name'] == action:
-                    action_def = a['function']
+                if a['name'] == action:
+                    action_def = a
             if not action_def:
                 err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
                             f'defined in your tool section. Please make sure to separate the agent name and function '

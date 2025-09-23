@@ -185,7 +185,7 @@
 </template>
 
 <script>
-import {addDebugMessage} from "../utils.js"
+import * as utils from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -269,8 +269,9 @@ export default {
                 });
         },
 
-        addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type, this.selectedChatId);
+        addDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.addDebugMessage(this.debugMessages, message);
         },
 
         scrollDownDebugMsg() {

@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 import jsonref
 from fastapi import HTTPException
 
-from .models import ConfigParameter, ConfigArrayItem, OpacaException, Response
+from .models import ConfigParameter, OpacaException, Response
 
 
 logger = logging.getLogger(__name__)
@@ -158,11 +158,9 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
             functions.append(
                 {
                     "type": "function",
-                    "function": {
-                        "name": agent_name + '--' + function_name,
-                        "description": desc,
-                        "parameters": schema
-                    }
+                    "name": agent_name + '--' + function_name,
+                    "description": desc,
+                    "parameters": schema,
                 }
             )
 
@@ -221,20 +219,6 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
             (config_param["type"] == "string" and not isinstance(value, str)) or \
             (config_param["type"] == "boolean" and not isinstance(value, bool)):
             raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
-        elif config_param["type"] == "array":
-            if not isinstance(value, list):
-                raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
-            else:
-                for item in value:
-                    validate_array_items(item, config_param.get("array_items"))
-        elif config_param["type"] == "object":
-            if not isinstance(value, dict):
-                raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
-            else:
-                for k1, v1 in value.items():
-                    if k1 not in config_param["default"].keys():
-                        raise HTTPException(400, f'No option named "{k1}" was found!')
-                    validate_config_input({k1: v1}, {k1: ConfigParameter.model_validate(config_param["default"][k1])})
         elif config_param["type"] == "null" and value is not None:
             raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
 
@@ -246,23 +230,8 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
                 raise HTTPException(400, f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
 
         # Validate enum
-        if config_param.get("enum", None) and value not in schema[key].enum:
+        if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
             raise HTTPException(400,f'Parameter "{key}" has to be one of "{schema[key].enum}"')
-
-
-def validate_array_items(value, array_items: ConfigArrayItem):
-    if (array_items["type"] == "number" and not isinstance(value, (float, int))) or \
-            (array_items["type"] == "integer" and not isinstance(value, int)) or \
-            (array_items["type"] == "string" and not isinstance(value, str)) or \
-            (array_items["type"] == "boolean" and not isinstance(value, bool)) or \
-            (array_items["type"] == "null" and value is not None):
-        raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
-    elif array_items["type"] in ["array", "object"]:
-        if not isinstance(value, list):
-            raise HTTPException(400, f'ArrayItem "{value}" does not match the expected type "{array_items["type"]}"')
-        else:
-            for item in value:
-                validate_array_items(item, array_items.get("array_items"))
 
 
 def transform_schema(schema):
@@ -361,8 +330,12 @@ def transform_schema(schema):
 
     # Create the final schema with the required name field
     final_schema = {
-        "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
-        "schema": cleaned_schema
+        "format": {
+            "type": "json_schema",
+            "strict": True,
+            "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
+            "schema": cleaned_schema
+        }
     }
 
     return final_schema

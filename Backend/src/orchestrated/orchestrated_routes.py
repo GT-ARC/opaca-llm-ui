@@ -19,7 +19,7 @@ from .agents import (
     IterationAdvisor,
     AgentPlanner, get_current_time
 )
-from .models import AgentEvaluation, AgentResult, AgentTask
+from .models import AgentResult, AgentTask
 from ..utils import openapi_to_functions
 
 
@@ -34,49 +34,54 @@ class SelfOrchestratedBackend(AbstractMethod):
     def config_schema(self) -> Dict[str, ConfigParameter]:
         return {
             # Which model to use for the orchestrator and worker agents
-            "orchestrator_model": self.make_llm_config_param("For delegating tasks"),
-            "worker_model": self.make_llm_config_param("For selecting tools"),
-            "evaluator_model": self.make_llm_config_param("For evaluating tool results"),
-            "generator_model": self.make_llm_config_param("For generating the response"),
-            # Temperature for the orchestrator and worker agents
+            "orchestrator_model": self.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
+            "worker_model": self.make_llm_config_param(name="Workers", description="For selecting tools"),
+            "evaluator_model": self.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
+            "generator_model": self.make_llm_config_param(name="Output", description="For generating the final response"),
             "temperature": ConfigParameter(
-                type="number", 
+                name="Temperature",
+                description="Temperature for the orchestrator and worker agents",
+                type="number",
                 required=True, 
                 default=0.0, 
                 minimum=0.0, 
                 maximum=2.0,
-                enum=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
-                description="Temperature for the orchestrator and worker agents"),
-            # Maximum number of orchestration and worker rounds
+                step=0.1,
+            ),
             "max_rounds": ConfigParameter(
-                type="integer", 
+                name="Max Rounds",
+                description="Maximum number of orchestration and worker rounds",
+                type="integer",
                 required=True, 
                 default=5, 
                 minimum=1, 
                 maximum=10,
-                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                description="Maximum number of orchestration and worker rounds"),
-            # Maximum number of re-iterations (retries after failed attempts)
+                step=1,
+            ),
             "max_iterations": ConfigParameter(
-                type="integer", 
+                name="Max Iterations",
+                description="Maximum number of re-iterations (retries after failed attempts)",
+                type="integer",
                 required=True, 
                 default=3, 
                 minimum=1, 
                 maximum=10,
-                enum=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                description="Maximum number of re-iterations (retries after failed attempts)"),
-            # Whether to use the planner agent or not
+                step=1,
+            ),
             "use_agent_planner": ConfigParameter(
-                type="boolean", 
+                name="Use Agent Planner?",
+                description="Whether to use the planner agent or not",
+                type="boolean",
                 required=True, 
                 default=True,
-                description="Whether to use the planner agent or not"),
-            # Whether to use the agent evaluator or not
+            ),
             "use_agent_evaluator": ConfigParameter(
-                type="boolean", 
+                name="Use Agent Evaluator?",
+                description="Whether to use the agent evaluator or not",
+                type="boolean",
                 required=True, 
                 default=False,
-                description="Whether to use the agent evaluator or not"),
+            ),
         }
 
     async def _execute_round(
@@ -288,13 +293,15 @@ class SelfOrchestratedBackend(AbstractMethod):
                 
                 # Send tool calls and results via websocket or generic GeneralAgent message
                 await send_to_websocket(websocket, agent_message=worker_message)
-            
-            if agent_evaluator and task.agent_name != "GeneralAgent":
+
+            evaluation = task.agent_name != "GeneralAgent"
+
+            if agent_evaluator and evaluation:
                 # Now evaluate the result after we have it
                 await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n")
 
                 # If manual evaluation passes, run the AgentEvaluator
-                if not (evaluation := agent_evaluator.evaluate_results(result)):
+                if not agent_evaluator.evaluate_results(result):
                     evaluation_message = await self.call_llm(
                         session=session,
                         model=config["evaluator_model"],
@@ -302,21 +309,19 @@ class SelfOrchestratedBackend(AbstractMethod):
                         system_prompt=agent_evaluator.system_prompt(),
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config["temperature"],
-                        guided_choice=agent_evaluator.guided_choice(),
+                        response_format=agent_evaluator.schema,
                     )
                     agent_messages.append(evaluation_message)
-                    evaluation = evaluation_message.content
+                    evaluation = evaluation_message.formatted_output.reiterate
             
                     # Send evaluation results via websocket
                     await send_to_websocket(websocket, agent_message=evaluation_message)
 
                 else:
                     await send_to_websocket(websocket, "AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}")
-            else:
-                evaluation = None
             
             # If evaluation indicates we need to retry, do so
-            if evaluation and evaluation == AgentEvaluation.REITERATE:
+            if evaluation:
                 # Update task for retry
                 retry_task = f"""# Evaluation 
                 
@@ -399,7 +404,7 @@ Now, using the tools available to you and the previous results, continue with yo
             }
 
             # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["getGeneralCapabilities"]}
+            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
 
             # Create tools from agent details
             orchestrator_tools = self.get_agents_as_tools(agent_details)
@@ -521,15 +526,15 @@ Now, using the tools available to you and the previous results, continue with yo
                         system_prompt=overall_evaluator.system_prompt(),
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config["temperature"],
-                        guided_choice=overall_evaluator.guided_choice,
+                        response_format=overall_evaluator.schema,
                     )
-                    evaluation = evaluation_message.content
+                    evaluation = evaluation_message.formatted_output.reiterate
                     response.agent_messages.append(evaluation_message)
                     await send_to_websocket(websocket, agent_message=evaluation_message)
                 else:
                     await send_to_websocket(websocket, "OverallEvaluator", f"Overall evaluation result: {evaluation}\n\nOverall evaluation complete ✓")
                             
-                if evaluation == AgentEvaluation.REITERATE:
+                if evaluation:
                     # Get iteration advice before continuing
                     await send_to_websocket(websocket, "IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
 
@@ -639,27 +644,25 @@ Please address these specific improvements:
         for name, content in agent_details.items():
             tools.append({
                 "type": "function",
-                "function": {
-                    "name": name,
-                    "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "task": {
-                                "type": "string",
-                                "description": "A clear task description including all necessary steps and information "
-                                               "to be fulfilled by this agent."
-                            },
-                            "round": {
-                                "type": "integer",
-                                "description": "The round in which this tool should be executed. First round is 1."
-                            }
+                "name": name,
+                "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "string",
+                            "description": "A clear task description including all necessary steps and information "
+                                           "to be fulfilled by this agent."
                         },
-                        "required": ["task", "round"],
-                        "additionalProperties": False
+                        "round": {
+                            "type": "integer",
+                            "description": "The round in which this tool should be executed. First round is 1."
+                        }
                     },
-                    "strict": True
-                }
+                    "required": ["task", "round"],
+                    "additionalProperties": False
+                },
+                "strict": True
             })
         return tools
 

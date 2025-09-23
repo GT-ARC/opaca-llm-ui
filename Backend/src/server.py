@@ -178,7 +178,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
+    chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
     session.abort_sent = False
     result = None
@@ -223,12 +223,12 @@ async def update_chat(request: Request, response: FastAPIResponse, chat_id: str,
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
 async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
-    if chat is not None:
+    try:
+        handle_chat_id(session, chat_id)
         async with sessions_lock:
             del session.chats[chat_id]
         return True
-    else:
+    except Exception:  # not found
         return False
 
 
@@ -270,8 +270,8 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
-
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    
 
 @app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
@@ -281,14 +281,14 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
     except HTTPException as e:
         raise e
     session.config[backend] = conf
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
 @app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(value=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 ## Utility functions
 
