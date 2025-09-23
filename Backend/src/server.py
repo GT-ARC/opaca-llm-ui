@@ -13,8 +13,7 @@ import time
 from contextlib import asynccontextmanager
 
 import io
-from fastapi import FastAPI, Request, HTTPException, UploadFile
-from fastapi import Response as FastAPIResponse
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
@@ -85,30 +84,30 @@ async def get_models() -> dict[str, list[str]]:
     }
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, connect: ConnectRequest) -> int:
+async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
-async def get_connection(request: Request, response: FastAPIResponse) -> str | None:
+async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
     return session.opaca_client.url
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
-async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
+async def disconnect(request: Request, response: Response) -> Response:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
-    return FastAPIResponse(status_code=204)
+    return Response(status_code=204)
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
-async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
+async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
 
 
 @app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
-async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
@@ -135,7 +134,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
 
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
-async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: QueryRequest) -> QueryResponse:
+async def query_no_history(request: Request, response: Response, backend: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
@@ -145,7 +144,7 @@ async def query_no_history(request: Request, response: FastAPIResponse, backend:
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
-async def stop_query(request: Request, response: FastAPIResponse) -> None:
+async def stop_query(request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
 
@@ -158,7 +157,7 @@ async def reset_all():
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
-async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
+async def get_chats(request: Request, response: Response) -> List[Chat]:
     session = await handle_session_id(request, response)
     chats = [
         Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
@@ -169,14 +168,14 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
 
 
 @app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
-async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
+async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     return chat
 
 
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: QueryRequest) -> QueryResponse:
+async def query_chat(request: Request, response: Response, backend: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
@@ -213,7 +212,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
-async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
+async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     chat.name = new_name
@@ -221,7 +220,7 @@ async def update_chat(request: Request, response: FastAPIResponse, chat_id: str,
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
-async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
+async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
     try:
         handle_chat_id(session, chat_id)
@@ -233,7 +232,7 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")
-async def search_chats(request: Request, response: FastAPIResponse, query: str) -> Dict[str, List[SearchResult]]:
+async def search_chats(request: Request, response: Response, query: str) -> Dict[str, List[SearchResult]]:
     def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
         start = max(0, index - buffer_length)
         stop = min(len(text), index + len(query) + buffer_length)
@@ -266,7 +265,7 @@ async def search_chats(request: Request, response: FastAPIResponse, query: str) 
 ## CONFIG ROUTES
 
 @app.get("/config/{backend}", description="Get current configuration of the given prompting method.")
-async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
+async def get_config(request: Request, response: Response, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
@@ -274,7 +273,7 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     
 
 @app.put("/config/{backend}", description="Update configuration of the given prompting method.")
-async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
+async def set_config(request: Request, response: Response, backend: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
         validate_config_input(conf, BACKENDS[backend].config_schema)
@@ -285,14 +284,14 @@ async def set_config(request: Request, response: FastAPIResponse, backend: str, 
 
 
 @app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
-async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
+async def reset_config(request: Request, response: Response, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 ## Utility functions
 
-async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
+async def handle_session_id(source: Union[Request, WebSocket], response: Response = None) -> SessionData:
     """
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
