@@ -21,7 +21,7 @@ from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input, exception_to_result, get_supported_models
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
     SearchResult
 from .opaca_client import OpacaClient
 from .simple import SimpleBackend
@@ -85,7 +85,7 @@ async def get_models() -> dict[str, list[str]]:
     }
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, connect: ConnectInfo) -> int:
+async def connect(request: Request, response: FastAPIResponse, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
@@ -135,7 +135,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
 
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
-async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
@@ -176,7 +176,7 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
 
 
 @app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
+async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
@@ -201,7 +201,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     result = None
     try:
         data = await websocket.receive_json()
-        message = Message(**data)
+        message = QueryRequest(**data)
         create_chat_name(chat, message)
         result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
@@ -343,7 +343,7 @@ def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool =
     return chat
 
 
-def create_chat_name(chat: Chat | None, message: Message | None) -> None:
+def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
     if (chat is not None) and (message is not None) and not chat.name:
         chat.name = (f'{message.user_query[:32]}…'
             if len(message.user_query) > 32
@@ -354,7 +354,7 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, message: Message, result: Response):
+async def store_message(chat: Chat, message: QueryRequest, result: QueryResponse):
     if message:
         chat.messages.extend([
             ChatMessage(role="user", content=message.user_query),

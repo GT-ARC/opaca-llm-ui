@@ -4,7 +4,7 @@ import time
 from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
-from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat
+from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat
 from ..utils import openapi_to_functions
 
 
@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 class SimpleToolsBackend(AbstractMethod):
     NAME = "simple-tools"
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
-        response = Response(query=message)
+        response = QueryResponse(query=message)
 
         config = session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
