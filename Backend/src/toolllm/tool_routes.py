@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, Chat
+from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, Chat, ToolCall
 from ..utils import openapi_to_functions
 
 
@@ -130,7 +130,7 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(session, call['name'], call['args'], t_called))
+                tasks.append(self.invoke_tool(session, call.name, call.args, t_called))
                 t_called += 1
 
             result.tools = await asyncio.gather(*tasks)
@@ -206,7 +206,7 @@ class ToolLLMBackend(AbstractMethod):
         return response
 
     @staticmethod
-    def check_valid_action(tools, calls: List[dict]) -> str:
+    def check_valid_action(tools, calls: List[ToolCall]) -> str:
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
@@ -214,8 +214,8 @@ class ToolLLMBackend(AbstractMethod):
         for call in calls:
 
             # Get the generated name and parameters
-            action = call.get('name', '')
-            args = call.get('args', {})
+            action = call.name
+            args = call.args
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
@@ -245,5 +245,5 @@ class ToolLLMBackend(AbstractMethod):
         return err_out
 
     @staticmethod
-    def _build_tool_desc(c_it, tools):
-        return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
+    def _build_tool_desc(c_it: int, tools: List[ToolCall]):
+        return {c_it: [{"name": tool.name, "parameters": tool.args, "result": tool.result} for tool in tools]}

@@ -10,7 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat
+from ..models import QueryResponse, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -266,7 +266,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         agent_name="GeneralAgent",
                         task=task_str,
                         output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[{"name": "GetCapabilities", "args": "{}"}],
+                        tool_calls=[ToolCall(name="GetCapabilities", args={})],
                         tool_results=[{"name": "GetCapabilities", "result": predefined_response}],
                     )
                 else:

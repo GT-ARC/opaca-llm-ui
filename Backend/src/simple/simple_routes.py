@@ -6,7 +6,7 @@ import json
 from starlette.websockets import WebSocket
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat
+from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -88,7 +88,7 @@ class SimpleBackend(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations-1)
+                tool_call = await self.invoke_tool(session, tool.name, tool.args, response.iterations-1)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=f"\nThe result of this step was: {tool_call['result']}",
@@ -148,11 +148,11 @@ class SimpleBackend(AbstractMethod):
         except:
             return "(No services, not connected yet.)"
 
-    async def find_tool(self, llm_response: str) -> dict | None:
+    async def find_tool(self, llm_response: str) -> ToolCall | None:
         try:
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
-                return {"name": f'{d["agentId"]}--{d["action"]}', "args": d["params"]}
+                return ToolCall(name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass
         return None

@@ -72,11 +72,11 @@ class SimpleToolsBackend(AbstractMethod):
                     break
 
                 tool_entries = [
-                    await self.invoke_tool(session, call["name"], call["args"], response.iterations)
+                    await self.invoke_tool(session, call.name, call.args, response.iterations)
                     for call in result.tools
                 ]
                 tool_contents = "\n".join(
-                    f"The result of tool '{tool['name']}' with parameters '{tool['args']}' was: {tool['result']}"
+                    f"The result of tool '{tool.name}' with parameters '{tool.args}' was: {tool.result}"
                     for tool in tool_entries
                 )
                 messages.append(ChatMessage(

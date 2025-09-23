@@ -546,8 +546,8 @@ export default {
         async addDebugToken(agentMessage) {
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
-                const toolOutput = agentMessage["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                const toolOutput = agentMessage.tools.map(tool =>
+                    `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}\nResult: ${JSON.stringify(tool.result)}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
                 this.addDebug(toolOutput, type, agentMessage.id);

@@ -115,7 +115,7 @@ class AgentMessage(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     agent: str
     content: str = ''
-    tools: List[Dict[str, Any]] = []
+    tools: List['ToolCall'] = []
     response_metadata: Dict[str, Any] = {}
     execution_time: float = .0
     formatted_output: Any = None
@@ -169,6 +169,13 @@ class ChatMessage(BaseModel):
     """
     role: str
     content: str | List[Dict[str, Any]]
+
+
+class ToolCall(BaseModel):
+    id: int
+    name: str
+    args: Dict[str, Any] = {}
+    result: Any | None = None
 
 
 class Chat(BaseModel):

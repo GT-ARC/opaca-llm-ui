@@ -7,7 +7,7 @@ import pytz
 from copy import deepcopy
 
 
-from ..models import ChatMessage
+from ..models import ChatMessage, AgentMessage
 from .models import (
     AgentTask, OrchestratorPlan, PlannerPlan, AgentEvaluation,
     AgentResult, IterationAdvice
@@ -320,7 +320,7 @@ class WorkerAgent(BaseAgent):
             )
         ]
 
-    async def invoke_tools(self, task_str, message) -> AgentResult:
+    async def invoke_tools(self, task_str: str, message: AgentMessage) -> AgentResult:
         # Iterate over all tool calls
         # Initialize tool calls and results lists
         tool_calls = []
@@ -329,11 +329,11 @@ class WorkerAgent(BaseAgent):
 
         for tool_call in message.tools:
             # Log the tool call being made
-            self.logger.info(f"Making tool call: {tool_call['name']}")
-            self.logger.debug(f"Tool call arguments: {tool_call['args']}")
+            self.logger.info(f"Making tool call: {tool_call.name}")
+            self.logger.debug(f"Tool call arguments: {tool_call.args}")
 
             # Split function name to get action name (remove agent prefix)
-            func_name = tool_call["name"]
+            func_name = tool_call.name
             if "--" in func_name:
                 agent_name, action_name = func_name.split("--", 1)
             else:
@@ -345,25 +345,25 @@ class WorkerAgent(BaseAgent):
                 result = await self.session_client.invoke_opaca_action(
                     action=action_name,
                     agent=agent_name,
-                    params=tool_call["args"]
+                    params=tool_call.args
                 )
             except Exception as e:
-                self.logger.error(f"Failed to execute tool call: {tool_call['name']}")
+                self.logger.error(f"Failed to execute tool call: {tool_call.name}")
                 tool_calls.append(tool_call)
                 tool_results.append({
-                    "name": tool_call["name"],
+                    "name": tool_call.name,
                     "result": str(e)
                 })
-                tool_call["result"] = str(e)
+                tool_call.result = str(e)
                 continue
 
             # Add the tool call and result to the lists
             tool_calls.append(tool_call)
             tool_results.append({
-                "name": tool_call["name"],
+                "name": tool_call.name,
                 "result": result
             })
-            tool_call["result"] = result
+            tool_call.result = result
 
             # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
             # Format the result for output
