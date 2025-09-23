@@ -5,8 +5,8 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, FILE_EVALUATOR_MESSAGE, \
-    OUTPUT_GENERATOR_NO_TOOLS
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
+    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
@@ -87,9 +87,9 @@ class ToolLLMBackend(AbstractMethod):
                 session=session,
                 model=config['tool_eval_model'],
                 agent='Tool Evaluator',
-                system_prompt='',
+                system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
                 messages=[
-                    ChatMessage(role="user", content=FILE_EVALUATOR_MESSAGE.format(
+                    ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
                         message=message,
                     )),
                 ],
