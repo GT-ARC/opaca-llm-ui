@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
 from openai import AsyncOpenAI
-from openai.lib import ResponseFormatT
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
@@ -99,7 +98,7 @@ class AbstractMethod(ABC):
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
-            response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
+            response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
@@ -122,6 +121,10 @@ class AbstractMethod(ABC):
         # Modify the last user message to include file parts
         if file_message_parts:
             messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
+
+        # Set a custom response format schema if provided, else expect plain text
+        r_format = transform_schema(response_format.model_json_schema()) if response_format else \
+            {'format': {'type': 'text'}}
         
         # Set settings for model invocation
         kwargs = {
@@ -129,7 +132,7 @@ class AbstractMethod(ABC):
             'input': [ChatMessage(role="system", content=system_prompt), *messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
-            'text': {'format': {'type': 'text'}},
+            'text': r_format,
             'stream': True
         }
 
@@ -143,24 +146,38 @@ class AbstractMethod(ABC):
         # Main stream logic
         stream = await client.responses.create(**kwargs)
         async for event in stream:
+
+            # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
                 agent_message.tools.append({'name': event.item.name, 'args': {}, 'result': '', 'id': event.output_index})
                 tool_call_buffers[event.output_index] = ""
+
+            # Tool call argument chunk received
             elif event.type == 'response.function_call_arguments.delta':
                 # We assume that the entry has been created already
                 tool_call_buffers[event.output_index] += event.delta
+
+            # Plain text chunk received
             elif event.type == 'response.output_text.delta':
                 agent_message.content = event.delta
                 content += event.delta
+
+            # Final message received
             elif event.type == 'response.completed':
+                # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
                         agent_message.formatted_output = response_format.model_validate_json(content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+                # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
+
+            # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
+                # Get the tool index from the event output index
                 tool_idx = next((t['id'] for t in agent_message.tools if t['id'] == event.output_index), -1)
+                # Try to transform function arguments into JSON
                 try:
                     agent_message.tools[tool_idx]['args'] = json.loads(tool_call_buffers[event.output_index])
                 except json.JSONDecodeError:

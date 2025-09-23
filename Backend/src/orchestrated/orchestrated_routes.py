@@ -302,7 +302,7 @@ class SelfOrchestratedBackend(AbstractMethod):
 
             evaluation = task.agent_name != "GeneralAgent"
 
-            if agent_evaluator and task.agent_name != "GeneralAgent":
+            if agent_evaluator and evaluation:
                 # Now evaluate the result after we have it
                 await send_to_websocket(websocket, "AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n")
 
