@@ -8,7 +8,7 @@
             'file-menu-button'
             ]"
            @click.stop="this.suspendFile()"
-           :title="Localizer.get(file.suspended ? 'tooltipUnsuspendUploadedFile' : 'tooltipSuspendUploadedFile')"
+           :title="Localizer.get('tooltipSuspendUploadedFile')"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
@@ -38,7 +38,7 @@ export default {
     },
     methods: {
         deleteFile() {
-            if (confirm(Localizer.get("confirmDeleteFile"))) {
+            if (confirm(Localizer.get("confirmDeleteFile", this.file.file_name))) {
                 this.$emit('delete-file', this.fileId);
             }
         },
