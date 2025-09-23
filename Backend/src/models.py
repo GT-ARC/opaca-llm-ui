@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
-from typing import List, Dict, Any, Optional, Self
+from typing import List, Dict, Any, Optional, Self, Iterator
 from io import BytesIO
 from datetime import datetime, timezone
 import uuid
@@ -184,7 +184,7 @@ class Chat(BaseModel):
     time_modified: datetime = datetime.now(tz=timezone.utc)
 
     @property
-    def messages(self):
+    def messages(self) -> Iterator[ChatMessage]:
         for r in self.responses:
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
