@@ -132,6 +132,9 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
             try:
                 # The operation id is formatted as 'containerId-agentName-actionName'
                 container_id, agent_name, function_name = spec.get("operationId").split(';')
+                # action relevant for selected agent?
+                if agent and agent_name != agent:
+                    continue
             except Exception as e:
                 error_msg += f'Error while splitting the operation id {spec.get("operationId")}. Cause: {e}\n'
                 continue
@@ -139,18 +142,13 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
             # Extract a description and parameters.
             desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
 
-            # action relevant for selected agent?
-            if agent and agent_name != agent:
-                continue
-
             # assemble function block
             # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
             schema = (spec.get("requestBody", {})
                         .get("content", {})
                         .get("application/json", {})
                         .get("schema"))
-            if "properties" not in schema:
-                schema["properties"] = {}
+            schema.setdefault("properties", {})  # must be present even if no params
             if strict:
                 schema["additionalProperties"] = False
                 schema["required"] = list(schema["properties"])
