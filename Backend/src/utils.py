@@ -211,11 +211,9 @@ def openapi_to_functions(openapi_spec):
             functions.append(
                 {
                     "type": "function",
-                    "function": {
-                        "name": agent_name + '--' + function_name,
-                        "description": desc,
-                        "parameters": schema
-                    }
+                    "name": agent_name + '--' + function_name,
+                    "description": desc,
+                    "parameters": schema,
                 }
             )
 
@@ -280,11 +278,9 @@ def openapi_to_functions_strict(openapi_spec: dict, agent: str = ""):
             args_schema["required"] = list(set(args_schema["required"]))
             functions.append({
                 "type": "function",
-                "function": {
-                    "name":  agent_name + '--' + function_name,
-                    "description": desc,
-                    "parameters": args_schema,
-                }
+                "name":  agent_name + '--' + function_name,
+                "description": desc,
+                "parameters": args_schema,
             })
 
     return functions
@@ -453,8 +449,12 @@ def transform_schema(schema):
 
     # Create the final schema with the required name field
     final_schema = {
-        "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
-        "schema": cleaned_schema
+        "format": {
+            "type": "json_schema",
+            "strict": True,
+            "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
+            "schema": cleaned_schema
+        }
     }
 
     return final_schema
