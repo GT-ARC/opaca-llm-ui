@@ -90,6 +90,9 @@ export const localizationData = {
         buttonSearchChats: "Search Chats",
         dropFiles: "Drop files here to upload",
         searchAgentsPlaceholder: "Search…",
+        useWhisperTts: "Whisper TTS",
+        useWhisperStt: "Whisper STT",
+        whisperVoiceSelectPlaceholder: "Whisper Voice"
     },
 
     DE: {
@@ -176,6 +179,9 @@ export const localizationData = {
         buttonSearchChats: "Chats Durchsuchen",
         dropFiles: "Dateien hier ablegen um sie hochzuladen",
         searchAgentsPlaceholder: "Suchen…",
+        useWhisperTts: "Whisper TTS",
+        useWhisperStt: "Whisper STT",
+        whisperVoiceSelectPlaceholder: "Whisper-Stimme"
     },
 };
 

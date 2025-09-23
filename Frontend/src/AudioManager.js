@@ -82,7 +82,7 @@ class WhisperAudio extends TtsAudio {
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
-                voice: audioManager.whisperVoice
+                voice: audioManager._whisperVoice.value,
             });
 
             const response = await fetch(`${url}?${params}`, payload);
@@ -220,7 +220,9 @@ class AudioManager {
         this._deviceInfo = ref('');
         this._recognition = null;
 
-        this.whisperVoice = 'alloy';
+        this._whisperVoice = ref('alloy');
+        this._useWhisperTts = ref(true);
+        this._useWhisperStt = ref(true);
     }
 
     get isVoiceServerConnected() {
@@ -265,6 +267,34 @@ class AudioManager {
         }
     }
 
+    get useWhisperTts() {
+        return this._useWhisperTts.value !== undefined
+            ? this._useWhisperTts.value
+            : this._useWhisperTts;
+    }
+
+    set useWhisperTts(value) {
+        if (this._useWhisperTts.value !== undefined) {
+            this._useWhisperTts.value = value;
+        } else {
+            this._useWhisperTts = value;
+        }
+    }
+
+    get useWhisperStt() {
+        return this._useWhisperStt.value !== undefined
+            ? this._useWhisperStt.value
+            : this._useWhisperStt;
+    }
+
+    set useWhisperStt(value) {
+        if (this._useWhisperStt.value !== undefined) {
+            this._useWhisperStt.value = value;
+        } else {
+            this._useWhisperStt = value;
+        }
+    }
+
     isBackendConfigured() {
         return !! conf.VoiceServerUrl
     }
@@ -294,7 +324,7 @@ class AudioManager {
     }
 
     async generateAudio(text) {
-        return await this.isVoiceServerConnected
+        return await this.isVoiceServerConnected && this.useWhisperTts
             ? this.generateWhisperAudio(text)
             : this.generateWebSpeechAudio(text);
     }
@@ -316,9 +346,13 @@ class AudioManager {
     async startWebSpeechRecognition(onResult) {
         if (!this.isRecognitionSupported()) return;
         await this.stopWebSpeechRecognition();
-        this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+        try {
+            this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+        } catch (error) {
+            console.error('Failed to start web speech recognition.');
+            console.error(error);
+        }
         this._recognition.lang = Localizer.getLanguageForTTS();
-
         this._recognition.onresult = async (event) => {
             if (!event.results || event.results.length <= 0) return;
             const recognizedText = event.results[0][0].transcript;

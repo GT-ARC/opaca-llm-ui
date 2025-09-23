@@ -28,13 +28,11 @@
         </button>
     </div>
 
-    <ul
-        v-if="open"
+    <ul v-if="open"
         class="list-group position-absolute start-0 end-0 mt-1"
         style="z-index: 1050; max-height: 240px; overflow: auto;"
         role="listbox">
-        <li
-            v-for="(item, idx) in items"
+        <li v-for="(item, idx) in items"
             :key="item + '_' + idx"
             class="list-group-item list-group-item-action"
             :class="{ active: idx === highlighted }"
@@ -57,7 +55,7 @@ export default {
         placeholder: { type: String, default: "" },
         defaultDisabled: { type: Boolean, default: false },
     },
-    emits: ["update:modelValue"],
+    emits: ["update:modelValue", "select", "input"],
     data() {
         return {
             open: false,
@@ -74,17 +72,18 @@ export default {
     methods: {
         onInput() {
             this.$emit("update:modelValue", this.localValue);
+            this.$emit("input", this.localValue);
         },
         toggleDropdown(value = null) {
             this.open = (value === null)
                 ? !this.open
                 : value;
-            console.log('open?', this.open);
             if (this.open) this.highlighted = -1;
         },
         select(item) {
             this.localValue = item;
             this.$emit("update:modelValue", item);
+            this.$emit("select", item);
             this.toggleDropdown(false);
         },
         moveSelection(offset) {
@@ -112,6 +111,10 @@ export default {
     mounted() {
         // close when clicking anywhere else
         document.addEventListener("mousedown", this.onDocClick);
+
+        if (!! this.localValue) {
+            this.select(this.items[0]);
+        }
     },
     beforeUnmount() {
         document.removeEventListener("mousedown", this.onDocClick);
