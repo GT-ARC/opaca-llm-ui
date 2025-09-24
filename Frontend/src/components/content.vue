@@ -392,11 +392,11 @@ export default {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 }
 
                 this.scrollDownDebug();
@@ -479,14 +479,6 @@ export default {
             }
         },
 
-        async resetChat() {
-            this.messages = [];
-            this.$refs.sidebar.clearDebugMessage();
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
-            await backendClient.reset();
-        },
-
         /**
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
@@ -552,7 +544,6 @@ export default {
                 const type = agentMessage.agent;
                 this.addDebug(toolOutput, type, agentMessage.id);
             }
-
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
@@ -594,11 +585,25 @@ export default {
             if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
+                const debug = this.$refs.sidebar.$refs.debug;
 
+                // clear messages
                 this.messages = [];
-                for (const msg of res.messages) {
-                    const isUser = msg.role === 'user';
-                    await this.addChatBubble(msg.content, isUser);
+                debug.clearDebugMessages();
+
+                // add messages from history
+                for (const msg of res.responses) {
+                    // request
+                    await this.addChatBubble(msg.query, true);
+                    debug.addDebugMessage(msg.query, "user");
+                    // response
+                    await this.addChatBubble(msg.content, false);
+                    for (const x of msg.agent_messages) {
+                        this.addDebugToken(x);
+                    }
+                    if (msg.error) {
+                        this.getLastBubble().setError(msg.error);
+                    }
                 }
 
                 if (this.messages.length !== 0) {
@@ -655,6 +660,7 @@ export default {
                 this.selectedChatId = uuid.v4();
                 this.newChat = true;
                 this.messages = [];
+                this.$refs.sidebar.$refs.debug.clearDebugMessages();
                 this.textInput = '';
                 this.showExampleQuestions = true;
                 Localizer.reloadSampleQuestions(null);

@@ -48,7 +48,7 @@ class SimpleToolsBackend(AbstractMethod):
             tools = tools[:128]
 
         # initialize message history
-        messages = chat.messages.copy()
+        messages = list(chat.messages)
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:

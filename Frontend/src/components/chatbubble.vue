@@ -414,25 +414,6 @@ export default {
                 || window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
-
-        clearStatusMessages() {
-            this.statusMessages = new Map();
-        },
-
-        clearDebugMessages() {
-            this.debugMessages = [];
-        },
-
-        clear() {
-            this.clearStatusMessages();
-            this.clearDebugMessages();
-            this.content = '';
-            this.isDebugExpanded = false;
-            this.isErrorExpanded = false;
-            this.isLoading = false;
-            this.error = null;
-            this.ttsAudio = null;
-        }
     },
 
     updated() {

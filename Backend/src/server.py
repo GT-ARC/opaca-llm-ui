@@ -21,7 +21,7 @@ from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input, exception_to_result, get_supported_models
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
+from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, OpacaFile, Chat, \
     SearchResult
 from .opaca_client import OpacaClient
 from .simple import SimpleBackend
@@ -168,7 +168,7 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
     return chats
 
 
-@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+@app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
@@ -187,7 +187,7 @@ async def query_chat(request: Request, response: FastAPIResponse, backend: str, 
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         return result
 
 
@@ -207,7 +207,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -354,13 +354,9 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, message: Message, result: Response):
-    if message:
-        chat.messages.extend([
-            ChatMessage(role="user", content=message.user_query),
-            ChatMessage(role="assistant", content=result.content)
-        ])
-        update_chat_time(chat)
+async def store_message(chat: Chat, result: Response):
+    chat.responses.append(result)
+    update_chat_time(chat)
 
 
 async def cleanup_old_sessions(delay_seconds=3600):
