@@ -224,12 +224,12 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
         # Get default config and overwrite the model
         try:
-            config = json.loads((await session.get(llm_url + f'/{backend}/config')).content)["value"]
+            config = json.loads((await session.get(llm_url + f'/config/{backend}')).content)["config_values"]
             if backend == "self-orchestrated":
                 config["model_config_name"] = model
             else:
                 config["model"] = model
-            await session.put(llm_url + f'/{backend}/config', json=config)
+            await session.put(llm_url + f'/config/{backend}', json=config)
         except Exception as e:
             logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
             raise RuntimeError(str(e))
@@ -241,7 +241,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
         for i, call in enumerate(question_set):
             # Generate a response by the OPACA LLM
             server_time = time.time()
-            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"]}, timeout=None)
+            result = await session.post(f'{llm_url}/query/{backend}', json={'user_query': call["input"]}, timeout=None)
             result = result.content
             server_time = time.time() - server_time
 
@@ -282,9 +282,6 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-
-            # Reset the message history
-            await session.post(llm_url + "/reset", timeout=None)
 
             # Update progress bar
             progress.advance(task_id)
