@@ -16,13 +16,14 @@
             :aria-expanded="open ? 'true' : 'false'"
             aria-autocomplete="list"
             autocomplete="off"
-            :disabled="disabled"
+            :disabled="disabled || inputDisabled"
         />
         <button
             class="btn btn-outline-secondary"
             type="button"
             @click="() => toggleDropdown()"
-            aria-label="Toggle options">
+            aria-label="Toggle options"
+            :disabled="disabled">
             <i v-if="open" class="fa fa-caret-up" />
             <i v-else class="fa fa-caret-down" />
         </button>
@@ -53,14 +54,16 @@ export default {
         modelValue: { type: String, default: "" },
         items: { type: Array, default: () => [] },
         placeholder: { type: String, default: "" },
+        defaultInputDisabled: { type: Boolean, default: false },
         defaultDisabled: { type: Boolean, default: false },
     },
-    emits: ["update:modelValue", "select", "input"],
+    emits: ["update:modelValue", "select"],
     data() {
         return {
             open: false,
             highlighted: -1,
             localValue: this.modelValue,
+            inputDisabled: this.defaultInputDisabled,
             disabled: this.defaultDisabled,
         };
     },
@@ -72,7 +75,7 @@ export default {
     methods: {
         onInput() {
             this.$emit("update:modelValue", this.localValue);
-            this.$emit("input", this.localValue);
+            this.$emit("select", this.localValue);
         },
         toggleDropdown(value = null) {
             this.open = (value === null)
