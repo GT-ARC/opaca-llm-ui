@@ -88,15 +88,14 @@
                  class="upload-status-preview mx-auto">
 
                 <!-- Loop through each selected file -->
-                <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.fileId || fileObj.file.name + index">
+                <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.fileId || (fileObj.file?.name + '-' + index)">
                     <FilePreview
                         v-if="index < this.maxDisplayedFiles()"
                         :key="fileObj.fileId"
-                        :file="fileObj.file"
                         :file-id="fileObj.fileId"
-                        :index="index"
-                        :upload-status="this.uploadStatus"
-                        @remove-file="this.removeSelectedFile"
+                        :file="fileObj.file"
+                        :is-uploading="fileObj.isUploading"
+                        @remove-file="this.handleDeleteFile"
                     />
                 </div>
 
@@ -231,10 +230,6 @@ export default {
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
-            uploadStatus: {
-                isUploading: false,
-                uploadedFileName: '',
-            },
             selectedChatId: '',
             newChat: false,
             showFileDropOverlay: false,
@@ -263,10 +258,8 @@ export default {
                     : [];
                 await this.askChatGpt(userInput, files);
 
-                // Clear file and status after sending
+                // Clear files list after sending
                 this.selectedFiles = [];
-                this.uploadStatus.uploadedFileName = '';
-                this.uploadStatus.isUploading = false;
 
                 // update chats list
                 await this.$refs.sidebar.$refs.chats.updateChats();
@@ -347,13 +340,12 @@ export default {
                 return;
             }
 
-            this.uploadStatus.isUploading = true;
-
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
             const wrappedFiles = pdfFiles.map(file => ({
                 file,
-                fileId: null
+                fileId: null,
+                isUploading: true
             }));
             this.selectedFiles.push(...wrappedFiles);
 
@@ -363,28 +355,24 @@ export default {
                 result.uploaded_files.forEach((uploaded, idx) => {
                     const wrapper = wrappedFiles[idx];
                     wrapper.fileId = uploaded.file_id;
+                    wrapper.isUploading = false;
                 });
             } catch (error) {
                 console.error("File upload failed:", error);
                 alert("File upload failed. See console for details.");
             } finally {
+                // Force vue to update
+                this.selectedFiles = [...this.selectedFiles];
                 await this.$refs.sidebar.$refs.files.updateFiles();
-                this.uploadStatus.isUploading = false;
             }
         },
 
-        // Remove selected file at given index
-        removeSelectedFile(index) {
-            const file = this.selectedFiles[index];
-            if(file?.fileId) {
-                // From backend
-                this.handleDeleteFile(file.fileId);
-            }
-            // From preview
-            this.selectedFiles.splice(index, 1);
-        },
-
+        // Remove selected file
         async handleDeleteFile(fileId) {
+            // Clean up preview if it exists
+            this.selectedFiles = this.selectedFiles.filter(f => f.fileId !== fileId);
+
+            // From backend
             await backendClient.deleteFile(fileId);
             await this.$refs.sidebar.$refs.files.updateFiles();
         },
