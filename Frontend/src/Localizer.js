@@ -196,17 +196,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
-                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
-                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -219,6 +208,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Explain Agile methodology.", "icon": "🔄"},
                 {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
                 {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
+                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
             ]
         },
         {
@@ -265,17 +265,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
-                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -288,6 +277,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
                 {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
                 {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
             ]
         },
         {
