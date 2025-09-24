@@ -125,7 +125,7 @@ class AbstractMethod(ABC):
         # Note: session.uploaded_files is expected to be { file_id: OpacaFile, ... }
         for frontend_id, filedata in list(session.uploaded_files.items()):
             # Skip suspended files
-            if getattr(filedata, "suspended", False):
+            if filedata.suspended:
                 continue
 
             # If this backend already has an uploaded id for this file, skip
@@ -147,14 +147,13 @@ class AbstractMethod(ABC):
         file_message_parts = [
             {"type": "file", "file": {"file_id": filedata.backend_ids[backend_url]}}
             for filedata in session.uploaded_files.values()
-            if (not getattr(filedata, "suspended", False)) and (backend_url in filedata.backend_ids)
+            if (not filedata.suspended) and (backend_url in filedata.backend_ids)
         ]
 
         # Insert file parts into the last user message
         if file_message_parts and messages:
             # keep the existing behavior: include file parts plus original text as a text block
             messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
-
 
         # Set settings for model invocation
         kwargs = {
