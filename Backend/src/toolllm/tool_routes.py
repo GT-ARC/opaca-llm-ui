@@ -6,7 +6,7 @@ from typing import List
 from pydantic import BaseModel
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
-    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE
+    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
@@ -218,11 +218,7 @@ class ToolLLMBackend(AbstractMethod):
             session=session,
             model=config['output_model'],
             agent='Output Generator',
-            system_prompt='You are an output response generator agent. Your task is to generate visually pleasing '
-                          'responses to user requests with the help of an internal message history. Format your answer '
-                          'using markdown. Always show images directly embedded in markdown. Use emojis when '
-                          'appropriate. Make use of lists, line separators and other markdown styles to visually '
-                          'enhance your output and make the information more clear to the user.',
+            system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
                 *chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else

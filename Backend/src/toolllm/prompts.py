@@ -5,8 +5,8 @@ Some queries require sequential calls with those tools. If other tool calls have
 made already, you will receive the generated AI response of these tool calls. In that 
 case you should continue to fulfill the user query with the additional knowledge. 
 You are only allowed to use those given tools. Tools can also be described as services. 
-You must never answer directly. Always use the available tools. Never return text output. 
-If no tool calls are required for the request, you can output an empty json such as `{}`. Another 
+You must never answer in plain text. Only use the available tools. Never return text output. 
+If no tool calls are required for the request, you output an empty json such as `{}`. Another 
 agent will take care of the final response generation. You can also output an empty json `{}` if the user 
 is just asking about general information about a tool and is not intending for the tool to be called."""
 
@@ -26,7 +26,8 @@ Output one of the following options as your decision:
 has not been retrieved yet. This option should also be returned if there is a realistic chance that a failed tool 
 call could result in a successful call in the next iteration.
 - "FINISHED": The user request has been fulfilled and all requested information has been retrieved. This option should 
-also be returned, if the same tool calls have failed in two or more subsequent iterations.
+also be returned, if the same tool calls have failed in two or more subsequent iterations. This option can also be 
+used, if the left over task is just a summarization or formatting of the retrieved information.
 
 Additionally, always output a reason for your decision."""
 
@@ -70,7 +71,8 @@ OUTPUT_GENERATOR_NO_TOOLS = """Generate a user response to the following message
 
 {message}
 
-Answer the user directly. If they had questions about a specific tool, provide them with the information. 
-Also mention available tools if they had a question that could be answered by using any of them.
+Answer the user directly. If they had questions about a specific tool, provide them with the information, if they 
+are available to you. If they ask about general information, provide the user with a nice overview of your 
+available tools. If no tools were given to you, then do not mention tools at all.
 Never mention that you are generating a response or say things like "Sure, here is...". 
 NEVER make up information about tools you are not provided with or that were not called."""
