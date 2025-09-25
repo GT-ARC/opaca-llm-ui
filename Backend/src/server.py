@@ -4,6 +4,7 @@ Provides a list of available "backends", or LLM prompting methods that can be us
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Union
@@ -126,6 +127,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
             uploaded.append(file.filename)
 
         except Exception as e:
+            logger.error(f"Failed to process file {file.filename}: {str(e)}\nTraceback: {traceback.format_exc()}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to process file {file.filename}: {str(e)}"
@@ -228,7 +230,8 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
         async with sessions_lock:
             del session.chats[chat_id]
         return True
-    except Exception:  # not found
+    except Exception as e:  # not found
+        logger.error(f"Failed to delete chat {chat_id}: {str(e)}\nTraceback: {traceback.format_exc()}")
         return False
 
 

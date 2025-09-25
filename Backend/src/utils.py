@@ -1,5 +1,6 @@
 import os
 import logging
+import traceback
 from typing import Dict, List, Optional, Any
 
 import jsonref
@@ -343,6 +344,8 @@ def exception_to_result(user_query: str, exception: Exception) -> Response:
     """Convert an exception (generic or OpacaException) to a Response to be
     returned to the Chat-UI."""
     if isinstance(exception, OpacaException):
+        logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
         return Response(query=user_query, content=exception.user_message, error=exception.error_message)
     else:
+        logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
         return Response(query=user_query, content='Generation failed', error=str(exception))
