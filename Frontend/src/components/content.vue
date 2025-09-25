@@ -134,6 +134,7 @@
                             <i class="fa fa-upload" />
                             <input
                                 type="file"
+                                ref="fileInput"
                                 accept=".pdf"
                                 class="d-none"
                                 :disabled="!this.isFinished"
@@ -363,6 +364,7 @@ export default {
             } finally {
                 // Force vue to update
                 this.selectedFiles = [...this.selectedFiles];
+                this.$refs.fileInput.value = "";
                 await this.$refs.sidebar.$refs.files.updateFiles();
             }
         },
