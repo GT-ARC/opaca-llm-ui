@@ -97,7 +97,7 @@ class AbstractMethod(ABC):
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
-            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or "only").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
@@ -136,6 +136,11 @@ class AbstractMethod(ABC):
             'stream': True
         }
 
+        # If tool_choice is set to "only", use "auto" for external API call
+        if tool_choice == "only":
+            kwargs['tool_choice'] = 'auto'
+
+        # Set a specific response format if provided
         if response_format:
             kwargs['text'] = transform_schema(response_format.model_json_schema())
 
@@ -159,6 +164,8 @@ class AbstractMethod(ABC):
 
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
+                if tool_choice == "only":
+                    break
                 agent_message.content = event.delta
                 content += event.delta
 

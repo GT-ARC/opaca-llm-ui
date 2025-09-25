@@ -133,6 +133,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
                 temperature=config["temperature"],
+                tool_choice="required",
                 tools=worker_agent.tools
             )
 
@@ -278,6 +279,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(task),
                         temperature=config["temperature"],
+                        tool_choice="required",
                         tools=agent.tools,
                     )
 
@@ -357,6 +359,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(retry_task),
                     temperature=config["temperature"],
+                    tool_choice="required",
                     tools=agent.tools
                 )
 
