@@ -26,7 +26,7 @@ class AbstractMethod(ABC):
 
     @staticmethod
     def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
-        models = [f"{url}: {model}" for url, _, models in get_supported_models() for model in models]
+        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
         return ConfigParameter(
             name=name,
             description=description,
@@ -105,9 +105,9 @@ class AbstractMethod(ABC):
             AgentMessage: The final message returned by the LLM with metadata.
         """
         try:
-            url, model = model.split(": ")
+            url, model = map(str.strip, model.split("::"))
         except Exception:
-            raise Exception(f"Invalid format: Must be '<llm-host>: <model>': {model}")
+            raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
         client = await self.get_llm_client(session, url)
 
         # Initialize variables
