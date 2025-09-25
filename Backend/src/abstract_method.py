@@ -97,7 +97,7 @@ class AbstractMethod(ABC):
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
-            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or "only").
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
