@@ -1,5 +1,17 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
+    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
+         @dragover.prevent="() => toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => toggleFileDropOverlay(true)">
+
+        <!-- File Drop Overlay -->
+        <div v-if="showFileDropOverlay" id="fileDropOverlay"
+             @dragleave.prevent="() => toggleFileDropOverlay(false)"
+             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
+            <div id="overlayContent">
+                <p>{{ Localizer.get("dropFiles") }}</p>
+                <span class="fa fa-file-pdf" />
+            </div>
+        </div>
 
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
@@ -31,19 +43,7 @@
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
-            @dragover.prevent="() => toggleFileDropOverlay(true)"
-            @dragenter.prevent="() => toggleFileDropOverlay(true)">
-
-            <!-- File Drop Overlay -->
-            <div v-if="showFileDropOverlay" id="fileDropOverlay"
-                 @dragleave.prevent="() => toggleFileDropOverlay(false)"
-                 @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
-                <div id="overlayContent">
-                    <p>{{ Localizer.get("dropFiles") }}</p>
-                    <span class="fa fa-file-pdf" />
-                </div>
-            </div>
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1">
@@ -105,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- Input Area with drag and drop -->
+            <!-- Input Area -->
             <div class="input-container">
 
                 <div class="input-area"

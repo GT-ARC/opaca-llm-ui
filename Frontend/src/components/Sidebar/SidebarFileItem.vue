@@ -65,7 +65,6 @@ export default {
 }
 
 .file:hover {
-    cursor: pointer;
     border-color: var(--primary-color);
     transform: translateY(-1px);
 }
@@ -106,8 +105,16 @@ export default {
 }
 
 .file-menu-button:hover {
-  background-color: var(--input-color);
-  color: var(--text-danger-color);
+    background-color: var(--input-color);
+    color: var(--text-danger-color);
+}
+
+.fa-toggle-off {
+    color: var(--text-secondary-color);
+}
+
+.fa-toggle-on {
+    color: var(--text-success-color);
 }
 
 </style>
