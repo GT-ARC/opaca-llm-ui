@@ -182,14 +182,12 @@ class AbstractMethod(ABC):
 
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
-                # Get the tool index from the event output index
-                tool_idx = next((t['id'] for t in agent_message.tools if t['id'] == event.output_index), -1)
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[tool_idx]['args'] = json.loads(tool_call_buffers[event.output_index])
+                    agent_message.tools[-1]['args'] = json.loads(tool_call_buffers[event.output_index])
                 except json.JSONDecodeError:
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
-                    agent_message.tools[tool_idx]['args'] = {}
+                    agent_message.tools[-1]['args'] = {}
 
             if websocket:
                 await websocket.send_json(agent_message.model_dump_json())
