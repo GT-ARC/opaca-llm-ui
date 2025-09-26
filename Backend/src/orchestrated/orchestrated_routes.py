@@ -337,7 +337,7 @@ The Evaluator of your task has indicated that there is crucial information missi
 
 # Your Previous tool calls: 
 
-{json.dumps(result.tool_calls, indent=2)}
+{[tc.model_dump_json() for tc in result.tool_calls]}
 
 # Your previous tool results: 
 
