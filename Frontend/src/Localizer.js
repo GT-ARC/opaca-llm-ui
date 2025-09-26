@@ -27,7 +27,6 @@ export const localizationData = {
         none: 'None',
         speechRecognition: 'Speak' ,
         readLastMessage: 'Read Last',
-        resetChat: 'Reset',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Send a message ...',
         socketClosed: 'It seems there was a problem in the response generation.',
@@ -89,9 +88,11 @@ export const localizationData = {
         tooltipEditChatName: "Edit Name",
         tooltipDeleteChat: "Delete Chat",
         confirmDeleteChat: "Are you sure that you want to delete the Chat?",
+        buttonSearchChats: "Search Chats",
         dropFiles: "Drop files here to upload",
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to delete and forget the File '%1'?",
+        searchAgentsPlaceholder: "Search…",
     },
 
     DE: {
@@ -115,7 +116,6 @@ export const localizationData = {
         none: 'Keine',
         speechRecognition: 'Sprechen' ,
         readLastMessage: 'Vorlesen',
-        resetChat: 'Zurücksetzen',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Nachricht senden ...',
         socketClosed: 'Es scheint ein Problem bei der Erstellung der Antwort aufgetreten zu sein.',
@@ -177,9 +177,11 @@ export const localizationData = {
         tooltipEditChatName: "Name bearbeiten",
         tooltipDeleteChat: "Chat löschen",
         confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
+        buttonSearchChats: "Chats Durchsuchen",
         dropFiles: "Dateien hier ablegen um sie hochzuladen",
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' löschen und vergessen wollen?",
+        searchAgentsPlaceholder: "Suchen…",
     },
 };
 
@@ -202,17 +204,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
-                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
-                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -225,6 +216,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Explain Agile methodology.", "icon": "🔄"},
                 {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
                 {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
+                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
             ]
         },
         {
@@ -271,17 +273,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
-                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -294,6 +285,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
                 {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
                 {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
             ]
         },
         {
@@ -494,7 +496,7 @@ class Localizer {
     getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
         // assemble questions from all or selected category into a single array
         let questions = sidebarQuestions[this.language]
-            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textinput === null || matches(question.question, textinput));
 

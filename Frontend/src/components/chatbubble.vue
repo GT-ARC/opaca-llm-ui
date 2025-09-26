@@ -185,7 +185,7 @@
 </template>
 
 <script>
-import {addDebugMessage} from "../utils.js"
+import * as utils from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
 import conf from "../../config.js";
@@ -205,6 +205,7 @@ export default {
         initialContent: String,
         initialLoading: Boolean,
         files: Array,
+        selectedChatId: String,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -228,6 +229,9 @@ export default {
     },
 
     methods: {
+        /**
+         * @returns {HTMLElement}
+         */
         getElement() {
             return document.getElementById(this.elementId);
         },
@@ -260,14 +264,14 @@ export default {
                     const name = match[2].replace("--", ": ");
                     var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
                     var results = match[4];
-                    if (params.includes("requestBody")) params = params.substring(14, params.length-2);
                     if (results.length > 30) results = results.substring(0, 30) + " [...]";
                     return `${id}. ${name}(${params}) → ${results}`;
                 });
         },
 
-        addDebugMessage(text, type) {
-            addDebugMessage(this.debugMessages, text, type);
+        addDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.addDebugMessage(this.debugMessages, message);
         },
 
         scrollDownDebugMsg() {
@@ -410,25 +414,6 @@ export default {
                 || window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
-
-        clearStatusMessages() {
-            this.statusMessages = new Map();
-        },
-
-        clearDebugMessages() {
-            this.debugMessages = [];
-        },
-
-        clear() {
-            this.clearStatusMessages();
-            this.clearDebugMessages();
-            this.content = '';
-            this.isDebugExpanded = false;
-            this.isErrorExpanded = false;
-            this.isLoading = false;
-            this.error = null;
-            this.ttsAudio = null;
-        }
     },
 
     updated() {

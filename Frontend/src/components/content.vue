@@ -38,6 +38,7 @@
             @new-chat="() => this.startNewChat()"
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
+            @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
 
@@ -46,15 +47,18 @@
             :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
-            <div class="container-fluid flex-grow-1 chat-container" id="chat1">
+            <div class="container-fluid flex-grow-1 chat-container" id="chat1"
+                @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
                         v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
                         :files="files"
+                        :chat-id="this.selectedChatId"
                         :ref="elementId"
                     />
                 </div>
@@ -169,7 +173,7 @@
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
                                     :title="Localizer.get('tooltipButtonSend')">
-                                <i class="fa fa-paper-plane"/>
+                                <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
 
@@ -234,6 +238,7 @@ export default {
             selectedChatId: '',
             newChat: false,
             showFileDropOverlay: false,
+            autoScrollEnabled: true,
         }
     },
     methods: {
@@ -306,8 +311,8 @@ export default {
             await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(userText, "user");
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -406,11 +411,11 @@ export default {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 }
 
                 this.scrollDownDebug();
@@ -420,8 +425,8 @@ export default {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
-                    const sidebar = this.$refs.sidebar;
-                    sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    const debug = this.$refs.sidebar.$refs.debug;
+                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
@@ -493,14 +498,6 @@ export default {
             }
         },
 
-        async resetChat() {
-            this.messages = [];
-            this.$refs.sidebar.clearDebugMessage();
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
-            await backendClient.reset();
-        },
-
         /**
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
@@ -532,7 +529,13 @@ export default {
             aiBubble.setError("Connection closed unexpectedly");
         },
 
+        handleChatScroll() {
+            const chat = document.getElementById('chat1');
+            this.autoScrollEnabled = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 50;
+        },
+
         scrollDownChat() {
+            if (!this.autoScrollEnabled) return;
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
@@ -558,22 +561,21 @@ export default {
                     `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
-                this.addDebug(toolOutput, type);
+                this.addDebug(toolOutput, type, agentMessage.id);
             }
-
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
                 const type = agentMessage.agent;
-                this.addDebug(text, type);
+                this.addDebug(text, type, agentMessage.id);
             }
         },
 
-        addDebug(text, type) {
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, type);
+        addDebug(text, type, id=null) {
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type);
+            aiBubble.addDebugMessage(text, type, id);
         },
 
         getBackend() {
@@ -599,14 +601,28 @@ export default {
         },
 
         async loadHistory(chatId) {
-            if (!chatId) return;
+            if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
+                const debug = this.$refs.sidebar.$refs.debug;
 
+                // clear messages
                 this.messages = [];
-                for (const msg of res.messages) {
-                    const isUser = msg.role === 'user';
-                    await this.addChatBubble(msg.content, isUser);
+                debug.clearDebugMessages();
+
+                // add messages from history
+                for (const msg of res.responses) {
+                    // request
+                    await this.addChatBubble(msg.query, true);
+                    debug.addDebugMessage(msg.query, "user");
+                    // response
+                    await this.addChatBubble(msg.content, false);
+                    for (const x of msg.agent_messages) {
+                        this.addDebugToken(x);
+                    }
+                    if (msg.error) {
+                        this.getLastBubble().setError(msg.error);
+                    }
                 }
 
                 if (this.messages.length !== 0) {
@@ -642,7 +658,7 @@ export default {
         },
 
         async handleDeleteChat(chatId) {
-            this.startNewChat();
+            await this.startNewChat();
             await backendClient.delete(chatId);
             await this.$refs.sidebar.$refs.chats.updateChats(chatId);
         },
@@ -655,15 +671,44 @@ export default {
             }
         },
 
-        startNewChat() {
-            if (this.newChat) return;
-            this.selectedChatId = uuid.v4();
-            this.newChat = true;
-            this.messages = [];
-            this.textInput = '';
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
+        async startNewChat() {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            if (!this.newChat) {
+                this.selectedChatId = uuid.v4();
+                this.newChat = true;
+                this.messages = [];
+                this.$refs.sidebar.$refs.debug.clearDebugMessages();
+                this.textInput = '';
+                this.showExampleQuestions = true;
+                Localizer.reloadSampleQuestions(null);
+            }
+            await nextTick();
             this.$refs.textInputRef.focus();
+        },
+
+        async scrollToMessage(messageId) {
+            const elementId = this.messages[messageId]?.elementId;
+            const ref = this.$refs[elementId]?.[0];
+            if (this.isMobile) {
+                SidebarManager.close();
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                const messageRect = messageDiv?.getBoundingClientRect();
+                const container = document.getElementById('chat1');
+                const containerRect = container?.getBoundingClientRect();
+                container.scrollTop = messageRect.top - containerRect.top;
+            } else {
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                messageDiv.scrollIntoView({ behavior: 'smooth' });
+            }
+        },
+
+        async gotoSearchResult(chatId, messageId) {
+            await this.loadHistory(chatId);
+            await this.scrollToMessage(messageId);
         },
 
     },
@@ -730,6 +775,10 @@ export default {
     padding: 0.5rem;
     margin-left: auto;
     margin-right: auto;
+}
+
+.input-area:focus-within {
+    outline: 2px solid var(--primary-color);
 }
 
 .scroll-wrapper {

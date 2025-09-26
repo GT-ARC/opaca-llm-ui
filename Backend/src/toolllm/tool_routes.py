@@ -5,7 +5,8 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
+    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
 from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
@@ -21,22 +22,41 @@ class ToolLLMBackend(AbstractMethod):
     @property
     def config_schema(self):
         return {
-                "tool_gen_model": self.make_llm_config_param("Generating tool calls"),
-                "tool_eval_model": self.make_llm_config_param("Evaluating tool call results"),
-                "output_model": self.make_llm_config_param("Generating the final output"),
-                "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-                "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
-               }
+            "tool_gen_model": self.make_llm_config_param(name="Generator", description="Generating tool calls"),
+            "tool_eval_model": self.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
+            "output_model": self.make_llm_config_param(name="Output", description="Generating the final output"),
+            "temperature": ConfigParameter(
+                name="Temperature",
+                description="Temperature for the models",
+                type="number",
+                required=True,
+                default=0.0,
+                minimum=0.0,
+                maximum=2.0,
+                step=0.1,
+            ),
+            "max_rounds": ConfigParameter(
+                name="Max Rounds",
+                description="Maximum number of retries",
+                type="integer",
+                required=True,
+                default=5,
+                minimum=1,
+                maximum=10,
+                step=1
+            ),
+       }
 
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
 
         # Initialize parameters
-        tool_messages = []         # Internal messages between llm-components
+        tool_messages = []          # Internal messages between llm-components
         t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
         no_tools = False            # If no tools were generated, the Output Generator will include available tools
+        skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
 
         # Initialize the response object
         response = Response()
@@ -61,8 +81,39 @@ class ToolLLMBackend(AbstractMethod):
         # Save time before execution
         total_exec_time = time.time()
 
+        # If files were uploaded, check if any tools need to be called with extracted information
+        if session.uploaded_files:
+            result = await self.call_llm(
+                session=session,
+                model=config['tool_eval_model'],
+                agent='Tool Evaluator',
+                system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
+                messages=[
+                    ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
+                        message=message,
+                    )),
+                ],
+                response_format=self.EvaluatorResponse,
+                temperature=config['temperature'],
+                tools=tools,
+                tool_choice="none",
+                websocket=websocket,
+            )
+            response.agent_messages.append(result)
+            try:
+                formatted_result = json.loads(result.content)
+                skip_chain = formatted_result["decision"] == 'FINISHED'
+            except json.JSONDecodeError as e:
+                print(f'Encountered error when parsing json content: {e}')
+
+        # If no tools are available, skip the internal chain and go straight to the output generation
+        if len(tools) == 0:
+            skip_chain = True
+            no_tools = True
+
+
         # Run until request is finished or maximum number of iterations is reached
-        while should_continue and c_it < max_iters:
+        while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
                 session=session,
                 model=config['tool_gen_model'],
@@ -137,6 +188,7 @@ class ToolLLMBackend(AbstractMethod):
                             called_tools=called_tools,
                         )),
                     ],
+                    response_format=self.EvaluatorResponse,
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
@@ -166,10 +218,11 @@ class ToolLLMBackend(AbstractMethod):
             session=session,
             model=config['output_model'],
             agent='Output Generator',
-            system_prompt='',
+            system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
                 *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
+                OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     called_tools=called_tools or "",
                 )),
@@ -197,14 +250,14 @@ class ToolLLMBackend(AbstractMethod):
 
             # Get the generated name and parameters
             action = call.get('name', '')
-            args = call.get('args', {}).get('requestBody', {})
+            args = call.get('args', {})
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
             action_def = None
             for a in tools:
-                if a['function']['name'] == action:
-                    action_def = a['function']
+                if a['name'] == action:
+                    action_def = a
             if not action_def:
                 err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
                             f'defined in your tool section. Please make sure to separate the agent name and function '
@@ -212,16 +265,7 @@ class ToolLLMBackend(AbstractMethod):
                 continue
 
             # Get the request body definition of the found action
-            req_body = action_def['parameters']['properties'].get('requestBody', {})
-
-            # Check if the generated parameters are in the right place (in the requestBody field) if the generated
-            # action requires at least one parameter
-            # If not, abort current iteration since we have to assume no parameters were generated at all
-            if req_body.get('required', []) and not args:
-                err_out += (f'For the function "{action}" you have not included any parameters in the request body, '
-                            f'even though the function requires certain parameters. Please make sure to always put '
-                            f'your generated parameters in the request body field.\n')
-                continue
+            req_body = action_def['parameters']
 
             # Check if all required parameters are present
             if missing := [p for p in req_body.get('required', []) if p not in args.keys()]:

@@ -48,7 +48,7 @@ class SimpleToolsBackend(AbstractMethod):
             tools = tools[:128]
 
         # initialize message history
-        messages = chat.messages.copy()
+        messages = list(chat.messages)
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:
@@ -101,7 +101,25 @@ class SimpleToolsBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": self.make_llm_config_param(),
-            "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
+            "model": self.make_llm_config_param(name="Model", description="The model to use."),
+            "temperature": ConfigParameter(
+                name="Temperature",
+                description="Temperature for the models",
+                type="number",
+                required=True,
+                default=0.0,
+                minimum=0.0,
+                maximum=2.0,
+                step=0.1,
+            ),
+            "max_rounds": ConfigParameter(
+                name="Max Rounds",
+                description="Maximum number of retries",
+                type="integer",
+                required=True,
+                default=5,
+                minimum=1,
+                maximum=10,
+                step=1,
+            ),
         }

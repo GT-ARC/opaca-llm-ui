@@ -5,11 +5,11 @@ The different backend methods of the OPACA-LLM can be tested within a designated
 
 ## Quickstart
 
-To run the tests, execute the following command
+To run the benchmark tests, execute the following command
 
-`python3 .\tests\test.py -s simple -b tool-llm -m gpt-4o-mini -o http://{YOUR_LOCAL_IP}:8000 -p 20`
+`python3 .\benchmark\run.py -s simple -b tool-llm -m gpt-4o-mini -o http://{YOUR_LOCAL_IP}:8000 -p 20`
 
-This will start a benchmark run for the `simple` question set scenario and use the `tool-llm` method with the `gpt-4o-mini` model. It will use 20% of the simple question data set randomly selected. You can find out your local IP by running `ipconfig` in any console. After a complete benchmark run, the results will be written into a JSON file located in `\tests\test_runs`
+This will start a benchmark run for the `simple` question set scenario and use the `tool-llm` method with the `gpt-4o-mini` model. It will use 20% of the simple question data set randomly selected. You can find out your local IP by running `ipconfig` in any console. After a complete benchmark run, the results will be written into a JSON file located in `\benchmark\test_runs`
 
 ## Test settings
 

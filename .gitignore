@@ -2,11 +2,11 @@ node_modules
 package-lock.json
 __pycache__
 *.pyc
-tests/test_runs
+benchmark/test_runs
 .idea
 venv
 .venv
-docker-compose.yml
 Backend/.DS_Store
 .DS_Store
 .env
+.pytest_cache

@@ -88,11 +88,11 @@ class SimpleBackend(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations)
+                tool_call = await self.invoke_tool(session, tool["name"], tool["args"], response.iterations-1)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
-                    content=f"The result of this step was: {tool_call['result']}",
-                    tools=[tool_call]
+                    content=f"\nThe result of this step was: {tool_call['result']}",
+                    tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
                 if websocket:
                     await websocket.send_json(response.agent_messages[-1].model_dump_json())
@@ -111,11 +111,35 @@ class SimpleBackend(AbstractMethod):
     @property
     def config_schema(self) -> dict:
         return {
-            "model": self.make_llm_config_param(),
-            "temperature": ConfigParameter(type="number", required=True, default=1.0, minimum=0.0, maximum=2.0),
-            "ask_policy": ConfigParameter(type="string", required=True, default="never",
-                                          enum=list(ask_policies.keys())),
-            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
+            "model": self.make_llm_config_param(name="Model", description="The model to use."),
+            "temperature": ConfigParameter(
+                name="Temperature",
+                description="Temperature for the models",
+                type="number",
+                required=True,
+                default=1.0,
+                minimum=0.0,
+                maximum=2.0,
+                step=0.1,
+            ),
+            "max_rounds": ConfigParameter(
+                name="Max Rounds",
+                description="Maximum number of retries",
+                type="integer",
+                required=True,
+                default=5,
+                minimum=1,
+                maximum=10,
+                step=1,
+            ),
+            "ask_policy": ConfigParameter(
+                name="Ask Policy",
+                description="Determine how much confirmation the LLM will require",
+                type="string",
+                required=True,
+                default="never",
+                enum=list(ask_policies.keys()),
+            ),
         }
 
     async def get_actions(self, session):
