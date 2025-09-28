@@ -116,7 +116,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await self.upload_files(model, session, client)
+        file_message_parts = await self.upload_files(url, session, client)
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -207,26 +207,17 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
     @staticmethod
-    async def upload_files(model: str, session: SessionData, client: AsyncOpenAI):
+    async def upload_files(host_url: str, session: SessionData, client: AsyncOpenAI):
         """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
 
-        # figure out which backend this model belongs to
-        backend_url = None
-        for url, key, models in get_supported_models():
-            if model in models:
-                backend_url = url
-                break
-        if backend_url is None:
-            raise Exception(f"Model {model} not supported by any backend.")
-
-        # Upload all files that haven't been uploaded to this backend
+        # Upload all files that haven't been uploaded to this host
         for file_id, filedata in list(session.uploaded_files.items()):
             # Skip suspended files
             if filedata.suspended:
                 continue
 
-            # If this backend already has an uploaded id for this file, skip
-            if backend_url in filedata.host_ids:
+            # If this host already has an uploaded id for this file, skip
+            if host_url in filedata.host_ids:
                 continue
 
             # prepare file for upload
@@ -234,16 +225,16 @@ class AbstractMethod(ABC):
             file_obj = io.BytesIO(file_bytes)
             file_obj.name = filedata.file_name  # Required by OpenAI SDK
 
-            # Upload to the current backend and store host-specific id
+            # Upload to the current host and store host-specific id
             uploaded = await client.files.create(file=file_obj, purpose="user_data")
-            logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (backend={backend_url})")
-            # record backend id under this backend_url
-            filedata.host_ids[backend_url] = uploaded.id
+            logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (backend={host_url})")
+            # record host id under this host_url
+            filedata.host_ids[host_url] = uploaded.id
 
         return [
-            {"type": "input_file", "file_id": filedata.host_ids[backend_url]}
+            {"type": "input_file", "file_id": filedata.host_ids[host_url]}
             for filedata in session.uploaded_files.values()
-            if (not filedata.suspended) and (backend_url in filedata.host_ids)
+            if (not filedata.suspended) and (host_url in filedata.host_ids)
         ]
 
     @staticmethod
@@ -272,7 +263,7 @@ class AbstractMethod(ABC):
 
 async def delete_file_from_all_clients(session: SessionData, file_id: str) -> None:
     """
-    Delete a file (identified by file_id) from all LLM backends
+    Delete a file (identified by file_id) from all LLM hosts
     it was uploaded to. Also removes it from session.uploaded_files.
 
     Args:
@@ -283,12 +274,12 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> No
     if not filedata:
         return  # nothing to do
 
-    for backend_url, host_file_id in filedata.host_ids.items():
+    for host_url, host_file_id in filedata.host_ids.items():
         try:
-            # Reuse or create a client for this backend
-            if backend_url not in session.llm_clients:
+            # Reuse or create a client for this host
+            if host_url not in session.llm_clients:
                 for url, key, _ in get_supported_models():
-                    if url == backend_url:
+                    if url == host_url:
                         session.llm_clients[url] = (
                             AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY"))
                             if url == "openai"
@@ -296,13 +287,13 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> No
                         )
                         break
 
-            client = session.llm_clients[backend_url]
+            client = session.llm_clients[host_url]
             await client.files.delete(host_file_id)
-            logger.info(f"Deleted file {host_file_id} from backend {backend_url}")
+            logger.info(f"Deleted file {host_file_id} from host {host_url}")
 
         except Exception as e:
             logger.warning(
-                f"Failed to delete file {host_file_id} from backend {backend_url}: {e}"
+                f"Failed to delete file {host_file_id} from host {host_url}: {e}"
             )
 
     # Remove from session after deletion attempts
