@@ -153,13 +153,14 @@ class OpacaFile(BaseModel):
         _content: Private attribute to store binary content (not part of schema or validation)
         content_type: MIME type of the file
         file_id: ID assigned after upload
+        host_ids: IDs assigned by each host the file has been uploaded to
         file_name: Name of the file
         suspended: Whether the file should be excluded from future requests
     """
     _content: BytesIO = PrivateAttr()
     content_type: str
     file_id: str
-    backend_ids: Dict[str, str] = {}
+    host_ids: Dict[str, str] = {}
     file_name: Optional[str] = ''
     suspended: bool = False
 
@@ -300,7 +301,7 @@ class ConfigPayload(BaseModel):
 class SearchResult(BaseModel):
     """
     Result to some search query, showing in which chat and message the string was found.
-    
+
     Attributes:
         chat_id: id of the chat where the string was found
         chat_name: name of the chat where the string was found

@@ -220,13 +220,13 @@ class AbstractMethod(ABC):
             raise Exception(f"Model {model} not supported by any backend.")
 
         # Upload all files that haven't been uploaded to this backend
-        for frontend_id, filedata in list(session.uploaded_files.items()):
+        for file_id, filedata in list(session.uploaded_files.items()):
             # Skip suspended files
             if filedata.suspended:
                 continue
 
             # If this backend already has an uploaded id for this file, skip
-            if backend_url in filedata.backend_ids:
+            if backend_url in filedata.host_ids:
                 continue
 
             # prepare file for upload
@@ -234,16 +234,16 @@ class AbstractMethod(ABC):
             file_obj = io.BytesIO(file_bytes)
             file_obj.name = filedata.file_name  # Required by OpenAI SDK
 
-            # Upload to the current backend and store backend-specific id
-            uploaded = await client.files.create(file=file_obj, purpose="assistants")
-            logger.info(f"Uploaded file ID={uploaded.id} for frontend_id={frontend_id} (backend={backend_url})")
+            # Upload to the current backend and store host-specific id
+            uploaded = await client.files.create(file=file_obj, purpose="user_data")
+            logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (backend={backend_url})")
             # record backend id under this backend_url
-            filedata.backend_ids[backend_url] = uploaded.id
+            filedata.host_ids[backend_url] = uploaded.id
 
         return [
-            {"type": "input_file", "file_id": filedata.backend_ids[backend_url]}
+            {"type": "input_file", "file_id": filedata.host_ids[backend_url]}
             for filedata in session.uploaded_files.values()
-            if (not filedata.suspended) and (backend_url in filedata.backend_ids)
+            if (not filedata.suspended) and (backend_url in filedata.host_ids)
         ]
 
     @staticmethod
@@ -272,18 +272,18 @@ class AbstractMethod(ABC):
 
 async def delete_file_from_all_clients(session: SessionData, file_id: str) -> None:
     """
-    Delete a file (identified by frontend-generated file_id) from all LLM backends
+    Delete a file (identified by file_id) from all LLM backends
     it was uploaded to. Also removes it from session.uploaded_files.
 
     Args:
         session (SessionData): Current session containing uploaded_files and clients.
-        file_id (str): The frontend-generated file identifier.
+        file_id (str): The file identifier.
     """
     filedata = session.uploaded_files.get(file_id)
     if not filedata:
         return  # nothing to do
 
-    for backend_url, backend_file_id in filedata.backend_ids.items():
+    for backend_url, host_file_id in filedata.host_ids.items():
         try:
             # Reuse or create a client for this backend
             if backend_url not in session.llm_clients:
@@ -297,12 +297,12 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> No
                         break
 
             client = session.llm_clients[backend_url]
-            await client.files.delete(backend_file_id)
-            logger.info(f"Deleted file {backend_file_id} from backend {backend_url}")
+            await client.files.delete(host_file_id)
+            logger.info(f"Deleted file {host_file_id} from backend {backend_url}")
 
         except Exception as e:
             logger.warning(
-                f"Failed to delete file {backend_file_id} from backend {backend_url}: {e}"
+                f"Failed to delete file {host_file_id} from backend {backend_url}: {e}"
             )
 
     # Remove from session after deletion attempts
