@@ -108,41 +108,6 @@ async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, 
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/upload", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
-async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
-    session = await handle_session_id(request, response)
-    uploaded = []
-    for file in files:
-        try:
-            contents = await file.read()
-
-            file_id = str(uuid.uuid4())
-            base_name, _ = os.path.splitext(file.filename)
-
-            file_model = OpacaFile(
-                content_type=file.content_type,
-                file_id=file_id,
-                file_name=file.filename,
-                suspended=False
-            )
-            file_model._content = io.BytesIO(contents)
-
-            # Store in session.uploaded_files
-            session.uploaded_files[file_id] = file_model
-            uploaded.append({
-                "file_id": file_id,
-                "file_name": file.filename
-            })
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to process file {file.filename}: {str(e)}"
-            )
-
-    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
-
-
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
 async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
@@ -280,7 +245,7 @@ async def get_config(request: Request, response: FastAPIResponse, backend: str) 
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
-    
+
 
 @app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
@@ -300,34 +265,68 @@ async def reset_config(request: Request, response: FastAPIResponse, backend: str
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
+## FILE ROUTES
+
 @app.get("/files", description="Get a list of all uploaded files.")
 async def get_files(request: Request, response: FastAPIResponse) -> dict:
     session = await handle_session_id(request, response)
     return session.uploaded_files
 
 
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration "
+                                "with the next user queries. Currently only supports PDF.")
+async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+    session = await handle_session_id(request, response)
+    uploaded = []
+    for file in files:
+        try:
+            contents = await file.read()
+
+            file_id = str(uuid.uuid4())
+            base_name, _ = os.path.splitext(file.filename)
+
+            file_model = OpacaFile(
+                content_type=file.content_type,
+                file_id=file_id,
+                file_name=file.filename,
+                suspended=False
+            )
+            file_model._content = io.BytesIO(contents)
+
+            # Store in session.uploaded_files
+            session.uploaded_files[file_id] = file_model
+            uploaded.append(file_model)
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}"
+            )
+
+    return {"uploaded_files": uploaded}
+
+
 @app.delete("/files/{file_id}", description="Delete an uploaded file.")
-async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> FastAPIResponse:
+async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
     if file_id in files:
-        await delete_file_from_all_clients(session, file_id)
+        return await delete_file_from_all_clients(session, file_id)
 
-        return FastAPIResponse(status_code=204)
-    return FastAPIResponse(status_code=404)
+    return False
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
-async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> FastAPIResponse:
+async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
     if file_id in files:
         file = files[file_id]
         file.suspended = suspend
-        return FastAPIResponse(status_code=204)
-    return FastAPIResponse(status_code=404)
+        return True
+    return False
 
 
 ## Utility functions

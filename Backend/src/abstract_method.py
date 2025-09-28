@@ -261,7 +261,7 @@ class AbstractMethod(ABC):
         }
 
 
-async def delete_file_from_all_clients(session: SessionData, file_id: str) -> None:
+async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bool:
     """
     Delete a file (identified by file_id) from all LLM hosts
     it was uploaded to. Also removes it from session.uploaded_files.
@@ -272,7 +272,7 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> No
     """
     filedata = session.uploaded_files.get(file_id)
     if not filedata:
-        return  # nothing to do
+        return False
 
     for host_url, host_file_id in filedata.host_ids.items():
         try:
@@ -295,6 +295,9 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> No
             logger.warning(
                 f"Failed to delete file {host_file_id} from host {host_url}: {e}"
             )
+            return False
 
     # Remove from session after deletion attempts
     session.uploaded_files.pop(file_id, None)
+
+    return True

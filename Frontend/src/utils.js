@@ -80,7 +80,7 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.BackendAddress}/upload`, formData, {
+        const response = await axios.post(`${conf.BackendAddress}/files`, formData, {
             timeout: 10000,
             withCredentials: true,
             headers: {
