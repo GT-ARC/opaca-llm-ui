@@ -28,7 +28,7 @@ from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
 from .toolllm import ToolLLMBackend
 from .orchestrated import SelfOrchestratedBackend
-from .abstract_method import delete_file_from_all_clients
+from .file_utils import delete_file_from_all_clients
 
 
 @asynccontextmanager
