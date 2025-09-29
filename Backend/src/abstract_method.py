@@ -1,16 +1,14 @@
 import json
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall
-from .utils import transform_schema, get_supported_models, openapi_to_functions
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall, get_supported_models
+from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -39,19 +37,6 @@ class AbstractMethod(ABC):
             enum=models,
             free_input=True,
         )
-
-    async def get_llm_client(self, session: SessionData, the_url: str) -> AsyncOpenAI:
-        for url, key, _ in get_supported_models():
-            if url == the_url:
-                if url not in session.llm_clients:
-                    logger.info("creating new client for URL " + url)
-                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
-                    session.llm_clients[url] = (
-                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
-                        AsyncOpenAI(api_key=key, base_url=url)
-                    )
-                return session.llm_clients[url]
-        raise Exception(f"LLM host not supported : {the_url}")
 
     @classmethod
     def default_config(cls):
@@ -109,7 +94,7 @@ class AbstractMethod(ABC):
             url, model = map(str.strip, model.split("::"))
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = await self.get_llm_client(self.session, url)
+        client = await self.session.get_llm_client(url)
 
         # Initialize variables
         exec_time = time.time()
@@ -117,7 +102,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(url, self.session, client)
+        file_message_parts = await upload_files(self.session, url)
 
         # Modify the last user message to include file parts
         if file_message_parts:

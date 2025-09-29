@@ -6,8 +6,12 @@ from typing import List, Dict, Any, Optional, Self, Iterator
 from io import BytesIO
 from datetime import datetime, timezone
 import uuid
+import os
 
+from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
+
+from .opaca_client import OpacaClient
 
 
 class ColoredFormatter(logging.Formatter):
@@ -217,19 +221,36 @@ class SessionData(BaseModel):
     Attributes:
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
-        opaca_client: Client instance for OPACA, for calling agent actions.
-        llm_clients: Dictionary of LLM client instances.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
+    Transient fields:
+        opaca_client: Client instance for OPACA, for calling agent actions.
+        llm_clients: Dictionary of LLM client instances.
     """
     chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
-    opaca_client: Any = None
-    llm_clients: Dict[str, Any] = {}
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
+
+    opaca_client: OpacaClient = Field(default_factory=OpacaClient, exclude=True)
+    llm_clients: Dict[str, AsyncOpenAI] = Field(default_factory=dict, exclude=True)
+
+    async def get_llm_client(self, the_url: str) -> AsyncOpenAI:
+        if the_url not in self.llm_clients:
+            for url, key, _ in get_supported_models():
+                if url == the_url:
+                    logger.info("creating new client for URL " + url)
+                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
+                    self.llm_clients[url] = (
+                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
+                        AsyncOpenAI(api_key=key, base_url=url)
+                    )
+                    break
+            else:
+                raise Exception(f"LLM host not supported : {the_url}")
+        return self.llm_clients[url]
 
 
 class ConfigParameter(BaseModel):
@@ -330,3 +351,14 @@ class OpacaException(Exception):
         self.user_message = user_message
         self.error_message = error_message
         self.status_code = status_code
+
+
+def get_supported_models():
+    return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"), 
+            os.getenv("LLM_APIKEYS", "").split(";"), 
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
+    ]

@@ -19,10 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .utils import validate_config_input, exception_to_result, get_supported_models
+from .utils import validate_config_input, exception_to_result
 from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, OpacaFile, Chat, \
-    SearchResult
-from .opaca_client import OpacaClient
+    SearchResult, get_supported_models
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -366,7 +365,6 @@ def create_or_refresh_session(session_id, max_age=None):
         session_id = str(uuid.uuid4())
         logger.info(f"Creating new Session {session_id}")
         sessions[session_id] = SessionData()
-        sessions[session_id].opaca_client = OpacaClient()
     if max_age is not None:
         sessions[session_id].valid_until = time.time() + max_age
     return session_id
