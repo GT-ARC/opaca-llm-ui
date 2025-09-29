@@ -31,6 +31,8 @@ services:
       LLM_APIKEYS:
       LLM_MODELS:
       CORS_WHITELIST:
+    volumes:
+      - ./Backend/data:/data
 
   # TTS Server for voice synthesis
   #opaca-tts-server:

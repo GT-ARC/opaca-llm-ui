@@ -5,18 +5,16 @@ and different routes for posting questions, updating the configuration, etc.
 """
 import os
 import traceback
-import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Union
+from pathlib import Path
+from typing import Dict, Any, List, Union, Optional
 import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
 
-import io
-from fastapi import FastAPI, Request, HTTPException, UploadFile
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi import Response as FastAPIResponse
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
@@ -282,22 +280,19 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
     uploaded = []
     for file in files:
         try:
-            contents = await file.read()
-
-            file_id = str(uuid.uuid4())
-            base_name, _ = os.path.splitext(file.filename)
-
-            file_model = OpacaFile(
-                content_type=file.content_type,
-                file_id=file_id,
-                file_name=file.filename,
-                suspended=False
-            )
-            file_model._content = io.BytesIO(contents)
+            # save file to disk
+            file_path = Path(f'/data/files/{session.session_id}/{file.filename}')
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            logger.info(f'Saving file to "{file_path}"')
+            with open(file_path, 'wb') as f:
+                while chunk := await file.read(1024 * 1024):
+                    f.write(chunk)
 
             # Store in session.uploaded_files
-            session.uploaded_files[file_id] = file_model
-            uploaded.append(file_model)
+            filedata = OpacaFile(content_type=file.content_type, file_path=file_path)
+            session.uploaded_files[filedata.file_id] = filedata
+
+            uploaded.append(filedata)
 
         except Exception as e:
             raise HTTPException(
@@ -363,11 +358,12 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Respons
         return sessions[session_id]
 
 
-def create_or_refresh_session(session_id, max_age=None):
+def create_or_refresh_session(session_id: Optional[str], max_age=None):
     if not session_id or session_id not in sessions:
-        session_id = str(uuid.uuid4())
         logger.info(f"Creating new Session {session_id}")
-        sessions[session_id] = SessionData()
+        session = SessionData()
+        session_id = session.session_id
+        sessions[session_id] = session
         sessions[session_id].opaca_client = OpacaClient()
     if max_age is not None:
         sessions[session_id].valid_until = time.time() + max_age

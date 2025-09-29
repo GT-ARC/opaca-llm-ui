@@ -12,7 +12,7 @@ async def upload_files(host_url: str, session: SessionData, client: AsyncOpenAI)
     """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
 
     # Upload all files that haven't been uploaded to this host
-    for file_id, filedata in list(session.uploaded_files.items()):
+    for file_id, filedata in session.uploaded_files.items():
         # Skip suspended files
         if filedata.suspended:
             continue
