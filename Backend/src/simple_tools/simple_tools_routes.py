@@ -27,17 +27,20 @@ logger = logging.getLogger(__name__)
 class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
+    def __init__(self, session, websocket=None):
+        super().__init__(session, websocket)
+
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
 
-        config = session.config.get(self.NAME, self.default_config())
+        config = self.session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
         
         # Get tools and transform them into the OpenAI Function Schema
         try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
+            tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         except AttributeError as e:
             response.error = str(e)
             response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
@@ -56,14 +59,12 @@ class SimpleToolsMethod(AbstractMethod):
 
             # call the LLM with function-calling enabled
             result = await self.call_llm(
-                session=session,
                 model=config["model"],
                 agent="assistant",
                 system_prompt=SYSTEM_PROMPT,
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,
-                websocket=websocket,
             )
             response.agent_messages.append(result)
 
@@ -72,7 +73,7 @@ class SimpleToolsMethod(AbstractMethod):
                     break
 
                 tool_entries = [
-                    await self.invoke_tool(session, call.name, call.args, response.iterations)
+                    await self.invoke_tool(call.name, call.args, response.iterations)
                     for call in result.tools
                 ]
                 tool_contents = "\n".join(
@@ -98,7 +99,6 @@ class SimpleToolsMethod(AbstractMethod):
         response.execution_time = time.time() - exec_time
         return response
 
-    @property
     @classmethod
     def config_schema(cls) -> dict:
         return {

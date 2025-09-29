@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
+    def __init__(self, session: SessionData, websocket: WebSocket | None):
+        self.session = session
+        self.websocket = websocket
+
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
         pass
@@ -64,17 +68,16 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
-    async def query(self, message: str, session: SessionData, chat: Chat) -> QueryResponse:
-        return await self.query_stream(message, session, chat)
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
+        return await self.query_stream(message, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
 
     async def call_llm(
             self,
-            session: SessionData,
             model: str,
             agent: str,
             system_prompt: str,
@@ -83,7 +86,6 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
-            websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -107,7 +109,7 @@ class AbstractMethod(ABC):
             url, model = map(str.strip, model.split("::"))
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = await self.get_llm_client(session, url)
+        client = await self.get_llm_client(self.session, url)
 
         # Initialize variables
         exec_time = time.time()
@@ -115,7 +117,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(url, session, client)
+        file_message_parts = await upload_files(url, self.session, client)
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -183,16 +185,16 @@ class AbstractMethod(ABC):
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
                     agent_message.tools[tool_idx].args = {}
 
-            if websocket:
-                await websocket.send_json(agent_message.model_dump_json())
+            if self.websocket:
+                await self.websocket.send_json(agent_message.model_dump_json())
                 agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if websocket:
+        if self.websocket:
             agent_message.content = ''
-            await websocket.send_json(agent_message.model_dump_json())
+            await self.websocket.send_json(agent_message.model_dump_json())
 
         agent_message.content = content
 
@@ -206,15 +208,14 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
 
-    @staticmethod
-    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
             agent_name, action_name = None, tool_name
 
         try:
-            t_result = await session.opaca_client.invoke_opaca_action(
+            t_result = await self.session.opaca_client.invoke_opaca_action(
                 action_name,
                 agent_name,
                 tool_args,

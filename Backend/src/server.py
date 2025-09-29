@@ -58,10 +58,10 @@ app.add_middleware(
 
 
 METHODS = {
-    SimpleMethod.NAME: SimpleMethod(),
-    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod(),
-    ToolLLMMethod.NAME: ToolLLMMethod(),
-    SimpleToolsMethod.NAME: SimpleToolsMethod(),
+    SimpleMethod.NAME: SimpleMethod,
+    SimpleToolsMethod.NAME: SimpleToolsMethod,
+    ToolLLMMethod.NAME: ToolLLMMethod,
+    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod,
 }
 
 
@@ -112,7 +112,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        return await METHODS[method].query(message.user_query, session, Chat(chat_id=''))
+        return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return exception_to_result(message.user_query, e)
 
@@ -156,7 +156,7 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method].query(message.user_query, session, chat)
+        result = await METHODS[method](session).query(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -176,7 +176,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
         data = await websocket.receive_json()
         message = QueryRequest(**data)
         create_chat_name(chat, message)
-        result = await METHODS[method].query_stream(message.user_query, session, chat, websocket)
+        result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
