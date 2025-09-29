@@ -4,7 +4,7 @@
     <div class="d-flex flex-row text-break">
         <!-- Icon changes based on upload status -->
         <div class="d-flex h-100 align-items-center me-1">
-            <i :class="this.uploadStatus?.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file-pdf'" />
+            <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file-pdf'" />
         </div>
 
         <!-- File name -->
@@ -13,18 +13,18 @@
         </span>
 
         <!-- Upload status text -->
-        <span v-if="this.uploadStatus?.isUploading">
+        <span v-if="this.isUploading">
             {{ Localizer.get('uploadingFileText') }}
         </span>
     </div>
 
-    <!-- Remove file from preview (but not from disk or server) -->
+    <!-- Remove file from preview (and also from server) -->
     <button
         type="button"
         class="btn btn-sm btn-outline-danger file-delete-button"
         @click="this.removeFile()"
         :disabled="this.isUploading"
-        :title="Localizer.get('tooltipRemoveUploadedFile')" >
+        :title="Localizer.get('tooltipDeleteUploadedFile')" >
         <i class="fa fa-remove" />
     </button>
 </div>
@@ -38,9 +38,9 @@ import Localizer from "../Localizer.js";
 export default {
     name: "FilePreview",
     props: {
+        fileId: String,
         file: Object,
-        index: length,
-        uploadStatus: Object,
+        isUploading: Boolean,
     },
     setup() {
         const {isMobile} = useDevice();
@@ -52,7 +52,7 @@ export default {
     emits: ['removeFile'],
     methods: {
         removeFile() {
-            this.$emit('removeFile', this.index, this.file?.name);
+            this.$emit('removeFile', this.fileId);
         },
 
         getFilename() {

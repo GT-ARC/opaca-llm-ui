@@ -78,7 +78,7 @@ logger.addHandler(console_handler)
 class ConnectInfo(BaseModel):
     """
     Used as payload for the `/connect` route.
-    
+
     Attributes
         url: The base url to be used for every interaction with the OPACA  platform.
         user: OPACA platform user name (when using auth), or null
@@ -111,7 +111,7 @@ class AgentMessage(BaseModel):
         response_metadata: Metadata associated with the response including token usage
         execution_time: Time it took to execute the response
         status: Status of the agent's execution (e.g., 'Planning', 'Executing', 'Completed')
-        step: Current step being executed 
+        step: Current step being executed
     """
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     agent: str
@@ -153,10 +153,16 @@ class OpacaFile(BaseModel):
         _content: Private attribute to store binary content (not part of schema or validation)
         content_type: MIME type of the file
         file_id: ID assigned after upload
+        host_ids: IDs assigned by each host the file has been uploaded to
+        file_name: Name of the file
+        suspended: Whether the file should be excluded from future requests
     """
     _content: BytesIO = PrivateAttr()
     content_type: str
-    file_id: Optional[str] = None
+    file_id: str
+    host_ids: Dict[str, str] = {}
+    file_name: Optional[str] = ''
+    suspended: bool = False
 
 
 class ChatMessage(BaseModel):
@@ -295,7 +301,7 @@ class ConfigPayload(BaseModel):
 class SearchResult(BaseModel):
     """
     Result to some search query, showing in which chat and message the string was found.
-    
+
     Attributes:
         chat_id: id of the chat where the string was found
         chat_name: name of the chat where the string was found
