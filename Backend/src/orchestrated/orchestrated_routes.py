@@ -10,7 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod
-from ..models import Response, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat
+from ..models import QueryResponse, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -139,7 +139,7 @@ class SelfOrchestratedBackend(AbstractMethod):
             # Update the tool ids
             async with tool_counter_lock:
                 for tool in worker_message.tools:
-                    tool["id"] = tool_counter
+                    tool.id = tool_counter
                     tool_counter += 1
 
             # Invoke the action on the connected opaca platform
@@ -198,7 +198,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                         task=task_str,
                         output="There was an error during the generation of an agent plan!",
                         tool_calls=[],
-                        tool_results=[],
                     )
             
                 await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n")
@@ -206,7 +205,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                 # Initialize results storage
                 ex_results = []
                 ex_tool_calls = []
-                ex_tool_results = []
                 combined_output = []
 
                 # Group tasks by round
@@ -226,10 +224,10 @@ class SelfOrchestratedBackend(AbstractMethod):
                         for prev_result in ex_results:
                             round_context += f"\nTask: {prev_result.task}\n"
                             round_context += f"Output: {prev_result.output}\n"
-                            if prev_result.tool_results:
+                            if any(tc.results for tc in prev_result.tool_calls):
                                 round_context += f"Tool Results:\n"
-                                for tr in prev_result.tool_results:
-                                    round_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+                                for tc in prev_result.tool_calls:
+                                    round_context += f"- {tc.name}: {tc.result}\n"
 
                     # Executes tasks in the same round in parallel
                     round_results = await asyncio.gather(*[execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in current_tasks])
@@ -238,7 +236,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                     for result in round_results:
                         ex_results.append(result)
                         ex_tool_calls.extend(result.tool_calls)
-                        ex_tool_results.extend(result.tool_results)
                         combined_output.append(result.output)
 
                 # Create final combined result with clear round separation
@@ -248,7 +245,6 @@ class SelfOrchestratedBackend(AbstractMethod):
                     task=task_str,  # Use the original task string
                     output=final_output,
                     tool_calls=ex_tool_calls,
-                    tool_results=ex_tool_results
                 )
             else:
                 await send_to_websocket(websocket, "WorkerAgent", f"Executing function calls.\n\n")
@@ -266,8 +262,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         agent_name="GeneralAgent",
                         task=task_str,
                         output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[{"name": "GetCapabilities", "args": "{}"}],
-                        tool_results=[{"name": "GetCapabilities", "result": predefined_response}],
+                        tool_calls=[ToolCall(id=-1, name="GetCapabilities", args={}, result=predefined_response)],
                     )
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
@@ -284,7 +279,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                     # Update the tool ids
                     async with tool_counter_lock:
                         for tool in worker_message.tools:
-                            tool["id"] = tool_counter
+                            tool.id = tool_counter
                             tool_counter += 1
 
                     # Invoke the tool call on the connected opaca platform
@@ -337,11 +332,7 @@ The Evaluator of your task has indicated that there is crucial information missi
 
 # Your Previous tool calls: 
 
-{json.dumps(result.tool_calls, indent=2)}
-
-# Your previous tool results: 
-
-{json.dumps(result.tool_results, indent=2)}
+{[tc.model_dump_json() for tc in result.tool_calls]}
 
 # YOUR GOAL:
 
@@ -363,7 +354,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Update the tool ids
                 async with tool_counter_lock:
                     for tool in worker_message.tools:
-                        tool["id"] = tool_counter
+                        tool.id = tool_counter
                         tool_counter += 1
 
                 result = await agent.invoke_tools(task.task, worker_message)
@@ -379,11 +370,11 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results"""
 
         # Initialize response
-        response = Response(query=message)
+        response = QueryResponse(query=message)
         # Track overall execution time
         overall_start_time = time.time()
 
