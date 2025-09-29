@@ -12,6 +12,6 @@ This basically works the same as the simple method, with a single LLM agent, but
 
 ## Configuration
 
-* `model`: The LLM model to be used, either an OpenAI model, or a model hosted on a local vLLM instance; default: `"gpt-4o-mini"`
+* `model`: The LLM model to be used, in the format `"<host>::<model>"`, either an OpenAI model, or a model hosted on a local vLLM instance; default: `"openai::gpt-4o-mini"`
 * `temperature`: The "temperature" of the LLM, how "creative" it is, between `0.0` and `2.0`; default: `1.0`
 * `ask_policy`: Determines how much the LLM will ask for confirmation between executing actions (`0`: don't ask for confirmation; `1`: ask for confirmation for ambiguous actions and action chains; `2`: always ask for confirmation first); default: `0`

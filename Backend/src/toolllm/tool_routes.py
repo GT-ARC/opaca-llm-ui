@@ -5,9 +5,10 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE
+from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
+    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
+from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, Chat, ToolCall
 from ..utils import openapi_to_functions
 
 
@@ -46,18 +47,19 @@ class ToolLLMBackend(AbstractMethod):
             ),
        }
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> QueryResponse:
 
         # Initialize parameters
-        tool_messages = []         # Internal messages between llm-components
+        tool_messages = []          # Internal messages between llm-components
         t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
         no_tools = False            # If no tools were generated, the Output Generator will include available tools
+        skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
 
         # Initialize the response object
-        response = Response()
+        response = QueryResponse()
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
@@ -79,8 +81,39 @@ class ToolLLMBackend(AbstractMethod):
         # Save time before execution
         total_exec_time = time.time()
 
+        # If files were uploaded, check if any tools need to be called with extracted information
+        if session.uploaded_files:
+            result = await self.call_llm(
+                session=session,
+                model=config['tool_eval_model'],
+                agent='Tool Evaluator',
+                system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
+                messages=[
+                    ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
+                        message=message,
+                    )),
+                ],
+                response_format=self.EvaluatorResponse,
+                temperature=config['temperature'],
+                tools=tools,
+                tool_choice="none",
+                websocket=websocket,
+            )
+            response.agent_messages.append(result)
+            try:
+                formatted_result = json.loads(result.content)
+                skip_chain = formatted_result["decision"] == 'FINISHED'
+            except json.JSONDecodeError as e:
+                print(f'Encountered error when parsing json content: {e}')
+
+        # If no tools are available, skip the internal chain and go straight to the output generation
+        if len(tools) == 0:
+            skip_chain = True
+            no_tools = True
+
+
         # Run until request is finished or maximum number of iterations is reached
-        while should_continue and c_it < max_iters:
+        while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
                 session=session,
                 model=config['tool_gen_model'],
@@ -132,7 +165,7 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(session, call['name'], call['args'], t_called))
+                tasks.append(self.invoke_tool(session, call.name, call.args, t_called))
                 t_called += 1
 
             result.tools = await asyncio.gather(*tasks)
@@ -157,6 +190,7 @@ class ToolLLMBackend(AbstractMethod):
                             called_tools=called_tools,
                         )),
                     ],
+                    response_format=self.EvaluatorResponse,
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
@@ -186,10 +220,11 @@ class ToolLLMBackend(AbstractMethod):
             session=session,
             model=config['output_model'],
             agent='Output Generator',
-            system_prompt='',
+            system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
                 *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_TEMPLATE.format(
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
+                OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     called_tools=called_tools or "",
                 )),
@@ -208,7 +243,7 @@ class ToolLLMBackend(AbstractMethod):
         return response
 
     @staticmethod
-    def check_valid_action(tools, calls: List[dict]) -> str:
+    def check_valid_action(tools, calls: List[ToolCall]) -> str:
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
@@ -216,8 +251,8 @@ class ToolLLMBackend(AbstractMethod):
         for call in calls:
 
             # Get the generated name and parameters
-            action = call.get('name', '')
-            args = call.get('args', {})
+            action = call.name
+            args = call.args
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
@@ -247,5 +282,5 @@ class ToolLLMBackend(AbstractMethod):
         return err_out
 
     @staticmethod
-    def _build_tool_desc(c_it, tools):
-        return {c_it: [{"name": tool['name'], "parameters": tool['args'], "result": tool['result']} for tool in tools]}
+    def _build_tool_desc(c_it: int, tools: List[ToolCall]):
+        return {c_it: [{"name": tool.name, "parameters": tool.args, "result": tool.result} for tool in tools]}
