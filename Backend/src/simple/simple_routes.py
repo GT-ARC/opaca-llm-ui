@@ -145,7 +145,7 @@ class SimpleMethod(AbstractMethod):
 
     async def get_actions(self):
         try:
-            return await self.session.opaca_client.get_actions_simple()
+            return await self.session._opaca_client.get_actions_simple()
         except:
             return "(No services, not connected yet.)"
 

@@ -151,19 +151,20 @@ class OpacaFile(BaseModel):
     Represents a single uploaded PDF file.
 
     Attributes:
-        _content: Private attribute to store binary content (not part of schema or validation)
         content_type: MIME type of the file
         file_id: ID assigned after upload
         host_ids: IDs assigned by each host the file has been uploaded to
         file_name: Name of the file
         suspended: Whether the file should be excluded from future requests
+        _content: Private attribute to store binary content (not part of schema or validation)
     """
-    _content: BytesIO = PrivateAttr()
     content_type: str
     file_id: str
     host_ids: Dict[str, str] = {}
     file_name: Optional[str] = ''
     suspended: bool = False
+
+    _content: BytesIO = PrivateAttr()
 
 
 class ChatMessage(BaseModel):
@@ -225,8 +226,8 @@ class SessionData(BaseModel):
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
     Transient fields:
-        opaca_client: Client instance for OPACA, for calling agent actions.
-        llm_clients: Dictionary of LLM client instances.
+        _opaca_client: Client instance for OPACA, for calling agent actions.
+        _llm_clients: Dictionary of LLM client instances.
     """
     chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
@@ -234,23 +235,23 @@ class SessionData(BaseModel):
     uploaded_files: Dict[str, OpacaFile] = {}
     valid_until: float = -1
 
-    opaca_client: OpacaClient = Field(default_factory=OpacaClient, exclude=True)
-    llm_clients: Dict[str, AsyncOpenAI] = Field(default_factory=dict, exclude=True)
+    _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
+    _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
 
     async def get_llm_client(self, the_url: str) -> AsyncOpenAI:
-        if the_url not in self.llm_clients:
+        if the_url not in self._llm_clients:
             for url, key, _ in get_supported_models():
                 if url == the_url:
                     logger.info("creating new client for URL " + url)
                     # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
-                    self.llm_clients[url] = (
+                    self._llm_clients[url] = (
                         AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
                         AsyncOpenAI(api_key=key, base_url=url)
                     )
                     break
             else:
                 raise Exception(f"LLM host not supported : {the_url}")
-        return self.llm_clients[url]
+        return self._llm_clients[the_url]
 
 
 class ConfigParameter(BaseModel):

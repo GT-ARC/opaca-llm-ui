@@ -384,7 +384,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     "description": agent["description"],
                     "functions": [action["name"] for action in agent["actions"]]
                 }
-                for agent in await self.session.opaca_client.get_actions()
+                for agent in await self.session._opaca_client.get_actions()
             }
 
             # Add GeneralAgent description
@@ -462,7 +462,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         agent_data = agent_details[agent_name]["description"]
                         
                         # Get functions from platform
-                        agent_tools = await self.session.opaca_client.get_actions_openapi(inline_refs=True)
+                        agent_tools = await self.session._opaca_client.get_actions_openapi(inline_refs=True)
                         agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name, strict=True)
                         if errors:
                             self.logger.warning(errors)
@@ -472,7 +472,7 @@ Now, using the tools available to you and the previous results, continue with yo
                             agent_name=agent_name,
                             summary=agent_data,
                             tools=agent_tools,
-                            session_client=self.session.opaca_client,
+                            session_client=self.session._opaca_client,
                         )
                 
                 # Group tasks by round

@@ -86,24 +86,24 @@ async def get_models() -> dict[str, list[str]]:
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
+    return await session._opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
 async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
-    return session.opaca_client.url
+    return session._opaca_client.url
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
 async def disconnect(request: Request, response: Response) -> Response:
     session = await handle_session_id(request, response)
-    await session.opaca_client.disconnect()
+    await session._opaca_client.disconnect()
     return Response(status_code=204)
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions_simple()
+    return await session._opaca_client.get_actions_simple()
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
