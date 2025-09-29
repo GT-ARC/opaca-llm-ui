@@ -25,7 +25,10 @@ async def save_session(session: SessionData) -> None:
     bson = session.model_dump(mode='json', by_alias=True)
     async with __get_client() as client:
         collection = client[DB_NAME][SESSIONS_COLLECTION]
-        await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
+        try:
+            await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
+        except Exception as e:
+            logger.error(f'Failed to save session: {e}')
 
 
 async def load_session(session_id: str) -> Optional[SessionData]:
