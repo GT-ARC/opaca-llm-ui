@@ -19,12 +19,12 @@ class ToolLLMMethod(AbstractMethod):
         reason: str
         decision: str
 
-    @property
-    def config_schema(self):
+    @classmethod
+    def config_schema(cls):
         return {
-            "tool_gen_model": self.make_llm_config_param(name="Generator", description="Generating tool calls"),
-            "tool_eval_model": self.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
-            "output_model": self.make_llm_config_param(name="Output", description="Generating the final output"),
+            "tool_gen_model": cls.make_llm_config_param(name="Generator", description="Generating tool calls"),
+            "tool_eval_model": cls.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
+            "output_model": cls.make_llm_config_param(name="Output", description="Generating the final output"),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",

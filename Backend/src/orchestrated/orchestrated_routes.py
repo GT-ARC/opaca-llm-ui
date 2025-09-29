@@ -30,14 +30,14 @@ class SelfOrchestratedMethod(AbstractMethod):
         # Set up logging
         self.logger = logging.getLogger(__name__)
 
-    @property
-    def config_schema(self) -> Dict[str, ConfigParameter]:
+    @classmethod
+    def config_schema(cls) -> Dict[str, ConfigParameter]:
         return {
             # Which model to use for the orchestrator and worker agents
-            "orchestrator_model": self.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
-            "worker_model": self.make_llm_config_param(name="Workers", description="For selecting tools"),
-            "evaluator_model": self.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
-            "generator_model": self.make_llm_config_param(name="Output", description="For generating the final response"),
+            "orchestrator_model": cls.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
+            "worker_model": cls.make_llm_config_param(name="Workers", description="For selecting tools"),
+            "evaluator_model": cls.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
+            "generator_model": cls.make_llm_config_param(name="Output", description="For generating the final response"),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the orchestrator and worker agents",

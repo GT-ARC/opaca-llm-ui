@@ -99,9 +99,10 @@ class SimpleToolsMethod(AbstractMethod):
         return response
 
     @property
-    def config_schema(self) -> dict:
+    @classmethod
+    def config_schema(cls) -> dict:
         return {
-            "model": self.make_llm_config_param(name="Model", description="The model to use."),
+            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",

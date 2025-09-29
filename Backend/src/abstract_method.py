@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
-    @property
-    @abstractmethod
-    def config_schema(self) -> Dict[str, ConfigParameter]:
+    @classmethod
+    def config_schema(cls) -> Dict[str, ConfigParameter]:
         pass
 
     @staticmethod
@@ -50,8 +49,8 @@ class AbstractMethod(ABC):
                 return session.llm_clients[url]
         raise Exception(f"LLM host not supported : {the_url}")
 
-
-    def default_config(self):
+    @classmethod
+    def default_config(cls):
         def extract_defaults(schema):
             # Extracts the default values of nested configurations
             if isinstance(schema, ConfigParameter):
@@ -62,7 +61,7 @@ class AbstractMethod(ABC):
             else:
                 return schema
 
-        return {key: extract_defaults(value) for key, value in self.config_schema.items()}
+        return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
     async def query(self, message: str, session: SessionData, chat: Chat) -> QueryResponse:
