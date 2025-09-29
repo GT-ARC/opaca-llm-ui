@@ -35,6 +35,8 @@ services:
       CORS_WHITELIST:
     volumes:
       - opacadata:/data
+    env_file:
+      - .env
 
   # MongoDB for storing session data
   backend-db:

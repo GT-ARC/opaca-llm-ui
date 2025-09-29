@@ -28,6 +28,7 @@ from .simple_tools import SimpleToolsBackend
 from .toolllm import ToolLLMBackend
 from .orchestrated import SelfOrchestratedBackend
 from .file_utils import delete_file_from_all_clients
+from .mongo_driver import load_session, save_session, delete_session
 
 
 @asynccontextmanager
@@ -161,6 +162,7 @@ async def query_chat(request: Request, response: Response, backend: str, chat_id
         result = exception_to_result(message.user_query, e)
     finally:
         await store_message(chat, result)
+        await store_session_data(session)
         return result
 
 
@@ -181,6 +183,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         result = exception_to_result(message.user_query, e)
     finally:
         await store_message(chat, result)
+        await store_session_data(session)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -191,6 +194,7 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
     chat = handle_chat_id(session, chat_id)
     chat.name = new_name
     update_chat_time(chat)
+    await store_session_data(session)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
@@ -200,6 +204,7 @@ async def delete_chat(request: Request, response: Response, chat_id: str) -> boo
         handle_chat_id(session, chat_id)
         async with sessions_lock:
             del session.chats[chat_id]
+            await delete_session(session.session_id)
         return True
     except Exception as e:  # not found
         logger.error(f"Failed to delete chat {chat_id}: {str(e)}\nTraceback: {traceback.format_exc()}")
@@ -255,6 +260,7 @@ async def set_config(request: Request, response: Response, backend: str, conf: d
     except HTTPException as e:
         raise e
     session.config[backend] = conf
+    await store_session_data(session)
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
@@ -262,6 +268,7 @@ async def set_config(request: Request, response: Response, backend: str, conf: d
 async def reset_config(request: Request, response: Response, backend: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
+    await store_session_data(session)
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
 
 
@@ -300,6 +307,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
 
+    await store_session_data(session)
     return {"uploaded_files": uploaded}
 
 
@@ -309,7 +317,9 @@ async def delete_file(request: Request, response: FastAPIResponse, file_id: str)
     files = session.uploaded_files
 
     if file_id in files:
-        return await delete_file_from_all_clients(session, file_id)
+        result = await delete_file_from_all_clients(session, file_id)
+        await store_session_data(session)
+        return result
 
     return False
 
@@ -322,7 +332,9 @@ async def update_file(request: Request, response: FastAPIResponse, file_id: str,
     if file_id in files:
         file = files[file_id]
         file.suspended = suspend
+        await store_session_data(session)
         return True
+
     return False
 
 
@@ -344,29 +356,32 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Respons
         cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
         session_id = cookie_dict.get("session_id")
 
-    # Session lock to avoid race conditions
+    max_age = 60 * 60 * 24 * 30  # 30 days
+    # create Cookie (or just update max-age if already exists)
+    session_id = await create_or_refresh_session(session_id, max_age)
+
+    # If it's an HTTP request and you want to set a cookie
+    if response is not None:
+        response.set_cookie("session_id", session_id, max_age=max_age)
+
+    # Return the session data for the session ID
+    return sessions[session_id]
+
+
+async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0) -> str:
     async with sessions_lock:
-        max_age = 60 * 60 * 24 * 30  # 30 days
-        # create Cookie (or just update max-age if already exists)
-        session_id = create_or_refresh_session(session_id, max_age)
+        session = await load_session(session_id)
+        if session is None:
+            logger.info(f"Creating new Session {session_id}")
+            session = SessionData()
+            session_id = session.session_id
+            sessions[session_id] = session
+        if session.opaca_client is None:
+            session.opaca_client = OpacaClient()
+        if max_age > 0:
+            session.valid_until = time.time() + max_age
 
-        # If it's an HTTP request and you want to set a cookie
-        if response is not None:
-            response.set_cookie("session_id", session_id, max_age=max_age)
-
-        # Return the session data for the session ID
-        return sessions[session_id]
-
-
-def create_or_refresh_session(session_id: Optional[str], max_age=None):
-    if not session_id or session_id not in sessions:
-        logger.info(f"Creating new Session {session_id}")
-        session = SessionData()
-        session_id = session.session_id
-        sessions[session_id] = session
-        sessions[session_id].opaca_client = OpacaClient()
-    if max_age is not None:
-        sessions[session_id].valid_until = time.time() + max_age
+    await store_session_data(session)
     return session_id
 
 
@@ -396,15 +411,29 @@ async def store_message(chat: Chat, result: QueryResponse):
     update_chat_time(chat)
 
 
-async def cleanup_old_sessions(delay_seconds=3600):
+async def store_session_data(session: SessionData) -> None:
+    if session is None: return
+    async with sessions_lock:
+        sessions[session.session_id] = session
+        await save_session(session)
+
+
+async def cleanup_old_sessions(delay_seconds: int = 60 * 60 * 24) -> None:
+    """
+    Delete all expired sessions.
+
+    :param delay_seconds: Number of seconds between cleanups.
+    """
     while True:
         logger.info("Checking for old Sessions...")
         now = time.time()
-        async with sessions_lock:
-            for session_id, session_data in list(sessions.items()):
-                if session_data.valid_until < now:
-                    logger.info(f"Removing old session {session_id}")
-                    sessions.pop(session_id)
+        for session_id, session in sessions.items():
+                with session:
+                    if session.valid_until < now:
+                        logger.info(f"Removing old session {session_id}")
+                        sessions.pop(session_id)
+                        await delete_session(session_id)
+
         await asyncio.sleep(delay_seconds)
 
 
