@@ -90,7 +90,7 @@ export default {
 
         async saveMethodConfig() {
             try {
-                await methodClient.updateConfig(this.method, this.methodConfig);
+                await backendClient.updateConfig(this.method, this.methodConfig);
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configSaveSuccess');
             } catch (error) {
@@ -109,7 +109,7 @@ export default {
 
         async resetMethodConfig() {
             try {
-                const res = await methodClient.resetConfig(this.method);
+                const res = await backendClient.resetConfig(this.method);
                 console.log('Reset method config.');
                 this.methodConfig = res.config_values;
                 this.methodConfigSchema = res.config_schema;
