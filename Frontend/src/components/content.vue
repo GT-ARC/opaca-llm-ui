@@ -35,7 +35,7 @@
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
-            @new-chat="() => this.startNewChat()"
+            @new-chat="() => {this.suspendAllFiles(); this.startNewChat()}"
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
@@ -386,6 +386,16 @@ export default {
 
         async handleSuspendFile(fileId, suspend) {
             await backendClient.suspendFile(fileId, suspend);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async suspendAllFiles() {
+            const files = await backendClient.files();
+            for (const file of Object.values(files)) {
+                if (!file.suspended) {
+                    await backendClient.suspendFile(file.file_id, true);
+                }
+            }
             await this.$refs.sidebar.$refs.files.updateFiles();
         },
 
