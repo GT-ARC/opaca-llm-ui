@@ -1,11 +1,8 @@
 import logging
 import time
 
-from starlette.websockets import WebSocket
-
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat
-from ..utils import openapi_to_functions
+from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat
 
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
@@ -39,16 +36,7 @@ class SimpleToolsMethod(AbstractMethod):
         max_iters = config["max_rounds"]
         
         # Get tools and transform them into the OpenAI Function Schema
-        try:
-            tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        except AttributeError as e:
-            response.error = str(e)
-            response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
-            return response
-        if len(tools) > 128:
-            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
-                      f"of 128. All tools after index 128 will be ignored!\n")
-            tools = tools[:128]
+        tools, error = await self.get_tools()
 
         # initialize message history
         messages = list(chat.messages)

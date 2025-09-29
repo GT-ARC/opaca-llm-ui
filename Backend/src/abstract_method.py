@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall
-from .utils import transform_schema, get_supported_models
+from .utils import transform_schema, get_supported_models, openapi_to_functions
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -224,3 +224,12 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+
+
+    async def get_tools(self, max_tools=128) -> tuple[list]:
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        if len(tools) > max_tools:
+            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
+                      f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
+            tools = tools[:max_tools]
+        return tools, error
