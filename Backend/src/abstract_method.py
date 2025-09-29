@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException, Chat
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall
 from .utils import transform_schema, get_supported_models
 from .file_utils import upload_files
 
@@ -65,11 +65,11 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in self.config_schema.items()}
 
 
-    async def query(self, message: str, session: SessionData, chat: Chat) -> Response:
+    async def query(self, message: str, session: SessionData, chat: Chat) -> QueryResponse:
         return await self.query_stream(message, session, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
         pass
 
 
@@ -149,7 +149,7 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append({'name': event.item.name, 'args': {}, 'result': '', 'id': event.output_index})
+                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
                 tool_call_buffers[event.output_index] = ""
 
             # Tool call argument chunk received
@@ -176,13 +176,13 @@ class AbstractMethod(ABC):
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
                 # Get the tool index from the event output index
-                tool_idx = next((t['id'] for t in agent_message.tools if t['id'] == event.output_index), -1)
+                tool_idx = next((t.id for t in agent_message.tools if t.id == event.output_index), -1)
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[tool_idx]['args'] = json.loads(tool_call_buffers[event.output_index])
+                    agent_message.tools[tool_idx].args = json.loads(tool_call_buffers[event.output_index])
                 except json.JSONDecodeError:
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
-                    agent_message.tools[tool_idx]['args'] = {}
+                    agent_message.tools[tool_idx].args = {}
 
             if websocket:
                 await websocket.send_json(agent_message.model_dump_json())
@@ -208,7 +208,7 @@ class AbstractMethod(ABC):
 
 
     @staticmethod
-    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> dict:
+    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
@@ -223,9 +223,4 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        return {
-            "id": tool_id,
-            "name": tool_name,
-            "args": tool_args,
-            "result": t_result
-        }
+        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)

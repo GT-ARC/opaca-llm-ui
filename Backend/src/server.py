@@ -14,15 +14,13 @@ import time
 from contextlib import asynccontextmanager
 
 import io
-from fastapi import FastAPI, Request, HTTPException, UploadFile
-from fastapi import Response as FastAPIResponse
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input, exception_to_result, get_supported_models
-from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, OpacaFile, Chat, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, OpacaFile, Chat, \
     SearchResult
 from .opaca_client import OpacaClient
 from .simple import SimpleMethod
@@ -87,30 +85,30 @@ async def get_models() -> dict[str, list[str]]:
     }
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
-async def connect(request: Request, response: FastAPIResponse, connect: ConnectInfo) -> int:
+async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
-async def get_connection(request: Request, response: FastAPIResponse) -> str | None:
+async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
     return session.opaca_client.url
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
-async def disconnect(request: Request, response: FastAPIResponse) -> FastAPIResponse:
+async def disconnect(request: Request, response: Response) -> Response:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
-    return FastAPIResponse(status_code=204)
+    return Response(status_code=204)
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
-async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, List[Dict[str, Any]]]:
+async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
-async def query_no_history(request: Request, response: FastAPIResponse, method: str, message: Message) -> Response:
+async def query_no_history(request: Request, response: Response, method: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
@@ -120,7 +118,7 @@ async def query_no_history(request: Request, response: FastAPIResponse, method: 
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
-async def stop_query(request: Request, response: FastAPIResponse) -> None:
+async def stop_query(request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
 
@@ -133,7 +131,7 @@ async def reset_all():
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
-async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
+async def get_chats(request: Request, response: Response) -> List[Chat]:
     session = await handle_session_id(request, response)
     chats = [
         Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
@@ -144,14 +142,14 @@ async def get_chats(request: Request, response: FastAPIResponse) -> List[Chat]:
 
 
 @app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
-async def get_chat_history(request: Request, response: FastAPIResponse, chat_id: str) -> Chat:
+async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     return chat
 
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query_chat(request: Request, response: FastAPIResponse, method: str, chat_id: str, message: Message) -> Response:
+async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
@@ -176,7 +174,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     result = None
     try:
         data = await websocket.receive_json()
-        message = Message(**data)
+        message = QueryRequest(**data)
         create_chat_name(chat, message)
         result = await METHODS[method].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
@@ -188,7 +186,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
-async def update_chat(request: Request, response: FastAPIResponse, chat_id: str, new_name: str) -> None:
+async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
     chat.name = new_name
@@ -196,7 +194,7 @@ async def update_chat(request: Request, response: FastAPIResponse, chat_id: str,
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
-async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str) -> bool:
+async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
     try:
         handle_chat_id(session, chat_id)
@@ -209,7 +207,7 @@ async def delete_chat(request: Request, response: FastAPIResponse, chat_id: str)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")
-async def search_chats(request: Request, response: FastAPIResponse, query: str) -> Dict[str, List[SearchResult]]:
+async def search_chats(request: Request, response: Response, query: str) -> Dict[str, List[SearchResult]]:
     def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
         start = max(0, index - buffer_length)
         stop = min(len(text), index + len(query) + buffer_length)
@@ -242,7 +240,7 @@ async def search_chats(request: Request, response: FastAPIResponse, query: str) 
 ## CONFIG ROUTES
 
 @app.get("/config/{method}", description="Get current configuration of the given prompting method.")
-async def get_config(request: Request, response: FastAPIResponse, method: str) -> ConfigPayload:
+async def get_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if method not in session.config:
         session.config[method] = METHODS[method].default_config()
@@ -250,7 +248,7 @@ async def get_config(request: Request, response: FastAPIResponse, method: str) -
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
-async def set_config(request: Request, response: FastAPIResponse, method: str, conf: dict) -> ConfigPayload:
+async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
         validate_config_input(conf, METHODS[method].config_schema)
@@ -261,7 +259,7 @@ async def set_config(request: Request, response: FastAPIResponse, method: str, c
 
 
 @app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
-async def reset_config(request: Request, response: FastAPIResponse, method: str) -> ConfigPayload:
+async def reset_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[method] = METHODS[method].default_config()
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
@@ -270,14 +268,14 @@ async def reset_config(request: Request, response: FastAPIResponse, method: str)
 ## FILE ROUTES
 
 @app.get("/files", description="Get a list of all uploaded files.")
-async def get_files(request: Request, response: FastAPIResponse) -> dict:
+async def get_files(request: Request, response: Response) -> dict:
     session = await handle_session_id(request, response)
     return session.uploaded_files
 
 
 @app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration "
                                 "with the next user queries. Currently only supports PDF.")
-async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
@@ -309,7 +307,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
 
 @app.delete("/files/{file_id}", description="Delete an uploaded file.")
-async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> bool:
+async def delete_file(request: Request, response: Response, file_id: str) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
@@ -320,7 +318,7 @@ async def delete_file(request: Request, response: FastAPIResponse, file_id: str)
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
-async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> bool:
+async def update_file(request: Request, response: Response, file_id: str, suspend: bool) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
@@ -333,7 +331,7 @@ async def update_file(request: Request, response: FastAPIResponse, file_id: str,
 
 ## Utility functions
 
-async def handle_session_id(source: Union[Request, WebSocket], response: FastAPIResponse = None) -> SessionData:
+async def handle_session_id(source: Union[Request, WebSocket], response: Response = None) -> SessionData:
     """
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
@@ -384,7 +382,7 @@ def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool =
     return chat
 
 
-def create_chat_name(chat: Chat | None, message: Message | None) -> None:
+def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
     if (chat is not None) and (message is not None) and not chat.name:
         chat.name = (f'{message.user_query[:32]}…'
             if len(message.user_query) > 32
@@ -395,7 +393,7 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, result: Response):
+async def store_message(chat: Chat, result: QueryResponse):
     chat.responses.append(result)
     update_chat_time(chat)
 
