@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import logging
-from typing import List, Dict, Any, Optional, Self
+from typing import List, Dict, Any, Optional, Self, Iterator
 from io import BytesIO
 from datetime import datetime, timezone
 import uuid
@@ -78,7 +78,7 @@ logger.addHandler(console_handler)
 class ConnectRequest(BaseModel):
     """
     Used as payload for the `/connect` route.
-    
+
     Attributes
         url: The base url to be used for every interaction with the OPACA  platform.
         user: OPACA platform user name (when using auth), or null
@@ -150,10 +150,16 @@ class OpacaFile(BaseModel):
         _content: Private attribute to store binary content (not part of schema or validation)
         content_type: MIME type of the file
         file_id: ID assigned after upload
+        host_ids: IDs assigned by each host the file has been uploaded to
+        file_name: Name of the file
+        suspended: Whether the file should be excluded from future requests
     """
     _content: BytesIO = PrivateAttr()
     content_type: str
-    file_id: Optional[str] = None
+    file_id: str
+    host_ids: Dict[str, str] = {}
+    file_name: Optional[str] = ''
+    suspended: bool = False
 
 
 class ChatMessage(BaseModel):
@@ -183,14 +189,24 @@ class Chat(BaseModel):
     Stores information about each chat.
 
     Attributes:
-        chat_id (str): The unique ID of the chat.
-        messages: Chat history (user queries and final LLM responses), used in subsequent requests.
+        chat_id: The unique ID of the chat.
+        name: human-readable name of the chat (generated or assigned)
+        responses: list of full query-responses incl. intermediate messages and meta-infos
+        time_created: when the chat was created
+        time_modified: when the chat was last used
+        messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
     """
     chat_id: str
     name: str = ''
-    messages: List[ChatMessage] = []
+    responses: List[QueryResponse] = []
     time_created: datetime = datetime.now(tz=timezone.utc)
     time_modified: datetime = datetime.now(tz=timezone.utc)
+
+    @property
+    def messages(self) -> Iterator[ChatMessage]:
+        for r in self.responses:
+            yield ChatMessage(role="user", content=r.query)
+            yield ChatMessage(role="assistant", content=r.content)
 
 
 class SessionData(BaseModel):
@@ -290,7 +306,7 @@ class ConfigPayload(BaseModel):
 class SearchResult(BaseModel):
     """
     Result to some search query, showing in which chat and message the string was found.
-    
+
     Attributes:
         chat_id: id of the chat where the string was found
         chat_name: name of the chat where the string was found

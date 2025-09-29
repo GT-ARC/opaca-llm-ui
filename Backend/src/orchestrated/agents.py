@@ -39,7 +39,7 @@ class OrchestratorAgent(BaseAgent):
     ):
         super().__init__()
         self.agent_summaries = agent_summaries
-        self.chat_history = chat_history.copy()
+        self.chat_history = list(chat_history)
         self.tools = tools
 
     @staticmethod

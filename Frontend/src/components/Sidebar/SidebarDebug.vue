@@ -8,9 +8,9 @@
         </div>
 
         <div id="debug-console"
-             v-if="this.getCurrentDebugMessages().length > 0"
+             v-if="this.debugMessages.length > 0"
              class="d-flex flex-column text-start rounded-4 p-1">
-            <div v-for="(debugMessage, index) in this.getCurrentDebugMessages()"
+            <div v-for="(debugMessage, index) in this.debugMessages"
                  :key="`${debugMessage.text}-${index}`">
                 <DebugMessage
                     :text="debugMessage.text"
@@ -68,11 +68,7 @@ export default {
             utils.addDebugMessage(this.debugMessages, message);
         },
 
-        getCurrentDebugMessages() {
-            return this.debugMessages.filter(msg => msg.chatId === this.selectedChatId);
-        },
-
-        clearDebugMessage() {
+        clearDebugMessages() {
             this.debugMessages = [];
         },
 

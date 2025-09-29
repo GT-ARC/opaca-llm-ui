@@ -4,6 +4,7 @@ Provides a list of available "backends", or LLM prompting methods that can be us
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Union
@@ -13,20 +14,22 @@ import time
 from contextlib import asynccontextmanager
 
 import io
-from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
+from fastapi import FastAPI, Request, HTTPException, UploadFile
+from fastapi import Response as FastAPIResponse
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input, exception_to_result, get_supported_models
-from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, ChatMessage, OpacaFile, Chat, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, OpacaFile, Chat, \
     SearchResult
 from .opaca_client import OpacaClient
 from .simple import SimpleBackend
 from .simple_tools import SimpleToolsBackend
 from .toolllm import ToolLLMBackend
 from .orchestrated import SelfOrchestratedBackend
+from .file_utils import delete_file_from_all_clients
 
 
 @asynccontextmanager
@@ -106,33 +109,6 @@ async def get_actions(request: Request, response: Response) -> dict[str, List[Di
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/upload", description="Upload a file to be backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.")
-async def upload_files(request: Request, response: Response, files: List[UploadFile]):
-    session = await handle_session_id(request, response)
-    uploaded = []
-    for file in files:
-        try:
-            contents = await file.read()
-
-            file_model = OpacaFile(
-                content_type=file.content_type,
-                sent=False
-            )
-            file_model._content = io.BytesIO(contents)
-
-            # Store in session.uploaded_files
-            session.uploaded_files[file.filename] = file_model
-            uploaded.append(file.filename)
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to process file {file.filename}: {str(e)}"
-            )
-
-    return JSONResponse(status_code=201, content={"uploaded_files": uploaded})
-
-
 @app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
 async def query_no_history(request: Request, response: Response, backend: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
@@ -167,7 +143,7 @@ async def get_chats(request: Request, response: Response) -> List[Chat]:
     return chats
 
 
-@app.get("/chats/{chat_id}", description="Get a chat's full history (user queries and LLM responses, no internal/intermediate messages).")
+@app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id)
@@ -186,7 +162,7 @@ async def query_chat(request: Request, response: Response, backend: str, chat_id
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         return result
 
 
@@ -206,7 +182,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, message, result)
+        await store_message(chat, result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -227,7 +203,8 @@ async def delete_chat(request: Request, response: Response, chat_id: str) -> boo
         async with sessions_lock:
             del session.chats[chat_id]
         return True
-    except Exception:  # not found
+    except Exception as e:  # not found
+        logger.error(f"Failed to delete chat {chat_id}: {str(e)}\nTraceback: {traceback.format_exc()}")
         return False
 
 
@@ -270,7 +247,7 @@ async def get_config(request: Request, response: Response, backend: str) -> Conf
     if backend not in session.config:
         session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
-    
+
 
 @app.put("/config/{backend}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: Response, backend: str, conf: dict) -> ConfigPayload:
@@ -288,6 +265,71 @@ async def reset_config(request: Request, response: Response, backend: str) -> Co
     session = await handle_session_id(request, response)
     session.config[backend] = BACKENDS[backend].default_config()
     return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+
+
+## FILE ROUTES
+
+@app.get("/files", description="Get a list of all uploaded files.")
+async def get_files(request: Request, response: FastAPIResponse) -> dict:
+    session = await handle_session_id(request, response)
+    return session.uploaded_files
+
+
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration "
+                                "with the next user queries. Currently only supports PDF.")
+async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+    session = await handle_session_id(request, response)
+    uploaded = []
+    for file in files:
+        try:
+            contents = await file.read()
+
+            file_id = str(uuid.uuid4())
+            base_name, _ = os.path.splitext(file.filename)
+
+            file_model = OpacaFile(
+                content_type=file.content_type,
+                file_id=file_id,
+                file_name=file.filename,
+                suspended=False
+            )
+            file_model._content = io.BytesIO(contents)
+
+            # Store in session.uploaded_files
+            session.uploaded_files[file_id] = file_model
+            uploaded.append(file_model)
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}"
+            )
+
+    return {"uploaded_files": uploaded}
+
+
+@app.delete("/files/{file_id}", description="Delete an uploaded file.")
+async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> bool:
+    session = await handle_session_id(request, response)
+    files = session.uploaded_files
+
+    if file_id in files:
+        return await delete_file_from_all_clients(session, file_id)
+
+    return False
+
+
+@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
+async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> bool:
+    session = await handle_session_id(request, response)
+    files = session.uploaded_files
+
+    if file_id in files:
+        file = files[file_id]
+        file.suspended = suspend
+        return True
+    return False
+
 
 ## Utility functions
 
@@ -353,13 +395,9 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, message: QueryRequest, result: QueryResponse):
-    if message:
-        chat.messages.extend([
-            ChatMessage(role="user", content=message.user_query),
-            ChatMessage(role="assistant", content=result.content)
-        ])
-        update_chat_time(chat)
+async def store_message(chat: Chat, result: QueryResponse):
+    chat.responses.append(result)
+    update_chat_time(chat)
 
 
 async def cleanup_old_sessions(delay_seconds=3600):
