@@ -96,8 +96,8 @@ class AgentPlanner(BaseAgent):
                 context += f"\n## Result {i} from {result.agent_name}:\n"
                 context += f"### Task:\n {result.task}\n"
                 context += f"### Worker Agent Output:\n {result.output}\n"
-                if result.tool_results:
-                    context += f"### Tool Results:\n {json.dumps(result.tool_results, indent=2)}\n"
+                if any(tc.result for tc in result.tool_calls):
+                    context += f"### Tool Results:\n\t\t" + "\t\t".join([str(tc.result) + "\n" for tc in result.tool_calls])
 
         return [ChatMessage(role="user", content=f"""{context}
 
@@ -138,15 +138,15 @@ class AgentPlanner(BaseAgent):
                     if round_output.strip():
                         orchestrator_context += f"{round_output}\n"
 
-                # Process tool results by round
-                if result.tool_results:
-                    # Group tool results by round based on their sequence
-                    round_tool_results = dict(enumerate(result.tool_results))
+                # Process tool calls by round
+                if any(tc.result for tc in result.tool_calls):
+                    # Group tool calls by round based on their sequence
+                    round_tool_calls = dict(enumerate([tc.result for tc in result.tool_calls]))
 
                     # Output tool results by round
-                    for round_num, tr in sorted(round_tool_results.items()):
+                    for round_num, tc in sorted(round_tool_calls.items()):
                         orchestrator_context += f"\n### Tool Results:\n"
-                        orchestrator_context += f"- {tr['name']}: {json.dumps(tr['result'])}\n"
+                        orchestrator_context += f"- {tc.name}: {tc.result}\n"
         return orchestrator_context
 
     def get_task_str(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
@@ -170,7 +170,6 @@ class AgentEvaluator(BaseAgent):
             "task": task.task if isinstance(task, AgentTask) else task,
             "agent_output": result.output,
             "tool_calls": result.tool_calls,
-            "tool_results": result.tool_results
         }, indent=2)
         return [
             ChatMessage(
@@ -189,13 +188,13 @@ class AgentEvaluator(BaseAgent):
 
     def evaluate_results(self, result: AgentResult) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
-        for tool_result in result.tool_results:
-            if isinstance(tool_result.get("result"), str) and (
-                    "error" in tool_result["result"].lower() or
-                    "failed" in tool_result["result"].lower() or
-                    "502" in tool_result["result"]
+        for tc in result.tool_calls:
+            if isinstance(tc.result, str) and (
+                    "error" in tc.result.lower() or
+                    "failed" in tc.result.lower() or
+                    "502" in tc.result
             ):
-                self.logger.info(f"Found failed tool call: {tool_result}")
+                self.logger.info(f"Found failed tool call: {tc}")
                 return True
 
         # Check for incomplete sequential operations
@@ -233,13 +232,13 @@ class OverallEvaluator(BaseAgent):
         """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
             # Check for errors in tool results
-            for tool_result in result.tool_results:
-                if isinstance(tool_result.get("result"), str) and (
-                        "error" in tool_result["result"].lower() or
-                        "failed" in tool_result["result"].lower() or
-                        "502" in tool_result["result"]
+            for tc in result.tool_calls:
+                if isinstance(tc.result, str) and (
+                        "error" in tc.result.lower() or
+                        "failed" in tc.result.lower() or
+                        "502" in tc.result
                 ):
-                    self.logger.info(f"Found failed tool call in {result.agent_name}: {tool_result}")
+                    self.logger.info(f"Found failed tool call in {result.agent_name}: {tc}")
                     return True
 
             # Check for incomplete sequential operations
@@ -250,13 +249,6 @@ class OverallEvaluator(BaseAgent):
                     if '<' in tool_call.args and '>' in tool_call.args:
                         self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
                         return True
-
-                # Check if we have all necessary results for sequential operations
-                tool_names = [tc["name"] for tc in result.tool_calls]
-                result_names = [tr["name"] for tr in result.tool_results]
-                if not all(tn in result_names for tn in tool_names):
-                    self.logger.info(f"Missing tool results in {result.agent_name}")
-                    return True
         return False
 
 
@@ -325,7 +317,6 @@ class WorkerAgent(BaseAgent):
         # Iterate over all tool calls
         # Initialize tool calls and results lists
         tool_calls = []
-        tool_results = []
         tool_outputs = []
 
         for tool_call in message.tools:
@@ -350,21 +341,13 @@ class WorkerAgent(BaseAgent):
                 )
             except Exception as e:
                 self.logger.error(f"Failed to execute tool call: {tool_call.name}")
-                tool_calls.append(tool_call)
-                tool_results.append({
-                    "name": tool_call.name,
-                    "result": str(e)
-                })
                 tool_call.result = str(e)
+                tool_calls.append(tool_call)
                 continue
 
             # Add the tool call and result to the lists
-            tool_calls.append(tool_call)
-            tool_results.append({
-                "name": tool_call.name,
-                "result": result
-            })
             tool_call.result = result
+            tool_calls.append(tool_call)
 
             # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
             # Format the result for output
@@ -392,7 +375,6 @@ class WorkerAgent(BaseAgent):
             task=task_str,
             output=output,
             tool_calls=tool_calls,
-            tool_results=tool_results,
         )
 
 def get_current_time():

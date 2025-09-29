@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from ..models import AgentMessage, ToolCall
@@ -29,7 +29,6 @@ class AgentResult(BaseModel):
     task: str
     output: str
     tool_calls: List[ToolCall] = []
-    tool_results: List[Any] = []
     agent_message: Optional[AgentMessage] = Field(default=None, description="Debug message with execution details")
 
 class IterationAdvice(BaseModel):
