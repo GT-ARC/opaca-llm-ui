@@ -1,6 +1,6 @@
 """
 FastAPI Server providing HTTP/REST routes to be used by the Frontend.
-Provides a list of available "backends", or LLM prompting methods that can be used,
+Provides a list of available  LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
@@ -25,10 +25,10 @@ from .utils import validate_config_input, exception_to_result, get_supported_mod
 from .models import ConnectInfo, Message, Response, SessionData, ConfigPayload, OpacaFile, Chat, \
     SearchResult
 from .opaca_client import OpacaClient
-from .simple import SimpleBackend
-from .simple_tools import SimpleToolsBackend
-from .toolllm import ToolLLMBackend
-from .orchestrated import SelfOrchestratedBackend
+from .simple import SimpleMethod
+from .simple_tools import SimpleToolsMethod
+from .toolllm import ToolLLMMethod
+from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients
 
 
@@ -59,11 +59,11 @@ app.add_middleware(
 )
 
 
-BACKENDS = {
-    SimpleBackend.NAME: SimpleBackend(),
-    SelfOrchestratedBackend.NAME: SelfOrchestratedBackend(),
-    ToolLLMBackend.NAME: ToolLLMBackend(),
-    SimpleToolsBackend.NAME: SimpleToolsBackend(),
+METHODS = {
+    SimpleMethod.NAME: SimpleMethod(),
+    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod(),
+    ToolLLMMethod.NAME: ToolLLMMethod(),
+    SimpleToolsMethod.NAME: SimpleToolsMethod(),
 }
 
 
@@ -75,9 +75,9 @@ sessions: Dict[str, SessionData] = {}
 logger = logging.getLogger("uvicorn")
 
 
-@app.get("/backends", description="Get list of available 'backends'/LLM-prompting-methods, to be used as parameter for other routes.")
-async def get_backends() -> list:
-    return list(BACKENDS)
+@app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
+async def get_methods() -> list:
+    return list(METHODS)
 
 @app.get("/models", description="Get supported models, grouped by LLM server URL")
 async def get_models() -> dict[str, list[str]]:
@@ -109,12 +109,12 @@ async def get_actions(request: Request, response: FastAPIResponse) -> dict[str, 
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/query/{backend}", description="Send message to the given LLM backend. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
-async def query_no_history(request: Request, response: FastAPIResponse, backend: str, message: Message) -> Response:
+@app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
+async def query_no_history(request: Request, response: FastAPIResponse, method: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        return await BACKENDS[backend].query(message.user_query, session, Chat(chat_id=''))
+        return await METHODS[method].query(message.user_query, session, Chat(chat_id=''))
     except Exception as e:
         return exception_to_result(message.user_query, e)
 
@@ -150,15 +150,15 @@ async def get_chat_history(request: Request, response: FastAPIResponse, chat_id:
     return chat
 
 
-@app.post("/chats/{chat_id}/query/{backend}", description="Send message to the given LLM backend; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
-async def query_chat(request: Request, response: FastAPIResponse, backend: str, chat_id: str, message: Message) -> Response:
+@app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
+async def query_chat(request: Request, response: FastAPIResponse, method: str, chat_id: str, message: Message) -> Response:
     session = await handle_session_id(request, response)
     chat = handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
     session.abort_sent = False
     result = None
     try:
-        result = await BACKENDS[backend].query(message.user_query, session, chat)
+        result = await METHODS[method].query(message.user_query, session, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -166,8 +166,8 @@ async def query_chat(request: Request, response: FastAPIResponse, backend: str, 
         return result
 
 
-@app.websocket("/chats/{chat_id}/stream/{backend}")
-async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
+@app.websocket("/chats/{chat_id}/stream/{method}")
+async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
     chat = handle_chat_id(session, chat_id, True)
@@ -178,7 +178,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, backend: str):
         data = await websocket.receive_json()
         message = Message(**data)
         create_chat_name(chat, message)
-        result = await BACKENDS[backend].query_stream(message.user_query, session, chat, websocket)
+        result = await METHODS[method].query_stream(message.user_query, session, chat, websocket)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -241,30 +241,30 @@ async def search_chats(request: Request, response: FastAPIResponse, query: str) 
 
 ## CONFIG ROUTES
 
-@app.get("/config/{backend}", description="Get current configuration of the given prompting method.")
-async def get_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
+@app.get("/config/{method}", description="Get current configuration of the given prompting method.")
+async def get_config(request: Request, response: FastAPIResponse, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
-    if backend not in session.config:
-        session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    if method not in session.config:
+        session.config[method] = METHODS[method].default_config()
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
 
 
-@app.put("/config/{backend}", description="Update configuration of the given prompting method.")
-async def set_config(request: Request, response: FastAPIResponse, backend: str, conf: dict) -> ConfigPayload:
+@app.put("/config/{method}", description="Update configuration of the given prompting method.")
+async def set_config(request: Request, response: FastAPIResponse, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        validate_config_input(conf, BACKENDS[backend].config_schema)
+        validate_config_input(conf, METHODS[method].config_schema)
     except HTTPException as e:
         raise e
-    session.config[backend] = conf
-    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    session.config[method] = conf
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
 
 
-@app.delete("/config/{backend}", description="Resets the configuration of the prompting method to its default.")
-async def reset_config(request: Request, response: FastAPIResponse, backend: str) -> ConfigPayload:
+@app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
+async def reset_config(request: Request, response: FastAPIResponse, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
-    session.config[backend] = BACKENDS[backend].default_config()
-    return ConfigPayload(config_values=session.config[backend], config_schema=BACKENDS[backend].config_schema)
+    session.config[method] = METHODS[method].default_config()
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
 
 
 ## FILE ROUTES

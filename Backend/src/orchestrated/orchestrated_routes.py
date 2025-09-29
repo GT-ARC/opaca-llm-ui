@@ -23,7 +23,7 @@ from .models import AgentResult, AgentTask
 from ..utils import openapi_to_functions
 
 
-class SelfOrchestratedBackend(AbstractMethod):
+class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
 
     def __init__(self):
@@ -610,7 +610,7 @@ Please address these specific improvements:
             # Send completion message for output generator
             await send_to_websocket(websocket, "Output Generator", "Final response generated ✓")
 
-            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {response.execution_time:.2f} seconds\n\n")
+            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentMethod completed analysis in {response.execution_time:.2f} seconds\n\n")
 
             # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
             execution_times_data = defaultdict(int)

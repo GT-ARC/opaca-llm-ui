@@ -12,7 +12,7 @@ from ..models import Response, SessionData, ChatMessage, ConfigParameter, Chat
 from ..utils import openapi_to_functions
 
 
-class ToolLLMBackend(AbstractMethod):
+class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
 
     class EvaluatorResponse(BaseModel):

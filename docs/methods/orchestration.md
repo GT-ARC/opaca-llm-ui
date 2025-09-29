@@ -1,6 +1,6 @@
 # Overall Architecture
 
-The backend uses a self-orchestrated multi-agent approach to divide and conquer user requests into smaller tasks and subtasks. 
+The method uses a self-orchestrated multi-agent approach to divide and conquer user requests into smaller tasks and subtasks. 
 
 ![Mutli-Agent-Architecture](/docs/img/multi-agent.png)
 
@@ -33,11 +33,11 @@ The orchestrator is able to ask a follow-up question. The orchestrator also has 
 We ingest a placeholder agent into the list of worker trios to quickly retrieve basic information. 
 If the user asks "How can you assist me" for example, this agent would immediately return a static response with all the live OPACA agents as well as some basic information on OPACA. 
 
-Further arbitrary agents could also be ingested into the backend to make answering certain questions faster and easier.
+Further arbitrary agents could also be ingested into the method to make answering certain questions faster and easier.
 
 # File structure
 
-- `backend.py`: Contains the core logic of the orchestration method. Further handles connection and routing.
+- `orchestration_routes.py`: Contains the core logic of the orchestration method. Further handles connection and routing.
 - `agents.py`: Defines agent specific properties such as message structure or response schema.
 - `models.py`: Defines the Pydantic models for data structures used specifically in the multi-agent system (tasks, plans, results, etc.).
 - `prompts.py`: Contains the system prompts for each agent type that define their behaviour and responsibilities.

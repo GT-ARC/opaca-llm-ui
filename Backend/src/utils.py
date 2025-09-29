@@ -191,7 +191,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
     """
     Validates the given input values against the Configuration Schema
     :param values: The input dict of configuration parameters that was sent by the UI
-    :param schema: The schema of the selected backend that the parameters should affect
+    :param schema: The schema of the selected prompting method that the parameters should affect
     :return: Returns true if everything was successfully validated, false otherwise
     """
 

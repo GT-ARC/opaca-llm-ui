@@ -10,7 +10,7 @@ The main chat window shows the messages in the current interaction and an input 
 
 Below the chat output is the input prompt. Clicking on the "send" button or pressing Enter will submit the query to the LLM. The UI also allows for speech input and output using the microphone button. If the last message was spoken, the response will automatically be read out aloud. It is also possible to upload files (e.g. PDF) to be taken into account in the next LLM queries. Finally, the "reset" button can be used to clear the chat history. Note that the full history is stored in a Session Cookie.
 
-Each response by the LLM includes additional "debug" output that can be expanded by clicking on the "debug" button below the message. Also, the messages can be read aloud using text-to-speech by clicking another button. Before the LLM's final response is ready, the "thinking process" is streamed to the UI (this may vary depending on the backend method being used).
+Each response by the LLM includes additional "debug" output that can be expanded by clicking on the "debug" button below the message. Also, the messages can be read aloud using text-to-speech by clicking another button. Before the LLM's final response is ready, the "thinking process" is streamed to the UI (this may vary depending on the prompting method being used).
 
 ## Sidebar
 
@@ -19,7 +19,7 @@ A collapsible sidebar providing different sections for configuring the OPACA Run
 * **Info**: When connected to an OPACA platform, shows a short LLM-generated summary of the agents and actions being available.
 * **Prompt Library**: A list of example prompts, grouped into different categories. These prompts are tailored for our current internal demonstration deployment, and can be changed in the `config.js` file (see below). Clicking an example prompt will automatically send it to the LLM. Clicking "Suggest more" at the bottom will prompt the LLM to come up with new sample queries based on the available actions on its own.
 * **Agents & Actions**: Shows the list of all Agents and their respective Actions currently available on the connected OPACA Runtime Platform. Each Agent can be expanded to show its Actions, which can be further expanded to show their parameters and a short description.
-* **Configuration**: Allows to send different configurations to the backend, depending on the selected backend method, e.g. for which LLM to use at what temperature.
+* **Configuration**: Allows to send different configurations to the backend, depending on the selected prompting method, e.g. for which LLM to use at what temperature.
 * **Logging**: Shows the full logging-information sent by the AI-agents in the backend; this is the same as shown underneath the individual messages, but all in one place. Also, other than the output underneath the message, the logging output in this section is streamed as the LLM is still "thinking", making it a valuable resource for requests that take more time.
 * **About/FAQ**: Shows some information about the general workings of the OPACA LLM.
 
@@ -32,4 +32,4 @@ The Navigation/Header bar also contains a dropdown that can be used to e.g. set 
 
 ## Configuration
 
-Several aspects of the UI, such as the available and default backends, the selection of sample prompts, or the default language can be configured in `config.js`. Several of those can also be configured via environment variables, e.g. in the `docker-compose.yml` file.
+Several aspects of the UI, such as the available and default prompting method, the selection of sample prompts, or the default language can be configured in `config.js`. Several of those can also be configured via environment variables, e.g. in the `docker-compose.yml` file.

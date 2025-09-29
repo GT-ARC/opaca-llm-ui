@@ -91,7 +91,7 @@ class ConnectInfo(BaseModel):
 
 class Message(BaseModel):
     """
-    Used as the expected body argument in the `/query/{backend}` endpoints
+    Used as the expected body argument in the `/query/{method}` endpoints
 
     Attributes
         user_query: The query a user has input into the OPACA LLM ChatBot.

@@ -3,4 +3,4 @@ Simple approach, directly communicating with an LLM, acquires available tools/se
 Works for both, GPT and vLLM.
 """
 
-from .simple_tools_routes import SimpleToolsBackend
+from .simple_tools_routes import SimpleToolsMethod

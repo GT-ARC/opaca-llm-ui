@@ -1,14 +1,14 @@
 import * as url from "node:url";
 
-// Available "backend methods"
-export const Backends = {
+// Available prompting methods
+export const Methods = {
     "simple": "Simple Prompt",
     "tool-llm": "Tool LLM",
     "self-orchestrated": "Self-Orchestrated",
     "simple-tools": "Simple Tool Prompt"
 };
 
-export const BackendDescriptions = {
+export const MethodDescriptions = {
     "simple": "Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.",
     "tool-llm": "Three agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
     "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
@@ -20,8 +20,8 @@ let config = {
     // URL to the OPACA LLM UI backend
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
-    // The initially selected "backend method"
-    DefaultBackend: import.meta.env.VITE_DEFAULT_BACKEND ?? "tool-llm",
+    // The initially selected prompting method
+    DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
 
     // Optional "back-link" that redirects the user to a pre-configured site.
     BackLink: import.meta.env.VITE_BACKLINK ?? null,

@@ -24,7 +24,7 @@ answer them with the required information. Tools can also be described as servic
 
 logger = logging.getLogger(__name__)
 
-class SimpleToolsBackend(AbstractMethod):
+class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
 
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> Response:
