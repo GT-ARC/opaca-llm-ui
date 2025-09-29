@@ -37,16 +37,14 @@ async def load_session(session_id: str) -> Optional[SessionData]:
 
     async with __get_client() as client:
         collection = client[DB_NAME][SESSIONS_COLLECTION]
-        bson = await collection.find_one({"_id": session_id})
-
-    if bson is None:
-        return None
-
-    try:
-        return SessionData.model_validate(bson)
-    except Exception as e:
-        logger.error(f'Failed to load session: {e}')
-        return None
+        try:
+            bson = await collection.find_one({"_id": session_id})
+            if bson is None:
+                return None
+            return SessionData.model_validate(bson)
+        except Exception as e:
+            logger.error(f'Failed to load session {session_id}: {e}')
+            return None
 
 
 async def delete_session(session_id: str) -> None:
@@ -58,4 +56,7 @@ async def delete_session(session_id: str) -> None:
 
     async with __get_client() as client:
         collection = client[DB_NAME][SESSIONS_COLLECTION]
-        await collection.delete_one({"_id": session_id})
+        try:
+            await collection.delete_one({"_id": session_id})
+        except Exception as e:
+            logger.error(f'Failed to delete session {session_id}: {e}')

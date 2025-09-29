@@ -127,7 +127,9 @@ async def stop_query(request: Request, response: Response) -> None:
 @app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
 async def reset_all():
     async with sessions_lock:
-        sessions.clear()
+        for session_id in sessions:
+            sessions.pop(session_id)
+            await delete_session(session_id)
 
 ### CHAT ROUTES
 
