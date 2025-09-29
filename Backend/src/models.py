@@ -1,17 +1,14 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+import asyncio
 from pathlib import Path
-
-from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
-import logging
-from typing import List, Dict, Any, Optional, Self, Iterator, TYPE_CHECKING, ClassVar
-from io import BytesIO
+from pydantic import BaseModel, field_validator, model_validator, Field
+from typing import List, Dict, Any, Optional, Self, Iterator, TYPE_CHECKING
 from datetime import datetime, timezone
+import logging
 import uuid
 
-if TYPE_CHECKING:
-    from .opaca_client import OpacaClient
 
 class ColoredFormatter(logging.Formatter):
     """
@@ -195,6 +192,7 @@ class Chat(BaseModel):
 
     Attributes:
         chat_id: The unique ID of the chat.
+        session_id: The ID of the session this chat belongs to.
         name: human-readable name of the chat (generated or assigned)
         responses: list of full query-responses incl. intermediate messages and meta-infos
         time_created: when the chat was created
@@ -202,10 +200,19 @@ class Chat(BaseModel):
         messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
     """
     chat_id: str
+    session_id: str
     name: str = ''
     responses: List[QueryResponse] = []
-    time_created: datetime = datetime.now(tz=timezone.utc)
-    time_modified: datetime = datetime.now(tz=timezone.utc)
+    time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    _lock: asyncio.Lock = Field(default_factory=asyncio.Lock, exclude=True)
+
+    async def __aenter__(self) -> Self:
+        await self._lock.acquire()
+        return self
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        self._lock.release()
 
     @property
     def messages(self) -> Iterator[ChatMessage]:

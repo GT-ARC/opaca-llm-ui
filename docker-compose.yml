@@ -23,6 +23,8 @@ services:
   opaca-llm-backend:
     build: ./Backend
     image: opaca-llm-backend
+    depends_on:
+      - backend-db
     ports:
       - "3001:3001"
     environment:
@@ -32,7 +34,19 @@ services:
       LLM_MODELS:
       CORS_WHITELIST:
     volumes:
-      - ./Backend/data:/data
+      - opacadata:/data
+
+  # MongoDB for storing session data
+  backend-db:
+    image: mongo:8.0.14
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: pass
+    volumes:
+      - mongodata:/data/db
+      - mongoconfig:/data/configdb
 
   # TTS Server for voice synthesis
   #opaca-tts-server:
@@ -42,3 +56,12 @@ services:
   #    - "7431:7431"
   #  environment:
   #    OPENAI_API_KEY:
+
+# Create a volume to persistently store data
+volumes:
+  mongodata:
+    driver: local
+  mongoconfig:
+    driver: local
+  opacadata:
+    driver: local
