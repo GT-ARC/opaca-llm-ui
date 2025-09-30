@@ -23,7 +23,7 @@ from .models import AgentResult, AgentTask
 from ..utils import openapi_to_functions
 
 
-class SelfOrchestratedBackend(AbstractMethod):
+class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
 
     def __init__(self):
@@ -133,6 +133,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
                 temperature=config["temperature"],
+                tool_choice="required",
                 tools=worker_agent.tools
             )
 
@@ -224,7 +225,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         for prev_result in ex_results:
                             round_context += f"\nTask: {prev_result.task}\n"
                             round_context += f"Output: {prev_result.output}\n"
-                            if any(tc.results for tc in prev_result.tool_calls):
+                            if any(tc.result for tc in prev_result.tool_calls):
                                 round_context += f"Tool Results:\n"
                                 for tc in prev_result.tool_calls:
                                     round_context += f"- {tc.name}: {tc.result}\n"
@@ -273,6 +274,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(task),
                         temperature=config["temperature"],
+                        tool_choice="required",
                         tools=agent.tools,
                     )
 
@@ -348,6 +350,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(retry_task),
                     temperature=config["temperature"],
+                    tool_choice="required",
                     tools=agent.tools
                 )
 
@@ -601,7 +604,7 @@ Please address these specific improvements:
             # Send completion message for output generator
             await send_to_websocket(websocket, "Output Generator", "Final response generated ✓")
 
-            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentBackend completed analysis in {response.execution_time:.2f} seconds\n\n")
+            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentMethod completed analysis in {response.execution_time:.2f} seconds\n\n")
 
             # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
             execution_times_data = defaultdict(int)

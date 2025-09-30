@@ -13,8 +13,8 @@ class BackendTestClient:
         res = requests.get(f"{self.base_url}/docs", timeout=10)
         return res.status_code == 200
 
-    def get_backends(self) -> list:
-        return self.request("GET", "/backends")
+    def get_methods(self) -> list:
+        return self.request("GET", "/methods")
 
     def get_models(self) -> dict[str, list[str]]:
         return self.request("GET", "/models")
@@ -26,9 +26,9 @@ class BackendTestClient:
     def get_actions(self) -> dict[str, list[dict]]:
         return self.request("GET", "/actions")
 
-    def query_no_history(self, backend: str, query: str) -> dict:
+    def query_no_history(self, method: str, query: str) -> dict:
         body = {"user_query": query}
-        return self.request("POST", f"/query/{backend}", body)
+        return self.request("POST", f"/query/{method}", body)
 
     def reset_all(self):
         return self.request("POST", "/reset_all")
@@ -39,9 +39,9 @@ class BackendTestClient:
     def get_chat_history(self, chat_id: str) -> dict:
         return self.request("GET", f"/chats/{chat_id}")
 
-    def query_chat(self, backend: str, chat_id: str, query: str) -> dict:
+    def query_chat(self, method: str, chat_id: str, query: str) -> dict:
         body = {"user_query": query}
-        return self.request("POST", f"/chats/{chat_id}/query/{backend}", body)
+        return self.request("POST", f"/chats/{chat_id}/query/{method}", body)
 
     def update_chat(self, chat_id: str, new_name: str) -> None:
         body = {"new_name": new_name}
@@ -54,14 +54,14 @@ class BackendTestClient:
         body = {"query": query}
         return self.request("POST", "/chats/search", body)
 
-    def get_config(self, backend: str) -> dict:
-        return self.request("GET", f"/config/{backend}")
+    def get_config(self, method: str) -> dict:
+        return self.request("GET", f"/config/{method}")
 
-    def set_config(self, backend: str, conf: dict) -> dict:
-        return self.request("PUT", f"/config/{backend}", conf)
+    def set_config(self, method: str, conf: dict) -> dict:
+        return self.request("PUT", f"/config/{method}", conf)
 
-    def reset_config(self, backend: str) -> dict:
-        return self.request("DELETE", f"/config/{backend}")
+    def reset_config(self, method: str) -> dict:
+        return self.request("DELETE", f"/config/{method}")
 
     # HELPER METHODS
 

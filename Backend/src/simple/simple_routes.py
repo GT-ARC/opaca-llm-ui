@@ -48,7 +48,7 @@ ask_policies = {
 
 logger = logging.getLogger(__name__)
 
-class SimpleBackend(AbstractMethod):
+class SimpleMethod(AbstractMethod):
     NAME = "simple"
 
     async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:

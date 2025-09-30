@@ -12,7 +12,7 @@ from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, C
 from ..utils import openapi_to_functions
 
 
-class ToolLLMBackend(AbstractMethod):
+class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
 
     class EvaluatorResponse(BaseModel):
@@ -125,6 +125,7 @@ class ToolLLMBackend(AbstractMethod):
                     *tool_messages,
                 ],
                 temperature=config['temperature'],
+                tool_choice="only",
                 tools=tools,
                 websocket=websocket,
             )
@@ -153,6 +154,7 @@ class ToolLLMBackend(AbstractMethod):
                         ChatMessage(role="user", content=full_err),
                     ],
                     temperature=config['temperature'],
+                    tool_choice="only",
                     tools=tools,
                     websocket=websocket,
                 )

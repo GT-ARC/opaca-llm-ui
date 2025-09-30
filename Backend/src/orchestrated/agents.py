@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Iterator
 import logging
 from datetime import datetime
 import pytz
@@ -34,7 +34,7 @@ class OrchestratorAgent(BaseAgent):
     def __init__(
             self,
             agent_summaries: Dict[str, Any],
-            chat_history: Optional[List[ChatMessage]] = None,
+            chat_history: Optional[Iterator[ChatMessage]] = None,
             tools: List = None
     ):
         super().__init__()
@@ -141,7 +141,7 @@ class AgentPlanner(BaseAgent):
                 # Process tool calls by round
                 if any(tc.result for tc in result.tool_calls):
                     # Group tool calls by round based on their sequence
-                    round_tool_calls = dict(enumerate([tc.result for tc in result.tool_calls]))
+                    round_tool_calls = dict(enumerate([tc for tc in result.tool_calls]))
 
                     # Output tool results by round
                     for round_num, tc in sorted(round_tool_calls.items()):

@@ -28,7 +28,7 @@ async def upload_files(host_url: str, session: SessionData, client: AsyncOpenAI)
 
         # Upload to the current host and store host-specific id
         uploaded = await client.files.create(file=file_obj, purpose="user_data")
-        logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (backend={host_url})")
+        logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host_url})")
         # record host id under this host_url
         filedata.host_ids[host_url] = uploaded.id
 
