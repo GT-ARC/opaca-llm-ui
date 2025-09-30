@@ -219,6 +219,7 @@ export default {
     },
     emits: [
         'select-category',
+        'container-login-required',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -239,6 +240,7 @@ export default {
             newChat: false,
             showFileDropOverlay: false,
             autoScrollEnabled: true,
+            socket: null,
         }
     },
     methods: {
@@ -321,11 +323,11 @@ export default {
 
             try {
                 const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
-                const socket = new WebSocket(url);
-                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
-                socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                socket.onclose   = ()    => this.handleStreamingSocketClose();
-                socket.onerror   = error => this.handleStreamingSocketError(error);
+                this.socket = new WebSocket(url);
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -403,10 +405,10 @@ export default {
             return this.isMobile ? 2 : 4;
         },
 
-        async handleStreamingSocketOpen(socket, userText) {
+        async handleStreamingSocketOpen(userText) {
             try {
                 const inputData = JSON.stringify({user_query: userText});
-                socket.send(inputData);
+                this.socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -415,6 +417,13 @@ export default {
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+
+            // If a container login is required
+            if (result.hasOwnProperty('container_id')) {
+                console.log("Container login required");
+                this.$emit('container-login-required', result);
+                return
+            }
 
             if (result.hasOwnProperty('agent')) {
                 if (result.agent === 'Output Generator') {
@@ -490,6 +499,12 @@ export default {
                 this.askChatGpt(text);
             }
         },
+
+        submitContainerLogin(containerLoginUser, containerLoginPassword, containerId) {
+            const containerLoginData = JSON.stringify({username: containerLoginUser, password: containerLoginPassword, container_id: containerId});
+            this.socket.send(containerLoginData);
+        },
+
 
         handleRecordingError(error) {
             console.error('Recording error:', error);

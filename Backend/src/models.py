@@ -357,6 +357,16 @@ class OpacaException(Exception):
         self.status_code = status_code
 
 
+class ContainerLoginNotification(BaseModel):
+    """
+    This is a helper class to store information regarding the initiated container login.
+    """
+    status: int
+    type: str
+    message: str = ""
+    container_id: str = ""
+
+
 def get_supported_models():
     return [
         (url, key, models.split(","))

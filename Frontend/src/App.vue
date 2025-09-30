@@ -136,12 +136,48 @@
         </div>
     </div>
 
+
+    <!-- Container Login Context -->
+    <div v-if="showContainerLogin" class="auth-overlay">
+        <div class="dropdown-menu show p-4">
+            <form @submit.prevent="submitContainerLogin">
+                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.containerId }}</h5>
+                <input
+                        v-model="containerLoginUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('username')"
+                        @input="loginError = false"
+                />
+                <input
+                        v-model="containerLoginPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
+                        :placeholder="Localizer.get('password')"
+                        @input="loginError = false"
+                />
+                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    {{ Localizer.get('authError') }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin" :disabled="isConnecting">
+                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
+                    <span v-else>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showContainerLogin = false">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :method="this.method"
             :language="this.language"
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
+            @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             ref="content"
         />
     </div>
@@ -179,6 +215,10 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
+            showContainerLogin: false,
+            containerLoginDetails: null,
+            containerLoginUser: "",
+            containerLoginPassword: "",
         }
     },
     methods: {
@@ -261,6 +301,20 @@ export default {
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
+        },
+
+        handleContainerLogin(containerLoginDetails) {
+            this.showContainerLogin = true;
+            this.containerLoginDetails = containerLoginDetails;
+        },
+
+        submitContainerLogin() {
+            console.log('Container login details: ', this.containerLoginUser, this.containerLoginPassword);
+            this.showContainerLogin = false;
+            this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword);
+            this.containerLoginUser = "";
+            this.containerLoginPassword = "";
+            this.containerLoginDetails = null;
         }
     },
 
