@@ -24,7 +24,7 @@
         />
 
         <Sidebar
-            :backend="backend"
+            :method="method"
             :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
@@ -213,7 +213,7 @@ export default {
         Chatbubble
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
     },
@@ -320,7 +320,7 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.getBackend()}`;
+                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
                 const socket = new WebSocket(url);
                 socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
                 socket.onmessage = event => this.handleStreamingSocketMessage(event);
@@ -586,11 +586,6 @@ export default {
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
             aiBubble.addDebugMessage(text, type, id);
-        },
-
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
         },
 
         isMainContentVisible() {

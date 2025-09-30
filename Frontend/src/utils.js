@@ -27,14 +27,14 @@ class BackendClient {
 
     // chat
 
-    async query(chatId, backend, user_query) {
+    async query(chatId, method, user_query) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `chats/${chatId}/query/${backend}`, body);
+        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body);
     }
 
-    async queryNoChat(backend, user_query) {
+    async queryNoChat(method, user_query) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${backend}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body);
     }
 
     // TODO query stream
@@ -96,16 +96,16 @@ class BackendClient {
 
     // config
 
-    async getConfig(backend) {
-        return await this.sendRequest('GET', `config/${backend}`);
+    async getConfig(method) {
+        return await this.sendRequest('GET', `config/${method}`);
     }
 
-    async updateConfig(backend, config) {
-        return await this.sendRequest('PUT', `config/${backend}`, config);
+    async updateConfig(method, config) {
+        return await this.sendRequest('PUT', `config/${method}`, config);
     }
 
-    async resetConfig(backend) {
-        return await this.sendRequest('DELETE', `config/${backend}`);
+    async resetConfig(method) {
+        return await this.sendRequest('DELETE', `config/${method}`);
     }
 
     async search(query) {
