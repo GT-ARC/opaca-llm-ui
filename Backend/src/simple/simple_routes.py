@@ -3,8 +3,10 @@ import time
 
 import json
 
+from starlette.websockets import WebSocket
+
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -63,7 +65,7 @@ class SimpleMethod(AbstractMethod):
 
         prompt = SYSTEM_PROMPT.format(
             policy=ask_policies[config["ask_policy"]],
-            actions=await self.session.opaca_client.get_actions_simple(),
+            actions=await self.get_actions(),
         )
         
         while response.iterations < max_iters:
