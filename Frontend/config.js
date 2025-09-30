@@ -3,16 +3,16 @@ import * as url from "node:url";
 // Available prompting methods
 export const Methods = {
     "simple": "Simple Prompt",
+    "simple-tools": "Simple Tool Prompt",
     "tool-llm": "Tool LLM",
     "self-orchestrated": "Self-Orchestrated",
-    "simple-tools": "Simple Tool Prompt"
 };
 
 export const MethodDescriptions = {
     "simple": "Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.",
+    "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
     "tool-llm": "Three agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.",
     "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
-    "simple-tools": "A single agent, as in 'Simple', but using the 'tools' parameter.",
 };
 
 let config = {
