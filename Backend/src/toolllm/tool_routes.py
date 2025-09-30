@@ -125,6 +125,7 @@ class ToolLLMMethod(AbstractMethod):
                     *tool_messages,
                 ],
                 temperature=config['temperature'],
+                tool_choice="only",
                 tools=tools,
                 websocket=websocket,
             )
@@ -153,6 +154,7 @@ class ToolLLMMethod(AbstractMethod):
                         ChatMessage(role="user", content=full_err),
                     ],
                     temperature=config['temperature'],
+                    tool_choice="only",
                     tools=tools,
                     websocket=websocket,
                 )

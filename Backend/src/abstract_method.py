@@ -97,7 +97,7 @@ class AbstractMethod(ABC):
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
-            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
@@ -136,8 +136,9 @@ class AbstractMethod(ABC):
             'stream': True
         }
 
-        if response_format:
-            kwargs['text'] = transform_schema(response_format.model_json_schema())
+        # If tool_choice is set to "only", use "auto" for external API call
+        if tool_choice == "only":
+            kwargs['tool_choice'] = 'auto'
 
         # o1/o3/o4/gpt-5 don't support temperature param
         if not model.startswith(('o1', 'o3', 'o4', 'gpt-5')):
@@ -159,6 +160,8 @@ class AbstractMethod(ABC):
 
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
+                if tool_choice == "only":
+                    break
                 agent_message.content = event.delta
                 content += event.delta
 
@@ -175,14 +178,12 @@ class AbstractMethod(ABC):
 
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
-                # Get the tool index from the event output index
-                tool_idx = next((t.id for t in agent_message.tools if t.id == event.output_index), -1)
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[tool_idx].args = json.loads(tool_call_buffers[event.output_index])
+                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
                 except json.JSONDecodeError:
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
-                    agent_message.tools[tool_idx].args = {}
+                    agent_message.tools[-1].args = {}
 
             if websocket:
                 await websocket.send_json(agent_message.model_dump_json())
