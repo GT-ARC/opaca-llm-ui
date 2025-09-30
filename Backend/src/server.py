@@ -14,9 +14,7 @@ import time
 from contextlib import asynccontextmanager
 
 import io
-from fastapi import FastAPI, Request, HTTPException, UploadFile
-from fastapi import Response as FastAPIResponse
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
@@ -270,14 +268,14 @@ async def reset_config(request: Request, response: Response, backend: str) -> Co
 ## FILE ROUTES
 
 @app.get("/files", description="Get a list of all uploaded files.")
-async def get_files(request: Request, response: FastAPIResponse) -> dict:
+async def get_files(request: Request, response: Response) -> dict:
     session = await handle_session_id(request, response)
     return session.uploaded_files
 
 
 @app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration "
                                 "with the next user queries. Currently only supports PDF.")
-async def upload_files(request: Request, response: FastAPIResponse, files: List[UploadFile]):
+async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
@@ -309,7 +307,7 @@ async def upload_files(request: Request, response: FastAPIResponse, files: List[
 
 
 @app.delete("/files/{file_id}", description="Delete an uploaded file.")
-async def delete_file(request: Request, response: FastAPIResponse, file_id: str) -> bool:
+async def delete_file(request: Request, response: Response, file_id: str) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
@@ -320,7 +318,7 @@ async def delete_file(request: Request, response: FastAPIResponse, file_id: str)
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
-async def update_file(request: Request, response: FastAPIResponse, file_id: str, suspend: bool) -> bool:
+async def update_file(request: Request, response: Response, file_id: str, suspend: bool) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
