@@ -151,20 +151,19 @@ class OpacaFile(BaseModel):
     Represents a single uploaded PDF file.
 
     Attributes:
+        _content: Private attribute to store binary content (not part of schema or validation)
         content_type: MIME type of the file
         file_id: ID assigned after upload
         host_ids: IDs assigned by each host the file has been uploaded to
         file_name: Name of the file
         suspended: Whether the file should be excluded from future requests
-        _content: Private attribute to store binary content (not part of schema or validation)
     """
+    _content: BytesIO = PrivateAttr()
     content_type: str
     file_id: str
     host_ids: Dict[str, str] = {}
     file_name: Optional[str] = ''
     suspended: bool = False
-
-    _content: BytesIO = PrivateAttr()
 
 
 class ChatMessage(BaseModel):
@@ -238,7 +237,11 @@ class SessionData(BaseModel):
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
 
-    async def get_llm_client(self, the_url: str) -> AsyncOpenAI:
+    @property
+    def opaca_client(self) -> OpacaClient:
+        return self._opaca_client
+
+    def llm_client(self, the_url: str) -> AsyncOpenAI:
         if the_url not in self._llm_clients:
             for url, key, _ in get_supported_models():
                 if url == the_url:

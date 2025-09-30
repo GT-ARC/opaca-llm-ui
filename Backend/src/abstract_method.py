@@ -94,7 +94,7 @@ class AbstractMethod(ABC):
             url, model = map(str.strip, model.split("::"))
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = await self.session.get_llm_client(url)
+        client = self.session.llm_client(url)
 
         # Initialize variables
         exec_time = time.time()
@@ -200,7 +200,7 @@ class AbstractMethod(ABC):
             agent_name, action_name = None, tool_name
 
         try:
-            t_result = await self.session._opaca_client.invoke_opaca_action(
+            t_result = await self.session.opaca_client.invoke_opaca_action(
                 action_name,
                 agent_name,
                 tool_args,
@@ -212,7 +212,7 @@ class AbstractMethod(ABC):
 
 
     async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
-        tools, error = openapi_to_functions(await self.session._opaca_client.get_actions_openapi(inline_refs=True))
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
