@@ -211,7 +211,7 @@ class AbstractMethod(ABC):
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 
 
-    async def get_tools(self, max_tools=128) -> tuple[list]:
+    async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
         tools, error = openapi_to_functions(await self.session._opaca_client.get_actions_openapi(inline_refs=True))
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "

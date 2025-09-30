@@ -54,7 +54,7 @@ class SimpleMethod(AbstractMethod):
     def __init__(self, session, websocket=None):
         super().__init__(session, websocket)
 
-    async def query_stream(self, message: str, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
@@ -95,8 +95,8 @@ class SimpleMethod(AbstractMethod):
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                if websocket:
-                    await websocket.send_json(response.agent_messages[-1].model_dump_json())
+                if self.websocket:
+                    await self.websocket.send_json(response.agent_messages[-1].model_dump_json())
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
