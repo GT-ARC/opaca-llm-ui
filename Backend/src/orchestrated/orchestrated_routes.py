@@ -224,7 +224,7 @@ class SelfOrchestratedBackend(AbstractMethod):
                         for prev_result in ex_results:
                             round_context += f"\nTask: {prev_result.task}\n"
                             round_context += f"Output: {prev_result.output}\n"
-                            if any(tc.results for tc in prev_result.tool_calls):
+                            if any(tc.result for tc in prev_result.tool_calls):
                                 round_context += f"Tool Results:\n"
                                 for tc in prev_result.tool_calls:
                                     round_context += f"- {tc.name}: {tc.result}\n"
