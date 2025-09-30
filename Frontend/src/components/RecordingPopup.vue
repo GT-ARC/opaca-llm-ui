@@ -360,7 +360,7 @@ export default {
             formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
 
             try {
-                const response = await fetch(`${this.getConfig().VoiceServerAddress}/transcribe?is_final=true&language=${this.language}`, {
+                const response = await fetch(`${this.getConfig().VoiceServerUrl}/transcribe?is_final=true&language=${this.language}`, {
                     method: 'POST',
                     body: formData
                 });
@@ -454,16 +454,6 @@ export default {
     background-color: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-}
-
-#sidebar {
-    position: relative;
-    z-index: 999;
-}
-
-.sidebar-menu {
-    position: relative;
-    z-index: 999;
 }
 
 .fixed {

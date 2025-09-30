@@ -1,8 +1,9 @@
-openai>=1.61.0
-requests
-fastapi
-uvicorn
-jsonref
-websockets
-pytz
-pyyaml
+openai>=1.108.1
+requests>=2.32.3
+fastapi>=0.115.12
+uvicorn>=0.34.0
+jsonref>=1.1.0
+websockets>=15.0.1
+pytz>=2025.2
+python-multipart>=0.0.20
+pydantic>=2.11.9

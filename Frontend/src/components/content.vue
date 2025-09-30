@@ -1,5 +1,17 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
+    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
+         @dragover.prevent="() => toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => toggleFileDropOverlay(true)">
+
+        <!-- File Drop Overlay -->
+        <div v-if="showFileDropOverlay" id="fileDropOverlay"
+             @dragleave.prevent="() => toggleFileDropOverlay(false)"
+             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
+            <div id="overlayContent">
+                <p>{{ Localizer.get("dropFiles") }}</p>
+                <span class="fa fa-file-pdf" />
+            </div>
+        </div>
 
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
@@ -8,93 +20,165 @@
             @transcription-complete="handleTranscriptionComplete"
             @send-message="handleSendMessage"
             @error="handleRecordingError"
+            ref="RecordingPopup"
         />
 
         <Sidebar
-            :backend="backend"
+            :method="method"
             :language="language"
             :connected="connected"
-            :is-dark-scheme="isDarkScheme"
-             ref="sidebar"
-             @select-question="this.askSampleQuestion"
-             @category-selected="newCategory => this.selectedCategory = newCategory"
-             @api-key-change="newValue => this.apiKey = newValue"
+            :selected-chat-id="selectedChatId"
+            :is-finished="isFinished"
+            ref="sidebar"
+            @select-question="question => this.handleSelectQuestion(question)"
+            @select-category="category => this.handleSelectCategory(category)"
+            @select-chat="chatId => this.handleSelectChat(chatId)"
+            @delete-chat="chatId => this.handleDeleteChat(chatId)"
+            @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
+            @new-chat="() => {this.suspendAllFiles(); this.startNewChat()}"
+            @delete-file="fileId => this.handleDeleteFile(fileId)"
+            @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
+            @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-              :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
-            <div class="container-fluid flex-grow-1 chat-container" id="chat1">
+            <div class="container-fluid flex-grow-1 chat-container" id="chat1"
+                @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
-                    <Chatbubble v-for="{ elementId, isUser, content, isLoading } in this.messages"
+                    <Chatbubble
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
-                        :is-dark-scheme="this.isDarkScheme"
                         :initial-content="content"
                         :initial-loading="isLoading"
+                        :files="files"
+                        :chat-id="this.selectedChatId"
                         :ref="elementId"
                     />
                 </div>
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.selectedCategory)"
+                    <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
+                        {{ Localizer.get("welcome") }}
+                    </div>
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
-                        {{ question.icon }} <br> {{ question.question }}
+                        {{ question.icon }} <br>
+                        <span v-if="question.question === '__loading__'"><i class="fa fa-ellipsis fa-beat-fade"/></span>
+                        <span v-else>{{ question.question }}</span>
+                    </div>
+                    <div class="w-100 text-center">
+                        <button type="button" class="btn btn-outline-primary p-2"
+                                @click="Localizer.reloadSampleQuestions(null)">
+                            <i class="fa fa-arrow-right"/>
+                            {{ Localizer.get('rerollQuestions') }}
+                        </button>
                     </div>
                 </div>
 
             </div>
 
+            <!-- Upload Preview for Each File -->
+            <div v-if="selectedFiles?.length"
+                 class="upload-status-preview mx-auto">
+
+                <!-- Loop through each selected file -->
+                <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.fileId || (fileObj.file?.name + '-' + index)">
+                    <FilePreview
+                        v-if="index < this.maxDisplayedFiles()"
+                        :key="fileObj.fileId"
+                        :file-id="fileObj.fileId"
+                        :file="fileObj.file"
+                        :is-uploading="fileObj.isUploading"
+                        @remove-file="this.handleDeleteFile"
+                    />
+                </div>
+
+                <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
+                     class="d-flex p-2 align-items-center">
+                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                </div>
+            </div>
+
             <!-- Input Area -->
             <div class="input-container">
-                <div class="input-group">
-                    <div class="scroll-wrapper">
-                      <textarea id="textInput"
-                                v-model="textInput"
-                                ref="textInputRef"
-                                :placeholder="Localizer.get('inputPlaceholder')"
-                                class="form-control"
-                                :class="{ 'small-scrollbar': isSmallScrollbar }"
-                                style="resize: none; height: auto; max-height: 150px;"
-                                rows="1"
-                                @keydown="textInputCallback"
-                                @input="resizeTextInput"
-                      ></textarea>
+
+                <div class="input-area"
+                     @click="this.$refs.textInputRef?.focus()" >
+                    <div class="scroll-wrapper" :class="{'w-100': this.isMobile}">
+                        <textarea
+                            id="textInput"
+                            v-model="textInput"
+                            class="text-input form-control"
+                            :class="{ 'small-scrollbar': isSmallScrollbar }"
+                            :placeholder="Localizer.get('inputPlaceholder')"
+                            rows="1"
+                            @keydown="textInputCallback"
+                            @input="resizeTextInput"
+                            ref="textInputRef"
+                        />
                     </div>
 
-                    <!-- user has entered text into message box -> send button available -->
-                    <button type="button"
-                            v-if="this.isSendAvailable()"
-                            class="btn btn-primary"
-                            @click="submitText"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonSend')"
-                            style="margin-left: -2px">
-                        <i class="fa fa-paper-plane"/>
-                    </button>
-                    <button type="button"
-                            v-if="AudioManager.isRecognitionSupported()"
-                            class="btn btn-outline-primary"
-                            @click="this.startRecognition()"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonRecord')">
-                        <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                        <i v-else class="fa fa-spin fa-spinner" />
-                    </button>
-                    <button type="button"
-                            v-if="this.isResetAvailable()"
-                            class="btn btn-outline-danger"
-                            @click="resetChat"
-                            :disabled="!isFinished"
-                            :title="Localizer.get('tooltipButtonReset')">
-                        <i class="fa fa-refresh"/>
-                    </button>
+                    <!-- buttons -->
+                    <div class="mt-auto d-flex" :class="{'w-100': this.isMobile}">
+
+                        <!-- upload file button -->
+                        <label class="btn btn-secondary input-area-button align-items-center"
+                               :class="[this.isMobile ? 'me-1': 'ms-1']"
+                               :title="Localizer.get('tooltipUploadFile')" >
+                            <i class="fa fa-upload" />
+                            <input
+                                type="file"
+                                ref="fileInput"
+                                accept=".pdf"
+                                class="d-none"
+                                :disabled="!this.isFinished"
+                                @change="e => uploadFiles(e.target.files)"
+                                multiple
+                            />
+                        </label>
+
+                        <!-- reset, audio, send (right-bound) -->
+                        <div :class="{'ms-auto': this.isMobile}">
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported()"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="this.startRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
+                                <i v-else class="fa fa-spin fa-spinner" />
+                            </button>
+
+                            <button type="button"
+                                    v-if="!isFinished"
+                                    class="btn btn-outline-danger input-area-button ms-1"
+                                    @click="stopGeneration"
+                                    :title="Localizer.get('tooltipButtonStop')">
+                                <i class="fa fa-stop"/>
+                            </button>
+
+                            <button type="button"
+                                    v-if="isFinished"
+                                    class="btn btn-primary input-area-button ms-1"
+                                    @click="submitText"
+                                    :disabled="this.textInput.trim().length <= 0"
+                                    :title="Localizer.get('tooltipButtonSend')">
+                                <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
+                            </button>
+                        </div>
+
+                    </div>
+
                 </div>
             </div>
 
@@ -106,31 +190,36 @@
 
 <script>
 import {nextTick} from "vue";
-import SimpleKeyboard from "./SimpleKeyboard.vue";
-import Sidebar from "./sidebar.vue";
+import * as uuid from "uuid";
+import Sidebar from "./Sidebar/Sidebar.vue";
 import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import {sendRequest} from "../utils.js";
+import backendClient from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-
 import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
+import OptionsSelect from "./OptionsSelect.vue";
+import FilePreview from "./FilePreview.vue";
 
 export default {
     name: 'main-content',
     components: {
+        FilePreview,
+        OptionsSelect,
         Sidebar,
-        SimpleKeyboard,
         RecordingPopup,
         Chatbubble
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
     },
+    emits: [
+        'select-category',
+    ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
         return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
@@ -138,42 +227,59 @@ export default {
     data() {
         return {
             messages: [],
-            socket: null,
-            apiKey: '',
             textInput: '',
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            isDarkScheme: false,
             showRecordingPopup: false,
-            selectedCategory: 'Information & Upskilling',
+            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
+            selectedFiles: [],
+            selectedChatId: '',
+            newChat: false,
+            showFileDropOverlay: false,
+            autoScrollEnabled: true,
         }
     },
     methods: {
-        updateTheme() {
-            this.isDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        },
-
         async textInputCallback(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && !event.shiftKey && this.textInput.trim().length > 0) {
                 event.preventDefault();
                 await this.submitText();
-                this.resizeTextInput()
+                this.resizeTextInput();
             }
         },
 
         async submitText() {
             if (this.textInput && this.isFinished) {
-                const userInput = this.textInput;
+                // Copy current input and reset field
+                let userInput = this.textInput.trim();
                 this.textInput = '';
+
                 await nextTick();
                 this.resizeTextInput();
-                await this.askChatGpt(userInput);
+
+                const files = this.selectedFiles
+                    ? this.selectedFiles.map(file => file.name)
+                    : [];
+                await this.askChatGpt(userInput, files);
+
+                // Clear files list after sending
+                this.selectedFiles = [];
+
+                // update chats list
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
+        async stopGeneration() {
+            await backendClient.stop();
+        },
+
         async askSampleQuestion(questionText) {
+            // Do not send questions during autogeneration
+            if (questionText === "__loading__") return;
+
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
@@ -196,12 +302,17 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText) {
+        async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
+            this.newChat = false;
 
             // add user chat bubble
-            await this.addChatBubble(userText, true, false);
+            await this.addChatBubble(userText, true, false, files);
+
+            // add debug entry for user message
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(userText, "user");
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
@@ -209,20 +320,92 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/${this.getBackend()}/query_stream`
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(this.socket, userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
+                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
+                const socket = new WebSocket(url);
+                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
+                socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                socket.onclose   = ()    => this.handleStreamingSocketClose();
+                socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
         },
 
+        async toggleFileDropOverlay(show) {
+            this.showFileDropOverlay = show;
+        },
+
+        async uploadFiles(fileList) {
+            const files = Array.from(fileList);
+
+            // Filter out non-PDFs
+            const pdfFiles = files.filter(file => file.type === "application/pdf");
+
+            if (pdfFiles.length === 0) {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            // Save selected files to state
+            // Files will remain here while component instance is alive (i.e. till page reload)
+            const wrappedFiles = pdfFiles.map(file => ({
+                file,
+                fileId: null,
+                isUploading: true
+            }));
+            this.selectedFiles.push(...wrappedFiles);
+
+            try {
+                const result = await backendClient.uploadFiles(files);
+
+                result.uploaded_files.forEach((uploaded, idx) => {
+                    const wrapper = wrappedFiles[idx];
+                    wrapper.fileId = uploaded.file_id;
+                    wrapper.isUploading = false;
+                });
+            } catch (error) {
+                console.error("File upload failed:", error);
+                alert("File upload failed. See console for details.");
+            } finally {
+                // Force vue to update
+                this.selectedFiles = [...this.selectedFiles];
+                this.$refs.fileInput.value = "";
+                await this.$refs.sidebar.$refs.files.updateFiles();
+            }
+        },
+
+        // Remove selected file
+        async handleDeleteFile(fileId) {
+            // Clean up preview if it exists
+            this.selectedFiles = this.selectedFiles.filter(f => f.fileId !== fileId);
+
+            // From backend
+            await backendClient.deleteFile(fileId);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async handleSuspendFile(fileId, suspend) {
+            await backendClient.suspendFile(fileId, suspend);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async suspendAllFiles() {
+            const files = await backendClient.files();
+            for (const file of Object.values(files)) {
+                if (!file.suspended) {
+                    await backendClient.suspendFile(file.file_id, true);
+                }
+            }
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        maxDisplayedFiles() {
+            return this.isMobile ? 2 : 4;
+        },
+
         async handleStreamingSocketOpen(socket, userText) {
             try {
-                const inputData = JSON.stringify({user_query: userText, api_key: this.apiKey});
+                const inputData = JSON.stringify({user_query: userText});
                 socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
@@ -234,13 +417,15 @@ export default {
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
             if (result.hasOwnProperty('agent')) {
-                if (result.agent === 'output_generator') {
+                if (result.agent === 'Output Generator') {
                     // put output_generator content directly in the bubble
+                    aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
+                    await this.addDebugToken(result);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 }
 
                 this.scrollDownDebug();
@@ -250,8 +435,8 @@ export default {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
-                    const sidebar = this.$refs.sidebar;
-                    sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    const debug = this.$refs.sidebar.$refs.debug;
+                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
                 aiBubble.toggleLoading(false);
@@ -269,6 +454,7 @@ export default {
             this.startAutoSpeak();
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         async handleStreamingSocketError(error) {
@@ -280,6 +466,7 @@ export default {
 
             this.isFinished = true;
             this.scrollDownChat();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         startAutoSpeak() {
@@ -321,30 +508,22 @@ export default {
             }
         },
 
-        async resetChat() {
-            this.messages = [];
-            this.$refs.sidebar.clearDebugMessage();
-            await this.showWelcomeMessage();
-            this.showExampleQuestions = true;
-            await sendRequest("POST", `${conf.BackendAddress}/reset`);
-        },
-
-        async showWelcomeMessage() {
-            // don't add in mobile view, as welcome message + sample questions is too large for mobile screen
-            if (!this.isMobile) {
-                await this.addChatBubble(Localizer.get('welcome'), false, false);
-            }
-        },
-
         /**
          * @param content {string} initial chatbubble content
          * @param isUser {boolean} whether the message is by the user or the AI
          * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
+         * @param files {Array} files attached to the message
          * later (streaming responses etc.)
          */
-        async addChatBubble(content, isUser = false, isLoading = false) {
+        async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
-            const message = { elementId: elementId, isUser: isUser, content: content, isLoading: isLoading };
+            const message = {
+                elementId: elementId,
+                isUser: isUser,
+                content: content,
+                isLoading: isLoading,
+                files: files,
+            };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
@@ -360,14 +539,19 @@ export default {
             aiBubble.setError("Connection closed unexpectedly");
         },
 
+        handleChatScroll() {
+            const chat = document.getElementById('chat1');
+            this.autoScrollEnabled = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 50;
+        },
+
         scrollDownChat() {
+            if (!this.autoScrollEnabled) return;
             const div = document.getElementById('chat1');
             div.scrollTop = div.scrollHeight;
         },
 
         scrollDownDebug() {
-            const div = document.getElementById('debug-console');
-            div.scrollTop = div.scrollHeight;
+            this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
         processAgentStatusMessage(agentMessage) {
@@ -383,78 +567,165 @@ export default {
         async addDebugToken(agentMessage) {
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
-                const toolOutput = agentMessage["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                const toolOutput = agentMessage.tools.map(tool =>
+                    `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}\nResult: ${JSON.stringify(tool.result)}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
-                this.addDebug(toolOutput, type);
+                this.addDebug(toolOutput, type, agentMessage.id);
             }
-
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
                 const type = agentMessage.agent;
-                this.addDebug(text, type);
+                this.addDebug(text, type, agentMessage.id);
             }
         },
 
-        addDebug(text, type) {
-            const sidebar = this.$refs.sidebar;
-            sidebar.addDebugMessage(text, type);
+        addDebug(text, type, id=null) {
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type);
-        },
-
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
+            aiBubble.addDebugMessage(text, type, id);
         },
 
         isMainContentVisible() {
             return !(this.isMobile && SidebarManager.isSidebarOpen());
         },
 
-        isSendAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length > 0;
-        },
-
-        isResetAvailable() {
-            if (!this.isMobile) return true;
-            return this.textInput.length === 0;
-        },
-
         updateScrollbarThumb() {
-          this.$nextTick(() => {
-            const el = this.$refs.textInputRef;
-            if (!el) return;
+            this.$nextTick(() => {
+                const el = this.$refs.textInputRef;
+                if (!el) return;
 
-            const computedStyle = getComputedStyle(el);
-            const maxHeight = parseFloat(computedStyle.maxHeight);
+                const computedStyle = getComputedStyle(el);
+                const maxHeight = parseFloat(computedStyle.maxHeight);
 
-            // If current height is less than the max-height
-            this.isSmallScrollbar = el.offsetHeight < maxHeight;
-          });
+                // If current height is less than the max-height
+                this.isSmallScrollbar = el.offsetHeight < maxHeight;
+            });
         },
+
+        async loadHistory(chatId) {
+            if (!chatId || chatId === this.selectedChatId) return;
+            try {
+                const res = await backendClient.history(chatId);
+                const debug = this.$refs.sidebar.$refs.debug;
+
+                // clear messages
+                this.messages = [];
+                debug.clearDebugMessages();
+
+                // add messages from history
+                for (const msg of res.responses) {
+                    // request
+                    await this.addChatBubble(msg.query, true);
+                    debug.addDebugMessage(msg.query, "user");
+                    // response
+                    await this.addChatBubble(msg.content, false);
+                    for (const x of msg.agent_messages) {
+                        this.addDebugToken(x);
+                    }
+                    if (msg.error) {
+                        this.getLastBubble().setError(msg.error);
+                    }
+                }
+
+                if (this.messages.length !== 0) {
+                    this.showExampleQuestions = false;
+                    this.selectedChatId = chatId;
+                    this.newChat = false;
+                }
+            } catch (err) {
+                console.error("Failed to load chat history:", err);
+            }
+        },
+
+        handleSelectQuestion(question) {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            this.askSampleQuestion(question);
+        },
+
+        handleSelectCategory(category) {
+            if (this.selectedCategory !== category) {
+                if (this.showExampleQuestions) {
+                    Localizer.reloadSampleQuestions(category);
+                }
+                this.selectedCategory = category;
+                this.$emit('select-category', category);
+            }
+        },
+
+        async handleSelectChat(chatId) {
+            await this.loadHistory(chatId);
+            this.$refs.textInputRef.focus();
+        },
+
+        async handleDeleteChat(chatId) {
+            await this.startNewChat();
+            await backendClient.delete(chatId);
+            await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+        },
+
+        async handleRenameChat(chatId, newName) {
+            try {
+                await backendClient.updateName(chatId, newName);
+            } finally {
+                await this.$refs.sidebar.$refs.chats.updateChats(chatId);
+            }
+        },
+
+        async startNewChat() {
+            if (this.isMobile) {
+                SidebarManager.close();
+            }
+            if (!this.newChat) {
+                this.selectedChatId = uuid.v4();
+                this.newChat = true;
+                this.messages = [];
+                this.$refs.sidebar.$refs.debug.clearDebugMessages();
+                this.textInput = '';
+                this.showExampleQuestions = true;
+                Localizer.reloadSampleQuestions(null);
+            }
+            await nextTick();
+            this.$refs.textInputRef.focus();
+        },
+
+        async scrollToMessage(messageId) {
+            const elementId = this.messages[messageId]?.elementId;
+            const ref = this.$refs[elementId]?.[0];
+            if (this.isMobile) {
+                SidebarManager.close();
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                const messageRect = messageDiv?.getBoundingClientRect();
+                const container = document.getElementById('chat1');
+                const containerRect = container?.getBoundingClientRect();
+                container.scrollTop = messageRect.top - containerRect.top;
+            } else {
+                await nextTick();
+                const messageDiv = ref?.getElement();
+                messageDiv.scrollIntoView({ behavior: 'smooth' });
+            }
+        },
+
+        async gotoSearchResult(chatId, messageId) {
+            await this.loadHistory(chatId);
+            await this.scrollToMessage(messageId);
+        },
+
     },
 
     mounted() {
-        this.updateTheme();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.updateTheme);
-
-        // expand category in sidebar
-        const questions = conf.DefaultQuestions;
-        this.selectedCategory = questions;
-        this.$refs.sidebar.$refs.sidebar_questions.expandSectionByHeader(questions);
-
-        this.showWelcomeMessage();
-
+        this.startNewChat();
         this.updateScrollbarThumb();
     },
     watch: {
-      textInput() {
-        this.updateScrollbarThumb();
-      },
+        textInput() {
+            this.updateScrollbarThumb();
+        },
     }
 }
 
@@ -468,88 +739,98 @@ export default {
     display: flex;
     flex-direction: column;
     min-height: 0; /* Important for Firefox */
-    padding: 2rem 0; /* Increased top padding for first message */
+    padding: 1rem 0;
 }
 
 .input-container {
     width: 100%;
     background-color: var(--background-color);
-    border-top: 1px solid var(--border-color);
-    padding: 1rem 0;
-    margin-bottom: 1rem;
+    padding: 0.5rem 0.5rem 1rem 0.5rem; /* 1rem bottom padding so it's the same as sidebar */
     flex-shrink: 0;
     position: relative;
-    z-index: 11; /* Above the fade effect */
 }
 
-.scroll-wrapper {
-    border-radius: 1.5rem;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-}
-
-.input-group {
-    width: 100%;
-    max-width: min(95%, 100ch);
-    margin: 0 auto;
-    padding: 0 1rem;
-}
-
-.input-group .form-control {
-    box-shadow: 0 0 0 1px var(--border-color);
-    background-color: var(--input-color);
-    color: var(--text-primary-color);
-    padding: 0.75rem 1rem;
-    height: 3rem;
-    min-height: 3rem;
-    resize: none;
-    max-height: min(40vh, 20rem);
+.text-input {
+    padding: 0.75rem;
+    margin: 0;
+    min-height: 2.5rem;
+    max-height: min(33vh, 20rem);
     line-height: 1.5;
-    border-radius: 1.5rem !important;
+    border-radius: 0 !important;
+    resize: none;
+    height: auto;
+    border: none;
+    box-shadow: none;
 }
 
-.input-group .form-control[rows] {
+.text-input[rows] {
     height: auto;
     overflow-y: auto;
 }
 
-.input-group .form-control::placeholder {
-    color: var(--text-secondary-color);
+.input-area {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    background-color: var(--input-color);
+    width: min(95%, 100ch);
+    border-radius: 1rem;
+    cursor: text;
+    padding: 0.5rem;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.input-group .form-control:focus {
-    box-shadow: 0 0 0 1px var(--primary-color);
+.input-area:focus-within {
+    outline: 2px solid var(--primary-color);
+}
+
+.scroll-wrapper {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 16ch;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
-.input-group .btn {
+.upload-status-preview {
+    font-size: 0.9rem;
+    border-radius: 6px;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
+    display: flex;
+    flex-wrap: wrap;
+    width: min(95%, 100ch);
+    padding: 0.25rem 0;
+}
+
+.input-area-button {
     padding: 0;
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     align-self: flex-end;
     margin-bottom: 2px;
-    border-radius: 1.5rem !important;
+    border-radius: 1.25rem !important;
     transition: all 0.2s ease;
 }
 
-.input-group .btn:hover {
+.input-area-button:hover {
     transform: translateY(-1px);
 }
 
-.input-group .btn:disabled {
-    animation: bounce 1s infinite;
-    opacity: 0.7;
+.input-area-button:disabled {
+    opacity: 0.5;
 }
 
-.input-group .btn i {
+.input-area-button i {
     font-size: 1.25rem;
     line-height: 1;
     display: inline-flex;
@@ -559,8 +840,13 @@ export default {
     height: 1.25rem;
 }
 
+.btn-outline-danger:disabled {
+    color: var(--text-primary-color);
+    border-color: var(--text-primary-color);
+}
+
 .chatbubble-container {
-    max-width: min(95%, 160ch);
+    width: min(95%, 100ch);
 }
 
 #mainContent {
@@ -572,6 +858,29 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
+}
+
+#fileDropOverlay {
+    position: absolute;
+    display: flex;
+    height: calc(100% - 2rem); /* room for margin + border */
+    width: calc(100% - 2rem); /* room for margin + border */
+    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
+    color: var(--primary-color);
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(3px);
+    border: 3px dashed var(--primary-color);
+    border-radius: 1rem;
+    margin: 1rem;
+}
+
+#overlayContent {
+    font-size: 1.5rem;
+    text-align: center;
+    pointer-events: none;
 }
 
 .sample-questions {
@@ -607,44 +916,27 @@ export default {
     box-shadow: var(--shadow-sm);
 }
 
-/* Responsive widths for larger screens */
-@media (min-width: 1400px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(60%, 160ch);
-    }
-}
-
-@media (min-width: 1800px) {
-    .input-group,
-    .sample-questions,
-    .chatbubble-container {
-        max-width: min(50%, 160ch);
-    }
-}
-
 /* mobile layout style changes */
 @media screen and (max-width: 768px) {
     #mainContent {
         display: none;
     }
 
-    #mainContent::before {
-        background: none;
-        content: none;
-    }
-
-    #mainContent::after {
-        background: none;
-        content: none;
-    }
-
     .input-container {
-        padding: 0.5rem;
+        padding: 0;
     }
 
-    .input-group {
+    .input-area {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .text-input {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .sample-questions {
         padding: 0;
     }
 }

@@ -1,4 +1,4 @@
-import {ref} from 'vue';
+import {reactive, ref} from 'vue';
 import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
@@ -12,20 +12,21 @@ export const localizationData = {
         connect: "Connect",
         disconnect: "Disconnect",
         name: "English",
+        settings: "Settings",
+        method: "Method",
+        colorMode: "Color Scheme",
         language: 'Language',
         submit: 'Submit',
         cancel: 'Cancel',
         username: 'Username',
         password: 'Password',
-        welcome: 'Welcome to the OPACA LLM! You can use me to interact with the assistants and services available on the OPACA platform, or ask me general questions. How can I help you today?',
-        connected: 'Connected! Available assistants and services:',
+        welcome: 'What can I do for you today? Try one of the sample queries or ask me anything you like!',
         unreachable: 'Please connect to a running OPACA platform.',
         unauthenticated: 'Authentication Required',
         authError: 'Invalid username or password.',
         none: 'None',
         speechRecognition: 'Speak' ,
         readLastMessage: 'Read Last',
-        resetChat: 'Reset',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Send a message ...',
         socketClosed: 'It seems there was a problem in the response generation.',
@@ -36,49 +37,85 @@ export const localizationData = {
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
         tooltipSidebarInfo: "General Information",
+        tooltipSidebarChats: "Chats",
+        tooltipSidebarFiles: "Uploaded Files",
         tooltipSidebarPrompts: "Prompt Library",
         tooltipSidebarAgents: "Agents and Actions",
         tooltipSidebarConfig: "Configuration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleTools: "Tool Calls",
         tooltipChatbubbleError: "Error",
         tooltipChatbubbleAudioPlay: "Play Audio",
         tooltipChatbubbleAudioStop: "Stop Audio",
         tooltipChatbubbleAudioLoad: "Audio is loading ...",
         tooltipChatbubbleCopy: "Copy",
         tooltipButtonSend: "Submit",
+        tooltipButtonStop: "Cancel",
         tooltipButtonRecord: "Dictate",
         tooltipButtonReset: "Reset Chat",
         agentActionDescription: "Description",
         agentActionParameters: "Input Parameters",
         agentActionResult: "Result",
-        buttonBackendConfigSave: "Save Config",
-        buttonBackendConfigReset: "Reset to Defaults",
+        buttonConfigSave: "Save Config",
+        buttonConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "How can you assist me?",
+        rerollQuestions: "More…",
+        regenerate: "Suggest More",
+        platformInfoRequest: "How can you assist me?",
+        platformInfoMissing: "It's a little quiet here...",
+        platformInfoLoading: "Querying functionality, please wait...",
+        platformInfoFailed: "There was an error when querying the functionality: %1",
+        cookiesText: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
+        cookiesAccept: "Accept",
+        tooltipDeleteUploadedFile: "Remove File",
+        tooltipSuspendUploadedFile: "Include File in conversations?",
+        tooltipUploadFile: "Upload File",
+        tooltipChatbubbleFiles: "Attached Files",
+        uploadingFileText: "Uploading…",
+        fileOverflow: "+%1 more…",
+        sidebarAgentsLoading: "Loading available agents...",
+        sidebarAgentsMissing: "No agents available.",
+        sidebarConfigLoading: "Loading config for %1...",
+        sidebarConfigMissing: "No config available for %1.",
+        configSaveSuccess: "Config saved",
+        configSaveInvalid: "Invalid data: %1",
+        configSaveError: "An error occurred",
+        configReset: "Configuration was reset",
+        sidebarFaqMissing: "Unable to load FAQ.",
+        buttonNewChat: "New Chat",
+        tooltipEditChatName: "Edit Name",
+        tooltipDeleteChat: "Delete Chat",
+        confirmDeleteChat: "Are you sure that you want to delete the Chat?",
+        buttonSearchChats: "Search Chats",
+        dropFiles: "Drop files here to upload",
+        sidebarFilesEmpty: "No files uploaded",
+        confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
+        searchAgentsPlaceholder: "Search…",
     },
 
     DE: {
         pltConnected: "Verbunden",
-        pltDisconnected: "Nicht Verbunden",
+        pltDisconnected: "Nicht verbunden",
         connect: "Verbinden",
         disconnect: "Trennen",
         name: "Deutsch",
+        settings: "Einstellungen",
         language: 'Sprache',
+        method: "Methode",
+        colorMode: "Farbschema",
         submit: 'Senden',
         cancel: 'Abbrechen',
         username: 'Benutzer',
         password: 'Passwort',
-        welcome: 'Willkommen beim OPACA LLM! Sie können mich nutzen, um mit den Assistenten und Diensten auf der OPACA-Plattform zu interagieren, oder auch allgemeine Fragen stellen. Wie kann ich Ihnen heute helfen?',
-        connected: 'Verbunden! Verfügbare Assistenten und Dienste:',
+        welcome: 'Was kann ich heute für Dich tun? Versuch einen der Beispiel-Queries, oder frag mich alles was Du willst!',
         unreachable: 'Bitte verbinden Sie sich mit einer laufenden OPACA Plattform.',
-        unauthenticated: 'Authentifizierung Erforderlich',
+        unauthenticated: 'Authentifizierung erforderlich',
         authError: 'Benutzer oder Passwort falsch.',
         none: 'Keine',
         speechRecognition: 'Sprechen' ,
         readLastMessage: 'Vorlesen',
-        resetChat: 'Zurücksetzen',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Nachricht senden ...',
         socketClosed: 'Es scheint ein Problem bei der Erstellung der Antwort aufgetreten zu sein.',
@@ -89,32 +126,67 @@ export const localizationData = {
         ttsServerInfo: '%1 auf %2',
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
         tooltipSidebarInfo: "Generelle Informationen",
+        tooltipSidebarChats: "Chats",
+        tooltipSidebarFiles: "Hochgeladene Dateien",
         tooltipSidebarPrompts: "Prompt-Bibliothek",
         tooltipSidebarAgents: "Agenten und Aktionen",
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
         tooltipChatbubbleDebug: "Debug",
+        tooltipChatbubbleTools: "Tool Calls",
         tooltipChatbubbleError: "Fehler",
         tooltipChatbubbleAudioPlay: "Audio abspielen",
         tooltipChatbubbleAudioStop: "Audio stoppen",
         tooltipChatbubbleAudioLoad: "Audio lädt ...",
         tooltipChatbubbleCopy: "Kopieren",
         tooltipButtonSend: "Absenden",
+        tooltipButtonStop: "Abbrechen",
         tooltipButtonRecord: "Diktieren",
-        tooltipButtonReset: "Chat Zurücksetzen",
+        tooltipButtonReset: "Chat zurücksetzen",
         agentActionDescription: "Beschreibung",
         agentActionParameters: "Parameter",
         agentActionResult: "Ergebnis",
-        buttonBackendConfigSave: "Speichern",
-        buttonBackendConfigReset: "Zurücksetzen",
+        buttonConfigSave: "Speichern",
+        buttonConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
-        howAssist: "Womit kannst du mir helfen?",
+        rerollQuestions: "Mehr…",
+        regenerate: "Weitere Beispiele",
+        platformInfoRequest: "Wie kannst du mir helfen?",
+        platformInfoMissing: "Hier gibt es gerade nichts...",
+        platformInfoLoading: "Frage Funktionalitäten an, bitte warten...",
+        platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
+        cookiesText: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
+        cookiesAccept: "Annehmen",
+        tooltipDeleteUploadedFile: "Datei entfernen",
+        tooltipSuspendUploadedFile: "Datei in Konversationen einbeziehen?",
+        tooltipUploadFile: "Datei hochladen",
+        tooltipChatbubbleFiles: "Angehängte Dateien",
+        uploadingFileText: "Lade hoch…",
+        fileOverflow: "+%1 weitere…",
+        sidebarAgentsLoading: "Lade verfügbare Agenten...",
+        sidebarAgentsMissing: "Keine Agenten verfügbar.",
+        sidebarConfigLoading: "Lade Konfiguration für %1...",
+        sidebarConfigMissing: "Keine Konfiguration für %1 verfügbar.",
+        configSaveSuccess: "Konfiguration gespeichert",
+        configSaveInvalid: "Fehlerhafte Daten: %1",
+        configSaveError: "Es ist ein Fehler aufgretreten",
+        configReset: "Konfiguration wurde zurückgesetzt",
+        sidebarFaqMissing: "FAQ konnte nicht geladen werden.",
+        buttonNewChat: "Neuer Chat",
+        tooltipEditChatName: "Name bearbeiten",
+        tooltipDeleteChat: "Chat löschen",
+        confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
+        buttonSearchChats: "Chats Durchsuchen",
+        dropFiles: "Dateien hier ablegen um sie hochzuladen",
+        sidebarFilesEmpty: "Keine Dateien hochgeladen",
+        confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
+        searchAgentsPlaceholder: "Suchen…",
     },
 };
 
 
-export const sidebarQuestions = {
+export const sidebarQuestions = reactive({
     GB: [
         {
             "id": "taskAutomation",
@@ -122,25 +194,13 @@ export const sidebarQuestions = {
             "icon": "🤖",
             "questions": [
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
+                {"question": "Create a tabular comparison of all application mails in my inbox.", "icon": "📜"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Show the phone numbers of all participants in my next meeting.", "icon": "📞"},
-                {"question": "Draft an out-of-office email explaining that Tolga is my stand-in for the next 2 weeks.", "icon": "✉️"},
-                {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "👥"},
-                {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧩"},
-                {"question": "Find a meeting slot with the LLM team next week.", "icon": "📆"},
-                {"question": "Show my calendar for next week.", "icon": "📅"}
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Visualize the current energy mix of Germany in a meaningful way.", "icon": "⚡"},
-                {"question": "Retrieve the current noise level in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
-                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Retrieve the current temperature, noise level and humidity of the kitchen and visualize it in a meaningful way.", "icon": "🌤️"},
-
+                {"question": "Fetch my next meeting and give me some background information on the topic!", "icon": "📑"},
+                {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
+                {"question": "Schedule a brainstorming session with Tobias.", "icon": "🧠"},
+                {"question": "Find a meeting slot for tomorrow that works for myself, Robert and Aray.", "icon": "👥"},
+                {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
             ]
         },
         {
@@ -149,13 +209,24 @@ export const sidebarQuestions = {
             "icon": "📚",
             "questions": [
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
-                {"question": "What documents do I need for a residence permit?", "icon": "📄"},
-                {"question": "Find the nearest public service office to the TU Berlin Campus?", "icon": "🏢"},
+                {"question": "What documents do I need for a residence permit in Germany?", "icon": "📄"},
                 {"question": "How can I get an appointment at the Berlin Bürgeramt?", "icon": "📅"},
                 {"question": "What are 'Large Language Models'?", "icon": "🧠"},
                 {"question": "What are the most exciting tech trends for 2025?", "icon": "🚀"},
                 {"question": "Explain Agile methodology.", "icon": "🔄"},
-                {"question": "How to build a simple website?", "icon": "💻"}
+                {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
+                {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
+                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
             ]
         },
         {
@@ -163,11 +234,25 @@ export const sidebarQuestions = {
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "It is too noisy in the kitchen. Could you check if the noise level in the co-working space is lower?", "icon": "🔊"},
-                {"question": "Set my desk height to 120cm.", "icon": "⬆️"},
-                {"question": "Open the shelf in which I can store a glass.", "icon": "🥃"},
+                {"question": "Which room is quieter, the Co-Working Space or Focus Space?", "icon": "🔊"},
+                {"question": "What is the temperature and CO2 level in the conference room?", "icon": "🌡️"},
+                {"question": "Set the height of my smart desk to 120 cm.", "icon": "⬆️"},
                 {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
-
+                {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
+                {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
+                {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
+                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
+            ]
+        },
+        {
+            "id": "mobility",
+            "header": "Mobility",
+            "icon": "🚗",
+            "questions": [
+                {"question": "Where is my Tiguan Car?", "icon": "📍"},
+                {"question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.", "icon": "🧭"},
+                {"question": "Find a parking spot near the current location of my Tiguan car.", "icon": "🅿️"},
+                {"question": "What's the current air quality near Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
             ]
         },
     ],
@@ -178,24 +263,13 @@ export const sidebarQuestions = {
             "icon": "🤖",
             "questions": [
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
+                {"question": "Erstelle einen tabellarischen Vergleich aller Bewerbungen in meiner Inbox.", "icon": "📜"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Zeige mir die Telefonnummern aller Teilnehmer in meinem nächsten Meeting.", "icon": "📞"},
-                {"question": "Erstelle eine Abwesenheitsmail, in der Tolga als Vertretung für die nächsten 2 Wochen erwähnt wird.", "icon": "✉️"},
-                {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "👥"},
-                {"question": "Plane ein Brainstorming mit Tobias.", "icon": "🧩"},
-                {"question": "Finde einen Meetingtermin mit dem LLM-Team nächste Woche.", "icon": "📆"},
-                {"question": "Zeige mir meinen Kalender für die nächste Woche.", "icon": "📅"}
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Visualisiere den aktuellen Strommix von Deutschland auf eine sinnvolle Art und Weise.", "icon": "⚡"},
-                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                {"question": "Finde die aktuelle Temperatur, Lautstärke und Luftfeuchtigkeit in der Küche und visualisiere sie auf eine sinnvolle Art und Weise.", "icon": "🌤️"},
+                {"question": "Ruf mein nächstes Meeting ab und gib mir ein paar Hintergrundinformationen zu dem Thema!", "icon": "📑"},
+                {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "📞"},
+                {"question": "Plane ein Brainstorming-Meeting mit Tobias.", "icon": "🧠"},
+                {"question": "Finde eine Zeit für ein Meeting Morgen, die für mich, Robert und Aray passt.", "icon": "👥"},
+                {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
             ]
         },
         {
@@ -205,12 +279,23 @@ export const sidebarQuestions = {
             "questions": [
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Welche Dokumente brauche ich für die Aufenthaltserlaubnis?", "icon": "📄"},
-                {"question": "Wie finde ich das nächstgelegene Bürgeramt für meine Adresse?", "icon": "🏢"},
                 {"question": "Wie komme ich an einen Termin beim Berliner Bürgeramt?", "icon": "📅"},
                 {"question": "Was sind 'Large Language Models'?", "icon": "🧠"},
                 {"question": "Was sind die spannendsten Tech-Trends für 2025?", "icon": "🚀"},
                 {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
-                {"question": "Wie erstelle ich eine einfache Website?", "icon": "💻"}
+                {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
+                {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
             ]
         },
         {
@@ -218,14 +303,29 @@ export const sidebarQuestions = {
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "Es ist zu laut an meinem Platz. Kannst du einen ruhigeren Arbeitsbereich vorschlagen?", "icon": "🔊"},
+                {"question": "Welcher Raum ist ruhiger, der Co-Working-Space oder der Focus-Space?", "icon": "🔊"},
+                {"question": "Wie ist die Temperatur und das CO2-Level im Conference Space?", "icon": "🌡️"},
                 {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
-                {"question": "Ich möchte mein Wasserglas verstauen. Ich habe es nicht benutzt. Öffne den Küchenschrank, in den ich es zurücklegen kann.", "icon": "🥃"},
                 {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
+                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
+                {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
+                {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
+                {"question": "Bitte zeig mit den Weg zum Konferenzraum.", "icon": "🧭"},
+            ]
+        },
+        {
+            "id": "mobility",
+            "header": "Mobilität",
+            "icon": "🚗",
+            "questions": [
+                {"question": "Wo ist mein Tiguan Auto?", "icon": "📍"},
+                {"question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.", "icon": "🧭"},
+                {"question": "Finde einen Parkplatz in der Nähe der aktuellen Position meines Tiguan Autos.", "icon": "🅿️"},
+                {"question": "Wie ist die aktuelle Luftqualität am Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
             ]
         },
     ],
-}
+})
 
 
 // Placeholder messages for streaming in different languages
@@ -248,9 +348,9 @@ export const loadingMessages = {
         "Tool Generator": "Calling the required tools",
         "Tool Evaluator": "Validating tool calls",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Working on it",
+        "system": "Calling tool",
     },
     DE: {
         // System
@@ -270,9 +370,9 @@ export const loadingMessages = {
         "Tool Generator": "Aufrufen der benötigten Tools",
         "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
         // Simple
-        "user": "",
-        "assistant": "",
-        "system": "",
+        "user": " ",
+        "assistant": "Bearbeiten",
+        "system": "Tool-Aufruf",
     }
 }
 
@@ -290,11 +390,13 @@ export const voiceGenLocalesWebSpeech = {
 
 class Localizer {
 
-    constructor(selectedLanguage = 'GB', fallbackLanguage = 'GB') {
-        this._selectedLanguage = ref(selectedLanguage);
-        this._fallbackLanguage = ref(fallbackLanguage);
+    constructor(selectedLanguage, fallbackLanguage) {
+        this._fallbackLanguage = ref(fallbackLanguage)
+        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
+            ? ref(selectedLanguage)
+            : ref(fallbackLanguage);
 
-        this.randomSampleQuestions = null;
+        this._randomSampleQuestions = ref(null);
     }
 
     set language(newLang) {
@@ -315,6 +417,14 @@ class Localizer {
         return this._fallbackLanguage.value;
     }
 
+    set randomSampleQuestions(value) {
+        this._randomSampleQuestions.value = value;
+    }
+
+    get randomSampleQuestions() {
+        return this._randomSampleQuestions.value;
+    }
+
     _verifySettings() {
         if (!localizationData[this.language] || !localizationData[this.fallbackLanguage]) {
             throw Error(`Invalid languages configured in Localizer: ${this.language}, ${this.fallbackLanguage}`);
@@ -323,7 +433,6 @@ class Localizer {
 
     /**
      * Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments.
-     * Also does in-line markdown parsing on the text.
      * @param text
      * @param args
      * @returns {string|null}
@@ -334,7 +443,7 @@ class Localizer {
             text = text.replace(/%(\d+)/g, (match, number) => {
                 return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
             });
-            return marked.parseInline(text);
+            return text;
         } catch (error) {
             console.error('Formatting error:', error);
             return null;
@@ -371,40 +480,30 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(categoryHeader) {
-        const category = sidebarQuestions[this.language]
-            ?.find(c => c.header === categoryHeader);
-
-        const howAssist = { question: this.get("howAssist"), icon: "❓" }
-
-        // if category could not be found, return random sample questions
-        if (!category) {
-            if (!this.randomSampleQuestions) {
-                this.randomSampleQuestions = this.getRandomSampleQuestions();
-                this.randomSampleQuestions.unshift(howAssist);
-            }
-            return this.randomSampleQuestions;
+    getSampleQuestions(textinput, categoryHeader) {
+        if (textinput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+        } else if (! this.randomSampleQuestions) {
+            this.reloadSampleQuestions(categoryHeader);
         }
-
-        // take first 3 questions and use their individual icons
-        const sampleQuestions = category.questions.slice(0, 3).map(q => ({
-            question: q.question,
-            icon: q.icon || category.icon // Fallback to category icon if question has no icon
-        }));
-        sampleQuestions.unshift(howAssist);
-        return sampleQuestions;
+        return this.randomSampleQuestions;
     }
 
-    getRandomSampleQuestions(numQuestions = 3) {
-        let questions = [];
+    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+        this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
+    }
 
-        // assemble questions from all categories into a single array
-        sidebarQuestions[this.language]
-            .forEach(group => questions = questions
-                .concat(group.questions.map(q => _mapCategoryIcons(q, group)))
-            );
+    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
+        // assemble questions from all or selected category into a single array
+        let questions = sidebarQuestions[this.language]
+            .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
+            .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
+            .filter(question => textinput === null || matches(question.question, textinput));
 
-        shuffleArray(questions);
+        // if no text input was given -> shuffle and get first k questions
+        if (!textinput) {
+            shuffleArray(questions);
+        }
         return questions.slice(0, numQuestions);
     }
 
@@ -417,6 +516,11 @@ class Localizer {
         return AudioManager.isVoiceServerConnected
             ? voiceGenLocalesWhisper[this.language]
             : voiceGenLocalesWebSpeech[this.language];
+    }
+
+    isAvailableLanguage(langName) {
+        if (!langName) return false;
+        return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
     }
 }
 
@@ -432,5 +536,13 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-const localizer = new Localizer(conf.defaultLanguage, conf.fallbackLanguage);
+function matches(question, textinput) {
+    return textinput.toLowerCase().split(/\s+/)
+        .every(word => question.toLowerCase().includes(word));
+}
+
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
+const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;

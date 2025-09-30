@@ -1,6 +1,6 @@
 ## About
 
-The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and multiple "backends" connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
+The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 
 ## How do I use it?
@@ -21,7 +21,14 @@ The frontend includes different sidebars that can be expanded or collapsed, prov
 For more detailed information, please visit the project's GitHub page (link at the bottom of this page).
 
 
-## Frequently Asked Questions
+## What happens with my data?
+
+Your chat history is stored in-memory in the Backend and associated with you via a UUID in a browser cookie. Other users of the system can not access your chat history unless they acquire your session cookie. The cookie has a life-time of 30 days, which is renewed each time you make a request. Once the cookie expires, the chat histories will be removed from the backend. You can also at any time use the "Reset" function to clear your chat history. Note: If you delete the cookie from your browser, a new cookie will be issued and you lose the ability to Reset the old history (it will then be deleted when the old cookie expires or the backend is restarted).
+
+Your chat prompts are forwarded to the configured LLM (e.g. GPT, or some locally installed LLM), and may be in some way evaluated by the companies running those LLM. The OPACA-LLM itself (the Frontend and Backend) does in no way inspect or evaluate your chat prompts or the results other than what's necessary for e.g. invoking the respective tools and formatting the response, neither are the prompts or results persistently stored or archived or distributed to third parties.
+
+
+## Other Frequently Asked Questions
 
 **What is OPACA and why do I need to connect to it?**
 OPACA is a frameworks combining multi-agent systems with container-technologies and microservices. OPACA enables the assistant to use tools. Without connecting, tool-based actions cannot be performed.
@@ -31,8 +38,9 @@ Each tool available to the LLM corresponds to an action provided by one of the a
 
 **What is the difference between the interaction modes?**
 * Simple: Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.
-* Tool-LLM: Two agents using the built-in "tools" parameter of newer models, providing a good balance of speed/simplicity and functionality.
-* Self-Orchestration: A two-staged approach, were an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
+* Tool-LLM: Three agents using the built-in 'tools' parameter of newer models, providing a good balance of speed/simplicity and functionality.
+* Self-Orchestration: A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
+* Simple-Tools: A single agent, as in 'Simple', but using the 'tools' parameter.
 
 **What prompts can I use and where can I learn more?**  
 Use natural language to describe what you want. Check the Prompt Library for examples and templates. The LLM can help by calling the different tools provided by the agents on the OPACA platform, or with general questions.

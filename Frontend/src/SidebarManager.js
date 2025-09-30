@@ -8,6 +8,8 @@ class SidebarManager {
     static _availableViews = [
         'none',
         'info',
+        'chats',
+        'files',
         'questions',
         'agents',
         'config',
@@ -55,6 +57,10 @@ class SidebarManager {
 
     isSidebarOpen() {
         return this.getSelectedView() !== 'none';
+    }
+
+    close() {
+        this.selectView('none');
     }
 
 }

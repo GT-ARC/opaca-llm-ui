@@ -1,178 +1,124 @@
 <template>
-    <div class="config-section">
-        <div v-if="isObject">
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        class="question-mark"
-                        @mouseover="toggleTooltip"
-                        @mouseleave="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-            <div v-for="(subValue, subName) in value.default" :key="subName" class="nested-config">
-                <config-parameter
-                    :key="subName"
-                    :name="subName"
-                    :value="subValue"
-                    v-model="nestedConfig[subName]"/>
+<div class="config-section">
+
+    <!-- header: name and tooltip description -->
+    <div class="config-section-header">
+        <strong>{{ configParam?.name ?? name }}</strong>
+
+        <!-- param description -->
+        <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
+            <button
+                class="question-mark"
+                @mouseover="toggleTooltip"
+                @mouseleave="toggleTooltip">
+                ?
+            </button>
+            <div v-if="showTooltip" class="tooltip-bubble">
+                {{ configParam.description }}
             </div>
         </div>
 
-        <div v-else>
-            <!-- header: name and tooltip description -->
-            <div class="config-section-header">
-                <strong>{{ name }}</strong>
-                <div v-if="value.description" class="tooltip-container">
-                    <button
-                        class="question-mark"
-                        @mouseover="toggleTooltip"
-                        @mouseleave="toggleTooltip">
-                        ?
-                    </button>
-                    <div v-if="showTooltip" class="tooltip-bubble">
-                        {{ value.description }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- boolean type: checkbox -->
-            <div v-if="value.type === 'boolean'">
-                <input v-model="localValue"
-                       class="form-check-input"
-                       type="checkbox"/>
-            </div>
-
-            <!-- enums: dropdown menu -->
-            <div v-else-if="Array.isArray(value?.enum)">
-                <select v-model="localValue" class="form-control">
-                    <option v-for="option in value?.enum" :key="option" :value="option">
-                        {{ option }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- numbers: check min/max range -->
-            <div v-else-if="['number', 'integer'].includes(value.type)">
-                <input v-model="localValue"
-                       class="form-control"
-                       type="number"
-                       :min="value?.minimum"
-                       :max="value.maximum"
-                       :step="value.type === 'integer' ? 1 : 0.01"/>
-            </div>
-
-            <!-- array type: dynamic list (is this used?) -->
-            <div v-else-if="value.type === 'array'">
-                <div v-for="(item, index) in localValue" :key="index" class="array-item">
-                    <div class="input-with-minus">
-                        <input v-model="localValue[index]" class="form-control" :type="['number', 'integer'].includes(value.array_items.type) ? 'number' : 'text'"/>
-                        <button type="button" class="btn btn-outline-danger btn-sm remove-button" @click="removeItem(index)">
-                            &minus;
-                        </button>
-                    </div>
-                </div>
-                <button class="btn btn-primary btn-sm add-button" @click="addItem">Add Item</button>
-            </div>
-
-            <!-- other elements: plain text input -->
-            <div v-else>
-                <input v-model="localValue"
-                       class="form-control"
-                       type="text"/>
-            </div>
-
-        </div>
-
+        <!-- if param is a slider, display the slider value here -->
+        <output v-if="['number', 'integer'].includes(configParam.type)"
+                :id="`slider-value-${this.name}`"
+                class="small w-auto ms-auto">
+            {{ localValue }}
+        </output>
     </div>
+
+    <!-- boolean type: checkbox -->
+    <div v-if="configParam.type === 'boolean'">
+        <input v-model="localValue"
+               class="form-check-input"
+               type="checkbox"
+        />
+    </div>
+
+    <!-- enums -->
+    <div v-else-if="Array.isArray(configParam?.enum)">
+        <ComboBox
+            v-model="localValue"
+            :items="configParam?.enum"
+            :default-disabled="!configParam?.free_input"
+        />
+    </div>
+
+    <!-- numbers: check min/max range -->
+    <div v-else-if="['number', 'integer'].includes(configParam.type)">
+        <input v-model="localValue"
+               class="slider"
+               type="range"
+               :min="configParam.minimum"
+               :max="configParam.maximum"
+               :step="configParam.step"
+               :aria-describedby="`slider-value-${this.name}`"
+        />
+    </div>
+
+    <!-- other elements: plain text input -->
+    <div v-else>
+        <input v-model="localValue"
+               class="form-control"
+               type="text"
+        />
+    </div>
+
+</div>
 </template>
 
 
 <script>
+import Localizer from "../Localizer.js";
+import ComboBox from "./ComboBox.vue";
+import {useDevice} from "../useIsMobile.js";
+
 export default {
     name: "ConfigParameter",
+    components: {ComboBox},
     props: {
-        name: {
-            type: String,
-            required: true,
-        },
-        value: {
-            type: Object,
-            required: true,
-        },
-        modelValue: {
-            type: [Boolean, Number, String, Array, Object],
-            required: true,
-        },
+        name: String,
+        configParam: Object,
+
+        // is set by v-model in parent component
+        modelValue: Object, // <- "Any" type
+    },
+    setup() {
+        const {isMobile} = useDevice();
+        return { Localizer, isMobile };
     },
     emits: ["update:modelValue"],
     computed: {
-        isObject() {
-            return this.value.type === "object";
-        },
         localValue: {
             get() {
                 return this.modelValue;
             },
             set(newValue) {
-                this.$emit("update:modelValue", newValue)
-            },
-        },
-        nestedConfig: {
-            get() {
-                return this.modelValue || {};
-            },
-            set(newConfig) {
-                this.$emit("update:modelValue", newConfig);
+                const value = this.parseValue(newValue, this.configParam?.type);
+                this.$emit("update:modelValue", value);
             },
         },
     },
     data() {
         return {
-            showTooltip: false
+            showTooltip: false,
         }
     },
     methods: {
-        addItem() {
-            if (Array.isArray(this.localValue)) {
-                const itemType = this.value.array_items.type;
-                let newItem;
-
-                switch (itemType) {
-                    case "boolean":
-                        newItem = false;
-                        break;
-                    case "number":
-                    case "integer":
-                        newItem = 0;
-                        break;
-                    default:
-                        newItem = "";
-                }
-                this.localValue.push(newItem);
-            } else {
-                console.warn("Called the method 'addItem' for a non-array type!")
-            }
-        },
-
-        removeItem(index) {
-            if (Array.isArray(this.localValue)) {
-                this.localValue.splice(index, 1);
-            } else {
-                console.warn("Called the method 'removeItem' for a non-array type!")
-            }
-        },
-
         toggleTooltip() {
             this.showTooltip = !this.showTooltip;
-        }
+        },
+        parseValue(value, type) {
+            switch (type) {
+                case 'number':
+                case 'integer':
+                    return Number(value);
+                case 'boolean':
+                    return Boolean(value);
+                default:
+                    return value;
+            }
+        },
     },
-
 };
 </script>
 
@@ -181,28 +127,33 @@ export default {
 /* Remove number spinner for Chrome, Safari, Edge, ... */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 /* Remove number spinner for Firefox */
 input[type="number"] {
-  appearance: textfield;
+    appearance: textfield;
 }
 
-.form-control {
+.slider {
+    -webkit-appearance: none;
     background-color: var(--input-color);
-    border-color: var(--border-color);
-    color: var(--text-primary-color);
+    padding: 0;
+    border-radius: 50px;
+    width: 100%;
 }
 
-.form-control::placeholder {
-    color: var(--text-secondary-color);
-}
-
-.form-control:focus {
-    background-color: var(--input-color);
-    border-color: var(--primary-color);
+.slider::-webkit-slider-thumb,
+.slider::-moz-range-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--primary-color);
+    border: none;
+    border-radius: 50rem;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
 }
 
 .config-section {
@@ -223,22 +174,6 @@ input[type="number"] {
 
 .config-section-header strong {
     color: var(--text-primary-color);
-}
-
-.nested-config {
-  margin-left: 1.5em;
-  border-left: 2px solid #ddd;
-  padding-left: 1em;
-}
-
-.input-with-minus {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.add-button {
-    margin-top: 0.75rem;
 }
 
 .tooltip-container {

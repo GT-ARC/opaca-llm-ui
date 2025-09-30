@@ -104,17 +104,17 @@ class TTSServer:
             self.device_info = "CPU"
             torch_dtype = torch.float32
         
-        print(f"Device set to use {device}")
+        self.logger.info(f"Device set to use {device}")
 
         model_id = "openai/whisper-large-v3-turbo"
         
         # Decide on the attention implementation
         if device.startswith("cuda") and is_flash_attention_2_installed():
             attn_impl = "flash_attention_2"
-            print("Using Flash Attention 2.")
+            self.logger.info("Using Flash Attention 2.")
         else:
             attn_impl = "sdpa"
-            print("Falling back to SDPA.")
+            self.logger.info("Falling back to SDPA.")
         
         # Load model with proper configuration
         self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
