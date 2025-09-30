@@ -1,16 +1,14 @@
 import json
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall
-from .utils import transform_schema, get_supported_models
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall, get_supported_models
+from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -19,9 +17,12 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
-    @property
-    @abstractmethod
-    def config_schema(self) -> Dict[str, ConfigParameter]:
+    def __init__(self, session: SessionData, websocket: WebSocket | None):
+        self.session = session
+        self.websocket = websocket
+
+    @classmethod
+    def config_schema(cls) -> Dict[str, ConfigParameter]:
         pass
 
     @staticmethod
@@ -37,21 +38,8 @@ class AbstractMethod(ABC):
             free_input=True,
         )
 
-    async def get_llm_client(self, session: SessionData, the_url: str) -> AsyncOpenAI:
-        for url, key, _ in get_supported_models():
-            if url == the_url:
-                if url not in session.llm_clients:
-                    logger.info("creating new client for URL " + url)
-                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
-                    session.llm_clients[url] = (
-                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
-                        AsyncOpenAI(api_key=key, base_url=url)
-                    )
-                return session.llm_clients[url]
-        raise Exception(f"LLM host not supported : {the_url}")
-
-
-    def default_config(self):
+    @classmethod
+    def default_config(cls):
         def extract_defaults(schema):
             # Extracts the default values of nested configurations
             if isinstance(schema, ConfigParameter):
@@ -62,20 +50,19 @@ class AbstractMethod(ABC):
             else:
                 return schema
 
-        return {key: extract_defaults(value) for key, value in self.config_schema.items()}
+        return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
-    async def query(self, message: str, session: SessionData, chat: Chat) -> QueryResponse:
-        return await self.query_stream(message, session, chat)
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
+        return await self.query_stream(message, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
 
     async def call_llm(
             self,
-            session: SessionData,
             model: str,
             agent: str,
             system_prompt: str,
@@ -84,7 +71,6 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
-            websocket: Optional[WebSocket] = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -108,7 +94,7 @@ class AbstractMethod(ABC):
             url, model = map(str.strip, model.split("::"))
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = await self.get_llm_client(session, url)
+        client = self.session.llm_client(url)
 
         # Initialize variables
         exec_time = time.time()
@@ -116,7 +102,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(url, session, client)
+        file_message_parts = await upload_files(self.session, url)
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -185,16 +171,16 @@ class AbstractMethod(ABC):
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
                     agent_message.tools[-1].args = {}
 
-            if websocket:
-                await websocket.send_json(agent_message.model_dump_json())
+            if self.websocket:
+                await self.websocket.send_json(agent_message.model_dump_json())
                 agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if websocket:
+        if self.websocket:
             agent_message.content = ''
-            await websocket.send_json(agent_message.model_dump_json())
+            await self.websocket.send_json(agent_message.model_dump_json())
 
         agent_message.content = content
 
@@ -208,15 +194,14 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
 
-    @staticmethod
-    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
             agent_name, action_name = None, tool_name
 
         try:
-            t_result = await session.opaca_client.invoke_opaca_action(
+            t_result = await self.session.opaca_client.invoke_opaca_action(
                 action_name,
                 agent_name,
                 tool_args,
@@ -225,3 +210,12 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+
+
+    async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        if len(tools) > max_tools:
+            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
+                      f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
+            tools = tools[:max_tools]
+        return tools, error

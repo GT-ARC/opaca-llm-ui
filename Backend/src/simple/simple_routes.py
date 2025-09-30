@@ -51,25 +51,27 @@ logger = logging.getLogger(__name__)
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket: WebSocket = None) -> QueryResponse:
+    def __init__(self, session, websocket=None):
+        super().__init__(session, websocket)
+
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
 
         # Get session config
-        config = session.config.get(self.NAME, self.default_config())
+        config = self.session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
 
         prompt = SYSTEM_PROMPT.format(
             policy=ask_policies[config["ask_policy"]],
-            actions=await self.get_actions(session),
+            actions=await self.get_actions(),
         )
         
         while response.iterations < max_iters:
             response.iterations += 1
             
             result = await self.call_llm(
-                session=session,
                 model=config["model"],
                 agent="assistant",
                 system_prompt=prompt,
@@ -80,7 +82,6 @@ class SimpleMethod(AbstractMethod):
                 ],
                 temperature=config["temperature"],
                 tool_choice="none",
-                websocket=websocket,
             )
             response.agent_messages.append(result)
 
@@ -88,14 +89,14 @@ class SimpleMethod(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(session, tool.name, tool.args, response.iterations-1)
+                tool_call = await self.invoke_tool(tool.name, tool.args, response.iterations-1)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                if websocket:
-                    await websocket.send_json(response.agent_messages[-1].model_dump_json())
+                if self.websocket:
+                    await self.websocket.send_json(response.agent_messages[-1].model_dump_json())
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
@@ -108,10 +109,10 @@ class SimpleMethod(AbstractMethod):
         response.execution_time = time.time() - exec_time
         return response
 
-    @property
-    def config_schema(self) -> dict:
+    @classmethod
+    def config_schema(cls) -> dict:
         return {
-            "model": self.make_llm_config_param(name="Model", description="The model to use."),
+            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",
@@ -142,9 +143,9 @@ class SimpleMethod(AbstractMethod):
             ),
         }
 
-    async def get_actions(self, session):
+    async def get_actions(self):
         try:
-            return await session.opaca_client.get_actions_simple()
+            return await self.session.opaca_client.get_actions_simple()
         except:
             return "(No services, not connected yet.)"
 

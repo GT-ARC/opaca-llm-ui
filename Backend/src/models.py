@@ -1,13 +1,17 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-import asyncio
 from pathlib import Path
-from pydantic import BaseModel, field_validator, model_validator, Field
-from typing import List, Dict, Any, Optional, Self, Iterator, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, Self, Iterator
 from datetime import datetime, timezone
 import logging
 import uuid
+import os
+
+from openai import AsyncOpenAI
+from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
+
+from .opaca_client import OpacaClient
 
 
 class ColoredFormatter(logging.Formatter):
@@ -220,20 +224,41 @@ class SessionData(BaseModel):
         session_id: The session's internal ID.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
-        opaca_client: Client instance for OPACA, for calling agent actions.
-        llm_clients: Dictionary of LLM client instances.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
+    Transient fields:
+        _opaca_client: Client instance for OPACA, for calling agent actions.
+        _llm_clients: Dictionary of LLM client instances.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id', frozen=True)
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
-    opaca_client: Optional[Any] = Field(default=None, exclude=True)
-    llm_clients: Dict[str, Any] = Field(default_factory=dict, exclude=True)
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     valid_until: float = -1
+
+    _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
+    _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
+
+    @property
+    def opaca_client(self) -> OpacaClient:
+        return self._opaca_client
+
+    def llm_client(self, the_url: str) -> AsyncOpenAI:
+        if the_url not in self._llm_clients:
+            for url, key, _ in get_supported_models():
+                if url == the_url:
+                    logger.info("creating new client for URL " + url)
+                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
+                    self._llm_clients[url] = (
+                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
+                        AsyncOpenAI(api_key=key, base_url=url)
+                    )
+                    break
+            else:
+                raise Exception(f"LLM host not supported : {the_url}")
+        return self._llm_clients[the_url]
 
 
 class ConfigParameter(BaseModel):
@@ -334,3 +359,14 @@ class OpacaException(Exception):
         self.user_message = user_message
         self.error_message = error_message
         self.status_code = status_code
+
+
+def get_supported_models():
+    return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"), 
+            os.getenv("LLM_APIKEYS", "").split(";"), 
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
+    ]

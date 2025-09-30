@@ -18,10 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from .utils import validate_config_input, exception_to_result, get_supported_models
+from .utils import validate_config_input, exception_to_result
 from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, OpacaFile, Chat, \
-    SearchResult
-from .opaca_client import OpacaClient
+    SearchResult, get_supported_models
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -58,10 +57,10 @@ app.add_middleware(
 
 
 METHODS = {
-    SimpleMethod.NAME: SimpleMethod(),
-    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod(),
-    ToolLLMMethod.NAME: ToolLLMMethod(),
-    SimpleToolsMethod.NAME: SimpleToolsMethod(),
+    SimpleMethod.NAME: SimpleMethod,
+    SimpleToolsMethod.NAME: SimpleToolsMethod,
+    ToolLLMMethod.NAME: ToolLLMMethod,
+    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod,
 }
 
 
@@ -112,7 +111,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        return await METHODS[method].query(message.user_query, session, Chat(chat_id=''))
+        return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return exception_to_result(message.user_query, e)
 
@@ -158,7 +157,7 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method].query(message.user_query, session, chat)
+        result = await METHODS[method](session).query(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -179,7 +178,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
         data = await websocket.receive_json()
         message = QueryRequest(**data)
         create_chat_name(chat, message)
-        result = await METHODS[method].query_stream(message.user_query, session, chat, websocket)
+        result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
@@ -250,19 +249,19 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
     session = await handle_session_id(request, response)
     if method not in session.config:
         session.config[method] = METHODS[method].default_config()
-    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        validate_config_input(conf, METHODS[method].config_schema)
+        validate_config_input(conf, METHODS[method].config_schema())
     except HTTPException as e:
         raise e
     session.config[method] = conf
     await store_session_data(session)
-    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
 @app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
@@ -270,7 +269,7 @@ async def reset_config(request: Request, response: Response, method: str) -> Con
     session = await handle_session_id(request, response)
     session.config[method] = METHODS[method].default_config()
     await store_session_data(session)
-    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema)
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 ## FILE ROUTES
 
@@ -376,8 +375,6 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
             session = SessionData()
             session_id = session.session_id
             sessions[session_id] = session
-        if session.opaca_client is None:
-            session.opaca_client = OpacaClient()
         if max_age > 0:
             session.valid_until = time.time() + max_age
 
