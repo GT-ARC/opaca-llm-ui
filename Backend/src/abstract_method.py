@@ -140,10 +140,6 @@ class AbstractMethod(ABC):
         if tool_choice == "only":
             kwargs['tool_choice'] = 'auto'
 
-        # Set a specific response format if provided
-        if response_format:
-            kwargs['text'] = transform_schema(response_format.model_json_schema())
-
         # o1/o3/o4/gpt-5 don't support temperature param
         if not model.startswith(('o1', 'o3', 'o4', 'gpt-5')):
             kwargs['temperature'] = temperature
