@@ -228,6 +228,7 @@ class SessionData(BaseModel):
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
     """
+    session_id: str
     chats: Dict[str, Chat] = {}
     config: Dict[str, Any] = {}
     abort_sent: bool = False

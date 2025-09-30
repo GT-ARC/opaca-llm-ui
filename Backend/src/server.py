@@ -364,7 +364,7 @@ def create_or_refresh_session(session_id, max_age=None):
     if not session_id or session_id not in sessions:
         session_id = str(uuid.uuid4())
         logger.info(f"Creating new Session {session_id}")
-        sessions[session_id] = SessionData()
+        sessions[session_id] = SessionData(session_id=session_id)
     if max_age is not None:
         sessions[session_id].valid_until = time.time() + max_age
     return session_id
