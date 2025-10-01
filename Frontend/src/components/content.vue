@@ -420,7 +420,6 @@ export default {
 
             // If a container login is required
             if (result.hasOwnProperty('container_id')) {
-                console.log("Container login required");
                 this.$emit('container-login-required', result);
                 return
             }
@@ -501,7 +500,6 @@ export default {
         },
 
         submitContainerLogin(containerLoginUser, containerLoginPassword, containerId) {
-            console.log("Submitting container login", containerLoginUser, containerLoginPassword, containerId);
             const containerLoginData = JSON.stringify({username: containerLoginUser, password: containerLoginPassword, container_id: containerId});
             this.socket.send(containerLoginData);
         },

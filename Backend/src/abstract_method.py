@@ -10,7 +10,6 @@ from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification
-from .opaca_client import ContainerLoginData
 from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
@@ -213,19 +212,25 @@ class AbstractMethod(ABC):
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             if self.websocket and res.get("cause", {}).get("statusCode") == 500 and "credentials" in res.get("cause").get("message", "").lower():
+
                 # If a "missing credentials" error is encountered, initiate container login
-                print(f'Initiate container login')
-                # todo get actual container id
                 container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
-                print(f'Found container_id: {container_id}, container_name: {container_name}')
+
+                # Get credentials from user
                 await self.websocket.send_json(ContainerLoginNotification(status=401, type="missing_credentials", message=f"Please provide credentials to the container '{container_name}'.", container_id=container_id).model_dump_json())
                 data = await self.websocket.receive_json()
-                loginData = ContainerLoginData(**data)
-                await self.session.opaca_client.container_login(loginData)
-                await self.invoke_tool(tool_name, tool_args, tool_id)
+
+                # Check if credentials were provided
+                if not data.get("username") or not data.get("password"):
+                    return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
+
+                # Send credentials to container via OPACA
+                await self.session.opaca_client.container_login(data.get("username"), data.get("password"), data.get("container_id"))
+
+                # try to invoke the tool again
+                return await self.invoke_tool(tool_name, tool_args, tool_id)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
-        print(f't_result: {t_result}')
 
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 

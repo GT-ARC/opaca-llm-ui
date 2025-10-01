@@ -6,19 +6,8 @@ import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-
-
-# THIS NEEDS TO BE HERE DUE TO A CIRCULAR IMPORT, WILL CHANGE IT LATER
-class ContainerLoginData(BaseModel):
-    """
-    Stores the credentials for the container login.
-    """
-    username: str
-    password: str
-    container_id: str = ""
 
 
 class OpacaClient:
@@ -100,10 +89,10 @@ class OpacaClient:
         res.raise_for_status()
         return res.json()
 
-    async def container_login(self, loginData: 'ContainerLoginData'):
+    async def container_login(self, username: str, password: str, container_id: str):
         """Initiate container login for OPACA RP"""
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/containers/login/{loginData.container_id}", json={"username": loginData.username, "password": loginData.password}, headers=self._headers())
+            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers())
         res.raise_for_status()
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
@@ -111,12 +100,10 @@ class OpacaClient:
         async with httpx.AsyncClient() as client:
             res = await client.get(f"{self.url}/containers", headers=self._headers())
         res.raise_for_status()
-        for container in res.json():
-            container_id = container["containerId"]
-            for a in container["agents"]:
-                if a["agentId"] == agent and any(action == ac["name"] for ac in a["actions"]):
-                    return container_id, container["image"].get("name", "") or container["image"].get("imageName", "Opaca Container")
-        return "", ""
+
+        # Return the containerId and container name of the first matching container to include the given agent and action
+        return next((c["containerId"], c["image"].get("name", c["image"]["imageName"])) for c in res.json()
+                    for a in c["agents"] if a["agentId"] == agent and any(action == ac["name"] for ac in a["actions"]))
 
     def _headers(self):
         return {'Authorization': f'Bearer {self.token}'} if self.token else None

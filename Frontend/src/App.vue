@@ -161,8 +161,7 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin" :disabled="isConnecting">
-                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
-                    <span v-else>{{ Localizer.get('submit') }}</span>
+                    <span>{{ Localizer.get('submit') }}</span>
                 </button>
                 <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showContainerLogin = false">
                     {{ Localizer.get('cancel') }}
