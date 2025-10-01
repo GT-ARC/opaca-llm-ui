@@ -160,10 +160,10 @@
                     {{ Localizer.get('authError') }}
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin" :disabled="isConnecting">
+                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)">
                     <span>{{ Localizer.get('submit') }}</span>
                 </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showContainerLogin = false">
+                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="submitContainerLogin(false)">
                     {{ Localizer.get('cancel') }}
                 </button>
             </form>
@@ -307,9 +307,17 @@ export default {
             this.containerLoginDetails = containerLoginDetails;
         },
 
-        submitContainerLogin() {
+        submitContainerLogin(submitCredentials) {
             this.showContainerLogin = false;
-            this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginDetails.container_id);
+
+            // If the credentials should be submitted
+            if (submitCredentials) {
+                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginDetails.container_id);
+            } else {
+                this.$refs.content.submitContainerLogin("", "", this.containerLoginDetails.container_id)
+            }
+
+            // Reset the input fields
             this.containerLoginUser = "";
             this.containerLoginPassword = "";
             this.containerLoginDetails = null;
