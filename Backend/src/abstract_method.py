@@ -211,7 +211,8 @@ class AbstractMethod(ABC):
         except httpx.HTTPStatusError as e:
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
-            if self.websocket and res.get("cause", {}).get("statusCode") == 500 and "credentials" in res.get("cause").get("message", "").lower():
+            cause = res.get("cause", {}).get("message", "")
+            if self.websocket and ("401" in cause or "403" in cause):
 
                 # If a "missing credentials" error is encountered, initiate container login
                 container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
