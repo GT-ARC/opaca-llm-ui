@@ -141,7 +141,7 @@
     <div v-if="showContainerLogin" class="auth-overlay">
         <div class="dropdown-menu show p-4">
             <form @submit.prevent="submitContainerLogin">
-                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.containerId }}</h5>
+                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.container_id }}</h5>
                 <input
                         v-model="containerLoginUser"
                         type="text"
@@ -309,9 +309,8 @@ export default {
         },
 
         submitContainerLogin() {
-            console.log('Container login details: ', this.containerLoginUser, this.containerLoginPassword);
             this.showContainerLogin = false;
-            this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword);
+            this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginDetails.container_id);
             this.containerLoginUser = "";
             this.containerLoginPassword = "";
             this.containerLoginDetails = null;

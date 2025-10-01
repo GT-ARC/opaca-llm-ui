@@ -211,8 +211,8 @@ class AbstractMethod(ABC):
             )
         except httpx.HTTPStatusError as e:
             res = e.response.json()
-            t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {e.response.json()}"
-            if self.websocket and res.get("cause", {}).get("statusCode", 404) == 500 and "credentials" in res.get("cause", {}).get("message", "").lower():
+            t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
+            if self.websocket and res.get("cause", {}).get("statusCode") == 500 and "credentials" in res.get("cause").get("message", "").lower():
                 # If a "missing credentials" error is encountered, initiate container login
                 print(f'Initiate container login')
                 # todo get actual container id

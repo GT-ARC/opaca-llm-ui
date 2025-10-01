@@ -104,7 +104,6 @@ class OpacaClient:
         """Initiate container login for OPACA RP"""
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/containers/login/{loginData.container_id}", json={"username": loginData.username, "password": loginData.password}, headers=self._headers())
-        print(f'Container login response: {res.json()}')
         res.raise_for_status()
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
