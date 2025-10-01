@@ -1,6 +1,7 @@
 import decimal
 import functools
 import logging
+import asyncio
 
 import httpx
 import jsonref
@@ -91,8 +92,17 @@ class OpacaClient:
 
     async def container_login(self, username: str, password: str, container_id: str):
         """Initiate container login for OPACA RP"""
+        logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers())
+        res.raise_for_status()
+
+    async def deferred_container_logout(self, container_id: str, delay_seconds: int):
+        """Initiate container login for OPACA RP"""
+        await asyncio.sleep(delay_seconds)
+        logger.info(f"Logout of container {container_id}")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
         res.raise_for_status()
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:

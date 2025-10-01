@@ -3,6 +3,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
+import asyncio
 
 import httpx
 from pydantic import BaseModel
@@ -229,7 +230,12 @@ class AbstractMethod(ABC):
                 await self.session.opaca_client.container_login(data.get("username"), data.get("password"), data.get("container_id"))
 
                 # try to invoke the tool again
-                return await self.invoke_tool(tool_name, tool_args, tool_id)
+                res = await self.invoke_tool(tool_name, tool_args, tool_id)
+
+                # auto-logout after some time
+                asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, 60))
+
+                return res
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
