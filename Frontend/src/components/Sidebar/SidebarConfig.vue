@@ -8,34 +8,34 @@
     <div class="py-2">
         <p class="fw-bold">Config for
             <i class="fa fa-server ms-1"/>
-            {{ Backends[this.backend] }}
+            {{ Methods[this.method] }}
         </p>
-        <p>{{ BackendDescriptions[this.backend] }}</p>
+        <p>{{ MethodDescriptions[this.method] }}</p>
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarConfigLoading', this.backend) }}
+        {{ Localizer.get('sidebarConfigLoading', this.method) }}
     </div>
-    <div v-else-if="!this.backendConfig || Object.keys(this.backendConfig).length === 0">
-        {{ Localizer.get('sidebarConfigMissing', this.backend) }}
+    <div v-else-if="!this.methodConfig || Object.keys(this.methodConfig).length === 0">
+        {{ Localizer.get('sidebarConfigMissing', this.method) }}
     </div>
     <div v-else class="flex-row text-start">
         <ConfigParameter
-            v-for="(value, name) in backendConfigSchema" :key="name"
+            v-for="(value, name) in methodConfigSchema" :key="name"
             :name="name"
             :config-param="value"
-            v-model="backendConfig[name]"
+            v-model="methodConfig[name]"
         />
 
         <div class="py-2 text-center">
-            <button class="btn btn-primary py-2 w-100" type="button" @click="saveBackendConfig">
-                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonBackendConfigSave') }}
+            <button class="btn btn-primary py-2 w-100" type="button" @click="saveMethodConfig">
+                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonConfigSave') }}
             </button>
         </div>
         <div class="py-2 text-center">
-            <button class="btn btn-danger py-2 w-100" type="button" @click="resetBackendConfig">
-                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonBackendConfigReset') }}
+            <button class="btn btn-danger py-2 w-100" type="button" @click="resetMethodConfig">
+                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonConfigReset') }}
             </button>
         </div>
         <div v-if="!this.shouldFadeOut"
@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import conf, {Backends, BackendDescriptions} from "../../../config.js";
+import conf, {Methods, MethodDescriptions} from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import ConfigParameter from "../ConfigParameter.vue";
@@ -59,38 +59,38 @@ export default {
     name: 'SidebarConfig',
     components: {ConfigParameter},
     props: {
-        backend: String,
+        method: String,
     },
     setup() {
         const {isMobile} = useDevice();
-        return {conf, Localizer, Backends, BackendDescriptions, isMobile};
+        return {conf, Localizer, Methods, MethodDescriptions, isMobile};
     },
     data() {
         return {
             shouldFadeOut: false,
             configChangeSuccess: false,
             configMessage: '',
-            backendConfig: {},
-            backendConfigSchema: null,
+            methodConfig: {},
+            methodConfigSchema: null,
             isLoading: false,
         };
     },
     methods: {
-        async fetchBackendConfig() {
-            const backend = this.backend;
-            this.backendConfig = this.backendConfigSchema = null;
+        async fetchMethodConfig() {
+            const method = this.method;
+            this.methodConfig = this.methodConfigSchema = null;
             try {
-                const res = await backendClient.getConfig(backend);
-                this.backendConfig = res.config_values;
-                this.backendConfigSchema = res.config_schema;
+                const res = await backendClient.getConfig(method);
+                this.methodConfig = res.config_values;
+                this.methodConfigSchema = res.config_schema;
             } catch (error) {
-                console.error('Error fetching backend config:', error);
+                console.error('Error fetching method config:', error);
             }
         },
 
-        async saveBackendConfig() {
+        async saveMethodConfig() {
             try {
-                await backendClient.updateConfig(this.backend, this.backendConfig);
+                await backendClient.updateConfig(this.method, this.methodConfig);
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configSaveSuccess');
             } catch (error) {
@@ -99,7 +99,7 @@ export default {
                     this.configChangeSuccess = false
                     this.configMessage = Localizer.get('configSaveInvalid', error.response.data.detail);
                 } else {
-                    console.error('Error saving backend config.');
+                    console.error('Error saving method config.');
                     this.configChangeSuccess = false
                     this.configMessage = Localizer.get('configSaveError');
                 }
@@ -107,18 +107,18 @@ export default {
             this.startFadeOut()
         },
 
-        async resetBackendConfig() {
+        async resetMethodConfig() {
             try {
-                const res = await backendClient.resetConfig(this.backend);
-                console.log('Reset backend config.');
-                this.backendConfig = res.config_values;
-                this.backendConfigSchema = res.config_schema;
+                const res = await backendClient.resetConfig(this.method);
+                console.log('Reset method config.');
+                this.methodConfig = res.config_values;
+                this.methodConfigSchema = res.config_schema;
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configReset')
             } catch (error) {
-                console.error('Error resetting backend config.');
-                this.backendConfig = null;
-                this.backendConfigSchema = null;
+                console.error('Error resetting method config.');
+                this.methodConfig = null;
+                this.methodConfigSchema = null;
                 this.configChangeSuccess = false
                 this.configMessage = Localizer.get('configSaveError');
             }
@@ -140,11 +140,11 @@ export default {
 
     },
     async mounted() {
-        await this.fetchBackendConfig();
+        await this.fetchMethodConfig();
     },
     watch: {
-        backend() {
-            this.fetchBackendConfig();
+        method() {
+            this.fetchMethodConfig();
         },
     }
 };

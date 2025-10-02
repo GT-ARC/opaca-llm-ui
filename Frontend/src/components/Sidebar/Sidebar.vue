@@ -96,10 +96,10 @@
                     ref="agents"
                 />
 
-                <!-- backend config -->
+                <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
-                    :backend="this.getBackend()"
+                    :method="this.method"
                     ref="config"
                 />
 
@@ -123,7 +123,7 @@
 </template>
 
 <script>
-import conf, {Backends, BackendDescriptions} from '../../../config.js'
+import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -149,7 +149,7 @@ export default {
         SidebarQuestions,
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
         selectedChatId: String,
@@ -168,17 +168,12 @@ export default {
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {};
     },
     methods: {
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
-        },
-
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);

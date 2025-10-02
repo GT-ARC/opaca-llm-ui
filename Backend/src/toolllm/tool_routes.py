@@ -8,23 +8,25 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, SessionData, ChatMessage, ConfigParameter, Chat, ToolCall
-from ..utils import openapi_to_functions
+from ..models import QueryResponse, ChatMessage, ConfigParameter, Chat, ToolCall
 
 
-class ToolLLMBackend(AbstractMethod):
+class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
+
+    def __init__(self, session, websocket=None):
+        super().__init__(session, websocket)
 
     class EvaluatorResponse(BaseModel):
         reason: str
         decision: str
 
-    @property
-    def config_schema(self):
+    @classmethod
+    def config_schema(cls):
         return {
-            "tool_gen_model": self.make_llm_config_param(name="Generator", description="Generating tool calls"),
-            "tool_eval_model": self.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
-            "output_model": self.make_llm_config_param(name="Output", description="Generating the final output"),
+            "tool_gen_model": cls.make_llm_config_param(name="Generator", description="Generating tool calls"),
+            "tool_eval_model": cls.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
+            "output_model": cls.make_llm_config_param(name="Output", description="Generating the final output"),
             "temperature": ConfigParameter(
                 name="Temperature",
                 description="Temperature for the models",
@@ -47,7 +49,7 @@ class ToolLLMBackend(AbstractMethod):
             ),
        }
 
-    async def query_stream(self, message: str, session: SessionData, chat: Chat, websocket=None) -> QueryResponse:
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
@@ -63,28 +65,18 @@ class ToolLLMBackend(AbstractMethod):
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
-        config = session.config.get(self.NAME, self.default_config())
+        config = self.session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
 
         # Get tools and transform them into the OpenAI Function Schema
-        try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
-        except AttributeError as e:
-            response.error = str(e)
-            response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
-            return response
-        if len(tools) > 128:
-            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
-                      f"of 128. All tools after index 128 will be ignored!\n")
-            tools = tools[:128]
+        tools, error = await self.get_tools()
 
         # Save time before execution
         total_exec_time = time.time()
 
         # If files were uploaded, check if any tools need to be called with extracted information
-        if session.uploaded_files:
+        if self.session.uploaded_files:
             result = await self.call_llm(
-                session=session,
                 model=config['tool_eval_model'],
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
@@ -97,7 +89,6 @@ class ToolLLMBackend(AbstractMethod):
                 temperature=config['temperature'],
                 tools=tools,
                 tool_choice="none",
-                websocket=websocket,
             )
             response.agent_messages.append(result)
             try:
@@ -115,7 +106,6 @@ class ToolLLMBackend(AbstractMethod):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
-                session=session,
                 model=config['tool_gen_model'],
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
@@ -125,8 +115,8 @@ class ToolLLMBackend(AbstractMethod):
                     *tool_messages,
                 ],
                 temperature=config['temperature'],
+                tool_choice="only",
                 tools=tools,
-                websocket=websocket,
             )
 
             if not result.tools:
@@ -142,7 +132,6 @@ class ToolLLMBackend(AbstractMethod):
             while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
-                    session=session,
                     model=config['tool_gen_model'],
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
@@ -153,8 +142,8 @@ class ToolLLMBackend(AbstractMethod):
                         ChatMessage(role="user", content=full_err),
                     ],
                     temperature=config['temperature'],
+                    tool_choice="only",
                     tools=tools,
-                    websocket=websocket,
                 )
                 correction_limit += 1
 
@@ -163,14 +152,14 @@ class ToolLLMBackend(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(session, call.name, call.args, t_called))
+                tasks.append(self.invoke_tool(call.name, call.args, t_called))
                 t_called += 1
 
             result.tools = await asyncio.gather(*tasks)
 
             # If a websocket was defined, send the tools WITH their results to the frontend
-            if websocket:
-                await websocket.send_json(result.model_dump_json())
+            if self.websocket:
+                await self.websocket.send_json(result.model_dump_json())
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
@@ -178,7 +167,6 @@ class ToolLLMBackend(AbstractMethod):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.call_llm(
-                    session=session,
                     model=config['tool_eval_model'],
                     agent='Tool Evaluator',
                     system_prompt='',
@@ -192,7 +180,6 @@ class ToolLLMBackend(AbstractMethod):
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
-                    websocket=websocket,
                 )
                 response.agent_messages.append(result)
 
@@ -215,7 +202,6 @@ class ToolLLMBackend(AbstractMethod):
             c_it += 1
 
         result = await self.call_llm(
-            session=session,
             model=config['output_model'],
             agent='Output Generator',
             system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
@@ -230,7 +216,6 @@ class ToolLLMBackend(AbstractMethod):
             temperature=config['temperature'],
             tools=tools if no_tools else [],
             tool_choice="none",
-            websocket=websocket,
         )
         response.agent_messages.append(result)
 

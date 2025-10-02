@@ -138,7 +138,7 @@
 
     <div class="col background">
         <MainContent
-            :backend="this.backend"
+            :method="this.method"
             :language="this.language"
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
@@ -148,7 +148,7 @@
 </template>
 
 <script>
-import conf, {Backends} from '../config.js';
+import conf, {Methods} from '../config.js';
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
@@ -164,12 +164,12 @@ export default {
     components: {OptionsSelect, MainContent, CookieBanner},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
+        return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             language: 'GB',
-            backend: conf.DefaultBackend,
+            method: conf.DefaultMethod,
             sidebar: 'connect',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
@@ -226,8 +226,8 @@ export default {
             }
         },
 
-        setBackend(key) {
-            this.backend = key;
+        setMethod(key) {
+            this.method = key;
         },
 
         /**
@@ -256,7 +256,7 @@ export default {
 
         handleOptionSelect(key, value) {
             switch (key) {
-                case 'method': this.setBackend(value); break;
+                case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': this.setTheme(value); break;
                 default: break;

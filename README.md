@@ -12,7 +12,7 @@ This repository includes software developed in the course of the project "Offene
 
 ## About
 
-The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and multiple "backends" connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
+The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 ![OPACA LLM UI Screenshot](docs/img/opaca-llm-ui.png)
 
@@ -57,37 +57,37 @@ The OPACA LLM provides a RESTful API for most requests, while also providing a w
 
 #### General routes
 
-* `GET /backends`: Returns a list of available "backends", i.e. LLM prompting methods.
+* `GET /methods`: Returns a list of available LLM prompting methods.
 * `POST /connect`: Attempts to establish a connection to the given OPACA platform.
 * `POST /disconnect`: Severs the connection to the currently connected OPACA platform.
 * `GET /actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
 * `POST /upload`: Add files to be taken into account with the next requests.
 * `POST /stop`: Stop all generation currently in progress for the session.
-* `POST /query/{backend}`: Asks selected `backend` (prompting method) to generate an answer based on the given user query. This is independent of any existing chat histories (see below).
+* `POST /query/{method}`: Asks selected prompting method to generate an answer based on the given user query. This is independent of any existing chat histories (see below).
 
 #### Chat routes
 
 * `GET /chats`: Returns a list of all chats associated with the current session, but without their full message histories.
 * `GET /chats/{chat_id}`: Returns the full message history and other details for the given chat.
-* `POST /chats/{chat_id}/query/{backend}`: Makes a query to the given backend (prompting method) using a user query and the given chat's message history. The result is returned once, in full.
-* `WEBSOCKET /chats/{chat_id}/stream/{backend}`: Streaming version of the route above. Here, some intermediate status messages as well as the final result message are streamed back to the user.
+* `POST /chats/{chat_id}/query/{method}`: Makes a query to the given prompting method using a user query and the given chat's message history. The result is returned once, in full.
+* `WEBSOCKET /chats/{chat_id}/stream/{method}`: Streaming version of the route above. Here, some intermediate status messages as well as the final result message are streamed back to the user.
 * `PUT /chats/{chat_id}`: Used to update a chat's displayed name.
 * `DELETE /chats/{chat_id}`: Deletes the given chat.
 
 #### Config routes
 
-* `GET /config/{backend}`: Get the configuration of that prompting method (e.g. the used model).
-* `PUT /config/{backend}`: Update the configuration of that prompting method (e.g. the used model).
-* `DELETE /config/{backend}`: Reset the configuration of that prompting method (e.g. the used model) to the default values.
+* `GET /config/{method}`: Get the configuration of that prompting method (e.g. the used model).
+* `PUT /config/{method}`: Update the configuration of that prompting method (e.g. the used model).
+* `DELETE /config/{method}`: Reset the configuration of that prompting method (e.g. the used model) to the default values.
 
 You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
 
 
 ### Sessions, Message History and Configuration
 
-The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM backends, i.e. if the performance of one backend is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them, and search in past and current chats.
+The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM prompting method, i.e. if the performance of one method is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them, and search in past and current chats.
 
-To reset the configuration, a user can click the "Reset to Default" button in the configuration view, which resets the configuration for the currently selected backend to its default values.
+To reset the configuration, a user can click the "Reset to Default" button in the configuration view, which resets the configuration for the currently selected method to its default values.
 
 The Session ID is stored as a Cookie in the frontend and sent to the backend. On the first request, when no Cookie is set, the backend will create a new random Session ID and associated session data and set the Session ID as a Cookie in the response. It will then automatically be used by the frontend in all subsequent requests.
 
@@ -105,7 +105,7 @@ The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using eith
 
 ## Configuration and Parameters
 
-The OPACA LLM can be configured in various ways using the `config.js` file in the Frontend directory. Here, you can configure, among others, the default OPACA Platform to connect to, which sample questions to show, which backend options to show, as well as some UI settings. Some of those settings can also be configured using Environment Variables (see next section), while others can be overwritten using Query parameters (i.e. appending `?abc=foo&xyz=bar` to the request URL):
+The OPACA LLM can be configured in various ways using the `config.js` file in the Frontend directory. Here, you can configure, among others, the default OPACA Platform to connect to, which sample questions to show, as well as some UI settings. Some of those settings can also be configured using Environment Variables (see next section), while others can be overwritten using Query parameters (i.e. appending `?abc=foo&xyz=bar` to the request URL):
 
 * `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
 * `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `info` (summary of OPACA platform), `questions` (sample questions), `agents` (agents and actions), `config`, `debug`, or `faq`.
@@ -122,7 +122,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 * `VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
 * `VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
-* `VITE_DEFAULT_BACKEND`: The default backend to use, see options in `config.js`
+* `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.js`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.

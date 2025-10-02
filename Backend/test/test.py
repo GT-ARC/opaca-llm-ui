@@ -89,7 +89,7 @@ def test_chat_histories():
 
     chat_histories = [client.get_chat_history(chat["chat_id"]) for chat in chats]
     print(chat_histories)
-    assert all(len(chat["messages"]) == 4 for chat in chat_histories)
+    assert all(len(chat["responses"]) == 2 for chat in chat_histories)
 
     res = client.delete_chat("does-not-exist")
     assert res == False

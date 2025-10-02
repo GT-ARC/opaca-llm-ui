@@ -77,16 +77,6 @@ class Action:
                 f'Custom Types: {self.custom_params}}}')
 
 
-def get_supported_models():
-    return [
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"), 
-            os.getenv("LLM_APIKEYS", "").split(";"), 
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
-        )
-    ]
-
 
 def add_dicts(d1: dict, d2: dict) -> dict:
     result = {}
@@ -191,7 +181,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
     """
     Validates the given input values against the Configuration Schema
     :param values: The input dict of configuration parameters that was sent by the UI
-    :param schema: The schema of the selected backend that the parameters should affect
+    :param schema: The schema of the selected prompting method that the parameters should affect
     :return: Returns true if everything was successfully validated, false otherwise
     """
 
