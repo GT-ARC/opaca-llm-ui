@@ -9,6 +9,7 @@ class SidebarManager {
         'none',
         'info',
         'chats',
+        'files',
         'questions',
         'agents',
         'config',
