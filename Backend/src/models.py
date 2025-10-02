@@ -370,7 +370,7 @@ class ContainerLoginNotification(BaseModel):
     """
     status: int
     type: str
-    message: str = ""
+    container_name: str = ""
     tool_name: str = ""
     retry: bool = False
 

@@ -141,7 +141,7 @@
     <div v-if="showContainerLogin" class="auth-overlay">
         <div class="dropdown-menu show p-4 login-container">
             <form @submit.prevent="submitContainerLogin">
-                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.tool_name }}</h5>
+                <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
                 <input
                         v-model="containerLoginUser"
                         type="text"

@@ -501,8 +501,8 @@ export default {
         },
 
         submitContainerLogin(containerLoginUser, containerLoginPassword) {
-            const containerLoginData = JSON.stringify({username: containerLoginUser, password: containerLoginPassword});
-            this.socket.send(containerLoginData);
+            const containerLoginDetails = JSON.stringify({username: containerLoginUser, password: containerLoginPassword});
+            this.socket.send(containerLoginDetails);
         },
 
 
