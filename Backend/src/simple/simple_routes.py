@@ -12,7 +12,7 @@ SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
 
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
-You are given the list of actions at the end of this prompt.
+You are given the list of actions at the end of this prompt. If you see this list, it means you indeed have access.
 Do not assume any other services.
 If those services are not sufficient to solve the problem, just say so.
 
@@ -26,13 +26,14 @@ In order to invoke an action with parameters, output the following JSON format a
     }}
 }}
 
-The result of the action invocation is then fed back into the prompt as a system message.
-If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
-Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
-
 It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
 So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..., now calling ..."!
-Again, in order to call a service, your response must ONLY contain the JSON and nothing else.
+
+The result of the action invocation is then fed back into the prompt as a system message.
+If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
+
+Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
+So only after you got the answer to the user's request, provide it in plain text.
 
 {policy}
 
@@ -45,6 +46,17 @@ ask_policies = {
     "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
+
+FALLBACK_PROMPT = """
+You are an assistant, called the 'OPACA-LLM'.
+
+Users expect you to have access to some 'agents', providing different 'actions' to fulfill a given purpose.
+
+But if you see this message, it means they are not connected to the OPACA platform providing these services.
+Your task now is to assess whether the user request can be fulfilled without any external services or not.
+If possible, help them directly. Otherwise explain that you do not have access to the needed actions, 
+and that they need to connect to a running OPACA platform.
+"""
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +72,20 @@ class SimpleBackend(AbstractMethod):
         config = session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
 
-        prompt = SYSTEM_PROMPT.format(
-            policy=ask_policies[config["ask_policy"]],
-            actions=await self.get_actions(session),
-        )
-        
+        actions = await self.get_actions(session)
+
+        if actions:
+            prompt = SYSTEM_PROMPT.format(
+                policy=ask_policies[config["ask_policy"]],
+                actions=actions,
+            )
+        else:
+            prompt = FALLBACK_PROMPT
+            logger.info("USING FALLBACK PROMPT")
+
         while response.iterations < max_iters:
             response.iterations += 1
-            
+
             result = await self.call_llm(
                 session=session,
                 model=config["model"],
@@ -96,7 +114,7 @@ class SimpleBackend(AbstractMethod):
                 ))
                 if websocket:
                     await websocket.send_json(response.agent_messages[-1].model_dump_json())
-                
+
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
                 response.agent_messages.append(AgentMessage(agent="assistant", content=f"There was an error: {e}"))
