@@ -375,6 +375,20 @@ class ContainerLoginNotification(BaseModel):
     retry: bool = False
 
 
+class ContainerLoginResponse(BaseModel):
+    """
+    Response to ContainerLoginNotification
+
+    Attributes:
+        username: username to use for container login
+        password: password to use for container login
+        containerLoginTimeout: automatically logout after this many seconds
+    """
+    username: str
+    password: str
+    timeout: int
+
+
 def get_supported_models():
     return [
         (url, key, models.split(","))

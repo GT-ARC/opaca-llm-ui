@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, get_supported_models, ContainerLoginNotification
+    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
 from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
@@ -226,20 +226,20 @@ class AbstractMethod(ABC):
                     tool_name=tool_name,
                     retry=login_attempt_retry
                 ).model_dump_json())
-                data = await self.websocket.receive_json()
+                response = ContainerLoginResponse(**await self.websocket.receive_json())
 
                 # Check if credentials were provided
-                if not data.get("username") or not data.get("password"):
+                if not response.username or not response.password:
                     return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
 
                 # Send credentials to container via OPACA
-                await self.session.opaca_client.container_login(data.get("username"), data.get("password"), container_id)
+                await self.session.opaca_client.container_login(response.username, response.password, container_id)
 
                 # try to invoke the tool again
                 res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
                 # auto-logout after some time
-                asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, data.get("containerLoginTimeout", 300)))
+                asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, response.timeout))
 
                 return res
         except Exception as e:
