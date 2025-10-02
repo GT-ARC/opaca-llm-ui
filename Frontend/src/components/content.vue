@@ -124,6 +124,7 @@
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
+                            @paste="handlePaste"
                             ref="textInputRef"
                         />
                     </div>
@@ -715,6 +716,28 @@ export default {
             await this.loadHistory(chatId);
             await this.scrollToMessage(messageId);
         },
+
+        async handlePaste(event) {
+            const items = event.clipboardData.items;
+
+            const files = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === "file") {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+
+            if (files.length > 0) {
+                // Prevent from being inserted into the input
+                event.preventDefault();
+
+                await this.uploadFiles(files);
+            }
+            // If no file found, let normal paste happen
+        }
 
     },
 
