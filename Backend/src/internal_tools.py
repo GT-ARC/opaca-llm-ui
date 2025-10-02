@@ -9,11 +9,12 @@ this, it would be good if those would have access to the same session. Not sure 
 """
 
 import asyncio
-import httpx
 import logging
 
 from pydantic import BaseModel
 from typing import Callable
+
+from .models import SessionData, Chat
 
 
 MAGIC_NAME = "LLM-Assistant"
@@ -31,8 +32,9 @@ class InternalTool(BaseModel):
 
 class InternalTools:
 
-    def __init__(self, session_id):
-        self.session_id = session_id
+    def __init__(self, session: SessionData, agent_method):
+        self.session = session
+        self.agent_method = agent_method
         self.tools = [
             InternalTool(
                 name="ExecuteLater",
@@ -87,18 +89,16 @@ class InternalTools:
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS
 
-    async def tool_execute_later(self, query, offset_seconds) -> str:
+    async def tool_execute_later(self, query: str, offset_seconds: int) -> str:
         async def _callback():
             logger.info("WAITING...")
             await asyncio.sleep(offset_seconds)
             logger.info("CALLING LLM NOW...")
-            async with httpx.AsyncClient() as client:
-                res = await client.post(
-                    "http://10.42.4.246:3001/query/simple",
-                    json={"user_query": query},
-                    cookies={"session_id": self.session_id}
-                )
-                logger.info("RESULT", res.text)
+            try:
+                res = await self.agent_method.query(query, Chat(chat_id=''))
+                logger.info(f"EXECUTE LATER RESULT: {res.text}")
+            except Exception as e:
+                logger.error(f"EXECUTE LATER FAILED: {e}")
 
         asyncio.create_task(_callback())
-        return "callback created"
+        return True

@@ -21,7 +21,7 @@ class AbstractMethod(ABC):
     def __init__(self, session: SessionData, websocket: WebSocket | None):
         self.session = session
         self.websocket = websocket
-        self.internal_tools = InternalTools(session.session_id)
+        self.internal_tools = InternalTools(session, self)
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
