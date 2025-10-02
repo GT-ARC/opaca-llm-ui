@@ -139,31 +139,31 @@
 
     <!-- Container Login Context -->
     <div v-if="showContainerLogin" class="auth-overlay">
-        <div class="dropdown-menu show p-4">
+        <div class="dropdown-menu show p-4 login-container">
             <form @submit.prevent="submitContainerLogin">
-                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.container_id }}</h5>
+                <h5 class="mb-3">{{ Localizer.get('containerLoginMessage') + this.containerLoginDetails.tool_name }}</h5>
                 <input
                         v-model="containerLoginUser"
                         type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
+                        :class="['form-control', 'mb-2', { 'is-invalid': containerLoginError}]"
                         :placeholder="Localizer.get('username')"
-                        @input="loginError = false"
+                        @input="containerLoginError = false"
                 />
                 <input
                         v-model="containerLoginPassword"
                         type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
+                        :class="['form-control', 'mb-3', { 'is-invalid': containerLoginError}]"
                         :placeholder="Localizer.get('password')"
-                        @input="loginError = false"
+                        @input="containerLoginError = false"
                 />
-                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
                     {{ Localizer.get('authError') }}
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)">
+                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)" :disabled="!containerLoginUser || !containerLoginPassword">
                     <span>{{ Localizer.get('submit') }}</span>
                 </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="submitContainerLogin(false)">
+                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitContainerLogin(false)">
                     {{ Localizer.get('cancel') }}
                 </button>
             </form>
@@ -218,6 +218,7 @@ export default {
             containerLoginDetails: null,
             containerLoginUser: "",
             containerLoginPassword: "",
+            containerLoginError: false,
         }
     },
     methods: {
@@ -303,8 +304,9 @@ export default {
         },
 
         handleContainerLogin(containerLoginDetails) {
-            this.showContainerLogin = true;
             this.containerLoginDetails = containerLoginDetails;
+            this.containerLoginError = this.containerLoginDetails.retry;
+            this.showContainerLogin = true;
         },
 
         submitContainerLogin(submitCredentials) {
@@ -312,9 +314,9 @@ export default {
 
             // If the credentials should be submitted
             if (submitCredentials) {
-                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginDetails.container_id);
+                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword);
             } else {
-                this.$refs.content.submitContainerLogin("", "", this.containerLoginDetails.container_id)
+                this.$refs.content.submitContainerLogin("", "")
             }
 
             // Reset the input fields
@@ -442,6 +444,13 @@ header {
 
 .dropdown-menu > li:hover > .dropdown-submenu {
     display: block;
+}
+
+/* login stuff */
+.login-container {
+    max-width: 400px;
+    width: 100%;
+    margin: auto;
 }
 
 /* navbar stuff */

@@ -197,7 +197,7 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
 
-    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
@@ -213,13 +213,19 @@ class AbstractMethod(ABC):
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
-            if self.websocket and ("401" in cause or "403" in cause):
+            if self.websocket and ("401" in cause or "403" in cause or "credentials" in cause):
 
                 # If a "missing credentials" error is encountered, initiate container login
                 container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
                 # Get credentials from user
-                await self.websocket.send_json(ContainerLoginNotification(status=401, type="missing_credentials", message=f"Please provide credentials to the container '{container_name}'.", container_id=container_id).model_dump_json())
+                await self.websocket.send_json(ContainerLoginNotification(
+                    status=401,
+                    type="missing_credentials",
+                    message=f"Please provide credentials to the container '{container_name}'.",
+                    tool_name=tool_name,
+                    retry=login_attempt_retry
+                ).model_dump_json())
                 data = await self.websocket.receive_json()
 
                 # Check if credentials were provided
@@ -227,10 +233,10 @@ class AbstractMethod(ABC):
                     return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
 
                 # Send credentials to container via OPACA
-                await self.session.opaca_client.container_login(data.get("username"), data.get("password"), data.get("container_id"))
+                await self.session.opaca_client.container_login(data.get("username"), data.get("password"), container_id)
 
                 # try to invoke the tool again
-                res = await self.invoke_tool(tool_name, tool_args, tool_id)
+                res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
                 # auto-logout after some time
                 asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, 60))

@@ -419,7 +419,8 @@ export default {
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
             // If a container login is required
-            if (result.hasOwnProperty('container_id')) {
+            console.log(result.status);
+            if (result.status === 401) {
                 this.$emit('container-login-required', result);
                 return
             }
@@ -499,8 +500,8 @@ export default {
             }
         },
 
-        submitContainerLogin(containerLoginUser, containerLoginPassword, containerId) {
-            const containerLoginData = JSON.stringify({username: containerLoginUser, password: containerLoginPassword, container_id: containerId});
+        submitContainerLogin(containerLoginUser, containerLoginPassword) {
+            const containerLoginData = JSON.stringify({username: containerLoginUser, password: containerLoginPassword});
             this.socket.send(containerLoginData);
         },
 
