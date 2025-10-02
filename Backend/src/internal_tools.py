@@ -10,9 +10,11 @@ this, it would be good if those would have access to the same session. Not sure 
 
 import asyncio
 import logging
+import json
 
 from pydantic import BaseModel
 from typing import Callable
+from textwrap import dedent
 
 from .models import SessionData, Chat
 
@@ -42,7 +44,21 @@ class InternalTools:
                 params={"query": "string", "offset_seconds": "integer"},
                 result="boolean",
                 function=self.tool_execute_later,
-            )
+            ),
+            InternalTool(
+                name="GatherUserInfo",
+                description="Compiles a short expose about the current chat user from this and past interactions, their personal situation, preferences, etc..",
+                params={},
+                result="string",
+                function=self.gather_user_infos,
+            ),
+            InternalTool(
+                name="SearchChats",
+                description="Search this and past interactions about information on the given topic and summarize the findings.",
+                params={"search_query": "string"},
+                result="string",
+                function=self.search_chats,
+            ),
         ]
 
     def get_internal_tools_simple(self) -> dict[str, dict]:
@@ -102,3 +118,24 @@ class InternalTools:
 
         asyncio.create_task(_callback())
         return True
+
+    async def search_chats(self, search_query: str) -> str:
+        messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]
+        query = dedent(f"""
+        In the following is the full transcript of all past interactions between the User and the LLM Assistant:
+        
+        {json.dumps(messages, indent=2)}
+
+        Use this transcript to answer the following query:
+
+        {search_query}
+        """)
+        try:
+            res = await self.agent_method.query(query, Chat(chat_id=''))
+            return res.content
+        except Exception as e:
+            return f"Search failed: {e}"
+
+    async def gather_user_infos(self) -> str:
+        search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc..",
+        return await self.search_chats(search_query)
