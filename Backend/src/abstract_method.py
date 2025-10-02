@@ -239,7 +239,7 @@ class AbstractMethod(ABC):
                 res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
                 # auto-logout after some time
-                asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, 60))
+                asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, data.get("containerLoginTimeout", 300)))
 
                 return res
         except Exception as e:

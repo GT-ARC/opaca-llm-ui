@@ -462,6 +462,7 @@ export default {
 
             this.startAutoSpeak();
             this.isFinished = true;
+            this.socket.close();
             this.scrollDownChat();
             await this.$refs.sidebar.$refs.chats.updateChats();
         },
@@ -500,8 +501,12 @@ export default {
             }
         },
 
-        submitContainerLogin(containerLoginUser, containerLoginPassword) {
-            const containerLoginDetails = JSON.stringify({username: containerLoginUser, password: containerLoginPassword});
+        submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
+            const containerLoginDetails = JSON.stringify({
+                username: containerLoginUser,
+                password: containerLoginPassword,
+                timeout: containerLoginTimeout,
+            });
             this.socket.send(containerLoginDetails);
         },
 

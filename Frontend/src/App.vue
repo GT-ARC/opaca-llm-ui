@@ -156,6 +156,12 @@
                         :placeholder="Localizer.get('password')"
                         @input="containerLoginError = false"
                 />
+                <select v-model="containerLoginTimeout" class="form-select mb-3">
+                    <option value="300">5 minutes</option>
+                    <option value="1800">30 minutes</option>
+                    <option value="3600">1 hour</option>
+                    <option value="14400">4 hours</option>
+                </select>
                 <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
                     {{ Localizer.get('authError') }}
                 </div>
@@ -219,6 +225,7 @@ export default {
             containerLoginUser: "",
             containerLoginPassword: "",
             containerLoginError: false,
+            containerLoginTimeout: 300,
         }
     },
     methods: {
@@ -314,9 +321,9 @@ export default {
 
             // If the credentials should be submitted
             if (submitCredentials) {
-                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword);
+                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginTimeout);
             } else {
-                this.$refs.content.submitContainerLogin("", "")
+                this.$refs.content.submitContainerLogin("", "", 0)
             }
 
             // Reset the input fields
