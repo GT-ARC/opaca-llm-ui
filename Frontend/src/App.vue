@@ -157,10 +157,11 @@
                         @input="containerLoginError = false"
                 />
                 <select v-model="containerLoginTimeout" class="form-select mb-3">
-                    <option value="300">5 minutes</option>
-                    <option value="1800">30 minutes</option>
-                    <option value="3600">1 hour</option>
-                    <option value="14400">4 hours</option>
+                    <option value="0">Logout immediately</option>
+                    <option value="300">Logout after 5 minutes</option>
+                    <option value="1800">Logout after 30 minutes</option>
+                    <option value="3600">Logout after 1 hour</option>
+                    <option value="14400">Logout after 4 hours</option>
                 </select>
                 <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
                     {{ Localizer.get('authError') }}

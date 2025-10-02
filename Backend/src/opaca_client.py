@@ -99,11 +99,14 @@ class OpacaClient:
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
         """Initiate container login for OPACA RP"""
-        await asyncio.sleep(delay_seconds)
-        logger.info(f"Logout of container {container_id}")
-        async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
-        res.raise_for_status()
+        try:
+            await asyncio.sleep(delay_seconds)
+        finally:
+            # make sure that logout still happens even if backend is shut down
+            logger.info(f"Logout of container {container_id}")
+            async with httpx.AsyncClient() as client:
+                res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
+            res.raise_for_status()
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
         """Get most likely container id and name for given agent and action. Returns empty string if no match found."""
