@@ -124,6 +124,7 @@
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
+                            @paste="handlePaste"
                             ref="textInputRef"
                         />
                     </div>
