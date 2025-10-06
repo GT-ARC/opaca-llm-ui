@@ -1,19 +1,15 @@
 import json
 import logging
-import os
-import re
 import time
-import io
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
-from openai import AsyncOpenAI
-from openai.lib import ResponseFormatT
-from pydantic import ValidationError
+from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, Response, AgentMessage, ChatMessage, OpacaException
-from .utils import transform_schema
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall, get_supported_models
+from .utils import transform_schema, openapi_to_functions
+from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
 
@@ -21,29 +17,29 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
-    @property
-    @abstractmethod
-    def config_schema(self) -> Dict[str, ConfigParameter]:
+    def __init__(self, session: SessionData, websocket: WebSocket | None):
+        self.session = session
+        self.websocket = websocket
+
+    @classmethod
+    def config_schema(cls) -> Dict[str, ConfigParameter]:
         pass
 
-    async def init_models(self, session: SessionData) -> None:
-        """
-        Initializes and caches single model instance based on the config parameter 'vllm_base_url'.
-        The GPT model family can use the same instance (gpt, o1, o3, ...).
-        Models are cached within the session data linked to a unique user.
+    @staticmethod
+    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
+        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
+        return ConfigParameter(
+            name=name,
+            description=description,
+            type="string",
+            required=True,
+            default=models[0],
+            enum=models,
+            free_input=True,
+        )
 
-        :param session: The current session data of a unique user
-        """
-        # Initialize either OpenAI model or vllm model
-        base_url = session.config.get(self.NAME, self.default_config())["vllm_base_url"]
-        if base_url not in session.llm_clients.keys():
-            if base_url == "gpt":
-                session.llm_clients[base_url] = AsyncOpenAI()  # Uses api key stored in OPENAI_API_KEY
-            else:
-                session.llm_clients[base_url] = AsyncOpenAI(api_key=os.getenv("VLLM_API_KEY"), base_url=base_url)
-
-
-    def default_config(self):
+    @classmethod
+    def default_config(cls):
         def extract_defaults(schema):
             # Extracts the default values of nested configurations
             if isinstance(schema, ConfigParameter):
@@ -54,21 +50,19 @@ class AbstractMethod(ABC):
             else:
                 return schema
 
-        return {key: extract_defaults(value) for key, value in self.config_schema.items()}
+        return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
-    async def query(self, message: str, session: SessionData) -> Response:
-        return await self.query_stream(message, session)
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
+        return await self.query_stream(message, chat)
 
     @abstractmethod
-    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
 
     async def call_llm(
             self,
-            session: SessionData,
-            client: AsyncOpenAI,
             model: str,
             agent: str,
             system_prompt: str,
@@ -76,30 +70,31 @@ class AbstractMethod(ABC):
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
-            response_format: Optional[Type[ResponseFormatT]] = None,
-            guided_choice: Optional[List[str]] = None,
-            websocket: Optional[WebSocket] = None,
+            response_format: Optional[Type[BaseModel]] = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
             session (SessionData): The current session
-            client (AsyncOpenAI): An already initialized OpenAI client.
-            model (str): Model name (e.g., "gpt-4-turbo").
+            model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
-            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", or tool name).
-            response_format (Optional[Type[ResponseFormatT]]): Optional Pydantic schema to validate response.
-            guided_choice (Optional[List[str]]): List of strings for the model to pick from.
+            tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
+            response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
+        try:
+            url, model = map(str.strip, model.split("::"))
+        except Exception:
+            raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
+        client = self.session.llm_client(url)
 
         # Initialize variables
         exec_time = time.time()
@@ -107,151 +102,85 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        # Upload all unsent files
-        for filename, filedata in session.uploaded_files.items():
-            if not filedata.file_id:
-                # prepare file for upload
-                file_bytes = filedata._content.getvalue()   # Access private content
-                file_obj = io.BytesIO(file_bytes)
-                file_obj.name = filename  # Required by OpenAI SDK
-
-                # Upload the file
-                uploaded = await client.files.create(file=file_obj, purpose="assistants")
-                logger.info(f"Uploaded file ID={uploaded.id} for {filename}")
-                filedata.file_id = uploaded.id
-
-        file_message_parts = [
-            {"type": "file", "file": {"file_id": file.file_id}}
-            for file in session.uploaded_files.values()
-        ]
+        file_message_parts = await upload_files(self.session, url)
 
         # Modify the last user message to include file parts
         if file_message_parts:
-            messages[-1].content = file_message_parts + [{"type": "text", "text": messages[-1].content}]
-        
+            messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
+
+        # Set a custom response format schema if provided, else expect plain text
+        r_format = transform_schema(response_format.model_json_schema()) if response_format else \
+            {'format': {'type': 'text'}}
+
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'messages': [ChatMessage(role="system", content=system_prompt), *messages],
+            'input': [ChatMessage(role="system", content=system_prompt), *messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
+            'text': r_format,
+            'stream': True
         }
 
-        # o1/o3 don't support temperature param
-        if not model.startswith(('o1', 'o3')):
+        # If tool_choice is set to "only", use "auto" for external API call
+        if tool_choice == "only":
+            kwargs['tool_choice'] = 'auto'
+
+        # o1/o3/o4/gpt-5 don't support temperature param
+        if not model.startswith(('o1', 'o3', 'o4', 'gpt-5')):
             kwargs['temperature'] = temperature
 
-        # There is currently no token streaming available when using built-in response format
-        # Handle structured response parsing
-        if response_format:
-            if self._is_gpt(model):
-                completion = await client.beta.chat.completions.parse(
-                    **kwargs, response_format=response_format
-                )
-                content = completion.choices[0].message.content
-                agent_message.formatted_output = completion.choices[0].message.parsed
-            else:
-                guided_json = transform_schema(response_format.model_json_schema())
-                kwargs['extra_body'] = {'guided_json': guided_json}
-                kwargs['messages'][0].content += (f"\nYou MUST provide your response as a JSON object that follows "
-                                                  f"this schema. Your response must include ALL required fields.\n\n"
-                                                  f"Schema:\n{json.dumps(guided_json, indent=2)}\nDO NOT return "
-                                                  f"the schema itself. Return a valid JSON object matching the schema.")
+        # Main stream logic
+        stream = await client.responses.create(**kwargs)
+        async for event in stream:
 
-                completion = await client.chat.completions.create(**kwargs)
-                content = completion.choices[0].message.content
-                cleaned_content = self.extract_json_like_content(content)
-                try:
-                    agent_message.formatted_output = response_format.model_validate_json(cleaned_content)
-                except ValidationError:
-                    agent_message.formatted_output = {}
-            agent_message.response_metadata = completion.usage.to_dict()
-        else:
-            # Handle tool choice options
-            if guided_choice:
-                if self._is_gpt(model):
-                    kwargs['messages'][0].content += (
-                        f"\nYou MUST select one AND ONLY ONE of these choices to answer "
-                        f"the request:\n\n {json.dumps(guided_choice, indent=2)} \n\n "
-                        f"ONLY ANSWER WITH THE CHOICE AND NOTHING ELSE!")
-                else:
-                    kwargs["extra_body"] = {"guided_choice": guided_choice}
+            # New tool call generation started, including the complete function call name
+            if event.type == 'response.output_item.added' and event.item.type == 'function_call':
+                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
+                tool_call_buffers[event.output_index] = ""
 
-            # Enable streaming and include token usage
-            kwargs['stream'] = True
-            kwargs['stream_options'] = {'include_usage': True}
+            # Tool call argument chunk received
+            elif event.type == 'response.function_call_arguments.delta':
+                # We assume that the entry has been created already
+                tool_call_buffers[event.output_index] += event.delta
 
-            completion = await client.chat.completions.create(**kwargs)
-            async for chunk in completion:
-
-                if session.abort_sent:
-                    raise OpacaException(
-                        user_message="(The generation of the response has been stopped.)",
-                        error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
-                    )
-
-                # Usage is present in the last chunk so break once it is available
-                if usage := chunk.usage:
-                    agent_message.response_metadata = usage.to_dict()
+            # Plain text chunk received
+            elif event.type == 'response.output_text.delta':
+                if tool_choice == "only":
                     break
+                agent_message.content = event.delta
+                content += event.delta
 
-                choice = chunk.choices[0].delta
-                tool_calls = choice.tool_calls
+            # Final message received
+            elif event.type == 'response.completed':
+                # If a response format was provided, try to cast the response to the provided schema
+                if response_format:
+                    try:
+                        agent_message.formatted_output = response_format.model_validate_json(content)
+                    except json.decoder.JSONDecodeError:
+                        raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+                # Capture token usage
+                agent_message.response_metadata = event.response.usage.to_dict()
 
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        tool_call_id = tool_call.id
+            # Final tool call chunk received
+            elif event.type == 'response.function_call_arguments.done':
+                # Try to transform function arguments into JSON
+                try:
+                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    agent_message.tools[-1].args = {}
 
-                        if tool_call_id:
-                            tool_call_buffers[tool_call_id] = {
-                                'name': tool_call.function.name,
-                                'arguments': tool_call.function.arguments or '',
-                            }
-                        else:
-                            last_tool_call = next(reversed(tool_call_buffers.values()), None)
-                            if last_tool_call:
-                                # If the full arguments were generated (happens in mistral models)
-                                # then set the arguments rather than append to them
-                                if model.startswith(('gpt', 'o1', 'o3')):
-                                    last_tool_call['arguments'] += tool_call.function.arguments or ''
-                                else:
-                                    try:
-                                        json.loads(tool_call.function.arguments)
-                                        last_tool_call['arguments'] = tool_call.function.arguments
-                                    except json.JSONDecodeError:
-                                        last_tool_call['arguments'] += tool_call.function.arguments or ''
-
-                    agent_message.tools = [
-                        {
-                            'id': i,
-                            'name': function['name'],
-                            'args': function['arguments'],
-                            'result': '',
-                        }
-                        for i, function in enumerate(tool_call_buffers.values())
-                    ]
-                else:
-                    agent_message.content = choice.content or ''
-                    content += choice.content or ''
-                if websocket:
-                    await websocket.send_json(agent_message.model_dump_json())
-
-        # Transform generated arguments into JSON
-        for tool in agent_message.tools:
-            try:
-                tool['args'] = json.loads(tool['args'])
-            except json.JSONDecodeError:
-                tool['args'] = {}
-            if not tool["args"]:
-                tool["args"] = {}
-                continue
+            if self.websocket:
+                await self.websocket.send_json(agent_message.model_dump_json())
+                agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if websocket:
+        if self.websocket:
             agent_message.content = ''
-            await websocket.send_json(agent_message.model_dump_json())
+            await self.websocket.send_json(agent_message.model_dump_json())
 
         agent_message.content = content
 
@@ -264,32 +193,29 @@ class AbstractMethod(ABC):
     def _is_gpt(model: str):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
-    @staticmethod
-    def extract_json_like_content(text: str):
-        """Removes any string content before the first { and after the last }"""
-        match = re.search(r'\{.*}', text, re.DOTALL)
-        return match.group(0) if match else text
 
-    @staticmethod
-    async def invoke_tool(session: SessionData, tool_name: str, tool_args: dict, tool_id: int) -> dict:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
             agent_name, action_name = None, tool_name
-        params = tool_args.get('requestBody', tool_args)
 
         try:
-            t_result = await session.opaca_client.invoke_opaca_action(
+            t_result = await self.session.opaca_client.invoke_opaca_action(
                 action_name,
                 agent_name,
-                params,
+                tool_args,
             )
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        return {
-            "id": tool_id,
-            "name": tool_name,
-            "args": params,
-            "result": t_result
-        }
+        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+
+
+    async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        if len(tools) > max_tools:
+            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
+                      f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
+            tools = tools[:max_tools]
+        return tools, error

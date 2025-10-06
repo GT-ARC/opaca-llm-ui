@@ -1,11 +1,8 @@
 import logging
 import time
 
-from starlette.websockets import WebSocket
-
 from ..abstract_method import AbstractMethod
-from ..models import Response, AgentMessage, SessionData, ConfigParameter, ChatMessage
-from ..utils import openapi_to_functions
+from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat
 from ..prompts import build_full_prompt
 
 
@@ -25,47 +22,38 @@ answer them with the required information. Tools can also be described as servic
 
 logger = logging.getLogger(__name__)
 
-class SimpleToolsBackend(AbstractMethod):
+class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
 
-    async def query_stream(self, message: str, session: SessionData, websocket: WebSocket = None) -> Response:
+    def __init__(self, session, websocket=None):
+        super().__init__(session, websocket)
+
+    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
-        response = Response(query=message)
+        response = QueryResponse(query=message)
 
-        config = session.config.get(self.NAME, self.default_config())
+        config = self.session.config.get(self.NAME, self.default_config())
         max_iters = config["max_rounds"]
         
         # Get tools and transform them into the OpenAI Function Schema
-        try:
-            tools, error = openapi_to_functions(await session.opaca_client.get_actions_openapi(inline_refs=True))
-        except AttributeError as e:
-            response.error = str(e)
-            response.content = "ERROR: It seems you are not connected to a running OPACA platform!"
-            return response
-        if len(tools) > 128:
-            error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
-                      f"of 128. All tools after index 128 will be ignored!\n")
-            tools = tools[:128]
+        tools, error = await self.get_tools()
 
         # initialize message history
-        messages = session.messages.copy()
+        messages = list(chat.messages)
         messages.append(ChatMessage(role="user", content=message))
-                   
+
         while response.iterations < max_iters:
             response.iterations += 1
 
             # call the LLM with function-calling enabled
             result = await self.call_llm(
-                session=session,
-                client=session.llm_clients[config["vllm_base_url"]],
                 model=config["model"],
                 agent="assistant",
                 system_prompt=build_full_prompt(SYSTEM_PROMPT),
                 messages=messages,
                 temperature=config["temperature"],
                 tools=tools,
-                websocket=websocket,
             )
             response.agent_messages.append(result)
 
@@ -74,11 +62,11 @@ class SimpleToolsBackend(AbstractMethod):
                     break
 
                 tool_entries = [
-                    await self.invoke_tool(session, call["name"], call["args"], response.iterations)
+                    await self.invoke_tool(call.name, call.args, response.iterations)
                     for call in result.tools
                 ]
                 tool_contents = "\n".join(
-                    f"The result of tool '{tool['name']}' with parameters '{tool['args']}' was: {tool['result']}"
+                    f"The result of tool '{tool.name}' with parameters '{tool.args}' was: {tool.result}"
                     for tool in tool_entries
                 )
                 messages.append(ChatMessage(
@@ -92,17 +80,36 @@ class SimpleToolsBackend(AbstractMethod):
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
                 response.agent_messages.append(AgentMessage(agent="system", content=error))
-                response.error = +str(e)
+                response.error += f"{e}\n"
+        else:
+            response.error += "Maximum number of iterations reached.\n"
 
         response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
 
-    @property
-    def config_schema(self) -> dict:
+    @classmethod
+    def config_schema(cls) -> dict:
         return {
-            "model": ConfigParameter(type="string", required=True, default="gpt-4o-mini"),
-            "temperature": ConfigParameter(type="number", required=True, default=0.0, minimum=0.0, maximum=2.0),
-            "vllm_base_url": ConfigParameter(type="string", required=False, default='gpt'),
-            "max_rounds": ConfigParameter(type="integer", required=True, default=5, minimum=1, maximum=10),
+            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
+            "temperature": ConfigParameter(
+                name="Temperature",
+                description="Temperature for the models",
+                type="number",
+                required=True,
+                default=0.0,
+                minimum=0.0,
+                maximum=2.0,
+                step=0.1,
+            ),
+            "max_rounds": ConfigParameter(
+                name="Max Rounds",
+                description="Maximum number of retries",
+                type="integer",
+                required=True,
+                default=5,
+                minimum=1,
+                maximum=10,
+                step=1,
+            ),
         }

@@ -43,6 +43,7 @@
     "openai": "^4.0.1",
     "simple-keyboard": "^3.7.18",
     "socket.io": "^4.7.2",
+    "uuid": "^11.1.0",
     "vue": "^3.3.4",
     "vue-final-modal": "^4.4.5"
   },

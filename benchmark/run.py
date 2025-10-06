@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import json
 import os
+import re
 import socket
 import sys
 from typing import List
@@ -35,8 +36,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
-    parser.add_argument("-b", "--backend", type=str, default="tool-llm", help="Specify the backend that should be used.")
-    parser.add_argument("-m", "--model", type=str, default="gpt-4o-mini", help="Specifies the model that will be used with the backend. If backend is 'multi-agent', defines the model setting that will be used.")
+    parser.add_argument("-b", "--method", type=str, default="tool-llm", help="Specify the prompting method (formerly 'backend') that should be used.")
+    parser.add_argument("-m", "--model", type=str, default="openai::gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
@@ -211,7 +212,7 @@ async def evaluate_tools(_actual_tools, _expected_tools):
     return result
 
 
-async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backend: str, model: str, use_judge: bool, progress: Progress, task_id: TaskID):
+async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method: str, model: str, use_judge: bool, progress: Progress, task_id: TaskID):
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
@@ -224,24 +225,28 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
         # Get default config and overwrite the model
         try:
-            config = json.loads((await session.get(llm_url + f'/{backend}/config')).content)["value"]
-            if backend == "self-orchestrated":
-                config["model_config_name"] = model
+            config = json.loads((await session.get(llm_url + f'/config/{method}')).content)["config_values"]
+            if method == "self-orchestrated":
+                config["orchestrator_model"] = model
+                config["worker_model"] = model
+                config["evaluator_model"] = model
+                config["generator_model"] = model
+            elif method == "tool-llm":
+                config["tool_gen_model"] = model
+                config["tool_eval_model"] = model
             else:
                 config["model"] = model
-            await session.put(llm_url + f'/{backend}/config', json=config)
+            await session.put(llm_url + f'/config/{method}', json=config)
         except Exception as e:
-            logging.error(f'Failed to get default config from OPACA-LLM. Does the backend ("{backend}")? exist?')
+            logging.error(f'Failed to get default config from OPACA-LLM. Does the method ("{method}")? exist?')
             raise RuntimeError(str(e))
-
-        agent_time = defaultdict(float)
 
         results = []
 
         for i, call in enumerate(question_set):
             # Generate a response by the OPACA LLM
             server_time = time.time()
-            result = await session.post(f'{llm_url}/{backend}/query', json={'user_query': call["input"]}, timeout=None)
+            result = await session.post(f'{llm_url}/query/{method}', json={'user_query': call["input"]}, timeout=None)
             result = result.content
             server_time = time.time() - server_time
 
@@ -253,6 +258,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
                 continue
 
             # Accumulate the time of each agent
+            agent_time = defaultdict(float)
             for agent_message in result["agent_messages"]:
                 agent_time[f'{agent_message["agent"]}'] += agent_message["execution_time"]
 
@@ -282,9 +288,6 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, backen
 
             # Evaluate the tools against the expected tools
             results[-1]["tool_matches"] = await evaluate_tools(results[-1]["tools"], call["tools"])
-
-            # Reset the message history
-            await session.post(llm_url + "/reset", timeout=None)
 
             # Update progress bar
             progress.advance(task_id)
@@ -357,7 +360,7 @@ async def main():
 
     # Extract arguments
     scenario = args.scenario
-    backend = args.backend
+    method = args.method
     model = args.model
     opaca_url = args.opaca_url
     iterations = args.iterations
@@ -390,8 +393,14 @@ async def main():
         logging.error(f'The scenario "{scenario}" is not supported.')
         exit(1)
 
+    # Check if the model is in the correct format
+    if not re.match(r'^[^:]+(?::[^:]+)*::[^:]+(?:.*[^:])?$', model):
+        logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
+                      f'<base_url>::<model_name>. For OpenAI models you can use "openai" as base_url.')
+        exit(1)
+
     # Create a unique file name for the results
-    file_name = f'{scenario}-{model}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = f'{scenario}-{model.split("::")[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
@@ -420,7 +429,7 @@ async def main():
         tasks = [progress.add_task(f'Chunk-{i}', total=len(data)) for i, data in enumerate(chunks)]
 
         # Execute Tests and combine results
-        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, backend, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
+        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, method, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
         q_results = flatten(q_results)
 
         # Init benchmark values
@@ -447,7 +456,7 @@ async def main():
 
         # Create a summary of the test run
         result = {"questions": q_results, "summary": {
-            "backend": backend,
+            "method": method,
             "model": model,
             "questions": len(question_set),
             "correct_tool_usage": correct_tool_usage,
@@ -470,7 +479,7 @@ async def main():
     # If there was more than one iteration, create a total summary
     if iterations > 1:
         results["total_summary"] = {
-            "backend": backend,
+            "method": method,
             "model": model,
             "questions": len(question_set) * iterations,
             "correct_tool_usage": 0,

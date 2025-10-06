@@ -9,6 +9,16 @@
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
+            <i @click="SidebarManager.toggleView('chats')"
+               class="fa fa-message sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarChats')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
+
+            <i @click="SidebarManager.toggleView('files')"
+               class="fa fa-file sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarFiles')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
+
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
@@ -51,6 +61,27 @@
                     ref="info"
                 />
 
+                <!-- chats -->
+                <SidebarChats
+                    v-show="SidebarManager.isViewSelected('chats')"
+                    :selected-chat-id="this.selectedChatId"
+                    :is-finished="this.isFinished"
+                    @select-chat="chatId => this.$emit('select-chat', chatId)"
+                    @delete-chat="chatId => this.$emit('delete-chat', chatId)"
+                    @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
+                    @new-chat="() => this.$emit('new-chat')"
+                    @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
+                    ref="chats"
+                />
+
+                <!-- uploaded files -->
+                <SidebarFiles
+                    v-show="SidebarManager.isViewSelected('files')"
+                    @delete-file="fileId => this.$emit('delete-file', fileId)"
+                    @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    ref="files"
+                />
+
                 <!-- sample questions -->
                 <SidebarQuestions
                     v-show="SidebarManager.isViewSelected('questions')"
@@ -65,16 +96,17 @@
                     ref="agents"
                 />
 
-                <!-- backend config -->
+                <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
-                    :backend="this.getBackend()"
+                    :method="this.method"
                     ref="config"
                 />
 
                 <!-- debug console -->
                 <SidebarDebug
                     v-show="SidebarManager.isViewSelected('debug')"
+                    :selected-chat-id="this.selectedChatId"
                     ref="debug"
                 />
 
@@ -91,8 +123,7 @@
 </template>
 
 <script>
-import conf, {Backends, BackendDescriptions} from '../../../config.js'
-import backendClient, {addDebugMessage} from "../../utils.js";
+import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -102,10 +133,14 @@ import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
+import SidebarChats from "./SidebarChats.vue";
+import SidebarFiles from "./SidebarFiles.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarFiles,
+        SidebarChats,
         SidebarFaq,
         SidebarDebug,
         SidebarInfo,
@@ -114,27 +149,31 @@ export default {
         SidebarQuestions,
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
+        selectedChatId: String,
+        isFinished: Boolean,
     },
     emits: [
         'select-question',
         'select-category',
+        'select-chat',
+        'delete-chat',
+        'rename-chat',
+        'new-chat',
+        'delete-file',
+        'suspend-file',
+        'goto-search-result',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {};
     },
     methods: {
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
-        },
-
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);
@@ -165,16 +204,6 @@ export default {
                 isResizing = false;
                 document.body.style.cursor = 'default';
             });
-        },
-
-        addDebugMessage(text, type) {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.addDebugMessage(text, type);
-        },
-
-        clearDebugMessage() {
-            if (!this.$refs.debug) return;
-            this.$refs.debug.clearDebugMessage();
         },
 
     },

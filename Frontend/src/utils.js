@@ -13,6 +13,10 @@ class BackendClient {
         return parseInt(res);
     }
 
+    async getConnection() {
+        return await this.sendRequest("GET", "connection");
+    }
+
     async disconnect() {
         await this.sendRequest("POST", "disconnect");
     }
@@ -23,23 +27,51 @@ class BackendClient {
 
     // chat
 
-    async query(backend, user_query, store_in_history = true) {
-        const body = {user_query: user_query, store_in_history: store_in_history};
-        return await this.sendRequest("POST", `${backend}/query`, body);
+    async query(chatId, method, user_query) {
+        const body = {user_query: user_query};
+        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body);
     }
-    
+
+    async queryNoChat(method, user_query) {
+        const body = {user_query: user_query};
+        return await this.sendRequest("POST", `query/${method}`, body);
+    }
+
     // TODO query stream
 
     async stop() {
-        await this.sendRequest("POST", "stop");
+        await this.sendRequest("POST", `stop`);
     }
 
-    async history() {
-        return await this.sendRequest("GET", "history");
+    async chats() {
+        return await this.sendRequest("GET", "chats");
     }
 
-    async reset() {
-        await this.sendRequest("POST", "reset");
+    async history(chatId) {
+        return await this.sendRequest("GET", `chats/${chatId}`);
+    }
+
+    async delete(chatId) {
+        await this.sendRequest("DELETE", `chats/${chatId}`);
+    }
+
+    async updateName(chatId, newName) {
+        await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
+    }
+
+
+    // files
+
+    async files() {
+        return await this.sendRequest("GET", "files");
+    }
+
+    async deleteFile(file_id) {
+        await this.sendRequest("DELETE", `files/${file_id}`);
+    }
+
+    async suspendFile(file_id, suspend) {
+        await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
     }
 
     async uploadFiles(files) {
@@ -48,7 +80,7 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.BackendAddress}/upload`, formData, {
+        const response = await axios.post(`${conf.BackendAddress}/files`, formData, {
             timeout: 10000,
             withCredentials: true,
             headers: {
@@ -64,16 +96,20 @@ class BackendClient {
 
     // config
 
-    async getConfig(backend) {
-        return await this.sendRequest('GET', `${backend}/config`);
+    async getConfig(method) {
+        return await this.sendRequest('GET', `config/${method}`);
     }
 
-    async updateConfig(backend, config) {
-        return await this.sendRequest('PUT', `${backend}/config`, config);
+    async updateConfig(method, config) {
+        return await this.sendRequest('PUT', `config/${method}`, config);
     }
 
-    async resetConfig(backend) {
-        return await this.sendRequest('POST', `${backend}/config/reset`);
+    async resetConfig(method) {
+        return await this.sendRequest('DELETE', `config/${method}`);
+    }
+
+    async search(query) {
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
     // internal helper
@@ -113,26 +149,23 @@ export function shuffleArray(array) {
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
- * 
- * @param {*} debugMessages list of existing debug messages (modified)
- * @param {*} text new message text
- * @param {*} type new message type 
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {object} message new message object with fields {id, type, text, chatId}
  */
-export function addDebugMessage(debugMessages, text, type) {
-    if (! text) return;
-    const message = {text: text, type: type};
+export function addDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    message = structuredClone(message); // since it may be modified later
 
     // if there are no messages yet, just push the new one
     if (debugMessages.length === 0) {
         debugMessages.push(message);
     } else {
         const lastMessage = debugMessages[debugMessages.length - 1];
-        if (lastMessage.type === type) {
-            // if the type is the same, the new message is a continuation of the last message
-            if (/^Tool \d+/.test(text)) {
-                lastMessage.text = text;  // replace
+        if (message.id != null && lastMessage.id === message.id) {
+            if (/^Tool \d+/.test(message.text)) {
+                lastMessage.text = message.text;  // replace
             } else {
-                lastMessage.text += text; // append
+                lastMessage.text += message.text; // append
             }
         } else {
             // new message type

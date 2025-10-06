@@ -27,7 +27,6 @@ export const localizationData = {
         none: 'None',
         speechRecognition: 'Speak' ,
         readLastMessage: 'Read Last',
-        resetChat: 'Reset',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Send a message ...',
         socketClosed: 'It seems there was a problem in the response generation.',
@@ -38,6 +37,8 @@ export const localizationData = {
         ttsServerInfo: '%1 on %2',
         ttsServerUnavailable: 'Audio service not available',
         tooltipSidebarInfo: "General Information",
+        tooltipSidebarChats: "Chats",
+        tooltipSidebarFiles: "Uploaded Files",
         tooltipSidebarPrompts: "Prompt Library",
         tooltipSidebarAgents: "Agents and Actions",
         tooltipSidebarConfig: "Configuration",
@@ -56,11 +57,11 @@ export const localizationData = {
         agentActionDescription: "Description",
         agentActionParameters: "Input Parameters",
         agentActionResult: "Result",
-        buttonBackendConfigSave: "Save Config",
-        buttonBackendConfigReset: "Reset to Defaults",
+        buttonConfigSave: "Save Config",
+        buttonConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
         audioServerSettings: "Audio",
-        rerollQuestions: "More ...",
+        rerollQuestions: "More…",
         regenerate: "Suggest More",
         platformInfoRequest: "How can you assist me?",
         platformInfoMissing: "It's a little quiet here...",
@@ -68,7 +69,8 @@ export const localizationData = {
         platformInfoFailed: "There was an error when querying the functionality: %1",
         cookiesText: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
         cookiesAccept: "Accept",
-        tooltipRemoveUploadedFile: "Remove File",
+        tooltipDeleteUploadedFile: "Remove File",
+        tooltipSuspendUploadedFile: "Include File in conversations?",
         tooltipUploadFile: "Upload File",
         tooltipChatbubbleFiles: "Attached Files",
         uploadingFileText: "Uploading…",
@@ -82,6 +84,15 @@ export const localizationData = {
         configSaveError: "An error occurred",
         configReset: "Configuration was reset",
         sidebarFaqMissing: "Unable to load FAQ.",
+        buttonNewChat: "New Chat",
+        tooltipEditChatName: "Edit Name",
+        tooltipDeleteChat: "Delete Chat",
+        confirmDeleteChat: "Are you sure that you want to delete the Chat?",
+        buttonSearchChats: "Search Chats",
+        dropFiles: "Drop files here to upload",
+        sidebarFilesEmpty: "No files uploaded",
+        confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
+        searchAgentsPlaceholder: "Search…",
     },
 
     DE: {
@@ -105,7 +116,6 @@ export const localizationData = {
         none: 'Keine',
         speechRecognition: 'Sprechen' ,
         readLastMessage: 'Vorlesen',
-        resetChat: 'Zurücksetzen',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Nachricht senden ...',
         socketClosed: 'Es scheint ein Problem bei der Erstellung der Antwort aufgetreten zu sein.',
@@ -116,6 +126,8 @@ export const localizationData = {
         ttsServerInfo: '%1 auf %2',
         ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
         tooltipSidebarInfo: "Generelle Informationen",
+        tooltipSidebarChats: "Chats",
+        tooltipSidebarFiles: "Hochgeladene Dateien",
         tooltipSidebarPrompts: "Prompt-Bibliothek",
         tooltipSidebarAgents: "Agenten und Aktionen",
         tooltipSidebarConfig: "Konfiguration",
@@ -134,11 +146,11 @@ export const localizationData = {
         agentActionDescription: "Beschreibung",
         agentActionParameters: "Parameter",
         agentActionResult: "Ergebnis",
-        buttonBackendConfigSave: "Speichern",
-        buttonBackendConfigReset: "Zurücksetzen",
+        buttonConfigSave: "Speichern",
+        buttonConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
         audioServerSettings: "Audio",
-        rerollQuestions: "Mehr ...",
+        rerollQuestions: "Mehr…",
         regenerate: "Weitere Beispiele",
         platformInfoRequest: "Wie kannst du mir helfen?",
         platformInfoMissing: "Hier gibt es gerade nichts...",
@@ -146,7 +158,8 @@ export const localizationData = {
         platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
         cookiesText: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
         cookiesAccept: "Annehmen",
-        tooltipRemoveUploadedFile: "Datei entfernen",
+        tooltipDeleteUploadedFile: "Datei entfernen",
+        tooltipSuspendUploadedFile: "Datei in Konversationen einbeziehen?",
         tooltipUploadFile: "Datei hochladen",
         tooltipChatbubbleFiles: "Angehängte Dateien",
         uploadingFileText: "Lade hoch…",
@@ -160,6 +173,15 @@ export const localizationData = {
         configSaveError: "Es ist ein Fehler aufgretreten",
         configReset: "Konfiguration wurde zurückgesetzt",
         sidebarFaqMissing: "FAQ konnte nicht geladen werden.",
+        buttonNewChat: "Neuer Chat",
+        tooltipEditChatName: "Name bearbeiten",
+        tooltipDeleteChat: "Chat löschen",
+        confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
+        buttonSearchChats: "Chats Durchsuchen",
+        dropFiles: "Dateien hier ablegen um sie hochzuladen",
+        sidebarFilesEmpty: "Keine Dateien hochgeladen",
+        confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
+        searchAgentsPlaceholder: "Suchen…",
     },
 };
 
@@ -182,17 +204,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
-                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
-                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
-                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -205,6 +216,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Explain Agile methodology.", "icon": "🔄"},
                 {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
                 {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Research the current energy mix of Germany and visualize it in a meaningful way.", "icon": "⚡"},
+                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Create a bar plot comparing the current stock prices of Amazon, Apple, Microsoft and Nvidia.", "icon": "📊"},
+                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
             ]
         },
         {
@@ -251,17 +273,6 @@ export const sidebarQuestions = reactive({
             ]
         },
         {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
-                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
-                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
-            ]
-        },
-        {
             "id": "informationUpskilling",
             "header": "Information & Upskilling",
             "icon": "📚",
@@ -274,6 +285,17 @@ export const sidebarQuestions = reactive({
                 {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
                 {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
                 {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
+            ]
+        },
+        {
+            "id": "dataAnalysis",
+            "header": "Data Analysis",
+            "icon": "📊",
+            "questions": [
+                {"question": "Recherchiere den aktuellen Strommix von Deutschland und visualisiere ihn auf eine sinnvolle Art und Weise.", "icon": "⚡"},
+                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Amazon, Apple, Microsoft und Nvidia.", "icon": "📊"},
+                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
             ]
         },
         {
@@ -474,7 +496,7 @@ class Localizer {
     getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
         // assemble questions from all or selected category into a single array
         let questions = sidebarQuestions[this.language]
-            .filter(category => categoryHeader === null || category.header === categoryHeader)
+            .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textinput === null || matches(question.question, textinput));
 

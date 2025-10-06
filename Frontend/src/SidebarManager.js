@@ -8,6 +8,8 @@ class SidebarManager {
     static _availableViews = [
         'none',
         'info',
+        'chats',
+        'files',
         'questions',
         'agents',
         'config',

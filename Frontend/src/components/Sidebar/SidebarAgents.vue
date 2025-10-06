@@ -4,6 +4,16 @@
         {{ Localizer.get('tooltipSidebarAgents') }}
     </div>
 
+    <div v-if="platformActions && Object.keys(platformActions).length > 0"
+         class="my-2">
+        <input
+            type="text"
+            class="form-control"
+            :placeholder="Localizer.get('searchAgentsPlaceholder')"
+            v-model="this.searchQuery"
+        />
+    </div>
+
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebarAgentsLoading') }}
@@ -13,7 +23,7 @@
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
-            <div v-for="(actions, agent, agentIndex) in platformActions" class="accordion-item" :key="agentIndex">
+            <div v-for="(actions, agent, agentIndex) in this.getAgents()" class="accordion-item" :key="agentIndex">
 
                 <!-- header -->
                 <h2 class="accordion-header m-0" :id="'accordion-header-' + agentIndex">
@@ -44,7 +54,7 @@
                             </button>
 
                             <!-- action body -->
-                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse"
+                            <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse action-body"
                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
                                 <p v-if="action.description">
                                     <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
@@ -84,6 +94,7 @@ export default {
         return {
             platformActions: null,
             isLoading: false,
+            searchQuery: '',
         };
     },
     methods: {
@@ -98,6 +109,21 @@ export default {
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2)
         },
+
+        getAgents() {
+            return Object.keys(this.platformActions)
+                .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+                .filter(agent => {
+                    const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+                    return matches(agent) || this.platformActions[agent].some(action => 
+                            matches(action.name) || matches(action.description)
+                    );
+                })
+                .reduce((acc, agent) => {
+                    acc[agent] = this.platformActions[agent];
+                    return acc;
+                }, {});
+        },
     }
 }
 </script>
@@ -106,7 +132,7 @@ export default {
 .action-header-button {
     background-color: transparent;
     color: inherit;
-    padding: 0.5rem 0;
+    padding: 0 1rem;
     border: none;
     box-shadow: none;
     text-align: left;
@@ -120,6 +146,10 @@ export default {
 
 .action-header-button::after {
     display: none;
+}
+
+.action-body {
+    padding: 0.5rem 0;
 }
 
 .json-box {

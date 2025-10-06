@@ -12,7 +12,7 @@ services:
     environment:
       VITE_PLATFORM_BASE_URL:
       VITE_BACKEND_BASE_URL:
-      VITE_DEFAULT_BACKEND:
+      VITE_DEFAULT_METHOD:
       VITE_BACKLINK:
       VITE_VOICE_SERVER_URL:
       VITE_AUTOCONNECT:
@@ -27,7 +27,9 @@ services:
       - "3001:3001"
     environment:
       OPENAI_API_KEY:
-      VLLM_API_KEY:
+      LLM_URLS:
+      LLM_APIKEYS:
+      LLM_MODELS:
       CORS_WHITELIST:
 
   # TTS Server for voice synthesis

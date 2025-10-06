@@ -93,7 +93,7 @@
 </template>
 
 <script>
-import conf, {Backends} from '../../config.js';
+import conf, {Methods} from '../../config.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { getColorThemes } from '../ColorThemes.js';
@@ -109,7 +109,7 @@ export default {
         };
     },
     setup() {
-        return { conf, Backends, Localizer, AudioManager };
+        return { conf, Methods, Localizer, AudioManager };
     },
     emits: [
         'select'
@@ -126,7 +126,7 @@ export default {
 
         getMethodsData() {
             return {
-                data: Backends,
+                data: Methods,
                 name: Localizer.get('method'),
                 elementId: 'method',
                 icon: 'fa-server',
@@ -185,7 +185,7 @@ export default {
     },
 
     mounted() {
-        this.select('method', conf.DefaultBackend);
+        this.select('method', conf.DefaultMethod);
         this.select('language', Localizer.language);
         this.select('colorMode', this.getInitialColorMode());
     }

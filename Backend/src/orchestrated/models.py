@@ -1,8 +1,7 @@
-from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from ..models import AgentMessage
+from ..models import AgentMessage, ToolCall
 
 class AgentTask(BaseModel):
     """Model for tasks assigned to agents by the orchestrator or planner"""
@@ -20,18 +19,16 @@ class PlannerPlan(BaseModel):
     thinking: str = Field(description="Short and precise step by step reasoning about how to break down and solve the task")
     tasks: List[AgentTask] = Field(description="List of tasks to be executed")
 
-class AgentEvaluation(str, Enum):
+class AgentEvaluation(BaseModel):
     """Possible outcomes from the agent evaluator"""
-    REITERATE = "REITERATE"  # Should try again with new context
-    FINISHED = "FINISHED"    # Completed task successfully
+    reiterate: bool  # True: Try again with new context, False: Completed task successfully
 
 class AgentResult(BaseModel):
     """Model for storing results from an agent's execution"""
     agent_name: str
     task: str
     output: str
-    tool_calls: List[Dict[str, Any]] = []
-    tool_results: List[Any] = []
+    tool_calls: List[ToolCall] = []
     agent_message: Optional[AgentMessage] = Field(default=None, description="Debug message with execution details")
 
 class IterationAdvice(BaseModel):

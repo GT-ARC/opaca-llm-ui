@@ -130,7 +130,7 @@ export default {
                 }
 
                 // Let backend generate user questions
-                const res = await backendClient.query("simple-tools", user_query, false);
+                const res = await backendClient.queryNoChat("simple-tools", user_query, false);
                 const questions = res.agent_messages[0].content;
                 const parsedQuestions = JSON.parse(questions);
                 newQuestions.questions = Object.values(parsedQuestions);
