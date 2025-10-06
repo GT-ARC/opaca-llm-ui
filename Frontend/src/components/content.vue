@@ -124,6 +124,7 @@
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
+                            @paste="handlePaste"
                             ref="textInputRef"
                         />
                     </div>
@@ -219,6 +220,7 @@ export default {
     },
     emits: [
         'select-category',
+        'container-login-required',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -239,6 +241,7 @@ export default {
             newChat: false,
             showFileDropOverlay: false,
             autoScrollEnabled: true,
+            socket: null,
         }
     },
     methods: {
@@ -321,11 +324,11 @@ export default {
 
             try {
                 const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
-                const socket = new WebSocket(url);
-                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
-                socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                socket.onclose   = ()    => this.handleStreamingSocketClose();
-                socket.onerror   = error => this.handleStreamingSocketError(error);
+                this.socket = new WebSocket(url);
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -403,10 +406,10 @@ export default {
             return this.isMobile ? 2 : 4;
         },
 
-        async handleStreamingSocketOpen(socket, userText) {
+        async handleStreamingSocketOpen(userText) {
             try {
                 const inputData = JSON.stringify({user_query: userText});
-                socket.send(inputData);
+                this.socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -415,6 +418,13 @@ export default {
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+
+            // If a container login is required
+            console.log(result.status);
+            if (result.status === 401) {
+                this.$emit('container-login-required', result);
+                return
+            }
 
             if (result.hasOwnProperty('agent')) {
                 if (result.agent === 'Output Generator') {
@@ -453,6 +463,7 @@ export default {
 
             this.startAutoSpeak();
             this.isFinished = true;
+            this.socket.close();
             this.scrollDownChat();
             await this.$refs.sidebar.$refs.chats.updateChats();
         },
@@ -491,13 +502,23 @@ export default {
             }
         },
 
+        submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
+            const containerLoginDetails = JSON.stringify({
+                username: containerLoginUser,
+                password: containerLoginPassword,
+                timeout: containerLoginTimeout,
+            });
+            this.socket.send(containerLoginDetails);
+        },
+
+
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
         },
 
         startRecognition() {
-            if (AudioManager.isVoiceServerConnected) {
+            if (AudioManager.isVoiceServerConnected && AudioManager.useWhisperStt) {
                 this.showRecordingPopup = true;
             } else {
                 AudioManager.startWebSpeechRecognition(text => {
@@ -715,6 +736,28 @@ export default {
             await this.loadHistory(chatId);
             await this.scrollToMessage(messageId);
         },
+
+        async handlePaste(event) {
+            const items = event.clipboardData.items;
+
+            const files = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === "file") {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+
+            if (files.length > 0) {
+                // Prevent from being inserted into the input
+                event.preventDefault();
+
+                await this.uploadFiles(files);
+            }
+            // If no file found, let normal paste happen
+        }
 
     },
 

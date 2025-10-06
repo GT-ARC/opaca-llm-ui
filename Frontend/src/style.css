@@ -159,6 +159,23 @@ body {
     color: var(--text-secondary-color);
 }
 
+.form-select {
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: var(--bs-border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--input-color);
+    color: var(--text-primary-color);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+    color: var(--text-primary-color);
+}
+
 /* override bootstrap accordion styling */
 .accordion-item {
     border-radius: var(--bs-border-radius);

@@ -83,7 +83,7 @@ export default {
             try {
                 this.chats = await backendClient.chats();
             } catch (error) {
-                console.log(error);
+                console.error(error);
                 this.chats = [];
             }
         },

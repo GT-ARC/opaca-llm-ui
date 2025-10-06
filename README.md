@@ -83,7 +83,7 @@ The OPACA LLM provides a RESTful API for most requests, while also providing a w
 You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
 
 
-### Sessions, Message History and Configuration
+### Users, Sessions, Message History and Configuration
 
 The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM prompting method, i.e. if the performance of one method is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them, and search in past and current chats.
 
