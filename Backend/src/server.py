@@ -25,35 +25,12 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
-from .file_utils import delete_file_from_all_clients
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, FILES_PATH
 from .mongo_driver import load_session, save_session, delete_session
 
 
-@asynccontextmanager
-async def lifespan(app):
-    # before start
-    asyncio.create_task(cleanup_old_sessions())
-    # app running
-    yield
-    # after shutdown
-    pass
-
-app = FastAPI(
-    title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
-    lifespan=lifespan
-)
-
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 METHODS = {
@@ -71,6 +48,32 @@ sessions: Dict[str, SessionData] = {}
 
 logger = logging.getLogger("uvicorn")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # before start
+    asyncio.create_task(cleanup_old_sessions())
+    try:
+        # app running
+        yield
+    finally:
+        # on shutdown
+        await asyncio.wait_for(asyncio.shield('some cleanup function'), timeout=10)
+
+
+app = FastAPI(
+    title="OPACA LLM Backend Services",
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
 async def get_methods() -> list:
@@ -162,7 +165,6 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
         result = exception_to_result(message.user_query, e)
     finally:
         await store_message(chat, result)
-        await store_session_data(session)
         return result
 
 
@@ -183,7 +185,6 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
         result = exception_to_result(message.user_query, e)
     finally:
         await store_message(chat, result)
-        await store_session_data(session)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -194,7 +195,6 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
     chat = handle_chat_id(session, chat_id)
     chat.name = new_name
     update_chat_time(chat)
-    await store_session_data(session)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
@@ -260,7 +260,6 @@ async def set_config(request: Request, response: Response, method: str, conf: di
     except HTTPException as e:
         raise e
     session.config[method] = conf
-    await store_session_data(session)
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
@@ -268,7 +267,6 @@ async def set_config(request: Request, response: Response, method: str, conf: di
 async def reset_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[method] = METHODS[method].default_config()
-    await store_session_data(session)
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 ## FILE ROUTES
@@ -286,27 +284,16 @@ async def upload_files(request: Request, response: Response, files: List[UploadF
     uploaded = []
     for file in files:
         try:
-            # save file to disk
-            file_path = Path(f'/data/files/{session.session_id}/{file.filename}')
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            logger.info(f'Saving file to "{file_path}"')
-            with open(file_path, 'wb') as f:
-                while chunk := await file.read(1024 * 1024):
-                    f.write(chunk)
-
-            # Store in session.uploaded_files
-            filedata = OpacaFile(content_type=file.content_type, file_path=file_path)
+            file_path = Path(FILES_PATH, session.session_id, file.filename)
+            filedata = await save_file_to_disk(file, file_path)
             session.uploaded_files[filedata.file_id] = filedata
-
             uploaded.append(filedata)
-
         except Exception as e:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
 
-    await store_session_data(session)
     return {"uploaded_files": uploaded}
 
 
@@ -317,7 +304,6 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
 
     if file_id in files:
         result = await delete_file_from_all_clients(session, file_id)
-        await store_session_data(session)
         return result
 
     return False
@@ -331,7 +317,6 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
     if file_id in files:
         file = files[file_id]
         file.suspended = suspend
-        await store_session_data(session)
         return True
 
     return False
@@ -378,7 +363,6 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
         if max_age > 0:
             session.valid_until = time.time() + max_age
 
-    await store_session_data(session)
     return session_id
 
 
@@ -408,13 +392,6 @@ async def store_message(chat: Chat, result: QueryResponse):
     update_chat_time(chat)
 
 
-async def store_session_data(session: SessionData) -> None:
-    if session is None: return
-    async with sessions_lock:
-        sessions[session.session_id] = session
-        await save_session(session)
-
-
 async def cleanup_old_sessions(delay_seconds: int = 60 * 60 * 24) -> None:
     """
     Delete all expired sessions.
@@ -425,11 +402,10 @@ async def cleanup_old_sessions(delay_seconds: int = 60 * 60 * 24) -> None:
         logger.info("Checking for old Sessions...")
         now = time.time()
         for session_id, session in sessions.items():
-                with session:
-                    if session.valid_until < now:
-                        logger.info(f"Removing old session {session_id}")
-                        sessions.pop(session_id)
-                        await delete_session(session_id)
+            if session.valid_until < now:
+                logger.info(f"Removing old session {session_id}")
+                sessions.pop(session_id)
+                await delete_session(session_id)
 
         await asyncio.sleep(delay_seconds)
 

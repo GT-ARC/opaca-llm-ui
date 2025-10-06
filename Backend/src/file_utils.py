@@ -1,10 +1,17 @@
 import io
 import os
 import logging
-from openai import AsyncOpenAI
-from .models import SessionData, get_supported_models
+import shutil
+from pathlib import Path
+from typing import Dict
+
+from fastapi import UploadFile
+from .models import SessionData, OpacaFile
 
 logger = logging.getLogger(__name__)
+
+
+FILES_PATH = '/data/files'
 
 
 async def upload_files(session: SessionData, host_url: str):
@@ -48,7 +55,7 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
         session (SessionData): Current session containing uploaded_files and clients.
         file_id (str): The file identifier.
     """
-    filedata = session.uploaded_files.get(file_id)
+    filedata = session.uploaded_files.get(file_id, None)
     if not filedata:
         return False
 
@@ -68,3 +75,34 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
     session.uploaded_files.pop(file_id, None)
 
     return True
+
+
+async def save_file_to_disk(file: UploadFile, file_path: str | Path) -> OpacaFile:
+    """
+    Save an UploadFile to disk.
+    """
+    file_path = Path(file_path)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info(f'Saving file to "{file_path}"')
+
+    with open(file_path, 'wb') as f:
+        while chunk := await file.read(1024 * 1024):
+            f.write(chunk)
+
+    return OpacaFile(content_type=file.content_type, file_path=file_path)
+
+
+def cleanup_files(sessions: Dict[str, SessionData]) -> None:
+    files_path = Path(FILES_PATH)
+    for item in files_path.iterdir():
+        if item.is_dir() and item.name not in sessions:
+            dir_path = Path(files_path, item.name)
+            logger.info(f'Deleting files for stale session "{item.name}": {dir_path}')
+            shutil.rmtree(dir_path)
+
+
+def delete_files_for_session(session_id: str) -> None:
+    dir_path = Path(FILES_PATH, session_id)
+    if dir_path.is_dir():
+        logger.info(f'Deleting files for session "{session_id}": {dir_path}')
+        shutil.rmtree(dir_path)
