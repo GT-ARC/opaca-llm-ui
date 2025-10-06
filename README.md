@@ -138,8 +138,8 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 The following variables are only relevant in case session data should be stored persistently in a MongoDB.
 
-* `USE_MONGO_DB`: `true` or `false`. Default to `false`.
-* `MONGO_HOST`: The hostname of the MongoDB. Defaults to `backend-db:27017`, the name of the built-in MongoDB container.
+* `USE_MONGO_DB`: `true` or `false`. Defaults to `false`.
+* `MONGO_HOST`: The hostname of the MongoDB. Defaults to `backend-db:27017`, the hostname and port of the built-in MongoDB container.
 * `MONGO_USERNAME`: The username used for connecting to the MongoDB. Defaults to `user`
 * `MONGO_PASSWORD`: The password used for connecting to the MongoDB. Defaults to `pass`.
 
