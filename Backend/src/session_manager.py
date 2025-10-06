@@ -27,10 +27,10 @@ sessions: Dict[str, SessionData] = {}
 
 
 def __get_client(uri: Optional[str] = None) -> AsyncMongoClient:
-    username = quote_plus(os.environ.get('MONGO_USERNAME', 'user'))
-    password = quote_plus(os.environ.get('MONGO_PASSWORD', 'pass'))
-    host = os.environ.get('MONGO_HOST', 'backend-db:27017')
     if uri is None:
+        username = quote_plus(os.environ.get('MONGO_USERNAME', 'user'))
+        password = quote_plus(os.environ.get('MONGO_PASSWORD', 'pass'))
+        host = os.environ.get('MONGO_HOST', 'backend-db:27017')
         uri = f'mongodb://{username}:{password}@{host}'
     return AsyncMongoClient(uri)
 
@@ -142,7 +142,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
     return session_id
 
 
-def create_new_session(session_id: Optional[str]) -> SessionData:
+def create_new_session(session_id: Optional[str] = None) -> SessionData:
     session = SessionData()
     if session_id is not None and len(session_id) > 0:
         session.session_id = session_id
@@ -160,26 +160,26 @@ async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: 
     return chat
 
 
-async def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
+def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
     if (chat is not None) and (message is not None) and not chat.name:
         chat.name = (f'{message.user_query[:32]}…'
             if len(message.user_query) > 32
             else message.user_query)
 
 
-async def update_chat_time(chat: Chat) -> None:
+def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-async def store_message(chat: Chat, result: QueryResponse):
+def store_message(chat: Chat, result: QueryResponse):
     chat.responses.append(result)
-    await update_chat_time(chat)
+    update_chat_time(chat)
 
-async def delete_chat(session: SessionData, chat_id: str) -> bool:
+
+def delete_chat(session: SessionData, chat_id: str) -> bool:
     chat = session.chats.get(chat_id, None)
     if chat is None: return False
     del session.chats[chat_id]
-    await delete_session(session.session_id)
     return True
 
 
