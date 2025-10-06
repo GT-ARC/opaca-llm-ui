@@ -357,6 +357,38 @@ class OpacaException(Exception):
         self.status_code = status_code
 
 
+class ContainerLoginNotification(BaseModel):
+    """
+    This is a helper class to store information regarding the initiated container login.
+
+    Attributes:
+        status: The http status code of the login attempt
+        type: The error type of the login attempt
+        message: An optional message to send to the frontend
+        tool_name: The name of the tool that requires further credentials
+        retry: Whether the login attempt has already been tried
+    """
+    status: int
+    type: str
+    container_name: str = ""
+    tool_name: str = ""
+    retry: bool = False
+
+
+class ContainerLoginResponse(BaseModel):
+    """
+    Response to ContainerLoginNotification
+
+    Attributes:
+        username: username to use for container login
+        password: password to use for container login
+        timeout: automatically logout after this many seconds
+    """
+    username: str
+    password: str
+    timeout: int
+
+
 def get_supported_models():
     return [
         (url, key, models.split(","))

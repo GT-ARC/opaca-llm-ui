@@ -1,6 +1,7 @@
 import decimal
 import functools
 import logging
+import asyncio
 
 import httpx
 import jsonref
@@ -8,6 +9,7 @@ from typing import Optional, List, Dict, Any
 
 
 logger = logging.getLogger(__name__)
+
 
 class OpacaClient:
     """
@@ -87,6 +89,34 @@ class OpacaClient:
             res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
         res.raise_for_status()
         return res.json()
+
+    async def container_login(self, username: str, password: str, container_id: str):
+        """Initiate container login for OPACA RP"""
+        logger.info(f"Login to container {container_id}")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers())
+        res.raise_for_status()
+
+    async def deferred_container_logout(self, container_id: str, delay_seconds: int):
+        """Initiate container login for OPACA RP"""
+        try:
+            await asyncio.sleep(delay_seconds)
+        finally:
+            # make sure that logout still happens even if backend is shut down
+            logger.info(f"Logout of container {container_id}")
+            async with httpx.AsyncClient() as client:
+                res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
+            res.raise_for_status()
+
+    async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
+        """Get most likely container id and name for given agent and action. Returns empty string if no match found."""
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"{self.url}/containers", headers=self._headers())
+        res.raise_for_status()
+
+        # Return the containerId and container name of the first matching container to include the given agent and action
+        return next((c["containerId"], c["image"].get("name", c["image"]["imageName"])) for c in res.json()
+                    for a in c["agents"] if a["agentId"] == agent and any(action == ac["name"] for ac in a["actions"]))
 
     def _headers(self):
         return {'Authorization': f'Bearer {self.token}'} if self.token else None

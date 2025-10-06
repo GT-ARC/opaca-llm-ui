@@ -93,6 +93,7 @@ export const localizationData = {
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
+        containerLoginMessage: "The following action requires additional credentials: ",
     },
 
     DE: {
@@ -182,6 +183,7 @@ export const localizationData = {
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
+        containerLoginMessage: "Die auszuführende Aktion benötigt weitere Zugangsdaten: ",
     },
 };
 
