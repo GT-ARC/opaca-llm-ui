@@ -11,7 +11,7 @@ from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from urllib.parse import quote_plus
 
-from .file_utils import delete_files_for_session
+from .file_utils import delete_files_for_session, cleanup_files
 from .models import SessionData, Chat, QueryRequest, QueryResponse
 
 
@@ -125,6 +125,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
         session = (sessions.get(session_id, None)
             if session_id in sessions
             else await load_session(session_id))
+
         if session is None:
             session = create_new_session(session_id)
             logger.info(f"Created new session: {session.session_id}")
@@ -132,9 +133,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
             sessions[session_id] = session
         else:
             # if session was loaded from DB, save into memory
-            logger.info(f'Session already exists: {session_id}')
             sessions[session_id] = session
-
 
         # update session expiration
         if max_age > 0:
@@ -190,24 +189,18 @@ async def store_sessions_in_db() -> None:
             await save_session(session)
 
 
-async def cleanup_old_sessions(delay_seconds: int = 60 * 60 * 24) -> None:
+async def cleanup_old_sessions() -> None:
     """
     Delete all expired sessions.
-
-    :param delay_seconds: Number of seconds between cleanups. Default: 1 day.
     """
-    while True:
-        async with sessions_lock:
-            logger.info("Checking for old Sessions...")
-            now = time.time()
-            for session_id, session in sessions.items():
-                if session.valid_until < now:
-                    logger.info(f"Removing old session {session_id}")
-                    delete_files_for_session(session_id)
-                    sessions.pop(session_id)
-                    await delete_session(session_id)
-
-        await asyncio.sleep(delay_seconds)
+    logger.info("Checking for old Sessions...")
+    now = time.time()
+    for session_id, session in sessions.items():
+        if session.valid_until < now:
+            logger.info(f"Removing old session {session_id}")
+            delete_files_for_session(session_id)
+            sessions.pop(session_id)
+            await delete_session(session_id)
 
 
 async def delete_all_sessions() -> None:
@@ -215,3 +208,18 @@ async def delete_all_sessions() -> None:
         for session_id in sessions:
             sessions.pop(session_id)
             await delete_session(session_id)
+
+
+async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
+    """
+    Cleanup old session and files, and save the current sessions to DB
+    in a configurable interval.
+
+    :param delay_seconds: Number of seconds after which this task repeats. Defaults to 86400s (1 day).
+    """
+    while True:
+        async with sessions_lock:
+            await cleanup_old_sessions()
+            await store_sessions_in_db()
+            cleanup_files(sessions)
+        await asyncio.sleep(delay_seconds)

@@ -22,7 +22,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, cleanup_files
 from .session_manager import handle_session_id, delete_all_sessions, cleanup_old_sessions, \
-    store_sessions_in_db, handle_chat_id, create_chat_name, update_chat_time, store_message
+    store_sessions_in_db, handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -42,7 +42,7 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
-    asyncio.create_task(cleanup_old_sessions())
+    asyncio.create_task(cleanup_task())
 
     try:
         # app running
