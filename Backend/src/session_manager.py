@@ -1,17 +1,18 @@
 import asyncio
 import os
 import time
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Union, Optional
 from fastapi import Request, Response, HTTPException
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
-import logging
 from urllib.parse import quote_plus
 
-from src.file_utils import delete_files_for_session
-from src.models import SessionData, Chat, QueryRequest, QueryResponse
+from .file_utils import delete_files_for_session
+from .models import SessionData, Chat, QueryRequest, QueryResponse
+
 
 DB_NAME: str = 'backend-data'
 SESSIONS_COLLECTION: str = 'sessions'
@@ -118,8 +119,10 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
         if session is None:
             logger.info(f"Creating new Session {session_id}")
             session = SessionData()
-            session_id = session.session_id
-            sessions[session_id] = session
+        session_id = session.session_id
+        sessions[session_id] = session
+
+        # update session expiration
         if max_age > 0:
             session.valid_until = time.time() + max_age
 
