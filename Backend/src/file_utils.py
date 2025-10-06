@@ -1,5 +1,4 @@
 import io
-import os
 import logging
 import shutil
 from pathlib import Path
@@ -77,19 +76,20 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
     return True
 
 
-async def save_file_to_disk(file: UploadFile, file_path: str | Path) -> OpacaFile:
+async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
     """
     Save an UploadFile to disk.
     """
-    file_path = Path(file_path)
+    file_path = Path(FILES_PATH, session_id, file.filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.info(f'Saving file to "{file_path}"')
-
+    if file_path.exists():
+        logger.warning(f'Overwriting existing file at "{file_path}"')
+    else:
+        logger.info(f'Saving file to "{file_path}"')
     with open(file_path, 'wb') as f:
         while chunk := await file.read(1024 * 1024):
             f.write(chunk)
-
-    return OpacaFile(content_type=file.content_type, file_path=file_path)
+    return OpacaFile(content_type=file.content_type, file_name=file.filename)
 
 
 def cleanup_files(sessions: Dict[str, SessionData]) -> None:

@@ -136,6 +136,12 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `LLM_MODELS`: semicolon-separated list of comma-separated lists of supported models for each of the above URLs; default is `"gpt-4o-mini,gpt-4o"`.
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 
+The following variables are only relevant in case session data should be stored persistently in a MongoDB.
+
+* `USE_MONGO_DB`: `true` or `false`. Default to `false`.
+* `MONGO_HOST`: The hostname of the MongoDB. Defaults to `backend-db:27017`, the name of the built-in MongoDB container.
+* `MONGO_USERNAME`: The username used for connecting to the MongoDB. Defaults to `user`
+* `MONGO_PASSWORD`: The password used for connecting to the MongoDB. Defaults to `pass`.
 
 ## Getting Started
 

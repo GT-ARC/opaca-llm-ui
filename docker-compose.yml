@@ -33,6 +33,10 @@ services:
       LLM_APIKEYS:
       LLM_MODELS:
       CORS_WHITELIST:
+      USE_MONGO_DB:
+      MONGO_HOST:
+      MONGO_USERNAME:
+      MONGO_PASSWORD:
     volumes:
       - opacadata:/data
 

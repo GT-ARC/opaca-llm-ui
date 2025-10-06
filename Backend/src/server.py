@@ -4,7 +4,6 @@ Provides a list of available  LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
-from pathlib import Path
 from typing import Dict, Any, List
 import asyncio
 import logging
@@ -21,7 +20,7 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, FILES_PATH
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, cleanup_files
 from .session_manager import handle_session_id, delete_all_sessions, cleanup_old_sessions, \
     store_sessions_in_db, handle_chat_id, create_chat_name, update_chat_time, store_message
 
@@ -42,12 +41,8 @@ logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async def session_task():
-        await cleanup_old_sessions()
-        await store_sessions_in_db()
-
     # before start
-    asyncio.create_task(session_task())
+    asyncio.create_task(cleanup_old_sessions())
 
     try:
         # app running
@@ -180,10 +175,14 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
         await create_chat_name(chat, message)
         result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
+        logger.info(f'STREAM EXCEPT: to_result')
         result = exception_to_result(message.user_query, e)
     finally:
+        logger.info(f'STREAM FINALLY: store')
         await store_message(chat, result)
+        logger.info(f'STREAM FINALLY: send')
         await websocket.send_json(result.model_dump_json())
+        logger.info(f'STREAM FINALLY: close')
         await websocket.close()
 
 
@@ -274,8 +273,7 @@ async def upload_files(request: Request, response: Response, files: List[UploadF
     uploaded = []
     for file in files:
         try:
-            file_path = Path(FILES_PATH, session.session_id, file.filename)
-            filedata = await save_file_to_disk(file, file_path)
+            filedata = await save_file_to_disk(file, session.session_id)
             session.uploaded_files[filedata.file_id] = filedata
             uploaded.append(filedata)
         except Exception as e:

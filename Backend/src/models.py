@@ -153,19 +153,15 @@ class OpacaFile(BaseModel):
     Attributes:
         file_id: ID assigned after upload
         content_type: MIME type of the file
-        file_path: The absolute path to the file
+        file_name: The absolute path to the file
         host_ids: IDs assigned by each host the file has been uploaded to
         suspended: Whether the file should be excluded from future requests
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
-    file_path: Path
+    file_name: str
     host_ids: Dict[str, str] = Field(default_factory=dict)
     suspended: bool = False
-
-    @property
-    def file_name(self):
-        return Path(self.file_path).name
 
 
 class ChatMessage(BaseModel):
@@ -231,7 +227,7 @@ class SessionData(BaseModel):
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
     """
-    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id', frozen=True)
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False

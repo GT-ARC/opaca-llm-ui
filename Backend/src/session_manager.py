@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Union, Optional
 from fastapi import Request, Response, HTTPException
+from pydantic import ValidationError
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
@@ -34,11 +35,15 @@ def __get_client(uri: Optional[str] = None) -> AsyncMongoClient:
     return AsyncMongoClient(uri)
 
 
+def is_db_configured() -> bool:
+    return os.environ.get('USE_MONGO_DB', '').lower() == 'true'
+
+
 async def save_session(session: SessionData) -> None:
     """
     Saves a session to the database. Replace the existing one if session_id matches.
     """
-    if session is None:
+    if not is_db_configured() or session is None:
         return
     bson = session.model_dump(mode='json', by_alias=True)
     async with __get_client() as client:
@@ -53,7 +58,7 @@ async def load_session(session_id: str) -> Optional[SessionData]:
     """
     Loads a session from the database. If it does not exist, return None.
     """
-    if not session_id:
+    if not is_db_configured() or not session_id:
         return None
 
     async with __get_client() as client:
@@ -63,6 +68,10 @@ async def load_session(session_id: str) -> Optional[SessionData]:
             if bson is None:
                 return None
             return SessionData.model_validate(bson)
+        except ValidationError as e:
+            logger.error(f'Failed to load session {session_id}: {e}')
+            await delete_session(session_id)
+            return None
         except Exception as e:
             logger.error(f'Failed to load session {session_id}: {e}')
             return None
@@ -72,7 +81,7 @@ async def delete_session(session_id: str) -> None:
     """
     Deletes a session from the database.
     """
-    if not session_id:
+    if not is_db_configured() or not session_id:
         return
 
     async with __get_client() as client:
@@ -97,7 +106,7 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Respons
     # Extract session_id from cookies
     if cookies:
         cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
-        session_id = cookie_dict.get("session_id")
+        session_id = cookie_dict.get("session_id", None)
 
     max_age = 60 * 60 * 24 * 30  # 30 days
     # create Cookie (or just update max-age if already exists)
@@ -117,16 +126,28 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
             if session_id in sessions
             else await load_session(session_id))
         if session is None:
-            logger.info(f"Creating new Session {session_id}")
-            session = SessionData()
-        session_id = session.session_id
-        sessions[session_id] = session
+            session = create_new_session(session_id)
+            logger.info(f"Created new session: {session.session_id}")
+            session_id = session.session_id
+            sessions[session_id] = session
+        else:
+            # if session was loaded from DB, save into memory
+            logger.info(f'Session already exists: {session_id}')
+            sessions[session_id] = session
+
 
         # update session expiration
         if max_age > 0:
             session.valid_until = time.time() + max_age
 
     return session_id
+
+
+def create_new_session(session_id: Optional[str]) -> SessionData:
+    session = SessionData()
+    if session_id is not None and len(session_id) > 0:
+        session.session_id = session_id
+    return session
 
 
 async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
@@ -142,29 +163,24 @@ async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: 
 
 async def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
     if (chat is not None) and (message is not None) and not chat.name:
-        async with sessions_lock:
-            chat.name = (f'{message.user_query[:32]}…'
-                if len(message.user_query) > 32
-                else message.user_query)
+        chat.name = (f'{message.user_query[:32]}…'
+            if len(message.user_query) > 32
+            else message.user_query)
 
 
 async def update_chat_time(chat: Chat) -> None:
-    async with sessions_lock:
-        chat.time_modified = datetime.now(tz=timezone.utc)
+    chat.time_modified = datetime.now(tz=timezone.utc)
 
 
 async def store_message(chat: Chat, result: QueryResponse):
-    async with sessions_lock:
-        chat.responses.append(result)
-        await update_chat_time(chat)
-
+    chat.responses.append(result)
+    await update_chat_time(chat)
 
 async def delete_chat(session: SessionData, chat_id: str) -> bool:
     chat = session.chats.get(chat_id, None)
     if chat is None: return False
-    async with sessions_lock:
-        del session.chats[chat_id]
-        await delete_session(session.session_id)
+    del session.chats[chat_id]
+    await delete_session(session.session_id)
     return True
 
 
