@@ -99,6 +99,14 @@ class AbstractMethod(ABC):
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
         client = self.session.llm_client(url)
 
+        if url == "mistral":
+            return AgentMessage(agent=agent, content=await client.stream(
+                model=model,
+                messages=[ChatMessage(role="system", content=system_prompt), *messages],
+                tools=tools,
+                tool_choice=tool_choice,
+            ))
+
         # Initialize variables
         exec_time = time.time()
         tool_call_buffers = {}
