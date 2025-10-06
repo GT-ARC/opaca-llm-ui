@@ -39,7 +39,7 @@
         <ComboBox
             v-model="localValue"
             :items="configParam?.enum"
-            :default-disabled="!configParam?.free_input"
+            :default-input-disabled="!configParam?.free_input"
         />
     </div>
 

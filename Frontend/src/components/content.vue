@@ -518,7 +518,7 @@ export default {
         },
 
         startRecognition() {
-            if (AudioManager.isVoiceServerConnected) {
+            if (AudioManager.isVoiceServerConnected && AudioManager.useWhisperStt) {
                 this.showRecordingPopup = true;
             } else {
                 AudioManager.startWebSpeechRecognition(text => {

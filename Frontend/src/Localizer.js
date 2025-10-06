@@ -1,5 +1,4 @@
 import {reactive, ref} from 'vue';
-import {marked} from 'marked';
 import {shuffleArray} from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import conf from '../config.js';
@@ -94,6 +93,9 @@ export const localizationData = {
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
         containerLoginMessage: "The following action requires additional credentials: ",
+        useWhisperTts: "Whisper TTS",
+        useWhisperStt: "Whisper STT",
+        whisperVoiceSelectPlaceholder: "Whisper Voice"
     },
 
     DE: {
@@ -184,6 +186,9 @@ export const localizationData = {
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
         containerLoginMessage: "Die auszuführende Aktion benötigt weitere Zugangsdaten: ",
+        useWhisperTts: "Whisper TTS",
+        useWhisperStt: "Whisper STT",
+        whisperVoiceSelectPlaceholder: "Whisper-Stimme"
     },
 };
 

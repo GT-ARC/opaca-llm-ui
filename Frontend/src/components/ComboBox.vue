@@ -16,25 +16,24 @@
             :aria-expanded="open ? 'true' : 'false'"
             aria-autocomplete="list"
             autocomplete="off"
-            :disabled="disabled"
+            :disabled="disabled || inputDisabled"
         />
         <button
             class="btn btn-outline-secondary"
             type="button"
             @click="() => toggleDropdown()"
-            aria-label="Toggle options">
+            aria-label="Toggle options"
+            :disabled="disabled">
             <i v-if="open" class="fa fa-caret-up" />
             <i v-else class="fa fa-caret-down" />
         </button>
     </div>
 
-    <ul
-        v-if="open"
+    <ul v-if="open"
         class="list-group position-absolute start-0 end-0 mt-1"
         style="z-index: 1050; max-height: 240px; overflow: auto;"
         role="listbox">
-        <li
-            v-for="(item, idx) in items"
+        <li v-for="(item, idx) in items"
             :key="item + '_' + idx"
             class="list-group-item list-group-item-action"
             :class="{ active: idx === highlighted }"
@@ -55,14 +54,16 @@ export default {
         modelValue: { type: String, default: "" },
         items: { type: Array, default: () => [] },
         placeholder: { type: String, default: "" },
+        defaultInputDisabled: { type: Boolean, default: false },
         defaultDisabled: { type: Boolean, default: false },
     },
-    emits: ["update:modelValue"],
+    emits: ["update:modelValue", "select"],
     data() {
         return {
             open: false,
             highlighted: -1,
             localValue: this.modelValue,
+            inputDisabled: this.defaultInputDisabled,
             disabled: this.defaultDisabled,
         };
     },
@@ -74,17 +75,18 @@ export default {
     methods: {
         onInput() {
             this.$emit("update:modelValue", this.localValue);
+            this.$emit("select", this.localValue);
         },
         toggleDropdown(value = null) {
             this.open = (value === null)
                 ? !this.open
                 : value;
-            console.log('open?', this.open);
             if (this.open) this.highlighted = -1;
         },
         select(item) {
             this.localValue = item;
             this.$emit("update:modelValue", item);
+            this.$emit("select", item);
             this.toggleDropdown(false);
         },
         moveSelection(offset) {
@@ -112,6 +114,10 @@ export default {
     mounted() {
         // close when clicking anywhere else
         document.addEventListener("mousedown", this.onDocClick);
+
+        if (!! this.localValue) {
+            this.select(this.items[0]);
+        }
     },
     beforeUnmount() {
         document.removeEventListener("mousedown", this.onDocClick);
