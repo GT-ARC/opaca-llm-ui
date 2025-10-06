@@ -171,7 +171,7 @@ def update_chat_time(chat: Chat) -> None:
     chat.time_modified = datetime.now(tz=timezone.utc)
 
 
-def store_message(chat: Chat, result: QueryResponse):
+async def store_message(chat: Chat, result: QueryResponse):
     chat.responses.append(result)
     update_chat_time(chat)
 

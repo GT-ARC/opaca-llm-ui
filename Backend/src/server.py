@@ -149,7 +149,7 @@ async def get_chat_history(request: Request, response: Response, chat_id: str) -
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     chat = await handle_chat_id(session, chat_id, True)
-    await create_chat_name(chat, message)
+    create_chat_name(chat, message)
     session.abort_sent = False
     result = None
     try:
@@ -172,7 +172,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     try:
         data = await websocket.receive_json()
         message = QueryRequest(**data)
-        await create_chat_name(chat, message)
+        create_chat_name(chat, message)
         result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
@@ -187,7 +187,7 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
     session = await handle_session_id(request, response)
     chat = await handle_chat_id(session, chat_id)
     chat.name = new_name
-    await update_chat_time(chat)
+    update_chat_time(chat)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
