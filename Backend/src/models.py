@@ -382,7 +382,7 @@ class ContainerLoginResponse(BaseModel):
     Attributes:
         username: username to use for container login
         password: password to use for container login
-        containerLoginTimeout: automatically logout after this many seconds
+        timeout: automatically logout after this many seconds
     """
     username: str
     password: str
