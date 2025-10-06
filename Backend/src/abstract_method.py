@@ -134,6 +134,13 @@ class AbstractMethod(ABC):
         stream = await client.responses.create(**kwargs)
         async for event in stream:
 
+            # Check if an "abort" message has been sent by the user
+            if self.session.abort_sent:
+                raise OpacaException(
+                    user_message="(The generation of the response has been stopped.)",
+                    error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
+                )
+
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
                 agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
