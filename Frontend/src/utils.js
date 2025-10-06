@@ -27,14 +27,14 @@ class BackendClient {
 
     // chat
 
-    async query(chatId, backend, user_query) {
+    async query(chatId, method, user_query) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `chats/${chatId}/query/${backend}`, body);
+        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body);
     }
 
-    async queryNoChat(backend, user_query) {
+    async queryNoChat(method, user_query) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${backend}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body);
     }
 
     // TODO query stream
@@ -59,13 +59,28 @@ class BackendClient {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
+
+    // files
+
+    async files() {
+        return await this.sendRequest("GET", "files");
+    }
+
+    async deleteFile(file_id) {
+        await this.sendRequest("DELETE", `files/${file_id}`);
+    }
+
+    async suspendFile(file_id, suspend) {
+        await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
+    }
+
     async uploadFiles(files) {
         const formData = new FormData();
         for (const file of files) {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.BackendAddress}/upload`, formData, {
+        const response = await axios.post(`${conf.BackendAddress}/files`, formData, {
             timeout: 10000,
             withCredentials: true,
             headers: {
@@ -81,16 +96,16 @@ class BackendClient {
 
     // config
 
-    async getConfig(backend) {
-        return await this.sendRequest('GET', `config/${backend}`);
+    async getConfig(method) {
+        return await this.sendRequest('GET', `config/${method}`);
     }
 
-    async updateConfig(backend, config) {
-        return await this.sendRequest('PUT', `config/${backend}`, config);
+    async updateConfig(method, config) {
+        return await this.sendRequest('PUT', `config/${method}`, config);
     }
 
-    async resetConfig(backend) {
-        return await this.sendRequest('DELETE', `config/${backend}`);
+    async resetConfig(method) {
+        return await this.sendRequest('DELETE', `config/${method}`);
     }
 
     async search(query) {
@@ -134,7 +149,6 @@ export function shuffleArray(array) {
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
- * 
  * @param {Array} debugMessages list of existing debug messages (modified)
  * @param {object} message new message object with fields {id, type, text, chatId}
  */

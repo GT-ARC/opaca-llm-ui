@@ -6,4 +6,4 @@ be translatable to tools (e.g. no cycles in data type definitions).
 Works with GPT models and vLLM.
 """
 
-from .tool_routes import ToolLLMBackend
+from .tool_routes import ToolLLMMethod

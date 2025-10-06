@@ -7,4 +7,4 @@ Works for both, GPT and vLLM.
 Parameter "ask_policy" can be used to determine how much confirmation the LLM will require.
 """
 
-from .simple_routes import SimpleBackend
+from .simple_routes import SimpleMethod

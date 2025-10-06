@@ -136,19 +136,61 @@
         </div>
     </div>
 
+
+    <!-- Container Login Context -->
+    <div v-if="showContainerLogin" class="auth-overlay">
+        <div class="dropdown-menu show p-4 login-container">
+            <form @submit.prevent="submitContainerLogin">
+                <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
+                <input
+                        v-model="containerLoginUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': containerLoginError}]"
+                        :placeholder="Localizer.get('username')"
+                        @input="containerLoginError = false"
+                />
+                <input
+                        v-model="containerLoginPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': containerLoginError}]"
+                        :placeholder="Localizer.get('password')"
+                        @input="containerLoginError = false"
+                />
+                <select v-model="containerLoginTimeout" class="form-select mb-3">
+                    <option value="0">Logout immediately</option>
+                    <option value="300">Logout after 5 minutes</option>
+                    <option value="1800">Logout after 30 minutes</option>
+                    <option value="3600">Logout after 1 hour</option>
+                    <option value="14400">Logout after 4 hours</option>
+                </select>
+                <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    {{ Localizer.get('authError') }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)" :disabled="!containerLoginUser || !containerLoginPassword">
+                    <span>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitContainerLogin(false)">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
-            :backend="this.backend"
+            :method="this.method"
             :language="this.language"
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
+            @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             ref="content"
         />
     </div>
 </template>
 
 <script>
-import conf, {Backends} from '../config.js';
+import conf, {Methods} from '../config.js';
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
@@ -164,12 +206,12 @@ export default {
     components: {OptionsSelect, MainContent, CookieBanner},
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Backends, Localizer, AudioManager, isMobile, screenWidth };
+        return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
     },
     data() {
         return {
             language: 'GB',
-            backend: conf.DefaultBackend,
+            method: conf.DefaultMethod,
             sidebar: 'connect',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
@@ -179,6 +221,12 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
+            showContainerLogin: false,
+            containerLoginDetails: null,
+            containerLoginUser: "",
+            containerLoginPassword: "",
+            containerLoginError: false,
+            containerLoginTimeout: 300,
         }
     },
     methods: {
@@ -226,8 +274,8 @@ export default {
             }
         },
 
-        setBackend(key) {
-            this.backend = key;
+        setMethod(key) {
+            this.method = key;
         },
 
         /**
@@ -256,11 +304,33 @@ export default {
 
         handleOptionSelect(key, value) {
             switch (key) {
-                case 'method': this.setBackend(value); break;
+                case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
+        },
+
+        handleContainerLogin(containerLoginDetails) {
+            this.containerLoginDetails = containerLoginDetails;
+            this.containerLoginError = this.containerLoginDetails.retry;
+            this.showContainerLogin = true;
+        },
+
+        submitContainerLogin(submitCredentials) {
+            this.showContainerLogin = false;
+
+            // If the credentials should be submitted
+            if (submitCredentials) {
+                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginTimeout);
+            } else {
+                this.$refs.content.submitContainerLogin("", "", 0)
+            }
+
+            // Reset the input fields
+            this.containerLoginUser = "";
+            this.containerLoginPassword = "";
+            this.containerLoginDetails = null;
         }
     },
 
@@ -382,6 +452,13 @@ header {
 
 .dropdown-menu > li:hover > .dropdown-submenu {
     display: block;
+}
+
+/* login stuff */
+.login-container {
+    max-width: 400px;
+    width: 100%;
+    margin: auto;
 }
 
 /* navbar stuff */

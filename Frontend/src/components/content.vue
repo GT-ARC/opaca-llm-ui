@@ -1,5 +1,17 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
+    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
+         @dragover.prevent="() => toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => toggleFileDropOverlay(true)">
+
+        <!-- File Drop Overlay -->
+        <div v-if="showFileDropOverlay" id="fileDropOverlay"
+             @dragleave.prevent="() => toggleFileDropOverlay(false)"
+             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
+            <div id="overlayContent">
+                <p>{{ Localizer.get("dropFiles") }}</p>
+                <span class="fa fa-file-pdf" />
+            </div>
+        </div>
 
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
@@ -12,7 +24,7 @@
         />
 
         <Sidebar
-            :backend="backend"
+            :method="method"
             :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
@@ -23,26 +35,16 @@
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
-            @new-chat="() => this.startNewChat()"
+            @new-chat="() => {this.suspendAllFiles(); this.startNewChat()}"
+            @delete-file="fileId => this.handleDeleteFile(fileId)"
+            @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
 
         <!-- Main Container: Chat Window, Text Input -->
         <main id="mainContent" class="mx-auto"
-            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }"
-            @dragover.prevent="() => toggleFileDropOverlay(true)"
-            @dragenter.prevent="() => toggleFileDropOverlay(true)">
-
-            <!-- File Drop Overlay -->
-            <div v-if="showFileDropOverlay" id="fileDropOverlay"
-                 @dragleave.prevent="() => toggleFileDropOverlay(false)"
-                 @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
-                <div id="overlayContent">
-                    <p>{{ Localizer.get("dropFiles") }}</p>
-                    <span class="fa fa-file-pdf" />
-                </div>
-            </div>
+            :class="{ 'd-flex flex-column flex-grow-1': this.isMainContentVisible(), 'd-none': !this.isMainContentVisible() }">
 
             <!-- Chat Window with Chat bubbles -->
             <div class="container-fluid flex-grow-1 chat-container" id="chat1"
@@ -90,14 +92,14 @@
                  class="upload-status-preview mx-auto">
 
                 <!-- Loop through each selected file -->
-                <div v-for="(file, fileId) in selectedFiles">
+                <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.fileId || (fileObj.file?.name + '-' + index)">
                     <FilePreview
-                        v-if="fileId < this.maxDisplayedFiles()"
-                        :key="file.name + fileId"
-                        :file="file"
-                        :index="fileId"
-                        :upload-status="this.uploadStatus"
-                        @remove-file="this.removeSelectedFile"
+                        v-if="index < this.maxDisplayedFiles()"
+                        :key="fileObj.fileId"
+                        :file-id="fileObj.fileId"
+                        :file="fileObj.file"
+                        :is-uploading="fileObj.isUploading"
+                        @remove-file="this.handleDeleteFile"
                     />
                 </div>
 
@@ -107,7 +109,7 @@
                 </div>
             </div>
 
-            <!-- Input Area with drag and drop -->
+            <!-- Input Area -->
             <div class="input-container">
 
                 <div class="input-area"
@@ -122,6 +124,7 @@
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
+                            @paste="handlePaste"
                             ref="textInputRef"
                         />
                     </div>
@@ -136,6 +139,7 @@
                             <i class="fa fa-upload" />
                             <input
                                 type="file"
+                                ref="fileInput"
                                 accept=".pdf"
                                 class="d-none"
                                 :disabled="!this.isFinished"
@@ -210,12 +214,13 @@ export default {
         Chatbubble
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
     },
     emits: [
         'select-category',
+        'container-login-required',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -232,14 +237,11 @@ export default {
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
-            uploadStatus: {
-                isUploading: false,
-                uploadedFileName: '',
-            },
             selectedChatId: '',
             newChat: false,
             showFileDropOverlay: false,
             autoScrollEnabled: true,
+            socket: null,
         }
     },
     methods: {
@@ -265,10 +267,8 @@ export default {
                     : [];
                 await this.askChatGpt(userInput, files);
 
-                // Clear file and status after sending
+                // Clear files list after sending
                 this.selectedFiles = [];
-                this.uploadStatus.uploadedFileName = '';
-                this.uploadStatus.isUploading = false;
 
                 // update chats list
                 await this.$refs.sidebar.$refs.chats.updateChats();
@@ -323,12 +323,12 @@ export default {
                 Localizer.getLoadingMessage('preparing'), false);
 
             try {
-                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.getBackend()}`;
-                const socket = new WebSocket(url);
-                socket.onopen    = ()    => this.handleStreamingSocketOpen(socket, userText);
-                socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                socket.onclose   = ()    => this.handleStreamingSocketClose();
-                socket.onerror   = error => this.handleStreamingSocketError(error);
+                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
+                this.socket = new WebSocket(url);
+                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(userText);
+                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
+                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
+                this.socket.onerror   = error => this.handleStreamingSocketError(error);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -349,35 +349,67 @@ export default {
                 return;
             }
 
-            this.uploadStatus.isUploading = true;
-
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
-            this.selectedFiles.push(...pdfFiles);
+            const wrappedFiles = pdfFiles.map(file => ({
+                file,
+                fileId: null,
+                isUploading: true
+            }));
+            this.selectedFiles.push(...wrappedFiles);
 
             try {
                 const result = await backendClient.uploadFiles(files);
+
+                result.uploaded_files.forEach((uploaded, idx) => {
+                    const wrapper = wrappedFiles[idx];
+                    wrapper.fileId = uploaded.file_id;
+                    wrapper.isUploading = false;
+                });
             } catch (error) {
                 console.error("File upload failed:", error);
                 alert("File upload failed. See console for details.");
             } finally {
-                this.uploadStatus.isUploading = false;
+                // Force vue to update
+                this.selectedFiles = [...this.selectedFiles];
+                this.$refs.fileInput.value = "";
+                await this.$refs.sidebar.$refs.files.updateFiles();
             }
         },
 
-        // Remove selected file at given index from the preview list
-        removeSelectedFile(index) {
-            this.selectedFiles.splice(index, 1);
+        // Remove selected file
+        async handleDeleteFile(fileId) {
+            // Clean up preview if it exists
+            this.selectedFiles = this.selectedFiles.filter(f => f.fileId !== fileId);
+
+            // From backend
+            await backendClient.deleteFile(fileId);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async handleSuspendFile(fileId, suspend) {
+            await backendClient.suspendFile(fileId, suspend);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async suspendAllFiles() {
+            const files = await backendClient.files();
+            for (const file of Object.values(files)) {
+                if (!file.suspended) {
+                    await backendClient.suspendFile(file.file_id, true);
+                }
+            }
+            await this.$refs.sidebar.$refs.files.updateFiles();
         },
 
         maxDisplayedFiles() {
             return this.isMobile ? 2 : 4;
         },
 
-        async handleStreamingSocketOpen(socket, userText) {
+        async handleStreamingSocketOpen(userText) {
             try {
                 const inputData = JSON.stringify({user_query: userText});
-                socket.send(inputData);
+                this.socket.send(inputData);
             } catch (error) {
                 await this.handleStreamingSocketError(error);
             }
@@ -387,16 +419,23 @@ export default {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
+            // If a container login is required
+            console.log(result.status);
+            if (result.status === 401) {
+                this.$emit('container-login-required', result);
+                return
+            }
+
             if (result.hasOwnProperty('agent')) {
                 if (result.agent === 'Output Generator') {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.content);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 } else {
                     // other agent messages are intermediate results
                     this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result, false);
+                    await this.addDebugToken(result);
                 }
 
                 this.scrollDownDebug();
@@ -424,6 +463,7 @@ export default {
 
             this.startAutoSpeak();
             this.isFinished = true;
+            this.socket.close();
             this.scrollDownChat();
             await this.$refs.sidebar.$refs.chats.updateChats();
         },
@@ -462,6 +502,16 @@ export default {
             }
         },
 
+        submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
+            const containerLoginDetails = JSON.stringify({
+                username: containerLoginUser,
+                password: containerLoginPassword,
+                timeout: containerLoginTimeout,
+            });
+            this.socket.send(containerLoginDetails);
+        },
+
+
         handleRecordingError(error) {
             console.error('Recording error:', error);
             alert('Error recording audio: ' + error.message);
@@ -477,14 +527,6 @@ export default {
                     this.submitText();
                 });
             }
-        },
-
-        async resetChat() {
-            this.messages = [];
-            this.$refs.sidebar.clearDebugMessage();
-            this.showExampleQuestions = true;
-            Localizer.reloadSampleQuestions(null);
-            await backendClient.reset();
         },
 
         /**
@@ -546,13 +588,12 @@ export default {
         async addDebugToken(agentMessage) {
             // log tool output
             if (agentMessage.tools && agentMessage.tools.length > 0) {
-                const toolOutput = agentMessage["tools"].map(tool =>
-                    `Tool ${tool["id"]}:\nName: ${tool["name"]}\nArguments: ${JSON.stringify(tool["args"])}\nResult: ${JSON.stringify(tool["result"])}`
+                const toolOutput = agentMessage.tools.map(tool =>
+                    `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}\nResult: ${JSON.stringify(tool.result)}`
                 ).join("\n\n");
                 const type = agentMessage.agent;
                 this.addDebug(toolOutput, type, agentMessage.id);
             }
-
             // log agent message
             if (agentMessage.content) {
                 const text = agentMessage.content;
@@ -566,11 +607,6 @@ export default {
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
             aiBubble.addDebugMessage(text, type, id);
-        },
-
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
         },
 
         isMainContentVisible() {
@@ -594,11 +630,25 @@ export default {
             if (!chatId || chatId === this.selectedChatId) return;
             try {
                 const res = await backendClient.history(chatId);
+                const debug = this.$refs.sidebar.$refs.debug;
 
+                // clear messages
                 this.messages = [];
-                for (const msg of res.messages) {
-                    const isUser = msg.role === 'user';
-                    await this.addChatBubble(msg.content, isUser);
+                debug.clearDebugMessages();
+
+                // add messages from history
+                for (const msg of res.responses) {
+                    // request
+                    await this.addChatBubble(msg.query, true);
+                    debug.addDebugMessage(msg.query, "user");
+                    // response
+                    await this.addChatBubble(msg.content, false);
+                    for (const x of msg.agent_messages) {
+                        this.addDebugToken(x);
+                    }
+                    if (msg.error) {
+                        this.getLastBubble().setError(msg.error);
+                    }
                 }
 
                 if (this.messages.length !== 0) {
@@ -655,6 +705,7 @@ export default {
                 this.selectedChatId = uuid.v4();
                 this.newChat = true;
                 this.messages = [];
+                this.$refs.sidebar.$refs.debug.clearDebugMessages();
                 this.textInput = '';
                 this.showExampleQuestions = true;
                 Localizer.reloadSampleQuestions(null);
@@ -685,6 +736,28 @@ export default {
             await this.loadHistory(chatId);
             await this.scrollToMessage(messageId);
         },
+
+        async handlePaste(event) {
+            const items = event.clipboardData.items;
+
+            const files = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === "file") {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+
+            if (files.length > 0) {
+                // Prevent from being inserted into the input
+                event.preventDefault();
+
+                await this.uploadFiles(files);
+            }
+            // If no file found, let normal paste happen
+        }
 
     },
 

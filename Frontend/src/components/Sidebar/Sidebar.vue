@@ -14,6 +14,11 @@
                :title="Localizer.get('tooltipSidebarChats')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
+            <i @click="SidebarManager.toggleView('files')"
+               class="fa fa-file sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarFiles')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
+
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarPrompts')"
@@ -56,6 +61,7 @@
                     ref="info"
                 />
 
+                <!-- chats -->
                 <SidebarChats
                     v-show="SidebarManager.isViewSelected('chats')"
                     :selected-chat-id="this.selectedChatId"
@@ -66,6 +72,14 @@
                     @new-chat="() => this.$emit('new-chat')"
                     @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
                     ref="chats"
+                />
+
+                <!-- uploaded files -->
+                <SidebarFiles
+                    v-show="SidebarManager.isViewSelected('files')"
+                    @delete-file="fileId => this.$emit('delete-file', fileId)"
+                    @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    ref="files"
                 />
 
                 <!-- sample questions -->
@@ -82,10 +96,10 @@
                     ref="agents"
                 />
 
-                <!-- backend config -->
+                <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
-                    :backend="this.getBackend()"
+                    :method="this.method"
                     ref="config"
                 />
 
@@ -109,7 +123,7 @@
 </template>
 
 <script>
-import conf, {Backends, BackendDescriptions} from '../../../config.js'
+import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
@@ -120,10 +134,12 @@ import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
+import SidebarFiles from "./SidebarFiles.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarFiles,
         SidebarChats,
         SidebarFaq,
         SidebarDebug,
@@ -133,7 +149,7 @@ export default {
         SidebarQuestions,
     },
     props: {
-        backend: String,
+        method: String,
         language: String,
         connected: Boolean,
         selectedChatId: String,
@@ -146,21 +162,18 @@ export default {
         'delete-chat',
         'rename-chat',
         'new-chat',
+        'delete-file',
+        'suspend-file',
         'goto-search-result',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Backends, BackendDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
+        return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
         return {};
     },
     methods: {
-        getBackend() {
-            const parts = this.backend.split('/');
-            return parts[parts.length - 1];
-        },
-
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);

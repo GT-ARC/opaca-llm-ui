@@ -1,11 +1,12 @@
 import os
 import logging
+import traceback
 from typing import Dict, List, Optional, Any
 
 import jsonref
 from fastapi import HTTPException
 
-from .models import ConfigParameter, OpacaException, Response
+from .models import ConfigParameter, OpacaException, QueryResponse
 
 
 logger = logging.getLogger(__name__)
@@ -75,16 +76,6 @@ class Action:
                 f'Description: {self.description}, Parameters: {self.params_in}, '
                 f'Custom Types: {self.custom_params}}}')
 
-
-def get_supported_models():
-    return [
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"), 
-            os.getenv("LLM_APIKEYS", "").split(";"), 
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
-        )
-    ]
 
 
 def add_dicts(d1: dict, d2: dict) -> dict:
@@ -190,7 +181,7 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
     """
     Validates the given input values against the Configuration Schema
     :param values: The input dict of configuration parameters that was sent by the UI
-    :param schema: The schema of the selected backend that the parameters should affect
+    :param schema: The schema of the selected prompting method that the parameters should affect
     :return: Returns true if everything was successfully validated, false otherwise
     """
 
@@ -339,10 +330,12 @@ def transform_schema(schema):
     return final_schema
 
 
-def exception_to_result(user_query: str, exception: Exception) -> Response:
-    """Convert an exception (generic or OpacaException) to a Response to be
+def exception_to_result(user_query: str, exception: Exception) -> QueryResponse:
+    """Convert an exception (generic or OpacaException) to a QueryResponse to be
     returned to the Chat-UI."""
     if isinstance(exception, OpacaException):
-        return Response(query=user_query, content=exception.user_message, error=exception.error_message)
+        logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
+        return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
     else:
-        return Response(query=user_query, content='Generation failed', error=str(exception))
+        logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
+        return QueryResponse(query=user_query, content='Generation failed', error=str(exception))

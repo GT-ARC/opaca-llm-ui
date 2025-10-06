@@ -3,10 +3,10 @@
 ## General Use
 
 **What is OPACA and how does it work?**  
-OPACA is a platform that connects language model agents to backend services, enabling the assistant to fetch data, execute workflows, or control external systems by invoking defined tools.
+OPACA is a platform that connects language model agents to OPACA services, enabling the assistant to fetch data, execute workflows, or control external systems by invoking defined tools.
 
 **How do I connect to OPACA and why is it necessary?**  
-To connect, enter the backend URL (e.g., `http://localhost:8000`) along with your username and password, then click "Connect." This is necessary because OPACA provides the assistant with access to backend tools. Without connecting, the assistant cannot perform any tool-based operations.
+To connect, enter the OPACA URL (e.g., `http://localhost:8000`) along with your username and password, then click "Connect." This is necessary because OPACA provides the assistant with access to OPACA tools. Without connecting, the assistant cannot perform any tool-based operations.
 
 **What is an interaction mode and how does it affect behavior?**  
 Interaction modes define how the assistant uses tools. Modes range from direct prompting to advanced, multi-step tool orchestration.
@@ -30,7 +30,7 @@ No, only one mode can be active at a time. You can switch modes as needed.
 ## Tools and Services
 
 **What are tools and services in OPACA?**  
-Tools are backend APIs or functions exposed by OPACA. The assistant can call them to perform tasks like querying databases, triggering actions, or controlling systems.
+Tools are APIs or functions exposed by OPACA. The assistant can call them to perform tasks like querying databases, triggering actions, or controlling systems.
 
 **How can I see which tools or services are available?**  
 Tools are loaded from the OPACA server when you connect. You can ask the assistant or view them in the interface (if supported).
@@ -48,7 +48,7 @@ Complex queries may require multiple steps. The assistant can chain tool calls t
 Yes, if those systems are connected as services. Use caution when enabling access to critical systems.
 
 **Can I deploy my own tools or services to OPACA?**  
-Yes. If you have access to the backend, you can deploy custom OPACA agent containers and register new tools.
+Yes. If you have access to the OPACA platform, you can deploy custom OPACA agent containers and register new tools.
 
 **Can I chain tools manually?**  
 Not directly through the UI. You can simulate chaining by prompting the assistant with follow-up instructions based on previous outputs, or by explicitly asking the assistant to use tools in a specific order.
