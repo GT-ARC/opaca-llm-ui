@@ -195,12 +195,13 @@ async def cleanup_old_sessions() -> None:
     """
     logger.info("Checking for old Sessions...")
     now = time.time()
-    for session_id, session in sessions.items():
-        if session.valid_until < now:
-            logger.info(f"Removing old session {session_id}")
-            delete_files_for_session(session_id)
-            sessions.pop(session_id)
-            await delete_session(session_id)
+    async with sessions_lock:
+        for session_id, session in sessions.items():
+            if session.valid_until < now:
+                logger.info(f"Removing old session {session_id}")
+                delete_files_for_session(session_id)
+                del sessions[session_id]
+                await delete_session(session_id)
 
 
 async def delete_all_sessions() -> None:
@@ -218,8 +219,7 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
     :param delay_seconds: Number of seconds after which this task repeats. Defaults to 86400s (1 day).
     """
     while True:
-        async with sessions_lock:
-            await cleanup_old_sessions()
-            await store_sessions_in_db()
-            cleanup_files(sessions)
+        await cleanup_old_sessions()
+        await store_sessions_in_db()
+        cleanup_files(sessions)
         await asyncio.sleep(delay_seconds)
