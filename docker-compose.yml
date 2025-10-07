@@ -33,10 +33,7 @@ services:
       LLM_APIKEYS:
       LLM_MODELS:
       CORS_WHITELIST:
-      USE_MONGO_DB:
-      MONGO_HOST:
-      MONGO_USERNAME:
-      MONGO_PASSWORD:
+      MONGODB_URI: "mongodb://user:pass@backend-db:27017"
     volumes:
       - opacadata:/data
 

@@ -29,10 +29,8 @@ sessions: Dict[str, SessionData] = {}
 
 def __get_client(uri: Optional[str] = None) -> AsyncMongoClient:
     if uri is None:
-        username = quote_plus(os.environ.get('MONGO_USERNAME', 'user'))
-        password = quote_plus(os.environ.get('MONGO_PASSWORD', 'pass'))
-        host = os.environ.get('MONGO_HOST', 'backend-db:27017')
-        uri = f'mongodb://{username}:{password}@{host}'
+        uri = os.environ.get('MONGODB_URI', None)
+    logger.info(f'Connecting to {uri}')
     return AsyncMongoClient(uri)
 
 
@@ -41,7 +39,7 @@ __client: AsyncMongoClient = __get_client()
 
 
 def is_db_configured() -> bool:
-    return os.environ.get('USE_MONGO_DB', '').lower() == 'true'
+    return len(os.environ.get('MONGODB_URI', '').strip()) > 0
 
 
 async def save_session(session: SessionData) -> None:
