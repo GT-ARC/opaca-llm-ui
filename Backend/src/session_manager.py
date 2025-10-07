@@ -110,7 +110,7 @@ async def load_all_sessions() -> None:
     logger.info(f'Loaded {len(session_ids)} sessions from DB.')
     for session_id in session_ids:
         session = await load_session(session_id)
-        if session is not None and is_session_valid(session, do_delete=True):
+        if session is not None and await is_session_valid(session, do_delete=True):
             sessions[session_id] = session
 
 
