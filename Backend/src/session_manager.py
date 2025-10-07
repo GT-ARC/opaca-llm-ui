@@ -4,15 +4,15 @@ import time
 import logging
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, Iterator, List
 from fastapi import Request, Response, HTTPException
 from pydantic import ValidationError
+from pymongo import ASCENDING
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
-from urllib.parse import quote_plus
 
-from .file_utils import delete_files_for_session, cleanup_files
+from .file_utils import delete_files_for_session
 from .models import SessionData, Chat, QueryRequest, QueryResponse
 
 
@@ -52,7 +52,7 @@ async def save_session(session: SessionData) -> None:
     try:
         logger.debug(f'Storing session {session.session_id} in DB.')
         bson = session.model_dump(mode='json', by_alias=True)
-        await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
+        await collection.replace_one({'_id': session.session_id}, bson, upsert=True)
     except Exception as e:
         logger.error(f'Failed to save session: {e}')
 
@@ -65,13 +65,13 @@ async def load_session(session_id: str) -> Optional[SessionData]:
         return None
     collection = __client[DB_NAME][SESSIONS_COLLECTION]
     try:
-        bson = await collection.find_one({"_id": session_id})
+        bson = await collection.find_one({'_id': session_id})
         if bson is None:
             return None
         logger.debug(f'Loaded data for session {session_id} from DB.')
         return SessionData.model_validate(bson)
     except ValidationError as e:
-        logger.error(f'Failed to load session {session_id}: {e}')
+        logger.error(f'Invalid data for session {session_id}: {e}')
         await delete_session(session_id)
         return None
     except Exception as e:
@@ -91,6 +91,26 @@ async def delete_session(session_id: str) -> None:
         await collection.delete_one({"_id": session_id})
     except Exception as e:
         logger.error(f'Failed to delete session {session_id}: {e}')
+
+
+async def find_session_ids() -> List[str]:
+    if not is_db_configured(): return []
+    collection = __client[DB_NAME][SESSIONS_COLLECTION]
+    cursor = collection.find({}, {'_id': 1})
+    return [doc['_id'] async for doc in cursor]
+
+
+async def load_all_sessions() -> None:
+    """
+    Load all session data from DB into memory.
+    """
+    if not is_db_configured(): return
+    session_ids = await find_session_ids()
+    logger.info(f'Loaded {len(session_ids)} sessions from DB.')
+    for session_id in session_ids:
+        session = await load_session(session_id)
+        if session is not None and is_session_valid(session, do_delete=True):
+            sessions[session_id] = session
 
 
 async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
@@ -133,7 +153,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
             session_id = session.session_id
             sessions[session_id] = session
         else:
-            # if session was loaded from DB, save into memory
+            # if session is valid and was loaded from DB, save into memory
             sessions[session_id] = session
 
         # update session expiration
@@ -196,14 +216,27 @@ async def cleanup_old_sessions() -> None:
     Delete all expired sessions.
     """
     logger.info("Cleaning out expired sessions...")
-    now = time.time()
+    for session_id, session in sessions.items():
+        await is_session_valid(session, do_delete=True)
+
+
+async def is_session_valid(session: SessionData, do_delete: bool = True) -> bool:
+    """
+    Check if the session is valid, e.g. exists, not expired, etc.
+
+    :param session: The session to check.
+    :param do_delete: If True, delete the session from the database if it's not valid.
+    """
+    if session is None: return False
+    if session.valid_until >= time.time(): return True
     async with sessions_lock:
-        for session_id, session in sessions.items():
-            if session.valid_until < now:
-                logger.info(f"Removing old session {session_id}")
-                delete_files_for_session(session_id)
-                del sessions[session_id]
-                await delete_session(session_id)
+        logger.warning(f'Session {session.session_id} has expired.')
+        if do_delete:
+            if session.session_id in sessions:
+                del sessions[session.session_id]
+            delete_files_for_session(session.session_id)
+            await delete_session(session.session_id)
+    return True
 
 
 async def delete_all_sessions() -> None:
@@ -224,7 +257,6 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
     while True:
         await cleanup_old_sessions()
         await store_sessions_in_db()
-        await cleanup_files(sessions)
         await asyncio.sleep(delay_seconds)
 
 

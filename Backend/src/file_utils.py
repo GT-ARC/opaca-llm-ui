@@ -80,26 +80,14 @@ async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
     """
     Save an UploadFile to disk.
     """
-    file_path = Path(FILES_PATH, session_id, file.filename)
+    file_data = OpacaFile(content_type=file.content_type, file_name=file.filename)
+    file_path = Path(FILES_PATH, session_id, file_data.file_id)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    if file_path.exists():
-        logger.warning(f'Overwriting existing file at "{file_path}"')
-    else:
-        logger.info(f'Saving file to "{file_path}"')
+    logger.info(f'Saving file to "{file_path}"')
     with open(file_path, 'wb') as f:
         while chunk := await file.read(1024 * 1024):
             f.write(chunk)
-    return OpacaFile(content_type=file.content_type, file_name=file.filename)
-
-
-async def cleanup_files(sessions: Dict[str, SessionData]) -> None:
-    files_path = Path(FILES_PATH)
-    if not files_path.exists(): return
-    for item in files_path.iterdir():
-        dir_path = Path(files_path, item.name)
-        if dir_path.is_dir() and item.name not in sessions:
-            logger.info(f'Deleting files for stale session "{item.name}": {dir_path}')
-            shutil.rmtree(dir_path)
+    return file_data
 
 
 def delete_files_for_session(session_id: str) -> None:
