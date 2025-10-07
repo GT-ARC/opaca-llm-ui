@@ -73,6 +73,7 @@ async def load_session(session_id: str) -> Optional[SessionData]:
     except ValidationError as e:
         logger.error(f'Invalid data for session {session_id}: {e}')
         await delete_session(session_id)
+        delete_files_for_session(session_id)
         return None
     except Exception as e:
         logger.error(f'Failed to load session {session_id}: {e}')
