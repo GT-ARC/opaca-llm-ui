@@ -50,9 +50,10 @@ async def save_session(session: SessionData) -> None:
     """
     if not is_db_configured() or session is None:
         return
-    bson = session.model_dump(mode='json', by_alias=True)
     collection = __client[DB_NAME][SESSIONS_COLLECTION]
     try:
+        logger.debug(f'Storing session {session.session_id} in DB.')
+        bson = session.model_dump(mode='json', by_alias=True)
         await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
     except Exception as e:
         logger.error(f'Failed to save session: {e}')
@@ -64,13 +65,12 @@ async def load_session(session_id: str) -> Optional[SessionData]:
     """
     if not is_db_configured() or not session_id:
         return None
-
     collection = __client[DB_NAME][SESSIONS_COLLECTION]
     try:
         bson = await collection.find_one({"_id": session_id})
         if bson is None:
             return None
-        logger.info(f'Loaded data for session {session_id} from DB.')
+        logger.debug(f'Loaded data for session {session_id} from DB.')
         return SessionData.model_validate(bson)
     except ValidationError as e:
         logger.error(f'Failed to load session {session_id}: {e}')
@@ -87,7 +87,7 @@ async def delete_session(session_id: str) -> None:
     """
     if not is_db_configured() or not session_id:
         return
-
+    logger.debug(f'Deleting data for session {session_id} from DB.')
     collection = __client[DB_NAME][SESSIONS_COLLECTION]
     try:
         await collection.delete_one({"_id": session_id})
@@ -186,6 +186,7 @@ def delete_chat(session: SessionData, chat_id: str) -> bool:
 
 
 async def store_sessions_in_db() -> None:
+    if len(sessions) == 0: return
     logger.info(f'Storing data for {len(sessions)} sessions in database...')
     async with sessions_lock:
         for session in sessions.values():
@@ -211,8 +212,8 @@ async def delete_all_sessions() -> None:
     logger.warning("Deleting all sessions...")
     async with sessions_lock:
         for session_id in sessions:
-            sessions.pop(session_id)
             await delete_session(session_id)
+        sessions.clear()
 
 
 async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
