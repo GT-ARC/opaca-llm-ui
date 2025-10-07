@@ -22,7 +22,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk
 from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
-    handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task, delete_chat
+    handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task, delete_chat, on_shutdown
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
         # on shutdown
         logger.info("Saving sessions to DB...")
         await asyncio.wait_for(asyncio.shield(store_sessions_in_db()), timeout=10)
+        await asyncio.wait_for(asyncio.shield(on_shutdown()), timeout=10)
 
 
 app = FastAPI(

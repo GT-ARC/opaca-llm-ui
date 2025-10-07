@@ -3,6 +3,7 @@ import os
 import time
 import logging
 from datetime import datetime, timezone
+from logging import Logger
 from typing import Dict, Union, Optional
 from fastapi import Request, Response, HTTPException
 from pydantic import ValidationError
@@ -15,14 +16,14 @@ from .file_utils import delete_files_for_session, cleanup_files
 from .models import SessionData, Chat, QueryRequest, QueryResponse
 
 
+logger: Logger = logging.getLogger(__name__)
+
 DB_NAME: str = 'backend-data'
 SESSIONS_COLLECTION: str = 'sessions'
 
-logger = logging.getLogger(__name__)
-
 # Simple dict to store session data in memory
 # Is saved periodically to DB, and also on server shutdown
-sessions_lock = asyncio.Lock()
+sessions_lock: asyncio.Lock = asyncio.Lock()
 sessions: Dict[str, SessionData] = {}
 
 
@@ -33,6 +34,10 @@ def __get_client(uri: Optional[str] = None) -> AsyncMongoClient:
         host = os.environ.get('MONGO_HOST', 'backend-db:27017')
         uri = f'mongodb://{username}:{password}@{host}'
     return AsyncMongoClient(uri)
+
+
+# client for communicating with the db
+__client: AsyncMongoClient = __get_client()
 
 
 def is_db_configured() -> bool:
@@ -46,12 +51,11 @@ async def save_session(session: SessionData) -> None:
     if not is_db_configured() or session is None:
         return
     bson = session.model_dump(mode='json', by_alias=True)
-    async with __get_client() as client:
-        collection = client[DB_NAME][SESSIONS_COLLECTION]
-        try:
-            await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
-        except Exception as e:
-            logger.error(f'Failed to save session: {e}')
+    collection = __client[DB_NAME][SESSIONS_COLLECTION]
+    try:
+        await collection.replace_one({"_id": session.session_id}, bson, upsert=True)
+    except Exception as e:
+        logger.error(f'Failed to save session: {e}')
 
 
 async def load_session(session_id: str) -> Optional[SessionData]:
@@ -61,20 +65,19 @@ async def load_session(session_id: str) -> Optional[SessionData]:
     if not is_db_configured() or not session_id:
         return None
 
-    async with __get_client() as client:
-        collection = client[DB_NAME][SESSIONS_COLLECTION]
-        try:
-            bson = await collection.find_one({"_id": session_id})
-            if bson is None:
-                return None
-            return SessionData.model_validate(bson)
-        except ValidationError as e:
-            logger.error(f'Failed to load session {session_id}: {e}')
-            await delete_session(session_id)
+    collection = __client[DB_NAME][SESSIONS_COLLECTION]
+    try:
+        bson = await collection.find_one({"_id": session_id})
+        if bson is None:
             return None
-        except Exception as e:
-            logger.error(f'Failed to load session {session_id}: {e}')
-            return None
+        return SessionData.model_validate(bson)
+    except ValidationError as e:
+        logger.error(f'Failed to load session {session_id}: {e}')
+        await delete_session(session_id)
+        return None
+    except Exception as e:
+        logger.error(f'Failed to load session {session_id}: {e}')
+        return None
 
 
 async def delete_session(session_id: str) -> None:
@@ -84,15 +87,14 @@ async def delete_session(session_id: str) -> None:
     if not is_db_configured() or not session_id:
         return
 
-    async with __get_client() as client:
-        collection = client[DB_NAME][SESSIONS_COLLECTION]
-        try:
-            await collection.delete_one({"_id": session_id})
-        except Exception as e:
-            logger.error(f'Failed to delete session {session_id}: {e}')
+    collection = __client[DB_NAME][SESSIONS_COLLECTION]
+    try:
+        await collection.delete_one({"_id": session_id})
+    except Exception as e:
+        logger.error(f'Failed to delete session {session_id}: {e}')
 
 
-async def handle_session_id(source: Union[Request, WebSocket], response: Response = None) -> SessionData:
+async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
     """
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
@@ -152,9 +154,8 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
 async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
     chat = session.chats.get(chat_id, None)
     if chat is None and create_if_missing:
-        async with sessions_lock:
-            chat = Chat(chat_id=chat_id)
-            session.chats[chat_id] = chat
+        chat = Chat(chat_id=chat_id)
+        session.chats[chat_id] = chat
     elif chat is None and not create_if_missing:
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
@@ -221,5 +222,10 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
     while True:
         await cleanup_old_sessions()
         await store_sessions_in_db()
-        cleanup_files(sessions)
+        await cleanup_files(sessions)
         await asyncio.sleep(delay_seconds)
+
+
+async def on_shutdown():
+    if __client is not None:
+        await __client.close()

@@ -92,11 +92,12 @@ async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
     return OpacaFile(content_type=file.content_type, file_name=file.filename)
 
 
-def cleanup_files(sessions: Dict[str, SessionData]) -> None:
+async def cleanup_files(sessions: Dict[str, SessionData]) -> None:
     files_path = Path(FILES_PATH)
+    if not files_path.exists(): return
     for item in files_path.iterdir():
-        if item.is_dir() and item.name not in sessions:
-            dir_path = Path(files_path, item.name)
+        dir_path = Path(files_path, item.name)
+        if dir_path.is_dir() and item.name not in sessions:
             logger.info(f'Deleting files for stale session "{item.name}": {dir_path}')
             shutil.rmtree(dir_path)
 
