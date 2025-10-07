@@ -70,6 +70,7 @@ async def load_session(session_id: str) -> Optional[SessionData]:
         bson = await collection.find_one({"_id": session_id})
         if bson is None:
             return None
+        logger.info(f'Loaded data for session {session_id} from DB.')
         return SessionData.model_validate(bson)
     except ValidationError as e:
         logger.error(f'Failed to load session {session_id}: {e}')
@@ -185,6 +186,7 @@ def delete_chat(session: SessionData, chat_id: str) -> bool:
 
 
 async def store_sessions_in_db() -> None:
+    logger.info(f'Storing data for {len(sessions)} sessions in database...')
     async with sessions_lock:
         for session in sessions.values():
             await save_session(session)
@@ -194,7 +196,7 @@ async def cleanup_old_sessions() -> None:
     """
     Delete all expired sessions.
     """
-    logger.info("Checking for old Sessions...")
+    logger.info("Cleaning out expired sessions...")
     now = time.time()
     async with sessions_lock:
         for session_id, session in sessions.items():
@@ -206,6 +208,7 @@ async def cleanup_old_sessions() -> None:
 
 
 async def delete_all_sessions() -> None:
+    logger.warning("Deleting all sessions...")
     async with sessions_lock:
         for session_id in sessions:
             sessions.pop(session_id)
