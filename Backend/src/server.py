@@ -111,7 +111,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
+        return await METHODS[method](session, message.streaming).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return exception_to_result(message.user_query, e)
 
@@ -155,33 +155,12 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method](session).query(message.user_query, chat)
+        result = await METHODS[method](session, message.streaming).query(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
         await store_message(chat, result)
         return result
-
-
-@app.websocket("/chats/{chat_id}/stream/{method}")
-async def query_stream(websocket: WebSocket, chat_id: str, method: str):
-    await websocket.accept()
-    session = await handle_session_id(websocket)
-    chat = handle_chat_id(session, chat_id, True)
-    session.abort_sent = False
-    message = None
-    result = None
-    try:
-        data = await websocket.receive_json()
-        message = QueryRequest(**data)
-        create_chat_name(chat, message)
-        result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
-    except Exception as e:
-        result = exception_to_result(message.user_query, e)
-    finally:
-        await store_message(chat, result)
-        await websocket.send_json(result.model_dump_json())
-        await websocket.close()
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
@@ -326,6 +305,26 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         file.suspended = suspend
         return True
     return False
+
+
+# WEBSOCKET CONNECTION (permanently opened)
+
+@app.websocket("/ws")
+async def open_websocket(websocket: WebSocket):
+    logger.info("opening websocket...")
+    await websocket.accept()
+    session = await handle_session_id(websocket)
+    session.websocket = websocket
+    try:
+        while True:
+            logger.info("websocket waiting...")
+            await asyncio.sleep(1)
+            # just waiting... is there a better way?
+    except Exception as e:
+        logger.info(f"WS connection closed: {e}")
+    finally:
+        logger.info("websocket removed")
+        session.websocket = None
 
 
 ## Utility functions
