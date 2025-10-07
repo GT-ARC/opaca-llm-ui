@@ -93,6 +93,9 @@ export const localizationData = {
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
+        tooltipChatbubbleSave: "Save prompt to user library",
+        personalQuestionsEmpty: "No personal prompts saved",
+        tooltipDeleteQuestion: "Delete prompt",
     },
 
     DE: {
@@ -182,6 +185,9 @@ export const localizationData = {
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
+        tooltipChatbubbleSave: "Prompt in Nutzerbibliothek speichern",
+        personalQuestionsEmpty: "Keine persönlichen Prompts gespeichert",
+        tooltipDeleteQuestion: "Prompt löschen",
     },
 };
 

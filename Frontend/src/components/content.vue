@@ -60,6 +60,7 @@
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
+                        @add-to-library="addPromptToSidebar"
                     />
                 </div>
 
@@ -737,8 +738,12 @@ export default {
                 await this.uploadFiles(files);
             }
             // If no file found, let normal paste happen
-        }
+        },
 
+        addPromptToSidebar(prompt) {
+            // call SidebarQuestions method
+            this.$refs.sidebar.$refs.questions.addPersonalPrompt(prompt);
+        },
     },
 
     mounted() {

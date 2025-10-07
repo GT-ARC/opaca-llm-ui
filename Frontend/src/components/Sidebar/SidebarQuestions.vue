@@ -15,7 +15,7 @@
                 <button class="accordion-button collapsed text-center" type="button"
                         data-bs-toggle="collapse"
                         :data-bs-target="'#questions-' + index"
-                        aria-expanded="false" :aria-controls="'#questions-' + index">
+                        aria-expanded="false" :aria-controls="'questions-' + index">
                     <span class="section-icon">{{ section.icon }}</span>
                     <span class="section-title">{{ section.header }}</span>
                 </button>
@@ -50,6 +50,50 @@
             <i :class="['fa', 'fa-sync', isRegenerating ? 'fa-spin' : '']"></i>{{ Localizer.get('regenerate')}}
         </button>
     </div>
+
+    <!-- Personal prompts -->
+    <div id="sidebar-personal-questions" class="accordion">
+        <div class="accordion-item">
+
+            <!-- header -->
+            <div class="accordion-header text-center">
+                <button class="accordion-button collapsed text-center" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#personal-questions"
+                        aria-expanded="false"
+                        aria-controls="personal-questions">
+                    <span class="section-icon">{{ personalPrompts.icon }}</span>
+                    <span class="section-title">{{ personalPrompts.header }}</span>
+                </button>
+            </div>
+
+            <!-- body -->
+            <div id="personal-questions"
+                 class="accordion-collapse collapse"
+                 data-bs-parent="#sidebar-personal-questions">
+                <div class="accordion-body">
+                    <div v-if="personalPrompts.questions.length">
+                        <div class="question-item d-flex justify-content-between align-items-center"
+                                v-for="(q, qIndex) in personalPrompts.questions"
+                                :key="qIndex"
+                                @click="this.$emit('select-question', q.question)">
+                            <span class="question-text">
+                                {{q.icon}}
+                                <i>{{ q.question }}</i>
+                            </span>
+                            <i class="fa fa-remove question-menu-button"
+                                @click.stop="removePersonalPrompt(qIndex)"
+                                :title="Localizer.get('tooltipDeleteQuestion')"
+                            />
+                        </div>
+                    </div>
+                    <div v-else class="question-item">
+                        {{ Localizer.get("personalQuestionsEmpty") }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 </template>
 
@@ -69,6 +113,12 @@ export default {
     data() {
         return {
             isRegenerating: false,
+            personalPrompts: {
+                id: "personalPrompts",
+                header: "Personal Prompts",
+                icon: "🔖",
+                questions: [{"question": "Question 1", "icon": "📧"}],
+            },
         }
     },
     setup() {
@@ -151,6 +201,31 @@ export default {
             }
         },
 
+        loadPersonalPrompts() {
+            const saved = localStorage.getItem('personalPrompts');
+            if (saved) {
+                try {
+                    this.personalPrompts.questions = JSON.parse(saved);
+                } catch (e) {
+                    console.warn("Failed to parse saved prompts", e);
+                }
+            }
+        },
+
+        savePersonalPrompts() {
+            localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts.questions));
+        },
+
+        addPersonalPrompt(question, icon = "⭐") {
+            this.personalPrompts.questions.push({ question, icon });
+            this.savePersonalPrompts();
+        },
+
+        removePersonalPrompt(index) {
+            this.personalPrompts.questions.splice(index, 1);
+            this.savePersonalPrompts();
+        },
+
         toggleSection(index, show = null) {
             if (index < 0) return;
             const toggle = document.getElementById('questions-' + index);
@@ -197,6 +272,10 @@ export default {
 
         // open default category
         this.expandSectionByHeader(conf.DefaultQuestions);
+
+        // Load personal prompts
+        this.loadPersonalPrompts();
+
     }
 }
 </script>
@@ -237,5 +316,24 @@ export default {
     flex: 1;
     font-size: 0.875rem;
     line-height: 1.4;
+}
+
+.question-menu-button {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    border-radius: 1rem !important;
+    cursor: pointer;
+}
+
+.question-menu-button:hover {
+    background-color: var(--input-color);
+    color: var(--text-danger-color);
 }
 </style>
