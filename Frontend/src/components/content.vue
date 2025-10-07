@@ -319,19 +319,24 @@ export default {
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
-            this.getLastBubble().addStatusMessage('preparing',
-                Localizer.getLoadingMessage('preparing'), false);
+            const aiBubble = this.getLastBubble();
+            aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
-            try {
-                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
-            } catch (error) {
-                await this.handleStreamingSocketError(error);
+            // get chat response (intermediate results are streamed via websocket)
+            const res = await backendClient.query(this.selectedChatId, this.method, userText, true, 60000);
+            const result = res.agent_messages[res.agent_messages.length-1];
+
+            // display final result
+            if (result.error) {
+                aiBubble.setError(result.error);
+                this.$refs.sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
             }
+            aiBubble.setContent(result.content);
+            aiBubble.toggleLoading(false);
+            this.isFinished = true;
+
+            this.startAutoSpeak();
+            this.scrollDownChat();
         },
 
         async toggleFileDropOverlay(show) {
@@ -406,13 +411,11 @@ export default {
             return this.isMobile ? 2 : 4;
         },
 
-        async handleStreamingSocketOpen(userText) {
-            try {
-                const inputData = JSON.stringify({user_query: userText});
-                this.socket.send(inputData);
-            } catch (error) {
-                await this.handleStreamingSocketError(error);
-            }
+        async connectWebsocket() {
+            const url = `${conf.BackendAddress}/ws`
+            const socket = new WebSocket(url);
+            socket.onmessage = event => this.handleStreamingSocketMessage(event);
+            return socket;
         },
 
         async handleStreamingSocketMessage(event) {
@@ -442,6 +445,7 @@ export default {
                 this.scrollDownChat();
             } else {
                 // no agent property -> Last message received should be final response
+                // TODO is this bit still necessary?
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
@@ -452,32 +456,6 @@ export default {
                 aiBubble.toggleLoading(false);
                 this.isFinished = true;
             }
-        },
-
-        async handleStreamingSocketClose() {
-            console.log("WebSocket connection closed", this.isFinished);
-            if (!this.isFinished) {
-                const message = Localizer.get('socketClosed');
-                this.handleUnexpectedConnectionClosed(message);
-            }
-
-            this.startAutoSpeak();
-            this.isFinished = true;
-            this.socket.close();
-            this.scrollDownChat();
-            await this.$refs.sidebar.$refs.chats.updateChats();
-        },
-
-        async handleStreamingSocketError(error) {
-            console.error("Received error: ", error);
-            if (!this.isFinished) {
-                const message = Localizer.get('socketError', error.toString());
-                this.handleUnexpectedConnectionClosed(message);
-            }
-
-            this.isFinished = true;
-            this.scrollDownChat();
-            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         startAutoSpeak() {

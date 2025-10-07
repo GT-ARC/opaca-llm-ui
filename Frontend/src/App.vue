@@ -354,6 +354,8 @@ export default {
             }
         });
 
+        this.$refs.content.connectWebsocket();
+
         if (this.isMobile) {
             SidebarManager.close()
         } else {

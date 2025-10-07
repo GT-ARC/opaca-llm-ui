@@ -314,7 +314,7 @@ async def open_websocket(websocket: WebSocket):
     logger.info("opening websocket...")
     await websocket.accept()
     session = await handle_session_id(websocket)
-    session.websocket = websocket
+    session._websocket = websocket
     try:
         while True:
             logger.info("websocket waiting...")
