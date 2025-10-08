@@ -96,7 +96,6 @@ class SessionDbClient:
         return [doc['_id'] async for doc in cursor]
 
 
-
 db_client = SessionDbClient(os.environ.get('MONGODB_URI', None))
 
 
@@ -141,10 +140,9 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
 
 
 async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0) -> str:
-    async with sessions_lock:
-        session = (sessions.get(session_id, None)
-            if session_id in sessions
-            else await db_client.load_session(session_id))
+    async with (sessions_lock):
+        session = sessions.get(session_id, None) \
+            or await db_client.load_session(session_id)
 
         if session is None:
             session = create_new_session(session_id)
@@ -164,7 +162,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
 
 def create_new_session(session_id: Optional[str] = None) -> SessionData:
     session = SessionData()
-    if session_id is not None and len(session_id) > 0:
+    if session_id:
         session.session_id = session_id
     return session
 
