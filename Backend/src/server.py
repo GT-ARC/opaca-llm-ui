@@ -196,7 +196,7 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
 async def delete_chat_route(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    return await delete_chat(session, chat_id)
+    return delete_chat(session, chat_id)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")

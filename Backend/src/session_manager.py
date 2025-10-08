@@ -4,10 +4,9 @@ import time
 import logging
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Dict, Union, Optional, Iterator, List
+from typing import Dict, Union, Optional, List
 from fastapi import Request, Response, HTTPException
 from pydantic import ValidationError
-from pymongo import ASCENDING
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
@@ -27,89 +26,88 @@ sessions_lock: asyncio.Lock = asyncio.Lock()
 sessions: Dict[str, SessionData] = {}
 
 
-def __get_client(uri: Optional[str] = None) -> AsyncMongoClient:
-    if uri is None:
-        uri = os.environ.get('MONGODB_URI', None)
-    logger.info(f'Connecting to {uri}')
-    return AsyncMongoClient(uri)
+class SessionDbClient:
+
+    def __init__(self, uri: Optional[str] = None):
+        logger.info(f'Connecting to {uri}')
+        self.client = AsyncMongoClient(uri) if uri else None
 
 
-# client for communicating with the db
-__client: AsyncMongoClient = __get_client()
+    def is_db_configured(self) -> bool:
+        return self.client is not None
 
 
-def is_db_configured() -> bool:
-    return len(os.environ.get('MONGODB_URI', '').strip()) > 0
+    async def save_session(self, session: SessionData) -> None:
+        """
+        Saves a session to the database. Replace the existing one if session_id matches.
+        """
+        if not self.is_db_configured() or session is None:
+            return
+        collection = self.client[DB_NAME][SESSIONS_COLLECTION]
+        try:
+            logger.debug(f'Storing session {session.session_id} in DB.')
+            bson = session.model_dump(mode='json', by_alias=True)
+            await collection.replace_one({'_id': session.session_id}, bson, upsert=True)
+        except Exception as e:
+            logger.error(f'Failed to save session: {e}')
 
 
-async def save_session(session: SessionData) -> None:
-    """
-    Saves a session to the database. Replace the existing one if session_id matches.
-    """
-    if not is_db_configured() or session is None:
-        return
-    collection = __client[DB_NAME][SESSIONS_COLLECTION]
-    try:
-        logger.debug(f'Storing session {session.session_id} in DB.')
-        bson = session.model_dump(mode='json', by_alias=True)
-        await collection.replace_one({'_id': session.session_id}, bson, upsert=True)
-    except Exception as e:
-        logger.error(f'Failed to save session: {e}')
-
-
-async def load_session(session_id: str) -> Optional[SessionData]:
-    """
-    Loads a session from the database. If it does not exist, return None.
-    """
-    if not is_db_configured() or not session_id:
-        return None
-    collection = __client[DB_NAME][SESSIONS_COLLECTION]
-    try:
-        bson = await collection.find_one({'_id': session_id})
-        if bson is None:
+    async def load_session(self, session_id: str) -> Optional[SessionData]:
+        """
+        Loads a session from the database. If it does not exist, return None.
+        """
+        if not self.is_db_configured() or not session_id:
             return None
-        logger.debug(f'Loaded data for session {session_id} from DB.')
-        return SessionData.model_validate(bson)
-    except ValidationError as e:
-        logger.error(f'Invalid data for session {session_id}: {e}')
-        await delete_session(session_id)
-        delete_files_for_session(session_id)
-        return None
-    except Exception as e:
-        logger.error(f'Failed to load session {session_id}: {e}')
-        return None
+        collection = self.client[DB_NAME][SESSIONS_COLLECTION]
+        try:
+            bson = await collection.find_one({'_id': session_id})
+            if bson is None:
+                return None
+            logger.debug(f'Loaded data for session {session_id} from DB.')
+            return SessionData.model_validate(bson)
+        except ValidationError as e:
+            logger.error(f'Invalid data for session {session_id}: {e}')
+            await self.delete_session(session_id)
+            delete_files_for_session(session_id)
+            return None
+        except Exception as e:
+            logger.error(f'Failed to load session {session_id}: {e}')
+            return None
 
 
-async def delete_session(session_id: str) -> None:
-    """
-    Deletes a session from the database.
-    """
-    if not is_db_configured() or not session_id:
-        return
-    logger.debug(f'Deleting data for session {session_id} from DB.')
-    collection = __client[DB_NAME][SESSIONS_COLLECTION]
-    try:
-        await collection.delete_one({"_id": session_id})
-    except Exception as e:
-        logger.error(f'Failed to delete session {session_id}: {e}')
+    async def delete_session(self, session_id: str) -> None:
+        """
+        Deletes a session from the database.
+        """
+        if not self.is_db_configured() or not session_id:
+            return
+        logger.debug(f'Deleting data for session {session_id} from DB.')
+        collection = self.client[DB_NAME][SESSIONS_COLLECTION]
+        try:
+            await collection.delete_one({"_id": session_id})
+        except Exception as e:
+            logger.error(f'Failed to delete session {session_id}: {e}')
 
 
-async def find_session_ids() -> List[str]:
-    if not is_db_configured(): return []
-    collection = __client[DB_NAME][SESSIONS_COLLECTION]
-    cursor = collection.find({}, {'_id': 1})
-    return [doc['_id'] async for doc in cursor]
+    async def find_session_ids(self) -> List[str]:
+        if not self.is_db_configured(): return []
+        collection = self.client[DB_NAME][SESSIONS_COLLECTION]
+        cursor = collection.find({}, {'_id': 1})
+        return [doc['_id'] async for doc in cursor]
+
+
+
+db_client = SessionDbClient(os.environ.get('MONGODB_URI', None))
 
 
 async def load_all_sessions() -> None:
     """
     Load all session data from DB into memory.
     """
-    if not is_db_configured(): return
-    session_ids = await find_session_ids()
+    session_ids = await db_client.find_session_ids()
     logger.info(f'Loaded {len(session_ids)} sessions from DB.')
     for session_id in session_ids:
-        session = await load_session(session_id)
+        session = await db_client.load_session(session_id)
         if session is not None and await is_session_valid(session, do_delete=True):
             sessions[session_id] = session
 
@@ -146,7 +144,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
     async with sessions_lock:
         session = (sessions.get(session_id, None)
             if session_id in sessions
-            else await load_session(session_id))
+            else await db_client.load_session(session_id))
 
         if session is None:
             session = create_new_session(session_id)
@@ -209,7 +207,7 @@ async def store_sessions_in_db() -> None:
     logger.info(f'Storing data for {len(sessions)} sessions in database...')
     async with sessions_lock:
         for session in sessions.values():
-            await save_session(session)
+            await db_client.save_session(session)
 
 
 async def cleanup_old_sessions() -> None:
@@ -236,7 +234,7 @@ async def is_session_valid(session: SessionData, do_delete: bool = True) -> bool
             if session.session_id in sessions:
                 del sessions[session.session_id]
             delete_files_for_session(session.session_id)
-            await delete_session(session.session_id)
+            await db_client.delete_session(session.session_id)
     return True
 
 
@@ -244,9 +242,11 @@ async def delete_all_sessions() -> None:
     logger.warning("Deleting all sessions...")
     async with sessions_lock:
         for session_id in sessions:
-            await delete_session(session_id)
+            await db_client.delete_session(session_id)
         sessions.clear()
 
+
+# LIFECYCLE
 
 async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
     """
@@ -262,5 +262,5 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
 
 
 async def on_shutdown():
-    if __client is not None:
-        await __client.close()
+    if db_client.client is not None:
+        await db_client.client.close()
