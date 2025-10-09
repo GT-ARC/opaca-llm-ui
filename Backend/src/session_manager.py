@@ -107,8 +107,10 @@ async def load_all_sessions() -> None:
     logger.info(f'Loaded {len(session_ids)} sessions from DB.')
     for session_id in session_ids:
         session = await db_client.load_session(session_id)
-        if session is not None and await is_session_valid(session, do_delete=True):
+        if is_session_valid(session):
             sessions[session_id] = session
+        else:
+            await delete_session(session_id)
 
 
 async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
@@ -214,26 +216,26 @@ async def cleanup_old_sessions() -> None:
     """
     logger.info("Cleaning out expired sessions...")
     for session_id, session in sessions.items():
-        await is_session_valid(session, do_delete=True)
+        if not is_session_valid(session):
+            await delete_session(session_id)
 
 
-async def is_session_valid(session: SessionData, do_delete: bool = True) -> bool:
+def is_session_valid(session: SessionData) -> bool:
     """
     Check if the session is valid, e.g. exists, not expired, etc.
 
     :param session: The session to check.
-    :param do_delete: If True, delete the session from the database if it's not valid.
     """
     if session is None: return False
-    if session.valid_until >= time.time(): return True
-    async with sessions_lock:
-        logger.warning(f'Session {session.session_id} has expired.')
-        if do_delete:
-            if session.session_id in sessions:
-                del sessions[session.session_id]
-            delete_files_for_session(session.session_id)
-            await db_client.delete_session(session.session_id)
+    if session.valid_until < time.time(): return False
     return True
+
+
+async def delete_session(session_id: str) -> None:
+    if session_id in sessions:
+        del sessions[session_id]
+    delete_files_for_session(session_id)
+    await db_client.delete_session(session_id)
 
 
 async def delete_all_sessions() -> None:

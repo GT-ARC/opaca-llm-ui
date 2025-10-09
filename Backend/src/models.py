@@ -1,7 +1,6 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-from pathlib import Path
 from typing import List, Dict, Any, Optional, Self, Iterator
 from datetime import datetime, timezone
 import logging
