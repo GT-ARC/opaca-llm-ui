@@ -334,7 +334,7 @@ export default {
         }
     },
 
-    mounted() {
+    async mounted() {
         if (conf.ColorScheme !== "system") {
             this.setTheme(conf.ColorScheme);
         }
@@ -342,17 +342,6 @@ export default {
         if (AudioManager.isBackendConfigured()) {
             AudioManager.initVoiceServerConnection();
         }
-
-        backendClient.getConnection().then(url => {
-            if (url != null) {
-                this.connected = true;
-                this.opacaRuntimePlatform = url;
-            } else if (conf.AutoConnect) {
-                this.connectToPlatform();
-            } else {
-                this.toggleConnectionDropdown(true);
-            }
-        });
 
         if (this.isMobile) {
             SidebarManager.close()
@@ -365,6 +354,22 @@ export default {
             e.stopPropagation();
         });
 
+        // check connection state; also acts as initial "handshake" to initialize the Session
+        const url = await backendClient.getConnection();
+        if (url != null) {
+            this.connected = true;
+            this.opacaRuntimePlatform = url;
+        } else if (conf.AutoConnect) {
+            await this.connectToPlatform();
+        } else {
+            this.toggleConnectionDropdown(true);
+        }
+        // initialize sidebar states; NOTE: this is done here, and not in their respective mounted() methods
+        // to ensure that all those steps are executed sequentially and no redundant sessions are created!
+        const sidebars = await this.$refs.content.$refs.sidebar.$refs;
+        await sidebars.files.updateFiles();
+        await sidebars.chats.updateChats();
+        await sidebars.config.fetchMethodConfig();
     }
 }
 </script>

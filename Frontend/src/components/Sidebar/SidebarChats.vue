@@ -94,7 +94,7 @@ export default {
         },
     },
     mounted() {
-        this.updateChats();
+        //this.updateChats(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
 }
 </script>

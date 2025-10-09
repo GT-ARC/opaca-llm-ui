@@ -57,7 +57,7 @@ export default {
         },
     },
     mounted() {
-        this.updateFiles();
+        //this.updateFiles(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
 }
 </script>
