@@ -22,8 +22,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk
 from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
-    create_chat_name, update_chat_time, store_message, cleanup_task, on_shutdown, \
-    load_all_sessions
+    cleanup_task, on_shutdown, load_all_sessions
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -152,7 +151,6 @@ async def get_chat_history(request: Request, response: Response, chat_id: str) -
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id, True)
-    create_chat_name(chat, message)
     session.abort_sent = False
     result = None
     try:
@@ -160,7 +158,7 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, result)
+        chat.store_interaction(result)
         return result
 
 
@@ -175,12 +173,11 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     try:
         data = await websocket.receive_json()
         message = QueryRequest(**data)
-        create_chat_name(chat, message)
         result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
         result = exception_to_result(message.user_query, e)
     finally:
-        await store_message(chat, result)
+        chat.store_interaction(result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -190,7 +187,7 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id)
     chat.name = new_name
-    update_chat_time(chat)
+    chat.update_modified()
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")

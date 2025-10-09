@@ -169,23 +169,6 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
     return session
 
 
-def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
-    if (chat is not None) and (message is not None) and not chat.name:
-        chat.name = (f'{message.user_query[:32]}…'
-            if len(message.user_query) > 32
-            else message.user_query)
-
-
-def update_chat_time(chat: Chat) -> None:
-    chat.time_modified = datetime.now(tz=timezone.utc)
-
-
-async def store_message(chat: Chat, result: QueryResponse):
-    chat.responses.append(result)
-    update_chat_time(chat)
-
-
-
 
 async def store_sessions_in_db() -> None:
     if len(sessions) == 0: return

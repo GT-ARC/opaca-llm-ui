@@ -211,6 +211,20 @@ class Chat(BaseModel):
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
 
+    def store_interaction(self, result: QueryResponse):
+        self.responses.append(result)
+        self.update_modified()
+        self.derive_name()
+
+    def update_modified(self) -> None:
+        self.time_modified = datetime.now(tz=timezone.utc)
+
+    def derive_name(self, ) -> None:
+        """derive name from first interaction, if any, and if not set yet"""
+        if not self.name and self.responses:
+            query = self.responses[0].query
+            self.name = (f'{query[:32]}…' if len(query) > 32 else query)
+
 
 class SessionData(BaseModel):
     """
