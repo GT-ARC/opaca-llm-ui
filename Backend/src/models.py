@@ -6,9 +6,11 @@ from datetime import datetime, timezone
 import logging
 import uuid
 import os
+import time
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
+from fastapi import HTTPException
 
 from .opaca_client import OpacaClient
 
@@ -254,6 +256,25 @@ class SessionData(BaseModel):
             else:
                 raise Exception(f"LLM host not supported : {the_url}")
         return self._llm_clients[the_url]
+
+    def is_valid(self, ) -> bool:
+        return self.valid_until > time.time()
+
+    def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
+        chat = self.chats.get(chat_id)
+        if chat is None and create_if_missing:
+            chat = Chat(chat_id=chat_id)
+            self.chats[chat_id] = chat
+        elif chat is None and not create_if_missing:
+            # TODO replace with some "normal" exception, map to HttpException in server
+            raise HTTPException(status_code=404, detail="Chat not found")
+        return chat
+
+    def delete_chat(self, chat_id: str) -> bool:
+        if chat_id in self.chats:
+            del self.chats[chat_id]
+            return True
+        return False
 
 
 class ConfigParameter(BaseModel):

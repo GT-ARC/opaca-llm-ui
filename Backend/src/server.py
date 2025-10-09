@@ -22,7 +22,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk
 from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
-    handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task, delete_chat, on_shutdown, \
+    create_chat_name, update_chat_time, store_message, cleanup_task, on_shutdown, \
     load_all_sessions
 
 # Configure CORS settings
@@ -144,14 +144,14 @@ async def get_chats(request: Request, response: Response) -> List[Chat]:
 @app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id)
+    chat = session.get_or_create_chat(chat_id)
     return chat
 
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id, True)
+    chat = session.get_or_create_chat(chat_id, True)
     create_chat_name(chat, message)
     session.abort_sent = False
     result = None
@@ -168,7 +168,7 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
 async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
-    chat = await handle_chat_id(session, chat_id, True)
+    chat = session.get_or_create_chat(chat_id, True)
     session.abort_sent = False
     message = None
     result = None
@@ -188,15 +188,15 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
 async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id)
+    chat = session.get_or_create_chat(chat_id)
     chat.name = new_name
     update_chat_time(chat)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
-async def delete_chat_route(request: Request, response: Response, chat_id: str) -> bool:
+async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    return delete_chat(session, chat_id)
+    return session.delete_chat(chat_id)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")

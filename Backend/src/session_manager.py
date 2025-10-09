@@ -107,7 +107,7 @@ async def load_all_sessions() -> None:
     logger.info(f'Loaded {len(session_ids)} sessions from DB.')
     for session_id in session_ids:
         session = await db_client.load_session(session_id)
-        if is_session_valid(session):
+        if session and session.is_valid():
             sessions[session_id] = session
         else:
             await delete_session(session_id)
@@ -169,16 +169,6 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
     return session
 
 
-async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
-    chat = session.chats.get(chat_id, None)
-    if chat is None and create_if_missing:
-        chat = Chat(chat_id=chat_id)
-        session.chats[chat_id] = chat
-    elif chat is None and not create_if_missing:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
-
-
 def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
     if (chat is not None) and (message is not None) and not chat.name:
         chat.name = (f'{message.user_query[:32]}…'
@@ -195,11 +185,6 @@ async def store_message(chat: Chat, result: QueryResponse):
     update_chat_time(chat)
 
 
-def delete_chat(session: SessionData, chat_id: str) -> bool:
-    chat = session.chats.get(chat_id, None)
-    if chat is None: return False
-    del session.chats[chat_id]
-    return True
 
 
 async def store_sessions_in_db() -> None:
@@ -216,19 +201,8 @@ async def cleanup_old_sessions() -> None:
     """
     logger.info("Cleaning out expired sessions...")
     for session_id, session in sessions.items():
-        if not is_session_valid(session):
+        if not session.is_valid():
             await delete_session(session_id)
-
-
-def is_session_valid(session: SessionData) -> bool:
-    """
-    Check if the session is valid, e.g. exists, not expired, etc.
-
-    :param session: The session to check.
-    """
-    if session is None: return False
-    if session.valid_until < time.time(): return False
-    return True
 
 
 async def delete_session(session_id: str) -> None:
