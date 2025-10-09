@@ -30,7 +30,7 @@
             :selected-chat-id="selectedChatId"
             :is-finished="isFinished"
             ref="sidebar"
-            @select-question="question => this.handleSelectQuestion(question)"
+            @select-question="(question, bookmarked) => this.handleSelectQuestion(question, bookmarked)"
             @select-category="category => this.handleSelectCategory(category)"
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
@@ -51,12 +51,13 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
+                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
@@ -252,7 +253,7 @@ export default {
             }
         },
 
-        async submitText() {
+        async submitText(bookmarked = false) {
             if (this.textInput && this.isFinished) {
                 // Copy current input and reset field
                 let userInput = this.textInput.trim();
@@ -264,7 +265,7 @@ export default {
                 const files = this.selectedFiles
                     ? this.selectedFiles.map(file => file.name)
                     : [];
-                await this.askChatGpt(userInput, files);
+                await this.askChatGpt(userInput, files, bookmarked);
 
                 // Clear files list after sending
                 this.selectedFiles = [];
@@ -278,14 +279,14 @@ export default {
             await backendClient.stop();
         },
 
-        async askSampleQuestion(questionText) {
+        async askSampleQuestion(questionText, bookmarked = false) {
             // Do not send questions during autogeneration
             if (questionText === "__loading__") return;
 
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
-            await this.submitText();
+            await this.submitText(bookmarked);
         },
 
         resizeTextInput() {
@@ -304,13 +305,13 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText, files = null) {
+        async askChatGpt(userText, files = null, bookmarked = false) {
             this.isFinished = false;
             this.showExampleQuestions = false;
             this.newChat = false;
 
             // add user chat bubble
-            await this.addChatBubble(userText, true, false, files);
+            await this.addChatBubble(userText, true, false, files, bookmarked);
 
             // add debug entry for user message
             const debug = this.$refs.sidebar.$refs.debug;
@@ -515,9 +516,10 @@ export default {
          * @param isUser {boolean} whether the message is by the user or the AI
          * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
          * @param files {Array} files attached to the message
+         * @param bookmarked {boolean} whether the message is a bookmarked prompt
          * later (streaming responses etc.)
          */
-        async addChatBubble(content, isUser = false, isLoading = false, files = null) {
+        async addChatBubble(content, isUser = false, isLoading = false, files = null, bookmarked = false) {
             const elementId = `chatbubble-${this.messages.length}`;
             const message = {
                 elementId: elementId,
@@ -525,6 +527,7 @@ export default {
                 content: content,
                 isLoading: isLoading,
                 files: files,
+                bookmarked: bookmarked,
             };
             this.messages.push(message);
 
@@ -642,11 +645,11 @@ export default {
             }
         },
 
-        handleSelectQuestion(question) {
+        handleSelectQuestion(question, bookmarked) {
             if (this.isMobile) {
                 SidebarManager.close();
             }
-            this.askSampleQuestion(question);
+            this.askSampleQuestion(question, bookmarked);
         },
 
         handleSelectCategory(category) {

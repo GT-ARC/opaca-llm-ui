@@ -22,10 +22,10 @@
                 <!-- save prompt to user library -->
                 <div v-show="this.content?.length > 0"
                      class="footer-item w-auto me-2"
-                     :class="{ 'disabled': saveSuccess }"
+                     :class="{ 'disabled': bookmarked }"
                      @click="this.addPromptToUserLibrary()"
                      :title="Localizer.get('tooltipChatbubbleSave')">
-                    <i v-if="this.saveSuccess" class="fa-solid fa-bookmark" />
+                    <i v-if="this.bookmarked" class="fa-solid fa-bookmark" />
                     <i v-else class="fa-regular fa-bookmark" />
                 </div>
 
@@ -216,6 +216,7 @@ export default {
         initialLoading: Boolean,
         files: Array,
         selectedChatId: String,
+        isBookmarked: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -232,7 +233,7 @@ export default {
             isErrorExpanded: false,
             ttsAudio: null,
             copySuccess: false,
-            saveSuccess: false,
+            bookmarked: this.isBookmarked ?? false,
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
@@ -381,11 +382,11 @@ export default {
 
         addPromptToUserLibrary() {
             const prompt = this.content;
-            if (prompt.length <= 0 || this.saveSuccess) return;
+            if (prompt.length <= 0 || this.bookmarked) return;
             // Emit event
             this.$emit('add-to-library', prompt)
             // Show success
-            this.saveSuccess = true;
+            this.bookmarked = true;
         },
 
         /**

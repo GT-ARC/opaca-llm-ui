@@ -85,7 +85,7 @@
                 <!-- sample questions -->
                 <SidebarQuestions
                     v-show="SidebarManager.isViewSelected('questions')"
-                    @select-question="question => this.$emit('select-question', question)"
+                    @select-question="(question, bookmarked) => this.$emit('select-question', question, bookmarked)"
                     @select-category="category => this.$emit('select-category', category)"
                     ref="questions"
                 />
