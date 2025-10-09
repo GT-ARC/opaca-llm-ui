@@ -95,7 +95,9 @@ export const localizationData = {
         searchAgentsPlaceholder: "Search…",
         tooltipChatbubbleSave: "Save prompt to user library",
         personalQuestionsEmpty: "No personal prompts saved",
-        tooltipDeleteQuestion: "Delete prompt",
+        tooltipDeleteQuestion: "Delete Prompt",
+        editQuestion: "Edit Prompt",
+        addPersonalQuestion: "New Prompt",
     },
 
     DE: {
@@ -188,6 +190,8 @@ export const localizationData = {
         tooltipChatbubbleSave: "Prompt in Nutzerbibliothek speichern",
         personalQuestionsEmpty: "Keine persönlichen Prompts gespeichert",
         tooltipDeleteQuestion: "Prompt löschen",
+        editQuestion: "Prompt bearbeiten",
+        addPersonalQuestion: "Neuer Prompt",
     },
 };
 

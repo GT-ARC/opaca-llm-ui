@@ -67,11 +67,25 @@
                 </button>
             </div>
 
+            <PersonalPromptEditor
+                v-if="showEditor"
+                :prompt="editingPrompt"
+                @save="saveEditedPrompt"
+                @cancel="closeEditor"
+            />
+
             <!-- body -->
             <div id="personal-questions"
                  class="accordion-collapse collapse"
                  data-bs-parent="#sidebar-personal-questions">
                 <div class="accordion-body">
+                    <!-- Create new Button -->
+                    <div class="question-item add-prompt-button d-flex align-items-center justify-content-center mb-2"
+                         @click.stop="openEditor()">
+                      <i class="fa fa-plus me-2"></i>
+                      <span>{{ Localizer.get('addPersonalQuestion')}}</span>
+                    </div>
+                    <!-- Questions -->
                     <div v-if="personalPrompts.questions.length">
                         <div class="question-item d-flex justify-content-between align-items-center"
                                 v-for="(q, qIndex) in personalPrompts.questions"
@@ -81,6 +95,10 @@
                                 {{q.icon}}
                                 <i>{{ q.question }}</i>
                             </span>
+                            <i class="fa fa-edit question-menu-button me-1"
+                                @click.stop="openEditor(q, qIndex)"
+                                :title="Localizer.get('editQuestion')"
+                            />
                             <i class="fa fa-remove question-menu-button"
                                 @click.stop="removePersonalPrompt(qIndex)"
                                 :title="Localizer.get('tooltipDeleteQuestion')"
@@ -103,9 +121,11 @@ import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
 import {useDevice} from "../../useIsMobile.js";
+import PersonalPromptEditor from "../PersonalPromptEditor.vue";
 
 export default {
     name: 'SidebarQuestions',
+    components: { PersonalPromptEditor },
     emits: [
         'select-question',
         'select-category',
@@ -119,6 +139,9 @@ export default {
                 icon: "🔖",
                 questions: [{"question": "Question 1", "icon": "📧"}],
             },
+            showEditor: false,
+            editingPrompt: null,
+            editingIndex: null,
         }
     },
     setup() {
@@ -235,6 +258,28 @@ export default {
         removePersonalPrompt(index) {
             this.personalPrompts.questions.splice(index, 1);
             this.savePersonalPrompts();
+        },
+
+        openEditor(prompt = null, index = null) {
+            this.editingPrompt = prompt ? { ...prompt } : { question: "", icon: "⭐" };
+            this.editingIndex = index;
+            this.showEditor = true;
+        },
+
+        closeEditor() {
+            this.showEditor = false;
+            this.editingPrompt = null;
+            this.editingIndex = null;
+        },
+
+        saveEditedPrompt(updatedPrompt) {
+            if (this.editingIndex != null) {
+                this.personalPrompts.questions.splice(this.editingIndex, 1, updatedPrompt);
+            } else {
+                this.personalPrompts.questions.push(updatedPrompt);
+            }
+            this.savePersonalPrompts();
+            this.closeEditor();
         },
 
         toggleSection(index, show = null) {
