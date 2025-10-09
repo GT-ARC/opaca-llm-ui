@@ -4,7 +4,7 @@ Provides a list of available  LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union, Optional
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -12,16 +12,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
+from starlette.datastructures import Headers
 
 from .utils import validate_config_input, exception_to_result
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models
+    SearchResult, get_supported_models, SessionData
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk
-from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
+from .session_manager import create_or_refresh_session, delete_all_sessions, store_sessions_in_db, \
     cleanup_task, on_shutdown, load_all_sessions
 
 # Configure CORS settings
@@ -304,6 +305,36 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         return True
 
     return False
+
+
+## HELPER FUNCTIONS
+
+async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
+    """
+    Unified session handler for both HTTP requests and WebSocket connections.
+    If no valid session ID is found, a new one is created and optionally set in the response cookie.
+    """
+
+    # Extract cookies from headers
+    headers = Headers(scope=source.scope)
+    cookies = headers.get("cookie")
+    session_id = None
+
+    # Extract session_id from cookies
+    if cookies:
+        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
+        session_id = cookie_dict.get("session_id", None)
+
+    max_age = 60 * 60 * 24 * 30  # 30 days
+    # create Cookie (or just update max-age if already exists)
+    session = await create_or_refresh_session(session_id, max_age)
+
+    # If it's an HTTP request, and you want to set a cookie
+    if response is not None:
+        response.set_cookie("session_id", session.session_id, max_age=max_age)
+
+    # Return the session data for the session ID
+    return session
 
 
 # run as `python3 -m Backend.server`
