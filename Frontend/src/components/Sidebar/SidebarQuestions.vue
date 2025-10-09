@@ -137,7 +137,7 @@ export default {
                 id: "personalPrompts",
                 header: "Personal Prompts",
                 icon: "🔖",
-                questions: [{"question": "Question 1", "icon": "📧"}],
+                questions: [],
             },
             showEditor: false,
             editingPrompt: null,
