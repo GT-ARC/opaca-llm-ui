@@ -27,9 +27,10 @@ async def upload_files(session: SessionData, host_url: str):
             continue
 
         # prepare file for upload
-        file_bytes = filedata._content.getvalue()  # Access private content
-        file_obj = io.BytesIO(file_bytes)
-        file_obj.name = filedata.file_name  # Required by OpenAI SDK
+        file_path = Path(FILES_PATH, session.session_id, filedata.file_id)
+        with open(file_path, 'rb') as f:
+            file_obj = io.BytesIO(f.read())
+            file_obj.name = filedata.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
         client = session.llm_client(host_url)
