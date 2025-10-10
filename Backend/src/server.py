@@ -137,7 +137,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     try:
         return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
-        return exception_to_result(message.user_query, e)
+        return QueryResponse.from_exception(message.user_query, e)
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
