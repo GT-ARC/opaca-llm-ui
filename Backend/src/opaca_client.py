@@ -94,7 +94,7 @@ class OpacaClient:
         """Initiate container login for OPACA RP"""
         logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers())
+            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers(), timeout=None)
         res.raise_for_status()
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):

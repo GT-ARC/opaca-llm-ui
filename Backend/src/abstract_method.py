@@ -222,7 +222,8 @@ class AbstractMethod(ABC):
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
-            if self.session.websocket and ("401" in cause or "403" in cause or "credentials" in cause):
+            status = res.get("cause", {}).get("statusCode", -1)
+            if self.websocket and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
                 return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
