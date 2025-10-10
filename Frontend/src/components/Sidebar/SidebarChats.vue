@@ -83,7 +83,7 @@ export default {
             try {
                 this.chats = await backendClient.chats();
             } catch (error) {
-                console.log(error);
+                console.error(error);
                 this.chats = [];
             }
         },
@@ -94,7 +94,7 @@ export default {
         },
     },
     mounted() {
-        this.updateChats();
+        //this.updateChats(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
 }
 </script>

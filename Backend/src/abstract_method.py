@@ -3,11 +3,14 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
+import asyncio
 
+import httpx
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, ToolCall, get_supported_models
+from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
+    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
 from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 from .internal_tools import InternalTools, MAGIC_NAME
@@ -136,6 +139,13 @@ class AbstractMethod(ABC):
         stream = await client.responses.create(**kwargs)
         async for event in stream:
 
+            # Check if an "abort" message has been sent by the user
+            if self.session.abort_sent:
+                raise OpacaException(
+                    user_message="(The generation of the response has been stopped.)",
+                    error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
+                )
+
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
                 agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
@@ -196,7 +206,7 @@ class AbstractMethod(ABC):
         return True if model.startswith(('o1', 'o3', 'gpt')) else False
 
 
-    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
@@ -207,6 +217,12 @@ class AbstractMethod(ABC):
                 t_result = await self.internal_tools.call_internal_tool(action_name, tool_args)
             else:
                 t_result = await self.session.opaca_client.invoke_opaca_action(action_name, agent_name, tool_args)
+        except httpx.HTTPStatusError as e:
+            res = e.response.json()
+            t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
+            cause = res.get("cause", {}).get("message", "")
+            if self.websocket and ("401" in cause or "403" in cause or "credentials" in cause):
+                return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
@@ -222,3 +238,36 @@ class AbstractMethod(ABC):
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
             tools = tools[:max_tools]
         return tools, error
+
+
+    async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False):
+        """Handles failed tool invocation due to missing credentials."""
+
+        # If a "missing credentials" error is encountered, initiate container login
+        container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
+
+        # Get credentials from user
+        await self.websocket.send_json(ContainerLoginNotification(
+            status=401,
+            type="missing_credentials",
+            container_name=container_name,
+            tool_name=tool_name,
+            retry=login_attempt_retry
+        ).model_dump_json())
+        response = ContainerLoginResponse(**await self.websocket.receive_json())
+
+        # Check if credentials were provided
+        if not response.username or not response.password:
+            return ToolCall(id=tool_id, name=tool_name, args=tool_args,
+                            result=f"Failed to invoke tool.\nNo credentials provided.")
+
+        # Send credentials to container via OPACA
+        await self.session.opaca_client.container_login(response.username, response.password, container_id)
+
+        # try to invoke the tool again
+        res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
+
+        # auto-logout after some time
+        asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, response.timeout))
+
+        return res
