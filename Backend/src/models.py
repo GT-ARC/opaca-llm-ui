@@ -7,6 +7,7 @@ import logging
 import uuid
 import os
 
+from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
@@ -98,8 +99,10 @@ class QueryRequest(BaseModel):
 
     Attributes
         user_query: The query a user has input into the OPACA LLM ChatBot.
+        streaming: whether intermediate results should be streamed via Websocket
     """
     user_query: str
+    streaming: bool = False
 
 
 class AgentMessage(BaseModel):
@@ -233,8 +236,13 @@ class SessionData(BaseModel):
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     valid_until: float = -1
 
+    _websocket: WebSocket | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
+
+    @property
+    def websocket(self) -> WebSocket:
+        return self._websocket
 
     @property
     def opaca_client(self) -> OpacaClient:

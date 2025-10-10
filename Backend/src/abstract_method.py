@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
-    def __init__(self, session: SessionData, websocket: WebSocket | None):
+    def __init__(self, session: SessionData, streaming=False):
         self.session = session
-        self.websocket = websocket
+        self.streaming = streaming
         self.internal_tools = InternalTools(session, self)
 
     @classmethod
@@ -58,11 +58,8 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
-        return await self.query_stream(message, chat)
-
     @abstractmethod
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
 
@@ -81,7 +78,6 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            session (SessionData): The current session
             model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
@@ -90,7 +86,6 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
-            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -183,22 +178,27 @@ class AbstractMethod(ABC):
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
                     agent_message.tools[-1].args = {}
 
-            if self.websocket:
-                await self.websocket.send_json(agent_message.model_dump_json())
+            if self.session.websocket and self.streaming:
+                await self.send_to_websocket(agent_message)
                 agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.websocket:
+        if self.session.websocket and self.streaming:
             agent_message.content = ''
-            await self.websocket.send_json(agent_message.model_dump_json())
+            await self.send_to_websocket(agent_message)
 
         agent_message.content = content
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
+
+
+    async def send_to_websocket(self, message: BaseModel):
+        if self.session.websocket and self.streaming:
+            await self.session.websocket.send_json(message.model_dump_json())
 
 
     @staticmethod
@@ -221,7 +221,7 @@ class AbstractMethod(ABC):
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
-            if self.websocket and ("401" in cause or "403" in cause or "credentials" in cause):
+            if self.session.websocket and ("401" in cause or "403" in cause or "credentials" in cause):
                 return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
@@ -247,14 +247,14 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.websocket.send_json(ContainerLoginNotification(
+        await self.session.websocket.send_json(ContainerLoginNotification(
             status=401,
             type="missing_credentials",
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
         ).model_dump_json())
-        response = ContainerLoginResponse(**await self.websocket.receive_json())
+        response = ContainerLoginResponse(**await self.session.websocket.receive_json())
 
         # Check if credentials were provided
         if not response.username or not response.password:
