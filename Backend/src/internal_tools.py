@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat
+from .models import SessionData, Chat, PushMessage
 
 
 MAGIC_NAME = "LLM-Assistant"
@@ -34,7 +34,7 @@ class InternalTool(BaseModel):
 
 class InternalTools:
 
-    def __init__(self, session: SessionData, agent_method):
+    def __init__(self, session: SessionData, agent_method: 'AbstractMethod'):
         self.session = session
         self.agent_method = agent_method
         self.tools = [
@@ -112,7 +112,12 @@ class InternalTools:
             logger.info("CALLING LLM NOW...")
             try:
                 res = await self.agent_method.query(query, Chat(chat_id=''))
-                logger.info(f"EXECUTE LATER RESULT: {res.text}")
+                logger.info(f"EXECUTE LATER RESULT: {res.content}")
+
+                if self.session.websocket:
+                    push_message = PushMessage(**res.model_dump())
+                    await self.session.websocket.send_json(push_message.model_dump_json())
+
             except Exception as e:
                 logger.error(f"EXECUTE LATER FAILED: {e}")
 

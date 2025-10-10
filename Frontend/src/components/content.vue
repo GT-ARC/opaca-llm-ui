@@ -422,40 +422,57 @@ export default {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
-            // If a container login is required
-            console.log(result.status);
-            if (result.status === 401) {
+            if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
                 return
             }
 
-            if (result.hasOwnProperty('agent')) {
-                if (result.agent === 'Output Generator') {
-                    // put output_generator content directly in the bubble
-                    aiBubble.toggleLoading(false);
-                    aiBubble.addContent(result.content);
-                    await this.addDebugToken(result);
-                } else {
-                    // other agent messages are intermediate results
-                    this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result);
-                }
+            if (result.type === "AgentMessage") {
+                if (result.hasOwnProperty('agent')) {
+                    if (result.agent === 'Output Generator') {
+                        // put output_generator content directly in the bubble
+                        aiBubble.toggleLoading(false);
+                        aiBubble.addContent(result.content);
+                        await this.addDebugToken(result);
+                    } else {
+                        // other agent messages are intermediate results
+                        this.processAgentStatusMessage(result);
+                        await this.addDebugToken(result);
+                    }
 
-                this.scrollDownDebug();
-                this.scrollDownChat();
-            } else {
-                // no agent property -> Last message received should be final response
-                // TODO is this bit still necessary?
-                console.log(result.error);
-                if (result.error) {
-                    aiBubble.setError(result.error);
-                    const debug = this.$refs.sidebar.$refs.debug;
-                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    this.scrollDownDebug();
+                    this.scrollDownChat();
+                } else {
+                    // no agent property -> Last message received should be final response
+                    // TODO is this bit still necessary?
+                    console.log(result.error);
+                    if (result.error) {
+                        aiBubble.setError(result.error);
+                        const debug = this.$refs.sidebar.$refs.debug;
+                        debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                    }
+                    aiBubble.setContent(result.content);
+                    aiBubble.toggleLoading(false);
+                    this.isFinished = true;
                 }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
             }
+
+            if (result.type === "PushMessage") {
+                // TODO notification from the backend, should create a new ChatBubble. Intermediate messages have already been streamed before...
+                // or should this be sent BEFORE the LLM callback is triggered in the backend, and then just create an "empty" chat-bubble as per the chat?
+                // tool-calls are appended to the LAST chat bubble, since they are streamed before the final response... maybe instead of pushing the response
+                // we should just push a "response-incoming" message that creates a new blank chat bubble and leave the rest to the existing streaming stuff?
+                console.log("PUSH MESSAGE RECEIVED")
+
+                await this.addChatBubble(result.content, false, false);
+                const newAiBubble = this.getLastBubble();
+                if (result.error) {
+                    newAiBubble.setError(result.error);
+                }
+                this.startAutoSpeak();
+                this.scrollDownChat();
+            }
+
         },
 
         startAutoSpeak() {
