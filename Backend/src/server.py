@@ -4,56 +4,29 @@ Provides a list of available  LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
-import traceback
-import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List
 import asyncio
 import logging
-import time
 from contextlib import asynccontextmanager
 
-import io
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from .utils import validate_config_input, exception_to_result
-from .models import ConnectRequest, QueryRequest, QueryResponse, SessionData, ConfigPayload, OpacaFile, Chat, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
     SearchResult, get_supported_models
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
-from .file_utils import delete_file_from_all_clients
-
-
-@asynccontextmanager
-async def lifespan(app):
-    # before start
-    asyncio.create_task(cleanup_old_sessions())
-    # app running
-    yield
-    # after shutdown
-    pass
-
-app = FastAPI(
-    title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
-    lifespan=lifespan
-)
+from .file_utils import delete_file_from_all_clients, save_file_to_disk
+from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
+    handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task, delete_chat, on_shutdown, \
+    load_all_sessions
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 METHODS = {
@@ -64,17 +37,43 @@ METHODS = {
 }
 
 
-# Simple dict to store session data
-# Keep in mind: The session data is only reset upon restarting the application
-sessions_lock = asyncio.Lock()
-sessions: Dict[str, SessionData] = {}
-
 logger = logging.getLogger("uvicorn")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # before start
+    asyncio.create_task(cleanup_task())
+    await load_all_sessions()
+
+    try:
+        # app running
+        yield
+    finally:
+        # on shutdown
+        logger.info("Saving sessions to DB...")
+        await asyncio.wait_for(asyncio.shield(store_sessions_in_db()), timeout=10)
+        await asyncio.wait_for(asyncio.shield(on_shutdown()), timeout=10)
+
+
+app = FastAPI(
+    title="OPACA LLM Backend Services",
+    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
 async def get_methods() -> list:
     return list(METHODS)
+
 
 @app.get("/models", description="Get supported models, grouped by LLM server URL")
 async def get_models() -> dict[str, list[str]]:
@@ -83,15 +82,18 @@ async def get_models() -> dict[str, list[str]]:
         for url, _key, models in get_supported_models()
     }
 
+
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
 async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
+
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
 async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
     return session.opaca_client.url
+
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
 async def disconnect(request: Request, response: Response) -> Response:
@@ -124,8 +126,7 @@ async def stop_query(request: Request, response: Response) -> None:
 
 @app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
 async def reset_all():
-    async with sessions_lock:
-        sessions.clear()
+    await delete_all_sessions()
 
 ### CHAT ROUTES
 
@@ -143,14 +144,14 @@ async def get_chats(request: Request, response: Response) -> List[Chat]:
 @app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
+    chat = await handle_chat_id(session, chat_id)
     return chat
 
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id, True)
+    chat = await handle_chat_id(session, chat_id, True)
     create_chat_name(chat, message)
     session.abort_sent = False
     result = None
@@ -166,22 +167,15 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
 async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
-    chat = handle_chat_id(session, chat_id)
+    chat = await handle_chat_id(session, chat_id)
     chat.name = new_name
     update_chat_time(chat)
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
-async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
+async def delete_chat_route(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    try:
-        handle_chat_id(session, chat_id)
-        async with sessions_lock:
-            del session.chats[chat_id]
-        return True
-    except Exception as e:  # not found
-        logger.error(f"Failed to delete chat {chat_id}: {str(e)}\nTraceback: {traceback.format_exc()}")
-        return False
+    return delete_chat(session, chat_id)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")
@@ -242,7 +236,6 @@ async def reset_config(request: Request, response: Response, method: str) -> Con
     session.config[method] = METHODS[method].default_config()
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
-
 ## FILE ROUTES
 
 @app.get("/files", description="Get a list of all uploaded files.")
@@ -258,23 +251,9 @@ async def upload_files(request: Request, response: Response, files: List[UploadF
     uploaded = []
     for file in files:
         try:
-            contents = await file.read()
-
-            file_id = str(uuid.uuid4())
-            base_name, _ = os.path.splitext(file.filename)
-
-            file_model = OpacaFile(
-                content_type=file.content_type,
-                file_id=file_id,
-                file_name=file.filename,
-                suspended=False
-            )
-            file_model._content = io.BytesIO(contents)
-
-            # Store in session.uploaded_files
-            session.uploaded_files[file_id] = file_model
-            uploaded.append(file_model)
-
+            filedata = await save_file_to_disk(file, session.session_id)
+            session.uploaded_files[filedata.file_id] = filedata
+            uploaded.append(filedata)
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -290,7 +269,8 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
     files = session.uploaded_files
 
     if file_id in files:
-        return await delete_file_from_all_clients(session, file_id)
+        result = await delete_file_from_all_clients(session, file_id)
+        return result
 
     return False
 
@@ -304,6 +284,7 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         file = files[file_id]
         file.suspended = suspend
         return True
+
     return False
 
 
@@ -325,87 +306,6 @@ async def open_websocket(websocket: WebSocket):
     finally:
         logger.info("websocket removed")
         session.websocket = None
-
-
-## Utility functions
-
-async def handle_session_id(source: Union[Request, WebSocket], response: Response = None) -> SessionData:
-    """
-    Unified session handler for both HTTP requests and WebSocket connections.
-    If no valid session ID is found, a new one is created and optionally set in the response cookie.
-    """
-
-    # Extract cookies from headers
-    headers = Headers(scope=source.scope)
-    cookies = headers.get("cookie")
-    session_id = None
-
-    # Extract session_id from cookies
-    if cookies:
-        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
-        session_id = cookie_dict.get("session_id")
-
-    # Session lock to avoid race conditions
-    async with sessions_lock:
-        max_age = 60 * 60 * 24 * 30  # 30 days
-        # create Cookie (or just update max-age if already exists)
-        session_id = create_or_refresh_session(session_id, max_age)
-
-        # If it's an HTTP request and you want to set a cookie
-        if response is not None:
-            response.set_cookie("session_id", session_id, max_age=max_age)
-
-        # Return the session data for the session ID
-        return sessions[session_id]
-
-
-def create_or_refresh_session(session_id, max_age=None):
-    if not session_id or session_id not in sessions:
-        session_id = str(uuid.uuid4())
-        logger.info(f"Creating new Session {session_id}")
-        sessions[session_id] = SessionData()
-    if max_age is not None:
-        sessions[session_id].valid_until = time.time() + max_age
-    return session_id
-
-
-def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
-    chat = session.chats.get(chat_id, None)
-    if chat is None and create_if_missing:
-        chat = Chat(chat_id=chat_id)
-        session.chats[chat_id] = chat
-    elif chat is None and not create_if_missing:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
-
-
-def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
-    if (chat is not None) and (message is not None) and not chat.name:
-        chat.name = (f'{message.user_query[:32]}…'
-            if len(message.user_query) > 32
-            else message.user_query)
-
-
-def update_chat_time(chat: Chat) -> None:
-    chat.time_modified = datetime.now(tz=timezone.utc)
-
-
-async def store_message(chat: Chat, result: QueryResponse):
-    chat.responses.append(result)
-    update_chat_time(chat)
-
-
-async def cleanup_old_sessions(delay_seconds=3600):
-    while True:
-        logger.info("Checking for old Sessions...")
-        now = time.time()
-        async with sessions_lock:
-            for session_id, session_data in list(sessions.items()):
-                if session_data.valid_until < now:
-                    logger.info(f"Removing old session {session_id}")
-                    sessions.pop(session_id)
-        await asyncio.sleep(delay_seconds)
-
 
 
 # run as `python3 -m Backend.server`
