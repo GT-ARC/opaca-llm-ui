@@ -139,8 +139,8 @@ export default {
         },
 
     },
-    async mounted() {
-        await this.fetchMethodConfig();
+    mounted() {
+        //this.fetchMethodConfig(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
     watch: {
         method() {
