@@ -7,3 +7,4 @@ websockets>=15.0.1
 pytz>=2025.2
 python-multipart>=0.0.20
 pydantic>=2.11.9
+pymongo>=4.15.1

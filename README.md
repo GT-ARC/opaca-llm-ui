@@ -135,7 +135,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `LLM_APIKEYS`: semicolon-separated list of API-keys for each of the above URLs; default is `""` (for `openai`, the API Key is taken from the `OPENAI_API_KEY` env var but can be overwritten here if a non-default key is explicitly provided).
 * `LLM_MODELS`: semicolon-separated list of comma-separated lists of supported models for each of the above URLs; default is `"gpt-4o-mini,gpt-4o"`.
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
-
+* `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
 
 ## Getting Started
 

@@ -638,6 +638,7 @@ export default {
 
                 // add messages from history
                 for (const msg of res.responses) {
+                    if (!msg) continue;
                     // request
                     await this.addChatBubble(msg.query, true);
                     debug.addDebugMessage(msg.query, "user");

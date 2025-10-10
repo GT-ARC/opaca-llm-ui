@@ -1,10 +1,9 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-import logging
 from typing import List, Dict, Any, Optional, Self, Iterator
-from io import BytesIO
 from datetime import datetime, timezone
+import logging
 import uuid
 import os
 
@@ -151,18 +150,16 @@ class OpacaFile(BaseModel):
     Represents a single uploaded PDF file.
 
     Attributes:
-        _content: Private attribute to store binary content (not part of schema or validation)
-        content_type: MIME type of the file
         file_id: ID assigned after upload
+        content_type: MIME type of the file
+        file_name: The absolute path to the file
         host_ids: IDs assigned by each host the file has been uploaded to
-        file_name: Name of the file
         suspended: Whether the file should be excluded from future requests
     """
-    _content: BytesIO = PrivateAttr()
+    file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
-    file_id: str
-    host_ids: Dict[str, str] = {}
-    file_name: Optional[str] = ''
+    file_name: str
+    host_ids: Dict[str, str] = Field(default_factory=dict)
     suspended: bool = False
 
 
@@ -203,8 +200,8 @@ class Chat(BaseModel):
     chat_id: str
     name: str = ''
     responses: List[QueryResponse] = []
-    time_created: datetime = datetime.now(tz=timezone.utc)
-    time_modified: datetime = datetime.now(tz=timezone.utc)
+    time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     @property
     def messages(self) -> Iterator[ChatMessage]:
@@ -219,6 +216,7 @@ class SessionData(BaseModel):
     client instances, API keys, and uploaded files.
 
     Attributes:
+        session_id: The session's internal ID.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
@@ -228,10 +226,11 @@ class SessionData(BaseModel):
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
     """
-    chats: Dict[str, Chat] = {}
-    config: Dict[str, Any] = {}
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
+    chats: Dict[str, Chat] = Field(default_factory=dict)
+    config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
-    uploaded_files: Dict[str, OpacaFile] = {}
+    uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     valid_until: float = -1
 
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
