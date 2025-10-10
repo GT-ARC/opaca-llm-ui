@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-from .utils import validate_config_input, exception_to_result
+from .utils import validate_config_input
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
     SearchResult, get_supported_models, SessionData, OpacaException
 from .simple import SimpleMethod
@@ -179,7 +179,7 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     try:
         result = await METHODS[method](session).query(message.user_query, chat)
     except Exception as e:
-        result = exception_to_result(message.user_query, e)
+        result = QueryResponse.from_exception(message.user_query, e)
     finally:
         chat.store_interaction(result)
         return result
@@ -198,7 +198,7 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
         message = QueryRequest(**data)
         result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
-        result = exception_to_result(message.user_query, e)
+        result = QueryResponse.from_exception(message.user_query, e)
     finally:
         chat.store_interaction(result)
         await websocket.send_json(result.model_dump_json())

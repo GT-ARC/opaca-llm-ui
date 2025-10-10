@@ -7,6 +7,7 @@ import logging
 import uuid
 import os
 import time
+import traceback
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
@@ -144,6 +145,17 @@ class QueryResponse(BaseModel):
     execution_time: float = .0
     content: str = ''
     error: str = ''
+
+    @staticmethod
+    def from_exception(user_query: str, exception: Exception) -> 'QueryResponse':
+        """Convert an exception (generic or OpacaException) to a QueryResponse to be
+        returned to the Chat-UI."""
+        if isinstance(exception, OpacaException):
+            logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
+        else:
+            logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
 
 
 class OpacaFile(BaseModel):

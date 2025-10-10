@@ -1,10 +1,9 @@
 import logging
-import traceback
 from typing import Dict, Any
 
 import jsonref
 
-from .models import ConfigParameter, OpacaException, QueryResponse
+from .models import ConfigParameter
 
 
 logger = logging.getLogger(__name__)
@@ -232,14 +231,3 @@ def transform_schema(schema):
     }
 
     return final_schema
-
-
-def exception_to_result(user_query: str, exception: Exception) -> QueryResponse:
-    """Convert an exception (generic or OpacaException) to a QueryResponse to be
-    returned to the Chat-UI."""
-    if isinstance(exception, OpacaException):
-        logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
-        return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
-    else:
-        logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
-        return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
