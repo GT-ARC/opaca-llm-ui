@@ -79,7 +79,7 @@ async def myapp_error_handler(request: Request, exc: KeyError):
 
 @app.exception_handler(ValueError)
 async def myapp_error_handler(request: Request, exc: ValueError):
-    raise HTTPException(status_code=422, detail=f"Illegal value:: {exc}")
+    raise HTTPException(status_code=422, detail=f"Illegal value: {exc}")
 
 @app.exception_handler(TypeError)
 async def myapp_error_handler(request: Request, exc: TypeError):
@@ -87,7 +87,7 @@ async def myapp_error_handler(request: Request, exc: TypeError):
 
 @app.exception_handler(OpacaException)
 async def myapp_error_handler(request: Request, exc: OpacaException):
-    raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message}")
+    raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message})")
 
 
 # 'GENERAL' ROUTES

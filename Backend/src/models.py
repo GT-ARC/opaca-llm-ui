@@ -218,7 +218,7 @@ class Chat(BaseModel):
     def update_modified(self) -> None:
         self.time_modified = datetime.now(tz=timezone.utc)
 
-    def derive_name(self, ) -> None:
+    def derive_name(self) -> None:
         """derive name from first interaction, if any, and if not set yet"""
         if not self.name and self.responses:
             query = self.responses[0].query
@@ -279,7 +279,7 @@ class SessionData(BaseModel):
             chat = Chat(chat_id=chat_id)
             self.chats[chat_id] = chat
         elif chat is None and not create_if_missing:
-            raise OpacaException(user_message=f"Chat {chat_id} not found", status_code=404)
+            raise KeyError(f"Chat {chat_id} not found")
         return chat
 
     def delete_chat(self, chat_id: str) -> bool:

@@ -205,20 +205,20 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
             (config_param["type"] == "integer" and not isinstance(value, int)) or \
             (config_param["type"] == "string" and not isinstance(value, str)) or \
             (config_param["type"] == "boolean" and not isinstance(value, bool)):
-            raise TypeError(f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
         elif config_param["type"] == "null" and value is not None:
-            raise TypeError(f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
 
         # Validate min/max limit
         if config_param["type"] in ["number", "integer"]:
             if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
-                raise ValueError(f'Parameter "{key}" cannot be smaller than its allowed minimum ({config_param["minimum"]})')
+                raise ValueError(f"Parameter '{key}' cannot be smaller than its allowed minimum ({config_param['minimum']})")
             if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
-                raise ValueError(f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
+                raise ValueError(f"Parameter '{key}' cannot be larger than its allowed maximum ({config_param['maximum']})")
 
         # Validate enum
         if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
-            raise ValueError(f'Parameter "{key}" has to be one of "{schema[key].enum}"')
+            raise ValueError(f"Parameter '{key}' has to be one of {schema[key].enum}")
 
 
 def transform_schema(schema):
