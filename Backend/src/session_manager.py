@@ -137,7 +137,6 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
     return session
 
 
-
 async def store_sessions_in_db() -> None:
     if len(sessions) == 0: return
     logger.info(f'Storing data for {len(sessions)} sessions in database...')

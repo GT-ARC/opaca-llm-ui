@@ -1,6 +1,6 @@
 import logging
 import traceback
-from typing import Dict, Optional, Any
+from typing import Dict, Any
 
 import jsonref
 
@@ -8,100 +8,6 @@ from .models import ConfigParameter, OpacaException, QueryResponse
 
 
 logger = logging.getLogger(__name__)
-
-class Parameter:
-    type: str
-    required: bool
-
-    def __init__(self, type_in: str, required: bool, items: Optional = None):
-        self.type = type_in
-        self.required = required
-        self.items = items
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __str__(self):
-        return (f'{{type: {self.type}, required: {self.required}'
-                f'{", " + str(self.items) + "}" if self.items is not None else "}"}')
-
-    class ArrayItems:
-        type: str
-
-        def __init__(self, type_in: str, items: Optional = None):
-            self.type = type_in
-            self.items = items
-
-        def __repr__(self):
-            return self.__str__()
-
-        def __str__(self):
-            return f'{{type: {self.type}{", " + str(self.items) + "}" if self.items is not None else "}"}'
-
-
-class Action:
-
-    action_name: str
-    description: Optional[str]
-    params_in: Optional[Dict]
-    param_out: Optional[str]
-    agent_name: str
-    container_id: str
-    custom_params: Optional[Dict]
-
-    def __init__(self):
-        self.action_name = ""
-        self.description = ""
-        self.params_in = {}
-        self.param_out = ""
-        self.agent_name = ""
-        self.container_id = ""
-        self.custom_params = {}
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __str__(self):
-        return (f'{{{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
-                f'{self.container_id};{self.custom_params}}}')
-
-    def planner_str(self, agentName: bool = False):
-        return (f'{{Name: {(self.agent_name + "--" + self.action_name) if agentName else self.action_name}, '
-                f'Description: {self.description}, Parameters: {self.params_in}}}')
-
-    def selector_str(self, agentName: bool = False):
-        return (f'{{Name: {(self.agent_name + "--" + self.action_name) if agentName else self.action_name}, '
-                f'Description: {self.description}, Parameters: {self.params_in}, '
-                f'Custom Types: {self.custom_params}}}')
-
-
-
-def add_dicts(d1: dict, d2: dict) -> dict:
-    result = {}
-    for key in d1.keys() | d2.keys():
-        if isinstance(d1[key], dict) and isinstance(d2[key], dict):
-            result[key] = add_dicts(d1[key], d2[key])
-        else:
-            result[key] = d1.get(key, 0) + d2.get(key, 0)
-    return result
-
-
-def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
-    if p_type["items"]["type"] == "array":
-        array_item = Parameter.ArrayItems("array")
-        array_item.items = resolve_array_items(p_type["items"])
-        return array_item
-    else:
-        return Parameter.ArrayItems(p_type["items"]["type"])
-
-
-def resolve_reference(action_spec: Dict, ref: str) -> Dict:
-    if ref[0] != '#':
-        raise RuntimeError("Unknown reference in action spec")
-    out = action_spec
-    for component in ref[2:].split('/'):
-        out = out[component]
-    return out
 
 
 def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):

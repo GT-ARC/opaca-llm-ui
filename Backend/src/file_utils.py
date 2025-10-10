@@ -2,8 +2,6 @@ import io
 import logging
 import shutil
 from pathlib import Path
-from typing import Dict
-
 from fastapi import UploadFile
 from .models import SessionData, OpacaFile
 
