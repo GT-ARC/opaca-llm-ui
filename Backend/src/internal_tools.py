@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PushMessage
+from .models import SessionData, Chat, PendingCallback, PushMessage
 
 
 MAGIC_NAME = "LLM-Assistant"
@@ -40,7 +40,7 @@ class InternalTools:
         self.tools = [
             InternalTool(
                 name="ExecuteLater",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The offset should be a time in seconds from now.",
+                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. The offset should be a time in seconds from now.",
                 params={"query": "string", "offset_seconds": "integer"},
                 result="boolean",
                 function=self.tool_execute_later,
@@ -111,15 +111,17 @@ class InternalTools:
             await asyncio.sleep(offset_seconds)
             logger.info("CALLING LLM NOW...")
             try:
-                res = await self.agent_method.query(query, Chat(chat_id=''))
+                await self.send_to_websocket(PendingCallback(query=query))
+
+                query_extra = "\n\nNOTE: This query was triggered by the 'execute-later' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'execute-later' reminder! If it just asked you to do something by that time, just do it and report on the results as usual."
+                res = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
                 logger.info(f"EXECUTE LATER RESULT: {res.content}")
 
-                if self.session.websocket:
-                    push_message = PushMessage(**res.model_dump())
-                    await self.session.websocket.send_json(push_message.model_dump_json())
+                await self.send_to_websocket(PushMessage(**res.model_dump()))
 
             except Exception as e:
                 logger.error(f"EXECUTE LATER FAILED: {e}")
+                # TODO send error
 
         asyncio.create_task(_callback())
         return True
@@ -144,3 +146,7 @@ class InternalTools:
     async def gather_user_infos(self) -> str:
         search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc..",
         return await self.search_chats(search_query)
+    
+    async def send_to_websocket(self, msg):
+        if self.session.websocket:
+            await self.session.websocket.send_json(msg.model_dump_json())

@@ -445,6 +445,7 @@ export default {
                 } else {
                     // no agent property -> Last message received should be final response
                     // TODO is this bit still necessary?
+                    console.log("IF THIS MESSAGE COMES UP THIS PART IS STILL USED SOMEWHERE!")
                     console.log(result.error);
                     if (result.error) {
                         aiBubble.setError(result.error);
@@ -457,18 +458,17 @@ export default {
                 }
             }
 
-            if (result.type === "PushMessage") {
-                // TODO notification from the backend, should create a new ChatBubble. Intermediate messages have already been streamed before...
-                // or should this be sent BEFORE the LLM callback is triggered in the backend, and then just create an "empty" chat-bubble as per the chat?
-                // tool-calls are appended to the LAST chat bubble, since they are streamed before the final response... maybe instead of pushing the response
-                // we should just push a "response-incoming" message that creates a new blank chat bubble and leave the rest to the existing streaming stuff?
-                console.log("PUSH MESSAGE RECEIVED")
+            if (result.type === "PendingCallback") {
+                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
+            }
 
-                await this.addChatBubble(result.content, false, false);
-                const newAiBubble = this.getLastBubble();
+            if (result.type === "PushMessage") {
                 if (result.error) {
-                    newAiBubble.setError(result.error);
+                    aiBubble.setError(result.error);
                 }
+                aiBubble.setContent(result.content);
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
                 this.startAutoSpeak();
                 this.scrollDownChat();
             }

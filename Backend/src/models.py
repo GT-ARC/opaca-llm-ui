@@ -161,6 +161,13 @@ class QueryResponse(BaseModel):
     error: str = ''
 
 
+class PendingCallback(WebsocketMessage):
+    """
+    Notification that an "execute-later" callback for the given query has been started.
+    """
+    query: str
+
+
 class PushMessage(QueryResponse, WebsocketMessage):
     """
     Websocket-equivalent to the QueryResponse, with mostly the same attributes, plus type... this can probably also be unified

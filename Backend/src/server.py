@@ -298,7 +298,6 @@ async def open_websocket(websocket: WebSocket):
     session._websocket = websocket
     try:
         while True:
-            logger.info("websocket waiting...")
             await asyncio.sleep(1)
             # just waiting... is there a better way?
     except Exception as e:
