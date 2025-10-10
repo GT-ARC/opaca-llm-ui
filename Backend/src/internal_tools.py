@@ -1,11 +1,12 @@
 """
 Wrapper for different internal tools, to be provided to the OPACA LLM as "actions" like OPACA,
 but implemented directly in the backend.
-For now, the internal tools are added to the OPACA Proxy's actions, which then delegates back
-to this class, so the LLM Methods don't have to be adapted, but mid-term this could be changed.
 
-Some of the tools (like execute-later or maybe summarize-file) may again issue LLM calls. For
-this, it would be good if those would have access to the same session. Not sure how best to do this.
+Those tools are then added to the OPACA Proxy's actions in the AbstracMethod's get_tools method.
+The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
+
+Some of the tools (like execute-later or maybe summarize-file) may again issue LLM calls.
+For this they have access to the AbstractMethod they are used by.
 """
 
 import asyncio
@@ -19,7 +20,7 @@ from textwrap import dedent
 from .models import SessionData, Chat, PendingCallback, PushMessage
 
 
-MAGIC_NAME = "LLM-Assistant"
+INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
 
@@ -50,21 +51,21 @@ class InternalTools:
                 description="Compiles a short expose about the current chat user from this and past interactions, their personal situation, preferences, etc..",
                 params={},
                 result="string",
-                function=self.gather_user_infos,
+                function=self.tool_gather_user_infos,
             ),
             InternalTool(
                 name="SearchChats",
                 description="Search this and past interactions about information on the given topic and summarize the findings.",
                 params={"search_query": "string"},
                 result="string",
-                function=self.search_chats,
+                function=self.tool_search_chats,
             ),
         ]
 
     def get_internal_tools_simple(self) -> dict[str, dict]:
         """return internal tools in OPACA format used by simple agent"""
         return {
-            MAGIC_NAME: [
+            INTERNAL_TOOLS_AGENT_NAME: [
                 {
                     "name": tool.name,
                     "description": tool.description,
@@ -83,7 +84,7 @@ class InternalTools:
         return [
             {
                 "type": "function",
-                "name": MAGIC_NAME + "--" + tool.name,
+                "name": INTERNAL_TOOLS_AGENT_NAME + "--" + tool.name,
                 "description": tool.description,
                 "parameters": {
                     "type": "object",
@@ -126,7 +127,7 @@ class InternalTools:
         asyncio.create_task(_callback())
         return True
 
-    async def search_chats(self, search_query: str) -> str:
+    async def tool_search_chats(self, search_query: str) -> str:
         messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]
         query = dedent(f"""
         In the following is the full transcript of all past interactions between the User and the LLM Assistant:
@@ -143,9 +144,9 @@ class InternalTools:
         except Exception as e:
             return f"Search failed: {e}"
 
-    async def gather_user_infos(self) -> str:
+    async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc..",
-        return await self.search_chats(search_query)
+        return await self.tool_search_chats(search_query)
     
     async def send_to_websocket(self, msg):
         if self.session.websocket:

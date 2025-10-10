@@ -13,7 +13,7 @@ from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, C
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
 from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
-from .internal_tools import InternalTools, MAGIC_NAME
+from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class AbstractMethod(ABC):
             agent_name, action_name = None, tool_name
 
         try:
-            if agent_name == MAGIC_NAME:
+            if agent_name == INTERNAL_TOOLS_AGENT_NAME:
                 t_result = await self.internal_tools.call_internal_tool(action_name, tool_args)
             else:
                 t_result = await self.session.opaca_client.invoke_opaca_action(action_name, agent_name, tool_args)
