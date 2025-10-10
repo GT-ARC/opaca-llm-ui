@@ -16,7 +16,7 @@ from starlette.datastructures import Headers
 
 from .utils import validate_config_input, exception_to_result
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData
+    SearchResult, get_supported_models, SessionData, OpacaException
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -69,6 +69,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# EXCEPTION HANDLING
+
+@app.exception_handler(KeyError)
+async def myapp_error_handler(request: Request, exc: KeyError):
+    raise HTTPException(status_code=404, detail=f"Element not found: {exc}")
+
+@app.exception_handler(ValueError)
+async def myapp_error_handler(request: Request, exc: ValueError):
+    raise HTTPException(status_code=422, detail=f"Illegal value:: {exc}")
+
+@app.exception_handler(TypeError)
+async def myapp_error_handler(request: Request, exc: TypeError):
+    raise HTTPException(status_code=422, detail=f"Unexpected type: {exc}")
+
+@app.exception_handler(OpacaException)
+async def myapp_error_handler(request: Request, exc: OpacaException):
+    raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message}")
+
+
+# 'GENERAL' ROUTES
 
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
 async def get_methods() -> list:

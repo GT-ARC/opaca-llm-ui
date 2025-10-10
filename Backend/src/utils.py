@@ -1,10 +1,8 @@
-import os
 import logging
 import traceback
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 import jsonref
-from fastapi import HTTPException
 
 from .models import ConfigParameter, OpacaException, QueryResponse
 
@@ -187,14 +185,14 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
 
     # Check if all required parameters have been provided
     if not all(key in values.keys() for key in schema.keys() if schema[key].required):
-        raise HTTPException(400, f'There are required configuration parameters missing!\n'
-                                 f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
-                                 f'Received: {[key for key in values.keys()]}')
+        raise ValueError(f'There are required configuration parameters missing!\n'
+                         f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
+                         f'Received: {[key for key in values.keys()]}')
 
     for key, value in values.items():
         # Check if key exist in schema
         if key not in schema.keys():
-            raise HTTPException(400, f'No option named "{key}" was found!')
+            raise ValueError(f'No option named "{key}" was found!')
 
         # Make config parameter a dict for easier checks of optional fields
         if isinstance(schema[key], ConfigParameter):
@@ -207,20 +205,20 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
             (config_param["type"] == "integer" and not isinstance(value, int)) or \
             (config_param["type"] == "string" and not isinstance(value, str)) or \
             (config_param["type"] == "boolean" and not isinstance(value, bool)):
-            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
         elif config_param["type"] == "null" and value is not None:
-            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
 
         # Validate min/max limit
         if config_param["type"] in ["number", "integer"]:
             if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
-                raise HTTPException(400, f'Parameter "{key}" cannot be smaller than its allowed minimum ({config_param["minimum"]})')
+                raise ValueError(f'Parameter "{key}" cannot be smaller than its allowed minimum ({config_param["minimum"]})')
             if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
-                raise HTTPException(400, f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
+                raise ValueError(f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
 
         # Validate enum
         if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
-            raise HTTPException(400,f'Parameter "{key}" has to be one of "{schema[key].enum}"')
+            raise ValueError(f'Parameter "{key}" has to be one of "{schema[key].enum}"')
 
 
 def transform_schema(schema):
