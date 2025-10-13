@@ -12,6 +12,7 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
+from itertools import count
 
 from pydantic import BaseModel
 from typing import Callable
@@ -23,6 +24,15 @@ from .models import SessionData, Chat, PendingCallback, PushMessage
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
+
+
+# TODO this is here only temporarily... it should probably also be a part of SessionData, 
+# so that each user has different scheduled tasks.
+# but then, should it also be persisted to DB? this would mean restoring the scheduled tasks
+# afterwards (including updated next execution), which might again be tricky since they are also
+# linked to the abstract-method they were created in...
+SCHEDULED_TASKS = {}
+task_ids_provider = count()
 
 
 class InternalTool(BaseModel):
@@ -39,13 +49,29 @@ class InternalTools:
         self.session = session
         self.agent_method = agent_method
         self.tools = [
+            # TASK SCHEDULING
             InternalTool(
-                name="ExecuteLater",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. The offset should be a time in seconds from now.",
-                params={"query": "string", "offset_seconds": "integer"},
-                result="boolean",
-                function=self.tool_execute_later,
+                name="ScheduleTask",
+                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Tasks can be executed just once or recurring. The interval should be a time in seconds for the first execution from now, and interval between executions, if applicable. Returns task ID",
+                params={"query": "string", "delay_seconds": "integer", "recurring": "boolean"},
+                result="integer",
+                function=self.tool_schedule_task,
             ),
+            InternalTool(
+                name="GetScheduledTasks",
+                description="Get list of scheduled tasks, including task IDs and details",
+                params={},
+                result="integer",
+                function=self.tool_get_scheduled_tasks,
+            ),
+            InternalTool(
+                name="CancelScheduleTask",
+                description="Cancel a previously scheduled task. Return true/false whether a task with this ID existed.",
+                params={"task_id": "integer"},
+                result="boolean",
+                function=self.tool_cancel_scheduled_task,
+            ),
+            # INTROSPECTION
             InternalTool(
                 name="GatherUserInfo",
                 description="Compiles a short expose about the current chat user from this and past interactions, their personal situation, preferences, etc..",
@@ -106,26 +132,47 @@ class InternalTools:
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS
 
-    async def tool_execute_later(self, query: str, offset_seconds: int) -> bool:
+    async def tool_schedule_task(self, query: str, delay_seconds: int, recurring: bool) -> int:
+        task_id = next(task_ids_provider)
+
         async def _callback():
             logger.info("WAITING...")
-            await asyncio.sleep(offset_seconds)
+            await asyncio.sleep(delay_seconds)
+            if task_id not in SCHEDULED_TASKS:
+                logger.info("SCHEDULE TASK WAS CANCELLED")
+                return
+
             logger.info("CALLING LLM NOW...")
             try:
                 await self.send_to_websocket(PendingCallback(query=query))
 
                 query_extra = "\n\nNOTE: This query was triggered by the 'execute-later' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'execute-later' reminder! If it just asked you to do something by that time, just do it and report on the results as usual."
                 res = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
-                logger.info(f"EXECUTE LATER RESULT: {res.content}")
+                logger.info(f"SCHEDULED TASK RESULT: {res.content}")
 
                 await self.send_to_websocket(PushMessage(**res.model_dump()))
 
             except Exception as e:
-                logger.error(f"EXECUTE LATER FAILED: {e}")
+                logger.error(f"SCHEDULED TASK FAILED: {e}")
                 # TODO send error
 
+            if recurring:
+                asyncio.create_task(_callback())
+            elif task_id in SCHEDULED_TASKS:
+                del SCHEDULED_TASKS[task_id]
+
         asyncio.create_task(_callback())
-        return True
+        SCHEDULED_TASKS[task_id] = {"task_id": task_id, "query": query, "interval": delay_seconds, "recurring": recurring}
+        return task_id
+    
+    async def tool_get_scheduled_tasks(self) -> dict:
+        return SCHEDULED_TASKS
+
+    async def tool_cancel_scheduled_task(self, task_id: int) -> bool:
+        if task_id in SCHEDULED_TASKS:
+            del SCHEDULED_TASKS[task_id]
+            return True
+        return False
 
     async def tool_search_chats(self, search_query: str) -> str:
         messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]
