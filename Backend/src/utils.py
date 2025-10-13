@@ -1,109 +1,12 @@
-import os
 import logging
-import traceback
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 import jsonref
-from fastapi import HTTPException
 
-from .models import ConfigParameter, OpacaException, QueryResponse
+from .models import ConfigParameter
 
 
 logger = logging.getLogger(__name__)
-
-class Parameter:
-    type: str
-    required: bool
-
-    def __init__(self, type_in: str, required: bool, items: Optional = None):
-        self.type = type_in
-        self.required = required
-        self.items = items
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __str__(self):
-        return (f'{{type: {self.type}, required: {self.required}'
-                f'{", " + str(self.items) + "}" if self.items is not None else "}"}')
-
-    class ArrayItems:
-        type: str
-
-        def __init__(self, type_in: str, items: Optional = None):
-            self.type = type_in
-            self.items = items
-
-        def __repr__(self):
-            return self.__str__()
-
-        def __str__(self):
-            return f'{{type: {self.type}{", " + str(self.items) + "}" if self.items is not None else "}"}'
-
-
-class Action:
-
-    action_name: str
-    description: Optional[str]
-    params_in: Optional[Dict]
-    param_out: Optional[str]
-    agent_name: str
-    container_id: str
-    custom_params: Optional[Dict]
-
-    def __init__(self):
-        self.action_name = ""
-        self.description = ""
-        self.params_in = {}
-        self.param_out = ""
-        self.agent_name = ""
-        self.container_id = ""
-        self.custom_params = {}
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __str__(self):
-        return (f'{{{self.action_name};{self.description};{self.params_in};{self.param_out};{self.agent_name};'
-                f'{self.container_id};{self.custom_params}}}')
-
-    def planner_str(self, agentName: bool = False):
-        return (f'{{Name: {(self.agent_name + "--" + self.action_name) if agentName else self.action_name}, '
-                f'Description: {self.description}, Parameters: {self.params_in}}}')
-
-    def selector_str(self, agentName: bool = False):
-        return (f'{{Name: {(self.agent_name + "--" + self.action_name) if agentName else self.action_name}, '
-                f'Description: {self.description}, Parameters: {self.params_in}, '
-                f'Custom Types: {self.custom_params}}}')
-
-
-
-def add_dicts(d1: dict, d2: dict) -> dict:
-    result = {}
-    for key in d1.keys() | d2.keys():
-        if isinstance(d1[key], dict) and isinstance(d2[key], dict):
-            result[key] = add_dicts(d1[key], d2[key])
-        else:
-            result[key] = d1.get(key, 0) + d2.get(key, 0)
-    return result
-
-
-def resolve_array_items(p_type: Dict) -> Parameter.ArrayItems:
-    if p_type["items"]["type"] == "array":
-        array_item = Parameter.ArrayItems("array")
-        array_item.items = resolve_array_items(p_type["items"])
-        return array_item
-    else:
-        return Parameter.ArrayItems(p_type["items"]["type"])
-
-
-def resolve_reference(action_spec: Dict, ref: str) -> Dict:
-    if ref[0] != '#':
-        raise RuntimeError("Unknown reference in action spec")
-    out = action_spec
-    for component in ref[2:].split('/'):
-        out = out[component]
-    return out
 
 
 def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
@@ -187,14 +90,14 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
 
     # Check if all required parameters have been provided
     if not all(key in values.keys() for key in schema.keys() if schema[key].required):
-        raise HTTPException(400, f'There are required configuration parameters missing!\n'
-                                 f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
-                                 f'Received: {[key for key in values.keys()]}')
+        raise ValueError(f'There are required configuration parameters missing!\n'
+                         f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
+                         f'Received: {[key for key in values.keys()]}')
 
     for key, value in values.items():
         # Check if key exist in schema
         if key not in schema.keys():
-            raise HTTPException(400, f'No option named "{key}" was found!')
+            raise ValueError(f'No option named "{key}" was found!')
 
         # Make config parameter a dict for easier checks of optional fields
         if isinstance(schema[key], ConfigParameter):
@@ -207,20 +110,20 @@ def validate_config_input(values: Dict[str, Any], schema: Dict[str, ConfigParame
             (config_param["type"] == "integer" and not isinstance(value, int)) or \
             (config_param["type"] == "string" and not isinstance(value, str)) or \
             (config_param["type"] == "boolean" and not isinstance(value, bool)):
-            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
         elif config_param["type"] == "null" and value is not None:
-            raise HTTPException(400, f'Parameter "{key}" does not match the expected type "{config_param["type"]}"')
+            raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
 
         # Validate min/max limit
         if config_param["type"] in ["number", "integer"]:
             if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
-                raise HTTPException(400, f'Parameter "{key}" cannot be smaller than its allowed minimum ({config_param["minimum"]})')
+                raise ValueError(f"Parameter '{key}' cannot be smaller than its allowed minimum ({config_param['minimum']})")
             if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
-                raise HTTPException(400, f'Parameter "{key}" cannot be larger than its allowed maximum ({config_param["maximum"]})')
+                raise ValueError(f"Parameter '{key}' cannot be larger than its allowed maximum ({config_param['maximum']})")
 
         # Validate enum
         if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
-            raise HTTPException(400,f'Parameter "{key}" has to be one of "{schema[key].enum}"')
+            raise ValueError(f"Parameter '{key}' has to be one of {schema[key].enum}")
 
 
 def transform_schema(schema):
@@ -328,14 +231,3 @@ def transform_schema(schema):
     }
 
     return final_schema
-
-
-def exception_to_result(user_query: str, exception: Exception) -> QueryResponse:
-    """Convert an exception (generic or OpacaException) to a QueryResponse to be
-    returned to the Chat-UI."""
-    if isinstance(exception, OpacaException):
-        logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
-        return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
-    else:
-        logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
-        return QueryResponse(query=user_query, content='Generation failed', error=str(exception))

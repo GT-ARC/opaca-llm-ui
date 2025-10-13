@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 import logging
 import uuid
 import os
+import time
+import traceback
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
@@ -147,6 +149,17 @@ class QueryResponse(BaseModel):
     content: str = ''
     error: str = ''
 
+    @staticmethod
+    def from_exception(user_query: str, exception: Exception) -> 'QueryResponse':
+        """Convert an exception (generic or OpacaException) to a QueryResponse to be
+        returned to the Chat-UI."""
+        if isinstance(exception, OpacaException):
+            logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
+        else:
+            logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
+
 
 class OpacaFile(BaseModel):
     """
@@ -212,6 +225,20 @@ class Chat(BaseModel):
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
 
+    def store_interaction(self, result: QueryResponse):
+        self.responses.append(result)
+        self.update_modified()
+        self.derive_name()
+
+    def update_modified(self) -> None:
+        self.time_modified = datetime.now(tz=timezone.utc)
+
+    def derive_name(self) -> None:
+        """derive name from first interaction, if any, and if not set yet"""
+        if not self.name and self.responses:
+            query = self.responses[0].query
+            self.name = (f'{query[:32]}…' if len(query) > 32 else query)
+
 
 class SessionData(BaseModel):
     """
@@ -260,8 +287,26 @@ class SessionData(BaseModel):
                     )
                     break
             else:
-                raise Exception(f"LLM host not supported : {the_url}")
+                raise OpacaException(f"LLM host not supported : {the_url}")
         return self._llm_clients[the_url]
+
+    def is_valid(self) -> bool:
+        return self.valid_until > time.time()
+
+    def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
+        chat = self.chats.get(chat_id)
+        if chat is None and create_if_missing:
+            chat = Chat(chat_id=chat_id)
+            self.chats[chat_id] = chat
+        elif chat is None and not create_if_missing:
+            raise KeyError(f"Chat {chat_id} not found")
+        return chat
+
+    def delete_chat(self, chat_id: str) -> bool:
+        if chat_id in self.chats:
+            del self.chats[chat_id]
+            return True
+        return False
 
 
 class ConfigParameter(BaseModel):
