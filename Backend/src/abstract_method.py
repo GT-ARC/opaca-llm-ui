@@ -245,8 +245,6 @@ class AbstractMethod(ABC):
 
         # Get credentials from user
         await self.websocket.send_json(ContainerLoginNotification(
-            status=401,
-            type="missing_credentials",
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry

@@ -421,12 +421,13 @@ export default {
 
             // If a container login is required
             console.log(result.status);
-            if (result.status === 401) {
+
+            if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
                 return
             }
 
-            if (result.hasOwnProperty('agent')) {
+            if (result.type === "AgentMessage") {
                 if (result.agent === 'Output Generator') {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
@@ -440,8 +441,9 @@ export default {
 
                 this.scrollDownDebug();
                 this.scrollDownChat();
-            } else {
-                // no agent property -> Last message received should be final response
+            }
+
+            if (result.type === "QueryResponse") {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);
