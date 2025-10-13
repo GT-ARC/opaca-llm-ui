@@ -62,7 +62,7 @@ class InternalTools:
             ),
         ]
 
-    def get_internal_tools_simple(self) -> dict[str, dict]:
+    def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
         return {
             INTERNAL_TOOLS_AGENT_NAME: [
@@ -106,7 +106,7 @@ class InternalTools:
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS
 
-    async def tool_execute_later(self, query: str, offset_seconds: int) -> str:
+    async def tool_execute_later(self, query: str, offset_seconds: int) -> bool:
         async def _callback():
             logger.info("WAITING...")
             await asyncio.sleep(offset_seconds)
@@ -145,7 +145,7 @@ class InternalTools:
             return f"Search failed: {e}"
 
     async def tool_gather_user_infos(self) -> str:
-        search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc..",
+        search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
     
     async def send_to_websocket(self, msg):
