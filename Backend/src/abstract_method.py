@@ -154,6 +154,15 @@ class AbstractMethod(ABC):
                 # We assume that the entry has been created already
                 tool_call_buffers[event.output_index] += event.delta
 
+            # Final tool call chunk received
+            elif event.type == 'response.function_call_arguments.done':
+                # Try to transform function arguments into JSON
+                try:
+                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    agent_message.tools[-1].args = {}
+
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
                 if tool_choice == "only":
@@ -171,15 +180,6 @@ class AbstractMethod(ABC):
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
-
-            # Final tool call chunk received
-            elif event.type == 'response.function_call_arguments.done':
-                # Try to transform function arguments into JSON
-                try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
-                    agent_message.tools[-1].args = {}
 
             if self.websocket:
                 await self.websocket.send_json(agent_message.model_dump_json())
