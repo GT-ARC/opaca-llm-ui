@@ -76,7 +76,6 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            session (SessionData): The current session
             model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
@@ -85,7 +84,6 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
-            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -223,7 +221,7 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
             status = res.get("cause", {}).get("statusCode", -1)
-            if self.websocket and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
+            if self.session.websocket and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
                 return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
