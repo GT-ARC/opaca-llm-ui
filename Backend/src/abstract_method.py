@@ -245,14 +245,14 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.session.websocket.send_json(ContainerLoginNotification(
+        await self.session.websocket_send(ContainerLoginNotification(
             status=401,
             type="missing_credentials",
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
-        ).model_dump_json())
-        response = ContainerLoginResponse(**await self.session.websocket.receive_json())
+        ))
+        response = ContainerLoginResponse(**await self.session.websocket_receive())
 
         # Check if credentials were provided
         if not response.username or not response.password:

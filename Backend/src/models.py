@@ -8,6 +8,7 @@ import uuid
 import os
 import time
 import traceback
+import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
@@ -264,6 +265,7 @@ class SessionData(BaseModel):
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
+    _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
 
@@ -307,6 +309,16 @@ class SessionData(BaseModel):
             del self.chats[chat_id]
             return True
         return False
+    
+    async def websocket_send(self, message: BaseModel) -> None:
+        if self._websocket:
+            await self._websocket.send_json(message.model_dump_json())
+
+    async def websocket_receive(self) -> dict:
+        if self._websocket and self._ws_msg_queue:
+            return await self._ws_msg_queue.get()
+        else:
+            raise Exception("Websocket not connected")
 
 
 class ConfigParameter(BaseModel):
