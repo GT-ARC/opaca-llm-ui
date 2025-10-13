@@ -413,9 +413,8 @@ export default {
 
         async connectWebsocket() {
             const url = `${conf.BackendAddress}/ws`
-            const socket = new WebSocket(url);
-            socket.onmessage = event => this.handleStreamingSocketMessage(event);
-            return socket;
+            this.socket = new WebSocket(url);
+            this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
         },
 
         async handleStreamingSocketMessage(event) {

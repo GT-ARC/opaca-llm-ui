@@ -327,7 +327,7 @@ async def open_websocket(websocket: WebSocket):
         logger.info(f"WS connection closed: {e}")
     finally:
         logger.info("websocket removed")
-        session.websocket = None
+        session._websocket = None
 
 
 ## HELPER FUNCTIONS
