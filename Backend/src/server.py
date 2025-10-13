@@ -1,10 +1,11 @@
 """
 FastAPI Server providing HTTP/REST routes to be used by the Frontend.
-Provides a list of available  LLM prompting methods that can be used,
+Provides a list of available LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
 from typing import Dict, Any, List, Union, Optional
+from http import HTTPStatus
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -74,19 +75,19 @@ app.add_middleware(
 # EXCEPTION HANDLING
 
 @app.exception_handler(KeyError)
-async def myapp_error_handler(request: Request, exc: KeyError):
-    raise HTTPException(status_code=404, detail=f"Element not found: {exc}")
+async def handle_key_error(request: Request, exc: KeyError):
+    raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Element not found: {exc}")
 
 @app.exception_handler(ValueError)
-async def myapp_error_handler(request: Request, exc: ValueError):
-    raise HTTPException(status_code=422, detail=f"Illegal value: {exc}")
+async def handle_value_error(request: Request, exc: ValueError):
+    raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=f"Illegal value: {exc}")
 
 @app.exception_handler(TypeError)
-async def myapp_error_handler(request: Request, exc: TypeError):
-    raise HTTPException(status_code=422, detail=f"Unexpected type: {exc}")
+async def handle_type_error(request: Request, exc: TypeError):
+    raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=f"Unexpected type: {exc}")
 
 @app.exception_handler(OpacaException)
-async def myapp_error_handler(request: Request, exc: OpacaException):
+async def handle_custom_error(request: Request, exc: OpacaException):
     raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message})")
 
 

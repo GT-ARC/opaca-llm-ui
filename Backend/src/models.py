@@ -282,7 +282,7 @@ class SessionData(BaseModel):
                 raise OpacaException(f"LLM host not supported : {the_url}")
         return self._llm_clients[the_url]
 
-    def is_valid(self, ) -> bool:
+    def is_valid(self) -> bool:
         return self.valid_until > time.time()
 
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
