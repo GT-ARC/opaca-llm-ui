@@ -33,9 +33,11 @@ class OpacaClient:
             return 200
         except httpx.ConnectError as e:
             logger.warning(f"Could not connect: {e}")
+            self.url = None
             return 404
         except httpx.HTTPStatusError as e:
             logger.warning(f"Connected with error: {e}")
+            self.url = None
             return e.response.status_code if e.response is not None else 400
 
     async def disconnect(self) -> None:
