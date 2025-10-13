@@ -2,13 +2,9 @@ import asyncio
 import os
 import time
 import logging
-from datetime import datetime, timezone
 from logging import Logger
-from typing import Dict, Union, Optional, List
-from fastapi import Request, Response, HTTPException
+from typing import Dict, Optional, List
 from pydantic import ValidationError
-from starlette.websockets import WebSocket
-from starlette.datastructures import Headers
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_files_for_session
@@ -107,41 +103,13 @@ async def load_all_sessions() -> None:
     logger.info(f'Loaded {len(session_ids)} sessions from DB.')
     for session_id in session_ids:
         session = await db_client.load_session(session_id)
-        if is_session_valid(session):
+        if session and session.is_valid():
             sessions[session_id] = session
         else:
             await delete_session(session_id)
 
 
-async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
-    """
-    Unified session handler for both HTTP requests and WebSocket connections.
-    If no valid session ID is found, a new one is created and optionally set in the response cookie.
-    """
-
-    # Extract cookies from headers
-    headers = Headers(scope=source.scope)
-    cookies = headers.get("cookie")
-    session_id = None
-
-    # Extract session_id from cookies
-    if cookies:
-        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
-        session_id = cookie_dict.get("session_id", None)
-
-    max_age = 60 * 60 * 24 * 30  # 30 days
-    # create Cookie (or just update max-age if already exists)
-    session_id = await create_or_refresh_session(session_id, max_age)
-
-    # If it's an HTTP request, and you want to set a cookie
-    if response is not None:
-        response.set_cookie("session_id", session_id, max_age=max_age)
-
-    # Return the session data for the session ID
-    return sessions[session_id]
-
-
-async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0) -> str:
+async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0) -> SessionData:
     async with (sessions_lock):
         session = sessions.get(session_id, None) \
             or await db_client.load_session(session_id)
@@ -159,7 +127,7 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
         if max_age > 0:
             session.valid_until = time.time() + max_age
 
-    return session_id
+    return session
 
 
 def create_new_session(session_id: Optional[str] = None) -> SessionData:
@@ -167,39 +135,6 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
     if session_id:
         session.session_id = session_id
     return session
-
-
-async def handle_chat_id(session: SessionData, chat_id: str, create_if_missing: bool = False) -> Chat | None:
-    chat = session.chats.get(chat_id, None)
-    if chat is None and create_if_missing:
-        chat = Chat(chat_id=chat_id)
-        session.chats[chat_id] = chat
-    elif chat is None and not create_if_missing:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
-
-
-def create_chat_name(chat: Chat | None, message: QueryRequest | None) -> None:
-    if (chat is not None) and (message is not None) and not chat.name:
-        chat.name = (f'{message.user_query[:32]}…'
-            if len(message.user_query) > 32
-            else message.user_query)
-
-
-def update_chat_time(chat: Chat) -> None:
-    chat.time_modified = datetime.now(tz=timezone.utc)
-
-
-async def store_message(chat: Chat, result: QueryResponse):
-    chat.responses.append(result)
-    update_chat_time(chat)
-
-
-def delete_chat(session: SessionData, chat_id: str) -> bool:
-    chat = session.chats.get(chat_id, None)
-    if chat is None: return False
-    del session.chats[chat_id]
-    return True
 
 
 async def store_sessions_in_db() -> None:
@@ -216,19 +151,8 @@ async def cleanup_old_sessions() -> None:
     """
     logger.info("Cleaning out expired sessions...")
     for session_id, session in sessions.items():
-        if not is_session_valid(session):
+        if not session.is_valid():
             await delete_session(session_id)
-
-
-def is_session_valid(session: SessionData) -> bool:
-    """
-    Check if the session is valid, e.g. exists, not expired, etc.
-
-    :param session: The session to check.
-    """
-    if session is None: return False
-    if session.valid_until < time.time(): return False
-    return True
 
 
 async def delete_session(session_id: str) -> None:

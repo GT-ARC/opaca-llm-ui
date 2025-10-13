@@ -1,10 +1,11 @@
 """
 FastAPI Server providing HTTP/REST routes to be used by the Frontend.
-Provides a list of available  LLM prompting methods that can be used,
+Provides a list of available LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union, Optional
+from http import HTTPStatus
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -12,18 +13,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
+from starlette.datastructures import Headers
 
-from .utils import validate_config_input, exception_to_result
+from .utils import validate_config_input
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models
+    SearchResult, get_supported_models, SessionData, OpacaException
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .file_utils import delete_file_from_all_clients, save_file_to_disk
-from .session_manager import handle_session_id, delete_all_sessions, store_sessions_in_db, \
-    handle_chat_id, create_chat_name, update_chat_time, store_message, cleanup_task, delete_chat, on_shutdown, \
-    load_all_sessions
+from .session_manager import create_or_refresh_session, delete_all_sessions, store_sessions_in_db, \
+    cleanup_task, on_shutdown, load_all_sessions
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -70,6 +71,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# EXCEPTION HANDLING
+
+@app.exception_handler(KeyError)
+async def handle_key_error(request: Request, exc: KeyError):
+    raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Element not found: {exc}")
+
+@app.exception_handler(ValueError)
+async def handle_value_error(request: Request, exc: ValueError):
+    raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=f"Illegal value: {exc}")
+
+@app.exception_handler(TypeError)
+async def handle_type_error(request: Request, exc: TypeError):
+    raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=f"Unexpected type: {exc}")
+
+@app.exception_handler(OpacaException)
+async def handle_custom_error(request: Request, exc: OpacaException):
+    raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message})")
+
+
+# 'GENERAL' ROUTES
+
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
 async def get_methods() -> list:
     return list(METHODS)
@@ -115,7 +138,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     try:
         return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
-        return exception_to_result(message.user_query, e)
+        return QueryResponse.from_exception(message.user_query, e)
 
 
 @app.post("/stop", description="Abort generation for every query of the current session.")
@@ -144,23 +167,22 @@ async def get_chats(request: Request, response: Response) -> List[Chat]:
 @app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
 async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id)
+    chat = session.get_or_create_chat(chat_id)
     return chat
 
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id, True)
-    create_chat_name(chat, message)
+    chat = session.get_or_create_chat(chat_id, True)
     session.abort_sent = False
     result = None
     try:
         result = await METHODS[method](session).query(message.user_query, chat)
     except Exception as e:
-        result = exception_to_result(message.user_query, e)
+        result = QueryResponse.from_exception(message.user_query, e)
     finally:
-        await store_message(chat, result)
+        chat.store_interaction(result)
         return result
 
 
@@ -168,19 +190,18 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
 async def query_stream(websocket: WebSocket, chat_id: str, method: str):
     await websocket.accept()
     session = await handle_session_id(websocket)
-    chat = await handle_chat_id(session, chat_id, True)
+    chat = session.get_or_create_chat(chat_id, True)
     session.abort_sent = False
     message = None
     result = None
     try:
         data = await websocket.receive_json()
         message = QueryRequest(**data)
-        create_chat_name(chat, message)
         result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
     except Exception as e:
-        result = exception_to_result(message.user_query, e)
+        result = QueryResponse.from_exception(message.user_query, e)
     finally:
-        await store_message(chat, result)
+        chat.store_interaction(result)
         await websocket.send_json(result.model_dump_json())
         await websocket.close()
 
@@ -188,15 +209,15 @@ async def query_stream(websocket: WebSocket, chat_id: str, method: str):
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
 async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
-    chat = await handle_chat_id(session, chat_id)
+    chat = session.get_or_create_chat(chat_id)
     chat.name = new_name
-    update_chat_time(chat)
+    chat.update_modified()
 
 
 @app.delete("/chats/{chat_id}", description="Delete a single chat.")
-async def delete_chat_route(request: Request, response: Response, chat_id: str) -> bool:
+async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
-    return delete_chat(session, chat_id)
+    return session.delete_chat(chat_id)
 
 
 @app.post("/chats/search", description="Search through all chats for a given query.")
@@ -307,6 +328,36 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         return True
 
     return False
+
+
+## HELPER FUNCTIONS
+
+async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
+    """
+    Unified session handler for both HTTP requests and WebSocket connections.
+    If no valid session ID is found, a new one is created and optionally set in the response cookie.
+    """
+
+    # Extract cookies from headers
+    headers = Headers(scope=source.scope)
+    cookies = headers.get("cookie")
+    session_id = None
+
+    # Extract session_id from cookies
+    if cookies:
+        cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
+        session_id = cookie_dict.get("session_id", None)
+
+    max_age = 60 * 60 * 24 * 30  # 30 days
+    # create Cookie (or just update max-age if already exists)
+    session = await create_or_refresh_session(session_id, max_age)
+
+    # If it's an HTTP request, and you want to set a cookie
+    if response is not None:
+        response.set_cookie("session_id", session.session_id, max_age=max_age)
+
+    # Return the session data for the session ID
+    return session
 
 
 # run as `python3 -m Backend.server`
