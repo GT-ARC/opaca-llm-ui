@@ -323,13 +323,12 @@ export default {
             aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
-            const res = await backendClient.query(this.selectedChatId, this.method, userText, true, 60000);
-            const result = res.agent_messages[res.agent_messages.length-1];
+            const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 60000);
 
             // display final result
             if (result.error) {
                 aiBubble.setError(result.error);
-                this.$refs.sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
             }
             aiBubble.setContent(result.content);
             aiBubble.toggleLoading(false);
