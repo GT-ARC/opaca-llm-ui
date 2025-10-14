@@ -27,6 +27,7 @@ class OpacaClient:
         Returns the original HTTP Status code returned by the OPACA Platform as the result body.
         """
         self.url = url
+        self.connected = False
         try:
             await self._get_token(user, pwd)
             await self.get_actions_simple()
