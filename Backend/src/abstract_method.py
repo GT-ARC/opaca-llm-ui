@@ -79,7 +79,6 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            session (SessionData): The current session
             model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
@@ -88,7 +87,6 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
-            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -200,6 +198,10 @@ class AbstractMethod(ABC):
 
 
     async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
+        """
+        Invoke OPACA action matching the given tool. If invoke fails due to required login, attempt Login (via websocket callback)
+        and try again. In any case returns a ToolCall, where "result" can be error message.
+        """
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
@@ -224,6 +226,9 @@ class AbstractMethod(ABC):
 
 
     async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
+        """
+        Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
+        """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
