@@ -39,18 +39,16 @@ class ColoredFormatter(logging.Formatter):
         "AgentEvaluator": "\x1b[94m", # bright blue
         "OverallEvaluator": "\x1b[92m", # bright green
         "IterationAdvisor": "\x1b[35m", # magenta
-
-        # Default
-        "Default": "\x1b[38;20m",  # Dim White
     }
 
-    def format(self, record):
-        agent_name = getattr(record, "agent_name", "Default")
-        color = self.AGENT_COLORS.get(agent_name, self.AGENT_COLORS["Default"])
-
-        # Get timestamp and formatted base string
+    def format(self, record: logging.LogRecord):
+        agent_name = getattr(record, "agent_name", None)
+        color = self.AGENT_COLORS.get(agent_name, "\x1b[38;20m") # Default = Dim White
         timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
-        base = f"{timestamp} [{record.levelname}] {agent_name} -"
+        if agent_name is None:
+            base = f"{timestamp} [{record.levelname}] {record.module} {record.funcName} -"
+        else:
+            base = f"{timestamp} [{record.levelname}] {agent_name} -"
 
         # Split messages into lines to make colorful logging work in docker
         message_lines = record.getMessage().splitlines()
@@ -60,7 +58,6 @@ class ColoredFormatter(logging.Formatter):
             f"{color}{' ' * len(base)} {line}\x1b[0m"
             for line in message_lines[1:]
         ]
-
         return "\n".join(formatted_lines)
 
 
