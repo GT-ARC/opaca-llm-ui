@@ -115,7 +115,7 @@ async def connect(request: Request, response: Response, connect: ConnectRequest)
 @app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
 async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
-    return session.opaca_client.url
+    return session.opaca_client.url if session.opaca_client.connected else None
 
 
 @app.post("/disconnect", description="Reset OPACA Runtime Connection.")
