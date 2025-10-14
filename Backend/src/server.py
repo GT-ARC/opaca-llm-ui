@@ -314,23 +314,20 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
 
 @app.websocket("/ws")
 async def open_websocket(websocket: WebSocket):
-    logger.info("opening websocket...")
     await websocket.accept()
     session = await handle_session_id(websocket)
     session._websocket = websocket
     session._ws_msg_queue = asyncio.Queue()
     try:
         while True:
-            logger.info("websocket waiting...")
+            logger.debug("websocket waiting...")
             # message coming from the websocket are received here and put into an async queue
             # so any exceptions (like websocket closing) can be handled here without losing messages
             response = await websocket.receive_json()
-            logger.info("websocket received something")
             await session._ws_msg_queue.put(response)
     except Exception as e:
-        logger.info(f"websocket exception: {e}")
+        pass  # this is normal when e.g. the browser is closed
     finally:
-        logger.info("websocket removed")
         session._websocket = None
 
 

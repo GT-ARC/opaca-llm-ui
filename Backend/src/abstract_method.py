@@ -244,7 +244,7 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.websocket.send_json(ContainerLoginNotification(
+        await self.session.websocket_send(ContainerLoginNotification(
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
