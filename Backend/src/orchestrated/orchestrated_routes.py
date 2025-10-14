@@ -9,7 +9,7 @@ import asyncio
 from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
-from ..abstract_method import AbstractMethod
+from ..abstract_method import AbstractMethod, openapi_to_functions
 from ..models import QueryResponse, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
@@ -20,7 +20,6 @@ from .agents import (
     AgentPlanner, get_current_time
 )
 from .models import AgentResult, AgentTask
-from ..utils import openapi_to_functions
 
 
 class SelfOrchestratedMethod(AbstractMethod):

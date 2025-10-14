@@ -4,6 +4,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 import asyncio
+import jsonref
 
 import httpx
 from pydantic import BaseModel
@@ -11,7 +12,6 @@ from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
-from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -199,11 +199,6 @@ class AbstractMethod(ABC):
         return agent_message
 
 
-    @staticmethod
-    def _is_gpt(model: str):
-        return True if model.startswith(('o1', 'o3', 'gpt')) else False
-
-
     async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
         if "--" in tool_name:
             agent_name, action_name = tool_name.split('--', maxsplit=1)
@@ -266,3 +261,169 @@ class AbstractMethod(ABC):
         asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, response.timeout))
 
         return res
+
+
+
+def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
+    """
+    Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
+
+    Parameters:
+    - openapi_spec: the OpenAPI specification
+    - agent: name of OPACA agent to filter for, or None for all
+    - strict: make all action parameters required (needed for some models)
+    """
+    functions = []
+    error_msg = ""
+
+    for path, methods in openapi_spec.get("paths", {}).items():
+        for method, spec_with_ref in methods.items():
+            # Resolve JSON references.
+            try:
+                spec = jsonref.replace_refs(spec_with_ref)
+            except Exception as e:
+                error_msg += f'Error while replacing references for unknown action. Cause: {e}\n'
+                continue
+
+            # Extract a name for the functions
+            try:
+                # The operation id is formatted as 'containerId-agentName-actionName'
+                container_id, agent_name, function_name = spec.get("operationId").split(';')
+                # action relevant for selected agent?
+                if agent and agent_name != agent:
+                    continue
+            except Exception as e:
+                error_msg += f'Error while splitting the operation id {spec.get("operationId")}. Cause: {e}\n'
+                continue
+
+            # Extract a description and parameters.
+            desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
+
+            # assemble function block
+            # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
+            schema = (spec.get("requestBody", {})
+                        .get("content", {})
+                        .get("application/json", {})
+                        .get("schema"))
+            schema.setdefault("properties", {})  # must be present even if no params
+            if strict:
+                schema["additionalProperties"] = False
+                schema["required"] = list(schema["properties"])
+
+            functions.append(
+                {
+                    "type": "function",
+                    "name": agent_name + '--' + function_name,
+                    "description": desc,
+                    "parameters": schema,
+                }
+            )
+
+    return functions, error_msg
+
+
+def transform_schema(schema):
+    """Transform a JSON schema to meet OpenAI's requirements.
+
+    This function:
+    1. Resolves $ref references from $defs
+    2. Adds additionalProperties: False to all object types
+    3. Removes unnecessary fields like title and default
+    4. Flattens and simplifies the schema structure
+    5. Adds required name field for OpenAI compatibility
+    """
+    # Extract $defs if present
+    defs = schema.get('$defs', {})
+
+    def resolve_ref(ref):
+        """Resolve a $ref reference by getting the schema from $defs"""
+        if not ref.startswith('#/$defs/'):
+            return None
+        def_name = ref.split('/')[-1]
+        return defs.get(def_name, {})
+
+    def clean_schema(s):
+        """Remove unnecessary fields and add additionalProperties: False to objects"""
+        if not isinstance(s, dict):
+            return s
+
+        # Start with a new dict to only keep what we want
+        cleaned = {}
+
+        # Copy essential fields
+        if 'type' in s:
+            cleaned['type'] = s['type']
+        if 'description' in s:
+            cleaned['description'] = s['description']
+        if 'properties' in s:
+            cleaned['properties'] = {
+                k: clean_schema(v) for k, v in s['properties'].items()
+            }
+        if 'items' in s:
+            cleaned['items'] = clean_schema(s['items'])
+        if 'required' in s:
+            cleaned['required'] = s['required']
+        if 'enum' in s:
+            cleaned['enum'] = s['enum']
+
+        # Add additionalProperties: False to objects
+        if s.get('type') == 'object':
+            cleaned['additionalProperties'] = False
+
+        # Handle anyOf/allOf/oneOf
+        for field in ['anyOf', 'allOf', 'oneOf']:
+            if field in s:
+                cleaned[field] = [clean_schema(item) for item in s[field]]
+
+        return cleaned
+
+    def process_schema(s):
+        """Process schema by resolving refs and cleaning"""
+        if not isinstance(s, dict):
+            return s
+
+        # Create a new dict to store processed schema
+        processed = {}
+
+        # Handle $ref first
+        if '$ref' in s:
+            ref_schema = resolve_ref(s['$ref'])
+            if ref_schema:
+                # Merge the resolved schema with any additional properties
+                processed = process_schema(ref_schema)
+                # Add any additional fields from the original schema
+                for k, v in s.items():
+                    if k != '$ref':
+                        processed[k] = process_schema(v)
+                return processed
+
+        # Process each field
+        for k, v in s.items():
+            if k == '$defs':
+                continue  # Skip $defs as we handle them separately
+            elif isinstance(v, dict):
+                processed[k] = process_schema(v)
+            elif isinstance(v, list):
+                processed[k] = [process_schema(item) for item in v]
+            else:
+                processed[k] = v
+
+        return processed
+
+    # Process the main schema
+    processed_schema = process_schema(schema)
+
+    # Clean the processed schema
+    cleaned_schema = clean_schema(processed_schema)
+
+    # Create the final schema with the required name field
+    final_schema = {
+        "format": {
+            "type": "json_schema",
+            "strict": True,
+            "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
+            "schema": cleaned_schema
+        }
+    }
+
+    return final_schema
