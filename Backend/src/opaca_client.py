@@ -20,6 +20,7 @@ class OpacaClient:
     def __init__(self):
         self.url = None
         self.token = None
+        self.connected = False
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
@@ -29,6 +30,7 @@ class OpacaClient:
         try:
             await self._get_token(user, pwd)
             await self.get_actions_simple()
+            self.connected = True
             logger.info(f"Connected to {url}")
             return 200
         except httpx.ConnectError as e:
@@ -44,6 +46,7 @@ class OpacaClient:
         """Clears authentication and connection state."""
         self.token = None
         self.url = None
+        self.connected = False
         logger.info(f"Disconnected")
 
     async def get_actions(self) -> dict:
