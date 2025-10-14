@@ -318,13 +318,17 @@ async def open_websocket(websocket: WebSocket):
     await websocket.accept()
     session = await handle_session_id(websocket)
     session._websocket = websocket
+    session._ws_msg_queue = asyncio.Queue()
     try:
         while True:
             logger.info("websocket waiting...")
-            await asyncio.sleep(1)
-            # just waiting... is there a better way?
+            # message coming from the websocket are received here and put into an async queue
+            # so any exceptions (like websocket closing) can be handled here without losing messages
+            response = await websocket.receive_json()
+            logger.info("websocket received something")
+            await session._ws_msg_queue.put(response)
     except Exception as e:
-        logger.info(f"WS connection closed: {e}")
+        logger.info(f"websocket exception: {e}")
     finally:
         logger.info("websocket removed")
         session._websocket = None

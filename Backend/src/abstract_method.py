@@ -7,7 +7,6 @@ import asyncio
 
 import httpx
 from pydantic import BaseModel
-from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
@@ -176,14 +175,14 @@ class AbstractMethod(ABC):
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
                     agent_message.tools[-1].args = {}
 
-            if self.session.websocket and self.streaming:
+            if self.session.has_websocket() and self.streaming:
                 await self.send_to_websocket(agent_message)
                 agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.session.websocket and self.streaming:
+        if self.session.has_websocket() and self.streaming:
             agent_message.content = ''
             await self.send_to_websocket(agent_message)
 
@@ -195,8 +194,8 @@ class AbstractMethod(ABC):
 
 
     async def send_to_websocket(self, message: BaseModel):
-        if self.session.websocket and self.streaming:
-            await self.session.websocket.send_json(message.model_dump_json())
+        if self.session.has_websocket() and self.streaming:
+            await self.session.websocket_send(message)
 
 
     @staticmethod
@@ -221,7 +220,7 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
             status = res.get("cause", {}).get("statusCode", -1)
-            if self.session.websocket and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
+            if self.session.has_websocket() and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
                 return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
@@ -245,14 +244,14 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.session.websocket.send_json(ContainerLoginNotification(
+        await self.session.websocket_send(ContainerLoginNotification(
             status=401,
             type="missing_credentials",
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
-        ).model_dump_json())
-        response = ContainerLoginResponse(**await self.session.websocket.receive_json())
+        ))
+        response = ContainerLoginResponse(**await self.session.websocket_receive())
 
         # Check if credentials were provided
         if not response.username or not response.password:
