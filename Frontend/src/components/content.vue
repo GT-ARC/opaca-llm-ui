@@ -421,14 +421,12 @@ export default {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
 
-            // If a container login is required
-            console.log(result.status);
-            if (result.status === 401) {
+            if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
                 return
             }
 
-            if (result.hasOwnProperty('agent')) {
+            if (result.type === "AgentMessage") {
                 if (result.agent === 'Output Generator') {
                     // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
@@ -439,12 +437,11 @@ export default {
                     this.processAgentStatusMessage(result);
                     await this.addDebugToken(result);
                 }
-
                 this.scrollDownDebug();
                 this.scrollDownChat();
-            } else {
-                // no agent property -> Last message received should be final response
-                // TODO is this bit still necessary?
+            }
+
+            if (result.type === "QueryResponse") {
                 console.log(result.error);
                 if (result.error) {
                     aiBubble.setError(result.error);

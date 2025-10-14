@@ -148,6 +148,15 @@ class AbstractMethod(ABC):
                 # We assume that the entry has been created already
                 tool_call_buffers[event.output_index] += event.delta
 
+            # Final tool call chunk received
+            elif event.type == 'response.function_call_arguments.done':
+                # Try to transform function arguments into JSON
+                try:
+                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    agent_message.tools[-1].args = {}
+
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
                 if tool_choice == "only":
@@ -165,15 +174,6 @@ class AbstractMethod(ABC):
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
-
-            # Final tool call chunk received
-            elif event.type == 'response.function_call_arguments.done':
-                # Try to transform function arguments into JSON
-                try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
-                    agent_message.tools[-1].args = {}
 
             if self.session.has_websocket() and self.streaming:
                 await self.send_to_websocket(agent_message)
@@ -244,9 +244,7 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.session.websocket_send(ContainerLoginNotification(
-            status=401,
-            type="missing_credentials",
+        await self.websocket.send_json(ContainerLoginNotification(
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
