@@ -650,9 +650,9 @@ Please address these specific improvements:
         """
         Sends either a given message or a full agent message via the given websocket.
         """
-        if self.session.websocket and self.streaming:
+        if self.session.has_websocket() and self.streaming:
             if not agent_message:
                 agent_message = AgentMessage(agent=agent)
             if message:
                 agent_message.content = message
-            await self.session.websocket.send_json(agent_message.model_dump_json())
+            await self.session.websocket_send(agent_message)

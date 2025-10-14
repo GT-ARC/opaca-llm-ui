@@ -254,8 +254,14 @@ class SessionData(BaseModel):
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
     Transient fields:
+        _websocket: Can be used to send intermediate result and other messages back to the UI
+        _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+    
+    Note: The websocket from the session should not be used directly; instead use the send/receive
+    methods. Especially the latter is necessary to ensure that messages are properly received while
+    the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
@@ -268,10 +274,6 @@ class SessionData(BaseModel):
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
-
-    @property
-    def websocket(self) -> WebSocket:
-        return self._websocket
 
     @property
     def opaca_client(self) -> OpacaClient:
@@ -309,10 +311,15 @@ class SessionData(BaseModel):
             del self.chats[chat_id]
             return True
         return False
-    
-    async def websocket_send(self, message: BaseModel) -> None:
+
+    def has_websocket(self) -> bool:
+        return self._websocket is not None
+
+    async def websocket_send(self, message: BaseModel) -> bool:
         if self._websocket:
             await self._websocket.send_json(message.model_dump_json())
+            return True
+        return False
 
     async def websocket_receive(self) -> dict:
         if self._websocket and self._ws_msg_queue:
