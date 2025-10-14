@@ -439,18 +439,6 @@ export default {
                 this.scrollDownDebug();
                 this.scrollDownChat();
             }
-
-            if (result.type === "QueryResponse") {
-                console.log(result.error);
-                if (result.error) {
-                    aiBubble.setError(result.error);
-                    const debug = this.$refs.sidebar.$refs.debug;
-                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
-                }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
-            }
         },
 
         startAutoSpeak() {
