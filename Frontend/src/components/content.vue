@@ -323,19 +323,22 @@ export default {
             aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
-            const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 60000);
+            try {
+                const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 5*60*1000);
 
-            // display final result
-            if (result.error) {
-                aiBubble.setError(result.error);
-                this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                // display final result
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                    this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                }
+                aiBubble.setContent(result.content);
+            } finally {
+                // always set to completed, even in case of error, e.g. timeout
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+                this.startAutoSpeak();
+                this.scrollDownChat();
             }
-            aiBubble.setContent(result.content);
-            aiBubble.toggleLoading(false);
-            this.isFinished = true;
-
-            this.startAutoSpeak();
-            this.scrollDownChat();
         },
 
         async toggleFileDropOverlay(show) {
