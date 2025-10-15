@@ -9,8 +9,10 @@ import httpx
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
+from .models import (ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse, WebsocketMessage,
+    ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage
+)    
 from .utils import transform_schema, openapi_to_functions
 from .file_utils import upload_files
 
@@ -74,12 +76,13 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
+            status_message: str | None = None,
+            is_output: bool = False,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            session (SessionData): The current session
             model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt to start the conversation.
@@ -88,7 +91,8 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
-            websocket (Optional[WebSocket]): WebSocket to stream output to frontend.
+            status_message (str): optional message to be streamed to the UI
+            is_output (bool): whether agent output should be streamed directly to chat or only to debug
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -99,10 +103,12 @@ class AbstractMethod(ABC):
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
         client = self.session.llm_client(url)
 
+        if status_message:
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+
         # Initialize variables
         exec_time = time.time()
         tool_call_buffers = {}
-        content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, url)
@@ -167,36 +173,36 @@ class AbstractMethod(ABC):
             elif event.type == 'response.output_text.delta':
                 if tool_choice == "only":
                     break
-                agent_message.content = event.delta
-                content += event.delta
+                agent_message.content += event.delta
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
 
             # Final message received
             elif event.type == 'response.completed':
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
-                        agent_message.formatted_output = response_format.model_validate_json(content)
+                        agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
 
-            if self.websocket:
-                await self.websocket.send_json(agent_message.model_dump_json())
-                agent_message.content = ''
-
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.websocket:
-            agent_message.content = ''
-            await self.websocket.send_json(agent_message.model_dump_json())
-
-        agent_message.content = content
+        await self.send_to_websocket(MetricsMessage(
+            execution_time=agent_message.execution_time,
+            metrics=agent_message.response_metadata,
+        ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
+
+
+    async def send_to_websocket(self, message: WebsocketMessage):
+        if self.websocket:
+            await self.websocket.send_json(message.model_dump_json())
 
 
     @staticmethod
@@ -209,6 +215,8 @@ class AbstractMethod(ABC):
             agent_name, action_name = tool_name.split('--', maxsplit=1)
         else:
             agent_name, action_name = None, tool_name
+
+        await self.send_to_websocket(ToolCallMessage(id=tool_id, name=tool_name, args=tool_args))
 
         try:
             t_result = await self.session.opaca_client.invoke_opaca_action(
@@ -225,7 +233,9 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+        res = ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+        await self.send_to_websocket(ToolCallMessage(**res.model_dump()))
+        return res
 
 
     async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
@@ -244,11 +254,11 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.websocket.send_json(ContainerLoginNotification(
+        await self.send_to_websocket(ContainerLoginNotification(
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
-        ).model_dump_json())
+        ))
         response = ContainerLoginResponse(**await self.websocket.receive_json())
 
         # Check if credentials were provided

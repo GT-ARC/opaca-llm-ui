@@ -95,8 +95,6 @@ class SimpleMethod(AbstractMethod):
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                if self.websocket:
-                    await self.websocket.send_json(response.agent_messages[-1].model_dump_json())
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
