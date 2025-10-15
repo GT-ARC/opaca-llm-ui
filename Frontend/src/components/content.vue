@@ -447,10 +447,13 @@ export default {
             }
 
             if (result.type === "StatusMessage") {
-                // agent: str
-                // status: str
-                //this.processAgentStatusMessage(result); // TODO adapt
-                //this.scrollDownChat();
+                const agentName = result.agent;
+                const message = result.status;
+                if (message) {
+                    aiBubble.markStatusMessagesDone(agentName);
+                    aiBubble.addStatusMessage(agentName, message, false);
+                }
+                this.scrollDownChat();
             }
 
             if (result.type === "MetricsMessage") {
@@ -588,16 +591,6 @@ export default {
 
         scrollDownDebug() {
             this.$refs.sidebar.$refs.debug.scrollDownDebugView();
-        },
-
-        processAgentStatusMessage(agentMessage) {
-            const aiBubble = this.getLastBubble();
-            const agentName = agentMessage.agent;
-            const message = Localizer.getLoadingMessage(agentName);
-            if (message) {
-                aiBubble.markStatusMessagesDone(agentName);
-                aiBubble.addStatusMessage(agentName, message, false);
-            }
         },
 
         async addDebugToken(chunk) {
