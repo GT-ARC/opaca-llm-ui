@@ -259,6 +259,9 @@ class AbstractMethod(ABC):
         # Send credentials to container via OPACA
         await self.session.opaca_client.container_login(response.username, response.password, container_id)
 
+        # Sleep 1 second before attempting tool retry
+        await asyncio.sleep(1)
+
         # try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
