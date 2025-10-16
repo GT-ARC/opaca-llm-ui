@@ -8,7 +8,6 @@ import jsonref
 
 import httpx
 from pydantic import BaseModel
-from starlette.websockets import WebSocket
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
@@ -20,9 +19,9 @@ logger = logging.getLogger(__name__)
 class AbstractMethod(ABC):
     NAME: str
 
-    def __init__(self, session: SessionData, websocket: WebSocket | None):
+    def __init__(self, session: SessionData, streaming=False):
         self.session = session
-        self.websocket = websocket
+        self.streaming = streaming
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
@@ -56,11 +55,8 @@ class AbstractMethod(ABC):
         return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
 
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
-        return await self.query_stream(message, chat)
-
     @abstractmethod
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
 
@@ -179,22 +175,27 @@ class AbstractMethod(ABC):
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
 
-            if self.websocket:
-                await self.websocket.send_json(agent_message.model_dump_json())
+            if self.session.has_websocket() and self.streaming:
+                await self.send_to_websocket(agent_message)
                 agent_message.content = ''
 
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.websocket:
+        if self.session.has_websocket() and self.streaming:
             agent_message.content = ''
-            await self.websocket.send_json(agent_message.model_dump_json())
+            await self.send_to_websocket(agent_message)
 
         agent_message.content = content
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
         return agent_message
+
+
+    async def send_to_websocket(self, message: BaseModel):
+        if self.session.has_websocket() and self.streaming:
+            await self.session.websocket_send(message)
 
 
     async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
@@ -217,7 +218,8 @@ class AbstractMethod(ABC):
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
             cause = res.get("cause", {}).get("message", "")
-            if self.websocket and (res.get("cause", {}).get("statusCode", -1) in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
+            status = res.get("cause", {}).get("statusCode", -1)
+            if self.session.has_websocket() and (status in [401, 403] or ("401" in cause or "403" in cause or "credentials" in cause)):
                 return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, login_attempt_retry)
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
@@ -244,12 +246,12 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         # Get credentials from user
-        await self.websocket.send_json(ContainerLoginNotification(
+        await self.session.websocket_send(ContainerLoginNotification(
             container_name=container_name,
             tool_name=tool_name,
             retry=login_attempt_retry
-        ).model_dump_json())
-        response = ContainerLoginResponse(**await self.websocket.receive_json())
+        ))
+        response = ContainerLoginResponse(**await self.session.websocket_receive())
 
         # Check if credentials were provided
         if not response.username or not response.password:
@@ -258,6 +260,9 @@ class AbstractMethod(ABC):
 
         # Send credentials to container via OPACA
         await self.session.opaca_client.container_login(response.username, response.password, container_id)
+
+        # Sleep 1 second before attempting tool retry
+        await asyncio.sleep(1)
 
         # try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
