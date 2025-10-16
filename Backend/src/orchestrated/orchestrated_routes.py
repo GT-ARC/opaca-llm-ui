@@ -2,8 +2,8 @@ import json
 import logging
 import time
 import traceback
-from collections import defaultdict
-from typing import Dict, Any, List, Tuple
+from itertools import count
+from typing import Dict, Any, List
 import asyncio
 
 from .prompts import (
@@ -23,12 +23,14 @@ from .models import AgentResult, AgentTask
 from ..utils import openapi_to_functions
 
 
+logger = logging.getLogger(__name__)
+
+
 class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
-        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
@@ -85,26 +87,30 @@ class SelfOrchestratedMethod(AbstractMethod):
         }
 
     async def _execute_round(
-        self,
-        round_tasks: List[AgentTask],
-        worker_agents: Dict[str, WorkerAgent],
-        config: Dict[str, Any],
-        all_results: List[AgentResult],
-        agent_summaries: Dict[str, Any],
-        agent_messages: List[AgentMessage] = None,
-        num_tools: int = 1,
-    ) -> Tuple[List[AgentResult], List[AgentMessage]]:
+            self,
+            round_tasks: List[AgentTask],
+            worker_agents: Dict[str, WorkerAgent],
+            config: Dict[str, Any],
+            all_results: List[AgentResult],
+            agent_summaries: Dict[str, Any],
+            agent_messages: List[AgentMessage] = None,
+            num_tools: int = 1,
+    ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
-        tool_counter = num_tools
+        tool_counter = count(num_tools)
         tool_counter_lock = asyncio.Lock()
 
-        async def execute_round_task(worker_agent, subtask, orchestrator_context, round_context,
-                                     round_num):
+        async def execute_round_task(
+                worker_agent: WorkerAgent, 
+                subtask: AgentTask, 
+                orchestrator_context: str, 
+                round_context: str,
+                round_num: int,
+        ) -> AgentResult:
             """Executes a single subtask with a WorkerAgent"""
             current_task = subtask.task
-            nonlocal tool_counter
 
             # Build comprehensive context that includes:
             # 1. Previous orchestrator rounds
@@ -121,7 +127,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             if task_context:
                 current_task = f"{current_task}\n\n{''.join(task_context)}"
 
-            self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+            logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
@@ -137,8 +143,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             # Update the tool ids
             async with tool_counter_lock:
                 for tool in worker_message.tools:
-                    tool.id = tool_counter
-                    tool_counter += 1
+                    tool.id = next(tool_counter)
 
             # Invoke the action on the connected opaca platform
             agent_result = await worker_agent.invoke_tools(current_task, worker_message)
@@ -148,17 +153,14 @@ class SelfOrchestratedMethod(AbstractMethod):
 
             return agent_result
 
-        async def execute_single_task(task: AgentTask):
+        async def execute_single_task(task: AgentTask) -> AgentResult:
             """Executes a single task"""
             # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
 
-            # Keep track of the tool ids
-            nonlocal tool_counter
-            
             # Log that the task is being executed
-            self.logger.info(f"Executing task for {task.agent_name}: {task_str}")
+            logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
             if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
@@ -207,7 +209,7 @@ class SelfOrchestratedMethod(AbstractMethod):
 
                 # Execute rounds sequentially
                 for round_num in sorted(tasks_by_round.keys()):
-                    self.logger.info(f"AgentPlanner executing round {round_num}")
+                    logger.info(f"AgentPlanner executing round {round_num}")
                     current_tasks = tasks_by_round[round_num]
 
                     # Add context from previous planner rounds if needed
@@ -223,7 +225,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                                     round_context += f"- {tc.name}: {tc.result}\n"
 
                     # Executes tasks in the same round in parallel
-                    round_results = await asyncio.gather(*[execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in current_tasks])
+                    round_results = await asyncio.gather(*[
+                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) 
+                        for subtask in current_tasks
+                    ])
 
                     # Process round results
                     for result in round_results:
@@ -272,8 +277,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     # Update the tool ids
                     async with tool_counter_lock:
                         for tool in worker_message.tools:
-                            tool.id = tool_counter
-                            tool_counter += 1
+                            tool.id = next(tool_counter)
 
                     # Invoke the tool call on the connected opaca platform
                     result = await agent.invoke_tools(task.task, worker_message)
@@ -334,8 +338,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Update the tool ids
                 async with tool_counter_lock:
                     for tool in worker_message.tools:
-                        tool.id = tool_counter
-                        tool_counter += 1
+                        tool.id = next(tool_counter)
 
                 result = await agent.invoke_tools(task.task, worker_message)
                 agent_messages.append(worker_message)
@@ -343,9 +346,7 @@ Now, using the tools available to you and the previous results, continue with yo
             return result
 
         # Execute all tasks in parallel using asyncio.gather
-        results = await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
-        
-        return results, agent_messages
+        return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results"""
@@ -441,7 +442,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         agent_tools = await self.session.opaca_client.get_actions_openapi(inline_refs=True)
                         agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name, strict=True)
                         if errors:
-                            self.logger.warning(errors)
+                            logger.warning(errors)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
@@ -460,7 +461,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 for round_num in sorted(tasks_by_round.keys()):
                     await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}")
                     
-                    round_results, agent_messages = await self._execute_round(
+                    round_results = await self._execute_round(
                         tasks_by_round[round_num],
                         worker_agents,
                         config,
@@ -551,34 +552,21 @@ Please address these specific improvements:
             # Calculate and set total execution time
             response.execution_time = time.time() - overall_start_time
             
-            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentMethod completed analysis in {response.execution_time:.2f} seconds\n\n")
-
-            # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
-            execution_times_data = defaultdict(int)
-            token_usage = {msg.agent: {'total_tokens': 0, 'prompt_tokens': 0, 'completion_tokens': 0} for msg in response.agent_messages}
-            for msg in response.agent_messages:
-                execution_times_data[msg.agent] += msg.execution_time
-                token_usage[msg.agent]['total_tokens'] += msg.response_metadata.get('total_tokens', 0)
-                token_usage[msg.agent]['prompt_tokens'] += msg.response_metadata.get('prompt_tokens', 0)
-                token_usage[msg.agent]['completion_tokens'] += msg.response_metadata.get('completion_tokens', 0)
-
-            execution_times = {agent: f"{data:.2f} seconds" for agent, data in execution_times_data.items()}
-            token_usage = {agent: f"{usage['total_tokens']} ({usage['prompt_tokens']}, {usage['completion_tokens']})" for agent, usage in token_usage.items()}
+            logger.info(f"TOTAL EXECUTION TIME: {response.execution_time:.2f} seconds")
 
             return response
 
         # If any errors were encountered, capture error desc and send to debug view
         except Exception as e:
-            self.logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
+            logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
             response.error = str(e)
             response.execution_time = time.time() - overall_start_time
             return response
 
     @staticmethod
-    def get_agents_as_tools(agent_details: Dict):
-        tools = []
-        for name, content in agent_details.items():
-            tools.append({
+    def get_agents_as_tools(agent_details: Dict) -> List[Dict]:
+        return [
+            {
                 "type": "function",
                 "name": name,
                 "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
@@ -599,8 +587,9 @@ Please address these specific improvements:
                     "additionalProperties": False
                 },
                 "strict": True
-            })
-        return tools
+            }
+            for name, content in agent_details.items()
+        ]
 
     async def send_status_to_websocket(self, agent, message):
         await self.send_to_websocket(StatusMessage(agent=agent, status=message))

@@ -123,7 +123,7 @@ class AgentPlanner(BaseAgent):
         return PlannerPlan
 
     @staticmethod
-    def get_orchestrator_context(previous_results: Optional[List[AgentResult]] = None):
+    def get_orchestrator_context(previous_results: Optional[List[AgentResult]] = None) -> str:
         # Create context from previous orchestrator round results if available
         orchestrator_context = ""
         if previous_results:
