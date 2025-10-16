@@ -650,6 +650,10 @@ Please address these specific improvements:
         """
         Sends either a given message or a full agent message via the given websocket.
         """
+        if not isinstance(agent, str):
+            # quick fix for overwriting super class method
+            await AbstractMethod.send_to_websocket(self, agent)
+            return
         if self.session.has_websocket() and self.streaming:
             if not agent_message:
                 agent_message = AgentMessage(agent=agent)
