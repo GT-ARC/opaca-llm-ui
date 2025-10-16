@@ -319,18 +319,25 @@ export default {
 
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
-            this.getLastBubble().addStatusMessage('preparing',
-                Localizer.getLoadingMessage('preparing'), false);
+            const aiBubble = this.getLastBubble();
+            aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
+            // get chat response (intermediate results are streamed via websocket)
             try {
-                const url = `${conf.BackendAddress}/chats/${this.selectedChatId}/stream/${this.method}`;
-                this.socket = new WebSocket(url);
-                this.socket.onopen    = ()    => this.handleStreamingSocketOpen(userText);
-                this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
-                this.socket.onclose   = ()    => this.handleStreamingSocketClose();
-                this.socket.onerror   = error => this.handleStreamingSocketError(error);
-            } catch (error) {
-                await this.handleStreamingSocketError(error);
+                const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 5*60*1000);
+
+                // display final result
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                    this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                }
+                aiBubble.setContent(result.content);
+            } finally {
+                // always set to completed, even in case of error, e.g. timeout
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+                this.startAutoSpeak();
+                this.scrollDownChat();
             }
         },
 
@@ -406,21 +413,15 @@ export default {
             return this.isMobile ? 2 : 4;
         },
 
-        async handleStreamingSocketOpen(userText) {
-            try {
-                const inputData = JSON.stringify({user_query: userText});
-                this.socket.send(inputData);
-            } catch (error) {
-                await this.handleStreamingSocketError(error);
-            }
+        async connectWebsocket() {
+            const url = `${conf.BackendAddress}/ws`
+            this.socket = new WebSocket(url);
+            this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
         },
 
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
             const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
-
-            // If a container login is required
-            console.log(result.status);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
@@ -438,48 +439,9 @@ export default {
                     this.processAgentStatusMessage(result);
                     await this.addDebugToken(result);
                 }
-
                 this.scrollDownDebug();
                 this.scrollDownChat();
             }
-
-            if (result.type === "QueryResponse") {
-                console.log(result.error);
-                if (result.error) {
-                    aiBubble.setError(result.error);
-                    const debug = this.$refs.sidebar.$refs.debug;
-                    debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
-                }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
-            }
-        },
-
-        async handleStreamingSocketClose() {
-            console.log("WebSocket connection closed", this.isFinished);
-            if (!this.isFinished) {
-                const message = Localizer.get('socketClosed');
-                this.handleUnexpectedConnectionClosed(message);
-            }
-
-            this.startAutoSpeak();
-            this.isFinished = true;
-            this.socket.close();
-            this.scrollDownChat();
-            await this.$refs.sidebar.$refs.chats.updateChats();
-        },
-
-        async handleStreamingSocketError(error) {
-            console.error("Received error: ", error);
-            if (!this.isFinished) {
-                const message = Localizer.get('socketError', error.toString());
-                this.handleUnexpectedConnectionClosed(message);
-            }
-
-            this.isFinished = true;
-            this.scrollDownChat();
-            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         startAutoSpeak() {

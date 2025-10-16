@@ -370,6 +370,8 @@ export default {
         await sidebars.files.updateFiles();
         await sidebars.chats.updateChats();
         await sidebars.config.fetchMethodConfig();
+        // open permanent websocket connection to backend for "push notifications" to the UI
+        this.$refs.content.connectWebsocket();
     }
 }
 </script>

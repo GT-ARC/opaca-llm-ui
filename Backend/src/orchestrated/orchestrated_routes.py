@@ -10,7 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, SessionData, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -26,8 +26,8 @@ from ..utils import openapi_to_functions
 class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False):
+        super().__init__(session, streaming)
         self.logger = logging.getLogger(__name__)
 
     @classmethod
@@ -366,7 +366,7 @@ Now, using the tools available to you and the previous results, continue with yo
         
         return results, agent_messages
     
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results"""
 
         # Initialize response
@@ -650,9 +650,9 @@ Please address these specific improvements:
         """
         Sends either a given message or a full agent message via the given websocket.
         """
-        if self.websocket:
+        if self.session.has_websocket() and self.streaming:
             if not agent_message:
                 agent_message = AgentMessage(agent=agent)
             if message:
                 agent_message.content = message
-            await self.websocket.send_json(agent_message.model_dump_json())
+            await self.session.websocket_send(agent_message)
