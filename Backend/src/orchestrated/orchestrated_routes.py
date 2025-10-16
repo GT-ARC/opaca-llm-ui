@@ -146,7 +146,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     tool.id = next(tool_counter)
 
             # Invoke the action on the connected opaca platform
-            agent_result = await worker_agent.invoke_tools(current_task, worker_message)
+            agent_result = await self.invoke_tools(worker_agent, current_task, worker_message)
 
             # Create agent message and stream content via websocket
             agent_messages.append(worker_message)
@@ -280,7 +280,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                             tool.id = next(tool_counter)
 
                     # Invoke the tool call on the connected opaca platform
-                    result = await agent.invoke_tools(task.task, worker_message)
+                    result = await self.invoke_tools(agent, task.task, worker_message)
                     agent_messages.append(worker_message)
                 
             evaluation = task.agent_name != "GeneralAgent"
@@ -340,7 +340,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     for tool in worker_message.tools:
                         tool.id = next(tool_counter)
 
-                result = await agent.invoke_tools(task.task, worker_message)
+                result = await self.invoke_tools(agent, task.task, worker_message)
                 agent_messages.append(worker_message)
             
             return result
@@ -593,3 +593,20 @@ Please address these specific improvements:
 
     async def send_status_to_websocket(self, agent, message):
         await self.send_to_websocket(StatusMessage(agent=agent, status=message))
+
+    async def invoke_tools(self, agent: WorkerAgent, task_str: str, message: AgentMessage) -> AgentResult:
+        tool_results = await asyncio.gather(*[
+            self.invoke_tool(tool.name, tool.args, tool.id)
+            for tool in message.tools
+        ])
+        tool_output = "\n".join(
+            f"- Worker Agent Executed: {tool.name}."
+            for tool in tool_results
+            if not (isinstance(tool.result, str) and tool.result.startswith("Failed") )
+        )
+        return AgentResult(
+            agent_name=agent.agent_name,
+            task=task_str,
+            output=tool_output,
+            tool_calls=tool_results,
+        )
