@@ -80,7 +80,7 @@ export default {
         configParam: Object,
 
         // is set by v-model in parent component
-        modelValue: Object, // <- "Any" type
+        modelValue: [Number, String, Object, Boolean],
     },
     setup() {
         const {isMobile} = useDevice();
