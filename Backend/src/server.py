@@ -52,8 +52,6 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # on shutdown
-        logger.info("Saving sessions to DB...")
-        await asyncio.wait_for(asyncio.shield(store_sessions_in_db()), timeout=10)
         await asyncio.wait_for(asyncio.shield(on_shutdown()), timeout=10)
 
 
