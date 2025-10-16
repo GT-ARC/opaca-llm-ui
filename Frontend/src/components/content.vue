@@ -421,7 +421,7 @@ export default {
 
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
-            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+            const result = JSON.parse(event.data);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);

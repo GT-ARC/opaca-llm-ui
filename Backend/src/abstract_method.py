@@ -9,7 +9,7 @@ import httpx
 from pydantic import BaseModel
 
 from .models import (ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse, WebsocketMessage,
+    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse,
     ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage
 )    
 from .utils import transform_schema, openapi_to_functions
