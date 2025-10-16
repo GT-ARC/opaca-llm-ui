@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 import logging
 import uuid
 import os
+import time
+import traceback
+import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
@@ -140,7 +143,7 @@ class AgentMessage(WebsocketMessage):
     formatted_output: Any = None
 
 
-class QueryResponse(BaseModel):
+class QueryResponse(WebsocketMessage):
     """
     The final response that will be sent back to the frontend. Contains a list of `AgentMessages`
     that were generated during the response generation as well as final response or error.
@@ -159,6 +162,17 @@ class QueryResponse(BaseModel):
     execution_time: float = .0
     content: str = ''
     error: str = ''
+
+    @staticmethod
+    def from_exception(user_query: str, exception: Exception) -> 'QueryResponse':
+        """Convert an exception (generic or OpacaException) to a QueryResponse to be
+        returned to the Chat-UI."""
+        if isinstance(exception, OpacaException):
+            logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
+        else:
+            logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
+            return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
 
 
 class PendingCallback(WebsocketMessage):
@@ -241,6 +255,20 @@ class Chat(BaseModel):
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
 
+    def store_interaction(self, result: QueryResponse):
+        self.responses.append(result)
+        self.update_modified()
+        self.derive_name()
+
+    def update_modified(self) -> None:
+        self.time_modified = datetime.now(tz=timezone.utc)
+
+    def derive_name(self) -> None:
+        """derive name from first interaction, if any, and if not set yet"""
+        if not self.name and self.responses:
+            query = self.responses[0].query
+            self.name = (f'{query[:32]}…' if len(query) > 32 else query)
+
 
 class SessionData(BaseModel):
     """
@@ -255,8 +283,14 @@ class SessionData(BaseModel):
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
     Transient fields:
+        _websocket: Can be used to send intermediate result and other messages back to the UI
+        _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+    
+    Note: The websocket from the session should not be used directly; instead use the send/receive
+    methods. Especially the latter is necessary to ensure that messages are properly received while
+    the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
@@ -266,12 +300,9 @@ class SessionData(BaseModel):
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
+    _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
-
-    @property
-    def websocket(self) -> WebSocket:
-        return self._websocket
 
     @property
     def opaca_client(self) -> OpacaClient:
@@ -289,8 +320,41 @@ class SessionData(BaseModel):
                     )
                     break
             else:
-                raise Exception(f"LLM host not supported : {the_url}")
+                raise OpacaException(f"LLM host not supported : {the_url}")
         return self._llm_clients[the_url]
+
+    def is_valid(self) -> bool:
+        return self.valid_until > time.time()
+
+    def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
+        chat = self.chats.get(chat_id)
+        if chat is None and create_if_missing:
+            chat = Chat(chat_id=chat_id)
+            self.chats[chat_id] = chat
+        elif chat is None and not create_if_missing:
+            raise KeyError(f"Chat {chat_id} not found")
+        return chat
+
+    def delete_chat(self, chat_id: str) -> bool:
+        if chat_id in self.chats:
+            del self.chats[chat_id]
+            return True
+        return False
+
+    def has_websocket(self) -> bool:
+        return self._websocket is not None
+
+    async def websocket_send(self, message: BaseModel) -> bool:
+        if self._websocket:
+            await self._websocket.send_json(message.model_dump_json())
+            return True
+        return False
+
+    async def websocket_receive(self) -> dict:
+        if self._websocket and self._ws_msg_queue:
+            return await self._ws_msg_queue.get()
+        else:
+            raise Exception("Websocket not connected")
 
 
 class ConfigParameter(BaseModel):
@@ -398,8 +462,6 @@ class ContainerLoginNotification(WebsocketMessage):
     This is a helper class to store information regarding the initiated container login.
 
     Attributes:
-        status: The http status code of the login attempt
-        type: The error type of the login attempt
         message: An optional message to send to the frontend
         tool_name: The name of the tool that requires further credentials
         retry: Whether the login attempt has already been tried

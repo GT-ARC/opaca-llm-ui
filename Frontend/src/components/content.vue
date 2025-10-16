@@ -323,20 +323,22 @@ export default {
             aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
-            const res = await backendClient.query(this.selectedChatId, this.method, userText, true, 60000);
-            const result = res.agent_messages[res.agent_messages.length-1];
+            try {
+                const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 5*60*1000);
 
-            // display final result
-            if (result.error) {
-                aiBubble.setError(result.error);
-                this.$refs.sidebar.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                // display final result
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                    this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
+                }
+                aiBubble.setContent(result.content);
+            } finally {
+                // always set to completed, even in case of error, e.g. timeout
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+                this.startAutoSpeak();
+                this.scrollDownChat();
             }
-            aiBubble.setContent(result.content);
-            aiBubble.toggleLoading(false);
-            this.isFinished = true;
-
-            this.startAutoSpeak();
-            this.scrollDownChat();
         },
 
         async toggleFileDropOverlay(show) {
@@ -413,9 +415,8 @@ export default {
 
         async connectWebsocket() {
             const url = `${conf.BackendAddress}/ws`
-            const socket = new WebSocket(url);
-            socket.onmessage = event => this.handleStreamingSocketMessage(event);
-            return socket;
+            this.socket = new WebSocket(url);
+            this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
         },
 
         async handleStreamingSocketMessage(event) {
@@ -428,34 +429,18 @@ export default {
             }
 
             if (result.type === "AgentMessage") {
-                if (result.hasOwnProperty('agent')) {
-                    if (result.agent === 'Output Generator') {
-                        // put output_generator content directly in the bubble
-                        aiBubble.toggleLoading(false);
-                        aiBubble.addContent(result.content);
-                        await this.addDebugToken(result);
-                    } else {
-                        // other agent messages are intermediate results
-                        this.processAgentStatusMessage(result);
-                        await this.addDebugToken(result);
-                    }
-
-                    this.scrollDownDebug();
-                    this.scrollDownChat();
-                } else {
-                    // no agent property -> Last message received should be final response
-                    // TODO is this bit still necessary?
-                    console.log("IF THIS MESSAGE COMES UP THIS PART IS STILL USED SOMEWHERE!")
-                    console.log(result.error);
-                    if (result.error) {
-                        aiBubble.setError(result.error);
-                        const debug = this.$refs.sidebar.$refs.debug;
-                        debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
-                    }
-                    aiBubble.setContent(result.content);
+                if (result.agent === 'Output Generator') {
+                    // put output_generator content directly in the bubble
                     aiBubble.toggleLoading(false);
-                    this.isFinished = true;
+                    aiBubble.addContent(result.content);
+                    await this.addDebugToken(result);
+                } else {
+                    // other agent messages are intermediate results
+                    this.processAgentStatusMessage(result);
+                    await this.addDebugToken(result);
                 }
+                this.scrollDownDebug();
+                this.scrollDownChat();
             }
 
             if (result.type === "PendingCallback") {

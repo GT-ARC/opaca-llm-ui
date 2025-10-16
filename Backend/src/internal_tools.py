@@ -112,13 +112,13 @@ class InternalTools:
             await asyncio.sleep(offset_seconds)
             logger.info("CALLING LLM NOW...")
             try:
-                await self.send_to_websocket(PendingCallback(query=query))
+                await self.session.websocket_send(PendingCallback(query=query))
 
                 query_extra = "\n\nNOTE: This query was triggered by the 'execute-later' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'execute-later' reminder! If it just asked you to do something by that time, just do it and report on the results as usual."
                 res = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
                 logger.info(f"EXECUTE LATER RESULT: {res.content}")
 
-                await self.send_to_websocket(PushMessage(**res.model_dump()))
+                await self.session.websocket_send(PushMessage(**res.model_dump()))
 
             except Exception as e:
                 logger.error(f"EXECUTE LATER FAILED: {e}")
@@ -148,6 +148,3 @@ class InternalTools:
         search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
     
-    async def send_to_websocket(self, msg):
-        if self.session.websocket:
-            await self.session.websocket.send_json(msg.model_dump_json())

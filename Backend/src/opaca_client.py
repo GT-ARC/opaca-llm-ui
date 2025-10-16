@@ -20,28 +20,34 @@ class OpacaClient:
     def __init__(self):
         self.url = None
         self.token = None
+        self.connected = False
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
         Returns the original HTTP Status code returned by the OPACA Platform as the result body.
         """
         self.url = url
+        self.connected = False
         try:
             await self._get_token(user, pwd)
             await self.get_actions_simple()
+            self.connected = True
             logger.info(f"Connected to {url}")
             return 200
         except httpx.ConnectError as e:
             logger.warning(f"Could not connect: {e}")
+            self.url = None
             return 404
         except httpx.HTTPStatusError as e:
             logger.warning(f"Connected with error: {e}")
+            self.url = None
             return e.response.status_code if e.response is not None else 400
 
     async def disconnect(self) -> None:
         """Clears authentication and connection state."""
         self.token = None
         self.url = None
+        self.connected = False
         logger.info(f"Disconnected")
 
     async def get_actions(self) -> dict:
@@ -94,7 +100,7 @@ class OpacaClient:
         """Initiate container login for OPACA RP"""
         logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers())
+            res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers(), timeout=None)
         res.raise_for_status()
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
