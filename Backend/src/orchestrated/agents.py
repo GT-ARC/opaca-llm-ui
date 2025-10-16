@@ -129,34 +129,18 @@ class AgentPlanner(BaseAgent):
         if previous_results:
             orchestrator_context = "\n\nPrevious orchestrator round results:\n"
             for i, result in enumerate(previous_results, 1):
-                orchestrator_context += f"\n# Result {i} from {result.agent_name}:\n"
-                orchestrator_context += f"Task: {result.task}\n"
+                orchestrator_context += f"\n# Result {i} from {result.agent_name}:\nTask: {result.task}\n"
 
                 # Split the output by rounds and process each round
-                round_outputs = result.output.split("\n\n")
-                for round_output in round_outputs:
+                for round_output in result.output.split("\n\n"):
                     if round_output.strip():
                         orchestrator_context += f"{round_output}\n"
 
                 # Process tool calls by round
                 if any(tc.result for tc in result.tool_calls):
-                    # Group tool calls by round based on their sequence
-                    round_tool_calls = dict(enumerate([tc for tc in result.tool_calls]))
-
-                    # Output tool results by round
-                    for round_num, tc in sorted(round_tool_calls.items()):
-                        orchestrator_context += f"\n### Tool Results:\n"
-                        orchestrator_context += f"- {tc.name}: {tc.result}\n"
+                    for tc in result.tool_calls:
+                        orchestrator_context += f"\n### Tool Results:\n- {tc.name}: {tc.result}\n"
         return orchestrator_context
-
-    def get_task_str(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
-        # Extract task string if AgentTask object is passed
-        task_str = task.task if isinstance(task, AgentTask) else task
-        self.logger.info(f"AgentPlanner executing task: {task_str}")
-        if previous_results:
-            # Add the context to the task
-            return f"{task_str}\n\n{self.get_orchestrator_context(previous_results)}"
-        return task_str
 
 
 class AgentEvaluator(BaseAgent):
@@ -188,22 +172,9 @@ class AgentEvaluator(BaseAgent):
 
     def evaluate_results(self, result: AgentResult) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
-        for tc in result.tool_calls:
-            if isinstance(tc.result, str) and (
-                    "error" in tc.result.lower() or
-                    "failed" in tc.result.lower() or
-                    "502" in tc.result
-            ):
-                self.logger.info(f"Found failed tool call: {tc}")
-                return True
-
-        # Check for incomplete sequential operations
-        # If we have multiple tool calls and one uses a placeholder that wasn't replaced
-        if len(result.tool_calls) > 1:
-            for tool_call in result.tool_calls:
-                if '<' in tool_call.args and '>' in tool_call.args:
-                    self.logger.info("Found unresolved placeholder in tool call")
-                    return True
+        if (error := get_first_error(result)):
+            self.logger.info(error)
+            return True
         return False
 
 
@@ -231,24 +202,9 @@ class OverallEvaluator(BaseAgent):
     def evaluate_results(self, current_results: List[AgentResult]) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
-            # Check for errors in tool results
-            for tc in result.tool_calls:
-                if isinstance(tc.result, str) and (
-                        "error" in tc.result.lower() or
-                        "failed" in tc.result.lower() or
-                        "502" in tc.result
-                ):
-                    self.logger.info(f"Found failed tool call in {result.agent_name}: {tc}")
-                    return True
-
-            # Check for incomplete sequential operations
-            if len(result.tool_calls) > 1:
-                # Look for unresolved placeholders
-                for tool_call in result.tool_calls:
-                    # XXX THIS DOES NOT MAKE SENSE! (did it before? can this be removed?)
-                    if '<' in tool_call.args and '>' in tool_call.args:
-                        self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
-                        return True
+            if (error := get_first_error(result)):
+                self.logger.info(f"{error} in {result.agent_name}")
+                return True
         return False
 
 
@@ -376,6 +332,23 @@ class WorkerAgent(BaseAgent):
             output=output,
             tool_calls=tool_calls,
         )
+
+
+def get_first_error(result: AgentResult) -> str | None:
+    # Check for errors in tool results
+    for tc in result.tool_calls:
+        if isinstance(tc.result, str) and any(x in tc.result.lower() for x in ["error", "failed", "502"]):
+            return f"Found failed tool call: {tc}"
+
+    # Check for incomplete sequential operations
+    # If we have multiple tool calls and one uses a placeholder that wasn't replaced
+    if len(result.tool_calls) > 1:
+        for tool_call in result.tool_calls:
+            # XXX THIS DOES NOT MAKE SENSE! (did it before? can this be removed?)
+            if '<' in tool_call.args and '>' in tool_call.args:
+                return f"Found unresolved placeholder"
+    return None
+
 
 def get_current_time():
     location = "Europe/Berlin"
