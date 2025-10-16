@@ -175,22 +175,6 @@ class QueryResponse(WebsocketMessage):
             return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
 
 
-class PendingCallback(WebsocketMessage):
-    """
-    Notification that an "execute-later" callback for the given query has been started.
-    """
-    query: str
-
-
-class PushMessage(QueryResponse, WebsocketMessage):
-    """
-    Websocket-equivalent to the QueryResponse, with mostly the same attributes, plus type... this can probably also be unified
-    with the actual QueryResponse more, but I did not want to cause more confusion for now.
-
-    This is used by the Internal Tools to send messages to the UI on "proactive" actions.
-    """
-
-
 class OpacaFile(BaseModel):
     """
     Represents a single uploaded PDF file.
@@ -455,6 +439,22 @@ class OpacaException(Exception):
         self.user_message = user_message
         self.error_message = error_message
         self.status_code = status_code
+
+
+class PendingCallback(WebsocketMessage):
+    """
+    Notification that an "execute-later" callback for the given query has been started.
+    """
+    query: str
+
+
+class PushMessage(QueryResponse, WebsocketMessage):
+    """
+    Websocket-equivalent to the QueryResponse, with mostly the same attributes, plus type... this can probably also be unified
+    with the actual QueryResponse more, but I did not want to cause more confusion for now.
+
+    This is used by the Internal Tools to send messages to the UI on "proactive" actions.
+    """
 
 
 class ContainerLoginNotification(WebsocketMessage):
