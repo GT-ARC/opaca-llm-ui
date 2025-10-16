@@ -612,10 +612,17 @@ export default {
                     debug.addDebugMessage(msg.query, "user");
                     // response
                     await this.addChatBubble(msg.content, false);
-                    for (const x of msg.agent_messages) {
-                        // TODO ADAPT
-                        // basically send one big chunk-message and multiple tool messages for each agent message
-                        //this.addDebugToken(x);
+                    for (const agent_message of msg.agent_messages) {
+                        const chunk = {
+                            id: agent_message.id,
+                            agent: agent_message.agent,
+                            chunk: agent_message.content,
+                            is_output: false,
+                        }
+                        this.addDebugToken(chunk);
+                        for (const tool of agent_message.tools) {
+                            this.addDebugTool(tool);
+                        }
                     }
                     if (msg.error) {
                         this.getLastBubble().setError(msg.error);
