@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False):
+        super().__init__(session, streaming)
 
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)

@@ -52,8 +52,6 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # on shutdown
-        logger.info("Saving sessions to DB...")
-        await asyncio.wait_for(asyncio.shield(store_sessions_in_db()), timeout=10)
         await asyncio.wait_for(asyncio.shield(on_shutdown()), timeout=10)
 
 
@@ -136,7 +134,7 @@ async def query_no_history(request: Request, response: Response, method: str, me
     session = await handle_session_id(request, response)
     session.abort_sent = False
     try:
-        return await METHODS[method](session).query(message.user_query, Chat(chat_id=''))
+        return await METHODS[method](session, message.streaming).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return QueryResponse.from_exception(message.user_query, e)
 
@@ -178,32 +176,12 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method](session).query(message.user_query, chat)
+        result = await METHODS[method](session, message.streaming).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
         chat.store_interaction(result)
         return result
-
-
-@app.websocket("/chats/{chat_id}/stream/{method}")
-async def query_stream(websocket: WebSocket, chat_id: str, method: str):
-    await websocket.accept()
-    session = await handle_session_id(websocket)
-    chat = session.get_or_create_chat(chat_id, True)
-    session.abort_sent = False
-    message = None
-    result = None
-    try:
-        data = await websocket.receive_json()
-        message = QueryRequest(**data)
-        result = await METHODS[method](session, websocket).query_stream(message.user_query, chat)
-    except Exception as e:
-        result = QueryResponse.from_exception(message.user_query, e)
-    finally:
-        chat.store_interaction(result)
-        await websocket.send_json(result.model_dump_json())
-        await websocket.close()
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.")
@@ -328,6 +306,27 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         return True
 
     return False
+
+
+# WEBSOCKET CONNECTION (permanently opened)
+
+@app.websocket("/ws")
+async def open_websocket(websocket: WebSocket):
+    await websocket.accept()
+    session = await handle_session_id(websocket)
+    session._websocket = websocket
+    session._ws_msg_queue = asyncio.Queue()
+    try:
+        while True:
+            logger.debug("websocket waiting...")
+            # message coming from the websocket are received here and put into an async queue
+            # so any exceptions (like websocket closing) can be handled here without losing messages
+            response = await websocket.receive_json()
+            await session._ws_msg_queue.put(response)
+    except Exception as e:
+        pass  # this is normal when e.g. the browser is closed
+    finally:
+        session._websocket = None
 
 
 ## HELPER FUNCTIONS

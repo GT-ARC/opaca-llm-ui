@@ -14,8 +14,8 @@ from ..models import QueryResponse, ChatMessage, ConfigParameter, Chat, ToolCall
 class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False):
+        super().__init__(session, streaming)
 
     class EvaluatorResponse(BaseModel):
         reason: str
@@ -49,7 +49,7 @@ class ToolLLMMethod(AbstractMethod):
             ),
        }
 
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
