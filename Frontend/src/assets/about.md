@@ -1,6 +1,6 @@
 ## About
 
-The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
+The OPACA LLM UI, aka 'SAGE', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 
 ## How do I use it?
@@ -42,10 +42,10 @@ Each tool available to the LLM corresponds to an action provided by one of the a
 * Self-Orchestration: A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
 * Simple-Tools: A single agent, as in 'Simple', but using the 'tools' parameter.
 
-**What prompts can I use and where can I learn more?**  
+**What prompts can I use and where can I learn more?**
 Use natural language to describe what you want. Check the Prompt Library for examples and templates. The LLM can help by calling the different tools provided by the agents on the OPACA platform, or with general questions.
 
-**Can I use my own tools/services?**  
+**Can I use my own tools/services?**
 Yes. If you have the backend URL and credentials, you can deploy and register new AgentContainers with OPACA and use their actions as additional tools.
 
 

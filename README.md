@@ -1,4 +1,4 @@
-# OPACA LLM UI
+# OPACA LLM UI, aka 'SAGE'
 
 Copyright 2024 - 2025, GT-ARC & DAI-Labor, TU Berlin
 
@@ -12,7 +12,7 @@ This repository includes software developed in the course of the project "Offene
 
 ## About
 
-The OPACA LLM UI is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
+The OPACA LLM UI, also referred to as 'SAGE', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 ![OPACA LLM UI Screenshot](docs/img/opaca-llm-ui.png)
 
