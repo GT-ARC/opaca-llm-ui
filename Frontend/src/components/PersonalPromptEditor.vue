@@ -8,14 +8,17 @@
             <textarea v-model="localPrompt.question" class="form-control" rows="4"></textarea>
 
             <label class="prompt-editor-label">Icon</label>
-            <input v-model="localPrompt.icon"
-                   class="form-control"
-                   maxlength="2"
-                   @click="toggleEmojiPicker"
-            />
-            <!-- Emoji Picker Dropdown -->
-            <div v-if="showEmojiPicker" class="emoji-picker-dropdown" @click.stop>
-                <EmojiPicker @select="onEmojiSelect" :native="true"/>
+            <div class="emoji-input-wrapper" ref="emojiWrapper">
+                <input v-model="localPrompt.icon"
+                       class="form-control"
+                       maxlength="2"
+                       readonly
+                       @click="toggleEmojiPicker"
+                />
+                <!-- Emoji Picker Dropdown -->
+                <div v-if="showEmojiPicker" class="emoji-picker-dropdown" @click.stop>
+                    <EmojiPicker @select="onEmojiSelect" :native="true"/>
+                </div>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-3">
@@ -61,6 +64,23 @@ export default {
             this.localPrompt.icon = emoji.i;
             this.showEmojiPicker = false;
         },
+
+        handleClickOutside(event) {
+            // Close emoji picker if open and click is outside both the input and picker
+            if (
+                this.showEmojiPicker &&
+                this.$refs.emojiWrapper &&
+                !this.$refs.emojiWrapper.contains(event.target)
+            ) {
+                this.showEmojiPicker = false;
+            }
+        },
+    },
+    mounted() {
+        document.addEventListener("click", this.handleClickOutside);
+    },
+    beforeUnmount() {
+        document.removeEventListener("click", this.handleClickOutside);
     },
 };
 </script>
@@ -85,6 +105,45 @@ export default {
     width: 90%;
     max-width: 500px;
     box-shadow: var(--shadow-lg);
+    color: var(--text-primary-color);
+}
+
+.emoji-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.emoji-picker-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 10000;
+    cursor: pointer
+}
+
+/* Overall Emoji Picker */
+::v-deep(.v3-emoji-picker) {
+    background-color: var(--background-color);
+    box-shadow: var(--shadow-md);
+}
+/* Emoji Picker Text*/
+::v-deep(.v3-text) {
+    color: var(--text-primary-color);
+}
+/* Emoji Picker Group Icons */
+::v-deep(.v3-groups .v3-icon) {
+    filter: invert(var(--icon-invert-color));
+}
+/* Emoji Picker Search Bar */
+::v-deep(.v3-search input) {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+    color: var(--text-primary-color);
+}
+/* Emoji Picker Headers */
+::v-deep(.v3-sticky) {
+    background-color: var(--background-color) !important;
     color: var(--text-primary-color);
 }
 
