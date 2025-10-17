@@ -15,7 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-from .utils import validate_config_input
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
     SearchResult, get_supported_models, SessionData, OpacaException
 from .simple import SimpleMethod
@@ -243,9 +242,9 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
 async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        validate_config_input(conf, METHODS[method].config_schema())
-    except HTTPException as e:
-        raise e
+        METHODS[method].validate_config_input(conf)
+    except Exception as e:
+        raise e  # converted to HTTP Exception by FastAPI
     session.config[method] = conf
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
