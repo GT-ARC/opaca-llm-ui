@@ -5,6 +5,68 @@
         {{ Localizer.get('tooltipSidebarPrompts') }}
     </div>
 
+    <!-- Personal prompts -->
+    <div id="sidebar-personal-questions" class="accordion">
+        <div class="accordion-item">
+
+        <!-- header -->
+        <div class="accordion-header text-center">
+            <button class="accordion-button collapsed text-center" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#personal-questions"
+                  aria-expanded="false"
+                  aria-controls="personal-questions">
+            <span class="section-icon">{{ personalPrompts.icon }}</span>
+            <span class="section-title">{{ personalPrompts.header }}</span>
+            </button>
+        </div>
+
+        <PersonalPromptEditor
+            v-if="showEditor"
+            :prompt="editingPrompt"
+            @save="saveEditedPrompt"
+            @cancel="closeEditor"
+        />
+
+        <!-- body -->
+        <div id="personal-questions"
+             class="accordion-collapse collapse"
+             data-bs-parent="#sidebar-personal-questions">
+            <div class="accordion-body">
+                <!-- Create new Button -->
+                <div class="question-item add-prompt-button d-flex align-items-center justify-content-center mb-2"
+                     @click.stop="openEditor()">
+                    <i class="fa fa-plus me-2"></i>
+                    <span>{{ Localizer.get('addPersonalQuestion')}}</span>
+                </div>
+                <!-- Questions -->
+                <div v-if="personalPrompts.questions.length">
+                    <div class="question-item d-flex justify-content-between align-items-center"
+                       v-for="(q, qIndex) in personalPrompts.questions"
+                       :key="qIndex"
+                       @click="this.$emit('select-question', q.question, true)">
+                        <span class="question-text">
+                            {{q.icon}}
+                            <i>{{ q.question }}</i>
+                        </span>
+                        <i class="fa fa-edit question-menu-button me-1"
+                           @click.stop="openEditor(q, qIndex)"
+                           :title="Localizer.get('editQuestion')"
+                        />
+                        <i class="fa fa-remove question-menu-button"
+                           @click.stop="removePersonalPrompt(qIndex)"
+                           :title="Localizer.get('tooltipDeleteQuestion')"
+                        />
+                    </div>
+                </div>
+                <div v-else class="personal-questions-empty">
+                    {{ Localizer.get("personalQuestionsEmpty") }}
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
     <div id="sidebar-questions" class="accordion">
         <div v-for="(section, index) in this.getQuestions()"
              :key="index"
@@ -50,68 +112,6 @@
             <i :class="['fa', 'fa-sync', isRegenerating ? 'fa-spin' : '']"></i>{{ Localizer.get('regenerate')}}
         </button>
     </div>
-
-    <!-- Personal prompts -->
-    <div id="sidebar-personal-questions" class="accordion">
-        <div class="accordion-item">
-
-            <!-- header -->
-            <div class="accordion-header text-center">
-                <button class="accordion-button collapsed text-center" type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#personal-questions"
-                        aria-expanded="false"
-                        aria-controls="personal-questions">
-                    <span class="section-icon">{{ personalPrompts.icon }}</span>
-                    <span class="section-title">{{ personalPrompts.header }}</span>
-                </button>
-            </div>
-
-            <PersonalPromptEditor
-                v-if="showEditor"
-                :prompt="editingPrompt"
-                @save="saveEditedPrompt"
-                @cancel="closeEditor"
-            />
-
-            <!-- body -->
-            <div id="personal-questions"
-                 class="accordion-collapse collapse"
-                 data-bs-parent="#sidebar-personal-questions">
-                <div class="accordion-body">
-                    <!-- Create new Button -->
-                    <div class="question-item add-prompt-button d-flex align-items-center justify-content-center mb-2"
-                         @click.stop="openEditor()">
-                      <i class="fa fa-plus me-2"></i>
-                      <span>{{ Localizer.get('addPersonalQuestion')}}</span>
-                    </div>
-                    <!-- Questions -->
-                    <div v-if="personalPrompts.questions.length">
-                        <div class="question-item d-flex justify-content-between align-items-center"
-                                v-for="(q, qIndex) in personalPrompts.questions"
-                                :key="qIndex"
-                                @click="this.$emit('select-question', q.question, true)">
-                            <span class="question-text">
-                                {{q.icon}}
-                                <i>{{ q.question }}</i>
-                            </span>
-                            <i class="fa fa-edit question-menu-button me-1"
-                                @click.stop="openEditor(q, qIndex)"
-                                :title="Localizer.get('editQuestion')"
-                            />
-                            <i class="fa fa-remove question-menu-button"
-                                @click.stop="removePersonalPrompt(qIndex)"
-                                :title="Localizer.get('tooltipDeleteQuestion')"
-                            />
-                        </div>
-                    </div>
-                    <div v-else class="question-item">
-                        {{ Localizer.get("personalQuestionsEmpty") }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 </template>
 
@@ -135,7 +135,7 @@ export default {
             isRegenerating: false,
             personalPrompts: {
                 id: "personalPrompts",
-                header: "Personal Prompts",
+                header: "Bookmarked Prompts",
                 icon: "🔖",
                 questions: [],
             },
@@ -391,6 +391,14 @@ export default {
     color: var(--primary-color);
 }
 
+.personal-questions-empty {
+    display: flex;
+    justify-content: center;
+    color: var(--text-primary-color);
+    background-color: var(--background-color);
+    padding: 0.75rem 1rem;
+}
+
 .question-text {
     flex: 1;
     font-size: 0.875rem;
@@ -414,7 +422,6 @@ export default {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    align-self: flex-end;
     border-radius: 1rem !important;
     cursor: pointer;
 }
