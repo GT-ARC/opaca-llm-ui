@@ -119,7 +119,7 @@
 import Localizer, {sidebarQuestions} from "../../Localizer.js";
 import conf from "../../../config.js";
 import backendClient from "../../utils.js";
-import {nextTick} from "vue";
+import {nextTick, reactive} from "vue";
 import {useDevice} from "../../useIsMobile.js";
 import PersonalPromptEditor from "../PersonalPromptEditor.vue";
 
@@ -237,12 +237,11 @@ export default {
 
         savePersonalPrompts() {
             localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts.questions));
-            this.personalPrompts.questions = [...this.personalPrompts.questions]; // refresh
         },
 
         addPersonalPrompt(question) {
             // Add instantly with placeholder
-            const newPrompt = { question, icon: "⭐" };
+            const newPrompt = reactive({ question, icon: "⭐" });
             this.personalPrompts.questions.push(newPrompt);
             this.savePersonalPrompts();
 
