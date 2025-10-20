@@ -14,8 +14,8 @@ from ..models import QueryResponse, ChatMessage, ConfigParameter, Chat, ToolCall
 class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False):
+        super().__init__(session, streaming)
 
     class EvaluatorResponse(BaseModel):
         reason: str
@@ -49,7 +49,7 @@ class ToolLLMMethod(AbstractMethod):
             ),
        }
 
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
@@ -158,8 +158,7 @@ class ToolLLMMethod(AbstractMethod):
             result.tools = await asyncio.gather(*tasks)
 
             # If a websocket was defined, send the tools WITH their results to the frontend
-            if self.websocket:
-                await self.websocket.send_json(result.model_dump_json())
+            await self.send_to_websocket(result)
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 

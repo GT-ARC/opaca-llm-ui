@@ -136,12 +136,54 @@
         </div>
     </div>
 
+
+    <!-- Container Login Context -->
+    <div v-if="showContainerLogin" class="auth-overlay">
+        <div class="dropdown-menu show p-4 login-container">
+            <form @submit.prevent="submitContainerLogin">
+                <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
+                <input
+                        v-model="containerLoginUser"
+                        type="text"
+                        :class="['form-control', 'mb-2', { 'is-invalid': containerLoginError}]"
+                        :placeholder="Localizer.get('username')"
+                        @input="containerLoginError = false"
+                />
+                <input
+                        v-model="containerLoginPassword"
+                        type="password"
+                        :class="['form-control', 'mb-3', { 'is-invalid': containerLoginError}]"
+                        :placeholder="Localizer.get('password')"
+                        @input="containerLoginError = false"
+                />
+                <select v-model="containerLoginTimeout" class="form-select mb-3">
+                    <option value="0">Logout immediately</option>
+                    <option value="300">Logout after 5 minutes</option>
+                    <option value="1800">Logout after 30 minutes</option>
+                    <option value="3600">Logout after 1 hour</option>
+                    <option value="14400">Logout after 4 hours</option>
+                </select>
+                <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                    {{ Localizer.get('authError') }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)" :disabled="!containerLoginUser || !containerLoginPassword">
+                    <span>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitContainerLogin(false)">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :method="this.method"
             :language="this.language"
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
+            @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             ref="content"
         />
     </div>
@@ -179,6 +221,12 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
+            showContainerLogin: false,
+            containerLoginDetails: null,
+            containerLoginUser: "",
+            containerLoginPassword: "",
+            containerLoginError: false,
+            containerLoginTimeout: 300,
         }
     },
     methods: {
@@ -261,10 +309,32 @@ export default {
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
+        },
+
+        handleContainerLogin(containerLoginDetails) {
+            this.containerLoginDetails = containerLoginDetails;
+            this.containerLoginError = this.containerLoginDetails.retry;
+            this.showContainerLogin = true;
+        },
+
+        submitContainerLogin(submitCredentials) {
+            this.showContainerLogin = false;
+
+            // If the credentials should be submitted
+            if (submitCredentials) {
+                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginTimeout);
+            } else {
+                this.$refs.content.submitContainerLogin("", "", 0)
+            }
+
+            // Reset the input fields
+            this.containerLoginUser = "";
+            this.containerLoginPassword = "";
+            this.containerLoginDetails = null;
         }
     },
 
-    mounted() {
+    async mounted() {
         if (conf.ColorScheme !== "system") {
             this.setTheme(conf.ColorScheme);
         }
@@ -272,17 +342,6 @@ export default {
         if (AudioManager.isBackendConfigured()) {
             AudioManager.initVoiceServerConnection();
         }
-
-        backendClient.getConnection().then(url => {
-            if (url != null) {
-                this.connected = true;
-                this.opacaRuntimePlatform = url;
-            } else if (conf.AutoConnect) {
-                this.connectToPlatform();
-            } else {
-                this.toggleConnectionDropdown(true);
-            }
-        });
 
         if (this.isMobile) {
             SidebarManager.close()
@@ -295,6 +354,24 @@ export default {
             e.stopPropagation();
         });
 
+        // check connection state; also acts as initial "handshake" to initialize the Session
+        const url = await backendClient.getConnection();
+        if (url != null) {
+            this.connected = true;
+            this.opacaRuntimePlatform = url;
+        } else if (conf.AutoConnect) {
+            await this.connectToPlatform();
+        } else {
+            this.toggleConnectionDropdown(true);
+        }
+        // initialize sidebar states; NOTE: this is done here, and not in their respective mounted() methods
+        // to ensure that all those steps are executed sequentially and no redundant sessions are created!
+        const sidebars = await this.$refs.content.$refs.sidebar.$refs;
+        await sidebars.files.updateFiles();
+        await sidebars.chats.updateChats();
+        await sidebars.config.fetchMethodConfig();
+        // open permanent websocket connection to backend for "push notifications" to the UI
+        this.$refs.content.connectWebsocket();
     }
 }
 </script>
@@ -382,6 +459,13 @@ header {
 
 .dropdown-menu > li:hover > .dropdown-submenu {
     display: block;
+}
+
+/* login stuff */
+.login-container {
+    max-width: 400px;
+    width: 100%;
+    margin: auto;
 }
 
 /* navbar stuff */
