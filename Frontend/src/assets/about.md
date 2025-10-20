@@ -1,6 +1,6 @@
 ## About
 
-The OPACA LLM UI, aka 'SAGE', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. The OPACA LLM UI does not include any specific actions but takes all its functionality from the connected OPACA platform.
+SAGE, (or OPACA LLM UI), is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE does not include any specific actions but takes all its functionality from the connected OPACA platform.
 
 
 ## How do I use it?
@@ -25,7 +25,7 @@ For more detailed information, please visit the project's GitHub page (link at t
 
 Your chat history is stored in-memory in the Backend and associated with you via a UUID in a browser cookie. Other users of the system can not access your chat history unless they acquire your session cookie. The cookie has a life-time of 30 days, which is renewed each time you make a request. Once the cookie expires, the chat histories will be removed from the backend. You can also at any time use the "Reset" function to clear your chat history. Note: If you delete the cookie from your browser, a new cookie will be issued and you lose the ability to Reset the old history (it will then be deleted when the old cookie expires or the backend is restarted).
 
-Your chat prompts are forwarded to the configured LLM (e.g. GPT, or some locally installed LLM), and may be in some way evaluated by the companies running those LLM. The OPACA-LLM itself (the Frontend and Backend) does in no way inspect or evaluate your chat prompts or the results other than what's necessary for e.g. invoking the respective tools and formatting the response, neither are the prompts or results persistently stored or archived or distributed to third parties.
+Your chat prompts are forwarded to the configured LLM (e.g. GPT, or some locally installed LLM), and may be in some way evaluated by the companies running those LLM. SAGE itself (the Frontend and Backend) does in no way inspect or evaluate your chat prompts or the results other than what's necessary for e.g. invoking the respective tools and formatting the response, neither are the prompts or results persistently stored or archived or distributed to third parties.
 
 
 ## Other Frequently Asked Questions
@@ -51,6 +51,6 @@ Yes. If you have the backend URL and credentials, you can deploy and register ne
 
 ## Further Reading
 
-* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">OPACA-LLM on Github</a>
+* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE on Github</a>
 * <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA on Github</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Project</a>
