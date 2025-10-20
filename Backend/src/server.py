@@ -363,9 +363,9 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
     # create Cookie (or just update max-age if already exists)
     session = await create_or_refresh_session(session_id, max_age)
 
-    # If it's an HTTP request and you want to set a cookie
+    # If it's an HTTP request, and you want to set a cookie
     if response is not None:
-        response.set_cookie("session_id", session_id, max_age=max_age)
+        response.set_cookie("session_id", session.session_id, max_age=max_age)
 
     # Return the session data for the session ID
     return session
