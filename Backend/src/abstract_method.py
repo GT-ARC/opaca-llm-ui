@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any, Type
 import asyncio
 
 import httpx
+from litellm.types.responses.main import OutputFunctionToolCall
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
 import litellm
@@ -182,6 +183,15 @@ class AbstractMethod(ABC):
                         agent_message.formatted_output = response_format.model_validate_json(content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+
+                # Weird alternative tool output
+                for t in event.response.output:
+                    if isinstance(t, OutputFunctionToolCall):
+                        agent_message.tools.append(ToolCall(
+                            name=t.name,
+                            id=0,
+                            args=json.loads(t.arguments)
+                        ))
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.model_dump()
 
