@@ -10,6 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
+from ..method_config import MethodConfig
 from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
@@ -24,64 +25,21 @@ from .models import AgentResult, AgentTask
 
 class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
+    CONFIG = (MethodConfig(NAME)
+        .llm(name='orchestrator_model', title='Orchestrator', description='For delegating tasks')
+        .llm(name='worker_model', title='Workers', description='For selecting tools')
+        .llm(name='evaluator_model', title='Evaluators', description='For evaluating tool results')
+        .llm(name='generator_model', title='Output', description='For generating the final response')
+        .temperature()
+        .max_rounds()
+        .integer(name='max_iterations', default=3, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
+        .boolean(name='use_agent_planner', default=True, title='Use Agent Planner?')
+        .boolean(name='use_agent_evaluator', default=False, title='Use Agent Evaluator?')
+    )
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
         self.logger = logging.getLogger(__name__)
-
-    @classmethod
-    def config_schema(cls) -> Dict[str, ConfigParameter]:
-        return {
-            # Which model to use for the orchestrator and worker agents
-            "orchestrator_model": cls.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
-            "worker_model": cls.make_llm_config_param(name="Workers", description="For selecting tools"),
-            "evaluator_model": cls.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
-            "generator_model": cls.make_llm_config_param(name="Output", description="For generating the final response"),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the orchestrator and worker agents",
-                type="number",
-                required=True, 
-                default=0.0, 
-                minimum=0.0, 
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of orchestration and worker rounds",
-                type="integer",
-                required=True, 
-                default=5, 
-                minimum=1, 
-                maximum=10,
-                step=1,
-            ),
-            "max_iterations": ConfigParameter(
-                name="Max Iterations",
-                description="Maximum number of re-iterations (retries after failed attempts)",
-                type="integer",
-                required=True, 
-                default=3, 
-                minimum=1, 
-                maximum=10,
-                step=1,
-            ),
-            "use_agent_planner": ConfigParameter(
-                name="Use Agent Planner?",
-                description="Whether to use the planner agent or not",
-                type="boolean",
-                required=True, 
-                default=True,
-            ),
-            "use_agent_evaluator": ConfigParameter(
-                name="Use Agent Evaluator?",
-                description="Whether to use the agent evaluator or not",
-                type="boolean",
-                required=True, 
-                default=False,
-            ),
-        }
 
     async def _execute_round(
         self,

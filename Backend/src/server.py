@@ -234,8 +234,15 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
 async def get_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if method not in session.config:
-        session.config[method] = METHODS[method].default_config()
-    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
+        session.config[method] = METHODS[method].CONFIG.instantiate()
+    v = session.config[method]
+    s = METHODS[method].config_schema()
+    print(type(v), type(s))
+    print('CONFIG VALUES:\n', v.model_dump_json())
+    print('CONFIG SCHEMA:\n', s)
+    result = ConfigPayload(config_values=v, config_schema=s)
+    print('PAYLOAD:\n', result.model_dump_json())
+    return result
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
@@ -252,7 +259,7 @@ async def set_config(request: Request, response: Response, method: str, conf: di
 @app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
-    session.config[method] = METHODS[method].default_config()
+    session.config[method] = METHODS[method].CONFIG.instantiate()
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 ## FILE ROUTES

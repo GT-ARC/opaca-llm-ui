@@ -4,6 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
+from ..method_config import MethodConfig
 from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
@@ -48,6 +49,12 @@ logger = logging.getLogger(__name__)
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
+    CONFIG = (MethodConfig(NAME)
+        .llm(name='model', title='Model', description='The model to use')
+        .temperature()
+        .max_rounds()
+        .string(name='ask_policy', default='never', options=list(ask_policies.keys()), title='Ask Policy', description='Determine how much confirmation the LLM will require')
+    )
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -105,40 +112,6 @@ class SimpleMethod(AbstractMethod):
         response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
-
-    @classmethod
-    def config_schema(cls) -> dict:
-        return {
-            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=1.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1,
-            ),
-            "ask_policy": ConfigParameter(
-                name="Ask Policy",
-                description="Determine how much confirmation the LLM will require",
-                type="string",
-                required=True,
-                default="never",
-                enum=list(ask_policies.keys()),
-            ),
-        }
 
     async def get_actions(self):
         try:

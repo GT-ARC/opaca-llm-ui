@@ -1,12 +1,14 @@
-from enum import Enum
+from pydantic import BaseModel, Field, create_model
+from typing import Annotated, Dict, List, Any
 
-from pydantic import BaseModel, Field, create_model, ValidationError
-from typing import Annotated, Dict, List, Any, Tuple, Literal
-
-from src.models import get_supported_models
+from .models import get_supported_models
 
 
 class MethodConfig:
+    """
+    This config class is a builder-type class that dynamically
+    builds the config required by the backend method.
+    """
 
     def __init__(self, method_name: str) -> None:
         self.method_name = method_name
@@ -49,11 +51,14 @@ class MethodConfig:
             self._class = create_model(f'{self.method_name}_Config', **self.parameters)
         return self._class
 
+    def get_schema(self) -> Dict[str, Any]:
+        return self.get_class().model_json_schema(mode='serialization')
+
     def validate(self, config: Dict[str, Any]) -> BaseModel:
         return self.get_class().model_validate(config)
 
     def instantiate(self) -> BaseModel:
-        return self.get_class(force_recreate=True)()
+        return self.get_class()()
 
     ### default params ###
 
@@ -61,7 +66,7 @@ class MethodConfig:
         models = [f"{url}::{model}"
                   for url, _, models in get_supported_models()
                   for model in models]
-        return self.string(name, default=models[0], options=models, allow_free_input=True, title=title, description=description)
+        return self.string(name, default=models[0], options=models, title=title, description=description)
 
     def temperature(self, default: float = 0, min: float = 0, max: float = 2, step: float = 0.1) -> 'MethodConfig':
         return self.number('temperature', default=default, min=min, max=max, step=step, title='Temperature', description='Temperature for the models')

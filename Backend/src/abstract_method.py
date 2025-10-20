@@ -9,6 +9,7 @@ import jsonref
 import httpx
 from pydantic import BaseModel
 
+from .method_config import MethodConfig
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
 from .file_utils import upload_files
@@ -18,14 +19,15 @@ logger = logging.getLogger(__name__)
 
 class AbstractMethod(ABC):
     NAME: str
+    CONFIG: MethodConfig
 
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
         self.streaming = streaming
 
     @classmethod
-    def config_schema(cls) -> Dict[str, ConfigParameter]:
-        pass
+    def config_schema(cls) -> Dict[str, Any]:
+        return cls.CONFIG.get_schema()['properties']
 
     @staticmethod
     def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):

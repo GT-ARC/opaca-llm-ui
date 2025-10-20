@@ -2,7 +2,8 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat
+from ..method_config import MethodConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat
 
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
@@ -23,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
+    CONFIG = (MethodConfig(NAME)
+        .llm(name='model', title='Model', description='The model to use')
+        .temperature()
+        .max_rounds()
+    )
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -86,29 +92,3 @@ class SimpleToolsMethod(AbstractMethod):
         response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
-
-    @classmethod
-    def config_schema(cls) -> dict:
-        return {
-            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=0.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1,
-            ),
-        }

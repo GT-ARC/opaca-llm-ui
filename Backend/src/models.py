@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 
-from typing import List, Dict, Any, Optional, Self, Iterator
+from typing import List, Dict, Any, Optional, Self, Iterator, TypeVar, Generic
 from datetime import datetime, timezone
 import logging
 import uuid
@@ -13,7 +13,7 @@ import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
-from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
+from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
 
@@ -347,8 +347,8 @@ class ConfigPayload(BaseModel):
         value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
         config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
     """
-    config_values: Dict[str, Any]
-    config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
+    config_values: SerializeAsAny[BaseModel]
+    config_schema: Dict[str, Any]
 
 
 class SearchResult(BaseModel):

@@ -8,11 +8,19 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, ConfigParameter, Chat, ToolCall
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall
+from ..method_config import MethodConfig
 
 
 class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
+    CONFIG = (MethodConfig(NAME)
+        .llm('tool_gen_model', title='Generator', description="Generating tool calls")
+        .llm('tool_eval_model', title='Evaluator', description='Evaluating tool call results')
+        .llm('output_model', title='Output', description='Generating the final output')
+        .temperature()
+        .max_rounds()
+    )
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -20,34 +28,6 @@ class ToolLLMMethod(AbstractMethod):
     class EvaluatorResponse(BaseModel):
         reason: str
         decision: str
-
-    @classmethod
-    def config_schema(cls):
-        return {
-            "tool_gen_model": cls.make_llm_config_param(name="Generator", description="Generating tool calls"),
-            "tool_eval_model": cls.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
-            "output_model": cls.make_llm_config_param(name="Output", description="Generating the final output"),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=0.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1
-            ),
-       }
 
     async def query(self, message: str, chat: Chat) -> QueryResponse:
 
