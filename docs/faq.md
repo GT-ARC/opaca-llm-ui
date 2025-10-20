@@ -1,4 +1,4 @@
-# OPACA LLM / SAGE FAQ
+# SAGE FAQ
 
 ## General Use
 

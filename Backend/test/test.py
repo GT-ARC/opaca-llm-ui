@@ -6,7 +6,7 @@ whether the LLM has access to the message history, whether there are any other
 unexpected errors, and whether all the other non-LLM routes work.
 
 How to test:
-- start OPACA LLM Backend, either via Docker Compose or directly
+- start SAGE Backend, either via Docker Compose or directly
 - run as "pytest test.py -v" or "pytest test.py -v --durations=0" for a mini-benchmark
 - run "pytest test.py::<name>" to run a single test
 
@@ -25,7 +25,7 @@ from util import BackendTestClient
 # create test client
 client = BackendTestClient("http://localhost:3001")
 if not client.alive():
-    print("Make sure OPACA LLM Backend is running!")
+    print("Make sure SAGE Backend is running!")
     exit(1)
 
 # reset sessions and message histories

@@ -53,7 +53,7 @@ class QueryRequest(BaseModel):
     Used as the expected body argument in the `/query/{method}` endpoints
 
     Attributes
-        user_query: The query a user has input into the OPACA LLM ChatBot.
+        user_query: The query a user has input into the SAGE ChatBot.
         streaming: whether intermediate results should be streamed via Websocket
     """
     user_query: str
@@ -135,7 +135,7 @@ class OpacaFile(BaseModel):
 class ChatMessage(BaseModel):
     """
     Model for storing chat history messages. Represents single messages that are generated
-    during the invocation of the OPACA-LLM. Can be stored as a list to be given as messages
+    during the invocation of SAGE. Can be stored as a list to be given as messages
     to a model during invocation.
     Corresponds to OpenAI's 'EasyInputMessageParam' (but simpler)
 
