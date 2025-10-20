@@ -4,12 +4,14 @@
         <div class="debug-header">
             <i v-if="canCollapse() && collapsed" class="fa fa-caret-right" />
             <i v-if="canCollapse() && ! collapsed" class="fa fa-caret-down" />
-            {{ type }}
+            {{type}}
         </div>
-        <div class="debug-content" @click.stop="">
-            <!-- @click="" is intentional, else problems with select-copy-paste -> collapse/expand on header and left margin, not on text -->
-            {{ getDisplayText() }}
-        </div>
+        <!--
+        IMPORTRANT: do NOT add space or fancy line breaks in this div,
+        as those will show in the output as a single leading space!
+        @click="" is intentional, else problems with select-copy-paste -> collapse/expand on header and left margin, not on text
+        -->
+        <div class="debug-content" @click.stop="">{{getDisplayText()}}</div>
         <div v-if="executionTime" class="debug-execution-time">
             Execution time: {{ executionTime.toFixed(2) }}s
         </div>
