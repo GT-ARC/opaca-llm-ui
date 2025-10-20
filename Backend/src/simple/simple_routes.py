@@ -5,7 +5,7 @@ import json
 
 from ..abstract_method import AbstractMethod
 from ..method_config import MethodConfig
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -65,7 +65,7 @@ class SimpleMethod(AbstractMethod):
         response = QueryResponse(query=message)
 
         # Get session config
-        config = self.session.config.get(self.NAME, self.default_config())
+        config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
         max_iters = config["max_rounds"]
 
         prompt = SYSTEM_PROMPT.format(

@@ -235,21 +235,14 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
     session = await handle_session_id(request, response)
     if method not in session.config:
         session.config[method] = METHODS[method].CONFIG.instantiate()
-    v = session.config[method]
-    s = METHODS[method].config_schema()
-    print(type(v), type(s))
-    print('CONFIG VALUES:\n', v.model_dump_json())
-    print('CONFIG SCHEMA:\n', s)
-    result = ConfigPayload(config_values=v, config_schema=s)
-    print('PAYLOAD:\n', result.model_dump_json())
-    return result
+    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        METHODS[method].validate_config_input(conf)
+        METHODS[method].CONFIG.validate(conf)
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
     session.config[method] = conf

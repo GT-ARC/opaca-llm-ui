@@ -280,65 +280,6 @@ class SessionData(BaseModel):
             raise Exception("Websocket not connected")
 
 
-class ConfigParameter(BaseModel):
-    """
-    A custom parameter definition for the configuration of each implemented method
-    Valid types are ["integer", "number", "string", "boolean", "array", "object", "null"]
-
-    Attributes
-        type: The data type of the configuration parameter.
-        required: Whether the parameter is required or not.
-        description: An optional description of the parameter.
-        default: The default value of the parameter.
-        free_input: When supplying a list of options with enum, also allow free input?
-        enum: If set, defines all available values the parameter can have.
-        minimum: Only for types `integer` or `number`. Defines a minimum limit for the number.
-        maximum: Only for types `integer` or `number`. Defines a maximum limit for the number.
-        step: Only for types `integer` or `number`. Defines the step size for the selector.
-    """
-    name: Optional[str] = None
-    description: Optional[str] = None
-    type: str
-    required: bool
-    default: Any
-
-    # choice settings
-    enum: Optional[List[Any]] = None
-    free_input: bool = False
-
-    # number settings
-    minimum: Optional[int | float] = None
-    maximum: Optional[int | float] = None
-    step: Optional[int | float] = None
-
-    @model_validator(mode='after')
-    def validate_after(self: Self) -> Self:
-        """
-        Uses the `@model_validator` decorator of Pydantic, to check upon initialization that various
-        consistency constraints are satisfied
-        """
-        if self.type not in ['integer', 'number', 'string', 'boolean']:
-            raise ValueError(f'{self.type} is not a valid type')
-        if self.minimum is not None and self.maximum is not None and self.maximum < self.minimum:
-            raise ValueError(f'ConfigParameter.maximum has to be larger than ConfigParameter.minimum')
-        if self.enum is not None and self.default not in self.enum:
-            raise ValueError(f'ConfigParameter.default must be one of {self.enum}')
-        if (self.minimum is not None or self.maximum is not None) and self.type not in ["integer", "number"]:
-            raise ValueError(f'The fields minimum and maximum can only be set for the types "integer" or "number".')
-        return self
-
-    # noinspection PyNestedDecorators
-    @field_validator('type', mode='after')
-    @classmethod
-    def type_validator(cls, value: str) -> str:
-        """
-        Checks if the given type is one of the usual basic data types.
-        """
-        if value not in ["integer", "number", "string", "boolean", "array", "object", "null"]:
-            raise ValueError(f'Value type "{value}" is not valid')
-        return value
-
-
 class ConfigPayload(BaseModel):
     """
     Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.

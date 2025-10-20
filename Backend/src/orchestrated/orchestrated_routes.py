@@ -11,7 +11,7 @@ from .prompts import (
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
 from ..method_config import MethodConfig
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -333,7 +333,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
         try:
             # Get base config and merge with model config
-            config = self.session.config.get(self.NAME, self.default_config())
+            config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
             
             # Send initial waiting message
             await self.send_to_websocket(agent="preparing", message="Initializing the OPACA AI Agents")

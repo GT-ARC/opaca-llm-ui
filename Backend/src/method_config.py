@@ -46,13 +46,16 @@ class MethodConfig:
         )]
         return self
 
+    def get_class_name(self) -> str:
+        return f'{self.method_name}_Config'
+
     def get_class(self, force_recreate: bool = False) -> type[BaseModel]:
         if self._class is None or force_recreate:
-            self._class = create_model(f'{self.method_name}_Config', **self.parameters)
+            self._class = create_model(self.get_class_name(), **self.parameters)
         return self._class
 
     def get_schema(self) -> Dict[str, Any]:
-        return self.get_class().model_json_schema(mode='serialization')
+        return self.get_class().model_json_schema(mode='serialization')['properties']
 
     def validate(self, config: Dict[str, Any]) -> BaseModel:
         return self.get_class().model_validate(config)
