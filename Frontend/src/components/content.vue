@@ -565,9 +565,11 @@ export default {
             this.addDebug(chunk.chunk, chunk.agent, chunk.id);
         },
 
-        async addDebugTool(agent, tool) {
-            const toolOutput = `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}}`
-            this.addDebug(toolOutput, agent, tool.id);
+        async addDebugTool(llm_agent, tool) {
+            const [agent, action] = tool.name.split("--");
+            const args = Object.entries(tool.args).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n");
+            const toolOutput = `Agent: ${agent}\nAction: ${action}\nArguments:\n${args}`;
+            this.addDebug(toolOutput, llm_agent, tool.id);
         },
 
         async addDebugResult(result) {
