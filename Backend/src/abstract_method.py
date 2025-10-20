@@ -8,6 +8,8 @@ import asyncio
 import httpx
 from pydantic import BaseModel
 from starlette.websockets import WebSocket
+import litellm
+from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
@@ -94,18 +96,11 @@ class AbstractMethod(ABC):
             AgentMessage: The final message returned by the LLM with metadata.
         """
         try:
-            url, model = map(str.strip, model.split("::"))
+            url, model_name = model.split("::")
+            model = model.replace("::", "/")
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = self.session.llm_client(url)
-
-        if url == "mistral":
-            return AgentMessage(agent=agent, content=await client.stream(
-                model=model,
-                messages=[ChatMessage(role="system", content=system_prompt), *messages],
-                tools=tools,
-                tool_choice=tool_choice,
-            ))
+        # client = self.session.llm_client(url)
 
         # Initialize variables
         exec_time = time.time()
@@ -126,7 +121,8 @@ class AbstractMethod(ABC):
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'input': [ChatMessage(role="system", content=system_prompt), *messages],
+            'instructions': system_prompt,
+            'input': [{'role': m.role, 'content': m.content} for m in messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
             'text': r_format,
@@ -138,12 +134,12 @@ class AbstractMethod(ABC):
             kwargs['tool_choice'] = 'auto'
 
         # o1/o3/o4/gpt-5 don't support temperature param
-        if not model.startswith(('o1', 'o3', 'o4', 'gpt-5')):
+        if not model_name.startswith(('o1', 'o3', 'o4', 'gpt-5')):
             kwargs['temperature'] = temperature
 
         # Main stream logic
-        stream = await client.responses.create(**kwargs)
-        async for event in stream:
+        stream = await litellm.aresponses(**kwargs)
+        async for event in stream:          # This might show a warning, but it is correct
 
             # Check if an "abort" message has been sent by the user
             if self.session.abort_sent:
@@ -153,17 +149,17 @@ class AbstractMethod(ABC):
                 )
 
             # New tool call generation started, including the complete function call name
-            if event.type == 'response.output_item.added' and event.item.type == 'function_call':
+            if event.type == event_type.OUTPUT_ITEM_ADDED  and event.item.type == 'function_call':
                 agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
                 tool_call_buffers[event.output_index] = ""
 
             # Tool call argument chunk received
-            elif event.type == 'response.function_call_arguments.delta':
+            elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DELTA:
                 # We assume that the entry has been created already
                 tool_call_buffers[event.output_index] += event.delta
 
             # Final tool call chunk received
-            elif event.type == 'response.function_call_arguments.done':
+            elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DONE:
                 # Try to transform function arguments into JSON
                 try:
                     agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
@@ -172,14 +168,14 @@ class AbstractMethod(ABC):
                     agent_message.tools[-1].args = {}
 
             # Plain text chunk received
-            elif event.type == 'response.output_text.delta':
+            elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
                     break
                 agent_message.content = event.delta
                 content += event.delta
 
             # Final message received
-            elif event.type == 'response.completed':
+            elif event.type == event_type.RESPONSE_COMPLETED:
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
@@ -187,7 +183,7 @@ class AbstractMethod(ABC):
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
-                agent_message.response_metadata = event.response.usage.to_dict()
+                agent_message.response_metadata = event.response.usage.model_dump()
 
             if self.websocket:
                 await self.websocket.send_json(agent_message.model_dump_json())
