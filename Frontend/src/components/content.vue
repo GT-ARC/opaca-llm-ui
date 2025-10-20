@@ -440,11 +440,12 @@ export default {
             }
 
             if (result.type === "ToolCallMessage") {
-                // id: int
-                // name: str
-                // args: Dict[str, Any] = {}
-                // result: Any | None = None
-                await this.addDebugTool(result);
+                await this.addDebugTool(result.agent, result);
+                this.scrollDownDebug();
+            }
+
+            if (result.type === "ToolResultMessage") {
+                await this.addDebugResult(result);
                 this.scrollDownDebug();
             }
 
@@ -564,10 +565,14 @@ export default {
             this.addDebug(chunk.chunk, chunk.agent, chunk.id);
         },
 
-        async addDebugTool(tool) {
-            const toolOutput = `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}\nResult: ${JSON.stringify(tool.result)}`
-            const type = "Tool Call";
-            this.addDebug(toolOutput, type, tool.id);
+        async addDebugTool(agent, tool) {
+            const toolOutput = `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}}`
+            this.addDebug(toolOutput, agent, tool.id);
+        },
+
+        async addDebugResult(result) {
+            const toolOutput = `\nResult: ${JSON.stringify(result.result)}`
+            this.addDebug(toolOutput, "Result", result.id);
         },
 
         addDebug(text, type, id=null) {
@@ -621,7 +626,8 @@ export default {
                         }
                         this.addDebugToken(chunk);
                         for (const tool of agent_message.tools) {
-                            this.addDebugTool(tool);
+                            this.addDebugTool(agent_message.agent, tool);
+                            this.addDebugResult({id: tool.id, result: tool.result});
                         }
                     }
                     if (msg.error) {

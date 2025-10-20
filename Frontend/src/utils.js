@@ -162,11 +162,7 @@ export function addDebugMessage(debugMessages, message) {
     } else {
         const lastMessage = debugMessages[debugMessages.length - 1];
         if (message.id != null && lastMessage.id === message.id) {
-            if (/^Tool \d+/.test(message.text)) {
-                lastMessage.text = message.text;  // replace
-            } else {
-                lastMessage.text += message.text; // append
-            }
+            lastMessage.text += message.text; // append
         } else {
             // new message type
             debugMessages.push(message);

@@ -381,9 +381,16 @@ class TextChunkMessage(BaseModel):
     is_output: bool
 
 
-class ToolCallMessage(ToolCall):
-    # XXX without the WebsocketMessage, this could also be dissolved, or add 'agent' and 'message-id' here, too?
-    pass
+class ToolCallMessage(BaseModel):
+    agent: str
+    id: int
+    name: str
+    args: Dict[str, Any] = {}
+
+
+class ToolResultMessage(BaseModel):
+    id: int
+    result: Any | None
 
 
 class StatusMessage(BaseModel):

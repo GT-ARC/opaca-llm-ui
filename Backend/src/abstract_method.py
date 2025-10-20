@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from .models import (ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
     ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse,
-    ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage
+    ToolCallMessage, ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage
 )    
 from .file_utils import upload_files
 
@@ -160,7 +160,9 @@ class AbstractMethod(ABC):
             elif event.type == 'response.function_call_arguments.done':
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                    tool = agent_message.tools[-1]
+                    tool.args = json.loads(tool_call_buffers[event.output_index])
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 except json.JSONDecodeError:
                     logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
                     agent_message.tools[-1].args = {}
@@ -211,8 +213,6 @@ class AbstractMethod(ABC):
         else:
             agent_name, action_name = None, tool_name
 
-        await self.send_to_websocket(ToolCallMessage(id=tool_id, name=tool_name, args=tool_args))
-
         try:
             t_result = await self.session.opaca_client.invoke_opaca_action(
                 action_name,
@@ -229,9 +229,8 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        res = ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
-        await self.send_to_websocket(ToolCallMessage(**res.model_dump()))
-        return res
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 
 
     async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
