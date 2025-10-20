@@ -327,6 +327,19 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
         return True
     return False
 
+## BOOKMARK ROUTES
+
+@app.get("/bookmarks")
+async def get_bookmarks(request: Request) -> list:
+    session = await handle_session_id(request)
+    return session.bookmarks
+
+@app.post("/bookmarks")
+async def save_bookmarks(request: Request) -> None:
+    session = await handle_session_id(request)
+    new_bookmarks = await request.json()
+    session.bookmarks = new_bookmarks
+
 
 ## Utility functions
 
@@ -394,6 +407,9 @@ def update_chat_time(chat: Chat) -> None:
 async def store_message(chat: Chat, result: QueryResponse):
     chat.responses.append(result)
     update_chat_time(chat)
+
+
+
 
 
 async def cleanup_old_sessions(delay_seconds=3600):

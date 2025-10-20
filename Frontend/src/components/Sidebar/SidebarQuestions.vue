@@ -224,19 +224,19 @@ export default {
             }
         },
 
-        loadPersonalPrompts() {
-            const saved = localStorage.getItem('personalPrompts');
-            if (saved) {
-                try {
-                    this.personalPrompts.questions = JSON.parse(saved);
-                } catch (e) {
-                    console.warn("Failed to parse saved prompts", e);
-                }
+        async loadPersonalPrompts() {
+            try {
+                this.personalPrompts.questions = await backendClient.getBookmarks();
+            } catch (err) {
+                console.warn("Falling back to local storage:", err);
+                const saved = localStorage.getItem("personalPrompts");
+                if (saved) this.personalPrompts.questions = JSON.parse(saved);
             }
         },
 
-        savePersonalPrompts() {
+        async savePersonalPrompts() {
             localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts.questions));
+            await backendClient.saveBookmarks(this.personalPrompts.questions);
         },
 
         addPersonalPrompt(question) {
