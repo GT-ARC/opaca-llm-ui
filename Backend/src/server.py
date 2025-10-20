@@ -242,7 +242,7 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
 async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        METHODS[method].CONFIG.validate(conf)
+        conf = METHODS[method].CONFIG.validate(conf)
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
     session.config[method] = conf
