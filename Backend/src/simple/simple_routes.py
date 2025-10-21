@@ -4,8 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..method_config import MethodConfig
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, SimpleConfig
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -39,22 +38,12 @@ Following is the list of available agents and actions described in JSON:
 {actions}
 """
 
-ask_policies = {
-    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-}
 
 logger = logging.getLogger(__name__)
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
-    CONFIG = (MethodConfig(NAME)
-        .llm(name='model', title='Model', description='The model to use')
-        .temperature()
-        .max_rounds()
-        .string(name='ask_policy', default='never', options=list(ask_policies.keys()), title='Ask Policy', description='Determine how much confirmation the LLM will require')
-    )
+    CONFIG = SimpleConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -65,7 +54,7 @@ class SimpleMethod(AbstractMethod):
         response = QueryResponse(query=message)
 
         # Get session config
-        config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
+        config = self.session.config.get(self.NAME, self.CONFIG())
         max_iters = config["max_rounds"]
 
         prompt = SYSTEM_PROMPT.format(

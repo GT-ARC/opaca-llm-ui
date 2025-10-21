@@ -10,8 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..method_config import MethodConfig
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, OrchestrationConfig
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -25,17 +24,7 @@ from .models import AgentResult, AgentTask
 
 class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
-    CONFIG = (MethodConfig(NAME)
-        .llm(name='orchestrator_model', title='Orchestrator', description='For delegating tasks')
-        .llm(name='worker_model', title='Workers', description='For selecting tools')
-        .llm(name='evaluator_model', title='Evaluators', description='For evaluating tool results')
-        .llm(name='generator_model', title='Output', description='For generating the final response')
-        .temperature()
-        .max_rounds()
-        .integer(name='max_iterations', default=3, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
-        .boolean(name='use_agent_planner', default=True, title='Use Agent Planner?')
-        .boolean(name='use_agent_evaluator', default=False, title='Use Agent Evaluator?')
-    )
+    CONFIG = OrchestrationConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -332,9 +321,8 @@ Now, using the tools available to you and the previous results, continue with yo
         overall_start_time = time.time()
 
         try:
-            # Get base config and merge with model config
-            config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
-            
+            config = self.session.config.get(self.NAME, self.CONFIG())
+
             # Send initial waiting message
             await self.send_to_websocket(agent="preparing", message="Initializing the OPACA AI Agents")
             

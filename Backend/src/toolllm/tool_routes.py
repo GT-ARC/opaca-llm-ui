@@ -8,19 +8,12 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall
-from ..method_config import MethodConfig
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall, ToolLlmConfig
 
 
 class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
-    CONFIG = (MethodConfig(NAME)
-        .llm('tool_gen_model', title='Generator', description="Generating tool calls")
-        .llm('tool_eval_model', title='Evaluator', description='Evaluating tool call results')
-        .llm('output_model', title='Output', description='Generating the final output')
-        .temperature()
-        .max_rounds()
-    )
+    CONFIG = ToolLlmConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -45,7 +38,7 @@ class ToolLLMMethod(AbstractMethod):
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
-        config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
+        config = self.session.config.get(self.NAME, self.CONFIG())
         max_iters = config["max_rounds"]
 
         # Get tools and transform them into the OpenAI Function Schema

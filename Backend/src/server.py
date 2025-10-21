@@ -234,7 +234,7 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
 async def get_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     if method not in session.config:
-        session.config[method] = METHODS[method].CONFIG.instantiate()
+        session.config[method] = METHODS[method].CONFIG()
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
@@ -242,7 +242,7 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
 async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        conf = METHODS[method].CONFIG.validate(conf)
+        conf = METHODS[method].CONFIG.model_validate(conf)
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
     session.config[method] = conf
@@ -252,7 +252,7 @@ async def set_config(request: Request, response: Response, method: str, conf: di
 @app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
 async def reset_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
-    session.config[method] = METHODS[method].CONFIG.instantiate()
+    session.config[method] = METHODS[method].CONFIG()
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 ## FILE ROUTES

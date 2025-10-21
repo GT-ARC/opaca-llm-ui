@@ -2,9 +2,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..method_config import MethodConfig
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat
-
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, SimpleToolConfig
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -24,11 +22,7 @@ logger = logging.getLogger(__name__)
 
 class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
-    CONFIG = (MethodConfig(NAME)
-        .llm(name='model', title='Model', description='The model to use')
-        .temperature()
-        .max_rounds()
-    )
+    CONFIG = SimpleToolConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -38,7 +32,7 @@ class SimpleToolsMethod(AbstractMethod):
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
 
-        config = self.session.config.get(self.NAME, self.CONFIG.instantiate())
+        config = self.session.config.get(self.NAME, self.CONFIG())
         max_iters = config["max_rounds"]
         
         # Get tools and transform them into the OpenAI Function Schema

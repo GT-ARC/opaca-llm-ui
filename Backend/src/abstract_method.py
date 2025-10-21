@@ -9,9 +9,8 @@ import jsonref
 import httpx
 from pydantic import BaseModel
 
-from .method_config import MethodConfig
 from .models import SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, ContainerLoginNotification, ContainerLoginResponse
+    ToolCall, ContainerLoginNotification, ContainerLoginResponse, MethodConfig
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractMethod(ABC):
     NAME: str
-    CONFIG: MethodConfig
+    CONFIG: type[MethodConfig]
 
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
@@ -27,7 +26,7 @@ class AbstractMethod(ABC):
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
-        return cls.CONFIG.get_schema()
+        return cls.CONFIG.model_json_schema(mode='serialization')['properties']
 
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:

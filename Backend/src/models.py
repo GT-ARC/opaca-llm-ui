@@ -1,8 +1,8 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-
-from typing import List, Dict, Any, Optional, Self, Iterator, TypeVar, Generic
+from enum import Enum
+from typing import List, Dict, Any, Iterator, ClassVar, Annotated
 from datetime import datetime, timezone
 import logging
 import uuid
@@ -13,12 +13,23 @@ import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
-from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr, SerializeAsAny
+from pydantic import BaseModel, model_validator, Field, PrivateAttr, SerializeAsAny, AfterValidator, BeforeValidator
 
 from .opaca_client import OpacaClient
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_supported_models():
+    return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"),
+            os.getenv("LLM_APIKEYS", "").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
+    ]
 
 
 class WebsocketMessage(BaseModel):
@@ -280,18 +291,6 @@ class SessionData(BaseModel):
             raise Exception("Websocket not connected")
 
 
-class ConfigPayload(BaseModel):
-    """
-    Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
-
-    Attributes
-        value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
-        config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
-    """
-    config_values: SerializeAsAny[BaseModel]
-    config_schema: Dict[str, Any]
-
-
 class SearchResult(BaseModel):
     """
     Result to some search query, showing in which chat and message the string was found.
@@ -349,12 +348,88 @@ class ContainerLoginResponse(BaseModel):
     timeout: int
 
 
-def get_supported_models():
-    return [
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"), 
-            os.getenv("LLM_APIKEYS", "").split(";"), 
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
-        )
-    ]
+class MethodConfig(BaseModel):
+    """
+    Base model class that all method config classes should inherit from.
+    Provides some static helper functions for easier field definitions.
+    """
+
+    @staticmethod
+    def string(default: str, options: List[str] = None, title: str = None, description: str = None) -> Any:
+        return Field(default=default, json_schema_extra={'options': options}, title=title, description=description)
+
+    @staticmethod
+    def integer(default: int, min: int, max: int, step: int, title: str = None, description: str = None) -> Any:
+        return Field(default=default, ge=min, le=max, multiple_of=step, title=title, description=description)
+
+    @staticmethod
+    def number(default: float, min: float, max: float, step: float, title: str = None, description: str = None) -> Any:
+        return Field(default=default, title=title, description=description, ge=min, le=max, multiple_of=step)
+
+    @staticmethod
+    def boolean(default: bool = False, title: str = None, description: str = None) -> Any:
+        return Field(default=default, title=title, description=description,)
+
+    @staticmethod
+    def llm_field(title: str = None, description: str = None) -> Any:
+        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
+        return MethodConfig.string(default=models[0], options=models, title=title, description=description)
+
+    @staticmethod
+    def temperature_field(default: float = 0, min: float = 0, max: float = 2, step: float = 0.1) -> Any:
+        return MethodConfig.number(default=default, min=min, max=max, step=step, title='Temperature', description='Temperature for the models')
+
+    @staticmethod
+    def max_rounds_field(default: int = 1, min: int = 1, max: int = 10, step: int = 1) -> Any:
+        return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
+
+
+class ToolLlmConfig(MethodConfig):
+    tool_gen_model: str = MethodConfig.llm_field(title='Generator', description='Generating tool calls')
+    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results')
+    output_model: str = MethodConfig.llm_field(title='Output', description='Generating the final output')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+
+
+class OrchestrationConfig(MethodConfig):
+    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks')
+    worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
+    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results')
+    generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
+    use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')
+    use_agent_evaluator: bool = MethodConfig.boolean(default=False, title='Use Agent Evaluator?')
+
+
+class SimpleToolConfig(MethodConfig):
+    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+
+
+class SimpleConfig(MethodConfig):
+    ask_policies: ClassVar[Dict[str, str]] = {
+        "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+        "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+        "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+    }
+
+    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    ask_policy: str = MethodConfig.string(default='never', options=list(ask_policies.keys()), title='Ask Policy', description='Determine how much confirmation the LLM will require')
+
+
+class ConfigPayload(BaseModel):
+    """
+    Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
+
+    Attributes
+        value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
+        config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
+    """
+    config_values: SerializeAsAny[MethodConfig]
+    config_schema: Dict[str, Any]
