@@ -383,9 +383,7 @@ export default {
         addPromptToUserLibrary() {
             const prompt = this.content;
             if (prompt.length <= 0 || this.bookmarked) return;
-            // Emit event
-            this.$emit('add-to-library', prompt)
-            // Show success
+            this.$emit('add-to-library', prompt);
             this.bookmarked = true;
         },
 

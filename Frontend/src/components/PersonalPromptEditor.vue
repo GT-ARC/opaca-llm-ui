@@ -10,7 +10,7 @@
             <label class="prompt-editor-label">Icon</label>
             <div class="emoji-input-wrapper" ref="emojiWrapper">
                 <input v-model="localPrompt.icon"
-                       class="form-control"
+                       class="form-control emoji-picker-input"
                        maxlength="2"
                        readonly
                        @click="toggleEmojiPicker"
@@ -114,12 +114,15 @@ export default {
     width: 100%;
 }
 
+.emoji-picker-input {
+    cursor: pointer;
+}
+
 .emoji-picker-dropdown {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
     z-index: 10000;
-    cursor: pointer
 }
 
 /* Overall Emoji Picker */

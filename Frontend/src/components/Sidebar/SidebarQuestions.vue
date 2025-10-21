@@ -49,7 +49,7 @@
                             {{q.icon}}
                             <i>{{ q.question }}</i>
                         </span>
-                        <i class="fa fa-edit question-menu-button me-1"
+                        <i class="fa fa-edit question-menu-button"
                            @click.stop="openEditor(q, qIndex)"
                            :title="Localizer.get('editQuestion')"
                         />
