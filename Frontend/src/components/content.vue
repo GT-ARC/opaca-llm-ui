@@ -568,12 +568,12 @@ export default {
         async addDebugTool(llm_agent, tool) {
             const [agent, action] = tool.name.split("--");
             const args = Object.entries(tool.args).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n");
-            const toolOutput = `Agent: ${agent}\nAction: ${action}\nArguments:\n${args}`;
+            const toolOutput = `Tool: ${tool.id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\n`;
             this.addDebug(toolOutput, llm_agent, tool.id);
         },
 
         async addDebugResult(result) {
-            const toolOutput = `\nResult: ${JSON.stringify(result.result)}`
+            const toolOutput = `Result: ${JSON.stringify(result.result)}`
             this.addDebug(toolOutput, "Result", result.id);
         },
 

@@ -65,7 +65,7 @@ export default {
             if (this.canCollapse() && this.collapsed) {
                 return this.text.substring(0, this.collapseSize) + '...';
             } else {
-                return this.text;
+                return this.text.trim();
             }
         },
 
