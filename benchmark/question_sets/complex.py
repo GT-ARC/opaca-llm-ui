@@ -1,5 +1,5 @@
 #                                                                                   #
-#   This file defines complex questions to test the performance of the OPACA LLM.   #
+#   This file defines complex questions to test the performance of SAGE.            #
 #   The questions should invoke multiple actions, some of which depend on each      #
 #   other. There might also be questions which are not serviceable by the testing   #
 #   environment.                                                                    #

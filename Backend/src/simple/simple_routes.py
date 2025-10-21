@@ -7,7 +7,7 @@ from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
-You are an assistant, called the 'OPACA-LLM'.
+You are an assistant, called the 'SAGE'.
 
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
 You are given the list of actions at the end of this prompt.

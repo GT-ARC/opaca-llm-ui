@@ -1,5 +1,5 @@
 #                                                                                   #
-#   This file defines simple questions to test the performance of the OPACA LLM.    #
+#   This file defines simple questions to test the performance of SAGE.             #
 #   The questions should only invoke exactly ONE action                             #
 #                                                                                   #
 #   The current testing environment which should deployed on the OPACA Platform:    #
