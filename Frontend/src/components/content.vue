@@ -574,7 +574,7 @@ export default {
 
         async addDebugResult(result) {
             const toolOutput = `Result: ${JSON.stringify(result.result)}`
-            this.addDebug(toolOutput, "Result", result.id);
+            this.addDebug(toolOutput, `Result ${result.id}`, result.id);
         },
 
         addDebug(text, type, id=null) {
