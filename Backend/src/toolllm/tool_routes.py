@@ -53,7 +53,6 @@ class ToolLLMMethod(AbstractMethod):
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
-        t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
@@ -155,8 +154,7 @@ class ToolLLMMethod(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(call.name, call.args, t_called))
-                t_called += 1
+                tasks.append(self.invoke_tool(call.name, call.args, call.id))
 
             result.tools = await asyncio.gather(*tasks)
 

@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 import asyncio
 import jsonref
+from itertools import count
 
 import httpx
 from pydantic import BaseModel
@@ -24,6 +25,8 @@ class AbstractMethod(ABC):
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
         self.streaming = streaming
+        self.tool_counter = count(0)
+        self.tool_counter_lock = asyncio.Lock()
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
@@ -60,6 +63,11 @@ class AbstractMethod(ABC):
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
+
+
+    async def next_tool_id(self):
+        async with self.tool_counter_lock:
+            return next(self.tool_counter)
 
 
     async def call_llm(
@@ -104,7 +112,7 @@ class AbstractMethod(ABC):
 
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffers = {}
+        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, url)
@@ -148,23 +156,23 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
-                tool_call_buffers[event.output_index] = ""
+                agent_message.tools.append(ToolCall(name=event.item.name, id=await self.next_tool_id()))
+                tool_call_buffer = ""
 
             # Tool call argument chunk received
             elif event.type == 'response.function_call_arguments.delta':
                 # We assume that the entry has been created already
-                tool_call_buffers[event.output_index] += event.delta
+                tool_call_buffer += event.delta
 
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
                 # Try to transform function arguments into JSON
                 try:
                     tool = agent_message.tools[-1]
-                    tool.args = json.loads(tool_call_buffers[event.output_index])
+                    tool.args = json.loads(tool_call_buffer)
                     await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
                     agent_message.tools[-1].args = {}
 
             # Plain text chunk received

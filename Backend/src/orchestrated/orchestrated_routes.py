@@ -98,8 +98,6 @@ class SelfOrchestratedMethod(AbstractMethod):
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
-        tool_counter = count(num_tools)
-        tool_counter_lock = asyncio.Lock()
 
         async def execute_round_task(
                 worker_agent: WorkerAgent, 
@@ -138,11 +136,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                 tool_choice="required",
                 tools=worker_agent.tools
             )
-
-            # Update the tool ids
-            async with tool_counter_lock:
-                for tool in worker_message.tools:
-                    tool.id = next(tool_counter)
 
             # Invoke the action on the connected opaca platform
             agent_result = await self.invoke_tools(worker_agent, current_task, worker_message)
@@ -273,11 +266,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                         tools=agent.tools,
                     )
 
-                    # Update the tool ids
-                    async with tool_counter_lock:
-                        for tool in worker_message.tools:
-                            tool.id = next(tool_counter)
-
                     # Invoke the tool call on the connected opaca platform
                     result = await self.invoke_tools(agent, task.task, worker_message)
                     agent_messages.append(worker_message)
@@ -333,11 +321,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     tools=agent.tools,
                     status_message="Retrying task..."
                 )
-
-                # Update the tool ids
-                async with tool_counter_lock:
-                    for tool in worker_message.tools:
-                        tool.id = next(tool_counter)
 
                 result = await self.invoke_tools(agent, task.task, worker_message)
                 agent_messages.append(worker_message)
