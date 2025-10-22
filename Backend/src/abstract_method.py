@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type, Literal
@@ -91,7 +90,9 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
-        if not re.match(r'^[^/]+/[^/]+$', model):
+        try:
+            host, model_name = map(str.strip, model.split("/"))
+        except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>/<model>': {model}")
 
         # Initialize variables
@@ -100,7 +101,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(self.session, model.split("/")[0])
+        file_message_parts = await upload_files(self.session, host)
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -118,7 +119,7 @@ class AbstractMethod(ABC):
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
             'temperature': temperature,
-            'text': r_format,
+            'text_format': response_format,
             'stream': True
         }
 
@@ -139,8 +140,6 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == event_type.OUTPUT_ITEM_ADDED  and event.item.type == 'function_call':
-                if tool_choice == "only":
-                    break
                 agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
                 tool_call_buffers[event.output_index] = ""
 
@@ -160,6 +159,8 @@ class AbstractMethod(ABC):
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
+                if tool_choice == "only":
+                    break
                 agent_message.content = event.delta
                 content += event.delta
 
