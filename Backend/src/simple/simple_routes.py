@@ -57,10 +57,7 @@ class SimpleConfig(MethodConfig):
     max_rounds: int = MethodConfig.max_rounds_field()
     ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
 
-    @field_validator('ask_policy')
-    @classmethod
-    def validate_ask_policy(cls, value: str) -> str:
-        return MethodConfig.validate_enum(value, cls.ask_policies.keys())
+    policy_validator = field_validator('ask_policy')(MethodConfig.validate_enum(ask_policies.keys()))
 
 
 class SimpleMethod(AbstractMethod):

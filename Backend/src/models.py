@@ -1,9 +1,9 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-from collections.abc import Callable, Iterable
+from typing import Iterable, Callable
 from enum import Enum
-from typing import List, Dict, Any, Iterator, ClassVar, Annotated
+from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
 import uuid
@@ -14,7 +14,7 @@ import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
-from pydantic import BaseModel, model_validator, Field, PrivateAttr, SerializeAsAny, AfterValidator, BeforeValidator
+from pydantic import BaseModel, model_validator, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
 
@@ -386,11 +386,15 @@ class MethodConfig(BaseModel):
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
 
     @staticmethod
-    def validate_enum(value: Any, options: Iterable[Any]) -> Any:
+    def validate_enum(options: Iterable[Any]) -> Callable[[Any], Any]:
+        """To be used as a field validator for enum type fields."""
         options = list(options)
-        if value not in options:
-            raise ValueError(f'Invalid enum value: "{value}"; available options: {options}')
-        return value
+        def _validate(value: Any) -> Any:
+            if value not in options:
+                raise ValueError(f'Invalid enum value: "{value}"; available options: {options}')
+            return value
+        return _validate
+
 
 class ConfigPayload(BaseModel):
     """
