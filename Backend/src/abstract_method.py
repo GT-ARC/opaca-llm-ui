@@ -5,12 +5,16 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 import asyncio
 import jsonref
+from itertools import count
 
 import httpx
 from pydantic import BaseModel
 
-from .models import SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, ContainerLoginNotification, ContainerLoginResponse, MethodConfig
+
+from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+    ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
+    ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
+)
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -23,6 +27,8 @@ class AbstractMethod(ABC):
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
         self.streaming = streaming
+        self.tool_counter = count(0)
+        self.tool_counter_lock = asyncio.Lock()
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
@@ -31,6 +37,10 @@ class AbstractMethod(ABC):
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
+
+    async def next_tool_id(self):
+        async with self.tool_counter_lock:
+            return next(self.tool_counter)
 
     async def call_llm(
             self,
@@ -42,6 +52,8 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
+            status_message: str | None = None,
+            is_output: bool = False,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -55,6 +67,8 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
+            status_message (str): optional message to be streamed to the UI
+            is_output (bool): whether agent output should be streamed directly to chat or only to debug
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -65,10 +79,12 @@ class AbstractMethod(ABC):
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
         client = self.session.llm_client(url)
 
+        if status_message:
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffers = {}
-        content = ''
+        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, url)
@@ -112,53 +128,50 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
-                tool_call_buffers[event.output_index] = ""
+                agent_message.tools.append(ToolCall(name=event.item.name, id=await self.next_tool_id()))
+                tool_call_buffer = ""
 
             # Tool call argument chunk received
             elif event.type == 'response.function_call_arguments.delta':
                 # We assume that the entry has been created already
-                tool_call_buffers[event.output_index] += event.delta
+                tool_call_buffer += event.delta
 
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                    tool = agent_message.tools[-1]
+                    tool.args = json.loads(tool_call_buffer)
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
                     agent_message.tools[-1].args = {}
 
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
                 if tool_choice == "only":
                     break
-                agent_message.content = event.delta
-                content += event.delta
+                agent_message.content += event.delta
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
 
             # Final message received
             elif event.type == 'response.completed':
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
-                        agent_message.formatted_output = response_format.model_validate_json(content)
+                        agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
 
-            if self.session.has_websocket() and self.streaming:
-                await self.send_to_websocket(agent_message)
-                agent_message.content = ''
-
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.session.has_websocket() and self.streaming:
-            agent_message.content = ''
-            await self.send_to_websocket(agent_message)
-
-        agent_message.content = content
+        await self.send_to_websocket(MetricsMessage(
+            execution_time=agent_message.execution_time,
+            metrics=agent_message.response_metadata,
+        ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
@@ -196,6 +209,7 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 
 

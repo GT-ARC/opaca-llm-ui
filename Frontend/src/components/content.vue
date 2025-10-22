@@ -421,26 +421,48 @@ export default {
 
         async handleStreamingSocketMessage(event) {
             const aiBubble = this.getLastBubble();
-            const result = JSON.parse(JSON.parse(event.data)); // YEP, THAT MAKES NO SENSE (WILL CHANGE SOON TM)
+            const result = JSON.parse(event.data);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
-                return
             }
 
-            if (result.type === "AgentMessage") {
-                if (result.agent === 'Output Generator') {
-                    // put output_generator content directly in the bubble
+            if (result.type === "TextChunkMessage") {
+                // chunk: str
+                // is_output: bool
+                if (result.is_output) {
                     aiBubble.toggleLoading(false);
-                    aiBubble.addContent(result.content);
-                    await this.addDebugToken(result);
-                } else {
-                    // other agent messages are intermediate results
-                    this.processAgentStatusMessage(result);
-                    await this.addDebugToken(result);
+                    aiBubble.addContent(result.chunk);
+                    this.scrollDownChat();
                 }
+                await this.addDebugToken(result);
                 this.scrollDownDebug();
+            }
+
+            if (result.type === "ToolCallMessage") {
+                await this.addDebugTool(result.agent, result);
+                this.scrollDownDebug();
+            }
+
+            if (result.type === "ToolResultMessage") {
+                await this.addDebugResult(result);
+                this.scrollDownDebug();
+            }
+
+            if (result.type === "StatusMessage") {
+                const agentName = result.agent;
+                const message = result.status;
+                if (message) {
+                    aiBubble.markStatusMessagesDone(agentName);
+                    aiBubble.addStatusMessage(agentName, message, false);
+                }
                 this.scrollDownChat();
+            }
+
+            if (result.type === "MetricsMessage") {
+                // metrics: dict
+                // execution_time: float
+                // TODO do something with metrics messages
             }
         },
 
@@ -539,31 +561,20 @@ export default {
             this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
-        processAgentStatusMessage(agentMessage) {
-            const aiBubble = this.getLastBubble();
-            const agentName = agentMessage.agent;
-            const message = Localizer.getLoadingMessage(agentName);
-            if (message) {
-                aiBubble.markStatusMessagesDone(agentName);
-                aiBubble.addStatusMessage(agentName, message, false);
-            }
+        async addDebugToken(chunk) {
+            this.addDebug(chunk.chunk, chunk.agent, chunk.id);
         },
 
-        async addDebugToken(agentMessage) {
-            // log tool output
-            if (agentMessage.tools && agentMessage.tools.length > 0) {
-                const toolOutput = agentMessage.tools.map(tool =>
-                    `Tool ${tool.id}:\nName: ${tool.name}\nArguments: ${JSON.stringify(tool.args)}\nResult: ${JSON.stringify(tool.result)}`
-                ).join("\n\n");
-                const type = agentMessage.agent;
-                this.addDebug(toolOutput, type, agentMessage.id);
-            }
-            // log agent message
-            if (agentMessage.content) {
-                const text = agentMessage.content;
-                const type = agentMessage.agent;
-                this.addDebug(text, type, agentMessage.id);
-            }
+        async addDebugTool(llm_agent, tool) {
+            const [agent, action] = tool.name.split("--");
+            const args = Object.entries(tool.args).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n");
+            const toolOutput = `Tool: ${tool.id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\n`;
+            this.addDebug(toolOutput, llm_agent, tool.id);
+        },
+
+        async addDebugResult(result) {
+            const toolOutput = `Result: ${JSON.stringify(result.result)}`
+            this.addDebug(toolOutput, `Result ${result.id}`, result.id);
         },
 
         addDebug(text, type, id=null) {
@@ -608,8 +619,18 @@ export default {
                     debug.addDebugMessage(msg.query, "user");
                     // response
                     await this.addChatBubble(msg.content, false);
-                    for (const x of msg.agent_messages) {
-                        this.addDebugToken(x);
+                    for (const agent_message of msg.agent_messages) {
+                        const chunk = {
+                            id: agent_message.id,
+                            agent: agent_message.agent,
+                            chunk: agent_message.content,
+                            is_output: false,
+                        }
+                        this.addDebugToken(chunk);
+                        for (const tool of agent_message.tools) {
+                            this.addDebugTool(agent_message.agent, tool);
+                            this.addDebugResult({id: tool.id, result: tool.result});
+                        }
                     }
                     if (msg.error) {
                         this.getLastBubble().setError(msg.error);

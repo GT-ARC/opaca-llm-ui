@@ -55,8 +55,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="OPACA LLM Backend Services",
-    summary="Provides services for interacting with the OPACA LLM. Mainly to be used by the frontend, but can also be called directly.",
+    title="SAGE Backend Services",
+    summary="Provides services for interacting with the SAGE. Mainly to be used by the frontend, but can also be called directly.",
     lifespan=lifespan
 )
 

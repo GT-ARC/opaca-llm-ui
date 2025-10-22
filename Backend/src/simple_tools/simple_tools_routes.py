@@ -68,7 +68,7 @@ class SimpleToolsMethod(AbstractMethod):
                     break
 
                 tool_entries = [
-                    await self.invoke_tool(call.name, call.args, response.iterations)
+                    await self.invoke_tool(call.name, call.args, call.id)
                     for call in result.tools
                 ]
                 tool_contents = "\n".join(

@@ -15,8 +15,8 @@
 
                 <!-- logos -->
                 <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
-                    <a href="https://github.com/GT-ARC/opaca-core" target="blank">
-                        <img v-bind:src="isMobile ? 'src/assets/opaca-logo-small.png' : 'src/assets/opaca-logo.png'"
+                    <a href="https://github.com/GT-ARC/opaca-llm-ui" target="blank">
+                        <img v-bind:src="isMobile ? 'src/assets/sage-logo-small.png' : 'src/assets/sage-logo.png'"
                              class="logo" alt="Opaca Logo"
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>

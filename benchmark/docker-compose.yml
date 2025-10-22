@@ -42,7 +42,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # FastAPI-based backend for the OPACA LLM Integration
+  # FastAPI-based backend of SAGE
   opaca-llm-backend:
     build: ../Backend
     image: opaca-llm-backend

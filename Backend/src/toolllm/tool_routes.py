@@ -34,7 +34,6 @@ class ToolLLMMethod(AbstractMethod):
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
-        t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
@@ -70,6 +69,7 @@ class ToolLLMMethod(AbstractMethod):
                 temperature=config['temperature'],
                 tools=tools,
                 tool_choice="none",
+                status_message="Checking if tools are needed...",
             )
             response.agent_messages.append(result)
             try:
@@ -98,6 +98,7 @@ class ToolLLMMethod(AbstractMethod):
                 temperature=config['temperature'],
                 tool_choice="only",
                 tools=tools,
+                status_message="Generating Tool Calls..."
             )
 
             if not result.tools:
@@ -125,6 +126,7 @@ class ToolLLMMethod(AbstractMethod):
                     temperature=config['temperature'],
                     tool_choice="only",
                     tools=tools,
+                    status_message="Fixing Tool Calls..."
                 )
                 correction_limit += 1
 
@@ -133,13 +135,9 @@ class ToolLLMMethod(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(call.name, call.args, t_called))
-                t_called += 1
+                tasks.append(self.invoke_tool(call.name, call.args, call.id))
 
             result.tools = await asyncio.gather(*tasks)
-
-            # If a websocket was defined, send the tools WITH their results to the frontend
-            await self.send_to_websocket(result)
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
@@ -160,6 +158,7 @@ class ToolLLMMethod(AbstractMethod):
                     temperature=config['temperature'],
                     tools=tools,
                     tool_choice="none",
+                    status_message="Evaluating Tool Call Results..."
                 )
                 response.agent_messages.append(result)
 
@@ -196,6 +195,8 @@ class ToolLLMMethod(AbstractMethod):
             temperature=config['temperature'],
             tools=tools if no_tools else [],
             tool_choice="none",
+            status_message="Generating final output...",
+            is_output=True,
         )
         response.agent_messages.append(result)
 
