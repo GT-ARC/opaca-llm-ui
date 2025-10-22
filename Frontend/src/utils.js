@@ -154,18 +154,13 @@ export function shuffleArray(array) {
  */
 export function addDebugMessage(debugMessages, message) {
     if (! message || ! message.text) return;
-    message = structuredClone(message); // since it may be modified later
-
-    // if there are no messages yet, just push the new one
-    if (debugMessages.length === 0) {
-        debugMessages.push(message);
+    // find debug message with the same ID, if any
+    const matchingMessage = debugMessages.find( (m) => m.id === message.id);
+    if (matchingMessage != null) {
+        // append to existing message
+        matchingMessage.text += message.text;
     } else {
-        const lastMessage = debugMessages[debugMessages.length - 1];
-        if (message.id != null && lastMessage.id === message.id) {
-            lastMessage.text += message.text; // append
-        } else {
-            // new message type
-            debugMessages.push(message);
-        }
+        // add copy of new message
+        debugMessages.push(structuredClone(message));
     }
 }
