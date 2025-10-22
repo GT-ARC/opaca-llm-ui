@@ -566,15 +566,17 @@ export default {
         },
 
         async addDebugTool(llm_agent, tool) {
+            const id = tool.id.split("/")[1];
             const [agent, action] = tool.name.split("--");
             const args = Object.entries(tool.args).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n");
-            const toolOutput = `Tool: ${tool.id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\n`;
+            const toolOutput = `Tool: ${id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\n`;
             this.addDebug(toolOutput, llm_agent, tool.id);
         },
 
         async addDebugResult(result) {
+            const id = result.id.split("/")[1];
             const toolOutput = `Result: ${JSON.stringify(result.result)}`
-            this.addDebug(toolOutput, `Result ${result.id}`, result.id);
+            this.addDebug(toolOutput, `Result ${id}`, result.id);
         },
 
         addDebug(text, type, id=null) {
