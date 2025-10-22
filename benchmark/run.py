@@ -37,7 +37,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--method", type=str, default="tool-llm", help="Specify the prompting method (formerly 'backend') that should be used.")
-    parser.add_argument("-m", "--model", type=str, default="openai::gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
+    parser.add_argument("-m", "--model", type=str, default="openai/gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the SAGE Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
@@ -394,13 +394,13 @@ async def main():
         exit(1)
 
     # Check if the model is in the correct format
-    if not re.match(r'^[^:]+(?::[^:]+)*::[^:]+(?:.*[^:])?$', model):
+    if not re.match(r'^[^/]+/[^/]+$', model):
         logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
-                      f'<base_url>::<model_name>. For OpenAI models you can use "openai" as base_url.')
+                      f'<base_url>/<model_name>. For OpenAI models you can use "openai" as base_url.')
         exit(1)
 
     # Create a unique file name for the results
-    file_name = f'{scenario}-{model.split("::")[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = f'{scenario}-{model.split("/")[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:

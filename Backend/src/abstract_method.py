@@ -32,7 +32,7 @@ class AbstractMethod(ABC):
 
     @staticmethod
     def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
-        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
+        models = [f"{url}/{model}" for url, _, models in get_supported_models() for model in models]
         return ConfigParameter(
             name=name,
             description=description,
@@ -91,11 +91,9 @@ class AbstractMethod(ABC):
             AgentMessage: The final message returned by the LLM with metadata.
         """
         try:
-            url, model_name = model.split("::")
-            model = model.replace("::", "/")
+            url, model_name = model.split("/")
         except Exception:
-            raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        # client = self.session.llm_client(url)
+            raise Exception(f"Invalid format: Must be '<llm-host>/<model>': {model}")
 
         # Initialize variables
         exec_time = time.time()
@@ -145,6 +143,8 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == event_type.OUTPUT_ITEM_ADDED  and event.item.type == 'function_call':
+                if tool_choice == "only":
+                    break
                 agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
                 tool_call_buffers[event.output_index] = ""
 
@@ -164,8 +164,6 @@ class AbstractMethod(ABC):
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
-                if tool_choice == "only":
-                    break
                 agent_message.content = event.delta
                 content += event.delta
 
