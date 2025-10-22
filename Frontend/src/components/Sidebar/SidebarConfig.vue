@@ -23,7 +23,7 @@
     <div v-else class="flex-row text-start">
         <ConfigParameter
             v-for="(schema, name) in methodConfigSchema" :key="name"
-            :title="name"
+            :name="name"
             :config-param="schema"
             v-model="methodConfig[name]"
         />
