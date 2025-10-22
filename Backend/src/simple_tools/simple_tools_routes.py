@@ -2,7 +2,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, SimpleToolConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -19,6 +19,13 @@ answer them with the required information. Tools can also be described as servic
 
 
 logger = logging.getLogger(__name__)
+
+
+class SimpleToolConfig(MethodConfig):
+    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+
 
 class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"

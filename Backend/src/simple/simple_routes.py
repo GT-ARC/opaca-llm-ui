@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, SimpleConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'OPACA-LLM'.
@@ -40,6 +40,20 @@ Following is the list of available agents and actions described in JSON:
 
 
 logger = logging.getLogger(__name__)
+
+
+class SimpleConfig(MethodConfig):
+    ask_policies: ClassVar[Dict[str, str]] = {
+        "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+        "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+        "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+    }
+
+    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    ask_policy: str = MethodConfig.string(default='never', options=list(ask_policies.keys()), title='Ask Policy', description='Determine how much confirmation the LLM will require')
+
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"

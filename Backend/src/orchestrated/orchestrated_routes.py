@@ -10,7 +10,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, OrchestrationConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -20,6 +20,18 @@ from .agents import (
     AgentPlanner, get_current_time
 )
 from .models import AgentResult, AgentTask
+
+
+class OrchestrationConfig(MethodConfig):
+    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks')
+    worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
+    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results')
+    generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
+    use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')
+    use_agent_evaluator: bool = MethodConfig.boolean(default=False, title='Use Agent Evaluator?')
 
 
 class SelfOrchestratedMethod(AbstractMethod):

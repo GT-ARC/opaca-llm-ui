@@ -8,7 +8,15 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall, ToolLlmConfig
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig
+
+
+class ToolLlmConfig(MethodConfig):
+    tool_gen_model: str = MethodConfig.llm_field(title='Generator', description='Generating tool calls')
+    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results')
+    output_model: str = MethodConfig.llm_field(title='Output', description='Generating the final output')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
 
 
 class ToolLLMMethod(AbstractMethod):

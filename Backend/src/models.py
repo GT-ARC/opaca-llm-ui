@@ -384,45 +384,6 @@ class MethodConfig(BaseModel):
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
 
 
-class ToolLlmConfig(MethodConfig):
-    tool_gen_model: str = MethodConfig.llm_field(title='Generator', description='Generating tool calls')
-    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results')
-    output_model: str = MethodConfig.llm_field(title='Output', description='Generating the final output')
-    temperature: float = MethodConfig.temperature_field()
-    max_rounds: int = MethodConfig.max_rounds_field()
-
-
-class OrchestrationConfig(MethodConfig):
-    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks')
-    worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
-    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results')
-    generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
-    temperature: float = MethodConfig.temperature_field()
-    max_rounds: int = MethodConfig.max_rounds_field()
-    max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
-    use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')
-    use_agent_evaluator: bool = MethodConfig.boolean(default=False, title='Use Agent Evaluator?')
-
-
-class SimpleToolConfig(MethodConfig):
-    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
-    temperature: float = MethodConfig.temperature_field()
-    max_rounds: int = MethodConfig.max_rounds_field()
-
-
-class SimpleConfig(MethodConfig):
-    ask_policies: ClassVar[Dict[str, str]] = {
-        "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-        "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-        "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-    }
-
-    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
-    temperature: float = MethodConfig.temperature_field()
-    max_rounds: int = MethodConfig.max_rounds_field()
-    ask_policy: str = MethodConfig.string(default='never', options=list(ask_policies.keys()), title='Ask Policy', description='Determine how much confirmation the LLM will require')
-
-
 class ConfigPayload(BaseModel):
     """
     Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
