@@ -356,9 +356,9 @@ class MethodConfig(BaseModel):
     """
 
     @staticmethod
-    def string(default: str, options: Iterable[str] = None, title: str = None, description: str = None) -> Any:
+    def string(default: str, options: Iterable[str] = None, allow_free_input: bool = True, title: str = None, description: str = None) -> Any:
         options = list(options)
-        return Field(default=default, json_schema_extra={'options': options}, title=title, description=description)
+        return Field(default=default, json_schema_extra={'options': options, 'allow_free_input': allow_free_input}, title=title, description=description)
 
     @staticmethod
     def integer(default: int, min: int, max: int, step: int, title: str = None, description: str = None) -> Any:
@@ -375,7 +375,7 @@ class MethodConfig(BaseModel):
     @staticmethod
     def llm_field(title: str = None, description: str = None) -> Any:
         models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        return MethodConfig.string(default=models[0], options=models, title=title, description=description)
+        return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description)
 
     @staticmethod
     def temperature_field(default: float = 0, min: float = 0, max: float = 2, step: float = 0.1) -> Any:
@@ -386,12 +386,11 @@ class MethodConfig(BaseModel):
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
 
     @staticmethod
-    def validate_enum(options: List[Any] | Dict[str, Any]) -> Callable[[Any], Any]:
-        def _validate(v: Any) -> Any:
-            if v not in options:
-                raise ValueError(f'Invalid enum value: "{v}"; available options: {options}')
-            return v
-        return _validate
+    def validate_enum(value: Any, options: Iterable[Any]) -> Any:
+        options = list(options)
+        if value not in options:
+            raise ValueError(f'Invalid enum value: "{value}"; available options: {options}')
+        return value
 
 class ConfigPayload(BaseModel):
     """

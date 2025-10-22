@@ -55,9 +55,13 @@ class SimpleConfig(MethodConfig):
     model: str = MethodConfig.llm_field(title='Model', description='The model to use')
     temperature: float = MethodConfig.temperature_field()
     max_rounds: int = MethodConfig.max_rounds_field()
-    ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), title='Ask Policy', description='Determine how much confirmation the LLM will require')
+    ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
 
-    policy_validator = field_validator('ask_policy')(MethodConfig.validate_enum(ask_policies))
+    @field_validator('ask_policy')
+    @classmethod
+    def validate_ask_policy(cls, value: str) -> str:
+        return MethodConfig.validate_enum(value, cls.ask_policies.keys())
+
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
