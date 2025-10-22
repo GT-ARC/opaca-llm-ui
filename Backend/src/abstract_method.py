@@ -1,8 +1,9 @@
 import json
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type
+from typing import Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 
@@ -71,16 +72,16 @@ class AbstractMethod(ABC):
             messages: List[ChatMessage],
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
-            tool_choice: Optional[str] = "auto",
+            tool_choice: Optional[Literal["auto", "none", "only", "required"]] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
+            model (str): LLM host/provider AND model name (e.g., "openai/gpt-4o-mini"), from config.
             agent (str): The agent name (e.g. "simple-tools").
-            system_prompt (str): The system prompt to start the conversation.
+            system_prompt (str): The system prompt for model instructions.
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
@@ -90,9 +91,7 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
-        try:
-            url, model_name = model.split("/")
-        except Exception:
+        if not re.match(r'^[^/]+/[^/]+$', model):
             raise Exception(f"Invalid format: Must be '<llm-host>/<model>': {model}")
 
         # Initialize variables
@@ -101,7 +100,7 @@ class AbstractMethod(ABC):
         content = ''
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(self.session, url)
+        file_message_parts = await upload_files(self.session, model.split("/")[0])
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -118,6 +117,7 @@ class AbstractMethod(ABC):
             'input': [{'role': m.role, 'content': m.content} for m in messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
+            'temperature': temperature,
             'text': r_format,
             'stream': True
         }
@@ -125,10 +125,6 @@ class AbstractMethod(ABC):
         # If tool_choice is set to "only", use "auto" for external API call
         if tool_choice == "only":
             kwargs['tool_choice'] = 'auto'
-
-        # o1/o3/o4/gpt-5 don't support temperature param
-        if not model_name.startswith(('o1', 'o3', 'o4', 'gpt-5')):
-            kwargs['temperature'] = temperature
 
         # Main stream logic
         stream = await litellm.aresponses(**kwargs)
