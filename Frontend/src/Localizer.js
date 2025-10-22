@@ -344,6 +344,21 @@ export const sidebarQuestions = reactive({
     ],
 })
 
+export const sidebarBookmarkedQuestions = reactive({
+    GB: {
+        "id": "personalPrompts",
+        "header": "Bookmarked Prompts",
+        "icon": "🔖",
+        "questions": [],
+    },
+    DE: {
+        "id": "personalPrompts",
+        "header": "Favoriten",
+        "icon": "🔖",
+        "questions": [],
+    }
+})
+
 
 // Placeholder messages for streaming in different languages
 export const loadingMessages = {

@@ -40,7 +40,7 @@
                     <span>{{ Localizer.get('addPersonalQuestion')}}</span>
                 </div>
                 <!-- Questions -->
-                <div v-if="personalPrompts.questions.length">
+                <div v-if="personalPrompts.questions && personalPrompts.questions.length">
                     <div class="question-item d-flex justify-content-between align-items-center"
                        v-for="(q, qIndex) in personalPrompts.questions"
                        :key="qIndex"
@@ -116,7 +116,7 @@
 </template>
 
 <script>
-import Localizer, {sidebarQuestions} from "../../Localizer.js";
+import Localizer, {sidebarBookmarkedQuestions, sidebarQuestions} from "../../Localizer.js";
 import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick, reactive} from "vue";
@@ -133,12 +133,6 @@ export default {
     data() {
         return {
             isRegenerating: false,
-            personalPrompts: {
-                id: "personalPrompts",
-                header: "Bookmarked Prompts",
-                icon: "🔖",
-                questions: [],
-            },
             showEditor: false,
             editingPrompt: null,
             editingIndex: null,
@@ -147,6 +141,11 @@ export default {
     setup() {
         const {isMobile} = useDevice();
         return { conf, Localizer, isMobile };
+    },
+    computed: {
+        personalPrompts() {
+            return sidebarBookmarkedQuestions[Localizer.language];
+        }
     },
     methods: {
         getQuestions() {
@@ -225,12 +224,18 @@ export default {
         },
 
         async loadPersonalPrompts() {
+            let questions = [];
             try {
-                this.personalPrompts.questions = await backendClient.getBookmarks();
+                questions = await backendClient.getBookmarks();
             } catch (err) {
                 console.warn("Falling back to local storage:", err);
                 const saved = localStorage.getItem("personalPrompts");
-                if (saved) this.personalPrompts.questions = JSON.parse(saved);
+                if (saved) questions = JSON.parse(saved);
+            }
+
+            // Write to every language variant
+            for (const lang of Object.keys(sidebarBookmarkedQuestions)) {
+                sidebarBookmarkedQuestions[lang].questions = questions;
             }
         },
 
