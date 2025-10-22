@@ -153,7 +153,7 @@ class AgentEvaluator(BaseAgent):
         results = json.dumps({
             "task": task.task if isinstance(task, AgentTask) else task,
             "agent_output": result.output,
-            "tool_calls": result.tool_calls,
+            "tool_calls": list(map(str, result.tool_calls)),
         }, indent=2)
         return [
             ChatMessage(
