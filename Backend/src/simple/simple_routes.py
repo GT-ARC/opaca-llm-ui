@@ -87,13 +87,12 @@ class SimpleMethod(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(tool.name, tool.args, response.iterations-1)
+                tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                await self.send_to_websocket(response.agent_messages[-1])
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
