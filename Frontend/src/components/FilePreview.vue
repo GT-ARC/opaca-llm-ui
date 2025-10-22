@@ -1,7 +1,8 @@
 <template>
 <div class="file-preview d-flex">
 
-    <div class="d-flex flex-row text-break">
+    <div class="d-flex flex-row text-break"
+        @click="this.viewFile()">
         <!-- Icon changes based on upload status -->
         <div class="d-flex h-100 align-items-center me-1">
             <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file-pdf'" />
@@ -49,10 +50,10 @@ export default {
     data() {
         return {};
     },
-    emits: ['removeFile'],
+    emits: ['remove-file', 'view-file'],
     methods: {
         removeFile() {
-            this.$emit('removeFile', this.fileId);
+            this.$emit('remove-file', this.fileId);
         },
 
         getFilename() {
@@ -62,6 +63,13 @@ export default {
             }
             return this.file?.name;
         },
+
+        viewFile() {
+            this.$emit('view-file', {
+              src: this.file.url || URL.createObjectURL(this.file),
+              mimeType: this.file.content_type || this.file.type
+            });
+        }
     },
 }
 </script>
@@ -76,6 +84,7 @@ export default {
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     text-align: left;
+    cursor: pointer;
 }
 
 .file-delete-button {

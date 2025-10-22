@@ -79,6 +79,7 @@
                     v-show="SidebarManager.isViewSelected('files')"
                     @delete-file="fileId => this.$emit('delete-file', fileId)"
                     @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    @view-file="$emit('view-file', $event)"
                     ref="files"
                 />
 
@@ -164,6 +165,7 @@ export default {
         'new-chat',
         'delete-file',
         'suspend-file',
+        'view-file',
         'goto-search-result',
     ],
     setup() {
