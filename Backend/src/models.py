@@ -1,6 +1,7 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+from collections.abc import Callable, Iterable
 from enum import Enum
 from typing import List, Dict, Any, Iterator, ClassVar, Annotated
 from datetime import datetime, timezone
@@ -355,7 +356,8 @@ class MethodConfig(BaseModel):
     """
 
     @staticmethod
-    def string(default: str, options: List[str] = None, title: str = None, description: str = None) -> Any:
+    def string(default: str, options: Iterable[str] = None, title: str = None, description: str = None) -> Any:
+        options = list(options)
         return Field(default=default, json_schema_extra={'options': options}, title=title, description=description)
 
     @staticmethod
@@ -383,6 +385,13 @@ class MethodConfig(BaseModel):
     def max_rounds_field(default: int = 1, min: int = 1, max: int = 10, step: int = 1) -> Any:
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
 
+    @staticmethod
+    def validate_enum(options: List[Any] | Dict[str, Any]) -> Callable[[Any], Any]:
+        def _validate(v: Any) -> Any:
+            if v not in options:
+                raise ValueError(f'Invalid enum value: "{v}"; available options: {options}')
+            return v
+        return _validate
 
 class ConfigPayload(BaseModel):
     """
