@@ -19,19 +19,24 @@
     </div>
 </template>
 
-<script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
+<script>
+export default {
+  name: 'FileViewer',
+  props: {
     src: String,   // can be blob:... or https://...
     mimeType: String,
     visible: Boolean
-})
-
-const emit = defineEmits(['close'])
-
-const isImage = computed(() => props.mimeType?.startsWith('image/'))
-const isPdf = computed(() => props.mimeType === 'application/pdf')
+  },
+  emits: ['close'],
+  computed: {
+    isImage() {
+      return this.mimeType && this.mimeType.startsWith('image/')
+    },
+    isPdf() {
+      return this.mimeType === 'application/pdf'
+    }
+  }
+}
 </script>
 
 <style scoped>
