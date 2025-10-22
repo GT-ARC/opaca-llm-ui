@@ -266,4 +266,4 @@ class ToolLLMMethod(AbstractMethod):
 
     @staticmethod
     def _build_tool_desc(c_it: int, tools: List[ToolCall]):
-        return {c_it: [str(tool) for tool in tools]}
+        return {c_it: [tool.without_id() for tool in tools]}

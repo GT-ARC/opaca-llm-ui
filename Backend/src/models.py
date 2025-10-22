@@ -141,9 +141,9 @@ class ToolCall(BaseModel):
     args: Dict[str, Any] = {}
     result: Any | None = None
 
-    def __str__(self):
-        """string-representation for tool without ID field, to be passed back to LLM (ID can be confusing)"""
-        return f"ToolCall(name: {self.name}, parameters: {self.args}, result: {self.result})"
+    def without_id(self):
+        """representation for tool without ID field, to be passed back to LLM (ID can be confusing)"""
+        return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
 class Chat(BaseModel):
