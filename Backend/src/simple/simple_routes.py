@@ -2,6 +2,7 @@ import logging
 import time
 
 import json
+from typing import ClassVar, Dict
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
@@ -72,7 +73,7 @@ class SimpleMethod(AbstractMethod):
         max_iters = config["max_rounds"]
 
         prompt = SYSTEM_PROMPT.format(
-            policy=ask_policies[config["ask_policy"]],
+            policy=SimpleConfig.ask_policies[config["ask_policy"]],
             actions=await self.get_actions(),
         )
         
