@@ -3,13 +3,11 @@ import time
 
 import json
 
-from starlette.websockets import WebSocket
-
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
 
 SYSTEM_PROMPT = """
-You are an assistant, called the 'OPACA-LLM'.
+You are an assistant, called the 'SAGE'.
 
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
 You are given the list of actions at the end of this prompt.
@@ -51,10 +49,10 @@ logger = logging.getLogger(__name__)
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False):
+        super().__init__(session, streaming)
 
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
@@ -95,8 +93,7 @@ class SimpleMethod(AbstractMethod):
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                if self.websocket:
-                    await self.websocket.send_json(response.agent_messages[-1].model_dump_json())
+                await self.send_to_websocket(response.agent_messages[-1])
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")

@@ -186,5 +186,6 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
 
 
 async def on_shutdown():
-    if db_client.client is not None:
+    if db_client.is_db_configured():
+        await store_sessions_in_db()
         await db_client.client.close()

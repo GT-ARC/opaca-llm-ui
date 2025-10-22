@@ -39,7 +39,7 @@ def parse_arguments():
     parser.add_argument("-b", "--method", type=str, default="tool-llm", help="Specify the prompting method (formerly 'backend') that should be used.")
     parser.add_argument("-m", "--model", type=str, default="openai::gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
-    parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the OPACA-LLM Backend is running.")
+    parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the SAGE Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
     parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("-j", "--judge", action=argparse.BooleanOptionalAction, help="Whether the Judge LLM should be used for evaluation.")
@@ -216,7 +216,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method
     # Create a unique session for requests
     async with httpx.AsyncClient(http2=False, limits=httpx.Limits(max_connections=1), headers={"Connection": "close"}) as session:
 
-        # Make the OPACA-LLM connect with the OPACA platform
+        # Make SAGE connect with the OPACA platform
         try:
             await session.post(llm_url + "/connect", json={"url": opaca_url, "user": "", "pwd": ""})
         except Exception as e:
@@ -238,13 +238,13 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method
                 config["model"] = model
             await session.put(llm_url + f'/config/{method}', json=config)
         except Exception as e:
-            logging.error(f'Failed to get default config from OPACA-LLM. Does the method ("{method}")? exist?')
+            logging.error(f'Failed to get default config from SAGE. Does the method ("{method}")? exist?')
             raise RuntimeError(str(e))
 
         results = []
 
         for i, call in enumerate(question_set):
-            # Generate a response by the OPACA LLM
+            # Generate a response by SAGE
             server_time = time.time()
             result = await session.post(f'{llm_url}/query/{method}', json={'user_query': call["input"]}, timeout=None)
             result = result.content
@@ -298,7 +298,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method
 def setUp(opaca_url: str) -> None:
     """
     Starts an already available container of the OPACA platform and then deploys all test containers to it.
-    Also starts the OPACA-LLM. Returns the object for the server process of the OPACA-LLM (so it can be terminated
+    Also starts SAGE. Returns the object for the server process of SAGE (so it can be terminated
     afterwards) and a list of the created container ids.
     """
 
@@ -330,7 +330,7 @@ def setUp(opaca_url: str) -> None:
 
     # Start the OPACA platform
     # The compose stack should have been started and exited previously...
-    logging.info("Starting OPACA platform and OPACA-LLM...")
+    logging.info("Starting OPACA platform and SAGE...")
     subprocess.run(["docker", "compose", "up", "-d", "--build"], cwd=os.path.dirname(os.path.realpath(__file__)))
 
     # Wait until OPACA platform has started, set timeout to 15 seconds
@@ -339,7 +339,7 @@ def setUp(opaca_url: str) -> None:
         try:
             response = requests.get(opaca_url + "/info")
             if response.status_code == 200:
-                logging.info("OPACA platform and OPACA-LLM successfully started.")
+                logging.info("OPACA platform and SAGE successfully started.")
                 break
         except requests.RequestException as e:
             pass    # OPACA platform not started yet

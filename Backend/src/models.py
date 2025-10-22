@@ -1,6 +1,7 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+
 from typing import List, Dict, Any, Optional, Self, Iterator
 from datetime import datetime, timezone
 import logging
@@ -8,77 +9,16 @@ import uuid
 import os
 import time
 import traceback
+import asyncio
 
+from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
 
 from .opaca_client import OpacaClient
 
 
-class ColoredFormatter(logging.Formatter):
-    """
-    Custom logging formatter that logs output colorful
-    """
-
-    # Define agent-specific colors
-    AGENT_COLORS = {
-        # Tool-llm
-        "Tool Generator": "\x1b[31;20m",  # Dim Red
-        "Tool Evaluator": "\x1b[33;20m",  # Dim Yellow
-        "Output Generator": "\x1b[32;20m", # Dim Green
-
-        # Simple Roles
-        "system": "\x1b[93m",  # Light Yellow
-        "assistant": "\x1b[94m",  # Light Blue
-        "user": "\x1b[97m",  # Light White
-
-        # Orchestration
-        "Orchestrator": "\x1b[93m", # bright red
-        "AgentPlanner": "\x1b[95m", # bright magenta
-        "WorkerAgent": "\x1b[96m", # bright cyan
-        "AgentEvaluator": "\x1b[94m", # bright blue
-        "OverallEvaluator": "\x1b[92m", # bright green
-        "IterationAdvisor": "\x1b[35m", # magenta
-
-        # Default
-        "Default": "\x1b[38;20m",  # Dim White
-    }
-
-    def format(self, record):
-        agent_name = getattr(record, "agent_name", "Default")
-        color = self.AGENT_COLORS.get(agent_name, self.AGENT_COLORS["Default"])
-
-        # Get timestamp and formatted base string
-        timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
-        base = f"{timestamp} [{record.levelname}] {agent_name} -"
-
-        # Split messages into lines to make colorful logging work in docker
-        message_lines = record.getMessage().splitlines()
-        formatted_lines = [
-            f"{color}{base} {message_lines[0]}\x1b[0m",
-        ] + [
-            f"{color}{' ' * len(base)} {line}\x1b[0m"
-            for line in message_lines[1:]
-        ]
-
-        return "\n".join(formatted_lines)
-
-
-# Define a logger
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# Reduce logging level for httpx
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
-# Create colorful logging handler for agent messages
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(ColoredFormatter())
-
-# Attach handler to root logger
-logger.addHandler(console_handler)
-
+logger = logging.getLogger(__name__)
 
 
 class WebsocketMessage(BaseModel):
@@ -113,9 +53,11 @@ class QueryRequest(BaseModel):
     Used as the expected body argument in the `/query/{method}` endpoints
 
     Attributes
-        user_query: The query a user has input into the OPACA LLM ChatBot.
+        user_query: The query a user has input into the SAGE ChatBot.
+        streaming: whether intermediate results should be streamed via Websocket
     """
     user_query: str
+    streaming: bool = False
 
 
 class AgentMessage(WebsocketMessage):
@@ -193,7 +135,7 @@ class OpacaFile(BaseModel):
 class ChatMessage(BaseModel):
     """
     Model for storing chat history messages. Represents single messages that are generated
-    during the invocation of the OPACA-LLM. Can be stored as a list to be given as messages
+    during the invocation of SAGE. Can be stored as a list to be given as messages
     to a model during invocation.
     Corresponds to OpenAI's 'EasyInputMessageParam' (but simpler)
 
@@ -264,8 +206,14 @@ class SessionData(BaseModel):
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
     Transient fields:
+        _websocket: Can be used to send intermediate result and other messages back to the UI
+        _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+    
+    Note: The websocket from the session should not be used directly; instead use the send/receive
+    methods. Especially the latter is necessary to ensure that messages are properly received while
+    the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
@@ -274,6 +222,8 @@ class SessionData(BaseModel):
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     valid_until: float = -1
 
+    _websocket: WebSocket | None = PrivateAttr(default=None)
+    _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
 
@@ -313,6 +263,21 @@ class SessionData(BaseModel):
             del self.chats[chat_id]
             return True
         return False
+
+    def has_websocket(self) -> bool:
+        return self._websocket is not None
+
+    async def websocket_send(self, message: BaseModel) -> bool:
+        if self._websocket:
+            await self._websocket.send_json(message.model_dump_json())
+            return True
+        return False
+
+    async def websocket_receive(self) -> dict:
+        if self._websocket and self._ws_msg_queue:
+            return await self._ws_msg_queue.get()
+        else:
+            raise Exception("Websocket not connected")
 
 
 class ConfigParameter(BaseModel):
