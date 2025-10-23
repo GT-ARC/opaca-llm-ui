@@ -335,14 +335,13 @@ class AbstractMethod(ABC):
 
 
 
-def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
+def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
     Parameters:
     - openapi_spec: the OpenAPI specification
     - agent: name of OPACA agent to filter for, or None for all
-    - strict: make all action parameters required (needed for some models)
     """
     functions = []
     error_msg = ""
@@ -377,9 +376,6 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
                         .get("application/json", {})
                         .get("schema"))
             schema.setdefault("properties", {})  # must be present even if no params
-            if strict:
-                schema["additionalProperties"] = False
-                schema["required"] = list(schema["properties"])
 
             functions.append(
                 {

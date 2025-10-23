@@ -20,7 +20,6 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT,
 )
-from ..utils import enforce_strictness
 
 
 class BaseAgent:
@@ -73,10 +72,6 @@ class AgentPlanner(BaseAgent):
         super().__init__()
         self.agent_name = agent_name
         self.tools = deepcopy(tools)
-        # The agent planner needs tools to be strict
-        for tool in self.tools:
-            tool["strict"] = True
-            enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
