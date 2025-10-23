@@ -55,7 +55,7 @@ class SelfOrchestratedMethod(AbstractMethod):
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
-        agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
+        agent_evaluator = AgentEvaluator() if config.use_agent_evaluator else None
 
         async def execute_round_task(
                 worker_agent: WorkerAgent, 
@@ -113,7 +113,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
-            if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
+            if config.use_agent_planner and task.agent_name != "GeneralAgent":
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
