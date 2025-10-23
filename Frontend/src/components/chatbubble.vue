@@ -256,7 +256,7 @@ export default {
         },
 
         getToolCalls() {
-            const regex = /Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:\n((?:\s+[^\n]+)*)\n(?:Result: ([^\n]+))?/gs
+            const regex = /^Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:\n(.+)(?:\nResult: (.+))?$/gs
             return this.debugMessages
                 .flatMap( debug => [...debug.text.matchAll(regex)] )
                 .map( match => {
