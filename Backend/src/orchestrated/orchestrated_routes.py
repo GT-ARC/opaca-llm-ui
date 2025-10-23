@@ -252,7 +252,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         agent_name="GeneralAgent",
                         task=task_str,
                         output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[ToolCall(id=-1, name="GetCapabilities", args={}, result=predefined_response)],
+                        tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
                     )
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
@@ -304,7 +304,7 @@ The Evaluator of your task has indicated that there is crucial information missi
 
 # Your Previous tool calls: 
 
-{[tc.model_dump_json() for tc in result.tool_calls]}
+{[tc.without_id() for tc in result.tool_calls]}
 
 # YOUR GOAL:
 

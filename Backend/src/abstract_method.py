@@ -65,9 +65,8 @@ class AbstractMethod(ABC):
         pass
 
 
-    async def next_tool_id(self):
-        async with self.tool_counter_lock:
-            return next(self.tool_counter)
+    def next_tool_id(self, agent_message: AgentMessage):
+        return f"{agent_message.id}/{next(self.tool_counter)}"
 
 
     async def call_llm(
@@ -156,7 +155,7 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=await self.next_tool_id()))
+                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
                 tool_call_buffer = ""
 
             # Tool call argument chunk received
