@@ -239,13 +239,13 @@ async def get_config(request: Request, response: Response, method: str) -> Confi
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
-async def set_config(request: Request, response: Response, method: str, conf: dict) -> ConfigPayload:
+async def set_config(request: Request, response: Response, method: str, config: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        conf = METHODS[method].CONFIG.model_validate(conf)
+        config = METHODS[method].CONFIG.model_validate(config)
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
-    session.config[method] = conf
+    session.config[method] = config
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 

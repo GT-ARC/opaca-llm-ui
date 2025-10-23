@@ -45,19 +45,17 @@ Following is the list of available agents and actions described in JSON:
 logger = logging.getLogger(__name__)
 
 
-class SimpleConfig(MethodConfig):
-    ask_policies: ClassVar[Dict[str, str]] = {
-        "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-        "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-        "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-    }
+ask_policies: Dict[str, str] = {
+    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+}
 
+class SimpleConfig(MethodConfig):
     model: str = MethodConfig.llm_field(title='Model', description='The model to use')
     temperature: float = MethodConfig.temperature_field()
     max_rounds: int = MethodConfig.max_rounds_field()
     ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
-
-    policy_validator = field_validator('ask_policy')(MethodConfig.validate_enum(ask_policies.keys()))
 
 
 class SimpleMethod(AbstractMethod):
@@ -74,10 +72,10 @@ class SimpleMethod(AbstractMethod):
 
         # Get session config
         config = self.session.config.get(self.NAME, self.CONFIG())
-        max_iters = config["max_rounds"]
+        max_iters = config.max_rounds
 
         prompt = SYSTEM_PROMPT.format(
-            policy=SimpleConfig.ask_policies[config["ask_policy"]],
+            policy=ask_policies[config.ask_policy],
             actions=await self.get_actions(),
         )
         
@@ -85,7 +83,7 @@ class SimpleMethod(AbstractMethod):
             response.iterations += 1
             
             result = await self.call_llm(
-                model=config["model"],
+                model=config.model,
                 agent="assistant",
                 system_prompt=prompt,
                 messages=[
@@ -93,7 +91,7 @@ class SimpleMethod(AbstractMethod):
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],
-                temperature=config["temperature"],
+                temperature=config.temperature,
                 tool_choice="none",
             )
             response.agent_messages.append(result)

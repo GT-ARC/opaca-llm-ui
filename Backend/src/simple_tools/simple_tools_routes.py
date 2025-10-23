@@ -40,7 +40,7 @@ class SimpleToolsMethod(AbstractMethod):
         response = QueryResponse(query=message)
 
         config = self.session.config.get(self.NAME, self.CONFIG())
-        max_iters = config["max_rounds"]
+        max_iters = config.max_rounds
         
         # Get tools and transform them into the OpenAI Function Schema
         tools, error = await self.get_tools()
@@ -54,11 +54,11 @@ class SimpleToolsMethod(AbstractMethod):
 
             # call the LLM with function-calling enabled
             result = await self.call_llm(
-                model=config["model"],
+                model=config.model,
                 agent="assistant",
                 system_prompt=SYSTEM_PROMPT,
                 messages=messages,
-                temperature=config["temperature"],
+                temperature=config.temperature,
                 tools=tools,
             )
             response.agent_messages.append(result)

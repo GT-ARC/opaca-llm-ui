@@ -1,8 +1,8 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
+import re
 from typing import Iterable, Callable
-from enum import Enum
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -14,7 +14,7 @@ import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
-from pydantic import BaseModel, model_validator, Field, PrivateAttr, SerializeAsAny
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
 
@@ -33,19 +33,6 @@ def get_supported_models():
     ]
 
 # VARIOUS REST REQUEST/RESPONSE CLASSES AND INTERNAL MODEL ELEMENTS
-
-class WebsocketMessage(BaseModel):
-    """
-    Base class for model elements that are streamed via websocket.
-    All of those should have a "type" attribute that reflects their class name.
-    """
-    type: str = Field(...)
-
-    @model_validator(mode="before")
-    @classmethod
-    def set_type(cls, values):
-        return {**values, "type": cls.__name__}
-
 
 class ConnectRequest(BaseModel):
     """
@@ -394,7 +381,8 @@ class MethodConfig(BaseModel):
     @staticmethod
     def string(default: str, options: Iterable[str] = None, allow_free_input: bool = True, title: str = None, description: str = None) -> Any:
         options = list(options)
-        return Field(default=default, json_schema_extra={'options': options, 'allow_free_input': allow_free_input}, title=title, description=description)
+        pattern = None if allow_free_input else re.compile('|'.join(options))
+        return Field(default=default, json_schema_extra={'options': options, 'allow_free_input': allow_free_input}, title=title, description=description, pattern=pattern)
 
     @staticmethod
     def integer(default: int, min: int, max: int, step: int, title: str = None, description: str = None) -> Any:
