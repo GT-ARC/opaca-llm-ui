@@ -567,7 +567,7 @@ export default {
 
         async addDebugTool(llm_agent, tool) {
             const [agent, action] = tool.name.split("--");
-            const args = Object.entries(tool.args).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n");
+            const args = Object.entries(tool.args).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join("\n");
             const toolOutput = `Tool: ${tool.id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\n`;
             this.addDebug(toolOutput, llm_agent, tool.id);
         },
