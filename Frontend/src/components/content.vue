@@ -16,6 +16,7 @@
         <!-- File Viewer Overlay -->
         <FileViewer
             :visible="!!viewerFile"
+            :fileName="viewerFile?.fileName"
             :src="viewerFile?.src"
             :mime-type="viewerFile?.mimeType"
             @close="viewerFile = null"

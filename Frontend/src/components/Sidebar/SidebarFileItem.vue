@@ -57,8 +57,9 @@ export default {
 
         viewFile() {
             this.$emit('view-file', {
-              src: `${BACKEND_ADDRESS}/files/${this.fileId}/view`,
-              mimeType: this.file.content_type
+                fileName: this.file.file_name,
+                src: `${BACKEND_ADDRESS}/files/${this.fileId}/view`,
+                mimeType: this.file.content_type
             });
         },
     },
