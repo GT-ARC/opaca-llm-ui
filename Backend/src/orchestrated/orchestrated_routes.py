@@ -269,12 +269,12 @@ class SelfOrchestratedMethod(AbstractMethod):
                     # Invoke the tool call on the connected opaca platform
                     result = await self.invoke_tools(agent, task.task, worker_message)
                     agent_messages.append(worker_message)
-                
-            evaluation = task.agent_name != "GeneralAgent"
 
-            if agent_evaluator and evaluation:
+
+
+            if agent_evaluator and task.agent_name != "GeneralAgent":
                 # If manual evaluation passes, run the AgentEvaluator
-                if not agent_evaluator.evaluate_results(result):
+                if not (evaluation := agent_evaluator.evaluate_results(result)):
                     evaluation_message = await self.call_llm(
                         model=config["evaluator_model"],
                         agent="AgentEvaluator",
@@ -287,10 +287,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                     agent_messages.append(evaluation_message)
                     evaluation = evaluation_message.formatted_output.reiterate
             
-            # If evaluation indicates we need to retry, do so
-            if evaluation:
-                # Update task for retry
-                retry_task = f"""# Evaluation 
+                # If evaluation indicates we need to retry, do so
+                if evaluation:
+                    # Update task for retry
+                    retry_task = f"""# Evaluation 
                 
 The Evaluator of your task has indicated that there is crucial information missing to solve the task.. 
 
@@ -310,20 +310,20 @@ The Evaluator of your task has indicated that there is crucial information missi
 
 Now, using the tools available to you and the previous results, continue with your original task and retrieve all the information necessary to complete and solve the task!"""
                 
-                # Execute retry
-                worker_message = await self.call_llm(
-                    model=config["worker_model"],
-                    agent="WorkerAgent",
-                    system_prompt=agent.system_prompt(),
-                    messages=agent.messages(retry_task),
-                    temperature=config["temperature"],
-                    tool_choice="required",
-                    tools=agent.tools,
-                    status_message="Retrying task..."
-                )
+                    # Execute retry
+                    worker_message = await self.call_llm(
+                        model=config["worker_model"],
+                        agent="WorkerAgent",
+                        system_prompt=agent.system_prompt(),
+                        messages=agent.messages(retry_task),
+                        temperature=config["temperature"],
+                        tool_choice="required",
+                        tools=agent.tools,
+                        status_message="Retrying task..."
+                    )
 
-                result = await self.invoke_tools(agent, task.task, worker_message)
-                agent_messages.append(worker_message)
+                    result = await self.invoke_tools(agent, task.task, worker_message)
+                    agent_messages.append(worker_message)
             
             return result
 
