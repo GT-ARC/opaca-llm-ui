@@ -46,7 +46,6 @@
                        :key="qIndex"
                        @click="this.$emit('select-question', q.question, true)">
                         <span class="question-text">
-                            {{q.icon}}
                             <i>{{ q.question }}</i>
                         </span>
                         <i class="fa fa-edit question-menu-button"
@@ -246,7 +245,7 @@ export default {
 
         addPersonalPrompt(question) {
             // Add instantly with placeholder
-            const newPrompt ={ question, icon: "⭐" };
+            const newPrompt = { question, icon: "⭐" };
             this.personalPrompts.questions.push(newPrompt);
             this.savePersonalPrompts();
         },
