@@ -406,18 +406,8 @@ class MethodConfig(BaseModel):
         return MethodConfig.number(default=default, min=min, max=max, step=step, title='Temperature', description='Temperature for the models')
 
     @staticmethod
-    def max_rounds_field(default: int = 1, min: int = 1, max: int = 10, step: int = 1) -> Any:
+    def max_rounds_field(default: int = 5, min: int = 1, max: int = 10, step: int = 1) -> Any:
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
-
-    @staticmethod
-    def validate_enum(options: Iterable[Any]) -> Callable[[Any], Any]:
-        """To be used as a field validator for enum type fields."""
-        options = list(options)
-        def _validate(value: Any) -> Any:
-            if value not in options:
-                raise ValueError(f'Invalid enum value: "{value}"; available options: {options}')
-            return value
-        return _validate
 
 
 class ConfigPayload(BaseModel):

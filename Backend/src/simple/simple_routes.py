@@ -2,9 +2,6 @@ import logging
 import time
 
 import json
-from typing import ClassVar, Dict
-
-from pydantic import field_validator
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
@@ -41,15 +38,14 @@ Following is the list of available agents and actions described in JSON:
 {actions}
 """
 
-
 logger = logging.getLogger(__name__)
 
-
-ask_policies: Dict[str, str] = {
+ask_policies = {
     "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
     "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
+
 
 class SimpleConfig(MethodConfig):
     model: str = MethodConfig.llm_field(title='Model', description='The model to use')
