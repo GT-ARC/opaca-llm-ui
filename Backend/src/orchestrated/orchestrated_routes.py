@@ -91,9 +91,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             worker_agents: Dict[str, WorkerAgent],
             config: Dict[str, Any],
             all_results: List[AgentResult],
-            agent_summaries: Dict[str, Any],
-            agent_messages: List[AgentMessage] = None,
-            num_tools: int = 1,
+            agent_messages: List[AgentMessage],
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible. This corresponds to the
         tasks assigned to one "Worker-Trio" by the Orchestrator. Tasks are subdivided into rounds;
@@ -116,7 +114,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                 subtask: AgentTask, 
                 orchestrator_context: str, 
                 round_context: str,
-                round_num: int,
         ) -> AgentResult:
             """Executes a single subtask with a WorkerAgent"""
             current_task = subtask.task
@@ -135,8 +132,6 @@ class SelfOrchestratedMethod(AbstractMethod):
             # Combine all contexts with proper separation
             if task_context:
                 current_task = f"{current_task}\n\n{''.join(task_context)}"
-
-            logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
@@ -169,7 +164,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             # The general agent just returns a pre-defined response
             if agent.agent_name == "GeneralAgent":
                 predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
-                                        agent_capabilities=json.dumps(agent_summaries, indent=2))
+                                        agent_capabilities=json.dumps(await self.get_agent_details(), indent=2))
                 return AgentResult(
                     agent_name="GeneralAgent",
                     task=task_str,
@@ -241,7 +236,7 @@ class SelfOrchestratedMethod(AbstractMethod):
 
                     # Executes tasks in the same round in parallel
                     round_results = await asyncio.gather(*[
-                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) 
+                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context) 
                         for subtask in current_tasks
                     ])
 
@@ -357,35 +352,19 @@ Now, using the tools available to you and the previous results, continue with yo
             # Get base config and merge with model config
             config = self.session.config.get(self.NAME, self.default_config())
             
-            # Get simplified agent summaries for the orchestrator
-            agent_details = {
-                agent["agentId"]: {
-                    "description": agent["description"],
-                    "functions": [action["name"] for action in agent["actions"]]
-                }
-                for agent in await self.session.opaca_client.get_actions()
-            }
+            agent_details = await self.get_agent_details()
 
-            # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
-
-            # Create tools from agent details
-            orchestrator_tools = self.get_agents_as_tools(agent_details)
-            
-            # Initialize Orchestrator
+            # Initialize Orchestrator, evaluator and iteration advisor
             orchestrator = OrchestratorAgent(
-                agent_summaries=agent_details,
-                chat_history=chat.messages,  # Pass chat history to orchestrator
-                tools=orchestrator_tools,
+                chat_history=chat.messages,
+                tools=self.get_agents_as_tools(agent_details),
             )
-            
-            # Initialize evaluator and iteration advisor
             overall_evaluator = OverallEvaluator()
             iteration_advisor = IterationAdvisor()
             
             # Initialize worker agents
             worker_agents = {
-                "GeneralAgent": WorkerAgent("GeneralAgent", "", [], None),
+                "GeneralAgent": WorkerAgent("GeneralAgent", "", []),
             }
             
             all_results = []
@@ -446,7 +425,6 @@ Now, using the tools available to you and the previous results, continue with yo
                             agent_name=agent_name,
                             summary=agent_data,
                             tools=agent_tools,
-                            session_client=self.session.opaca_client,
                         )
                 
                 # Group tasks by round
@@ -463,9 +441,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         worker_agents,
                         config,
                         all_results,
-                        agent_details,
                         response.agent_messages,
-                        sum(len(message.tools) for message in response.agent_messages) + 1,
                     )
                     
                     all_results.extend(round_results)
@@ -559,6 +535,18 @@ Please address these specific improvements:
             response.error = str(e)
             response.execution_time = time.time() - overall_start_time
             return response
+
+    async def get_agent_details(self) -> Dict[str, Dict]:
+        """Get simplified agent summaries for the orchestrator"""
+        agent_details = {
+            agent["agentId"]: {
+                "description": agent["description"],
+                "functions": [action["name"] for action in agent["actions"]]
+            }
+            for agent in await self.session.opaca_client.get_actions()
+        }
+        agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
+        return agent_details
 
     @staticmethod
     def get_agents_as_tools(agent_details: Dict) -> List[Dict]:
