@@ -7,7 +7,7 @@ import asyncio
 import jsonref
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
@@ -31,7 +31,7 @@ class AbstractMethod(ABC):
         pass
 
     @staticmethod
-    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
+    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None, support_structured_output: bool = False):
         models = [f"{url}/{model}" for url, _, models in get_supported_models() for model in models]
         return ConfigParameter(
             name=name,
@@ -107,10 +107,6 @@ class AbstractMethod(ABC):
         if file_message_parts:
             messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
 
-        # Set a custom response format schema if provided, else expect plain text
-        r_format = transform_schema(response_format.model_json_schema()) if response_format else \
-            {'format': {'type': 'text'}}
-
         # Set settings for model invocation
         kwargs = {
             'model': model,
@@ -129,7 +125,7 @@ class AbstractMethod(ABC):
 
         # Main stream logic
         stream = await litellm.aresponses(**kwargs)
-        async for event in stream:          # This might show a warning, but it is correct
+        async for event in stream:
 
             # Check if an "abort" message has been sent by the user
             if self.session.abort_sent:
@@ -171,7 +167,17 @@ class AbstractMethod(ABC):
                     try:
                         agent_message.formatted_output = response_format.model_validate_json(content)
                     except json.decoder.JSONDecodeError:
-                        raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+                        raise OpacaException(
+                            f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
+                            error_message=f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
+                            status_code=500
+                        )
+                    except ValidationError as e:
+                        raise OpacaException(
+                            f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
+                            error_message=f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?\n{e}",
+                            status_code=500
+                        )
 
                 # Alternative tool output
                 for t in event.response.output:
