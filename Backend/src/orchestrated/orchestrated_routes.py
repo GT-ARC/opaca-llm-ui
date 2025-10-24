@@ -154,8 +154,19 @@ class SelfOrchestratedMethod(AbstractMethod):
             # Log that the task is being executed
             logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
+            # The general agent just returns a pre-defined response
+            if agent.agent_name == "GeneralAgent":
+                predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
+                                        agent_capabilities=json.dumps(agent_summaries, indent=2))
+                return AgentResult(
+                    agent_name="GeneralAgent",
+                    task=task_str,
+                    output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
+                    tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
+                )
+
             # Create planner if enabled
-            if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
+            if config.get("use_agent_planner", True):
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -239,38 +250,22 @@ class SelfOrchestratedMethod(AbstractMethod):
             else:
                 await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
-                # Execute task directly
-                if agent.agent_name == "GeneralAgent":
-                    # The general agent returns a pre-defined response
-                    predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
-                                            agent_capabilities=json.dumps(agent_summaries, indent=2))
-                    worker_message = AgentMessage(
-                        agent="WorkerAgent",
-                        content="Called GeneralAgent!",
-                    )
-                    result = AgentResult(
-                        agent_name="GeneralAgent",
-                        task=task_str,
-                        output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
-                    )
-                else:
-                    # Generate a concrete tool call by the worker agent with its tools
-                    worker_message = await self.call_llm(
-                        model=config["worker_model"],
-                        agent="WorkerAgent",
-                        system_prompt=agent.system_prompt(),
-                        messages=agent.messages(task),
-                        temperature=config["temperature"],
-                        tool_choice="required",
-                        tools=agent.tools,
-                    )
+                # Generate a concrete tool call by the worker agent with its tools
+                worker_message = await self.call_llm(
+                    model=config["worker_model"],
+                    agent="WorkerAgent",
+                    system_prompt=agent.system_prompt(),
+                    messages=agent.messages(task),
+                    temperature=config["temperature"],
+                    tool_choice="required",
+                    tools=agent.tools,
+                )
 
-                    # Invoke the tool call on the connected opaca platform
-                    result = await self.invoke_tools(agent, task.task, worker_message)
-                    agent_messages.append(worker_message)
+                # Invoke the tool call on the connected opaca platform
+                result = await self.invoke_tools(agent, task.task, worker_message)
+                agent_messages.append(worker_message)
 
-            if agent_evaluator and task.agent_name != "GeneralAgent":
+            if agent_evaluator:
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
