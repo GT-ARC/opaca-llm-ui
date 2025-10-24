@@ -379,9 +379,9 @@ class MethodConfig(BaseModel):
     """
 
     @staticmethod
-    def string(default: str, options: Iterable[str] = None, allow_free_input: bool = True, title: str = None, description: str = None) -> Any:
+    def string(default: str, options: Iterable[str] = None, allow_free_input: bool = True, title: str = None, description: str = None, regex: str = None) -> Any:
         options = list(options)
-        pattern = None if allow_free_input else re.compile('|'.join(options))
+        pattern = regex or (None if allow_free_input else re.compile('|'.join(options)))
         return Field(default=default, json_schema_extra={'options': options, 'allow_free_input': allow_free_input}, title=title, description=description, pattern=pattern)
 
     @staticmethod
@@ -399,7 +399,8 @@ class MethodConfig(BaseModel):
     @staticmethod
     def llm_field(title: str = None, description: str = None) -> Any:
         models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description)
+        regex = r"(?P<host>.+)::(?P<model>[\w-]+)" # the named groups are just for a better error message
+        return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description, regex=regex)
 
     @staticmethod
     def temperature_field(default: float = 0, min: float = 0, max: float = 2, step: float = 0.1) -> Any:
