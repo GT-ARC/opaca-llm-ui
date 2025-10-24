@@ -32,8 +32,8 @@ services:
       ANTHROPIC_API_KEY:
       MISTRAL_API_KEY:
       GEMINI_API_KEY:
-      LLM_URLS:
-      LLM_APIKEYS:
+      LLM_HOSTS:
+      LLM_API_KEYS:
       LLM_MODELS:
       CORS_WHITELIST:
       MONGODB_URI: "mongodb://user:pass@backend-db:27017"
