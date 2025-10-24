@@ -270,11 +270,9 @@ class SelfOrchestratedMethod(AbstractMethod):
                     result = await self.invoke_tools(agent, task.task, worker_message)
                     agent_messages.append(worker_message)
 
-
-
             if agent_evaluator and task.agent_name != "GeneralAgent":
                 # If manual evaluation passes, run the AgentEvaluator
-                if not (evaluation := agent_evaluator.evaluate_results(result)):
+                if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
                         model=config["evaluator_model"],
                         agent="AgentEvaluator",
@@ -285,10 +283,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                         status_message=f"Evaluating {task.agent_name}'s task completion..."
                     )
                     agent_messages.append(evaluation_message)
-                    evaluation = evaluation_message.formatted_output.reiterate
+                    should_retry = evaluation_message.formatted_output.reiterate
             
                 # If evaluation indicates we need to retry, do so
-                if evaluation:
+                if should_retry:
                     # Update task for retry
                     retry_task = f"""# Evaluation 
                 
@@ -456,7 +454,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     all_results.extend(round_results)
 
                 # Evaluate overall progress
-                if not (evaluation := overall_evaluator.evaluate_results(all_results)):
+                if not (should_retry := overall_evaluator.has_error(all_results)):
                     evaluation_message = await self.call_llm(
                         model=config["evaluator_model"],
                         agent="OverallEvaluator",
@@ -466,10 +464,10 @@ Now, using the tools available to you and the previous results, continue with yo
                         response_format=overall_evaluator.schema,
                         status_message="Overall evaluation..."
                     )
-                    evaluation = evaluation_message.formatted_output.reiterate
+                    should_retry = evaluation_message.formatted_output.reiterate
                     response.agent_messages.append(evaluation_message)
                             
-                if evaluation:
+                if should_retry:
                     # Get iteration advice before continuing
                     advisor_message = await self.call_llm(
                         model=config["orchestrator_model"],
