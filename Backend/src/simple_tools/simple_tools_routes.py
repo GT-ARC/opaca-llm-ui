@@ -39,7 +39,7 @@ class SimpleToolsMethod(AbstractMethod):
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
 
-        config = self.session.config.get(self.NAME, self.CONFIG())
+        config: SimpleToolConfig = self.get_config()
         max_iters = config.max_rounds
         
         # Get tools and transform them into the OpenAI Function Schema

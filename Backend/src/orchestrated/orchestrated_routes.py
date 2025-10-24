@@ -297,7 +297,7 @@ Now, using the tools available to you and the previous results, continue with yo
         overall_start_time = time.time()
 
         try:
-            config = self.session.config.get(self.NAME, self.CONFIG())
+            config: OrchestrationConfig = self.get_config()
             
             # Get simplified agent summaries for the orchestrator
             agent_details = {

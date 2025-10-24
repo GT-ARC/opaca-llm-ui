@@ -45,7 +45,7 @@ class ToolLLMMethod(AbstractMethod):
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
-        config = self.session.config.get(self.NAME, self.CONFIG())
+        config: ToolLlmConfig = self.get_config()
         max_iters = config.max_rounds
 
         # Get tools and transform them into the OpenAI Function Schema

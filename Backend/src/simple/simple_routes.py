@@ -67,7 +67,7 @@ class SimpleMethod(AbstractMethod):
         response = QueryResponse(query=message)
 
         # Get session config
-        config = self.session.config.get(self.NAME, self.CONFIG())
+        config: SimpleConfig = self.get_config()
         max_iters = config.max_rounds
 
         prompt = SYSTEM_PROMPT.format(

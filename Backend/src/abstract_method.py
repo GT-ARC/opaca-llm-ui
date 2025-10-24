@@ -33,6 +33,9 @@ class AbstractMethod(ABC):
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
         return cls.CONFIG.model_json_schema(mode='serialization')['properties']
+    
+    def get_config(self) -> MethodConfig:
+        return self.session.config.get(self.NAME, self.CONFIG())
 
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:
