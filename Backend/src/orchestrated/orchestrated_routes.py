@@ -95,7 +95,19 @@ class SelfOrchestratedMethod(AbstractMethod):
             agent_messages: List[AgentMessage] = None,
             num_tools: int = 1,
     ) -> List[AgentResult]:
-        """Execute a single round of tasks in parallel when possible"""
+        """Execute a single round of tasks in parallel when possible. This corresponds to the
+        tasks assigned to one "Worker-Trio" by the Orchestrator. Tasks are subdivided into rounds;
+        all tasks in this round are be executed in parallel, in execute_single_task.
+        - if the task is for the GeneralAgent, it just returns the hard-coded result.
+        - otherwise, if the Planner should be used...
+        - else (no planner) it just calls the WorkerAgent with the given task
+        - if the Evaluator should be used, it is asked whether the task appears to be finished
+          - if not, it is repeated, but never more than once (if there are still errors then,
+            the overall evaluator can call the Worker-Trio again)
+        - the result is returned
+
+        Execute_round_task is another helper for calling the worker-agent with some added context given by the planner.
+        """
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
 
@@ -146,7 +158,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             return agent_result
 
         async def execute_single_task(task: AgentTask) -> AgentResult:
-            """Executes a single task"""
+            """Executes a single task. See docs for _execute_round for details."""
             # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
@@ -324,7 +336,17 @@ Now, using the tools available to you and the previous results, continue with yo
         return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
     async def query(self, message: str, chat: Chat) -> QueryResponse:
-        """Process a user message using multiple agents and stream intermediate results"""
+        """Process a user message using multiple agents and stream intermediate results
+        The overall process is as follows:
+        - after some initialization stuff, the Orchestrator is asked to create a plan
+          - that plan can involve tasks for multiple agent-trios over multiple rounds
+          - more round-specific initialization stuff (worker agents etc.)
+          - for each task in each round, pass that task to the worker-trio (-> _execute_round)
+        - after all tasks are finished, check for errors and ask the OverallEvaluator
+          - if it says yes, ask the IterationAdvisor to make double sure...
+          - if both say yes, repeat until max rounds are reached
+        - finally, ask OutputGenerator to create a response
+        """
 
         # Initialize response
         response = QueryResponse(query=message)
