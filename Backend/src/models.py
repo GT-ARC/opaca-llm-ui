@@ -412,8 +412,8 @@ def get_supported_models():
     return [
         (url, key, models.split(","))
         for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai;mistral;anthropic").split(";"),
-            os.getenv("LLM_APIKEYS", ";;").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-4").split(";"),
+            os.getenv("LLM_URLS", "openai;mistral;anthropic;gemini").split(";"),
+            os.getenv("LLM_APIKEYS", ";;;").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-4;gemini-2.5-pro,gemini-2.5-flash").split(";"),
         )
     ]

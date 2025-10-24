@@ -173,7 +173,7 @@ class AbstractMethod(ABC):
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
 
-                # Weird alternative tool output
+                # Alternative tool output
                 for t in event.response.output:
                     if isinstance(t, OutputFunctionToolCall):
                         agent_message.tools.append(ToolCall(
