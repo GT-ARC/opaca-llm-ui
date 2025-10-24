@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
+from itertools import count
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -12,8 +13,10 @@ import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
+from .models import (ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse,
+    ToolCallMessage, ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage
+)
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -25,6 +28,8 @@ class AbstractMethod(ABC):
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
         self.streaming = streaming
+        self.tool_counter = count(0)
+        self.tool_counter_lock = asyncio.Lock()
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
@@ -63,6 +68,10 @@ class AbstractMethod(ABC):
         pass
 
 
+    def next_tool_id(self, agent_message: AgentMessage):
+        return f"{agent_message.id}/{next(self.tool_counter)}"
+
+
     async def call_llm(
             self,
             model: str,
@@ -73,6 +82,8 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[Literal["auto", "none", "only", "required"]] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
+            status_message: str | None = None,
+            is_output: bool = False,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -86,6 +97,8 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
+            status_message (str): optional message to be streamed to the UI
+            is_output (bool): whether agent output should be streamed directly to chat or only to debug
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -95,10 +108,12 @@ class AbstractMethod(ABC):
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>/<model>': {model}")
 
+        if status_message:
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffers = {}
-        content = ''
+        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, host)
@@ -136,36 +151,38 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == event_type.OUTPUT_ITEM_ADDED  and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
-                tool_call_buffers[event.output_index] = ""
+                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
+                tool_call_buffer = ""
 
             # Tool call argument chunk received
             elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DELTA:
                 # We assume that the entry has been created already
-                tool_call_buffers[event.output_index] += event.delta
+                tool_call_buffer += event.delta
 
             # Final tool call chunk received
             elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DONE:
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                    tool = agent_message.tools[-1]
+                    tool.args = json.loads(tool_call_buffer)
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
                     agent_message.tools[-1].args = {}
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
                     break
-                agent_message.content = event.delta
-                content += event.delta
+                agent_message.content += event.delta
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
 
             # Final message received
             elif event.type == event_type.RESPONSE_COMPLETED:
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
-                        agent_message.formatted_output = response_format.model_validate_json(content)
+                        agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException(
                             f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
@@ -184,24 +201,19 @@ class AbstractMethod(ABC):
                     if isinstance(t, OutputFunctionToolCall):
                         agent_message.tools.append(ToolCall(
                             name=t.name,
-                            id=0,
+                            id=self.next_tool_id(agent_message),
                             args=json.loads(t.arguments)
                         ))
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.model_dump()
 
-            if self.session.has_websocket() and self.streaming:
-                await self.send_to_websocket(agent_message)
-                agent_message.content = ''
-
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.session.has_websocket() and self.streaming:
-            agent_message.content = ''
-            await self.send_to_websocket(agent_message)
-
-        agent_message.content = content
+        await self.send_to_websocket(MetricsMessage(
+            execution_time=agent_message.execution_time,
+            metrics=agent_message.response_metadata,
+        ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
@@ -239,6 +251,7 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 
 
@@ -337,14 +350,13 @@ class AbstractMethod(ABC):
 
 
 
-def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
+def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
     Parameters:
     - openapi_spec: the OpenAPI specification
     - agent: name of OPACA agent to filter for, or None for all
-    - strict: make all action parameters required (needed for some models)
     """
     functions = []
     error_msg = ""
@@ -379,9 +391,6 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
                         .get("application/json", {})
                         .get("schema"))
             schema.setdefault("properties", {})  # must be present even if no params
-            if strict:
-                schema["additionalProperties"] = False
-                schema["required"] = list(schema["properties"])
 
             functions.append(
                 {

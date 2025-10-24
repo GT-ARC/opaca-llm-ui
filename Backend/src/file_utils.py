@@ -70,7 +70,6 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
             continue
 
         try:
-            # Assume the provider to be openai for now
             await litellm.afile_delete(file_id=host_file_id, custom_llm_provider=host)
             logger.info(f"Deleted file {host_file_id} from host {host}")
 
