@@ -420,7 +420,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform
                         agent_tools = await self.session.opaca_client.get_actions_openapi(inline_refs=True)
-                        agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name, strict=True)
+                        agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name)
                         if errors:
                             logger.warning(errors)
                         
