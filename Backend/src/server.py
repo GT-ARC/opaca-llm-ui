@@ -233,19 +233,16 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
 @app.get("/config/{method}", description="Get current configuration of the given prompting method.")
 async def get_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
-    if method not in session.config:
-        session.config[method] = METHODS[method].CONFIG()
-    return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
+    return ConfigPayload(config_values=session.get_config(METHODS[method]), config_schema=METHODS[method].config_schema())
 
 
 @app.put("/config/{method}", description="Update configuration of the given prompting method.")
 async def set_config(request: Request, response: Response, method: str, config: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
-        config = METHODS[method].CONFIG.model_validate(config)
+        session.config[method] = METHODS[method].CONFIG.model_validate(config)
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
-    session.config[method] = config
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 

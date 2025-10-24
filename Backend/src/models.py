@@ -249,6 +249,12 @@ class SessionData(BaseModel):
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
 
+    def get_config(self, method) -> 'MethodConfig':
+        config = self.config.get(method.NAME, method.CONFIG())
+        if isinstance(config, dict):  # config is deserialized from DB as dict since the exact type is not known then
+            self.config[method.NAME] = method.CONFIG(**config)
+        return self.config[method.NAME]
+
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
         chat = self.chats.get(chat_id)
         if chat is None and create_if_missing:
