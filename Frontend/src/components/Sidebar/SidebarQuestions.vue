@@ -246,17 +246,9 @@ export default {
 
         addPersonalPrompt(question) {
             // Add instantly with placeholder
-            const newPrompt = reactive({ question, icon: "⭐" });
+            const newPrompt ={ question, icon: "⭐" };
             this.personalPrompts.questions.push(newPrompt);
             this.savePersonalPrompts();
-
-            // Async icon generation
-            this.autogeneratePromptIcon(question)
-                .then(icon => {
-                    newPrompt.icon = icon || "⭐";
-                    this.savePersonalPrompts();
-                })
-                .catch(err => console.warn("Icon generation failed:", err));
         },
 
         removePersonalPrompt(index) {
@@ -315,29 +307,6 @@ export default {
 
         expandSectionByHeader(header) {
             this.toggleSectionByHeader(header, true);
-        },
-
-        async autogeneratePromptIcon(prompt) {
-            try {
-                const usedIcons = [...new Set(this.personalPrompts.questions.map(q => q.icon))].join(", ");
-
-                const query = `Return a JSON file of the form:
-                {
-                  "icon": "⭐"
-                }
-                where "icon" is a single emoji that fits this user prompt: \n"${prompt}"\n
-                Only return the JSON (without wrapping) and nothing else.
-                Avoid using these icons ${usedIcons}, if there are alternatives.`;
-
-                // Let backend generate fitting icon
-                const res = await backendClient.queryNoChat("simple-tools", query, false);
-                const content = res.agent_messages[0].content;
-                const parsed = JSON.parse(content);
-                return parsed.icon || "⭐";
-            } catch (e) {
-                console.error(e);
-                return "⭐";
-            }
         },
     },
 
