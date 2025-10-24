@@ -170,7 +170,7 @@ class AgentEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, result: AgentResult) -> bool:
+    def has_error(self, result: AgentResult) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         if (error := get_first_error(result)):
             self.logger.info(error)
@@ -199,7 +199,7 @@ class OverallEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, current_results: List[AgentResult]) -> bool:
+    def has_error(self, current_results: List[AgentResult]) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
             if (error := get_first_error(result)):
