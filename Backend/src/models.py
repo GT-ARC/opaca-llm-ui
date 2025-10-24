@@ -148,10 +148,14 @@ class ChatMessage(BaseModel):
 
 
 class ToolCall(BaseModel):
-    id: int
+    id: str
     name: str
     args: Dict[str, Any] = {}
     result: Any | None = None
+
+    def without_id(self):
+        """representation for tool without ID field, to be passed back to LLM (ID can be confusing)"""
+        return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
 class Chat(BaseModel):
@@ -252,8 +256,8 @@ class SessionData(BaseModel):
     def get_config(self, method) -> 'MethodConfig':
         config = self.config.get(method.NAME, method.CONFIG())
         if isinstance(config, dict):  # config is deserialized from DB as dict since the exact type is not known then
-            self.config[method.NAME] = method.CONFIG(**config)
-        return self.config[method.NAME]
+            config = self.config[method.NAME] = method.CONFIG(**config)
+        return config
 
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
         chat = self.chats.get(chat_id)
@@ -330,13 +334,13 @@ class TextChunkMessage(BaseModel):
 
 class ToolCallMessage(BaseModel):
     agent: str
-    id: int
+    id: str
     name: str
     args: Dict[str, Any] = {}
 
 
 class ToolResultMessage(BaseModel):
-    id: int
+    id: str
     result: Any | None
 
 

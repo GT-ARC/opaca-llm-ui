@@ -41,9 +41,8 @@ class AbstractMethod(ABC):
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
-    async def next_tool_id(self):
-        async with self.tool_counter_lock:
-            return next(self.tool_counter)
+    def next_tool_id(self, agent_message: AgentMessage):
+        return f"{agent_message.id}/{next(self.tool_counter)}"
 
     async def call_llm(
             self,
@@ -131,7 +130,7 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=await self.next_tool_id()))
+                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
                 tool_call_buffer = ""
 
             # Tool call argument chunk received
@@ -262,14 +261,13 @@ class AbstractMethod(ABC):
         return res
 
 
-def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
+def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
     Parameters:
     - openapi_spec: the OpenAPI specification
     - agent: name of OPACA agent to filter for, or None for all
-    - strict: make all action parameters required (needed for some models)
     """
     functions = []
     error_msg = ""
@@ -304,9 +302,6 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
                         .get("application/json", {})
                         .get("schema"))
             schema.setdefault("properties", {})  # must be present even if no params
-            if strict:
-                schema["additionalProperties"] = False
-                schema["required"] = list(schema["properties"])
 
             functions.append(
                 {

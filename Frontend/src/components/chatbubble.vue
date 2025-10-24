@@ -256,14 +256,14 @@ export default {
         },
 
         getToolCalls() {
-            const regex = /Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:\n((?:\s+[^\n]+)*)\n(?:Result: ([^\n]+))?/gs
+            const regex = /^Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:((?:\n- [^\n]+)*)\n+(?:Result: (.+))?$/gs
             return this.debugMessages
                 .flatMap( debug => [...debug.text.matchAll(regex)] )
                 .map( match => {
                     const id = match[1];
                     const agent = match[2];
                     const action = match[3];
-                    const params = match[4].replace("\n", ",");
+                    const params = match[4].replace("\n- ", " ");
                     var results = match[5];
                     if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
                     return `${id}. ${agent}: ${action}(${params}) → ${results}`;

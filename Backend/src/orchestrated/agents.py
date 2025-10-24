@@ -20,7 +20,6 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT,
 )
-from ..utils import enforce_strictness
 
 
 class BaseAgent:
@@ -73,10 +72,6 @@ class AgentPlanner(BaseAgent):
         super().__init__()
         self.agent_name = agent_name
         self.tools = deepcopy(tools)
-        # The agent planner needs tools to be strict
-        for tool in self.tools:
-            tool["strict"] = True
-            enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
@@ -153,7 +148,7 @@ class AgentEvaluator(BaseAgent):
         results = json.dumps({
             "task": task.task if isinstance(task, AgentTask) else task,
             "agent_output": result.output,
-            "tool_calls": result.tool_calls,
+            "tool_calls": [tc.without_id() for tc in result.tool_calls],
         }, indent=2)
         return [
             ChatMessage(
@@ -170,7 +165,7 @@ class AgentEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, result: AgentResult) -> bool:
+    def has_error(self, result: AgentResult) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         if (error := get_first_error(result)):
             self.logger.info(error)
@@ -199,7 +194,7 @@ class OverallEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, current_results: List[AgentResult]) -> bool:
+    def has_error(self, current_results: List[AgentResult]) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
             if (error := get_first_error(result)):

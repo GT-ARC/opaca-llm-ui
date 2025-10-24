@@ -124,7 +124,7 @@ class SimpleMethod(AbstractMethod):
         try:
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
-                return ToolCall(id=0, name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
+                return ToolCall(id="0", name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass
         return None
