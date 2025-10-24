@@ -225,7 +225,7 @@ class AbstractMethod(ABC):
             await self.session.websocket_send(message)
 
 
-    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: str, login_attempt_retry: bool = False) -> ToolCall:
         """
         Invoke OPACA action matching the given tool. If invoke fails due to required login, attempt Login (via websocket callback)
         and try again. In any case returns a ToolCall, where "result" can be error message.
@@ -267,7 +267,7 @@ class AbstractMethod(ABC):
         return tools, error
 
 
-    async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False):
+    async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: str, login_attempt_retry: bool = False):
         """Handles failed tool invocation due to missing credentials."""
 
         # If a "missing credentials" error is encountered, initiate container login
