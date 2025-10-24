@@ -116,22 +116,12 @@ class SelfOrchestratedMethod(AbstractMethod):
                 round_context: str,
         ) -> AgentResult:
             """Executes a single subtask with a WorkerAgent"""
-            current_task = subtask.task
 
             # Build comprehensive context that includes:
             # 1. Previous orchestrator rounds
             # 2. Previous planner rounds
             # 3. Current round context
-            task_context = []
-
-            if orchestrator_context:
-                task_context.append(orchestrator_context)
-            if round_context:
-                task_context.append(round_context)
-
-            # Combine all contexts with proper separation
-            if task_context:
-                current_task = f"{current_task}\n\n{''.join(task_context)}"
+            current_task = f"{subtask.task}\n\n{orchestrator_context}\n{round_context}"
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
@@ -208,9 +198,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                 await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Initialize results storage
-                ex_results = []
-                ex_tool_calls = []
-                combined_output = []
+                ex_results: List[AgentResult] = []
 
                 # Group tasks by round
                 tasks_by_round = {}
@@ -223,6 +211,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     current_tasks = tasks_by_round[round_num]
 
                     # Add context from previous planner rounds if needed
+                    # XXX I'm 90% sure this is basically the same as get_orchestrator_output...
                     round_context = ""
                     if round_num > 1 and ex_results:
                         round_context = "\n\nPrevious planner round results:\n"
@@ -239,22 +228,16 @@ class SelfOrchestratedMethod(AbstractMethod):
                         execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context) 
                         for subtask in current_tasks
                     ])
-
-                    # Process round results
-                    for result in round_results:
-                        ex_results.append(result)
-                        ex_tool_calls.extend(result.tool_calls)
-                        combined_output.append(result.output)
+                    ex_results.extend(round_results)
 
                 # Create final combined result with clear round separation
-                final_output = "\n\n".join(combined_output)
                 result = AgentResult(
                     agent_name=planner.worker_agent.agent_name,  # Use worker agent's name for proper attribution
                     task=task_str,  # Use the original task string
-                    output=final_output,
-                    tool_calls=ex_tool_calls,
+                    output="\n\n".join(res.output for res in ex_results),
+                    tool_calls=[tc for res in ex_results for tc in res.tool_calls],
                 )
-            else:
+            else: # no planner
                 await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Generate a concrete tool call by the worker agent with its tools
