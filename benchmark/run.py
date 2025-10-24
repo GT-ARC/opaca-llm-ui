@@ -37,7 +37,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--method", type=str, default="tool-llm", help="Specify the prompting method (formerly 'backend') that should be used.")
-    parser.add_argument("-m", "--model", type=str, default="openai/gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
+    parser.add_argument("-m", "--model", type=str, default="openai/gpt-4o-mini", help="Specifies the model and its host/base-url that will be used for all models in the selected method. Use the format <host>/<model_name>")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the SAGE Backend is running.")
     parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")

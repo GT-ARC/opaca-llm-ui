@@ -50,4 +50,7 @@ services:
       - "3001:3001"
     environment:
       OPENAI_API_KEY:
+      ANTHROPIC_API_KEY:
+      GEMINI_API_KEY:
+      MISTRAL_API_KEY:
       VLLM_API_KEY:
