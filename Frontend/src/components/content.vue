@@ -30,7 +30,7 @@
             :selected-chat-id="selectedChatId"
             :is-finished="isFinished"
             ref="sidebar"
-            @select-question="(question, bookmarked) => this.handleSelectQuestion(question, bookmarked)"
+            @select-question="question => this.handleSelectQuestion(question)"
             @select-category="category => this.handleSelectCategory(category)"
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
@@ -255,7 +255,7 @@ export default {
             }
         },
 
-        async submitText(bookmarked = false) {
+        async submitText() {
             if (this.textInput && this.isFinished) {
                 // Copy current input and reset field
                 let userInput = this.textInput.trim();
@@ -267,7 +267,7 @@ export default {
                 const files = this.selectedFiles
                     ? this.selectedFiles.map(file => file.name)
                     : [];
-                await this.askChatGpt(userInput, files, bookmarked);
+                await this.askChatGpt(userInput, files);
 
                 // Clear files list after sending
                 this.selectedFiles = [];
@@ -281,14 +281,14 @@ export default {
             await backendClient.stop();
         },
 
-        async askSampleQuestion(questionText, bookmarked = false) {
+        async askSampleQuestion(questionText) {
             // Do not send questions during autogeneration
             if (questionText === "__loading__") return;
 
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
-            await this.submitText(bookmarked);
+            await this.submitText();
         },
 
         resizeTextInput() {
@@ -307,13 +307,13 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText, files = null, bookmarked = false) {
+        async askChatGpt(userText, files = null) {
             this.isFinished = false;
             this.showExampleQuestions = false;
             this.newChat = false;
 
             // add user chat bubble
-            await this.addChatBubble(userText, true, false, files, bookmarked);
+            await this.addChatBubble(userText, true, false, files);
 
             // add debug entry for user message
             const debug = this.$refs.sidebar.$refs.debug;
@@ -500,11 +500,13 @@ export default {
          * @param isUser {boolean} whether the message is by the user or the AI
          * @param isLoading {boolean} initial loading state, should be true if the bubble is intended to be edited
          * @param files {Array} files attached to the message
-         * @param bookmarked {boolean} whether the message is a bookmarked prompt
          * later (streaming responses etc.)
          */
-        async addChatBubble(content, isUser = false, isLoading = false, files = null, bookmarked = false) {
+        async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
+
+            const bookmarked = this.compareToBookmarks(content);
+
             const message = {
                 elementId: elementId,
                 isUser: isUser,
@@ -518,6 +520,11 @@ export default {
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
             this.scrollDownChat();
+        },
+
+        compareToBookmarks(content) {
+            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts.questions;
+            return bookmarks.some(b => b.question.trim() === content.trim());
         },
 
         handleUnexpectedConnectionClosed(message) {
@@ -630,11 +637,11 @@ export default {
             }
         },
 
-        handleSelectQuestion(question, bookmarked) {
+        handleSelectQuestion(question) {
             if (this.isMobile) {
                 SidebarManager.close();
             }
-            this.askSampleQuestion(question, bookmarked);
+            this.askSampleQuestion(question);
         },
 
         handleSelectCategory(category) {
