@@ -31,7 +31,7 @@ async def upload_files(session: SessionData, host_url: str):
             file_obj.name = filedata.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
-        client = session.llm_client(host_url)
+        client = await session.llm_client(host_url)
         uploaded = await client.files.create(file=file_obj, purpose="user_data")
         logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host_url})")
         # record host id under this host_url
@@ -59,7 +59,7 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
 
     for host_url, host_file_id in filedata.host_ids.items():
         try:
-            client = session.llm_client(host_url)
+            client = await session.llm_client(host_url)
             await client.files.delete(host_file_id)
             logger.info(f"Deleted file {host_file_id} from host {host_url}")
 

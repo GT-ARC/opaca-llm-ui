@@ -13,7 +13,7 @@ import traceback
 import asyncio
 
 from starlette.websockets import WebSocket
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError, APIConnectionError, AuthenticationError
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
@@ -214,6 +214,7 @@ class SessionData(BaseModel):
         _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+        _user_api_keys: User-provided API keys for specific LLM hosts
     
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
@@ -230,25 +231,48 @@ class SessionData(BaseModel):
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
+    _user_api_keys: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
 
-    def llm_client(self, the_url: str) -> AsyncOpenAI:
-        if the_url not in self._llm_clients:
-            for url, key, _ in get_supported_models():
-                if url == the_url:
-                    logger.info("creating new client for URL " + url)
-                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
-                    self._llm_clients[url] = (
-                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
-                        AsyncOpenAI(api_key=key, base_url=url)
-                    )
-                    break
-            else:
-                raise OpacaException(f"LLM host not supported : {the_url}")
-        return self._llm_clients[the_url]
+    async def llm_client(self, host_url: str) -> AsyncOpenAI:
+        if host_url not in self._llm_clients:
+            logger.info("creating new client for URL " + host_url)
+            key = self.api_key(host_url)
+            logger.info(f"API KEY IS {repr(key)}")
+            try:
+                client = AsyncOpenAI(
+                    api_key=key, # automatically uses env var if None
+                    base_url=host_url if host_url != "openai" else None
+                )
+                await client.models.list()
+            except APIConnectionError as e:
+                raise OpacaException(user_message=f"Unknown LLM host: {host_url}", error_message=repr(e))
+            except (OpenAIError, AuthenticationError) as e:
+                # try to get API key from user
+                problem = "missing" if isinstance(e, AuthenticationError) else "invalid"
+                message = f"API key is {problem} for host URL {host_url}!"
+                await self.websocket_send(MissingApiKeyNotification(message=message))
+                response = MissingApiKeyResponse(**await self.websocket_receive())
+                if response.api_key:
+                    self._user_api_keys[host_url] = response.api_key
+                    return await self.llm_client(host_url)
+                else:
+                    raise OpacaException(user_message=f"Unable to call LLM without matching API key", error_message=repr(e))
+                
+            self._llm_clients[host_url] = client
+        return self._llm_clients[host_url]
+    
+    def api_key(self, host_url) -> str | None:
+        if host_url in self._user_api_keys:
+            return self._user_api_keys[host_url]
+        try:
+            # return None rather than empty string to fall back to key from Env-Vars
+            return next(key.strip() or None for url, key, _ in get_supported_models() if url == host_url)
+        except StopIteration:
+            return None  # not necessarily an error; OpenAI client will use the key from the Env Var, if set
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
@@ -381,6 +405,16 @@ class ContainerLoginResponse(BaseModel):
     password: str
     timeout: int
 
+
+class MissingApiKeyNotification(BaseModel):
+    message: str
+
+
+class MissingApiKeyResponse(BaseModel):
+    api_key: str
+
+
+# METHOD CONFIGURATION
 
 class MethodConfig(BaseModel):
     """

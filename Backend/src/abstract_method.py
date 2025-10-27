@@ -78,7 +78,7 @@ class AbstractMethod(ABC):
             url, model = map(str.strip, model.split("::"))
         except Exception:
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = self.session.llm_client(url)
+        client = await self.session.llm_client(url)
 
         if status_message:
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
