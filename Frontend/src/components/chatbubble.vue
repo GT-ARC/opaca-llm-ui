@@ -256,16 +256,17 @@ export default {
         },
 
         getToolCalls() {
-            const regex = /Tool\s+([^\n]+):\nName:\s*([^\n]+)\nArguments:\s*([^\n]+)\nResult:\s*([^\n]+)/gs
+            const regex = /^Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:((?:\n- [^\n]+)*)\n+(?:Result: (.+))?$/gs
             return this.debugMessages
                 .flatMap( debug => [...debug.text.matchAll(regex)] )
                 .map( match => {
                     const id = match[1];
-                    const name = match[2].replace("--", ": ");
-                    var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
-                    var results = match[4];
-                    if (results.length > 30) results = results.substring(0, 30) + " [...]";
-                    return `${id}. ${name}(${params}) → ${results}`;
+                    const agent = match[2];
+                    const action = match[3];
+                    const params = match[4].replace("\n- ", " ");
+                    var results = match[5];
+                    if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
+                    return `${id}. ${agent}: ${action}(${params}) → ${results}`;
                 });
         },
 

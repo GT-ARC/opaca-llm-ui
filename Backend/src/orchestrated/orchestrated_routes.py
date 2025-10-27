@@ -2,15 +2,15 @@ import json
 import logging
 import time
 import traceback
-from collections import defaultdict
-from typing import Dict, Any, List, Tuple
+from itertools import count
+from typing import Dict, Any, List
 import asyncio
 
 from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
-from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..abstract_method import AbstractMethod, openapi_to_functions
+from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall, StatusMessage
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -20,7 +20,9 @@ from .agents import (
     AgentPlanner, get_current_time
 )
 from .models import AgentResult, AgentTask
-from ..utils import openapi_to_functions
+
+
+logger = logging.getLogger(__name__)
 
 
 class SelfOrchestratedMethod(AbstractMethod):
@@ -28,7 +30,6 @@ class SelfOrchestratedMethod(AbstractMethod):
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
-        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
@@ -85,26 +86,28 @@ class SelfOrchestratedMethod(AbstractMethod):
         }
 
     async def _execute_round(
-        self,
-        round_tasks: List[AgentTask],
-        worker_agents: Dict[str, WorkerAgent],
-        config: Dict[str, Any],
-        all_results: List[AgentResult],
-        agent_summaries: Dict[str, Any],
-        agent_messages: List[AgentMessage] = None,
-        num_tools: int = 1,
-    ) -> Tuple[List[AgentResult], List[AgentMessage]]:
+            self,
+            round_tasks: List[AgentTask],
+            worker_agents: Dict[str, WorkerAgent],
+            config: Dict[str, Any],
+            all_results: List[AgentResult],
+            agent_summaries: Dict[str, Any],
+            agent_messages: List[AgentMessage] = None,
+            num_tools: int = 1,
+    ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
-        tool_counter = num_tools
-        tool_counter_lock = asyncio.Lock()
 
-        async def execute_round_task(worker_agent, subtask, orchestrator_context, round_context,
-                                     round_num):
+        async def execute_round_task(
+                worker_agent: WorkerAgent, 
+                subtask: AgentTask, 
+                orchestrator_context: str, 
+                round_context: str,
+                round_num: int,
+        ) -> AgentResult:
             """Executes a single subtask with a WorkerAgent"""
             current_task = subtask.task
-            nonlocal tool_counter
 
             # Build comprehensive context that includes:
             # 1. Previous orchestrator rounds
@@ -121,7 +124,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             if task_context:
                 current_task = f"{current_task}\n\n{''.join(task_context)}"
 
-            self.logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+            logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
@@ -134,36 +137,25 @@ class SelfOrchestratedMethod(AbstractMethod):
                 tools=worker_agent.tools
             )
 
-            # Update the tool ids
-            async with tool_counter_lock:
-                for tool in worker_message.tools:
-                    tool.id = tool_counter
-                    tool_counter += 1
-
             # Invoke the action on the connected opaca platform
-            agent_result = await worker_agent.invoke_tools(current_task, worker_message)
+            agent_result = await self.invoke_tools(worker_agent, current_task, worker_message)
 
             # Create agent message and stream content via websocket
             agent_messages.append(worker_message)
-            await self.send_to_websocket(agent_message=worker_message)
 
             return agent_result
 
-        async def execute_single_task(task: AgentTask):
+        async def execute_single_task(task: AgentTask) -> AgentResult:
             """Executes a single task"""
             # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
 
-            # Keep track of the tool ids
-            nonlocal tool_counter
-            
             # Log that the task is being executed
-            self.logger.info(f"Executing task for {task.agent_name}: {task_str}")
+            logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
             if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
-                await self.send_to_websocket("AgentPlanner", f"Planning function calls for {task.agent_name}'s task: {task_str} \n\n")
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -181,12 +173,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                     tools=planner.tools,
                     tool_choice="none",
                     response_format=planner.schema,
+                    status_message="Planning function calls for {task.agent_name}'s task: {task_str}"
                 )
                 agent_messages.append(planner_message)
                 plan = planner_message.formatted_output
-
-                # Send plan via websocket if needed
-                await self.send_to_websocket(agent_message=planner_message)
 
                 # If no plan was created, return empty AgentResult
                 if not plan:
@@ -197,7 +187,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         tool_calls=[],
                     )
             
-                await self.send_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Initialize results storage
                 ex_results = []
@@ -211,7 +201,7 @@ class SelfOrchestratedMethod(AbstractMethod):
 
                 # Execute rounds sequentially
                 for round_num in sorted(tasks_by_round.keys()):
-                    self.logger.info(f"AgentPlanner executing round {round_num}")
+                    logger.info(f"AgentPlanner executing round {round_num}")
                     current_tasks = tasks_by_round[round_num]
 
                     # Add context from previous planner rounds if needed
@@ -227,7 +217,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                                     round_context += f"- {tc.name}: {tc.result}\n"
 
                     # Executes tasks in the same round in parallel
-                    round_results = await asyncio.gather(*[execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) for subtask in current_tasks])
+                    round_results = await asyncio.gather(*[
+                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) 
+                        for subtask in current_tasks
+                    ])
 
                     # Process round results
                     for result in round_results:
@@ -244,7 +237,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     tool_calls=ex_tool_calls,
                 )
             else:
-                await self.send_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Execute task directly
                 if agent.agent_name == "GeneralAgent":
@@ -259,7 +252,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         agent_name="GeneralAgent",
                         task=task_str,
                         output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[ToolCall(id=-1, name="GetCapabilities", args={}, result=predefined_response)],
+                        tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
                     )
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
@@ -273,27 +266,13 @@ class SelfOrchestratedMethod(AbstractMethod):
                         tools=agent.tools,
                     )
 
-                    # Update the tool ids
-                    async with tool_counter_lock:
-                        for tool in worker_message.tools:
-                            tool.id = tool_counter
-                            tool_counter += 1
-
                     # Invoke the tool call on the connected opaca platform
-                    result = await agent.invoke_tools(task.task, worker_message)
+                    result = await self.invoke_tools(agent, task.task, worker_message)
                     agent_messages.append(worker_message)
-                
-                # Send tool calls and results via websocket or generic GeneralAgent message
-                await self.send_to_websocket(agent_message=worker_message)
 
-            evaluation = task.agent_name != "GeneralAgent"
-
-            if agent_evaluator and evaluation:
-                # Now evaluate the result after we have it
-                await self.send_to_websocket("AgentEvaluator", f"Evaluating {task.agent_name}'s task completion...\n\n")
-
+            if agent_evaluator and task.agent_name != "GeneralAgent":
                 # If manual evaluation passes, run the AgentEvaluator
-                if not agent_evaluator.evaluate_results(result):
+                if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
                         model=config["evaluator_model"],
                         agent="AgentEvaluator",
@@ -301,20 +280,15 @@ class SelfOrchestratedMethod(AbstractMethod):
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config["temperature"],
                         response_format=agent_evaluator.schema,
+                        status_message=f"Evaluating {task.agent_name}'s task completion..."
                     )
                     agent_messages.append(evaluation_message)
-                    evaluation = evaluation_message.formatted_output.reiterate
+                    should_retry = evaluation_message.formatted_output.reiterate
             
-                    # Send evaluation results via websocket
-                    await self.send_to_websocket(agent_message=evaluation_message)
-
-                else:
-                    await self.send_to_websocket("AgentEvaluator", f"Evaluation result for {task.agent_name}: {evaluation}")
-            
-            # If evaluation indicates we need to retry, do so
-            if evaluation:
-                # Update task for retry
-                retry_task = f"""# Evaluation 
+                # If evaluation indicates we need to retry, do so
+                if should_retry:
+                    # Update task for retry
+                    retry_task = f"""# Evaluation 
                 
 The Evaluator of your task has indicated that there is crucial information missing to solve the task.. 
 
@@ -328,43 +302,31 @@ The Evaluator of your task has indicated that there is crucial information missi
 
 # Your Previous tool calls: 
 
-{[tc.model_dump_json() for tc in result.tool_calls]}
+{[tc.without_id() for tc in result.tool_calls]}
 
 # YOUR GOAL:
 
 Now, using the tools available to you and the previous results, continue with your original task and retrieve all the information necessary to complete and solve the task!"""
-
-                await self.send_to_websocket("WorkerAgent", f"Retrying task...\n\n")
                 
-                # Execute retry
-                worker_message = await self.call_llm(
-                    model=config["worker_model"],
-                    agent="WorkerAgent",
-                    system_prompt=agent.system_prompt(),
-                    messages=agent.messages(retry_task),
-                    temperature=config["temperature"],
-                    tool_choice="required",
-                    tools=agent.tools
-                )
+                    # Execute retry
+                    worker_message = await self.call_llm(
+                        model=config["worker_model"],
+                        agent="WorkerAgent",
+                        system_prompt=agent.system_prompt(),
+                        messages=agent.messages(retry_task),
+                        temperature=config["temperature"],
+                        tool_choice="required",
+                        tools=agent.tools,
+                        status_message="Retrying task..."
+                    )
 
-                # Update the tool ids
-                async with tool_counter_lock:
-                    for tool in worker_message.tools:
-                        tool.id = tool_counter
-                        tool_counter += 1
-
-                result = await agent.invoke_tools(task.task, worker_message)
-                agent_messages.append(worker_message)
-                
-                # Send only tool calls and results via websocket
-                await self.send_to_websocket(agent_message=worker_message)
+                    result = await self.invoke_tools(agent, task.task, worker_message)
+                    agent_messages.append(worker_message)
             
             return result
 
         # Execute all tasks in parallel using asyncio.gather
-        results = await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
-        
-        return results, agent_messages
+        return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results"""
@@ -377,9 +339,6 @@ Now, using the tools available to you and the previous results, continue with yo
         try:
             # Get base config and merge with model config
             config = self.session.config.get(self.NAME, self.default_config())
-            
-            # Send initial waiting message
-            await self.send_to_websocket(agent="preparing", message="Initializing the OPACA AI Agents")
             
             # Get simplified agent summaries for the orchestrator
             agent_details = {
@@ -416,9 +375,6 @@ Now, using the tools available to you and the previous results, continue with yo
             rounds = 0
             
             while rounds < config["max_rounds"]:
-                # Get execution plan from orchestrator
-                await self.send_to_websocket("Orchestrator", "Creating detailed orchestration plan...\n\n")
-                
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
                     model=config["orchestrator_model"],
@@ -429,6 +385,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
+                    status_message="Creating detailed orchestration plan..."
                 )
 
                 # Extract pre-formatted Orchestrator Plan
@@ -444,10 +401,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     return response
                 
                 # Then send the tasks
-                await self.send_to_websocket(agent_message=orchestrator_message, message=f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}\n\n")
-                
-                # Mark planning phase complete
-                await self.send_to_websocket("Orchestrator", "Execution plan created ✓\n\n")
+                await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}")
                 
                 # Iterate through every generated plan and add needed agents as worker agents
                 for task in plan.tasks:
@@ -466,9 +420,9 @@ Now, using the tools available to you and the previous results, continue with yo
                         
                         # Get functions from platform
                         agent_tools = await self.session.opaca_client.get_actions_openapi(inline_refs=True)
-                        agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name, strict=True)
+                        agent_tools, errors = openapi_to_functions(agent_tools, agent=agent_name)
                         if errors:
-                            self.logger.warning(errors)
+                            logger.warning(errors)
                         
                         # Create worker agents for each unique agent in the plan
                         worker_agents[agent_name] = WorkerAgent(
@@ -485,9 +439,9 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Execute each round
                 for round_num in sorted(tasks_by_round.keys()):
-                    await self.send_to_websocket("Orchestrator", f"Starting execution round {round_num}\n\n")
+                    await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}")
                     
-                    round_results, agent_messages = await self._execute_round(
+                    round_results = await self._execute_round(
                         tasks_by_round[round_num],
                         worker_agents,
                         config,
@@ -499,10 +453,8 @@ Now, using the tools available to you and the previous results, continue with yo
                     
                     all_results.extend(round_results)
 
-                await self.send_to_websocket("OverallEvaluator", "Overall evaluation...\n\n")
-
                 # Evaluate overall progress
-                if not (evaluation := overall_evaluator.evaluate_results(all_results)):
+                if not (should_retry := overall_evaluator.has_error(all_results)):
                     evaluation_message = await self.call_llm(
                         model=config["evaluator_model"],
                         agent="OverallEvaluator",
@@ -510,33 +462,28 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config["temperature"],
                         response_format=overall_evaluator.schema,
+                        status_message="Overall evaluation..."
                     )
-                    evaluation = evaluation_message.formatted_output.reiterate
+                    should_retry = evaluation_message.formatted_output.reiterate
                     response.agent_messages.append(evaluation_message)
-                    await self.send_to_websocket(agent_message=evaluation_message)
-                else:
-                    await self.send_to_websocket("OverallEvaluator", f"Overall evaluation result: {evaluation}\n\nOverall evaluation complete ✓")
                             
-                if evaluation:
+                if should_retry:
                     # Get iteration advice before continuing
-                    await self.send_to_websocket("IterationAdvisor", "Analyzing results and preparing advice for next iteration...\n\n")
-
                     advisor_message = await self.call_llm(
                         model=config["orchestrator_model"],
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
                         temperature=config["temperature"],
-                        response_format=iteration_advisor.schema
+                        response_format=iteration_advisor.schema,
+                        status_message="Analyzing results and preparing advice for next iteration..."
                     )
                     advice = advisor_message.formatted_output
                     response.agent_messages.append(advisor_message)
 
-                    await self.send_to_websocket(agent_message=advisor_message)
-
                     # If no advice context was successfully generated, assume that the final response can be generated
                     if not advice:
-                        await self.send_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.")
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.")
                         break
 
                     # Handle follow-up questions from iteration advisor
@@ -547,7 +494,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
-                        await self.send_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary)
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary)
                         break
                     
                     # Add the advice to the message for the next iteration
@@ -561,15 +508,12 @@ Issues identified:
 Please address these specific improvements:
 {chr(10).join(f'- {step}' for step in advice.improvement_steps)}"""
                     
-                    await self.send_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓")
+                    await self.send_status_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓")
                 else:
                     break
                 
                 rounds += 1
             
-            # Generate final output with streaming
-            await self.send_to_websocket("Output Generator", "Generating final response...\n\n")
-
             # Stream the final response
             final_output = await self.call_llm(
                 model=config["generator_model"],
@@ -577,9 +521,10 @@ Please address these specific improvements:
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config["temperature"],
+                status_message="Generating final response...",
+                is_output=True,
             )
             response.agent_messages.append(final_output)
-            await self.send_to_websocket(agent_message=final_output)
 
             # Set the complete response content after streaming
             response.content = final_output.content
@@ -587,42 +532,21 @@ Please address these specific improvements:
             # Calculate and set total execution time
             response.execution_time = time.time() - overall_start_time
             
-            # Send completion message for output generator
-            await self.send_to_websocket("Output Generator", "Final response generated ✓")
+            logger.info(f"TOTAL EXECUTION TIME: {response.execution_time:.2f} seconds")
 
-            self.logger.info(f"\n\n TOTAL EXECUTION TIME: \nMultiAgentMethod completed analysis in {response.execution_time:.2f} seconds\n\n")
-
-            # Extract the execution times with 2 decimal places in seconds from the agent messages and save them in a dict with the agent name as the key
-            execution_times_data = defaultdict(int)
-            token_usage = {msg.agent: {'total_tokens': 0, 'prompt_tokens': 0, 'completion_tokens': 0} for msg in response.agent_messages}
-            for msg in response.agent_messages:
-                execution_times_data[msg.agent] += msg.execution_time
-                token_usage[msg.agent]['total_tokens'] += msg.response_metadata.get('total_tokens', 0)
-                token_usage[msg.agent]['prompt_tokens'] += msg.response_metadata.get('prompt_tokens', 0)
-                token_usage[msg.agent]['completion_tokens'] += msg.response_metadata.get('completion_tokens', 0)
-
-            execution_times = {agent: f"{data:.2f} seconds" for agent, data in execution_times_data.items()}
-            token_usage = {agent: f"{usage['total_tokens']} ({usage['prompt_tokens']}, {usage['completion_tokens']})" for agent, usage in token_usage.items()}
-
-            # Send the execution times in a final websocket message from system agent
-            await self.send_to_websocket("system", f"⏱️ Execution Times:\n\nTotal Execution Time: {response.execution_time:.2f} seconds\n {json.dumps(execution_times, indent=2)}\n"
-                                                         f"Total Tokens used: {sum([msg.response_metadata.get('total_tokens', 0) for msg in response.agent_messages])}\nTotal (Prompt, Complete)\n{json.dumps(token_usage, indent=2)}\nExecution complete ✓")
-            
             return response
 
         # If any errors were encountered, capture error desc and send to debug view
         except Exception as e:
-            self.logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
+            logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
             response.error = str(e)
-            await self.send_to_websocket("system", f"\n\nError: {str(e)}\n\n")
             response.execution_time = time.time() - overall_start_time
             return response
 
     @staticmethod
-    def get_agents_as_tools(agent_details: Dict):
-        tools = []
-        for name, content in agent_details.items():
-            tools.append({
+    def get_agents_as_tools(agent_details: Dict) -> List[Dict]:
+        return [
+            {
                 "type": "function",
                 "name": name,
                 "description": f"{content['description']}\n\nFunctions:\n{content['functions']}",
@@ -643,20 +567,26 @@ Please address these specific improvements:
                     "additionalProperties": False
                 },
                 "strict": True
-            })
-        return tools
+            }
+            for name, content in agent_details.items()
+        ]
 
-    async def send_to_websocket(self, agent: str = "system", message: str = "", agent_message: AgentMessage = None):
-        """
-        Sends either a given message or a full agent message via the given websocket.
-        """
-        if not isinstance(agent, str):
-            # quick fix for overwriting super class method
-            await AbstractMethod.send_to_websocket(self, agent)
-            return
-        if self.session.has_websocket() and self.streaming:
-            if not agent_message:
-                agent_message = AgentMessage(agent=agent)
-            if message:
-                agent_message.content = message
-            await self.session.websocket_send(agent_message)
+    async def send_status_to_websocket(self, agent, message):
+        await self.send_to_websocket(StatusMessage(agent=agent, status=message))
+
+    async def invoke_tools(self, agent: WorkerAgent, task_str: str, message: AgentMessage) -> AgentResult:
+        tool_results = await asyncio.gather(*[
+            self.invoke_tool(tool.name, tool.args, tool.id)
+            for tool in message.tools
+        ])
+        tool_output = "\n".join(
+            f"- Worker Agent Executed: {tool.name}."
+            for tool in tool_results
+            if not (isinstance(tool.result, str) and tool.result.startswith("Failed") )
+        )
+        return AgentResult(
+            agent_name=agent.agent_name,
+            task=task_str,
+            output=tool_output,
+            tool_calls=tool_results,
+        )

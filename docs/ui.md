@@ -1,6 +1,6 @@
 # User Interface
 
-![OPACA LLM UI Screenshot](img/opaca-llm-ui.png)
+![SAGE UI Screenshot](img/opaca-llm-ui.png)
 
 The web UI is implemented in Javascript using Node and Vue. 
 
@@ -21,12 +21,12 @@ A collapsible sidebar providing different sections for configuring the OPACA Run
 * **Agents & Actions**: Shows the list of all Agents and their respective Actions currently available on the connected OPACA Runtime Platform. Each Agent can be expanded to show its Actions, which can be further expanded to show their parameters and a short description.
 * **Configuration**: Allows to send different configurations to the backend, depending on the selected prompting method, e.g. for which LLM to use at what temperature.
 * **Logging**: Shows the full logging-information sent by the AI-agents in the backend; this is the same as shown underneath the individual messages, but all in one place. Also, other than the output underneath the message, the logging output in this section is streamed as the LLM is still "thinking", making it a valuable resource for requests that take more time.
-* **About/FAQ**: Shows some information about the general workings of the OPACA LLM.
+* **About/FAQ**: Shows some information about the general workings of SAGE.
 
 
 ## Header
 
-Used to connect to an OPACA Runtime Platform, including authentication, if necessary. Note that if the OPACA LLM is running in Docker-Compose, you will have to provide your own IP address here (e.g. taken from `ifconfig`), as "localhost" will not work in this case. For easier startup, the default-URL can be passed as an environment variable, and the `?autoconnect` query parameter can be used to automatically connect to it.
+Used to connect to an OPACA Runtime Platform, including authentication, if necessary. Note that if SAGE is running in Docker-Compose, you will have to provide your own IP address here (e.g. taken from `ifconfig`), as "localhost" will not work in this case. For easier startup, the default-URL can be passed as an environment variable, and the `?autoconnect` query parameter can be used to automatically connect to it.
 
 The Navigation/Header bar also contains a dropdown that can be used to e.g. set the language of the UI (this does not influence the language of the LLM, which will just react to the language it is spoken to), and most importantly a selector for the [method](methods_overview.md) to be used for interacting with the actual LLM. You can also select different color themes here (by default, the UI adapts to the system theme, either light or dark).
 

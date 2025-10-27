@@ -1,6 +1,6 @@
 services:
 
-  # Vite/Vue-based frontend for the OPACA LLM Integration
+  # Vite/Vue-based frontend for SAGE Integration
   opaca-llm-frontend:
     build: ./Frontend
     image: opaca-llm-frontend
@@ -19,7 +19,7 @@ services:
       VITE_COLOR_SCHEME:
       VITE_DEFAULT_LANGUAGE:
 
-  # FastAPI-based backend for the OPACA LLM Integration
+  # FastAPI-based backend for SAGE Integration
   opaca-llm-backend:
     build: ./Backend
     image: opaca-llm-backend

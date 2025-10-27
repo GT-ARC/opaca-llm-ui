@@ -20,7 +20,6 @@ from .prompts import (
     ITERATION_ADVISOR_PROMPT,
     AGENT_PLANNER_PROMPT, ORCHESTRATOR_PROMPT,
 )
-from ..utils import enforce_strictness
 
 
 class BaseAgent:
@@ -73,10 +72,6 @@ class AgentPlanner(BaseAgent):
         super().__init__()
         self.agent_name = agent_name
         self.tools = deepcopy(tools)
-        # The agent planner needs tools to be strict
-        for tool in self.tools:
-            tool["strict"] = True
-            enforce_strictness(tool)
         self.worker_agent = worker_agent
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
@@ -123,40 +118,24 @@ class AgentPlanner(BaseAgent):
         return PlannerPlan
 
     @staticmethod
-    def get_orchestrator_context(previous_results: Optional[List[AgentResult]] = None):
+    def get_orchestrator_context(previous_results: Optional[List[AgentResult]] = None) -> str:
         # Create context from previous orchestrator round results if available
         orchestrator_context = ""
         if previous_results:
             orchestrator_context = "\n\nPrevious orchestrator round results:\n"
             for i, result in enumerate(previous_results, 1):
-                orchestrator_context += f"\n# Result {i} from {result.agent_name}:\n"
-                orchestrator_context += f"Task: {result.task}\n"
+                orchestrator_context += f"\n# Result {i} from {result.agent_name}:\nTask: {result.task}\n"
 
                 # Split the output by rounds and process each round
-                round_outputs = result.output.split("\n\n")
-                for round_output in round_outputs:
+                for round_output in result.output.split("\n\n"):
                     if round_output.strip():
                         orchestrator_context += f"{round_output}\n"
 
                 # Process tool calls by round
                 if any(tc.result for tc in result.tool_calls):
-                    # Group tool calls by round based on their sequence
-                    round_tool_calls = dict(enumerate([tc for tc in result.tool_calls]))
-
-                    # Output tool results by round
-                    for round_num, tc in sorted(round_tool_calls.items()):
-                        orchestrator_context += f"\n### Tool Results:\n"
-                        orchestrator_context += f"- {tc.name}: {tc.result}\n"
+                    for tc in result.tool_calls:
+                        orchestrator_context += f"\n### Tool Results:\n- {tc.name}: {tc.result}\n"
         return orchestrator_context
-
-    def get_task_str(self, task: Union[str, AgentTask], previous_results: Optional[List[AgentResult]] = None):
-        # Extract task string if AgentTask object is passed
-        task_str = task.task if isinstance(task, AgentTask) else task
-        self.logger.info(f"AgentPlanner executing task: {task_str}")
-        if previous_results:
-            # Add the context to the task
-            return f"{task_str}\n\n{self.get_orchestrator_context(previous_results)}"
-        return task_str
 
 
 class AgentEvaluator(BaseAgent):
@@ -169,7 +148,7 @@ class AgentEvaluator(BaseAgent):
         results = json.dumps({
             "task": task.task if isinstance(task, AgentTask) else task,
             "agent_output": result.output,
-            "tool_calls": result.tool_calls,
+            "tool_calls": [tc.without_id() for tc in result.tool_calls],
         }, indent=2)
         return [
             ChatMessage(
@@ -186,24 +165,11 @@ class AgentEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, result: AgentResult) -> bool:
+    def has_error(self, result: AgentResult) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
-        for tc in result.tool_calls:
-            if isinstance(tc.result, str) and (
-                    "error" in tc.result.lower() or
-                    "failed" in tc.result.lower() or
-                    "502" in tc.result
-            ):
-                self.logger.info(f"Found failed tool call: {tc}")
-                return True
-
-        # Check for incomplete sequential operations
-        # If we have multiple tool calls and one uses a placeholder that wasn't replaced
-        if len(result.tool_calls) > 1:
-            for tool_call in result.tool_calls:
-                if '<' in tool_call.args and '>' in tool_call.args:
-                    self.logger.info("Found unresolved placeholder in tool call")
-                    return True
+        if (error := get_first_error(result)):
+            self.logger.info(error)
+            return True
         return False
 
 
@@ -228,27 +194,12 @@ class OverallEvaluator(BaseAgent):
     def schema(self):
         return AgentEvaluation
 
-    def evaluate_results(self, current_results: List[AgentResult]) -> bool:
+    def has_error(self, current_results: List[AgentResult]) -> bool:
         """Manually checks for errors in the results and returns True if any are found."""
         for result in current_results:
-            # Check for errors in tool results
-            for tc in result.tool_calls:
-                if isinstance(tc.result, str) and (
-                        "error" in tc.result.lower() or
-                        "failed" in tc.result.lower() or
-                        "502" in tc.result
-                ):
-                    self.logger.info(f"Found failed tool call in {result.agent_name}: {tc}")
-                    return True
-
-            # Check for incomplete sequential operations
-            if len(result.tool_calls) > 1:
-                # Look for unresolved placeholders
-                for tool_call in result.tool_calls:
-                    # XXX THIS DOES NOT MAKE SENSE! (did it before? can this be removed?)
-                    if '<' in tool_call.args and '>' in tool_call.args:
-                        self.logger.info(f"Found unresolved placeholder in {result.agent_name}")
-                        return True
+            if (error := get_first_error(result)):
+                self.logger.info(f"{error} in {result.agent_name}")
+                return True
         return False
 
 
@@ -313,69 +264,22 @@ class WorkerAgent(BaseAgent):
             )
         ]
 
-    async def invoke_tools(self, task_str: str, message: AgentMessage) -> AgentResult:
-        # Iterate over all tool calls
-        # Initialize tool calls and results lists
-        tool_calls = []
-        tool_outputs = []
 
-        for tool_call in message.tools:
-            # Log the tool call being made
-            self.logger.info(f"Making tool call: {tool_call.name}")
-            self.logger.debug(f"Tool call arguments: {tool_call.args}")
+def get_first_error(result: AgentResult) -> str | None:
+    # Check for errors in tool results
+    for tc in result.tool_calls:
+        if isinstance(tc.result, str) and any(x in tc.result.lower() for x in ["error", "failed", "502"]):
+            return f"Found failed tool call: {tc}"
 
-            # Split function name to get action name (remove agent prefix)
-            func_name = tool_call.name
-            if "--" in func_name:
-                agent_name, action_name = func_name.split("--", 1)
-            else:
-                agent_name = None
-                action_name = func_name
+    # Check for incomplete sequential operations
+    # If we have multiple tool calls and one uses a placeholder that wasn't replaced
+    if len(result.tool_calls) > 1:
+        for tool_call in result.tool_calls:
+            # XXX THIS DOES NOT MAKE SENSE! (did it before? can this be removed?)
+            if '<' in tool_call.args and '>' in tool_call.args:
+                return f"Found unresolved placeholder"
+    return None
 
-            # Execute the action with the correct parameters
-            try:
-                result = await self.session_client.invoke_opaca_action(
-                    action=action_name,
-                    agent=agent_name,
-                    params=tool_call.args
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to execute tool call: {tool_call.name}")
-                tool_call.result = str(e)
-                tool_calls.append(tool_call)
-                continue
-
-            # Add the tool call and result to the lists
-            tool_call.result = result
-            tool_calls.append(tool_call)
-
-            # EVEN THOUGH WE ARE NO LONGER PASSING THE RESULTS, IT MAKES SENSE TO KEEP THIS FOR LOGGING OR FUTURE USE!
-            # Format the result for output
-            if isinstance(result, (dict, list)):
-                result_str = json.dumps(result, indent=2)
-            else:
-                result_str = str(result)
-
-            # Limit the result string to 250 characters
-            result_str = result_str[:250] + "..." if len(result_str) > 250 else result_str
-
-            # Log the tool result
-            self.logger.info(f"Tool call completed: {action_name}")
-            self.logger.debug(f"Tool result: {result_str}")
-
-            # Add the result to the tool outputs list
-            tool_outputs.append(
-                f"\n- Worker Agent Executed: {tool_call.name}.")  # Since we are already passing the tool results in the AgentResult object, we no longer need to pass the result here
-
-        # Join all tool outputs into a single string
-        output = "\n\n".join(tool_outputs)
-
-        return AgentResult(
-            agent_name=self.agent_name,
-            task=task_str,
-            output=output,
-            tool_calls=tool_calls,
-        )
 
 def get_current_time():
     location = "Europe/Berlin"

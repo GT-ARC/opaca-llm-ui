@@ -17,7 +17,7 @@ export const MethodDescriptions = {
 
 let config = {
 
-    // URL to the OPACA LLM UI backend
+    // URL to the SAGE backend
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
     // The initially selected prompting method
