@@ -5,12 +5,16 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 import asyncio
 import jsonref
+from itertools import count
 
 import httpx
 from pydantic import BaseModel
 
-from .models import ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat, \
-    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse
+
+from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+    ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
+    ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
+)
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -18,47 +22,26 @@ logger = logging.getLogger(__name__)
 
 class AbstractMethod(ABC):
     NAME: str
+    CONFIG: type[MethodConfig]
 
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
         self.streaming = streaming
+        self.tool_counter = count(0)
 
     @classmethod
-    def config_schema(cls) -> Dict[str, ConfigParameter]:
-        pass
-
-    @staticmethod
-    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
-        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        return ConfigParameter(
-            name=name,
-            description=description,
-            type="string",
-            required=True,
-            default=models[0],
-            enum=models,
-            free_input=True,
-        )
-
-    @classmethod
-    def default_config(cls):
-        def extract_defaults(schema):
-            # Extracts the default values of nested configurations
-            if isinstance(schema, ConfigParameter):
-                if schema.type == 'object' and isinstance(schema.default, dict):
-                    return {key: extract_defaults(value) for key, value in schema.default.items()}
-                else:
-                    return schema.default
-            else:
-                return schema
-
-        return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
-
+    def config_schema(cls) -> Dict[str, Any]:
+        return cls.CONFIG.model_json_schema(mode='serialization')['properties']
+    
+    def get_config(self) -> MethodConfig:
+        return self.session.get_config(self)
 
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
+    def next_tool_id(self, agent_message: AgentMessage):
+        return f"{agent_message.id}/{next(self.tool_counter)}"
 
     async def call_llm(
             self,
@@ -70,6 +53,8 @@ class AbstractMethod(ABC):
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[str] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
+            status_message: str | None = None,
+            is_output: bool = False,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -83,6 +68,8 @@ class AbstractMethod(ABC):
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
+            status_message (str): optional message to be streamed to the UI
+            is_output (bool): whether agent output should be streamed directly to chat or only to debug
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -93,10 +80,12 @@ class AbstractMethod(ABC):
             raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
         client = self.session.llm_client(url)
 
+        if status_message:
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffers = {}
-        content = ''
+        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, url)
@@ -140,53 +129,50 @@ class AbstractMethod(ABC):
 
             # New tool call generation started, including the complete function call name
             if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=event.output_index))
-                tool_call_buffers[event.output_index] = ""
+                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
+                tool_call_buffer = ""
 
             # Tool call argument chunk received
             elif event.type == 'response.function_call_arguments.delta':
                 # We assume that the entry has been created already
-                tool_call_buffers[event.output_index] += event.delta
+                tool_call_buffer += event.delta
 
             # Final tool call chunk received
             elif event.type == 'response.function_call_arguments.done':
                 # Try to transform function arguments into JSON
                 try:
-                    agent_message.tools[-1].args = json.loads(tool_call_buffers[event.output_index])
+                    tool = agent_message.tools[-1]
+                    tool.args = json.loads(tool_call_buffer)
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffers[event.output_index]}")
+                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
                     agent_message.tools[-1].args = {}
 
             # Plain text chunk received
             elif event.type == 'response.output_text.delta':
                 if tool_choice == "only":
                     break
-                agent_message.content = event.delta
-                content += event.delta
+                agent_message.content += event.delta
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
 
             # Final message received
             elif event.type == 'response.completed':
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
-                        agent_message.formatted_output = response_format.model_validate_json(content)
+                        agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
                     except json.decoder.JSONDecodeError:
                         raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.to_dict()
 
-            if self.session.has_websocket() and self.streaming:
-                await self.send_to_websocket(agent_message)
-                agent_message.content = ''
-
         agent_message.execution_time = time.time() - exec_time
 
         # Final stream to transmit execution time and response metadata
-        if self.session.has_websocket() and self.streaming:
-            agent_message.content = ''
-            await self.send_to_websocket(agent_message)
-
-        agent_message.content = content
+        await self.send_to_websocket(MetricsMessage(
+            execution_time=agent_message.execution_time,
+            metrics=agent_message.response_metadata,
+        ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
 
@@ -224,6 +210,7 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
         return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
 
 
@@ -273,63 +260,13 @@ class AbstractMethod(ABC):
         return res
 
 
-    @classmethod
-    def validate_config_input(cls, values: Dict[str, Any]):
-        """
-        Validates the given input values against the Configuration Schema
-        :param values: The input dict of configuration parameters that was sent by the UI
-        :return: Returns nothing if everything was successfully validated, raises Exception otherwise
-        """
-        schema = cls.config_schema()
-
-        # Check if all required parameters have been provided
-        if not all(key in values.keys() for key in schema.keys() if schema[key].required):
-            raise ValueError(f'There are required configuration parameters missing!\n'
-                            f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
-                            f'Received: {[key for key in values.keys()]}')
-
-        for key, value in values.items():
-            # Check if key exist in schema
-            if key not in schema.keys():
-                raise ValueError(f'No option named "{key}" was found!')
-
-            # Make config parameter a dict for easier checks of optional fields
-            if isinstance(schema[key], ConfigParameter):
-                config_param = schema[key].model_dump()
-            else:
-                config_param = schema[key]
-
-            # Validate type consistency
-            if (config_param["type"] == "number" and not isinstance(value, (float, int))) or \
-                (config_param["type"] == "integer" and not isinstance(value, int)) or \
-                (config_param["type"] == "string" and not isinstance(value, str)) or \
-                (config_param["type"] == "boolean" and not isinstance(value, bool)):
-                raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
-            elif config_param["type"] == "null" and value is not None:
-                raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
-
-            # Validate min/max limit
-            if config_param["type"] in ["number", "integer"]:
-                if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
-                    raise ValueError(f"Parameter '{key}' cannot be smaller than its allowed minimum ({config_param['minimum']})")
-                if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
-                    raise ValueError(f"Parameter '{key}' cannot be larger than its allowed maximum ({config_param['maximum']})")
-
-            # Validate enum
-            if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
-                raise ValueError(f"Parameter '{key}' has to be one of {schema[key].enum}")
-
-
-
-
-def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = False):
+def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
     Parameters:
     - openapi_spec: the OpenAPI specification
     - agent: name of OPACA agent to filter for, or None for all
-    - strict: make all action parameters required (needed for some models)
     """
     functions = []
     error_msg = ""
@@ -364,9 +301,6 @@ def openapi_to_functions(openapi_spec, agent: str | None = None, strict: bool = 
                         .get("application/json", {})
                         .get("schema"))
             schema.setdefault("properties", {})  # must be present even if no params
-            if strict:
-                schema["additionalProperties"] = False
-                schema["required"] = list(schema["properties"])
 
             functions.append(
                 {

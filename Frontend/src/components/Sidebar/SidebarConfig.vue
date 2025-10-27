@@ -22,9 +22,9 @@
     </div>
     <div v-else class="flex-row text-start">
         <ConfigParameter
-            v-for="(value, name) in methodConfigSchema" :key="name"
+            v-for="(schema, name) in methodConfigSchema" :key="name"
             :name="name"
-            :config-param="value"
+            :config-param="schema"
             v-model="methodConfig[name]"
         />
 
@@ -93,8 +93,9 @@ export default {
                 await backendClient.updateConfig(this.method, this.methodConfig);
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configSaveSuccess');
+                this.startFadeOut()
             } catch (error) {
-                if (error.response.status === 400) {
+                if (error.response.status === 422) {
                     console.log("Invalid Configuration Values: ", error.response.data.detail)
                     this.configChangeSuccess = false
                     this.configMessage = Localizer.get('configSaveInvalid', error.response.data.detail);
@@ -104,7 +105,6 @@ export default {
                     this.configMessage = Localizer.get('configSaveError');
                 }
             }
-            this.startFadeOut()
         },
 
         async resetMethodConfig() {

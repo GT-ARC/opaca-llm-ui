@@ -8,11 +8,20 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, ConfigParameter, Chat, ToolCall
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig
+
+
+class ToolLlmConfig(MethodConfig):
+    tool_gen_model: str = MethodConfig.llm_field(title='Generator', description='Generating tool calls')
+    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results')
+    output_model: str = MethodConfig.llm_field(title='Output', description='Generating the final output')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
 
 
 class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
+    CONFIG = ToolLlmConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -21,39 +30,10 @@ class ToolLLMMethod(AbstractMethod):
         reason: str
         decision: str
 
-    @classmethod
-    def config_schema(cls):
-        return {
-            "tool_gen_model": cls.make_llm_config_param(name="Generator", description="Generating tool calls"),
-            "tool_eval_model": cls.make_llm_config_param(name="Evaluator", description="Evaluating tool call results"),
-            "output_model": cls.make_llm_config_param(name="Output", description="Generating the final output"),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=0.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1
-            ),
-       }
-
     async def query(self, message: str, chat: Chat) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
-        t_called = 0                # Track how many tools have been called in total
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
@@ -65,8 +45,8 @@ class ToolLLMMethod(AbstractMethod):
         response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
-        config = self.session.config.get(self.NAME, self.default_config())
-        max_iters = config["max_rounds"]
+        config: ToolLlmConfig = self.get_config()
+        max_iters = config.max_rounds
 
         # Get tools and transform them into the OpenAI Function Schema
         tools, error = await self.get_tools()
@@ -77,7 +57,7 @@ class ToolLLMMethod(AbstractMethod):
         # If files were uploaded, check if any tools need to be called with extracted information
         if self.session.uploaded_files:
             result = await self.call_llm(
-                model=config['tool_eval_model'],
+                model=config.tool_eval_model,
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
                 messages=[
@@ -86,9 +66,10 @@ class ToolLLMMethod(AbstractMethod):
                     )),
                 ],
                 response_format=self.EvaluatorResponse,
-                temperature=config['temperature'],
+                temperature=config.temperature,
                 tools=tools,
                 tool_choice="none",
+                status_message="Checking if tools are needed...",
             )
             response.agent_messages.append(result)
             try:
@@ -106,7 +87,7 @@ class ToolLLMMethod(AbstractMethod):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
-                model=config['tool_gen_model'],
+                model=config.tool_gen_model,
                 agent='Tool Generator',
                 system_prompt=GENERATOR_PROMPT,
                 messages=[
@@ -114,9 +95,10 @@ class ToolLLMMethod(AbstractMethod):
                     ChatMessage(role="user", content=message),
                     *tool_messages,
                 ],
-                temperature=config['temperature'],
+                temperature=config.temperature,
                 tool_choice="only",
                 tools=tools,
+                status_message="Generating Tool Calls..."
             )
 
             if not result.tools:
@@ -132,7 +114,7 @@ class ToolLLMMethod(AbstractMethod):
             while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
-                    model=config['tool_gen_model'],
+                    model=config.tool_gen_model,
                     agent='Tool Generator',
                     system_prompt=GENERATOR_PROMPT,
                     messages=[
@@ -141,9 +123,10 @@ class ToolLLMMethod(AbstractMethod):
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
                     ],
-                    temperature=config['temperature'],
+                    temperature=config.temperature,
                     tool_choice="only",
                     tools=tools,
+                    status_message="Fixing Tool Calls..."
                 )
                 correction_limit += 1
 
@@ -152,13 +135,9 @@ class ToolLLMMethod(AbstractMethod):
             # Check if tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(call.name, call.args, t_called))
-                t_called += 1
+                tasks.append(self.invoke_tool(call.name, call.args, call.id))
 
             result.tools = await asyncio.gather(*tasks)
-
-            # If a websocket was defined, send the tools WITH their results to the frontend
-            await self.send_to_websocket(result)
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
@@ -166,7 +145,7 @@ class ToolLLMMethod(AbstractMethod):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.call_llm(
-                    model=config['tool_eval_model'],
+                    model=config.tool_eval_model,
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
@@ -176,9 +155,10 @@ class ToolLLMMethod(AbstractMethod):
                         )),
                     ],
                     response_format=self.EvaluatorResponse,
-                    temperature=config['temperature'],
+                    temperature=config.temperature,
                     tools=tools,
                     tool_choice="none",
+                    status_message="Evaluating Tool Call Results..."
                 )
                 response.agent_messages.append(result)
 
@@ -201,7 +181,7 @@ class ToolLLMMethod(AbstractMethod):
             c_it += 1
 
         result = await self.call_llm(
-            model=config['output_model'],
+            model=config.output_model,
             agent='Output Generator',
             system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
@@ -212,9 +192,11 @@ class ToolLLMMethod(AbstractMethod):
                     called_tools=called_tools or "",
                 )),
             ],
-            temperature=config['temperature'],
+            temperature=config.temperature,
             tools=tools if no_tools else [],
             tool_choice="none",
+            status_message="Generating final output...",
+            is_output=True,
         )
         response.agent_messages.append(result)
 
@@ -265,4 +247,4 @@ class ToolLLMMethod(AbstractMethod):
 
     @staticmethod
     def _build_tool_desc(c_it: int, tools: List[ToolCall]):
-        return {c_it: [{"name": tool.name, "parameters": tool.args, "result": tool.result} for tool in tools]}
+        return {c_it: [tool.without_id() for tool in tools]}
