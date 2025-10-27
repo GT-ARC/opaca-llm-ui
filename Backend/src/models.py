@@ -237,37 +237,35 @@ class SessionData(BaseModel):
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
 
-    async def llm_client(self, host_url: str) -> AsyncOpenAI:
+    async def llm_client(self, host_url: str, ask_for_api_key=False) -> AsyncOpenAI:
         if host_url not in self._llm_clients:
             logger.info("creating new client for URL " + host_url)
-            key = self.api_key(host_url)
-            logger.info(f"API KEY IS {repr(key)}")
             try:
                 client = AsyncOpenAI(
-                    api_key=key, # automatically uses env var if None
+                    api_key=self.api_key(host_url), # automatically uses env var if None
                     base_url=host_url if host_url != "openai" else None
                 )
-                await client.models.list()
+                await client.models.list()  # test the API key
             except APIConnectionError as e:
                 raise OpacaException(user_message=f"Unknown LLM host: {host_url}", error_message=repr(e))
             except (OpenAIError, AuthenticationError) as e:
-                # try to get API key from user
-                problem = "missing" if isinstance(e, AuthenticationError) else "invalid"
-                message = f"API key is {problem} for host URL {host_url}!"
-                await self.websocket_send(MissingApiKeyNotification(message=message))
-                response = MissingApiKeyResponse(**await self.websocket_receive())
-                if response.api_key:
-                    self._user_api_keys[host_url] = response.api_key
-                    return await self.llm_client(host_url)
-                else:
-                    raise OpacaException(user_message=f"Unable to call LLM without matching API key", error_message=repr(e))
+                if ask_for_api_key:  # NOT for initial how-can-you assist!
+                    # try to get API key from user
+                    problem = "missing" if isinstance(e, AuthenticationError) else "invalid"
+                    message = f"API key is {problem} for host URL {host_url}!"
+                    await self.websocket_send(MissingApiKeyNotification(message=message))
+                    response = MissingApiKeyResponse(**await self.websocket_receive())
+                    if response.api_key:
+                        self._user_api_keys[host_url] = (response.api_key or "").strip()
+                        return await self.llm_client(host_url, True)
+                raise OpacaException(user_message=f"Unable to call LLM without matching API key", error_message=repr(e))
                 
             self._llm_clients[host_url] = client
         return self._llm_clients[host_url]
     
     def api_key(self, host_url) -> str | None:
         if host_url in self._user_api_keys:
-            return self._user_api_keys[host_url]
+            return self._user_api_keys[host_url] or None
         try:
             # return None rather than empty string to fall back to key from Env-Vars
             return next(key.strip() or None for url, key, _ in get_supported_models() if url == host_url)
