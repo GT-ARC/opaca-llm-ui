@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PendingCallback, PushMessage, ScheduledTask
+from .models import SessionData, Chat, PendingCallback, PushMessage, ScheduledTask, QueryResponse
 
 
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
@@ -123,32 +123,30 @@ class InternalTools:
         return await callback(**parameters)
 
 
-    # IMPLEMENTATIONS OF ACTUAL TOOLS
+    # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
 
     async def tool_schedule_task(self, query: str, delay_seconds: int, recurring: bool) -> int:
         task_id = next(task_ids_provider)
 
         async def _callback():
-            logger.info("WAITING...")
+            # wait until it's time to execute the task...
             await asyncio.sleep(delay_seconds)
             if task_id not in self.session.scheduled_tasks:
-                logger.info("SCHEDULE TASK WAS CANCELLED")
+                logger.info(f"Scheduled task {task_id} has been cancelled")
                 return
+            logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
-            logger.info("CALLING LLM NOW...")
+            # send placeholder to UI, execute the task, then send result/error
+            await self.session.websocket_send(PendingCallback(query=query))
             try:
-                await self.session.websocket_send(PendingCallback(query=query))
-
                 query_extra = "\n\nNOTE: This query was triggered by the 'execute-later' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'execute-later' reminder! If it just asked you to do something by that time, just do it and report on the results as usual."
-                res = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
-                logger.info(f"SCHEDULED TASK RESULT: {res.content}")
-
-                await self.session.websocket_send(PushMessage(**res.model_dump()))
-
+                result = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
             except Exception as e:
-                logger.error(f"SCHEDULED TASK FAILED: {e}")
-                # TODO send error
+                logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
+                result = QueryResponse.from_exception(query, e)
+            await self.session.websocket_send(PushMessage(**result.model_dump()))
 
+            # schedule next execution or remove task from list of tasks
             if recurring:
                 asyncio.create_task(_callback())
             elif task_id in self.session.scheduled_tasks:
