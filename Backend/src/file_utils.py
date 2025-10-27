@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 FILES_PATH = '/data/files'
 
 
-async def upload_files(session: SessionData, host: str):
+async def upload_files(session: SessionData, model: str):
     """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
+
+    host = model.split("/")[0]
 
     # Upload all files that haven't been uploaded to this host
     for file_id, filedata in session.uploaded_files.items():

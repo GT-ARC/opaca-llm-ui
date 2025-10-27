@@ -139,7 +139,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 ## Supported Models
 
-SAGE is using [LiteLLM](https://github.com/BerriAI/litellm) for its LLM API communication. Therefore it supports all models that LiteLLM supports A complete list of supported models is available [here](https://models.litellm.ai/). The preconfigured list of models include:
+SAGE is using [LiteLLM](https://github.com/BerriAI/litellm) for its LLM API communication. Therefore it supports all models that LiteLLM supports. A complete list of supported models is available [here](https://models.litellm.ai/). The preconfigured list of models include:
 
 * `openai/gpt-5`
 * `openai/gpt-5-mini`
