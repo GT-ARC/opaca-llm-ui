@@ -1,8 +1,9 @@
 """
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
-
-from typing import List, Dict, Any, Optional, Self, Iterator
+import re
+from typing import Iterable, Callable
+from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
 import uuid
@@ -13,12 +14,23 @@ import asyncio
 
 from starlette.websockets import WebSocket
 from openai import AsyncOpenAI
-from pydantic import BaseModel, field_validator, model_validator, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_supported_models():
+    return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_URLS", "openai").split(";"),
+            os.getenv("LLM_APIKEYS", "").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+        )
+    ]
 
 # VARIOUS REST REQUEST/RESPONSE CLASSES AND INTERNAL MODEL ELEMENTS
 
@@ -241,6 +253,12 @@ class SessionData(BaseModel):
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
 
+    def get_config(self, method) -> 'MethodConfig':
+        config = self.config.get(method.NAME, method.CONFIG())
+        if isinstance(config, dict):  # config is deserialized from DB as dict since the exact type is not known then
+            config = self.config[method.NAME] = method.CONFIG(**config)
+        return config
+
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
         chat = self.chats.get(chat_id)
         if chat is None and create_if_missing:
@@ -272,77 +290,6 @@ class SessionData(BaseModel):
             return await self._ws_msg_queue.get()
         else:
             raise Exception("Websocket not connected")
-
-
-class ConfigParameter(BaseModel):
-    """
-    A custom parameter definition for the configuration of each implemented method
-    Valid types are ["integer", "number", "string", "boolean", "array", "object", "null"]
-
-    Attributes
-        type: The data type of the configuration parameter.
-        required: Whether the parameter is required or not.
-        description: An optional description of the parameter.
-        default: The default value of the parameter.
-        free_input: When supplying a list of options with enum, also allow free input?
-        enum: If set, defines all available values the parameter can have.
-        minimum: Only for types `integer` or `number`. Defines a minimum limit for the number.
-        maximum: Only for types `integer` or `number`. Defines a maximum limit for the number.
-        step: Only for types `integer` or `number`. Defines the step size for the selector.
-    """
-    name: Optional[str] = None
-    description: Optional[str] = None
-    type: str
-    required: bool
-    default: Any
-
-    # choice settings
-    enum: Optional[List[Any]] = None
-    free_input: bool = False
-
-    # number settings
-    minimum: Optional[int | float] = None
-    maximum: Optional[int | float] = None
-    step: Optional[int | float] = None
-
-    @model_validator(mode='after')
-    def validate_after(self: Self) -> Self:
-        """
-        Uses the `@model_validator` decorator of Pydantic, to check upon initialization that various
-        consistency constraints are satisfied
-        """
-        if self.type not in ['integer', 'number', 'string', 'boolean']:
-            raise ValueError(f'{self.type} is not a valid type')
-        if self.minimum is not None and self.maximum is not None and self.maximum < self.minimum:
-            raise ValueError(f'ConfigParameter.maximum has to be larger than ConfigParameter.minimum')
-        if self.enum is not None and self.default not in self.enum:
-            raise ValueError(f'ConfigParameter.default must be one of {self.enum}')
-        if (self.minimum is not None or self.maximum is not None) and self.type not in ["integer", "number"]:
-            raise ValueError(f'The fields minimum and maximum can only be set for the types "integer" or "number".')
-        return self
-
-    # noinspection PyNestedDecorators
-    @field_validator('type', mode='after')
-    @classmethod
-    def type_validator(cls, value: str) -> str:
-        """
-        Checks if the given type is one of the usual basic data types.
-        """
-        if value not in ["integer", "number", "string", "boolean", "array", "object", "null"]:
-            raise ValueError(f'Value type "{value}" is not valid')
-        return value
-
-
-class ConfigPayload(BaseModel):
-    """
-    Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
-
-    Attributes
-        value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
-        config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
-    """
-    config_values: Dict[str, Any]
-    config_schema: Dict[str, ConfigParameter]          # just 'schema' would shadow parent attribute in BaseModel
 
 
 class SearchResult(BaseModel):
@@ -435,14 +382,53 @@ class ContainerLoginResponse(BaseModel):
     timeout: int
 
 
-# HELPER FUNCTIONS
+class MethodConfig(BaseModel):
+    """
+    Base model class that all method config classes should inherit from.
+    Provides some static helper functions for easier field definitions.
+    """
 
-def get_supported_models():
-    return [
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"), 
-            os.getenv("LLM_APIKEYS", "").split(";"), 
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
-        )
-    ]
+    @staticmethod
+    def string(default: str, options: Iterable[str] = None, allow_free_input: bool = True, title: str = None, description: str = None, regex: str = None) -> Any:
+        options = list(options)
+        pattern = regex or (None if allow_free_input else re.compile('|'.join(options)))
+        return Field(default=default, json_schema_extra={'options': options, 'allow_free_input': allow_free_input}, title=title, description=description, pattern=pattern)
+
+    @staticmethod
+    def integer(default: int, min: int, max: int, step: int, title: str = None, description: str = None) -> Any:
+        return Field(default=default, ge=min, le=max, multiple_of=step, title=title, description=description)
+
+    @staticmethod
+    def number(default: float, min: float, max: float, step: float, title: str = None, description: str = None) -> Any:
+        return Field(default=default, title=title, description=description, ge=min, le=max, multiple_of=step)
+
+    @staticmethod
+    def boolean(default: bool = False, title: str = None, description: str = None) -> Any:
+        return Field(default=default, title=title, description=description,)
+
+    @staticmethod
+    def llm_field(title: str = None, description: str = None) -> Any:
+        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
+        regex = r"(?P<host>.+)::(?P<model>[\w-]+)" # the named groups are just for a better error message
+        return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description, regex=regex)
+
+    @staticmethod
+    def temperature_field(default: float = 0, min: float = 0, max: float = 2, step: float = 0.1) -> Any:
+        return MethodConfig.number(default=default, min=min, max=max, step=step, title='Temperature', description='Temperature for the models')
+
+    @staticmethod
+    def max_rounds_field(default: int = 5, min: int = 1, max: int = 10, step: int = 1) -> Any:
+        return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
+
+
+class ConfigPayload(BaseModel):
+    """
+    Stores the actual values of a given configuration and the schema that is defined in `ConfigParameter`.
+
+    Attributes
+        value: Should be a JSON storing the actual values of parameters in the format `{"key": value}`
+        config_schema: A JSON holding the configuration schema definition (same keys as in `value`)
+    """
+    config_values: SerializeAsAny[MethodConfig]
+    config_schema: Dict[str, Any]
+
