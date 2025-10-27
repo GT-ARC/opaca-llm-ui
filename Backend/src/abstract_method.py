@@ -10,10 +10,11 @@ from itertools import count
 import httpx
 from pydantic import BaseModel
 
-from .models import (ConfigParameter, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-    ToolCall, get_supported_models, ContainerLoginNotification, ContainerLoginResponse,
-    ToolCallMessage, ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage
-)    
+
+from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+    ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
+    ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
+)
 from .file_utils import upload_files
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractMethod(ABC):
     NAME: str
+    CONFIG: type[MethodConfig]
 
     def __init__(self, session: SessionData, streaming=False):
         self.session = session
@@ -28,45 +30,18 @@ class AbstractMethod(ABC):
         self.tool_counter = count(0)
 
     @classmethod
-    def config_schema(cls) -> Dict[str, ConfigParameter]:
-        pass
-
-    @staticmethod
-    def make_llm_config_param(name: Optional[str] = None, description: Optional[str] = None):
-        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        return ConfigParameter(
-            name=name,
-            description=description,
-            type="string",
-            required=True,
-            default=models[0],
-            enum=models,
-            free_input=True,
-        )
-
-    @classmethod
-    def default_config(cls):
-        def extract_defaults(schema):
-            # Extracts the default values of nested configurations
-            if isinstance(schema, ConfigParameter):
-                if schema.type == 'object' and isinstance(schema.default, dict):
-                    return {key: extract_defaults(value) for key, value in schema.default.items()}
-                else:
-                    return schema.default
-            else:
-                return schema
-
-        return {key: extract_defaults(value) for key, value in cls.config_schema().items()}
-
+    def config_schema(cls) -> Dict[str, Any]:
+        return cls.CONFIG.model_json_schema(mode='serialization')['properties']
+    
+    def get_config(self) -> MethodConfig:
+        return self.session.get_config(self)
 
     @abstractmethod
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         pass
 
-
     def next_tool_id(self, agent_message: AgentMessage):
         return f"{agent_message.id}/{next(self.tool_counter)}"
-
 
     async def call_llm(
             self,
@@ -283,55 +258,6 @@ class AbstractMethod(ABC):
         asyncio.create_task(self.session.opaca_client.deferred_container_logout(container_id, response.timeout))
 
         return res
-
-
-    @classmethod
-    def validate_config_input(cls, values: Dict[str, Any]):
-        """
-        Validates the given input values against the Configuration Schema
-        :param values: The input dict of configuration parameters that was sent by the UI
-        :return: Returns nothing if everything was successfully validated, raises Exception otherwise
-        """
-        schema = cls.config_schema()
-
-        # Check if all required parameters have been provided
-        if not all(key in values.keys() for key in schema.keys() if schema[key].required):
-            raise ValueError(f'There are required configuration parameters missing!\n'
-                            f'Expected: {[key for key in schema.keys() if schema[key].required]}\n'
-                            f'Received: {[key for key in values.keys()]}')
-
-        for key, value in values.items():
-            # Check if key exist in schema
-            if key not in schema.keys():
-                raise ValueError(f'No option named "{key}" was found!')
-
-            # Make config parameter a dict for easier checks of optional fields
-            if isinstance(schema[key], ConfigParameter):
-                config_param = schema[key].model_dump()
-            else:
-                config_param = schema[key]
-
-            # Validate type consistency
-            if (config_param["type"] == "number" and not isinstance(value, (float, int))) or \
-                (config_param["type"] == "integer" and not isinstance(value, int)) or \
-                (config_param["type"] == "string" and not isinstance(value, str)) or \
-                (config_param["type"] == "boolean" and not isinstance(value, bool)):
-                raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
-            elif config_param["type"] == "null" and value is not None:
-                raise TypeError(f"Parameter '{key}' does not match the expected type '{config_param['type']}'")
-
-            # Validate min/max limit
-            if config_param["type"] in ["number", "integer"]:
-                if config_param.get("minimum", None) is not None and value < config_param.get("minimum"):
-                    raise ValueError(f"Parameter '{key}' cannot be smaller than its allowed minimum ({config_param['minimum']})")
-                if config_param.get("maximum", None) is not None and value > config_param.get("maximum"):
-                    raise ValueError(f"Parameter '{key}' cannot be larger than its allowed maximum ({config_param['maximum']})")
-
-            # Validate enum
-            if config_param.get("enum", None) and value not in schema[key].enum and not schema[key].free_input:
-                raise ValueError(f"Parameter '{key}' has to be one of {schema[key].enum}")
-
-
 
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):

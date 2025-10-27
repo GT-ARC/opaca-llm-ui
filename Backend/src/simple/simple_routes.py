@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'SAGE'.
@@ -38,16 +38,25 @@ Following is the list of available agents and actions described in JSON:
 {actions}
 """
 
+logger = logging.getLogger(__name__)
+
 ask_policies = {
     "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
     "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
 
-logger = logging.getLogger(__name__)
+
+class SimpleConfig(MethodConfig):
+    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
+
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
+    CONFIG = SimpleConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
@@ -58,11 +67,11 @@ class SimpleMethod(AbstractMethod):
         response = QueryResponse(query=message)
 
         # Get session config
-        config = self.session.config.get(self.NAME, self.default_config())
-        max_iters = config["max_rounds"]
+        config: SimpleConfig = self.get_config()
+        max_iters = config.max_rounds
 
         prompt = SYSTEM_PROMPT.format(
-            policy=ask_policies[config["ask_policy"]],
+            policy=ask_policies[config.ask_policy],
             actions=await self.get_actions(),
         )
         
@@ -70,7 +79,7 @@ class SimpleMethod(AbstractMethod):
             response.iterations += 1
             
             result = await self.call_llm(
-                model=config["model"],
+                model=config.model,
                 agent="assistant",
                 system_prompt=prompt,
                 messages=[
@@ -78,7 +87,7 @@ class SimpleMethod(AbstractMethod):
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],
-                temperature=config["temperature"],
+                temperature=config.temperature,
                 tool_choice="none",
             )
             response.agent_messages.append(result)
@@ -104,40 +113,6 @@ class SimpleMethod(AbstractMethod):
         response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
-
-    @classmethod
-    def config_schema(cls) -> dict:
-        return {
-            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=1.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1,
-            ),
-            "ask_policy": ConfigParameter(
-                name="Ask Policy",
-                description="Determine how much confirmation the LLM will require",
-                type="string",
-                required=True,
-                default="never",
-                enum=list(ask_policies.keys()),
-            ),
-        }
 
     async def get_actions(self):
         try:

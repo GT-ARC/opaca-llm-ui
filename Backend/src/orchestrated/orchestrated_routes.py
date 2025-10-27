@@ -2,7 +2,6 @@ import json
 import logging
 import time
 import traceback
-from itertools import count
 from typing import Dict, Any, List
 import asyncio
 
@@ -10,7 +9,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..models import QueryResponse, AgentMessage, ConfigParameter, ChatMessage, Chat, ToolCall, StatusMessage
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -25,71 +24,30 @@ from .models import AgentResult, AgentTask
 logger = logging.getLogger(__name__)
 
 
+class OrchestrationConfig(MethodConfig):
+    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks')
+    worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
+    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results')
+    generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
+    temperature: float = MethodConfig.temperature_field()
+    max_rounds: int = MethodConfig.max_rounds_field()
+    max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
+    use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')
+    use_agent_evaluator: bool = MethodConfig.boolean(default=False, title='Use Agent Evaluator?')
+
+
 class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
+    CONFIG = OrchestrationConfig
 
     def __init__(self, session, streaming=False):
         super().__init__(session, streaming)
-
-    @classmethod
-    def config_schema(cls) -> Dict[str, ConfigParameter]:
-        return {
-            # Which model to use for the orchestrator and worker agents
-            "orchestrator_model": cls.make_llm_config_param(name="Orchestrator", description="For delegating tasks"),
-            "worker_model": cls.make_llm_config_param(name="Workers", description="For selecting tools"),
-            "evaluator_model": cls.make_llm_config_param(name="Evaluators", description="For evaluating tool results"),
-            "generator_model": cls.make_llm_config_param(name="Output", description="For generating the final response"),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the orchestrator and worker agents",
-                type="number",
-                required=True, 
-                default=0.0, 
-                minimum=0.0, 
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of orchestration and worker rounds",
-                type="integer",
-                required=True, 
-                default=5, 
-                minimum=1, 
-                maximum=10,
-                step=1,
-            ),
-            "max_iterations": ConfigParameter(
-                name="Max Iterations",
-                description="Maximum number of re-iterations (retries after failed attempts)",
-                type="integer",
-                required=True, 
-                default=3, 
-                minimum=1, 
-                maximum=10,
-                step=1,
-            ),
-            "use_agent_planner": ConfigParameter(
-                name="Use Agent Planner?",
-                description="Whether to use the planner agent or not",
-                type="boolean",
-                required=True, 
-                default=True,
-            ),
-            "use_agent_evaluator": ConfigParameter(
-                name="Use Agent Evaluator?",
-                description="Whether to use the agent evaluator or not",
-                type="boolean",
-                required=True, 
-                default=False,
-            ),
-        }
 
     async def _execute_round(
             self,
             round_tasks: List[AgentTask],
             worker_agents: Dict[str, WorkerAgent],
-            config: Dict[str, Any],
+            config: OrchestrationConfig,
             all_results: List[AgentResult],
             agent_summaries: Dict[str, Any],
             agent_messages: List[AgentMessage] = None,
@@ -97,7 +55,7 @@ class SelfOrchestratedMethod(AbstractMethod):
     ) -> List[AgentResult]:
         """Execute a single round of tasks in parallel when possible"""
         # Create agent evaluator
-        agent_evaluator = AgentEvaluator() if config.get("use_agent_evaluator", True) else None
+        agent_evaluator = AgentEvaluator() if config.use_agent_evaluator else None
 
         async def execute_round_task(
                 worker_agent: WorkerAgent, 
@@ -128,11 +86,11 @@ class SelfOrchestratedMethod(AbstractMethod):
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
-                model=config["worker_model"],
+                model=config.worker_model,
                 agent="WorkerAgent",
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
-                temperature=config["temperature"],
+                temperature=config.temperature,
                 tool_choice="required",
                 tools=worker_agent.tools
             )
@@ -155,7 +113,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
             # Create planner if enabled
-            if config.get("use_agent_planner", True) and task.agent_name != "GeneralAgent":
+            if config.use_agent_planner and task.agent_name != "GeneralAgent":
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -165,11 +123,11 @@ class SelfOrchestratedMethod(AbstractMethod):
                 
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
-                    model=config["orchestrator_model"],
+                    model=config.orchestrator_model,
                     agent="AgentPlanner",
                     system_prompt=planner.system_prompt(),
                     messages=planner.messages(task, previous_results=all_results),
-                    temperature=config["temperature"],
+                    temperature=config.temperature,
                     tools=planner.tools,
                     tool_choice="none",
                     response_format=planner.schema,
@@ -257,11 +215,11 @@ class SelfOrchestratedMethod(AbstractMethod):
                 else:
                     # Generate a concrete tool call by the worker agent with its tools
                     worker_message = await self.call_llm(
-                        model=config["worker_model"],
+                        model=config.worker_model,
                         agent="WorkerAgent",
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(task),
-                        temperature=config["temperature"],
+                        temperature=config.temperature,
                         tool_choice="required",
                         tools=agent.tools,
                     )
@@ -274,11 +232,11 @@ class SelfOrchestratedMethod(AbstractMethod):
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
-                        model=config["evaluator_model"],
+                        model=config.evaluator_model,
                         agent="AgentEvaluator",
                         system_prompt=agent_evaluator.system_prompt(),
                         messages=agent_evaluator.messages(task_str, result),
-                        temperature=config["temperature"],
+                        temperature=config.temperature,
                         response_format=agent_evaluator.schema,
                         status_message=f"Evaluating {task.agent_name}'s task completion..."
                     )
@@ -310,11 +268,11 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                     # Execute retry
                     worker_message = await self.call_llm(
-                        model=config["worker_model"],
+                        model=config.worker_model,
                         agent="WorkerAgent",
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(retry_task),
-                        temperature=config["temperature"],
+                        temperature=config.temperature,
                         tool_choice="required",
                         tools=agent.tools,
                         status_message="Retrying task..."
@@ -337,8 +295,7 @@ Now, using the tools available to you and the previous results, continue with yo
         overall_start_time = time.time()
 
         try:
-            # Get base config and merge with model config
-            config = self.session.config.get(self.NAME, self.default_config())
+            config: OrchestrationConfig = self.get_config()
             
             # Get simplified agent summaries for the orchestrator
             agent_details = {
@@ -374,14 +331,14 @@ Now, using the tools available to you and the previous results, continue with yo
             all_results = []
             rounds = 0
             
-            while rounds < config["max_rounds"]:
+            while rounds < config.max_rounds:
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
-                    model=config["orchestrator_model"],
+                    model=config.orchestrator_model,
                     agent="Orchestrator",
                     system_prompt=orchestrator.system_prompt(),
                     messages=orchestrator.messages(message),
-                    temperature=config["temperature"],
+                    temperature=config.temperature,
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
@@ -456,11 +413,11 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Evaluate overall progress
                 if not (should_retry := overall_evaluator.has_error(all_results)):
                     evaluation_message = await self.call_llm(
-                        model=config["evaluator_model"],
+                        model=config.evaluator_model,
                         agent="OverallEvaluator",
                         system_prompt=overall_evaluator.system_prompt(),
                         messages=overall_evaluator.messages(message, all_results),
-                        temperature=config["temperature"],
+                        temperature=config.temperature,
                         response_format=overall_evaluator.schema,
                         status_message="Overall evaluation..."
                     )
@@ -470,11 +427,11 @@ Now, using the tools available to you and the previous results, continue with yo
                 if should_retry:
                     # Get iteration advice before continuing
                     advisor_message = await self.call_llm(
-                        model=config["orchestrator_model"],
+                        model=config.orchestrator_model,
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
-                        temperature=config["temperature"],
+                        temperature=config.temperature,
                         response_format=iteration_advisor.schema,
                         status_message="Analyzing results and preparing advice for next iteration..."
                     )
@@ -516,11 +473,11 @@ Please address these specific improvements:
             
             # Stream the final response
             final_output = await self.call_llm(
-                model=config["generator_model"],
+                model=config.generator_model,
                 agent="Output Generator",
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
-                temperature=config["temperature"],
+                temperature=config.temperature,
                 status_message="Generating final response...",
                 is_output=True,
             )

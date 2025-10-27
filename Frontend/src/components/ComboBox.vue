@@ -115,7 +115,7 @@ export default {
         // close when clicking anywhere else
         document.addEventListener("mousedown", this.onDocClick);
 
-        if (!! this.localValue) {
+        if (!this.localValue) {
             this.select(this.items[0]);
         }
     },
