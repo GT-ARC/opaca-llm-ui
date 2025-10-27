@@ -3,7 +3,7 @@
 
     <!-- header: name and tooltip description -->
     <div class="config-section-header">
-        <strong>{{ configParam?.name ?? name }}</strong>
+        <strong>{{ configParam?.title ?? this.name }}</strong>
 
         <!-- param description -->
         <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
@@ -35,11 +35,11 @@
     </div>
 
     <!-- enums -->
-    <div v-else-if="Array.isArray(configParam?.enum)">
+    <div v-else-if="Array.isArray(configParam?.options)">
         <ComboBox
             v-model="localValue"
-            :items="configParam?.enum"
-            :default-input-disabled="!configParam?.free_input"
+            :items="configParam?.options"
+            :default-input-disabled="!configParam?.allow_free_input"
         />
     </div>
 
@@ -50,7 +50,7 @@
                type="range"
                :min="configParam.minimum"
                :max="configParam.maximum"
-               :step="configParam.step"
+               :step="configParam.multipleOf"
                :aria-describedby="`slider-value-${this.name}`"
         />
     </div>
