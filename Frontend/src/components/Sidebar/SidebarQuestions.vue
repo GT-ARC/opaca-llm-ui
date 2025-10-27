@@ -118,7 +118,7 @@
 import Localizer, {sidebarBookmarkedQuestions, sidebarQuestions} from "../../Localizer.js";
 import conf from "../../../config.js";
 import backendClient from "../../utils.js";
-import {nextTick, reactive} from "vue";
+import {nextTick} from "vue";
 import {useDevice} from "../../useIsMobile.js";
 import PersonalPromptEditor from "../PersonalPromptEditor.vue";
 
@@ -250,15 +250,15 @@ export default {
             this.savePersonalPrompts();
         },
 
-        removePersonalPrompt(index) {
-            this.personalPrompts.questions.splice(index, 1);
-            this.savePersonalPrompts();
-        },
-
         openEditor(prompt = null, index = null) {
             this.editingPrompt = prompt ? { ...prompt } : { question: "", icon: "⭐" };
             this.editingIndex = index;
             this.showEditor = true;
+        },
+
+        removePersonalPrompt(index) {
+            this.personalPrompts.questions.splice(index, 1);
+            this.savePersonalPrompts();
         },
 
         closeEditor() {
