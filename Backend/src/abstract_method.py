@@ -26,7 +26,6 @@ class AbstractMethod(ABC):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
-        self.tool_counter_lock = asyncio.Lock()
 
     @classmethod
     def config_schema(cls) -> Dict[str, ConfigParameter]:
