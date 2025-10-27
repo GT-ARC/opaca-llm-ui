@@ -146,6 +146,13 @@ class ToolCall(BaseModel):
         return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
+class ScheduledTask(BaseModel):
+    task_id: int
+    query: str
+    interval: int
+    recurring: bool
+
+
 class Chat(BaseModel):
     """
     Stores information about each chat.
@@ -202,6 +209,7 @@ class SessionData(BaseModel):
         _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+        _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
     
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
@@ -218,10 +226,15 @@ class SessionData(BaseModel):
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
+    _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
+    
+    @property
+    def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
+        return self._scheduled_tasks
 
     def llm_client(self, the_url: str) -> AsyncOpenAI:
         if the_url not in self._llm_clients:

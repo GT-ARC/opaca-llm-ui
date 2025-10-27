@@ -18,20 +18,13 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PendingCallback, PushMessage
+from .models import SessionData, Chat, PendingCallback, PushMessage, ScheduledTask
 
 
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
 
-
-# TODO this is here only temporarily... it should probably also be a part of SessionData, 
-# so that each user has different scheduled tasks.
-# but then, should it also be persisted to DB? this would mean restoring the scheduled tasks
-# afterwards (including updated next execution), which might again be tricky since they are also
-# linked to the abstract-method they were created in...
-SCHEDULED_TASKS = {}
 task_ids_provider = count()
 
 
@@ -61,7 +54,7 @@ class InternalTools:
                 name="GetScheduledTasks",
                 description="Get list of scheduled tasks, including task IDs and details",
                 params={},
-                result="integer",
+                result="object",
                 function=self.tool_get_scheduled_tasks,
             ),
             InternalTool(
@@ -138,7 +131,7 @@ class InternalTools:
         async def _callback():
             logger.info("WAITING...")
             await asyncio.sleep(delay_seconds)
-            if task_id not in SCHEDULED_TASKS:
+            if task_id not in self.session.scheduled_tasks:
                 logger.info("SCHEDULE TASK WAS CANCELLED")
                 return
 
@@ -158,19 +151,19 @@ class InternalTools:
 
             if recurring:
                 asyncio.create_task(_callback())
-            elif task_id in SCHEDULED_TASKS:
-                del SCHEDULED_TASKS[task_id]
+            elif task_id in self.session.scheduled_tasks:
+                del self.session.scheduled_tasks[task_id]
 
         asyncio.create_task(_callback())
-        SCHEDULED_TASKS[task_id] = {"task_id": task_id, "query": query, "interval": delay_seconds, "recurring": recurring}
+        self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=delay_seconds, recurring=recurring)
         return task_id
     
     async def tool_get_scheduled_tasks(self) -> dict:
-        return SCHEDULED_TASKS
+        return self.session.scheduled_tasks
 
     async def tool_cancel_scheduled_task(self, task_id: int) -> bool:
-        if task_id in SCHEDULED_TASKS:
-            del SCHEDULED_TASKS[task_id]
+        if task_id in self.session.scheduled_tasks:
+            del self.session.scheduled_tasks[task_id]
             return True
         return False
 
