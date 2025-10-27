@@ -136,7 +136,6 @@
         </div>
     </div>
 
-
     <!-- Container Login Context -->
     <div v-if="showContainerLogin" class="auth-overlay">
         <div class="dropdown-menu show p-4 login-container">
@@ -177,6 +176,22 @@
         </div>
     </div>
 
+    <!-- Api Key Context -->
+    <div v-if="showApiKeyDialog" class="auth-overlay">
+        <div class="dropdown-menu show p-4 login-container">
+            <form @submit.prevent="submitApiKey">
+                <h5 class="mb-3">{{ this.apiKeyMessage }}</h5>
+                <input v-model="apiKey" type="password" :class="['form-control', 'mb-3']"/>
+                <button type="submit" class="btn btn-primary w-100" @click="submitApiKey(true)" :disabled="!apiKey">
+                    <span>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitApiKey(false)">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :method="this.method"
@@ -184,6 +199,7 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
             ref="content"
         />
     </div>
@@ -221,12 +237,17 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
+            // container login
             showContainerLogin: false,
             containerLoginDetails: null,
             containerLoginUser: "",
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
+            // user provided API key
+            showApiKeyDialog: false,
+            apiKeyMessage: "",
+            apiKey: null,
         }
     },
     methods: {
@@ -331,7 +352,22 @@ export default {
             this.containerLoginUser = "";
             this.containerLoginPassword = "";
             this.containerLoginDetails = null;
-        }
+        },
+
+        handleApiKey(apiKeyMessage) {
+            this.apiKeyMessage = apiKeyMessage;
+            this.showApiKeyDialog = true;
+        },
+
+        submitApiKey(submitApiKey) {
+            this.showApiKeyDialog = false;
+            if (submitApiKey) {
+                this.$refs.content.submitApiKey(this.apiKey);
+            } else {
+                this.$refs.content.submitApiKey("");
+            }
+            this.apiKey = "";
+        },
     },
 
     async mounted() {
