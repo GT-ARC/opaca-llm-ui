@@ -139,7 +139,7 @@ class InternalTools:
             # send placeholder to UI, execute the task, then send result/error
             await self.session.websocket_send(PendingCallback(query=query))
             try:
-                query_extra = "\n\nNOTE: This query was triggered by the 'execute-later' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'execute-later' reminder! If it just asked you to do something by that time, just do it and report on the results as usual."
+                query_extra = "\n\nNOTE: This query was triggered by the 'ScheduleTask' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder! If it asked you to do something by that time, just do it and report on the results as usual."
                 result = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
@@ -183,6 +183,6 @@ class InternalTools:
             return f"Search failed: {e}"
 
     async def tool_gather_user_infos(self) -> str:
-        search_query = "Compile a short expose about the current chat user, their personal situation, preferences, etc.."
+        search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
     
