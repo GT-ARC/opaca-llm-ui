@@ -16,6 +16,7 @@ from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, Opac
     ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
 )
 from .file_utils import upload_files
+from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class AbstractMethod(ABC):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
+        self.internal_tools = InternalTools(session, self)
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
@@ -195,11 +197,10 @@ class AbstractMethod(ABC):
             agent_name, action_name = None, tool_name
 
         try:
-            t_result = await self.session.opaca_client.invoke_opaca_action(
-                action_name,
-                agent_name,
-                tool_args,
-            )
+            if agent_name == INTERNAL_TOOLS_AGENT_NAME:
+                t_result = await self.internal_tools.call_internal_tool(action_name, tool_args)
+            else:
+                t_result = await self.session.opaca_client.invoke_opaca_action(action_name, agent_name, tool_args)
         except httpx.HTTPStatusError as e:
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
@@ -218,7 +219,9 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        opaca_tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        internal_tools = self.internal_tools.get_internal_tools_openai()
+        tools = [*opaca_tools, *internal_tools]
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
