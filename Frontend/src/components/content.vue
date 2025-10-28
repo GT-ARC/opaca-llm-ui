@@ -545,7 +545,7 @@ export default {
         },
 
         compareToBookmarks(content) {
-            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts.questions;
+            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts;
             return bookmarks.some(b => b.question.trim() === content.trim());
         },
 

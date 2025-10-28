@@ -101,6 +101,7 @@ export const localizationData = {
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper Voice",
+        bookmarkHeader: "Bookmarked Prompts",
     },
 
     DE: {
@@ -199,6 +200,7 @@ export const localizationData = {
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper-Stimme",
+        bookmarkHeader: "Favoriten",
     },
 };
 
@@ -342,21 +344,6 @@ export const sidebarQuestions = reactive({
             ]
         },
     ],
-})
-
-export const sidebarBookmarkedQuestions = reactive({
-    GB: {
-        "id": "personalPrompts",
-        "header": "Bookmarked Prompts",
-        "icon": "🔖",
-        "questions": [],
-    },
-    DE: {
-        "id": "personalPrompts",
-        "header": "Favoriten",
-        "icon": "🔖",
-        "questions": [],
-    }
 })
 
 

@@ -16,8 +16,8 @@
                   data-bs-target="#personal-questions"
                   aria-expanded="false"
                   aria-controls="personal-questions">
-            <span class="section-icon">{{ personalPrompts.icon }}</span>
-            <span class="section-title">{{ personalPrompts.header }}</span>
+            <span class="section-icon">{{ icon }}</span>
+            <span class="section-title">{{ Localizer.get('bookmarkHeader') }}</span>
             </button>
         </div>
 
@@ -40,9 +40,9 @@
                     <span>{{ Localizer.get('addPersonalQuestion')}}</span>
                 </div>
                 <!-- Questions -->
-                <div v-if="personalPrompts.questions && personalPrompts.questions.length">
+                <div v-if="personalPrompts">
                     <div class="question-item d-flex justify-content-between align-items-center"
-                       v-for="(q, qIndex) in personalPrompts.questions"
+                       v-for="(q, qIndex) in personalPrompts"
                        :key="qIndex"
                        @click="this.$emit('select-question', q.question, true)">
                         <span class="question-text">
@@ -115,7 +115,7 @@
 </template>
 
 <script>
-import Localizer, {sidebarBookmarkedQuestions, sidebarQuestions} from "../../Localizer.js";
+import Localizer, {sidebarQuestions} from "../../Localizer.js";
 import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
@@ -135,16 +135,13 @@ export default {
             showEditor: false,
             editingPrompt: null,
             editingIndex: null,
+            icon: "🔖",
+            personalPrompts: [],
         }
     },
     setup() {
         const {isMobile} = useDevice();
         return { conf, Localizer, isMobile };
-    },
-    computed: {
-        personalPrompts() {
-            return sidebarBookmarkedQuestions[Localizer.language];
-        }
     },
     methods: {
         getQuestions() {
@@ -223,30 +220,23 @@ export default {
         },
 
         async loadPersonalPrompts() {
-            let questions = [];
             try {
-                questions = await backendClient.getBookmarks();
+                this.personalPrompts = await backendClient.getBookmarks();
             } catch (err) {
                 console.warn("Falling back to local storage:", err);
                 const saved = localStorage.getItem("personalPrompts");
-                if (saved) questions = JSON.parse(saved);
-            }
-
-            // Write to every language variant
-            for (const lang of Object.keys(sidebarBookmarkedQuestions)) {
-                sidebarBookmarkedQuestions[lang].questions = questions;
+                if (saved) this.personalPrompts = JSON.parse(saved);
             }
         },
 
         async savePersonalPrompts() {
-            localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts.questions));
-            await backendClient.saveBookmarks(this.personalPrompts.questions);
+            localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts));
+            await backendClient.saveBookmarks(this.personalPrompts);
         },
 
         addPersonalPrompt(question) {
-            // Add instantly with placeholder
             const newPrompt = { question, icon: "⭐" };
-            this.personalPrompts.questions.push(newPrompt);
+            this.personalPrompts.push(newPrompt);
             this.savePersonalPrompts();
         },
 
@@ -257,7 +247,7 @@ export default {
         },
 
         removePersonalPrompt(index) {
-            this.personalPrompts.questions.splice(index, 1);
+            this.personalPrompts.splice(index, 1);
             this.savePersonalPrompts();
         },
 
@@ -269,9 +259,9 @@ export default {
 
         saveEditedPrompt(updatedPrompt) {
             if (this.editingIndex != null) {
-                this.personalPrompts.questions.splice(this.editingIndex, 1, updatedPrompt);
+                this.personalPrompts.splice(this.editingIndex, 1, updatedPrompt);
             } else {
-                this.personalPrompts.questions.push(updatedPrompt);
+                this.personalPrompts.push(updatedPrompt);
             }
             this.savePersonalPrompts();
             this.closeEditor();
