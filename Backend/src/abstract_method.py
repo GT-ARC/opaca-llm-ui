@@ -8,6 +8,7 @@ import jsonref
 from itertools import count
 
 import httpx
+from openai.types.responses import ResponseFunctionToolCall
 from pydantic import BaseModel, ValidationError
 import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
@@ -82,7 +83,6 @@ class AbstractMethod(ABC):
 
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
         file_message_parts = await upload_files(self.session, model)
@@ -118,27 +118,6 @@ class AbstractMethod(ABC):
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
 
-            # New tool call generation started, including the complete function call name
-            if event.type == event_type.OUTPUT_ITEM_ADDED  and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
-                tool_call_buffer = ""
-
-            # Tool call argument chunk received
-            elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DELTA:
-                # We assume that the entry has been created already
-                tool_call_buffer += event.delta
-
-            # Final tool call chunk received
-            elif event.type == event_type.FUNCTION_CALL_ARGUMENTS_DONE:
-                # Try to transform function arguments into JSON
-                try:
-                    tool = agent_message.tools[-1]
-                    tool.args = json.loads(tool_call_buffer)
-                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
-                    agent_message.tools[-1].args = {}
-
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
@@ -161,12 +140,14 @@ class AbstractMethod(ABC):
 
                 # Alternative tool output
                 for t in event.response.output:
-                    if isinstance(t, OutputFunctionToolCall):
-                        agent_message.tools.append(ToolCall(
-                            name=t.name,
-                            id=self.next_tool_id(agent_message),
-                            args=json.loads(t.arguments)
-                        ))
+                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                        try:
+                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                        except json.JSONDecodeError:
+                            logger.warning(f"Could not parse tool arguments: {t.arguments}")
+                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args={})
+                        agent_message.tools.append(tool)
+                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.model_dump()
 
