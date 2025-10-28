@@ -94,6 +94,9 @@ export default {
     padding: 10px;
 }
 .close-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
     border-radius: 50%;
     cursor: pointer;
     color: var(--button-primary-dark);
