@@ -459,6 +459,21 @@ export default {
                 this.scrollDownChat();
             }
 
+            if (result.type === "PendingCallback") {
+                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
+            }
+
+            if (result.type === "PushMessage") {
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                }
+                aiBubble.setContent(result.content);
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+                this.startAutoSpeak();
+                this.scrollDownChat();
+            }
+
             if (result.type === "MetricsMessage") {
                 // metrics: dict
                 // execution_time: float

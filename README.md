@@ -12,7 +12,7 @@ This repository includes software developed in the course of the project "Offene
 
 ## About
 
-SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE does not include any specific actions but takes all its functionality from the connected OPACA platform.
+SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE includes a small set of internal or 'introspective' actions, but all services for productive day-to-ady use are taken from the connected OPACA platform.
 
 ![SAGE UI Screenshot](docs/img/opaca-llm-ui.png)
 
@@ -101,6 +101,11 @@ The message handling of SAGE is illustrated in the image above. During a request
 ### Speech Input and Output
 
 The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under `tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
+
+
+### Internal Actions
+
+Besides services provided by OPACA agents, the LLM also has access to a small number of internal, or "introspective" actions. Those are actions implemented directly in the OPACA LLM Backend and thus they have access to internal workings of the OPACA LLM that actions from OPACA Agent Containers would not have, e.g. for reading parts of the OPACA LLM's own configuration, the chat history, or sending messages to the UI. At the moment, these actions can e.g. be used to schedule tasks for execution at a later point in time (including regular execution), internally sending the given request back to the LLM at a later time, or for collecting information for other chats (e.g. if the user wants the LLM to integrate information from different tasks they worked on in the past).
 
 
 ## Configuration and Parameters

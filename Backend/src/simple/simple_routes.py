@@ -116,7 +116,9 @@ class SimpleMethod(AbstractMethod):
 
     async def get_actions(self):
         try:
-            return await self.session.opaca_client.get_actions_simple()
+            opaca_actions = await self.session.opaca_client.get_actions_simple()
+            internal_tools = self.internal_tools.get_internal_tools_simple()
+            return {**opaca_actions, **internal_tools}
         except:
             return "(No services, not connected yet.)"
 
