@@ -157,6 +157,13 @@ class ToolCall(BaseModel):
         return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
+class ScheduledTask(BaseModel):
+    task_id: int
+    query: str
+    interval: int
+    recurring: bool
+
+
 class Chat(BaseModel):
     """
     Stores information about each chat.
@@ -213,7 +220,8 @@ class SessionData(BaseModel):
         _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
-    
+        _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
+
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
     the server is using the same method for waiting for the webserver to be closed again.
@@ -228,10 +236,15 @@ class SessionData(BaseModel):
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
+    _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
+
+    @property
+    def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
+        return self._scheduled_tasks
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
@@ -335,6 +348,15 @@ class StatusMessage(BaseModel):
 class MetricsMessage(BaseModel):
     metrics: dict
     execution_time: float
+
+
+class PendingCallback(BaseModel):
+    """Notification that an "execute-later" callback for the given query has been started."""
+    query: str
+
+
+class PushMessage(QueryResponse):
+    """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
 
 
 class ContainerLoginNotification(BaseModel):
