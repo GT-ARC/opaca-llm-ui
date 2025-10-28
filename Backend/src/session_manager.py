@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_files_for_session
-from .models import SessionData, Chat, QueryRequest, QueryResponse
+from .models import SessionData
 
 
 logger: Logger = logging.getLogger(__name__)
