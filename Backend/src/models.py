@@ -211,6 +211,7 @@ class SessionData(BaseModel):
 
     Attributes:
         session_id: The session's internal ID.
+        bookmarks: All prompts bookmarked during the session.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
@@ -228,6 +229,7 @@ class SessionData(BaseModel):
     the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
+    bookmarks: list[dict] = Field(default_factory=list)
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False

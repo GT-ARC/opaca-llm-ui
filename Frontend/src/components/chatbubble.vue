@@ -19,6 +19,16 @@
                     <i v-else class="fa fa-copy" />
                 </div>
 
+                <!-- save prompt to user library -->
+                <div v-show="this.content?.length > 0"
+                     class="footer-item w-auto me-2"
+                     :class="{ 'disabled': bookmarked }"
+                     @click="this.addPromptToUserLibrary()"
+                     :title="Localizer.get('tooltipChatbubbleSave')">
+                    <i v-if="this.bookmarked" class="fa-solid fa-bookmark" />
+                    <i v-else class="fa-regular fa-bookmark" />
+                </div>
+
                 <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
@@ -206,6 +216,7 @@ export default {
         initialLoading: Boolean,
         files: Array,
         selectedChatId: String,
+        isBookmarked: Boolean,
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -222,6 +233,7 @@ export default {
             isErrorExpanded: false,
             ttsAudio: null,
             copySuccess: false,
+            bookmarked: this.isBookmarked ?? false,
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
@@ -369,6 +381,13 @@ export default {
                 .catch(error => console.error('Failed to copy text: ', error));
         },
 
+        addPromptToUserLibrary() {
+            const prompt = this.content;
+            if (prompt.length <= 0 || this.bookmarked) return;
+            this.$emit('add-to-library', prompt);
+            this.bookmarked = true;
+        },
+
         /**
          * Generate new audio for this message.
          */
@@ -481,6 +500,11 @@ export default {
 
 .footer-item:hover {
     color: var(--primary-color);
+}
+
+.footer-item.disabled {
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .bubble-debug-text {
