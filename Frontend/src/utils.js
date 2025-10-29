@@ -112,6 +112,16 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
+    // bookmarks
+
+    async getBookmarks() {
+        return await this.sendRequest("GET", "bookmarks");
+    }
+
+    async saveBookmarks(bookmarks) {
+        return await this.sendRequest("POST", "bookmarks", bookmarks);
+    }
+
     // internal helper
 
     async sendRequest(method, path, body = null, timeout = 10000) {
