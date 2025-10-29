@@ -36,15 +36,15 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
-    parser.add_argument("-b", "--method", type=str, default="tool-llm", help="Specify the prompting method (formerly 'backend') that should be used.")
-    parser.add_argument("-m", "--model", type=str, default="openai::gpt-4o-mini", help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>")
+    parser.add_argument("-b", "--methods", type=str, nargs="+", default=["tool-llm"], help="Specify the prompting method (formerly 'backend') that should be used. You can specify multiple methods to test.")
+    parser.add_argument("-m", "--models", type=str, nargs="+", default=["openai::gpt-4o-mini"], help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>. You can specify multiple models to test.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the SAGE Backend is running.")
-    parser.add_argument("-i", "--iterations", type=int, default=1, help="The number of iterations that should be run for each question set.")
     parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
     parser.add_argument("-j", "--judge", action=argparse.BooleanOptionalAction, help="Whether the Judge LLM should be used for evaluation.")
     parser.add_argument("-p", "--portion", type=int, default=100, help="The portion of the question set that should be evaluated in percentage.")
     parser.add_argument("--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level.")
+    parser.add_argument("--out", type=str, default="", help="The output file where the results should be written.")
     return parser.parse_args()
 
 
@@ -93,20 +93,16 @@ async def invoke_judge(question, expected_answer, response):
         question=question, expected_answer=expected_answer, response=response
     )
 
-    messages =  [
-        {"role": "system", "content": judge_system_message},
-        {"role": "user", "content": formatted_message}
-    ]
-
     client = OpenAI()
-    response = client.beta.chat.completions.parse(
+    response = client.responses.parse(
         model="gpt-4o",
-        messages=messages,
+        instructions=judge_system_message,
+        input=formatted_message,
         temperature=0,
-        response_format=Metric
+        text_format=Metric
     )
 
-    return response.choices[0].message.parsed
+    return response.output_parsed
 
 
 def flatten(xss):
@@ -234,6 +230,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method
             elif method == "tool-llm":
                 config["tool_gen_model"] = model
                 config["tool_eval_model"] = model
+                config["output_model"] = model
             else:
                 config["model"] = model
             await session.put(llm_url + f'/config/{method}', json=config)
@@ -360,14 +357,14 @@ async def main():
 
     # Extract arguments
     scenario = args.scenario
-    method = args.method
-    model = args.model
+    methods = args.methods
+    models = args.models
     opaca_url = args.opaca_url
-    iterations = args.iterations
     chunk_size = args.chunks
     llm_url = args.llm_url
     use_judge = args.judge
     portion = args.portion
+    out_file = args.out
     # Set the logging level
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
@@ -394,13 +391,14 @@ async def main():
         exit(1)
 
     # Check if the model is in the correct format
-    if not re.match(r'^[^:]+(?::[^:]+)*::[^:]+(?:.*[^:])?$', model):
-        logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
-                      f'<base_url>::<model_name>. For OpenAI models you can use "openai" as base_url.')
-        exit(1)
+    for model in models:
+        if not re.match(r'^[^:]+(?::[^:]+)*::[^:]+(?:.*[^:])?$', model):
+            logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
+                          f'<base_url>::<model_name>. For OpenAI models you can use "openai" as base_url.')
+            exit(1)
 
     # Create a unique file name for the results
-    file_name = f'{scenario}-{model.split("::")[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = out_file or f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
@@ -417,93 +415,65 @@ async def main():
         question_set = random.sample(question_set, int(len(question_set) * portion / 100))
 
     # Main test loop
-    for i in range(1, iterations+1):
-        logging.info(f'Iteration {i}/{iterations}')
+    for method in methods:
+        results[method] = {}
+        for model in models:
 
-        # Split the question set into chunks for parallel execution
-        chunks = split(question_set, chunk_size)
+            logging.info(f'Starting test for method "{method}" and model "{model}"...')
 
-        # Visualize progress
-        progress = Progress()
-        progress.start()
-        tasks = [progress.add_task(f'Chunk-{i}', total=len(data)) for i, data in enumerate(chunks)]
+            # Split the question set into chunks for parallel execution
+            chunks = split(question_set, chunk_size)
 
-        # Execute Tests and combine results
-        q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, method, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
-        q_results = flatten(q_results)
+            # Visualize progress
+            progress = Progress()
+            progress.start()
+            tasks = [progress.add_task(f'Chunk-{i}', total=len(data)) for i, data in enumerate(chunks)]
 
-        # Init benchmark values
-        agent_time = Counter()
-        correct_tool_usage = 0
-        perfect_tool_usage = 0
-        total_token_usage = 0
-        total_time = 0
-        total_server_time = 0
-        average_score = 0.0
+            # Execute Tests and combine results
+            q_results = await asyncio.gather(*(parallel_test(chunks[j], llm_url, opaca_url, method, model, use_judge, progress, task_id) for task_id, j in zip(tasks, range(len(chunks)))))
+            q_results = flatten(q_results)
 
-        # Extract benchmark results
-        for q in q_results:
-            agent_time += Counter(q["agent_time"])
-            if len(q["tool_matches"]["missed"]) == 0:
-                correct_tool_usage += 1
-                if len(q["tool_matches"]["extra"]) == 0:
-                    perfect_tool_usage += 1
-            total_token_usage += q["response_metadata"]["total_tokens"]
-            total_time += q["time"]
-            total_server_time += q["server_time"]
-            average_score += q.get("score", 0)
-        average_score /= len(q_results)
+            # Init benchmark values
+            agent_time = Counter()
+            correct_tool_usage = 0
+            perfect_tool_usage = 0
+            total_token_usage = 0
+            total_time = 0
+            total_server_time = 0
+            average_score = 0.0
 
-        # Create a summary of the test run
-        result = {"questions": q_results, "summary": {
-            "method": method,
-            "model": model,
-            "questions": len(question_set),
-            "correct_tool_usage": correct_tool_usage,
-            "perfect_tool_usage": perfect_tool_usage,
-            "total_time": total_time,
-            "total_server_time": total_server_time,
-            "agent_time": agent_time,
-            "total_token_usage": total_token_usage,
-        }}
-        if use_judge:
-            result["summary"]["average_score"] = average_score
+            # Extract benchmark results
+            for q in q_results:
+                agent_time += Counter(q["agent_time"])
+                if len(q["tool_matches"]["missed"]) == 0:
+                    correct_tool_usage += 1
+                    if len(q["tool_matches"]["extra"]) == 0:
+                        perfect_tool_usage += 1
+                total_token_usage += q["response_metadata"]["total_tokens"]
+                total_time += q["time"]
+                total_server_time += q["server_time"]
+                average_score += q.get("score", 0)
+            average_score /= len(q_results)
 
-        # If there is more than one iteration, save results into separated field
-        if iterations > 1:
-            results[f'iteration_{i}'] = result
-        else:
-            results = result
-        progress.stop()
-
-    # If there was more than one iteration, create a total summary
-    if iterations > 1:
-        results["total_summary"] = {
-            "method": method,
-            "model": model,
-            "questions": len(question_set) * iterations,
-            "correct_tool_usage": 0,
-            "perfect_tool_usage": 0,
-            "total_time": 0,
-            "total_server_time": 0,
-            "agent_time": Counter(),
-            "total_token_usage": 0
-        }
-        if use_judge:
-            results["total_summary"]["average_score"] = 0.0
-        for i in range(1, iterations+1):
-            results["total_summary"]["correct_tool_usage"] += results[f'iteration_{i}']['summary']['correct_tool_usage']
-            results["total_summary"]["perfect_tool_usage"] += results[f'iteration_{i}']['summary']['perfect_tool_usage']
-            results["total_summary"]["total_time"] += results[f'iteration_{i}']['summary']['total_time']
-            results["total_summary"]["total_server_time"] += results[f'iteration_{i}']['summary']['total_server_time']
-            results["total_summary"]["agent_time"] += Counter(results[f'iteration_{i}']['summary']['agent_time'])
-            results["total_summary"]["total_token_usage"] += results[f'iteration_{i}']['summary']['total_token_usage']
+            # Create a summary of the test run
+            result = {"questions": q_results, "summary": {
+                "method": method,
+                "model": model,
+                "questions": len(question_set),
+                "correct_tool_usage": correct_tool_usage,
+                "perfect_tool_usage": perfect_tool_usage,
+                "total_time": total_time,
+                "total_server_time": total_server_time,
+                "agent_time": agent_time,
+                "total_token_usage": total_token_usage,
+            }}
             if use_judge:
-                results["total_summary"]["average_score"] += results[f'iteration_{i}']['summary']['average_score']
-        if use_judge:
-            results["total_summary"]["average_score"] /= iterations
+                result["summary"]["average_score"] = average_score
 
-    logging.info(f"Finished benchmark test!\tTotal questions: {len(question_set) * iterations}")
+            results[method][model] = result
+            progress.stop()
+
+    logging.info(f"Finished benchmark test!\tTotal questions: {len(question_set)}")
 
     # Write results into json file
     if not os.path.exists('test_runs'):
