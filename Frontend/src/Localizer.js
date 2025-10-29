@@ -164,7 +164,7 @@ export const localizationData = {
         cookiesAccept: "Annehmen",
         tooltipDeleteUploadedFile: "Datei entfernen",
         tooltipSuspendUploadedFile: "Datei in Konversationen einbeziehen?",
-        tooltipViewUploadedFile: "Datei öffnen",
+        tooltipViewUploadedFile: "Datei anzeigen",
         tooltipUploadFile: "Datei hochladen",
         tooltipChatbubbleFiles: "Angehängte Dateien",
         uploadingFileText: "Lade hoch…",
