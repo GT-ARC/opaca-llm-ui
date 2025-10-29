@@ -60,10 +60,9 @@ export default {
 .file-viewer-wrapper {
     display: flex;
     flex-direction: column;
-    width: 90%;
-    height: 90%;
-    max-width: 1200px;
-    max-height: 90vh;
+    width: 100%;
+    height: 100%;
+    max-width: 1600px;
     background-color: #282828;
     border-radius: 8px;
     overflow: hidden;
