@@ -234,6 +234,7 @@ async def parallel_test(question_set: List, llm_url: str, opaca_url: str, method
             elif method == "tool-llm":
                 config["tool_gen_model"] = model
                 config["tool_eval_model"] = model
+                config["output_model"] = model
             else:
                 config["model"] = model
             await session.put(llm_url + f'/config/{method}', json=config)
@@ -394,13 +395,13 @@ async def main():
         exit(1)
 
     # Check if the model is in the correct format
-    if not re.match(r'^[^/]+/[^/]+$', model):
+    if not re.match(r'^.+/[^/]+$', model):
         logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
-                      f'<base_url>/<model_name>. For OpenAI models you can use "openai" as base_url.')
+                      f'<host>/<model_name>. The host can be a provider name or an IP address.')
         exit(1)
 
     # Create a unique file name for the results
-    file_name = f'{scenario}-{model.split("/")[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    file_name = f'{scenario}-{model.rsplit("/", maxsplit=1)[1]}-{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
 
     # Setup the OPACA platform
     try:
