@@ -56,6 +56,8 @@ export default {
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    margin: 1em;
+    margin-top: 0em;
 }
 .file-viewer-wrapper {
     display: flex;

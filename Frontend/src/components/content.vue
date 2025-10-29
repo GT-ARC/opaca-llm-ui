@@ -789,7 +789,7 @@ export default {
 
         openViewer(file) {
             this.viewerFile = file;
-        }
+        },
 
         addPromptToSidebar(prompt) {
             // call SidebarQuestions method
