@@ -1,6 +1,6 @@
 <template>
     <div v-if="visible" class="file-viewer-overlay" @click.stop="$emit('close')">
-        <div class="file-viewer-wrapper">
+        <div class="file-viewer-wrapper" @click.stop>
             <div class="file-viewer-header">
                 <span class="file-name">{{ fileName }}</span>
                 <button class="btn close-btn" @click="$emit('close')">
