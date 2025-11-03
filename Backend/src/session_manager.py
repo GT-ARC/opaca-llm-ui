@@ -7,7 +7,7 @@ from typing import Dict, Optional, List
 from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
-from .file_utils import delete_session_files_from_disc
+from .file_utils import delete_all_files_from_disk
 from .models import SessionData
 
 
@@ -64,7 +64,7 @@ class SessionDbClient:
         except ValidationError as e:
             logger.error(f'Invalid data for session {session_id}: {e}')
             await self.delete_session(session_id)
-            delete_session_files_from_disc(session_id)
+            delete_all_files_from_disk(session_id)
             return None
         except Exception as e:
             logger.error(f'Failed to load session {session_id}: {e}')
@@ -158,7 +158,7 @@ async def cleanup_old_sessions() -> None:
 async def delete_session(session_id: str) -> None:
     if session_id in sessions:
         del sessions[session_id]
-    delete_session_files_from_disc(session_id)
+    delete_all_files_from_disk(session_id)
     await db_client.delete_session(session_id)
 
 
