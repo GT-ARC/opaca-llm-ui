@@ -75,9 +75,8 @@ export default {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 1rem;
-    font-weight: 500;
-    font-size: 1rem;
+    padding: 0.25rem 1rem;
+    font-weight: bold;
     color: var(--text-primary-dark);
 }
 .file-viewer {
@@ -92,11 +91,11 @@ export default {
     object-fit: contain;
     width: 100%;
     height: 100%;
-    padding: 10px;
+    padding: 0 10px 10px; /* no padding below title bar */
 }
 .close-btn {
-    width: 32px;
-    height: 32px;
+    width: 25px;
+    height: 25px;
     padding: 0;
     border-radius: 50%;
     cursor: pointer;
