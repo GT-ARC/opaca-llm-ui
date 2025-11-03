@@ -1,5 +1,6 @@
 import io
 import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -101,8 +102,14 @@ async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
     return file_data
 
 
-def delete_files_for_session(session_id: str) -> None:
+def delete_file_from_disc(session_id: str, file_id: str) -> None:
+    dir_path = Path(FILES_PATH, session_id, file_id)
+    if dir_path.is_file():
+        logger.info(f'Deleting file {file_id} for session "{session_id}": {dir_path}')
+        os.remove(dir_path)
+
+def delete_session_files_from_disc(session_id: str) -> None:
     dir_path = Path(FILES_PATH, session_id)
     if dir_path.is_dir():
-        logger.info(f'Deleting files for session "{session_id}": {dir_path}')
+        logger.info(f'Deleting all files for session "{session_id}": {dir_path}')
         shutil.rmtree(dir_path)
