@@ -21,8 +21,15 @@ from .opaca_client import OpacaClient
 logger = logging.getLogger(__name__)
 
 
-def get_supported_models():
+def get_supported_models(supports_structured_output: bool = False):
     return [
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_HOSTS", "openai").split(";"),
+            os.getenv("LLM_API_KEYS", "").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5").split(";"),
+        )
+    ] if supports_structured_output else[
         (url, key, models.split(","))
         for url, key, models in zip(
             os.getenv("LLM_HOSTS", "openai;mistral;anthropic;gemini").split(";"),
@@ -412,8 +419,8 @@ class MethodConfig(BaseModel):
         return Field(default=default, title=title, description=description,)
 
     @staticmethod
-    def llm_field(title: str = None, description: str = None) -> Any:
-        models = [f"{url}/{model}" for url, _, models in get_supported_models() for model in models]
+    def llm_field(title: str = None, description: str = None, supports_structured_output: bool = False) -> Any:
+        models = [f"{url}/{model}" for url, _, models in get_supported_models(supports_structured_output) for model in models]
         regex = r"(?P<host>.+)/(?P<model>[\w-]+)" # the named groups are just for a better error message
         return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description, regex=regex)
 
