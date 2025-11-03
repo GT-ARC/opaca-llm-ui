@@ -51,15 +51,17 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
+                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
+                        @add-to-library="addPromptToSidebar"
                     />
                 </div>
 
@@ -463,6 +465,21 @@ export default {
                 this.scrollDownChat();
             }
 
+            if (result.type === "PendingCallback") {
+                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
+            }
+
+            if (result.type === "PushMessage") {
+                if (result.error) {
+                    aiBubble.setError(result.error);
+                }
+                aiBubble.setContent(result.content);
+                aiBubble.toggleLoading(false);
+                this.isFinished = true;
+                this.startAutoSpeak();
+                this.scrollDownChat();
+            }
+
             if (result.type === "MetricsMessage") {
                 // metrics: dict
                 // execution_time: float
@@ -533,18 +550,27 @@ export default {
          */
         async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
+
+            const bookmarked = this.compareToBookmarks(content);
+
             const message = {
                 elementId: elementId,
                 isUser: isUser,
                 content: content,
                 isLoading: isLoading,
                 files: files,
+                bookmarked: bookmarked,
             };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
             this.scrollDownChat();
+        },
+
+        compareToBookmarks(content) {
+            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts;
+            return bookmarks.some(b => b.question.trim() === content.trim());
         },
 
         handleUnexpectedConnectionClosed(message) {
@@ -754,8 +780,12 @@ export default {
                 await this.uploadFiles(files);
             }
             // If no file found, let normal paste happen
-        }
+        },
 
+        addPromptToSidebar(prompt) {
+            // call SidebarQuestions method
+            this.$refs.sidebar.$refs.questions.addPersonalPrompt(prompt);
+        },
     },
 
     mounted() {

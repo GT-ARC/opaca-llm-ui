@@ -13,7 +13,6 @@ import traceback
 import asyncio
 
 from starlette.websockets import WebSocket
-from openai import AsyncOpenAI, OpenAIError, APIConnectionError, AuthenticationError
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
@@ -22,13 +21,20 @@ from .opaca_client import OpacaClient
 logger = logging.getLogger(__name__)
 
 
-def get_supported_models():
+def get_supported_models(supports_structured_output: bool = False):
     return [
         (url, key, models.split(","))
         for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"),
-            os.getenv("LLM_APIKEYS", "").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+            os.getenv("LLM_HOSTS", "openai").split(";"),
+            os.getenv("LLM_API_KEYS", "").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5").split(";"),
+        )
+    ] if supports_structured_output else[
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_HOSTS", "openai;mistral;anthropic;gemini").split(";"),
+            os.getenv("LLM_API_KEYS", ";;;").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash").split(";"),
         )
     ]
 
@@ -158,6 +164,13 @@ class ToolCall(BaseModel):
         return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
+class ScheduledTask(BaseModel):
+    task_id: int
+    query: str
+    interval: int
+    recurring: bool
+
+
 class Chat(BaseModel):
     """
     Stores information about each chat.
@@ -204,6 +217,7 @@ class SessionData(BaseModel):
 
     Attributes:
         session_id: The session's internal ID.
+        bookmarks: All prompts bookmarked during the session.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
@@ -214,13 +228,15 @@ class SessionData(BaseModel):
         _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
+        _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
         _user_api_keys: User-provided API keys for specific LLM hosts
-    
+
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
     the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
+    bookmarks: list[dict] = Field(default_factory=list)
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
@@ -230,47 +246,16 @@ class SessionData(BaseModel):
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
-    _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
+    _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
     _user_api_keys: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
 
-    async def llm_client(self, host_url: str, ask_for_api_key=False) -> AsyncOpenAI:
-        if host_url not in self._llm_clients:
-            logger.info("creating new client for URL " + host_url)
-            try:
-                client = AsyncOpenAI(
-                    api_key=self.api_key(host_url), # automatically uses env var if None
-                    base_url=host_url if host_url != "openai" else None
-                )
-                await client.models.list()  # test the API key
-            except APIConnectionError as e:
-                raise OpacaException(user_message=f"Unknown LLM host: {host_url}", error_message=repr(e))
-            except (OpenAIError, AuthenticationError) as e:
-                if ask_for_api_key:  # NOT for initial how-can-you assist!
-                    # try to get API key from user
-                    problem = "missing" if isinstance(e, AuthenticationError) else "invalid"
-                    message = f"API key is {problem} for host URL {host_url}!"
-                    await self.websocket_send(MissingApiKeyNotification(message=message))
-                    response = MissingApiKeyResponse(**await self.websocket_receive())
-                    if response.api_key:
-                        self._user_api_keys[host_url] = (response.api_key or "").strip()
-                        return await self.llm_client(host_url, True)
-                raise OpacaException(user_message=f"Unable to call LLM without matching API key", error_message=repr(e))
-                
-            self._llm_clients[host_url] = client
-        return self._llm_clients[host_url]
-    
-    def api_key(self, host_url) -> str | None:
-        if host_url in self._user_api_keys:
-            return self._user_api_keys[host_url] or None
-        try:
-            # return None rather than empty string to fall back to key from Env-Vars
-            return next(key.strip() or None for url, key, _ in get_supported_models() if url == host_url)
-        except StopIteration:
-            return None  # not necessarily an error; OpenAI client will use the key from the Env Var, if set
+    @property
+    def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
+        return self._scheduled_tasks
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
@@ -376,6 +361,15 @@ class MetricsMessage(BaseModel):
     execution_time: float
 
 
+class PendingCallback(BaseModel):
+    """Notification that an "execute-later" callback for the given query has been started."""
+    query: str
+
+
+class PushMessage(QueryResponse):
+    """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
+
+
 class ContainerLoginNotification(BaseModel):
     """
     This is a helper class to store information regarding the initiated container login.
@@ -439,9 +433,9 @@ class MethodConfig(BaseModel):
         return Field(default=default, title=title, description=description,)
 
     @staticmethod
-    def llm_field(title: str = None, description: str = None) -> Any:
-        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        regex = r"(?P<host>.+)::(?P<model>[\w-]+)" # the named groups are just for a better error message
+    def llm_field(title: str = None, description: str = None, supports_structured_output: bool = False) -> Any:
+        models = [f"{url}/{model}" for url, _, models in get_supported_models(supports_structured_output) for model in models]
+        regex = r"(?P<host>.+)/(?P<model>[\w-]+)" # the named groups are just for a better error message
         return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description, regex=regex)
 
     @staticmethod
@@ -463,4 +457,3 @@ class ConfigPayload(BaseModel):
     """
     config_values: SerializeAsAny[MethodConfig]
     config_schema: Dict[str, Any]
-

@@ -2,20 +2,24 @@ import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type
+from typing import Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 from itertools import count
 
 import httpx
-from pydantic import BaseModel
-
+from openai.types.responses import ResponseFunctionToolCall
+from pydantic import BaseModel, ValidationError
+import litellm
+from litellm.types.responses.main import OutputFunctionToolCall
+from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
     ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
     ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
 )
 from .file_utils import upload_files
+from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +32,12 @@ class AbstractMethod(ABC):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
+        self.internal_tools = InternalTools(session, self)
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
         return cls.CONFIG.model_json_schema(mode='serialization')['properties']
-    
+
     def get_config(self) -> MethodConfig:
         return self.session.get_config(self)
 
@@ -51,7 +56,7 @@ class AbstractMethod(ABC):
             messages: List[ChatMessage],
             temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
-            tool_choice: Optional[str] = "auto",
+            tool_choice: Optional[Literal["auto", "none", "only", "required"]] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
             status_message: str | None = None,
             is_output: bool = False,
@@ -60,9 +65,9 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            model (str): LLM host AND model name (e.g., "https://...: gpt-4-turbo"), from config.
+            model (str): LLM host/provider AND model name (e.g., "openai/gpt-4o-mini"), from config.
             agent (str): The agent name (e.g. "simple-tools").
-            system_prompt (str): The system prompt to start the conversation.
+            system_prompt (str): The system prompt for model instructions.
             messages (List[ChatMessage]): The list of chat messages.
             temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
@@ -74,37 +79,29 @@ class AbstractMethod(ABC):
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
         """
-        try:
-            url, model = map(str.strip, model.split("::"))
-        except Exception:
-            raise Exception(f"Invalid format: Must be '<llm-host>::<model>': {model}")
-        client = await self.session.llm_client(url, ask_for_api_key=self.streaming)
 
         if status_message:
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
 
         # Initialize variables
         exec_time = time.time()
-        tool_call_buffer = ""
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(self.session, url)
+        file_message_parts = await upload_files(self.session, model)
 
         # Modify the last user message to include file parts
         if file_message_parts:
             messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
 
-        # Set a custom response format schema if provided, else expect plain text
-        r_format = transform_schema(response_format.model_json_schema()) if response_format else \
-            {'format': {'type': 'text'}}
-
         # Set settings for model invocation
         kwargs = {
             'model': model,
-            'input': [ChatMessage(role="system", content=system_prompt), *messages],
+            'instructions': system_prompt,
+            'input': [m.model_dump() for m in messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
-            'text': r_format,
+            'temperature': temperature,
+            'text_format': response_format,
             'stream': True
         }
 
@@ -112,12 +109,8 @@ class AbstractMethod(ABC):
         if tool_choice == "only":
             kwargs['tool_choice'] = 'auto'
 
-        # o1/o3/o4/gpt-5 don't support temperature param
-        if not model.startswith(('o1', 'o3', 'o4', 'gpt-5')):
-            kwargs['temperature'] = temperature
-
         # Main stream logic
-        stream = await client.responses.create(**kwargs)
+        stream = await litellm.aresponses(**kwargs)
         async for event in stream:
 
             # Check if an "abort" message has been sent by the user
@@ -127,44 +120,38 @@ class AbstractMethod(ABC):
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
 
-            # New tool call generation started, including the complete function call name
-            if event.type == 'response.output_item.added' and event.item.type == 'function_call':
-                agent_message.tools.append(ToolCall(name=event.item.name, id=self.next_tool_id(agent_message)))
-                tool_call_buffer = ""
-
-            # Tool call argument chunk received
-            elif event.type == 'response.function_call_arguments.delta':
-                # We assume that the entry has been created already
-                tool_call_buffer += event.delta
-
-            # Final tool call chunk received
-            elif event.type == 'response.function_call_arguments.done':
-                # Try to transform function arguments into JSON
-                try:
-                    tool = agent_message.tools[-1]
-                    tool.args = json.loads(tool_call_buffer)
-                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse tool arguments: {tool_call_buffer}")
-                    agent_message.tools[-1].args = {}
-
             # Plain text chunk received
-            elif event.type == 'response.output_text.delta':
+            elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
                     break
                 agent_message.content += event.delta
                 await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
 
             # Final message received
-            elif event.type == 'response.completed':
+            elif event.type == event_type.RESPONSE_COMPLETED:
                 # If a response format was provided, try to cast the response to the provided schema
                 if response_format:
                     try:
                         agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
-                    except json.decoder.JSONDecodeError:
-                        raise OpacaException("An error occurred while parsing a response JSON", error_message="An error occurred while parsing a response JSON", status_code=500)
+                    except (json.decoder.JSONDecodeError, ValidationError) as e:
+                        raise OpacaException(
+                            f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
+                            error_message=str(e),
+                            status_code=500
+                        )
+
+                # Alternative tool output
+                for t in event.response.output:
+                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                        try:
+                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                        except json.JSONDecodeError:
+                            logger.warning(f"Could not parse tool arguments: {t.arguments}")
+                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args={})
+                        agent_message.tools.append(tool)
+                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 # Capture token usage
-                agent_message.response_metadata = event.response.usage.to_dict()
+                agent_message.response_metadata = event.response.usage.model_dump()
 
         agent_message.execution_time = time.time() - exec_time
 
@@ -184,7 +171,7 @@ class AbstractMethod(ABC):
             await self.session.websocket_send(message)
 
 
-    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False) -> ToolCall:
+    async def invoke_tool(self, tool_name: str, tool_args: dict, tool_id: str, login_attempt_retry: bool = False) -> ToolCall:
         """
         Invoke OPACA action matching the given tool. If invoke fails due to required login, attempt Login (via websocket callback)
         and try again. In any case returns a ToolCall, where "result" can be error message.
@@ -195,11 +182,10 @@ class AbstractMethod(ABC):
             agent_name, action_name = None, tool_name
 
         try:
-            t_result = await self.session.opaca_client.invoke_opaca_action(
-                action_name,
-                agent_name,
-                tool_args,
-            )
+            if agent_name == INTERNAL_TOOLS_AGENT_NAME:
+                t_result = await self.internal_tools.call_internal_tool(action_name, tool_args)
+            else:
+                t_result = await self.session.opaca_client.invoke_opaca_action(action_name, agent_name, tool_args)
         except httpx.HTTPStatusError as e:
             res = e.response.json()
             t_result = f"Failed to invoke tool.\nStatus code: {e.response.status_code}\nResponse: {e.response.text}\nResponse JSON: {res}"
@@ -218,7 +204,9 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        opaca_tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        internal_tools = self.internal_tools.get_internal_tools_openai()
+        tools = [*opaca_tools, *internal_tools]
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
@@ -226,7 +214,7 @@ class AbstractMethod(ABC):
         return tools, error
 
 
-    async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: int, login_attempt_retry: bool = False):
+    async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: str, login_attempt_retry: bool = False):
         """Handles failed tool invocation due to missing credentials."""
 
         # If a "missing credentials" error is encountered, initiate container login
@@ -312,110 +300,3 @@ def openapi_to_functions(openapi_spec, agent: str | None = None):
             )
 
     return functions, error_msg
-
-
-def transform_schema(schema):
-    """Transform a JSON schema to meet OpenAI's requirements.
-
-    This function:
-    1. Resolves $ref references from $defs
-    2. Adds additionalProperties: False to all object types
-    3. Removes unnecessary fields like title and default
-    4. Flattens and simplifies the schema structure
-    5. Adds required name field for OpenAI compatibility
-    """
-    # Extract $defs if present
-    defs = schema.get('$defs', {})
-
-    def resolve_ref(ref):
-        """Resolve a $ref reference by getting the schema from $defs"""
-        if not ref.startswith('#/$defs/'):
-            return None
-        def_name = ref.split('/')[-1]
-        return defs.get(def_name, {})
-
-    def clean_schema(s):
-        """Remove unnecessary fields and add additionalProperties: False to objects"""
-        if not isinstance(s, dict):
-            return s
-
-        # Start with a new dict to only keep what we want
-        cleaned = {}
-
-        # Copy essential fields
-        if 'type' in s:
-            cleaned['type'] = s['type']
-        if 'description' in s:
-            cleaned['description'] = s['description']
-        if 'properties' in s:
-            cleaned['properties'] = {
-                k: clean_schema(v) for k, v in s['properties'].items()
-            }
-        if 'items' in s:
-            cleaned['items'] = clean_schema(s['items'])
-        if 'required' in s:
-            cleaned['required'] = s['required']
-        if 'enum' in s:
-            cleaned['enum'] = s['enum']
-
-        # Add additionalProperties: False to objects
-        if s.get('type') == 'object':
-            cleaned['additionalProperties'] = False
-
-        # Handle anyOf/allOf/oneOf
-        for field in ['anyOf', 'allOf', 'oneOf']:
-            if field in s:
-                cleaned[field] = [clean_schema(item) for item in s[field]]
-
-        return cleaned
-
-    def process_schema(s):
-        """Process schema by resolving refs and cleaning"""
-        if not isinstance(s, dict):
-            return s
-
-        # Create a new dict to store processed schema
-        processed = {}
-
-        # Handle $ref first
-        if '$ref' in s:
-            ref_schema = resolve_ref(s['$ref'])
-            if ref_schema:
-                # Merge the resolved schema with any additional properties
-                processed = process_schema(ref_schema)
-                # Add any additional fields from the original schema
-                for k, v in s.items():
-                    if k != '$ref':
-                        processed[k] = process_schema(v)
-                return processed
-
-        # Process each field
-        for k, v in s.items():
-            if k == '$defs':
-                continue  # Skip $defs as we handle them separately
-            elif isinstance(v, dict):
-                processed[k] = process_schema(v)
-            elif isinstance(v, list):
-                processed[k] = [process_schema(item) for item in v]
-            else:
-                processed[k] = v
-
-        return processed
-
-    # Process the main schema
-    processed_schema = process_schema(schema)
-
-    # Clean the processed schema
-    cleaned_schema = clean_schema(processed_schema)
-
-    # Create the final schema with the required name field
-    final_schema = {
-        "format": {
-            "type": "json_schema",
-            "strict": True,
-            "name": schema.get("title", "json_response"),  # Use title if available, otherwise default
-            "schema": cleaned_schema
-        }
-    }
-
-    return final_schema

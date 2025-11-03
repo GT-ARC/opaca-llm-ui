@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 
 class OrchestrationConfig(MethodConfig):
-    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks')
+    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks', supports_structured_output=True)
     worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
-    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results')
+    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results', supports_structured_output=True)
     generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
     temperature: float = MethodConfig.temperature_field()
     max_rounds: int = MethodConfig.max_rounds_field()

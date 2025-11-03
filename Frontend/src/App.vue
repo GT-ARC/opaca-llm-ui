@@ -104,7 +104,7 @@
 
     <!-- Auth Modal -->
     <div v-if="showAuthInput" class="auth-overlay">
-        <div class="dropdown-menu show p-4">
+        <div class="p-4 login-container rounded shadow">
             <form @submit.prevent="connectToPlatform">
                 <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
                 <input
@@ -138,7 +138,7 @@
 
     <!-- Container Login Context -->
     <div v-if="showContainerLogin" class="auth-overlay">
-        <div class="dropdown-menu show p-4 login-container">
+        <div class="p-4 login-container rounded shadow">
             <form @submit.prevent="submitContainerLogin">
                 <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
                 <input
@@ -502,6 +502,8 @@ header {
     max-width: 400px;
     width: 100%;
     margin: auto;
+    background-color: var(--surface-color);
+    color: var(--text-primary-color)
 }
 
 /* navbar stuff */
