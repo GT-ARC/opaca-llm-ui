@@ -34,9 +34,9 @@ The following values are **defaults**.
 
 ```
 {
-    "tool_gen_model": "openai::gpt-4o-mini",
-    "tool_eval_model": "openai::gpt-4o-mini",
-    "output_model": "openai::gpt-4o-mini",
+    "tool_gen_model": "openai/gpt-4o-mini",
+    "tool_eval_model": "openai/gpt-4o-mini",
+    "output_model": "openai/gpt-4o-mini",
     "temperature": 0,
 }
 ```
@@ -46,4 +46,4 @@ The following values are **defaults**.
 - `output_model`: The model name that will be used for output generation. Also supports Llama models.
 - `temperature`: The temperature used for the given model.
 
-All models in the format `"<host>::<model>"`
+All models in the format `"<host>/<model>"`

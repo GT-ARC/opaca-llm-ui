@@ -46,7 +46,7 @@ The backend consists of a general part, providing a simple HTTP API to be used b
 * Simple Tool: A single agent, as in 'Simple', but using the 'tools' parameter.
 
 
-The different approaches provide additional configuration parameters, e.g. for the model version to use, and most support both **GPT** (gpt-4o & gpt-4o-mini) by OpenAI and **vLLM** to use locally deployed models (e.g. Mistral, Llama, ...)
+The different approaches provide additional configuration parameters, e.g. the used model for each component. Read more about [supported models](#supported-models).
 
 [read more...](docs/methods_overview.md)
 
@@ -136,11 +136,30 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 
 ### Backend
 
-* `LLM_URLS`: semicolon-separated list of LLM server URLs, e.g. OpenAI, vLLM, LiteLLM, etc. (must follow the OpenAI API standard); default is `"openai"`, which can be used as a stand-in for the OpenAI API URL.
-* `LLM_APIKEYS`: semicolon-separated list of API-keys for each of the above URLs; default is `""` (for `openai`, the API Key is taken from the `OPENAI_API_KEY` env var but can be overwritten here if a non-default key is explicitly provided).
-* `LLM_MODELS`: semicolon-separated list of comma-separated lists of supported models for each of the above URLs; default is `"gpt-4o-mini,gpt-4o"`.
+* `LLM_HOSTS`: Semicolon-separated list of LLM server hosts/providers, e.g. `openai`, `gemini`, `anthropic`, `mistral`, `<custom-base-url>`, etc.
+* `LLM_API_KEYS`: Semicolon-separated list of API-keys for each of the above hosts; default is `""` (for common providers, the API Key is taken from the default api key field, e.g., for `openai` from `OPENAI_API_KEY`, for `gemini` from `GEMINI_API_KEY`, etc. but can be overwritten here if a non-default key is explicitly provided).
+* `LLM_MODELS`: Semicolon-separated list of comma-separated lists of supported models for each of the above hosts.
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 * `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
+
+## Supported Models
+
+SAGE is using [LiteLLM](https://github.com/BerriAI/litellm) for its LLM API communication. Therefore it supports all models that LiteLLM supports. A complete list of supported models is available [here](https://models.litellm.ai/). The preconfigured list of models include:
+
+* `openai/gpt-5`
+* `openai/gpt-5-mini`
+* `openai/gpt-4o`
+* `openai/gpt-4o-mini`
+* `anthropic/claude-sonnet-4-5`
+* `anthropic/claude-opus-4-1`
+* `gemini/gemini-2.5-pro`
+* `gemini/gemini-2.5-flash`
+* `mistral/mistral-medium-latest`
+* `mistral/magistral-medium-latest`
+
+To use the above mentioned models, you need to provide the corresponding API keys in the providers default environment field. These are:
+
+`["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY"]`
 
 ## Getting Started
 

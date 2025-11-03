@@ -37,7 +37,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--scenario", required=True, type=str, default="simple", choices=["simple", "complex", "all"], help="The scenario that should be tested. Use 'all' to test everything.")
     parser.add_argument("-b", "--methods", type=str, nargs="+", default=["tool-llm"], help="Specify the prompting method (formerly 'backend') that should be used. You can specify multiple methods to test.")
-    parser.add_argument("-m", "--models", type=str, nargs="+", default=["openai::gpt-4o-mini"], help="Specifies the model and its base-url that will be used for all models in the selected method. Use the format <base_url>::<model_name>. You can specify multiple models to test.")
+    parser.add_argument("-m", "--models", type=str, nargs="+", default=["openai/gpt-4o-mini"], help="Specifies the model and its host/base-url that will be used for all models in the selected method. Use the format <host>/<model_name>. You can specify multiple models to test.")
     parser.add_argument("-o", "--opaca-url", type=str, default=None, help="Where the OPACA platform is running.")
     parser.add_argument("-l", "--llm-url", type=str, default=f"http://localhost:3001", help="Where the SAGE Backend is running.")
     parser.add_argument("-c", "--chunks", type=int, default=5, help="The number of chunks the question set will be split into and evaluated in parallel.")
@@ -384,9 +384,9 @@ async def main():
 
     # Check if the model is in the correct format
     for model in models:
-        if not re.match(r'^[^:]+(?::[^:]+)*::[^:]+(?:.*[^:])?$', model):
+        if not re.match(r'^.+/[^/]+$', model):
             logging.error(f'Model "{model}" is not in the correct format. Please use the following format: '
-                          f'<base_url>::<model_name>. For OpenAI models you can use "openai" as base_url.')
+                          f'<host>/<model_name>. The host can be a provider name or an IP address.')
             exit(1)
 
     # Create a unique file name for the results

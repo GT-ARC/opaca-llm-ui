@@ -31,7 +31,7 @@ jobs:
       - name: Run benchmarks    # Add more API keys for more models to benchmark
         run: |
           export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          python ./benchmark/run.py -s all --methods simple simple-tools tool-llm self-orchestrated --models openai::gpt-4o-mini -p 10 --out results.json
+          python ./benchmark/run.py -s all --methods simple simple-tools tool-llm self-orchestrated --models openai/gpt-4o-mini -p 10 --out results.json
 
       - name: Compare results
         run: python ./benchmark/compare_results.py --new results.json --old previous_results.json --out report.json
