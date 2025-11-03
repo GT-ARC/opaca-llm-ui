@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 
 # Parse command-line arguments
@@ -22,10 +23,12 @@ def parse_arguments():
 def compare_results():
     args = parse_arguments()
 
-    # Assume that the file names are located in the 'test_runs' directory
-    new_file = f'test_runs/{args.new}'
-    old_file = f'test_runs/{args.old}'
+    cwd = Path.cwd()
 
+    new_file = f'{cwd}/benchmark/test_runs/{args.new}'
+    old_file = f'{cwd}/benchmark/test_runs/{args.old}'
+
+    # Check if both files exist
     if not os.path.isfile(new_file):
         logging.warning(f"File '{new_file}' does not exist.")
         exit(1)
@@ -34,8 +37,8 @@ def compare_results():
         exit(1)
 
     report = {}
-
-    with open(new_file, "r") as f_new, open(old_file, "r") as f_old, open(f"test_runs/{args.out}", "w+") as f_report:
+    # Write results into json file
+    with open(new_file, "r") as f_new, open(old_file, "r") as f_old, open(f"{cwd}/benchmark/test_runs/{args.out}", "w+") as f_report:
         new = json.loads(f_new.read())
         old = json.loads(f_old.read())
 

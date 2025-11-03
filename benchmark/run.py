@@ -4,8 +4,8 @@ import datetime
 import json
 import os
 import re
-import socket
 import sys
+from pathlib import Path
 from typing import List
 import logging
 from collections import defaultdict, Counter
@@ -312,15 +312,10 @@ def setUp(opaca_url: str) -> None:
         for name in test_containers:
             requests.post(opaca_url + "/containers", json={"image": {"imageName": name}})
             logging.info(f"Deployed {name}!")
+        subprocess.run(["docker", "compose", "build"], cwd=os.path.dirname(os.path.realpath(__file__)))
         return
     except requests.exceptions.RequestException as e:
         logging.info("Creating new OPACA platform environment...")
-
-    # Login to docker registry
-    try:
-        subprocess.run(["docker", "login", "registry.gitlab.dai-labor.de"], check=True)
-    except Exception as e:
-        raise Exception("Unable to login to gitlab.dai-labor.de")
 
     with open(".env", "w", encoding="utf-8") as f:
         f.write(f'OPACA_URL="{opaca_url}"\n')
@@ -373,10 +368,7 @@ async def main():
     )
 
     if opaca_url is None:
-        opaca_url = f"http://{socket.gethostbyname(socket.gethostname())}:8000"
-        if "127.0" in opaca_url:
-            logging.error("Unable to determine own IP. Please provide full OPACA Platform URL using -o parameter.")
-            exit(1)
+        opaca_url = "http://host.docker.internal:8050"
 
     # Define question sets for scenarios
     questions = {
@@ -476,9 +468,10 @@ async def main():
     logging.info(f"Finished benchmark test!\tTotal questions: {len(question_set)}")
 
     # Write results into json file
-    if not os.path.exists('test_runs'):
-        os.makedirs('test_runs')
-    with open(f'test_runs/{file_name}', "a") as f:
+    cwd = Path.cwd()
+    if not os.path.exists(f'{cwd}/benchmark/test_runs'):
+        os.makedirs(f'{cwd}/benchmark/test_runs')
+    with open(f'{cwd}/benchmark/test_runs/{file_name}', "a") as f:
         json.dump(results, f, indent=2)
 
     return
