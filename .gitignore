@@ -6,7 +6,7 @@ benchmark/test_runs
 .idea
 venv
 .venv
-Backend/.DS_Store
 .DS_Store
 .env
 .pytest_cache
+Backend/data

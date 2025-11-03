@@ -10,7 +10,7 @@ from .models import SessionData, OpacaFile
 logger = logging.getLogger(__name__)
 
 
-FILES_PATH = '/data/files'
+FILES_PATH = './data/files'
 
 
 async def upload_files(session: SessionData, model: str):
