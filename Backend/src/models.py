@@ -281,11 +281,11 @@ class SessionData(BaseModel):
             return True
         return False
 
-    def set_api_key(self, model: str, api_key: str) -> bool:
+    def set_api_key(self, model: str, api_key: str):
         self._user_api_keys[model.rsplit("/", 1)[0]] = api_key
 
-    def get_api_key(self, model: str) -> str:
-        return self._user_api_keys.get(model.rsplit("/", 1)[0], "")
+    def get_api_key(self, model: str) -> str | None:
+        return self._user_api_keys.get(model.rsplit("/", 1)[0], None)
 
     def has_websocket(self) -> bool:
         return self._websocket is not None

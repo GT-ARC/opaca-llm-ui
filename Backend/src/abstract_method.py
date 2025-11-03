@@ -84,8 +84,7 @@ class AbstractMethod(ABC):
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
 
         # Check if an additional API key is required for this model
-        check = litellm.validate_environment(model)
-        if not check.get("keys_in_environment"):
+        if not self.session.get_api_key(model) and not litellm.validate_environment(model).get("keys_in_environment"):
             await self.handle_invalid_api_key(model)
 
         # Initialize variables
@@ -100,6 +99,7 @@ class AbstractMethod(ABC):
 
         # Set settings for model invocation
         kwargs = {
+            'api_key': self.session.get_api_key(model),
             'model': model,
             'instructions': system_prompt,
             'input': [m.model_dump() for m in messages],
@@ -113,10 +113,6 @@ class AbstractMethod(ABC):
         # If tool_choice is set to "only", use "auto" for external API call
         if tool_choice == "only":
             kwargs['tool_choice'] = 'auto'
-
-        # Check if a provided api key exists and if so, use it
-        if api_key := self.session.get_api_key(model):
-            kwargs['api_key'] = api_key
 
         # Main stream logic
         stream = await litellm.aresponses(**kwargs)
