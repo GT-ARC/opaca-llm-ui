@@ -13,7 +13,6 @@ import traceback
 import asyncio
 
 from starlette.websockets import WebSocket
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
 
 from .opaca_client import OpacaClient
@@ -22,13 +21,20 @@ from .opaca_client import OpacaClient
 logger = logging.getLogger(__name__)
 
 
-def get_supported_models():
+def get_supported_models(supports_structured_output: bool = False):
     return [
         (url, key, models.split(","))
         for url, key, models in zip(
-            os.getenv("LLM_URLS", "openai").split(";"),
-            os.getenv("LLM_APIKEYS", "").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o").split(";"),
+            os.getenv("LLM_HOSTS", "openai").split(";"),
+            os.getenv("LLM_API_KEYS", "").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5").split(";"),
+        )
+    ] if supports_structured_output else[
+        (url, key, models.split(","))
+        for url, key, models in zip(
+            os.getenv("LLM_HOSTS", "openai;mistral;anthropic;gemini").split(";"),
+            os.getenv("LLM_API_KEYS", ";;;").split(";"),
+            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash").split(";"),
         )
     ]
 
@@ -223,7 +229,7 @@ class SessionData(BaseModel):
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
         _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
-    
+
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
     the server is using the same method for waiting for the webserver to be closed again.
@@ -239,31 +245,15 @@ class SessionData(BaseModel):
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
-    _llm_clients: Dict[str, AsyncOpenAI] = PrivateAttr(default_factory=dict)
     _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
-    
+
     @property
     def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
         return self._scheduled_tasks
-
-    def llm_client(self, the_url: str) -> AsyncOpenAI:
-        if the_url not in self._llm_clients:
-            for url, key, _ in get_supported_models():
-                if url == the_url:
-                    logger.info("creating new client for URL " + url)
-                    # this distinction is no longer needed, but may still be useful to keep the openai-api-key out of the .env
-                    self._llm_clients[url] = (
-                        AsyncOpenAI(api_key=key if key else os.getenv("OPENAI_API_KEY")) if url == "openai" else
-                        AsyncOpenAI(api_key=key, base_url=url)
-                    )
-                    break
-            else:
-                raise OpacaException(f"LLM host not supported : {the_url}")
-        return self._llm_clients[the_url]
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
@@ -431,9 +421,9 @@ class MethodConfig(BaseModel):
         return Field(default=default, title=title, description=description,)
 
     @staticmethod
-    def llm_field(title: str = None, description: str = None) -> Any:
-        models = [f"{url}::{model}" for url, _, models in get_supported_models() for model in models]
-        regex = r"(?P<host>.+)::(?P<model>[\w-]+)" # the named groups are just for a better error message
+    def llm_field(title: str = None, description: str = None, supports_structured_output: bool = False) -> Any:
+        models = [f"{url}/{model}" for url, _, models in get_supported_models(supports_structured_output) for model in models]
+        regex = r"(?P<host>.+)/(?P<model>[\w-]+)" # the named groups are just for a better error message
         return MethodConfig.string(default=models[0], options=models, allow_free_input=True, title=title, description=description, regex=regex)
 
     @staticmethod
@@ -455,4 +445,3 @@ class ConfigPayload(BaseModel):
     """
     config_values: SerializeAsAny[MethodConfig]
     config_schema: Dict[str, Any]
-
