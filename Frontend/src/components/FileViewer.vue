@@ -56,9 +56,9 @@ export default {
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    margin: 1em;
-    margin-top: 0em;
+    padding: 0 1rem 1rem 1rem;
 }
+
 .file-viewer-wrapper {
     display: flex;
     flex-direction: column;
@@ -79,6 +79,7 @@ export default {
     font-weight: bold;
     color: var(--text-primary-dark);
 }
+
 .file-viewer {
     flex: 1;
     display: flex;
@@ -86,6 +87,7 @@ export default {
     justify-content: center;
     overflow: hidden;
 }
+
 .viewer-content {
     flex: 1;
     object-fit: contain;
@@ -93,6 +95,7 @@ export default {
     height: 100%;
     padding: 0 10px 10px; /* no padding below title bar */
 }
+
 .close-btn {
     width: 25px;
     height: 25px;
@@ -101,8 +104,8 @@ export default {
     cursor: pointer;
     color: var(--button-primary-dark);
 }
+
 .close-btn:hover {
     background-color: var(--border-dark);
 }
-
 </style>
