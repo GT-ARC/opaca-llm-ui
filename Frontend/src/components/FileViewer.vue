@@ -1,5 +1,5 @@
 <template>
-    <div v-if="visible" class="file-viewer-overlay">
+    <div v-if="visible" class="file-viewer-overlay" @click.stop="$emit('close')">
         <div class="file-viewer-wrapper">
             <div class="file-viewer-header">
                 <span class="file-name">{{ fileName }}</span>
