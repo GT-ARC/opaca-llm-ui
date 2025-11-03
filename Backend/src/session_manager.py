@@ -189,3 +189,7 @@ async def on_shutdown():
     if db_client.is_db_configured():
         await store_sessions_in_db()
         await db_client.client.close()
+    else:
+        # without DB, sessions are lost on shutdown --> delete all files
+        for session_id in sessions:
+            delete_all_files_from_disk(session_id)
