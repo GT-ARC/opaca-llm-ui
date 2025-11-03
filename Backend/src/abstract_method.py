@@ -15,9 +15,9 @@ from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-    ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
-    ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
-)
+                     ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
+                     ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
+                     MissingApiKeyNotification, MissingApiKeyResponse)
 from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
@@ -83,6 +83,11 @@ class AbstractMethod(ABC):
         if status_message:
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
 
+        # Check if an additional API key is required for this model
+        check = litellm.validate_environment(model)
+        if not check.get("keys_in_environment"):
+            await self.handle_invalid_api_key(model)
+
         # Initialize variables
         exec_time = time.time()
         agent_message = AgentMessage(agent=agent, content='', tools=[])
@@ -108,6 +113,10 @@ class AbstractMethod(ABC):
         # If tool_choice is set to "only", use "auto" for external API call
         if tool_choice == "only":
             kwargs['tool_choice'] = 'auto'
+
+        # Check if a provided api key exists and if so, use it
+        if api_key := self.session.get_api_key(model):
+            kwargs['api_key'] = api_key
 
         # Main stream logic
         stream = await litellm.aresponses(**kwargs)
@@ -247,6 +256,17 @@ class AbstractMethod(ABC):
 
         return res
 
+    async def handle_invalid_api_key(self, model, message: str = ""):
+        message = message or f"API key is missing for model '{model}'!"
+        await self.send_to_websocket(MissingApiKeyNotification(message=message))
+        response = MissingApiKeyResponse(**await self.session.websocket_receive())
+        if response.api_key:
+            if litellm.check_valid_key(model, response.api_key):
+                self.session.set_api_key(model, response.api_key)
+            else:
+                await self.handle_invalid_api_key(model, message=f"API key is invalid for model '{model}'!")
+        else:
+            raise OpacaException(user_message=message)
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):
     """

@@ -281,6 +281,12 @@ class SessionData(BaseModel):
             return True
         return False
 
+    def set_api_key(self, model: str, api_key: str) -> bool:
+        self._user_api_keys[model.rsplit("/", 1)[0]] = api_key
+
+    def get_api_key(self, model: str) -> str:
+        return self._user_api_keys.get(model.rsplit("/", 1)[0], "")
+
     def has_websocket(self) -> bool:
         return self._websocket is not None
 
@@ -323,7 +329,7 @@ class OpacaException(Exception):
     and error message (shown when clicking on the error-marker), as well as a status code.
     """
 
-    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+    def __init__(self, user_message: str, error_message: str = "", status_code: int = 400):
         super().__init__(user_message)
         self.user_message = user_message
         self.error_message = error_message
