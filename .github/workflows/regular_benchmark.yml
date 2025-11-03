@@ -1,0 +1,63 @@
+name: Scheduled Benchmarks
+
+on:
+  schedule:
+    - cron: '0 6 */14 * *'  # Run every two weeks at 6am
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r Backend/requirements.txt
+
+      - name: Download previous benchmark artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: benchmark-results
+          path: benchmark/test_runs
+        continue-on-error: true   # Skip if no previous runs exist yet
+
+      - name: Run benchmarks    # Add more API keys for more models to benchmark
+        run: |
+          export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          python ./benchmark/run.py -s all --methods simple simple-tools tool-llm self-orchestrated --models openai::gpt-4o-mini -p 10 --out results.json
+
+      - name: Compare results
+        run: python ./benchmark/compare_results.py --new results.json --old previous_results.json --out report.json
+        continue-on-error: true       # This should trigger when there are no previous runs yet
+
+      - name: Save current results as previous
+        run: mv -f benchmark/test_runs/results.json benchmark/test_runs/previous_results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-results
+          path: benchmark/test_runs
+
+      - name: Send email summary
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: mail.dai-labor.de
+          server_port: 587
+          secure: false
+          ignore_cert: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Biweekly Benchmark Report"
+          to: info@go-ki.org
+          from: "Github Benchmark Bot <${{ secrets.EMAIL_USERNAME }}@dai-labor.de>"
+          body: |
+            Here is your biweekly benchmark report for SAGE.
+          attachments: benchmark/test_runs/report.json
