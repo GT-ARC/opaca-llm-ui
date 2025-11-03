@@ -97,7 +97,7 @@ class AbstractMethod(ABC):
         kwargs = {
             'model': model,
             'instructions': system_prompt,
-            'input': list(map(lambda m: m.model_dump(), messages)),
+            'input': [m.model_dump() for m in messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
             'temperature': temperature,
