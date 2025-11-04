@@ -19,9 +19,9 @@ async def upload_files(session: SessionData, model: str):
     host = model.rsplit("/", 1)[0]
 
     # Upload all files that haven't been uploaded to this host
-    for file_id, filedata in session.uploaded_files.items():
+    for file_id, file_data in session.uploaded_files.items():
         # Skip suspended files
-        if filedata.suspended:
+        if file_data.suspended:
             continue
 
         # Check if the selected host supports file upload
@@ -30,20 +30,20 @@ async def upload_files(session: SessionData, model: str):
             break
 
         # If this host already has an uploaded id for this file, skip
-        if host in filedata.host_ids:
+        if host in file_data.host_ids:
             continue
 
         # prepare file for upload
-        file_path = Path(FILES_PATH, session.session_id, filedata.file_id)
+        file_path = create_path(session.session_id, file_id)
         with open(file_path, 'rb') as f:
             file_obj = io.BytesIO(f.read())
-            file_obj.name = filedata.file_name  # Required by OpenAI SDK
+            file_obj.name = file_data.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
         uploaded = await litellm.acreate_file(file=file_obj, purpose="assistants", custom_llm_provider=host)
         logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
         # record host id under this host_url
-        filedata.host_ids[host] = uploaded.id
+        file_data.host_ids[host] = uploaded.id
 
     return [
         {"type": "input_file", "file_id": filedata.host_ids[host]}
@@ -92,7 +92,7 @@ async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
     Save an UploadFile to disk.
     """
     file_data = OpacaFile(content_type=file.content_type, file_name=file.filename)
-    file_path = Path(FILES_PATH, session_id, file_data.file_id)
+    file_path = create_path(session_id, file_data.file_id)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     logger.info(f'Saving file to "{file_path}"')
     with open(file_path, 'wb') as f:
@@ -102,13 +102,18 @@ async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
 
 
 def delete_file_from_disk(session_id: str, file_id: str) -> None:
-    file_path = Path(FILES_PATH, session_id, file_id)
+    file_path = create_path(session_id, file_id)
     if file_path.is_file():
         logger.info(f'Deleting file {file_id} for session "{session_id}": {file_path}')
         file_path.unlink()
 
 def delete_all_files_from_disk(session_id: str) -> None:
-    dir_path = Path(FILES_PATH, session_id)
+    dir_path = create_path(session_id)
     if dir_path.is_dir():
         logger.info(f'Deleting all files for session "{session_id}": {dir_path}')
         shutil.rmtree(dir_path)  # path.rmdir would require the dir to be empty first
+
+def create_path(session_id: str, file_id: str = None) -> Path:
+    if not file_id:
+        return Path(FILES_PATH, session_id)
+    return Path(FILES_PATH, session_id, file_id)

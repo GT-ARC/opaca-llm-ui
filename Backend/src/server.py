@@ -11,6 +11,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
@@ -21,7 +22,7 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, delete_file_from_disk
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
 from .session_manager import create_or_refresh_session, delete_all_sessions, \
     cleanup_task, on_shutdown, load_all_sessions
 
@@ -316,6 +317,29 @@ async def save_bookmarks(request: Request) -> None:
     session = await handle_session_id(request)
     new_bookmarks = await request.json()
     session.bookmarks = new_bookmarks
+
+
+@app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.")
+async def view_file(request: Request, response: Response, file_id: str):
+    session = await handle_session_id(request, response)
+    files = session.uploaded_files
+
+    if file_id not in files:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file = files[file_id]
+    file_path = create_path(session.session_id, file_id)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File missing on disk")
+
+    # Serve the file with inline disposition so browsers render PDFs/images
+    return FileResponse(
+        path=file_path,
+        media_type=file.content_type,
+        filename=file.file_name,
+        headers={"Content-Disposition": f'inline; filename="{file.file_name}"'}
+    )
 
 
 # WEBSOCKET CONNECTION (permanently opened)

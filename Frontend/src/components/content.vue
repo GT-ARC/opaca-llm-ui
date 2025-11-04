@@ -13,6 +13,15 @@
             </div>
         </div>
 
+        <!-- File Viewer Overlay -->
+        <FileViewer
+            :visible="!!viewerFile"
+            :fileName="viewerFile?.fileName"
+            :src="viewerFile?.src"
+            :mime-type="viewerFile?.mimeType"
+            @close="viewerFile = null"
+        />
+
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
@@ -38,6 +47,7 @@
             @new-chat="() => {this.suspendAllFiles(); this.startNewChat()}"
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
+            @view-file="openViewer"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
         />
 
@@ -102,6 +112,7 @@
                         :file="fileObj.file"
                         :is-uploading="fileObj.isUploading"
                         @remove-file="this.handleDeleteFile"
+                        @view-file="openViewer"
                     />
                 </div>
 
@@ -205,11 +216,13 @@ import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
+import FileViewer from "./FileViewer.vue";
 
 export default {
     name: 'main-content',
     components: {
         FilePreview,
+        FileViewer,
         OptionsSelect,
         Sidebar,
         RecordingPopup,
@@ -244,6 +257,7 @@ export default {
             showFileDropOverlay: false,
             autoScrollEnabled: true,
             socket: null,
+            viewerFile: null,
         }
     },
     methods: {
@@ -771,6 +785,10 @@ export default {
                 await this.uploadFiles(files);
             }
             // If no file found, let normal paste happen
+        },
+
+        openViewer(file) {
+            this.viewerFile = file;
         },
 
         addPromptToSidebar(prompt) {
