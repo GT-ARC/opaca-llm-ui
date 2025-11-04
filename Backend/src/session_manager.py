@@ -7,8 +7,8 @@ from typing import Dict, Optional, List
 from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
-from .file_utils import delete_files_for_session
-from .models import SessionData, Chat, QueryRequest, QueryResponse
+from .file_utils import delete_all_files_from_disk
+from .models import SessionData
 
 
 logger: Logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class SessionDbClient:
         except ValidationError as e:
             logger.error(f'Invalid data for session {session_id}: {e}')
             await self.delete_session(session_id)
-            delete_files_for_session(session_id)
+            delete_all_files_from_disk(session_id)
             return None
         except Exception as e:
             logger.error(f'Failed to load session {session_id}: {e}')
@@ -158,7 +158,7 @@ async def cleanup_old_sessions() -> None:
 async def delete_session(session_id: str) -> None:
     if session_id in sessions:
         del sessions[session_id]
-    delete_files_for_session(session_id)
+    delete_all_files_from_disk(session_id)
     await db_client.delete_session(session_id)
 
 
@@ -189,3 +189,7 @@ async def on_shutdown():
     if db_client.is_db_configured():
         await store_sessions_in_db()
         await db_client.client.close()
+    else:
+        # without DB, sessions are lost on shutdown --> delete all files
+        for session_id in sessions:
+            delete_all_files_from_disk(session_id)
