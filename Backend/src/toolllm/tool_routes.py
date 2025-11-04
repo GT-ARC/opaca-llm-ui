@@ -13,7 +13,7 @@ from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig
 
 class ToolLlmConfig(MethodConfig):
     tool_gen_model: str = MethodConfig.llm_field(title='Generator', description='Generating tool calls')
-    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results')
+    tool_eval_model: str = MethodConfig.llm_field(title='Evaluator', description='Evaluating tool call results', supports_structured_output=True)
     output_model: str = MethodConfig.llm_field(title='Output', description='Generating the final output')
     temperature: float = MethodConfig.temperature_field()
     max_rounds: int = MethodConfig.max_rounds_field()
