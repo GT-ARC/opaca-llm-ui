@@ -524,6 +524,7 @@ Please address these specific improvements:
             self.invoke_tool(tool.name, tool.args, tool.id)
             for tool in message.tools
         ])
+        message.tools = tool_results        
         tool_output = "\n".join(
             f"- Worker Agent Executed: {tool.name}."
             for tool in tool_results
