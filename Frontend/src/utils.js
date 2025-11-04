@@ -166,7 +166,7 @@ export function addDebugMessage(debugMessages, message) {
     if (! message || ! message.text) return;
     // find debug message with the same ID, if any
     const matchingMessage = debugMessages.find( (m) => m.id === message.id);
-    if (matchingMessage != null) {
+    if (message.id != null && matchingMessage != null) {
         // append to existing message
         matchingMessage.text += message.text;
     } else {
