@@ -13,7 +13,7 @@ import traceback
 import asyncio
 
 from starlette.websockets import WebSocket
-from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError
 
 from .opaca_client import OpacaClient
 
@@ -261,7 +261,11 @@ class SessionData(BaseModel):
     def get_config(self, method) -> 'MethodConfig':
         config = self.config.get(method.NAME, method.CONFIG())
         if isinstance(config, dict):  # config is deserialized from DB as dict since the exact type is not known then
-            config = self.config[method.NAME] = method.CONFIG(**config)
+            try:
+                config = self.config[method.NAME] = method.CONFIG(**config)
+            except ValidationError as e:
+                logger.warning(f"Config does not comply with schema; resetting to default.")
+                config = self.config[method.NAME] = method.CONFIG()
         return config
 
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:

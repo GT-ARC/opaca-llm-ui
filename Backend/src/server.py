@@ -22,7 +22,7 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
 from .session_manager import create_or_refresh_session, delete_all_sessions, \
     cleanup_task, on_shutdown, load_all_sessions
 
@@ -286,6 +286,7 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
     files = session.uploaded_files
 
     if file_id in files:
+        delete_file_from_disk(session.session_id, file_id)
         result = await delete_file_from_all_clients(session, file_id)
         return result
 
