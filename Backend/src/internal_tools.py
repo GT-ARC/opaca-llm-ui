@@ -178,9 +178,6 @@ class InternalTools:
         sec_now = now.hour*3600 + now.minute*60 + now.second
         one_day = 24 * 60 * 60
         delay = ((60*hh + mm)*60 - sec_now) % one_day
-        print("NOW", now)
-        print("SECONDS", sec_now)
-        print("DELAY", delay)
         return await self.deferred_execution_helper(query, delay, one_day, repetitions)
 
     async def tool_get_scheduled_tasks(self) -> dict:
