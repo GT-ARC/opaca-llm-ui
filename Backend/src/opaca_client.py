@@ -21,6 +21,8 @@ class OpacaClient:
         self.url = None
         self.token = None
         self.connected = False
+        self.login_lock = asyncio.Lock()
+        self.logged_in_containers = []  # Stores the container ids where the user is currently logged in
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
@@ -101,10 +103,13 @@ class OpacaClient:
         logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers(), timeout=None)
+            self.logged_in_containers.append(container_id)
         res.raise_for_status()
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
         """Initiate container login for OPACA RP"""
+        if container_id not in self.logged_in_containers:
+            return
         try:
             await asyncio.sleep(delay_seconds)
         finally:
@@ -112,6 +117,7 @@ class OpacaClient:
             logger.info(f"Logout of container {container_id}")
             async with httpx.AsyncClient() as client:
                 res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
+                self.logged_in_containers.remove(container_id)
             res.raise_for_status()
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:

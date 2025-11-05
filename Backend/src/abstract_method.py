@@ -220,24 +220,25 @@ class AbstractMethod(ABC):
         # If a "missing credentials" error is encountered, initiate container login
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
-        # Get credentials from user
-        await self.session.websocket_send(ContainerLoginNotification(
-            container_name=container_name,
-            tool_name=tool_name,
-            retry=login_attempt_retry
-        ))
-        response = ContainerLoginResponse(**await self.session.websocket_receive())
+        async with self.session.opaca_client.login_lock:
+            if container_id in self.session.opaca_client.logged_in_containers:
+                return await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
-        # Check if credentials were provided
-        if not response.username or not response.password:
-            return ToolCall(id=tool_id, name=tool_name, args=tool_args,
-                            result=f"Failed to invoke tool.\nNo credentials provided.")
+            # Get credentials from user
+            await self.session.websocket_send(ContainerLoginNotification(
+                container_name=container_name,
+                tool_name=tool_name,
+                retry=login_attempt_retry
+            ))
+            response = ContainerLoginResponse(**await self.session.websocket_receive())
 
-        # Send credentials to container via OPACA
-        await self.session.opaca_client.container_login(response.username, response.password, container_id)
+            # Check if credentials were provided
+            if not response.username or not response.password:
+                return ToolCall(id=tool_id, name=tool_name, args=tool_args,
+                                result=f"Failed to invoke tool.\nNo credentials provided.")
 
-        # Sleep 1 second before attempting tool retry
-        await asyncio.sleep(1)
+            # Send credentials to container via OPACA
+            await self.session.opaca_client.container_login(response.username, response.password, container_id)
 
         # try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
