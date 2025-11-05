@@ -40,9 +40,6 @@ export default {
         isPdf() {
             return this.mimeType === 'application/pdf';
         },
-        fileName() {
-            return this.fileName;
-        }
     }
 }
 </script>
