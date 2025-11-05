@@ -59,6 +59,10 @@ class BackendClient {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
+    async deleteAllChats() {
+        await this.sendRequest("DELETE", `chats`);
+    }
+
 
     // files
 

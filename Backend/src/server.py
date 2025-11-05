@@ -198,6 +198,13 @@ async def delete_chat(request: Request, response: Response, chat_id: str) -> boo
     return session.delete_chat(chat_id)
 
 
+@app.delete("/chats", description="Delete all chats of the current session.")
+async def delete_all_chats(request: Request, response: Response) -> bool:
+    session = await handle_session_id(request, response)
+    session.chats.clear()
+    return True
+
+
 @app.post("/chats/search", description="Search through all chats for a given query.")
 async def search_chats(request: Request, response: Response, query: str) -> Dict[str, List[SearchResult]]:
     def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
