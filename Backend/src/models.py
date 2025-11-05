@@ -168,7 +168,7 @@ class ScheduledTask(BaseModel):
     task_id: int
     query: str
     interval: int
-    recurring: bool
+    repetitions: int
 
 
 class Chat(BaseModel):
