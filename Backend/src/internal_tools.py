@@ -132,7 +132,7 @@ class InternalTools:
 
     async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
         
-        async def _callback(remaining: int):
+        async def _callback(delay: int, remaining: int):
             # wait until it's time to execute the task...
             await asyncio.sleep(delay)
             if task_id not in self.session.scheduled_tasks:
@@ -154,16 +154,16 @@ class InternalTools:
 
             # schedule next execution or remove task from list of tasks
             if remaining < 0:
-                asyncio.create_task(_callback(remaining))
+                asyncio.create_task(_callback(interval, remaining))
             elif remaining > 1:
-                asyncio.create_task(_callback(remaining-1))
+                asyncio.create_task(_callback(interval, remaining-1))
                 self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=interval, repetitions=remaining-1)
             else:
                 del self.session.scheduled_tasks[task_id]
 
         task_id = next(task_ids_provider)
         self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=interval, repetitions=repetitions)
-        asyncio.create_task(_callback(repetitions))
+        asyncio.create_task(_callback(delay, repetitions))
         return task_id
 
 
