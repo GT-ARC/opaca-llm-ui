@@ -178,7 +178,7 @@ class InternalTools:
     async def tool_schedule_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
         return await self.deferred_execution_helper(query, delay_seconds, delay_seconds, repetitions)
 
-    async def tool_schedule_daily_task(self, query: str, time_of_day: int, repetitions: int) -> int:
+    async def tool_schedule_daily_task(self, query: str, time_of_day: str, repetitions: int) -> int:
         hh, mm = map(int, time_of_day.split(":"))
         now = datetime.now()
         sec_now = now.hour*3600 + now.minute*60 + now.second
