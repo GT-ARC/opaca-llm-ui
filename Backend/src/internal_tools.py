@@ -132,9 +132,9 @@ class InternalTools:
 
     async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
         
-        async def _callback(delay: int, remaining: int):
+        async def _callback(wait_time: int, remaining: int):
             # wait until it's time to execute the task...
-            await asyncio.sleep(delay)
+            await asyncio.sleep(wait_time)
             if task_id not in self.session.scheduled_tasks:
                 logger.info(f"Scheduled task {task_id} has been cancelled")
                 return
