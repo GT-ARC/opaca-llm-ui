@@ -221,6 +221,7 @@ class AbstractMethod(ABC):
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
         async with self.session.opaca_client.login_lock:
+            # might already be logged in on lock-release if two actions of same container were called in parallel
             if container_id in self.session.opaca_client.logged_in_containers:
                 return await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
