@@ -28,6 +28,7 @@ services:
     ports:
       - "3001:3001"
     environment:
+      TZ: Europe/Berlin
       OPENAI_API_KEY:
       ANTHROPIC_API_KEY:
       MISTRAL_API_KEY:
@@ -39,9 +40,6 @@ services:
       MONGODB_URI: "mongodb://user:pass@backend-db:27017"
     volumes:
       - appdata:/app/data
-      # for correct time zone
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
 
   # MongoDB for storing session data
   backend-db:
