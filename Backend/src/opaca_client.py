@@ -100,16 +100,15 @@ class OpacaClient:
         res.raise_for_status()
         return res.json()
 
-    async def container_login(self, container_id: str, username: str, password: str, timeout: int):
+    async def container_login(self, container_id: str, username: str, password: str):
         """Initiate container login for OPACA RP"""
         logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers(), timeout=None)
         res.raise_for_status()
 
-        # Mark container as logged in and schedule logout after timeout seconds
+        # Mark container as logged in
         self.logged_in_containers.add(container_id)
-        asyncio.create_task(self.deferred_container_logout(container_id, timeout))
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
         """Initiate delayed container logout for OPACA RP"""
