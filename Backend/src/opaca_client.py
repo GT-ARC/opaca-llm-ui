@@ -47,6 +47,8 @@ class OpacaClient:
 
     async def disconnect(self) -> None:
         """Clears authentication and connection state."""
+        for cid in list(self.logged_in_containers):
+            await self.deferred_container_logout(cid, 0)
         self.token = None
         self.url = None
         self.connected = False
