@@ -145,10 +145,6 @@ async def stop_query(request: Request, response: Response) -> None:
     session.abort_sent = True
 
 
-@app.post("/reset_all", description="Reset all sessions (message histories and configurations)")
-async def reset_all():
-    await delete_all_sessions()
-
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
