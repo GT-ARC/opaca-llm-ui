@@ -138,8 +138,6 @@ class InternalTools:
             if task_id not in self.session.scheduled_tasks:
                 logger.info(f"Scheduled task {task_id} has been cancelled")
                 return
-            if remaining == 0:
-                del self.session.scheduled_tasks[task_id]
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
             # send placeholder to UI, execute the task, then send result/error
@@ -153,17 +151,20 @@ class InternalTools:
             await self.session.websocket_send(PushMessage(**result.model_dump()))
 
             # schedule next execution or remove task from list of tasks
-            if remaining < 0:
+            if remaining < 0:   # negative -> infinite more
                 asyncio.create_task(_callback(interval, remaining))
-            elif remaining > 1:
+            elif remaining > 0: # positive -> decrement and repeat
                 asyncio.create_task(_callback(interval, remaining-1))
-                self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=interval, repetitions=remaining-1)
-            else:
+                self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=interval, repetitions=remaining)
+            else: # zero -> remove task
                 del self.session.scheduled_tasks[task_id]
 
+        if repetitions == 0:
+            raise ValueError("Repetitions must not be zero")
+        
         task_id = next(task_ids_provider)
         self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=interval, repetitions=repetitions)
-        asyncio.create_task(_callback(delay, repetitions))
+        asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
 
 
