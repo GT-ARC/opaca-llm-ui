@@ -53,13 +53,34 @@ services:
       - mongoconfig:/data/configdb
 
   # TTS Server for voice synthesis
-  #opaca-tts-server:
-  #  build: ./tts-server
-  #  image: opaca-tts-server
-  #  ports:
-  #    - "7431:7431"
-  #  environment:
-  #    OPENAI_API_KEY:
+  opaca-tts-server:
+    build: ./tts-server
+    image: opaca-tts-server
+    ports:
+      - "7431:7431"
+    environment:
+      OPENAI_API_KEY:
+    profiles:
+      - "tts"
+      - "all"
+
+  # Optional OPACA platform service
+  opaca-platform:
+    image: ghcr.io/gt-arc/opaca/opaca-platform:main
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      PUBLIC_URL:
+      PLATFORM_ENVIRONMENT: DOCKER
+      ENABLE_AUTH: false
+      DB_EMBED: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles:
+      - "platform"
+      - "all"
+
 
 # Create a volume to persistently store data
 volumes:
