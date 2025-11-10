@@ -21,6 +21,8 @@ class OpacaClient:
         self.url = None
         self.token = None
         self.connected = False
+        self.login_lock = asyncio.Lock()
+        self.logged_in_containers = set()  # Stores the container ids where the user is currently logged in
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
@@ -45,6 +47,8 @@ class OpacaClient:
 
     async def disconnect(self) -> None:
         """Clears authentication and connection state."""
+        for cid in list(self.logged_in_containers):
+            await self.deferred_container_logout(cid, 0)
         self.token = None
         self.url = None
         self.connected = False
@@ -96,23 +100,31 @@ class OpacaClient:
         res.raise_for_status()
         return res.json()
 
-    async def container_login(self, username: str, password: str, container_id: str):
+    async def container_login(self, container_id: str, username: str, password: str):
         """Initiate container login for OPACA RP"""
         logger.info(f"Login to container {container_id}")
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/containers/login/{container_id}", json={"username": username, "password": password}, headers=self._headers(), timeout=None)
         res.raise_for_status()
 
+        # Mark container as logged in
+        self.logged_in_containers.add(container_id)
+
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
-        """Initiate container login for OPACA RP"""
+        """Initiate delayed container logout for OPACA RP"""
         try:
             await asyncio.sleep(delay_seconds)
         finally:
             # make sure that logout still happens even if backend is shut down
-            logger.info(f"Logout of container {container_id}")
-            async with httpx.AsyncClient() as client:
-                res = await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
-            res.raise_for_status()
+            async with self.login_lock:
+                # If container was logged out during sleep, do not logout again
+                if container_id not in self.logged_in_containers:
+                    return
+
+                logger.info(f"Logout of container {container_id}")
+                async with httpx.AsyncClient() as client:
+                    await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
+                    self.logged_in_containers.remove(container_id)
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
         """Get most likely container id and name for given agent and action. Returns empty string if no match found."""
