@@ -49,6 +49,7 @@
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @view-file="openViewer"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
+                @delete-all-chats="() => this.handleDeleteAllChats()"
         />
 
 
@@ -723,6 +724,12 @@ export default {
             } finally {
                 await this.$refs.sidebar.$refs.chats.updateChats(chatId);
             }
+        },
+
+        async handleDeleteAllChats() {
+            await this.startNewChat();
+            await backendClient.deleteAllChats();
+            await this.$refs.sidebar.$refs.chats.updateChats();
         },
 
         async startNewChat() {
