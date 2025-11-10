@@ -13,6 +13,7 @@ import asyncio
 import logging
 import json
 from itertools import count
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel
 from typing import Callable
@@ -44,11 +45,18 @@ class InternalTools:
         self.tools = [
             # TASK SCHEDULING
             InternalTool(
-                name="ScheduleTask",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Tasks can be executed just once or recurring. The interval should be a time in seconds for the first execution from now, and interval between executions, if applicable. Returns task ID",
-                params={"query": "string", "delay_seconds": "integer", "recurring": "boolean"},
+                name="ScheduleIntervalTask",
+                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the interval in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The delay should be a time in seconds for the first execution from now, and interval between executions, if applicable. Returns task ID",
+                params={"query": "string", "delay_seconds": "integer", "repetitions": "integer"},
                 result="integer",
                 function=self.tool_schedule_task,
+            ),
+            InternalTool(
+                name="ScheduleDailyTask",
+                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed once per day at the specified time, in format 'HH:MM'. Returns task ID",
+                params={"query": "string", "time_of_day": "string", "repetitions": "integer"},
+                result="integer",
+                function=self.tool_schedule_daily_task,
             ),
             InternalTool(
                 name="GetScheduledTasks",
@@ -122,18 +130,24 @@ class InternalTools:
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
 
-
-    # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
-
-    async def tool_schedule_task(self, query: str, delay_seconds: int, recurring: bool) -> int:
-        task_id = next(task_ids_provider)
-
-        async def _callback():
+    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
+        
+        async def _callback(wait_time: int, remaining: int):
             # wait until it's time to execute the task...
-            await asyncio.sleep(delay_seconds)
+            await asyncio.sleep(wait_time)
             if task_id not in self.session.scheduled_tasks:
                 logger.info(f"Scheduled task {task_id} has been cancelled")
                 return
+
+            # schedule next execution or remove task from list of tasks
+            if remaining < 0:   # negative -> infinite more
+                asyncio.create_task(_callback(interval, remaining))
+            elif remaining > 0: # positive -> decrement and repeat
+                asyncio.create_task(_callback(interval, remaining-1))
+                self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
+            else: # zero -> remove task
+                del self.session.scheduled_tasks[task_id]
+
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
             # send placeholder to UI, execute the task, then send result/error
@@ -146,16 +160,32 @@ class InternalTools:
                 result = QueryResponse.from_exception(query, e)
             await self.session.websocket_send(PushMessage(**result.model_dump()))
 
-            # schedule next execution or remove task from list of tasks
-            if recurring:
-                asyncio.create_task(_callback())
-            elif task_id in self.session.scheduled_tasks:
-                del self.session.scheduled_tasks[task_id]
+        def make_task(delay, remaining):
+            next_time = (datetime.now() + timedelta(seconds=delay)).strftime("%b %d %H:%M")
+            return ScheduledTask(task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
-        asyncio.create_task(_callback())
-        self.session.scheduled_tasks[task_id] = ScheduledTask(task_id=task_id, query=query, interval=delay_seconds, recurring=recurring)
+        if repetitions == 0:
+            raise ValueError("Repetitions must not be zero")
+
+        task_id = next(task_ids_provider)
+        self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
+        asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
-    
+
+
+    # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
+
+    async def tool_schedule_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
+        return await self.deferred_execution_helper(query, delay_seconds, delay_seconds, repetitions)
+
+    async def tool_schedule_daily_task(self, query: str, time_of_day: str, repetitions: int) -> int:
+        hh, mm = map(int, time_of_day.split(":"))
+        now = datetime.now()
+        sec_now = now.hour*3600 + now.minute*60 + now.second
+        one_day = 24 * 60 * 60
+        delay = ((60*hh + mm)*60 - sec_now) % one_day
+        return await self.deferred_execution_helper(query, delay, one_day, repetitions)
+
     async def tool_get_scheduled_tasks(self) -> dict:
         return self.session.scheduled_tasks
 

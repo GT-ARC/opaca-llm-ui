@@ -28,6 +28,7 @@ services:
     ports:
       - "3001:3001"
     environment:
+      TZ: Europe/Berlin
       OPENAI_API_KEY:
       ANTHROPIC_API_KEY:
       MISTRAL_API_KEY:
