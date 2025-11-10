@@ -331,6 +331,18 @@ export default {
             this.containerLoginUser = "";
             this.containerLoginPassword = "";
             this.containerLoginDetails = null;
+        },
+
+        async waitForConnection() {
+            const maxAttempts = 15;
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    return await backendClient.getConnection()
+                } catch {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            throw new Error("SAGE Backend is unreachable.");
         }
     },
 
@@ -354,8 +366,9 @@ export default {
             e.stopPropagation();
         });
 
-        // check connection state; also acts as initial "handshake" to initialize the Session
-        const url = await backendClient.getConnection();
+        // check connection state until backend is reachable; also acts as initial "handshake" to initialize the Session
+        // if no connection is established, display the user an error
+        const url = await this.waitForConnection();
         if (url != null) {
             this.connected = true;
             this.opacaRuntimePlatform = url;
@@ -370,6 +383,7 @@ export default {
         await sidebars.files.updateFiles();
         await sidebars.chats.updateChats();
         await sidebars.config.fetchMethodConfig();
+        await sidebars.questions.loadPersonalPrompts();
         // open permanent websocket connection to backend for "push notifications" to the UI
         this.$refs.content.connectWebsocket();
     }
