@@ -342,6 +342,7 @@ export default {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
+            alert("SAGE Backend is unreachable. Please check if the SAGE backend is running and reload the page.")
             throw new Error("SAGE Backend is unreachable.");
         }
     },
