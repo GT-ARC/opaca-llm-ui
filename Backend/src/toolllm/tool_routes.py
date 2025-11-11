@@ -102,7 +102,7 @@ class ToolLLMMethod(AbstractMethod):
             )
 
             if not result.tools:
-                no_tools = len(called_tools) > 0
+                no_tools = len(called_tools) == 0
                 break
 
             # Check the generated tool calls for errors and regenerate them if necessary
