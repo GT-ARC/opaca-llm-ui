@@ -102,7 +102,7 @@ class ToolLLMMethod(AbstractMethod):
             )
 
             if not result.tools:
-                no_tools = True
+                no_tools = len(called_tools) > 0
                 break
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -149,6 +149,7 @@ class ToolLLMMethod(AbstractMethod):
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
+                        *chat.messages,
                         ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                             message=message,
                             called_tools=called_tools,
