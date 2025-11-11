@@ -165,7 +165,21 @@ To use the above mentioned models, you need to provide the corresponding API key
 
 ### Using Docker Compose
 
-To build and start SAGE, simply run the Docker Compose: `docker compose up --build`. You can then find the Frontend at `http://localhost:5173` and the backend (FastAPI) at `http://localhost:3001/docs`. Specify the OPACA Platform to connect to (including login credentials, if authentication is enabled) and hit the "Connect" button. The UI should automatically switch to the view showing the available actions, and you can start interacting with the LLM via the chat window.
+To build and start SAGE, you can use the included `docker-compose.yml` file. It has several predefined profiles to start different subsets of services:
+
+* `base`: Frontend, Backend, and Session DB.
+* `tts`: the TTS server.
+* `platform`: The OPACA Runtime Platform.
+* `all`: Starts all services.
+* `benchmark`: Just the backend and OPACA RP.
+
+You can run a profile using `docker compose --profile <profile> up --build`
+
+If you want to set a default profile to run, you can do so using the `COMPOSE_PROFILES` environment variable: `export COMPOSE_PROFILES=<profile1>`. You can then start SAGE using simply `docker compose up --build`
+
+You can also set multiple default profiles to run. For example, if you wanted to always start the base services + the OPACA RP, you could `export COMPOSE_PROFILES=base,platform`.
+
+# To build and start SAGE, simply run the Docker Compose: `docker compose up --build`. You can then find the Frontend at `http://localhost:5173` and the backend (FastAPI) at `http://localhost:3001/docs`. Specify the OPACA Platform to connect to (including login credentials, if authentication is enabled) and hit the "Connect" button. The UI should automatically switch to the view showing the available actions, and you can start interacting with the LLM via the chat window.
 
 ### Development and testing
 

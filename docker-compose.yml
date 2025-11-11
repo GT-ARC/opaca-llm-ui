@@ -1,14 +1,13 @@
 services:
 
   # Vite/Vue-based frontend for SAGE Integration
-  opaca-llm-frontend:
+  frontend:
     build: ./Frontend
     image: opaca-llm-frontend
     ports:
       - "5173:5173"
     depends_on:
-      - opaca-llm-backend
-      #- opaca-tts-server
+      - backend
     environment:
       VITE_PLATFORM_BASE_URL:
       VITE_BACKEND_BASE_URL:
@@ -18,13 +17,14 @@ services:
       VITE_AUTOCONNECT:
       VITE_COLOR_SCHEME:
       VITE_DEFAULT_LANGUAGE:
+    profiles:
+      - base
+      - all
 
   # FastAPI-based backend for SAGE Integration
-  opaca-llm-backend:
+  backend:
     build: ./Backend
     image: opaca-llm-backend
-    depends_on:
-      - backend-db
     ports:
       - "3001:3001"
     environment:
@@ -39,9 +39,13 @@ services:
       MONGODB_URI: "mongodb://user:pass@backend-db:27017"
     volumes:
       - appdata:/app/data
+    profiles:
+      - base
+      - all
+      - benchmark
 
   # MongoDB for storing session data
-  backend-db:
+  session-db:
     image: mongo:8.0.14
     ports:
       - "127.0.0.1:27018:27017"
@@ -51,9 +55,12 @@ services:
     volumes:
       - mongodata:/data/db
       - mongoconfig:/data/configdb
+    profiles:
+      - base
+      - all
 
   # TTS Server for voice synthesis
-  opaca-tts-server:
+  tts:
     build: ./tts-server
     image: opaca-tts-server
     ports:
@@ -61,11 +68,11 @@ services:
     environment:
       OPENAI_API_KEY:
     profiles:
-      - "tts"
-      - "all"
+      - all
+      - tts
 
   # Optional OPACA platform service
-  opaca-platform:
+  platform:
     image: ghcr.io/gt-arc/opaca/opaca-platform:main
     ports:
       - "8000:8000"
@@ -78,8 +85,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     profiles:
-      - "platform"
-      - "all"
+      - all
+      - benchmark
+      - platform
 
 
 # Create a volume to persistently store data
