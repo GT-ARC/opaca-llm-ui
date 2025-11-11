@@ -579,11 +579,6 @@ header {
     max-width: calc(100vw - 4rem);
 }
 
-#notifications-area {
-    min-width: min(600px, 100vw - 9rem);
-    max-width: calc(100vw - 9rem);
-}
-
 @media (max-width: 576px) {
     #connection-menu {
         position: fixed !important;

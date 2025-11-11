@@ -1,11 +1,11 @@
 <template>
     <div class="notifications-container overflow-scroll">
         <div v-for="{ elementId, content, time } in this.messages">
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <i class="fa fa-remove delete-button"
                     @click.stop="this.dismissNotification(elementId)"
-                    :title="'Dismiss'"
+                    title="Dismiss"
                 />
             </div>
             <Chatbubble
@@ -105,6 +105,8 @@ export default {
 
 .notifications-container {
     max-height: 80vh;
+    min-width: min(600px, 100vw - 9rem);
+    max-width: calc(100vw - 9rem);
 }
 
 .delete-button {
