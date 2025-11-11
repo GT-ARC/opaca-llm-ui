@@ -39,7 +39,7 @@ class InternalTool(BaseModel):
 
 class InternalTools:
 
-    def __init__(self, session: SessionData, agent_method: 'AbstractMethod'):
+    def __init__(self, session: SessionData, agent_method: type['AbstractMethod']):
         self.session = session
         self.agent_method = agent_method
         self.tools = [
@@ -154,7 +154,7 @@ class InternalTools:
             await self.session.websocket_send(PendingCallback(query=query))
             try:
                 query_extra = "\n\nNOTE: This query was triggered by the 'ScheduleTask' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder! If it asked you to do something by that time, just do it and report on the results as usual."
-                result = await self.agent_method.query(query + query_extra, Chat(chat_id=''))
+                result = await self.query_method(query + query_extra)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
@@ -171,6 +171,9 @@ class InternalTools:
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
+    
+    async def query_method(self, query: str) -> QueryResponse:
+        return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
 
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
@@ -207,7 +210,7 @@ class InternalTools:
         {search_query}
         """)
         try:
-            res = await self.agent_method.query(query, Chat(chat_id=''))
+            res = await self.query_method(query)
             return res.content
         except Exception as e:
             return f"Search failed: {e}"
