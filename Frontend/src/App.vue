@@ -89,11 +89,9 @@
                             <div class="dropdown-menu dropdown-menu-end"
                                  id="notifications-area"
                                  aria-labelledby="notifications-dropdown">
-                                <div class="dropdown-item d-flex">
-                                    <Notifications
-                                        ref="Notifications"
-                                    />
-                                </div>
+                                <Notifications
+                                    ref="Notifications"
+                                />
                             </div>
                         </li>
 
@@ -579,6 +577,11 @@ header {
 #connection-menu {
     min-width: min(400px, 100vw - 6rem);
     max-width: calc(100vw - 4rem);
+}
+
+#notifications-area {
+    min-width: min(600px, 100vw - 9rem);
+    max-width: calc(100vw - 9rem);
 }
 
 @media (max-width: 576px) {

@@ -1,11 +1,13 @@
 <template>
-    <div class="notifications-container">
-        <div class="chatbubble-container" v-for="{ elementId, content, time } in this.messages">
-            <span>{{ time }}</span>
-            <i class="fa fa-remove delete-button"
-                @click.stop="this.dismissNotification(elementId)"
-                :title="'Dismiss'"
-            />
+    <div class="notifications-container overflow-scroll">
+        <div v-for="{ elementId, content, time } in this.messages">
+            <div class="d-flex align-items-center justify-content-between">
+                <span>{{ time }}</span>
+                <i class="fa fa-remove delete-button"
+                    @click.stop="this.dismissNotification(elementId)"
+                    :title="'Dismiss'"
+                />
+            </div>
             <Chatbubble
                 :key="content"
                 :element-id="elementId"
@@ -101,10 +103,8 @@ export default {
 
 <style scoped>
 
-#notifications-container {
-}
-
-.chatbubble-container {
+.notifications-container {
+    max-height: 80vh;
 }
 
 .delete-button {
