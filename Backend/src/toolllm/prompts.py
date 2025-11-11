@@ -27,6 +27,7 @@ There are two available decisions:
 **FINISHED**
     - The user request has been fulfilled entirely
     - All relevant data the user has requested was retrieved with the available tools
+    - Relevant tasks have been scheduled. The results will be given to the user in a separate message.
     - The correct tools have failed multiple times which would make more tool calls redundant
     - The user request cannot be answered with the available tools making more tool calls redundant
 
@@ -76,6 +77,9 @@ Your output should be concise and easy to read in markdown format.
 
 **User’s original request:**
 {message}
+
+**The reason given by an Evaluator Agent why the original request is able to be answered:**
+{eval_reason}
 
 **Called tools and their results:**
 {called_tools}

@@ -39,6 +39,7 @@ class ToolLLMMethod(AbstractMethod):
         should_continue = True      # Whether the internal iteration should continue or not
         no_tools = False            # If no tools were generated, the Output Generator will include available tools
         skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
+        eval_reason = ""            # Saves the last reason the Evaluator Agent output for its decision
 
         # Initialize the response object
         response = QueryResponse()
@@ -166,16 +167,16 @@ class ToolLLMMethod(AbstractMethod):
                 try:
                     formatted_result = json.loads(result.content)
                     should_continue = formatted_result["decision"] == 'CONTINUE'
-                    result.content = formatted_result["reason"]
+                    eval_reason = formatted_result["reason"]
                 except json.JSONDecodeError:
                     should_continue = False
-                    result.content = "ERROR: The response from the Tool Evaluator was not in the correct format!"
+                    eval_reason = "ERROR: The response from the Tool Evaluator was not in the correct format!"
 
                 # Add generated response to internal history to give result to first llm agent
                 tool_messages.append(ChatMessage(role="assistant", content=str(called_tools)))
                 tool_messages.append(ChatMessage(role="user", content=f"Based on the called tools, another LLM has "
                                                                        f"decided to continue the process with the "
-                                                                       f"following reason: {result.content}"))
+                                                                       f"following reason: {eval_reason}"))
             else:
                 should_continue = False
 
@@ -190,6 +191,7 @@ class ToolLLMMethod(AbstractMethod):
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
                 OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
+                    eval_reason=eval_reason,
                     called_tools=called_tools or "",
                 )),
             ],
