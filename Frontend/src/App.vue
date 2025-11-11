@@ -80,9 +80,11 @@
                             <a class="nav-link dropdown-toggle"
                                href="#"
                                id="notifications-dropdown"
-                               role="button" data-bs-toggle="dropdown">
-                                <i class="fa fa-bell me-1"/>
-                                <span v-show="!isMobile">{{ Localizer.get('notifications') }}</span>
+                               role="button" data-bs-toggle="dropdown"
+                               @click="this.unreadNotifications = 0">
+                                <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else class="fa-regular fa-bell me-1" />
+                                <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
                             </a>
                             <div class="dropdown-menu dropdown-menu-end"
                                  id="notifications-area"
@@ -204,6 +206,7 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @new-notification="response => createNotification(response)"
             ref="content"
         />
     </div>
@@ -248,6 +251,7 @@ export default {
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
+            unreadNotifications: 2,
         }
     },
     methods: {
@@ -330,6 +334,12 @@ export default {
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
+        },
+
+        createNotification(response) {
+            const notificationArea = this.$refs.Notifications;
+            notificationArea.addNotificationBubble(response);
+            this.unreadNotifications += 1;
         },
 
         handleContainerLogin(containerLoginDetails) {
