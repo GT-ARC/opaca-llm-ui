@@ -314,9 +314,6 @@ export default {
         // open default category
         this.expandSectionByHeader(conf.DefaultQuestions);
 
-        // Load personal prompts
-        this.loadPersonalPrompts();
-
     }
 }
 </script>

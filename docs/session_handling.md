@@ -8,7 +8,7 @@ The session ID cookie is stored persistently, so that the last chat session can 
 
 The `sessions` dictionary consists of the session IDs, which are used as unique keys and `SessionData` objects as their values. In these `SessionData` objects, all relevant information regarding the unique session is saved.
 
-Currently, all saved session data can be reset by either calling the endpoint `POST /reset_all` or by simply restarting the backend. Additionally, individual chat histories can be deleted by calling the `DELETE /chats/{chat_id}` route or by clicking the delete button on a chat in the respective sidebar view.
+Currently, all saved session data can be reset by resetting the DB volume (or by simply restarting the backend if no DB is used). Additionally, individual chat histories can be deleted by calling the `DELETE /chats/{chat_id}` (one chat) or `DELETE /chats` (all chats) route or by clicking the delete buttons in the respective sidebar view.
 
 
 ## User Management

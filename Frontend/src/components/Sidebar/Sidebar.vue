@@ -71,6 +71,7 @@
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
                     @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
+                    @delete-all-chats="() => this.$emit('delete-all-chats')"
                     ref="chats"
                 />
 
@@ -167,6 +168,7 @@ export default {
         'suspend-file',
         'view-file',
         'goto-search-result',
+        'delete-all-chats',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
