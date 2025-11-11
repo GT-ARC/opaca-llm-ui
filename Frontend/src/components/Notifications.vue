@@ -1,22 +1,23 @@
 <template>
-    <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1">
-        <!-- Chat Window with Chat bubbles -->
-        <div class="container-fluid flex-grow-1">
-            <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
-                <Chatbubble
-                    v-for="{ elementId, content } in this.messages"
-                    :key="content"
-                    :element-id="elementId"
-                    :is-user="false"
-                    :initial-content="content"
-                    :initial-loading="false"
-                    :is-bookmarked="false"
-                    :files="[]"
-                    :chat-id="''"
-                    :ref="elementId"
-                    @add-to-library=""
-                />
-            </div>
+    <div class="notifications-container">
+        <div class="chatbubble-container" v-for="{ elementId, content, time } in this.messages">
+            <span>{{ time }}</span>
+            <i class="fa fa-remove delete-button"
+                @click.stop="this.dismissNotification(elementId)"
+                :title="'Dismiss'"
+            />
+            <Chatbubble
+                :key="content"
+                :element-id="elementId"
+                :is-user="false"
+                :initial-content="content"
+                :initial-loading="false"
+                :is-bookmarked="false"
+                :files="[]"
+                :chat-id="''"
+                :ref="elementId"
+                @add-to-library=""
+            />
         </div>
     </div>
 </template>
@@ -56,8 +57,12 @@ export default {
         async addNotificationBubble(response) {
             const elementId = `chatbubble-${this.messages.length}`;
 
-            const message = { elementId: elementId, content: response.content };
-            this.messages.push(message);
+            const message = { 
+                elementId: elementId, 
+                content: response.content , 
+                time: new Date().toLocaleString(),
+            };
+            this.messages.unshift(message);
 
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
@@ -80,6 +85,10 @@ export default {
             }
         },
 
+        async dismissNotification(elementId) {
+            this.messages = this.messages.filter(m => m.elementId != elementId);
+        }
+
     },
 
     mounted() {
@@ -92,25 +101,20 @@ export default {
 
 <style scoped>
 
-#mainContent {
-    width: 100%;
-    max-width: 100%;
-    height: calc(100vh - 50px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative; /* For fade positioning */
-    background-color: var(--background-color);
+#notifications-container {
 }
 
-.chat-container {
-    flex: 1;
-    overflow-y: auto;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-height: 0; /* Important for Firefox */
-    padding: 1rem 0;
+.chatbubble-container {
+}
+
+.delete-button {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem !important;
+    cursor: pointer;
 }
 
 </style>
