@@ -75,6 +75,26 @@
                             </div>
                         </li>
 
+                        <!-- Notifications -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="notifications-dropdown"
+                               role="button" data-bs-toggle="dropdown">
+                                <i class="fa fa-bell me-1"/>
+                                <span v-show="!isMobile">{{ Localizer.get('notifications') }}</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="notifications-area"
+                                 aria-labelledby="notifications-dropdown">
+                                <div class="dropdown-item d-flex">
+                                    <Notifications
+                                        ref="Notifications"
+                                    />
+                                </div>
+                            </div>
+                        </li>
+
                         <!-- Options -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle"
@@ -197,13 +217,14 @@ import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };

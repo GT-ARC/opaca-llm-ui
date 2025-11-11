@@ -80,7 +80,12 @@ export default {
             }
         },
 
-    }
+    },
+
+    mounted() {
+        this.addNotificationBubble({content: "Just a test", agent_messages: [{content: "stuff", tools: [{id: "1/1", name: "foo--bar", args: {x: 42}, result: "result"}]}], error: null});
+        this.addNotificationBubble({content: "Another test", agent_messages: [], error: "some error"});
+    },
 }
 
 </script>

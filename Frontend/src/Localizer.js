@@ -105,6 +105,7 @@ export const localizationData = {
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper Voice",
         bookmarkHeader: "Bookmarked Prompts",
+        notifications: "Notifications",
     },
 
     DE: {
@@ -207,6 +208,7 @@ export const localizationData = {
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper-Stimme",
         bookmarkHeader: "Favoriten",
+        notifications: "Benachrichtigungen",
     },
 };
 
