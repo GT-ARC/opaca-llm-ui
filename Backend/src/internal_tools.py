@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PendingCallback, PushMessage, ScheduledTask, QueryResponse
+from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
 
 
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
@@ -150,8 +150,7 @@ class InternalTools:
 
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
-            # send placeholder to UI, execute the task, then send result/error
-            await self.session.websocket_send(PendingCallback(query=query))
+            # execute the task, then send result/error
             try:
                 query_extra = "\n\nNOTE: This query was triggered by the 'ScheduleTask' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder! If it asked you to do something by that time, just do it and report on the results as usual."
                 result = await self.query_method(query + query_extra)
