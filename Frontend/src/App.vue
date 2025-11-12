@@ -75,6 +75,26 @@
                             </div>
                         </li>
 
+                        <!-- Notifications -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="notifications-dropdown"
+                               role="button" data-bs-toggle="dropdown"
+                               @click="this.unreadNotifications = 0">
+                                <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else class="fa-regular fa-bell me-1" />
+                                <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="notifications-area"
+                                 aria-labelledby="notifications-dropdown">
+                                <Notifications
+                                    ref="Notifications"
+                                />
+                            </div>
+                        </li>
+
                         <!-- Options -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle"
@@ -201,6 +221,7 @@
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
+            @new-notification="response => createNotification(response)"
             ref="content"
         />
     </div>
@@ -214,13 +235,14 @@ import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
@@ -245,6 +267,7 @@ export default {
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
+            unreadNotifications: 0,
             // user provided API key
             showApiKeyDialog: false,
             apiKeyMessage: null,
@@ -331,6 +354,12 @@ export default {
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
+        },
+
+        createNotification(response) {
+            const notificationArea = this.$refs.Notifications;
+            notificationArea.addNotificationBubble(response);
+            this.unreadNotifications += 1;
         },
 
         handleContainerLogin(containerLoginDetails) {

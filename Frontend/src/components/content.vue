@@ -238,6 +238,7 @@ export default {
         'select-category',
         'container-login-required',
         'api-key-required',
+        'new-notification',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -482,24 +483,7 @@ export default {
             }
 
             if (result.type === "PushMessage") {
-                // XXX this bit is now 99% the same as in load-history and should probably be moved to a helper method
-                await this.addChatBubble(result.content, false);
-                for (const agent_message of result.agent_messages) {
-                    const chunk = {
-                        id: agent_message.id,
-                        agent: agent_message.agent,
-                        chunk: agent_message.content,
-                        is_output: false,
-                    }
-                    this.addDebugToken(chunk);
-                    for (const tool of agent_message.tools) {
-                        this.addDebugTool(agent_message.agent, tool);
-                        this.addDebugResult({id: tool.id, result: tool.result});
-                    }
-                }
-                if (result.error) {
-                    this.getLastBubble().setError(result.error);
-                }
+                this.$emit('new-notification', result);
             }
 
             if (result.type === "MetricsMessage") {

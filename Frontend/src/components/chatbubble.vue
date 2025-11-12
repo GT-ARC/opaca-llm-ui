@@ -110,7 +110,7 @@
                 <!-- copy to clipboard -->
                 <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
-                     @click="this.copyContentToClipboard()"
+                     @click.stop="this.copyContentToClipboard()"
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
@@ -119,7 +119,7 @@
                 <!-- audio stuff -->
                 <div v-show="!this.isLoading"
                      class="footer-item w-auto me-2"
-                     @click="this.startAudioPlayback()">
+                     @click.stop="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down"
                        :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
@@ -134,7 +134,7 @@
                 <!-- debug messages -->
                 <div v-show="this.debugMessages.length > 0"
                      class="footer-item w-auto me-2"
-                     @click="this.isDebugExpanded = !this.isDebugExpanded"
+                     @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
                      :title="Localizer.get('tooltipChatbubbleDebug')">
                     <i class="fa fa-bug" />
                 </div>
@@ -143,7 +143,7 @@
                 <div v-show="this.getToolCalls().length > 0"
                      class="footer-item w-auto me-2"
                      style="cursor: pointer;"
-                     @click="this.isToolsExpanded = !this.isToolsExpanded"
+                     @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
                      :title="Localizer.get('tooltipChatbubbleTools')">
                     <i class="fa fa-wrench" />
                 </div>
@@ -151,7 +151,7 @@
                 <!-- error handling -->
                 <div v-show="this.error !== null"
                      class="footer-item w-auto me-2"
-                     @click="this.isErrorExpanded = !this.isErrorExpanded"
+                     @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
                      :title="Localizer.get('tooltipChatbubbleError')">
                     <i class="fa fa-exclamation-circle text-danger me-1" />
                 </div>
