@@ -74,7 +74,7 @@ services:
 
   # Optional OPACA platform service
   platform:
-    image: ghcr.io/gt-arc/opaca/opaca-platform:main
+    image: ghcr.io/gt-arc/opaca/opaca-platform:latest
     ports:
       - "8000:8000"
     environment:
