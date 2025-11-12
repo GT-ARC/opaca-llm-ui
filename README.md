@@ -178,19 +178,14 @@ You can run a profile using `docker compose --profile <profile> up --build`. To 
 docker compose --profile base up --build
 ```
 
-If you want to set a default profile to run, you can do so using the `COMPOSE_PROFILES` environment variable. For the `base` profile, you could use it like this:
-```bash
-export COMPOSE_PROFILES=base
-docker compose up --build
-```
-
-You can also set multiple default profiles to run. For example, if you wanted to always start the base services + the OPACA RP, you could do:
+You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run, e.g.
 ```bash
 export COMPOSE_PROFILES=base,platform
 docker compose up --build
 ```
 
-# To build and start SAGE, simply run the Docker Compose: `docker compose up --build`. You can then find the Frontend at `http://localhost:5173` and the backend (FastAPI) at `http://localhost:3001/docs`. Specify the OPACA Platform to connect to (including login credentials, if authentication is enabled) and hit the "Connect" button. The UI should automatically switch to the view showing the available actions, and you can start interacting with the LLM via the chat window.
+**Note:** For running the OPACA Runtime Platform in Docker, the `PUBLIC_URL` environment variable has to be set. For details, please refer to [the documentation in the OPACA Core repository](https://gitlab.dai-labor.de/jiacpp/opaca-core/-/blob/main/doc/environments.md?ref_type=heads).
+
 
 ### Development and testing
 
