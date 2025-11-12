@@ -237,6 +237,7 @@ export default {
     emits: [
         'select-category',
         'container-login-required',
+        'api-key-required',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
