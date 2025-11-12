@@ -1,5 +1,5 @@
 <template>
-    <div class="notifications-container overflow-scroll">
+    <div class="notifications-container overflow-auto">
         <div v-for="{ elementId, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
