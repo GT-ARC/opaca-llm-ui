@@ -9,3 +9,4 @@ python-multipart>=0.0.20
 pydantic>=2.11.9
 pymongo>=4.15.1
 litellm>=1.78.5
+rich>=14.0.0

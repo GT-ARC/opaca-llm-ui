@@ -3,14 +3,14 @@ services:
   # THE MAIN OPACA RUNTIME PLATFORM RUNNING IN DOCKER
   # (Agent Containers can run in the same Docker or somewhere else)
   opaca-platform:
-    image: registry.gitlab.dai-labor.de/jiacpp/deployment/opaca-platform:latest
+    image: ghcr.io/gt-arc/opaca/opaca-platform:latest
     ports:
-      - "8000:8000"
+      - "8050:8000"
     # Environment variables with no value after ":" are taken from .env file
     environment:
       # General Settings; NOTE: PUBLIC_URL must be set for PLATFORM_ENVIRONMENT 'DOCKER'!
       PORT:
-      PUBLIC_URL: ${OPACA_URL}
+      PUBLIC_URL: http://host.docker.internal:8050
       CONTAINER_ENVIRONMENT:
       PLATFORM_ENVIRONMENT: DOCKER
       SESSION_POLICY:
