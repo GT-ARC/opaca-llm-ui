@@ -16,6 +16,7 @@
                 :file="file"
                 @delete-file="fileId => this.$emit('delete-file', fileId)"
                 @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                @view-file="$emit('view-file', $event)"
             />
         </div>
     </div>
@@ -39,6 +40,7 @@ export default {
     emits: [
         'delete-file',
         'suspend-file',
+        'view-file',
     ],
     data() {
         return {

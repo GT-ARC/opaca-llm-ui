@@ -12,23 +12,34 @@
         {{ Localizer.get('tooltipSidebarChats') }}
     </div>
 
-    <!-- "New Chat" button -->
-    <button type="button"
-            class="btn btn-primary w-100"
-            @click="this.$emit('new-chat')"
-            :disabled="!this.isFinished" >
-        <i class="fa fa-pen-to-square" />
-        {{ Localizer.get('buttonNewChat') }}
-    </button>
+    <div class="d-grid gap-2">
+        <!-- "New Chat" button -->
+        <button type="button"
+                class="btn btn-primary py-2 w-100"
+                @click="this.$emit('new-chat')"
+                :disabled="!this.isFinished" >
+            <i class="fa fa-pen-to-square" />
+            {{ Localizer.get('buttonNewChat') }}
+        </button>
 
-    <!-- "Search" button -->
-    <button type="button"
-            class="btn btn-secondary w-100 mt-2"
-            @click="this.isSearching = true"
-            :disabled="!this.isFinished" >
-        <i class="fa fa-magnifying-glass" />
-        {{ Localizer.get('buttonSearchChats') }}
-    </button>
+        <!-- "Search" button -->
+        <button type="button"
+                class="btn btn-secondary py-2 w-100"
+                @click="this.isSearching = true"
+                :disabled="!this.isFinished" >
+            <i class="fa fa-magnifying-glass" />
+            {{ Localizer.get('buttonSearchChats') }}
+        </button>
+
+        <!-- "Delete All Chats" button -->
+        <button type="button"
+                class="btn btn-danger py-2 w-100"
+                @click="onDeleteAllChats"
+                :disabled="!this.isFinished || this.chats.length === 0">
+            <i class="fa fa-trash" />
+            {{ Localizer.get('buttonDeleteAllChats') }}
+        </button>
+    </div>
 
     <!-- List all the chats -->
     <div v-for="chat in chats" :key="chat.chat_id">
@@ -70,6 +81,7 @@ export default {
         'rename-chat',
         'new-chat',
         'goto-search-result',
+        'delete-all-chats',
     ],
     data() {
         return {
@@ -91,6 +103,12 @@ export default {
         gotoSearchResult(chatId, messageId) {
             this.isSearching = false;
             this.$emit('goto-search-result', chatId, messageId)
+        },
+
+        onDeleteAllChats() {
+            if (confirm(Localizer.get('confirmDeleteAllChats'))) {
+                this.$emit('delete-all-chats');
+            }
         },
     },
     mounted() {

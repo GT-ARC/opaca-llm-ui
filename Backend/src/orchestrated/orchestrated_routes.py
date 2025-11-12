@@ -49,11 +49,21 @@ class SelfOrchestratedMethod(AbstractMethod):
             worker_agents: Dict[str, WorkerAgent],
             config: OrchestrationConfig,
             all_results: List[AgentResult],
-            agent_summaries: Dict[str, Any],
-            agent_messages: List[AgentMessage] = None,
-            num_tools: int = 1,
+            agent_messages: List[AgentMessage],
     ) -> List[AgentResult]:
-        """Execute a single round of tasks in parallel when possible"""
+        """Execute a single round of tasks in parallel when possible. This corresponds to the
+        tasks assigned to one "Worker-Trio" by the Orchestrator. Tasks are subdivided into rounds;
+        all tasks in this round are be executed in parallel, in execute_single_task.
+        - if the task is for the GeneralAgent, it just returns the hard-coded result.
+        - otherwise, if the Planner should be used...
+        - else (no planner) it just calls the WorkerAgent with the given task
+        - if the Evaluator should be used, it is asked whether the task appears to be finished
+          - if not, it is repeated, but never more than once (if there are still errors then,
+            the overall evaluator can call the Worker-Trio again)
+        - the result is returned
+
+        Execute_round_task is another helper for calling the worker-agent with some added context given by the planner.
+        """
         # Create agent evaluator
         agent_evaluator = AgentEvaluator() if config.use_agent_evaluator else None
 
@@ -62,27 +72,14 @@ class SelfOrchestratedMethod(AbstractMethod):
                 subtask: AgentTask, 
                 orchestrator_context: str, 
                 round_context: str,
-                round_num: int,
         ) -> AgentResult:
             """Executes a single subtask with a WorkerAgent"""
-            current_task = subtask.task
 
             # Build comprehensive context that includes:
             # 1. Previous orchestrator rounds
             # 2. Previous planner rounds
             # 3. Current round context
-            task_context = []
-
-            if orchestrator_context:
-                task_context.append(orchestrator_context)
-            if round_context:
-                task_context.append(round_context)
-
-            # Combine all contexts with proper separation
-            if task_context:
-                current_task = f"{current_task}\n\n{''.join(task_context)}"
-
-            logger.debug(f"AgentPlanner executing subtask in round {round_num}: {current_task}")
+            current_task = f"{subtask.task}\n\n{orchestrator_context}\n{round_context}"
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
@@ -104,7 +101,7 @@ class SelfOrchestratedMethod(AbstractMethod):
             return agent_result
 
         async def execute_single_task(task: AgentTask) -> AgentResult:
-            """Executes a single task"""
+            """Executes a single task. See docs for _execute_round for details."""
             # Get the agent name and task description that were generated for the task
             agent = worker_agents[task.agent_name]
             task_str = task.task if isinstance(task, AgentTask) else task
@@ -112,8 +109,19 @@ class SelfOrchestratedMethod(AbstractMethod):
             # Log that the task is being executed
             logger.info(f"Executing task for {task.agent_name}: {task_str}")
             
+            # The general agent just returns a pre-defined response
+            if agent.agent_name == "GeneralAgent":
+                predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
+                                        agent_capabilities=json.dumps(await self.get_agent_details(), indent=2))
+                return AgentResult(
+                    agent_name="GeneralAgent",
+                    task=task_str,
+                    output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
+                    tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
+                )
+
             # Create planner if enabled
-            if config.use_agent_planner and task.agent_name != "GeneralAgent":
+            if config.use_agent_planner:
                 planner = AgentPlanner(
                     agent_name=task.agent_name,
                     tools=agent.tools,
@@ -148,9 +156,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                 await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Initialize results storage
-                ex_results = []
-                ex_tool_calls = []
-                combined_output = []
+                ex_results: List[AgentResult] = []
 
                 # Group tasks by round
                 tasks_by_round = {}
@@ -163,6 +169,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     current_tasks = tasks_by_round[round_num]
 
                     # Add context from previous planner rounds if needed
+                    # XXX I'm 90% sure this is basically the same as get_orchestrator_output...
                     round_context = ""
                     if round_num > 1 and ex_results:
                         round_context = "\n\nPrevious planner round results:\n"
@@ -176,59 +183,37 @@ class SelfOrchestratedMethod(AbstractMethod):
 
                     # Executes tasks in the same round in parallel
                     round_results = await asyncio.gather(*[
-                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context, round_num) 
+                        execute_round_task(planner.worker_agent, subtask, planner.get_orchestrator_context(all_results), round_context) 
                         for subtask in current_tasks
                     ])
-
-                    # Process round results
-                    for result in round_results:
-                        ex_results.append(result)
-                        ex_tool_calls.extend(result.tool_calls)
-                        combined_output.append(result.output)
+                    ex_results.extend(round_results)
 
                 # Create final combined result with clear round separation
-                final_output = "\n\n".join(combined_output)
                 result = AgentResult(
                     agent_name=planner.worker_agent.agent_name,  # Use worker agent's name for proper attribution
                     task=task_str,  # Use the original task string
-                    output=final_output,
-                    tool_calls=ex_tool_calls,
+                    output="\n\n".join(res.output for res in ex_results),
+                    tool_calls=[tc for res in ex_results for tc in res.tool_calls],
                 )
-            else:
+            else: # no planner
                 await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
-                # Execute task directly
-                if agent.agent_name == "GeneralAgent":
-                    # The general agent returns a pre-defined response
-                    predefined_response = get_current_time() + BACKGROUND_INFO + GENERAL_CAPABILITIES_RESPONSE.format(
-                                            agent_capabilities=json.dumps(agent_summaries, indent=2))
-                    worker_message = AgentMessage(
-                        agent="WorkerAgent",
-                        content="Called GeneralAgent!",
-                    )
-                    result = AgentResult(
-                        agent_name="GeneralAgent",
-                        task=task_str,
-                        output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                        tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
-                    )
-                else:
-                    # Generate a concrete tool call by the worker agent with its tools
-                    worker_message = await self.call_llm(
-                        model=config.worker_model,
-                        agent="WorkerAgent",
-                        system_prompt=agent.system_prompt(),
-                        messages=agent.messages(task),
-                        temperature=config.temperature,
-                        tool_choice="required",
-                        tools=agent.tools,
-                    )
+                # Generate a concrete tool call by the worker agent with its tools
+                worker_message = await self.call_llm(
+                    model=config.worker_model,
+                    agent="WorkerAgent",
+                    system_prompt=agent.system_prompt(),
+                    messages=agent.messages(task),
+                    temperature=config.temperature,
+                    tool_choice="required",
+                    tools=agent.tools,
+                )
 
-                    # Invoke the tool call on the connected opaca platform
-                    result = await self.invoke_tools(agent, task.task, worker_message)
-                    agent_messages.append(worker_message)
+                # Invoke the tool call on the connected opaca platform
+                result = await self.invoke_tools(agent, task.task, worker_message)
+                agent_messages.append(worker_message)
 
-            if agent_evaluator and task.agent_name != "GeneralAgent":
+            if agent_evaluator:
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
@@ -287,7 +272,17 @@ Now, using the tools available to you and the previous results, continue with yo
         return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
     async def query(self, message: str, chat: Chat) -> QueryResponse:
-        """Process a user message using multiple agents and stream intermediate results"""
+        """Process a user message using multiple agents and stream intermediate results
+        The overall process is as follows:
+        - after some initialization stuff, the Orchestrator is asked to create a plan
+          - that plan can involve tasks for multiple agent-trios over multiple rounds
+          - more round-specific initialization stuff (worker agents etc.)
+          - for each task in each round, pass that task to the worker-trio (-> _execute_round)
+        - after all tasks are finished, check for errors and ask the OverallEvaluator
+          - if it says yes, ask the IterationAdvisor to make double sure...
+          - if both say yes, repeat until max rounds are reached
+        - finally, ask OutputGenerator to create a response
+        """
 
         # Initialize response
         response = QueryResponse(query=message)
@@ -297,35 +292,19 @@ Now, using the tools available to you and the previous results, continue with yo
         try:
             config: OrchestrationConfig = self.get_config()
             
-            # Get simplified agent summaries for the orchestrator
-            agent_details = {
-                agent["agentId"]: {
-                    "description": agent["description"],
-                    "functions": [action["name"] for action in agent["actions"]]
-                }
-                for agent in await self.session.opaca_client.get_actions()
-            }
+            agent_details = await self.get_agent_details()
 
-            # Add GeneralAgent description
-            agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
-
-            # Create tools from agent details
-            orchestrator_tools = self.get_agents_as_tools(agent_details)
-            
-            # Initialize Orchestrator
+            # Initialize Orchestrator, evaluator and iteration advisor
             orchestrator = OrchestratorAgent(
-                agent_summaries=agent_details,
-                chat_history=chat.messages,  # Pass chat history to orchestrator
-                tools=orchestrator_tools,
+                chat_history=chat.messages,
+                tools=self.get_agents_as_tools(agent_details),
             )
-            
-            # Initialize evaluator and iteration advisor
             overall_evaluator = OverallEvaluator()
             iteration_advisor = IterationAdvisor()
             
             # Initialize worker agents
             worker_agents = {
-                "GeneralAgent": WorkerAgent("GeneralAgent", "", [], None),
+                "GeneralAgent": WorkerAgent("GeneralAgent", "", []),
             }
             
             all_results = []
@@ -386,7 +365,6 @@ Now, using the tools available to you and the previous results, continue with yo
                             agent_name=agent_name,
                             summary=agent_data,
                             tools=agent_tools,
-                            session_client=self.session.opaca_client,
                         )
                 
                 # Group tasks by round
@@ -403,9 +381,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         worker_agents,
                         config,
                         all_results,
-                        agent_details,
                         response.agent_messages,
-                        sum(len(message.tools) for message in response.agent_messages) + 1,
                     )
                     
                     all_results.extend(round_results)
@@ -500,6 +476,18 @@ Please address these specific improvements:
             response.execution_time = time.time() - overall_start_time
             return response
 
+    async def get_agent_details(self) -> Dict[str, Dict]:
+        """Get simplified agent summaries for the orchestrator"""
+        agent_details = {
+            agent["agentId"]: {
+                "description": agent["description"],
+                "functions": [action["name"] for action in agent["actions"]]
+            }
+            for agent in await self.session.opaca_client.get_actions()
+        }
+        agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
+        return agent_details
+
     @staticmethod
     def get_agents_as_tools(agent_details: Dict) -> List[Dict]:
         return [
@@ -536,6 +524,7 @@ Please address these specific improvements:
             self.invoke_tool(tool.name, tool.args, tool.id)
             for tool in message.tools
         ])
+        message.tools = tool_results        
         tool_output = "\n".join(
             f"- Worker Agent Executed: {tool.name}."
             for tool in tool_results

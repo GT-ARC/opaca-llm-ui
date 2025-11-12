@@ -29,7 +29,7 @@ if not client.alive():
     exit(1)
 
 # reset sessions and message histories
-client.reset_all()
+client.delete_chats()
 
 
 # TODO find some faster test query for the LLM? find-temp takes too long...

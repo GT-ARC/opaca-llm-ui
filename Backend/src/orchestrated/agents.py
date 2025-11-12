@@ -32,12 +32,10 @@ class BaseAgent:
 class OrchestratorAgent(BaseAgent):
     def __init__(
             self,
-            agent_summaries: Dict[str, Any],
             chat_history: Optional[Iterator[ChatMessage]] = None,
             tools: List = None
     ):
         super().__init__()
-        self.agent_summaries = agent_summaries
         self.chat_history = list(chat_history)
         self.tools = tools
 
@@ -233,13 +231,11 @@ class WorkerAgent(BaseAgent):
         agent_name: str,
         summary: str,
         tools: List[Dict],
-        session_client: Any,
     ):
         super().__init__()
         self.agent_name = agent_name
         self.summary = summary
         self.tools = tools
-        self.session_client = session_client
         self.logger = logging.getLogger(__name__)
 
     def system_prompt(self):

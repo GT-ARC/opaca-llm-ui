@@ -13,6 +13,15 @@
             </div>
         </div>
 
+        <!-- File Viewer Overlay -->
+        <FileViewer
+            :visible="!!viewerFile"
+            :fileName="viewerFile?.fileName"
+            :src="viewerFile?.src"
+            :mime-type="viewerFile?.mimeType"
+            @close="viewerFile = null"
+        />
+
         <!-- Move the RecordingPopup outside the main content flow -->
         <RecordingPopup
             v-model:show="showRecordingPopup"
@@ -38,7 +47,9 @@
             @new-chat="() => {this.suspendAllFiles(); this.startNewChat()}"
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
+            @view-file="openViewer"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
+                @delete-all-chats="() => this.handleDeleteAllChats()"
         />
 
 
@@ -102,6 +113,7 @@
                         :file="fileObj.file"
                         :is-uploading="fileObj.isUploading"
                         @remove-file="this.handleDeleteFile"
+                        @view-file="openViewer"
                     />
                 </div>
 
@@ -205,11 +217,13 @@ import { useDevice } from "../useIsMobile.js";
 import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
+import FileViewer from "./FileViewer.vue";
 
 export default {
     name: 'main-content',
     components: {
         FilePreview,
+        FileViewer,
         OptionsSelect,
         Sidebar,
         RecordingPopup,
@@ -244,6 +258,7 @@ export default {
             showFileDropOverlay: false,
             autoScrollEnabled: true,
             socket: null,
+            viewerFile: null,
         }
     },
     methods: {
@@ -465,19 +480,25 @@ export default {
                 this.scrollDownChat();
             }
 
-            if (result.type === "PendingCallback") {
-                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
-            }
-
             if (result.type === "PushMessage") {
-                if (result.error) {
-                    aiBubble.setError(result.error);
+                // XXX this bit is now 99% the same as in load-history and should probably be moved to a helper method
+                await this.addChatBubble(result.content, false);
+                for (const agent_message of result.agent_messages) {
+                    const chunk = {
+                        id: agent_message.id,
+                        agent: agent_message.agent,
+                        chunk: agent_message.content,
+                        is_output: false,
+                    }
+                    this.addDebugToken(chunk);
+                    for (const tool of agent_message.tools) {
+                        this.addDebugTool(agent_message.agent, tool);
+                        this.addDebugResult({id: tool.id, result: tool.result});
+                    }
                 }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
-                this.startAutoSpeak();
-                this.scrollDownChat();
+                if (result.error) {
+                    this.getLastBubble().setError(result.error);
+                }
             }
 
             if (result.type === "MetricsMessage") {
@@ -720,6 +741,12 @@ export default {
             }
         },
 
+        async handleDeleteAllChats() {
+            await this.startNewChat();
+            await backendClient.deleteAllChats();
+            await this.$refs.sidebar.$refs.chats.updateChats();
+        },
+
         async startNewChat() {
             if (this.isMobile) {
                 SidebarManager.close();
@@ -780,6 +807,10 @@ export default {
                 await this.uploadFiles(files);
             }
             // If no file found, let normal paste happen
+        },
+
+        openViewer(file) {
+            this.viewerFile = file;
         },
 
         addPromptToSidebar(prompt) {
