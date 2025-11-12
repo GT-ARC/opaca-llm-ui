@@ -123,6 +123,12 @@ async def disconnect(request: Request, response: Response) -> Response:
     return Response(status_code=204)
 
 
+@app.get("/extra-ports", description="Get extra ports providing additional functionalities.")
+async def get_extra_ports(request: Request, response: Response) -> dict[str, dict[str, str]]:
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.get_extra_ports()
+
+
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
