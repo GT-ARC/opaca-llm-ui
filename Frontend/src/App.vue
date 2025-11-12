@@ -249,7 +249,7 @@ export default {
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
-            unreadNotifications: 2,
+            unreadNotifications: 0,
         }
     },
     methods: {

@@ -39,7 +39,6 @@ export default {
     props: {
     },
     emits: [
-        // set status to "dirty" (highlight notification symbol)
         // create new chat from notification
     ],
     setup() {
@@ -91,11 +90,6 @@ export default {
             this.messages = this.messages.filter(m => m.elementId != elementId);
         }
 
-    },
-
-    mounted() {
-        this.addNotificationBubble({content: "Just a test", agent_messages: [{content: "stuff", tools: [{id: "1/1", name: "foo--bar", args: {x: 42}, result: "result"}]}], error: null});
-        this.addNotificationBubble({content: "Another test", agent_messages: [], error: "some error"});
     },
 }
 
