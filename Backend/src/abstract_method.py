@@ -32,7 +32,7 @@ class AbstractMethod(ABC):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
-        self.internal_tools = InternalTools(session, self)
+        self.internal_tools = InternalTools(session, type(self))
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:

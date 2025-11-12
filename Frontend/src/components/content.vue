@@ -476,19 +476,25 @@ export default {
                 this.scrollDownChat();
             }
 
-            if (result.type === "PendingCallback") {
-                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
-            }
-
             if (result.type === "PushMessage") {
-                if (result.error) {
-                    aiBubble.setError(result.error);
+                // XXX this bit is now 99% the same as in load-history and should probably be moved to a helper method
+                await this.addChatBubble(result.content, false);
+                for (const agent_message of result.agent_messages) {
+                    const chunk = {
+                        id: agent_message.id,
+                        agent: agent_message.agent,
+                        chunk: agent_message.content,
+                        is_output: false,
+                    }
+                    this.addDebugToken(chunk);
+                    for (const tool of agent_message.tools) {
+                        this.addDebugTool(agent_message.agent, tool);
+                        this.addDebugResult({id: tool.id, result: tool.result});
+                    }
                 }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
-                this.startAutoSpeak();
-                this.scrollDownChat();
+                if (result.error) {
+                    this.getLastBubble().setError(result.error);
+                }
             }
 
             if (result.type === "MetricsMessage") {

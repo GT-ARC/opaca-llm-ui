@@ -364,11 +364,6 @@ class MetricsMessage(BaseModel):
     execution_time: float
 
 
-class PendingCallback(BaseModel):
-    """Notification that an "execute-later" callback for the given query has been started."""
-    query: str
-
-
 class PushMessage(QueryResponse):
     """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
 
