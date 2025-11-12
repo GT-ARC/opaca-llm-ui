@@ -405,7 +405,8 @@ class ContainerLoginResponse(BaseModel):
 
 
 class MissingApiKeyNotification(BaseModel):
-    message: str
+    reason: str
+    model: str
 
 
 class MissingApiKeyResponse(BaseModel):

@@ -252,17 +252,17 @@ class AbstractMethod(ABC):
 
         return res
 
-    async def handle_invalid_api_key(self, model, message: str = ""):
-        message = message or f"API key is missing for model '{model}'!"
-        await self.send_to_websocket(MissingApiKeyNotification(message=message))
+    async def handle_invalid_api_key(self, model, reason: str = ""):
+        reason = reason or "missing"
+        await self.send_to_websocket(MissingApiKeyNotification(reason=reason, model=model))
         response = MissingApiKeyResponse(**await self.session.websocket_receive())
         if response.api_key:
             if litellm.check_valid_key(model, response.api_key):
                 self.session.set_api_key(model, response.api_key)
             else:
-                await self.handle_invalid_api_key(model, message=f"API key is invalid for model '{model}'!")
+                await self.handle_invalid_api_key(model, reason="invalid")
         else:
-            raise OpacaException(user_message=message)
+            raise OpacaException(user_message=f"No valid API key was provided for model {model}!")
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):
     """

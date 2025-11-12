@@ -180,7 +180,8 @@
     <div v-if="showApiKeyDialog" class="auth-overlay">
         <div class="dropdown-menu show p-4 login-container">
             <form @submit.prevent="submitApiKey">
-                <h5 class="mb-3">{{ this.apiKeyMessage }}</h5>
+                <h5 v-if="this.apiKeyMessage.reason === 'missing'" class="mb-3">{{ Localizer.get("apiKeyMissing") + this.apiKeyMessage.model }}</h5>
+                <h5 v-else class="mb-3">{{ Localizer.get("apiKeyInvalid") + this.apiKeyMessage.model }}</h5>
                 <input v-model="apiKey" type="password" :class="['form-control', 'mb-3']"/>
                 <button type="submit" class="btn btn-primary w-100" @click="submitApiKey(true)" :disabled="!apiKey">
                     <span>{{ Localizer.get('submit') }}</span>

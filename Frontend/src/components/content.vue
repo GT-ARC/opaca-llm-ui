@@ -430,7 +430,7 @@ export default {
             }
 
             if (result.type === "MissingApiKeyNotification") {
-                this.$emit('api-key-required', result.message);
+                this.$emit('api-key-required', result);
             }
 
             if (result.type === "TextChunkMessage") {
