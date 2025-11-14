@@ -405,7 +405,14 @@ class ContainerLoginResponse(BaseModel):
 
 
 class MissingApiKeyNotification(BaseModel):
-    reason: str
+    """
+    Notify about missing or invalid api keys for a specific model
+
+    Attributes:
+        is_invalid: True - The api key is invalid, False - The api key is missing
+        model: The model for which the api key is missing or invalid
+    """
+    is_invalid: bool
     model: str
 
 
