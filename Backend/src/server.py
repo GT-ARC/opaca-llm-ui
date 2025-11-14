@@ -308,19 +308,6 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
 
     return False
 
-## BOOKMARK ROUTES
-
-@app.get("/bookmarks")
-async def get_bookmarks(request: Request) -> list:
-    session = await handle_session_id(request)
-    return session.bookmarks
-
-@app.post("/bookmarks")
-async def save_bookmarks(request: Request) -> None:
-    session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
-
 
 @app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.")
 async def view_file(request: Request, response: Response, file_id: str):
@@ -343,6 +330,21 @@ async def view_file(request: Request, response: Response, file_id: str):
         filename=file.file_name,
         headers={"Content-Disposition": f'inline; filename="{file.file_name}"'}
     )
+
+
+## BOOKMARK ROUTES
+
+@app.get("/bookmarks")
+async def get_bookmarks(request: Request) -> list:
+    session = await handle_session_id(request)
+    return session.bookmarks
+
+
+@app.post("/bookmarks")
+async def save_bookmarks(request: Request) -> None:
+    session = await handle_session_id(request)
+    new_bookmarks = await request.json()
+    session.bookmarks = new_bookmarks
 
 
 # WEBSOCKET CONNECTION (permanently opened)
