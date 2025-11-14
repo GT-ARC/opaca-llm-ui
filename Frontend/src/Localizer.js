@@ -105,6 +105,9 @@ export const localizationData = {
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper Voice",
         bookmarkHeader: "Bookmarked Prompts",
+        tooltipSidebarExtensions: "Extensions",
+        sidebarExtensionsLoading: "Loading available extensions...",
+        sidebarExtensionsMissing: "No extensions available.",
     },
 
     DE: {
@@ -207,6 +210,9 @@ export const localizationData = {
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper-Stimme",
         bookmarkHeader: "Favoriten",
+        tooltipSidebarExtensions: "Erweiterungen",
+        sidebarExtensionsLoading: "Lade verfügbare Erweiterungen...",
+        sidebarExtensionsMissing: "Keine Erweiterungen verfügbar.",
     },
 };
 

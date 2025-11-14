@@ -12,6 +12,7 @@ class SidebarManager {
         'files',
         'questions',
         'agents',
+        'extensions',
         'config',
         'debug',
         'faq',
