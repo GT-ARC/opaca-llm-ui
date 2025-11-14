@@ -28,11 +28,11 @@ class AbstractMethod(ABC):
     NAME: str
     CONFIG: type[MethodConfig]
 
-    def __init__(self, session: SessionData, streaming=False):
+    def __init__(self, session: SessionData, streaming=False, internal_tools: InternalTools = None):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
-        self.internal_tools = InternalTools(session, type(self))
+        self.internal_tools = internal_tools
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
@@ -204,9 +204,9 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        opaca_tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        internal_tools = self.internal_tools.get_internal_tools_openai()
-        tools = [*opaca_tools, *internal_tools]
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        if self.internal_tools:
+            tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
