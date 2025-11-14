@@ -54,25 +54,28 @@ class OpacaClient:
         self.connected = False
         logger.info(f"Disconnected")
 
-    async def get_extra_ports(self) -> dict:
+    async def get_extra_ports(self) -> list[dict[str, Any]]:
         try:
             if not self.url:
-                return {}
+                return []
             async with httpx.AsyncClient() as client:
                 res = await client.get(f"{self.url}/containers", headers=self._headers())
             res.raise_for_status()
-            return {
-                container["image"]["imageName"]: {
-                    f'{container["connectivity"]["publicUrl"]}:{k}': v["description"]
-                    for k, v in container["connectivity"]["extraPortMappings"].items()
-                    if v["protocol"] == "TCP"
+            return [
+                {
+                    "container": container["image"]["imageName"],
+                    "extraPorts": [
+                        {
+                            "port": f'{container["connectivity"]["publicUrl"]}:{k}',
+                            "description": v["description"],
+                        }
+                        for k, v in container["connectivity"]["extraPortMappings"].items()
+                        if v["protocol"] == "TCP"
+                    ]
                 }
                 for container in res.json()
-                if any(
-                    v["protocol"] == "TCP"
-                    for v in container["connectivity"]["extraPortMappings"].values()
-                )
-            }
+                if any(v["protocol"] == "TCP" for v in container["connectivity"]["extraPortMappings"].values())
+            ]
         except Exception as e:
             logger.error(f"Could not get Extra-Ports: {e}")
             raise e

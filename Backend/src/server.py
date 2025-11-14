@@ -124,7 +124,7 @@ async def disconnect(request: Request, response: Response) -> Response:
 
 
 @app.get("/extra-ports", description="Get extra ports providing additional functionalities.")
-async def get_extra_ports(request: Request, response: Response) -> dict[str, dict[str, str]]:
+async def get_extra_ports(request: Request, response: Response) -> list[dict[str, Any]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_extra_ports()
 
