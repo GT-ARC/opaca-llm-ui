@@ -58,8 +58,8 @@ class SimpleMethod(AbstractMethod):
     NAME = "simple"
     CONFIG = SimpleConfig
 
-    def __init__(self, session, streaming=False):
-        super().__init__(session, streaming)
+    def __init__(self, session, streaming=False, internal_tools=None):
+        super().__init__(session, streaming, internal_tools)
 
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()

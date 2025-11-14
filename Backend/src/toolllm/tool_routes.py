@@ -23,8 +23,8 @@ class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
     CONFIG = ToolLlmConfig
 
-    def __init__(self, session, streaming=False):
-        super().__init__(session, streaming)
+    def __init__(self, session, streaming=False, internal_tools=None):
+        super().__init__(session, streaming, internal_tools)
 
     class EvaluatorResponse(BaseModel):
         reason: str
