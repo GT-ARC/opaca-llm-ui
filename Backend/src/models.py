@@ -230,6 +230,7 @@ class SessionData(BaseModel):
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
         _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
+        _user_api_keys: User-provided API keys for specific LLM hosts
 
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
@@ -247,6 +248,7 @@ class SessionData(BaseModel):
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
+    _user_api_keys: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
@@ -283,6 +285,12 @@ class SessionData(BaseModel):
             del self.chats[chat_id]
             return True
         return False
+
+    def set_api_key(self, model: str, api_key: str):
+        self._user_api_keys[model.rsplit("/", 1)[0]] = api_key
+
+    def get_api_key(self, model: str) -> str | None:
+        return self._user_api_keys.get(model.rsplit("/", 1)[0], None)
 
     def has_websocket(self) -> bool:
         return self._websocket is not None
@@ -326,7 +334,7 @@ class OpacaException(Exception):
     and error message (shown when clicking on the error-marker), as well as a status code.
     """
 
-    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+    def __init__(self, user_message: str, error_message: str = "", status_code: int = 400):
         super().__init__(user_message)
         self.user_message = user_message
         self.error_message = error_message
@@ -395,6 +403,24 @@ class ContainerLoginResponse(BaseModel):
     password: str
     timeout: int
 
+
+class MissingApiKeyNotification(BaseModel):
+    """
+    Notify about missing or invalid api keys for a specific model
+
+    Attributes:
+        is_invalid: True - The api key is invalid, False - The api key is missing
+        model: The model for which the api key is missing or invalid
+    """
+    is_invalid: bool
+    model: str
+
+
+class MissingApiKeyResponse(BaseModel):
+    api_key: str
+
+
+# METHOD CONFIGURATION
 
 class MethodConfig(BaseModel):
     """

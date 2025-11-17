@@ -237,6 +237,7 @@ export default {
     emits: [
         'select-category',
         'container-login-required',
+        'api-key-required',
         'new-notification',
     ],
     setup() {
@@ -445,6 +446,10 @@ export default {
                 this.$emit('container-login-required', result);
             }
 
+            if (result.type === "MissingApiKeyNotification") {
+                this.$emit('api-key-required', result);
+            }
+
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
@@ -517,6 +522,11 @@ export default {
                 timeout: containerLoginTimeout,
             });
             this.socket.send(containerLoginDetails);
+        },
+
+        submitApiKey(apiKey) {
+            const apiKeyResponse = JSON.stringify({api_key: apiKey});
+            this.socket.send(apiKeyResponse);
         },
 
 
