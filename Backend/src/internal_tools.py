@@ -152,8 +152,16 @@ class InternalTools:
 
             # execute the task, then send result/error
             try:
-                query_extra = "\n\nNOTE: This query was triggered by the 'ScheduleTask' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder! If it asked you to do something by that time, just do it and report on the results as usual."
-                result = await self.query_method(query + query_extra)
+                query_ext = dedent(f"""
+                    This query was triggered by the 'ScheduleTask' tool: 
+
+                    {query}
+
+                    If it says to 'remind' the user of something, just output that thing the user asked about,
+                    e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder!
+                    If it asked you to do something by that time, just do it and report on the results as usual.
+                """)
+                result = await self.query_method(query_ext)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
@@ -200,13 +208,13 @@ class InternalTools:
     async def tool_search_chats(self, search_query: str) -> str:
         messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]
         query = dedent(f"""
-        In the following is the full transcript of all past interactions between the User and the LLM Assistant:
-        
-        {json.dumps(messages, indent=2)}
+            In the following is the full transcript of all past interactions between the User and the LLM Assistant:
+            
+            {json.dumps(messages, indent=2)}
 
-        Use this transcript to answer the following query:
+            Use this transcript to answer the following query:
 
-        {search_query}
+            {search_query}
         """)
         try:
             res = await self.query_method(query)

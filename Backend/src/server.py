@@ -22,9 +22,9 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
+from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, delete_all_sessions, \
-    cleanup_task, on_shutdown, load_all_sessions
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -172,7 +172,8 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method](session, message.streaming).query(message.user_query, chat)
+        internal_tools = InternalTools(session, METHODS[method])
+        result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
