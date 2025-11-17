@@ -359,7 +359,7 @@ async def open_websocket(websocket: WebSocket):
     try:
         while True:
             logger.debug("websocket waiting...")
-            # message coming from the websocket are received here and put into an async queue
+            # messages coming from the websocket are received here and put into an async queue
             # so any exceptions (like websocket closing) can be handled here without losing messages
             response = await websocket.receive_json()
             await session._ws_msg_queue.put(response)
