@@ -189,8 +189,13 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
 async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) -> None:
     """"""
     for session in sessions.values():
-        for task in session.scheduled_tasks.values():
-            InternalTools(session, methods[task.method]).resume_scheduled_task(task)
+        for task_id in list(session.scheduled_tasks):
+            task = session.scheduled_tasks[task_id]
+            try:
+                await InternalTools(session, methods[task.method]).resume_scheduled_task(task)
+            except Exception as e:
+                logger.warning(f"Failed to restore Scheduled Task {task_id} ({task.query})")
+                del session.scheduled_tasks[task_id]
 
 
 async def on_shutdown():

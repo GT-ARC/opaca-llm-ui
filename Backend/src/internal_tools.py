@@ -14,6 +14,7 @@ import logging
 import json
 from itertools import count
 from datetime import datetime, timedelta
+from math import ceil
 
 from pydantic import BaseModel
 from typing import Callable
@@ -22,7 +23,7 @@ from textwrap import dedent
 from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
 
 
-TIME_FORMAT = "%b %d %H:%M"
+TIME_FORMAT = "%b %d %Y %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
@@ -174,7 +175,7 @@ class InternalTools:
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
-            return ScheduledTask(method=self.agent_method.__name__, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
+            return ScheduledTask(method=self.agent_method.NAME, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
@@ -189,12 +190,17 @@ class InternalTools:
         """resume scheduled task after deserialization"""
         now = datetime.now()
         then = datetime.strptime(task.next_time, TIME_FORMAT)
+        skipped = 0
         if now >= then:
-            then += timedelta(seconds=task.interval) * ((now - then).seconds // task.interval) # XXX is this right? double-check
-        assert then > now
-        delay = (then - now).seconds
-        # XXX what to do with repetitions? do missed repetitions count and should be removed?
-        await self.deferred_execution_helper(task.query, delay, task.interval, task.repetitions, task.task_id)
+            skipped = ceil((now - then).seconds / task.interval)
+            then += timedelta(seconds=task.interval) * skipped
+            if task.repetitions != -1:
+                task.repetitions = max(0, task.repetitions - skipped)
+        if task.repetitions != 0:
+            logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
+            await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
+        else:
+            logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
