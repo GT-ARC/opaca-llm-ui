@@ -165,6 +165,18 @@ class ToolCall(BaseModel):
 
 
 class ScheduledTask(BaseModel):
+    """
+    An LLM Task scheduled for later execution, by sending the query to the LLM at a later time
+    
+    Attributes:
+        method: the AgentMethod originally used to create this task; will be used again for re-creating it
+        task_id: ID given to this task, needed for cancelling tasks
+        query: the query that will be played back to the LLM on execution
+        next_time: the next time this task should be executed
+        interval: interval between executions (or just until the first execution if no repetitions)
+        repetitions: how many more times this task should be executed; -1 for infinite (should never be zero)
+    """
+    method: str
     task_id: int
     query: str
     next_time: str
@@ -223,13 +235,13 @@ class SessionData(BaseModel):
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
+        scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         valid_until: Timestamp until session is active.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
-        _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
 
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
@@ -241,20 +253,16 @@ class SessionData(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
+    scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
-    _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
-
-    @property
-    def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
-        return self._scheduled_tasks
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()

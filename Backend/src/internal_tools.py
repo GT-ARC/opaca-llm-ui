@@ -127,11 +127,15 @@ class InternalTools:
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
+        """get callback method for internal tool matching the name and call with given parameters"""
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
 
     async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
-        
+        """
+        helper method used for creating different sorts of scheduled tasks (interval and daily)
+        and for restoring serialized scheduled tasks after restart
+        """
         async def _callback(wait_time: int, remaining: int):
             # wait until it's time to execute the task...
             await asyncio.sleep(wait_time)
@@ -169,7 +173,7 @@ class InternalTools:
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime("%b %d %H:%M")
-            return ScheduledTask(task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
+            return ScheduledTask(method=self.agent_method.__name__, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
@@ -179,7 +183,19 @@ class InternalTools:
         asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
     
+    async def resume_scheduled_task(self, task: ScheduledTask):
+        """resume scheduled task after deserialization"""
+        '''
+        TODO
+        check planned next execution
+        in future? fine
+        in past? add interval until it's in the future
+        call deferred-exec-helper
+        '''
+        pass
+
     async def query_method(self, query: str) -> QueryResponse:
+        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
 
 

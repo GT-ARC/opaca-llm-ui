@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_all_files_from_disk
+from .internal_tools import InternalTools
 from .models import SessionData
 
 
@@ -183,6 +184,13 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
         await cleanup_old_sessions()
         await store_sessions_in_db()
         await asyncio.sleep(delay_seconds)
+
+
+async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) -> None:
+    """"""
+    for session in sessions.values():
+        for task in session.scheduled_tasks.values():
+            InternalTools(session, methods[task.method]).resume_scheduled_task(task)
 
 
 async def on_shutdown():
