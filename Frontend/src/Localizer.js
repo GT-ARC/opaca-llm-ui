@@ -108,6 +108,7 @@ export const localizationData = {
         tooltipSidebarExtensions: "Extensions",
         sidebarExtensionsLoading: "Loading available extensions...",
         sidebarExtensionsMissing: "No extensions available.",
+        tooltipExpandExtension: "Expand",
     },
 
     DE: {
@@ -213,6 +214,7 @@ export const localizationData = {
         tooltipSidebarExtensions: "Erweiterungen",
         sidebarExtensionsLoading: "Lade verfügbare Erweiterungen...",
         sidebarExtensionsMissing: "Keine Erweiterungen verfügbar.",
+        tooltipExpandExtension: "Vergrößern",
     },
 };
 

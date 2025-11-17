@@ -12,6 +12,13 @@
         {{ Localizer.get('sidebarExtensionsMissing') }}
     </div>
     <div v-else class="flex-row" >
+
+        <div v-if="this.maximized != null" class="extension-expand-overlay"
+            @click="this.maximized = null"
+            @keyup.esc="this.maximized = null">
+            <iframe :src="this.maximized" class="extension-expand-window" @click.stop />
+        </div>
+
         <div class="accordion text-start" id="containers-accordion">
             <div v-for="(container, containerIndex) in this.extraPorts" class="accordion-item" :key="containerIndex">
 
@@ -39,8 +46,11 @@
                                     :data-bs-target="'#extension-body-' + containerIndex + '-' + extensionIndex"
                                     aria-expanded="false"
                                     :aria-controls="'extension-body-' + containerIndex + '-' + extensionIndex">
-                                <!--<i class="fa fa-wrench me-3"/>-->
                                 {{ extension.description }}
+                                <i class="fa fa-expand extension-expand-button"
+                                    @click.stop="this.maximized = extension.port"
+                                    :title="Localizer.get('tooltipExpandExtension')"
+                                />
                             </button>
 
                             <!-- extension body -->
@@ -77,6 +87,7 @@ export default {
         return {
             extraPorts: null,
             isLoading: false,
+            maximized: null,
         };
     },
     methods: {
@@ -113,5 +124,47 @@ export default {
 
 .extension-body {
     padding: 0.5rem 0;
+}
+
+/* the following are copied from chat tab and search chat overlay... */
+.extension-expand-button {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    border-radius: 1rem !important;
+    cursor: pointer;
+}
+
+.extension-expand-overlay {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5); /* backdrop dim */
+    z-index: 3000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 1rem;
+    pointer-events: auto; /* blocks clicks behind */
+}
+
+.extension-expand-window {
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    max-width: max(95vw, 800px);
+    max-height: max(85vh, 800px);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    background-color: var(--background-color);
+    color: var(--text-primary-color);
 }
 </style>
