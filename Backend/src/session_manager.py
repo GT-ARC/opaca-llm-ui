@@ -187,7 +187,13 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
 
 
 async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) -> None:
-    """"""
+    """
+    Re-create scheduled tasks on restart. Details see InternalTools. In short, missed tasks are NOT
+    executed but just skipped, also decrementing the remaining repetitions accordingly. The first
+    execution is set such that the planned interval is kept as best as possible. This means that 
+    tasks to be executed as a certain time are still executed at that time, but an hourly task missed
+    by one minute will only be executed again in another hour.
+    """
     for session in sessions.values():
         for task_id in list(session.scheduled_tasks):
             task = session.scheduled_tasks[task_id]
