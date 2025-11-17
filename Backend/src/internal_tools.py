@@ -28,8 +28,6 @@ INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
 
-task_ids_provider = count()
-
 
 class InternalTool(BaseModel):
     name: str
@@ -181,7 +179,7 @@ class InternalTools:
             raise ValueError("Repetitions must not be zero")
 
         if task_id is None:
-            task_id = next(task_ids_provider)
+            task_id = self.create_task_id()
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
@@ -205,6 +203,9 @@ class InternalTools:
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
+
+    def create_task_id(self) -> int:
+        return max(self.session.scheduled_tasks, default=-1) + 1
 
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
