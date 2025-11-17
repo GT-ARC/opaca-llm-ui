@@ -209,8 +209,8 @@ export const localizationData = {
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper-Stimme",
         bookmarkHeader: "Favoriten",
-        apiKeyMissing: "Bitte geben Sie für das folgende Model einen API ein: ",
-        apiKeyInvalid: "Der eingegebene API für das folgende Modell ist ungültig! Versuchen Sie es erneut: ",
+        apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
+        apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
     },
 };
 
