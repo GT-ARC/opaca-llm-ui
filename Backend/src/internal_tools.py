@@ -22,6 +22,7 @@ from textwrap import dedent
 from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
 
 
+TIME_FORMAT = "%b %d %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
@@ -131,7 +132,7 @@ class InternalTools:
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
 
-    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
+    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
         """
         helper method used for creating different sorts of scheduled tasks (interval and daily)
         and for restoring serialized scheduled tasks after restart
@@ -172,27 +173,28 @@ class InternalTools:
             await self.session.websocket_send(PushMessage(**result.model_dump()))
 
         def make_task(delay, remaining):
-            next_time = (datetime.now() + timedelta(seconds=delay)).strftime("%b %d %H:%M")
+            next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
             return ScheduledTask(method=self.agent_method.__name__, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
 
-        task_id = next(task_ids_provider)
+        if task_id is None:
+            task_id = next(task_ids_provider)
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
     
     async def resume_scheduled_task(self, task: ScheduledTask):
         """resume scheduled task after deserialization"""
-        '''
-        TODO
-        check planned next execution
-        in future? fine
-        in past? add interval until it's in the future
-        call deferred-exec-helper
-        '''
-        pass
+        now = datetime.now()
+        then = datetime.strptime(task.next_time, TIME_FORMAT)
+        if now >= then:
+            then += timedelta(seconds=task.interval) * ((now - then).seconds // task.interval) # XXX is this right? double-check
+        assert then > now
+        delay = (then - now).seconds
+        # XXX what to do with repetitions? do missed repetitions count and should be removed?
+        await self.deferred_execution_helper(task.query, delay, task.interval, task.repetitions, task.task_id)
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
