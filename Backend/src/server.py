@@ -355,6 +355,7 @@ async def open_websocket(websocket: WebSocket):
     session = await handle_session_id(websocket)
     session._websocket = websocket
     session._ws_msg_queue = asyncio.Queue()
+    await session.websocket_send_pending()
     try:
         while True:
             logger.debug("websocket waiting...")

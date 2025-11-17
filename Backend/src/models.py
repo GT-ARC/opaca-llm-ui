@@ -240,6 +240,7 @@ class SessionData(BaseModel):
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
+        _ws_out_cache: Used to cache outgoing WS messages if WS is disconnected, to be sent later
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
 
@@ -258,6 +259,7 @@ class SessionData(BaseModel):
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
+    _ws_out_cache: list[dict] | None = PrivateAttr(default_factory=list)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
 
     @property
@@ -294,14 +296,21 @@ class SessionData(BaseModel):
 
     def has_websocket(self) -> bool:
         return self._websocket is not None
+    
+    async def websocket_send_pending(self):
+        for msg in self._ws_out_cache:
+            await self._websocket.send_json(msg)
+        self._ws_out_cache.clear()
 
     async def websocket_send(self, message: BaseModel) -> bool:
         """Send object as JSON over websocket. The JSON will include the class name as "type"."""
+        typed_message = {"type": message.__class__.__name__, **message.model_dump()}
         if self._websocket:
-            typed_message = {"type": message.__class__.__name__, **message.model_dump()}
             await self._websocket.send_json(typed_message)
             return True
-        return False
+        else:
+            self._ws_out_cache.append(typed_message)
+            return False
 
     async def websocket_receive(self) -> dict:
         if self._websocket and self._ws_msg_queue:
