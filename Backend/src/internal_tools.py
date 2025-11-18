@@ -14,6 +14,7 @@ import logging
 import json
 from itertools import count
 from datetime import datetime, timedelta
+from math import ceil
 
 from pydantic import BaseModel
 from typing import Callable
@@ -22,11 +23,10 @@ from textwrap import dedent
 from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
 
 
+TIME_FORMAT = "%b %d %Y %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
-
-task_ids_provider = count()
 
 
 class InternalTool(BaseModel):
@@ -127,11 +127,15 @@ class InternalTools:
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
+        """get callback method for internal tool matching the name and call with given parameters"""
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
 
-    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
-        
+    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
+        """
+        helper method used for creating different sorts of scheduled tasks (interval and daily)
+        and for restoring serialized scheduled tasks after restart
+        """
         async def _callback(wait_time: int, remaining: int):
             # wait until it's time to execute the task...
             await asyncio.sleep(wait_time)
@@ -168,19 +172,40 @@ class InternalTools:
             await self.session.websocket_send(PushMessage(**result.model_dump()))
 
         def make_task(delay, remaining):
-            next_time = (datetime.now() + timedelta(seconds=delay)).strftime("%b %d %H:%M")
-            return ScheduledTask(task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
+            next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
+            return ScheduledTask(method=self.agent_method.NAME, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
 
-        task_id = next(task_ids_provider)
+        if task_id is None:
+            task_id = self.create_task_id()
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions-1))
         return task_id
     
+    async def resume_scheduled_task(self, task: ScheduledTask):
+        """resume scheduled task after deserialization"""
+        now = datetime.now()
+        then = datetime.strptime(task.next_time, TIME_FORMAT)
+        skipped = 0
+        if now >= then:
+            skipped = ceil((now - then).seconds / task.interval)
+            then += timedelta(seconds=task.interval) * skipped
+            if task.repetitions != -1:
+                task.repetitions = max(0, task.repetitions - skipped)
+        if task.repetitions != 0:
+            logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
+            await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
+        else:
+            logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
+
     async def query_method(self, query: str) -> QueryResponse:
+        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
+
+    def create_task_id(self) -> int:
+        return max(self.session.scheduled_tasks, default=-1) + 1
 
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
