@@ -75,6 +75,26 @@
                             </div>
                         </li>
 
+                        <!-- Notifications -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="notifications-dropdown"
+                               role="button" data-bs-toggle="dropdown"
+                               @click="this.unreadNotifications = 0">
+                                <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else class="fa-regular fa-bell me-1" />
+                                <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="notifications-area"
+                                 aria-labelledby="notifications-dropdown">
+                                <Notifications
+                                    ref="Notifications"
+                                />
+                            </div>
+                        </li>
+
                         <!-- Options -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle"
@@ -136,7 +156,6 @@
         </div>
     </div>
 
-
     <!-- Container Login Context -->
     <div v-if="showContainerLogin" class="auth-overlay">
         <div class="p-4 login-container rounded shadow">
@@ -177,6 +196,23 @@
         </div>
     </div>
 
+    <!-- Api Key Context -->
+    <div v-if="showApiKeyDialog" class="auth-overlay">
+        <div class="dropdown-menu show p-4 login-container">
+            <form @submit.prevent="submitApiKey">
+                <h5 v-if="this.apiKeyMessage?.is_invalid" class="mb-3">{{ Localizer.get("apiKeyInvalid") + this.apiKeyMessage?.model }}</h5>
+                <h5 v-else class="mb-3">{{ Localizer.get("apiKeyMissing") + this.apiKeyMessage?.model }}</h5>
+                <input v-model="apiKey" type="password" :class="['form-control', 'mb-3']"/>
+                <button type="submit" class="btn btn-primary w-100" @click="submitApiKey(true)" :disabled="!apiKey">
+                    <span>{{ Localizer.get('submit') }}</span>
+                </button>
+                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitApiKey(false)">
+                    {{ Localizer.get('cancel') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :method="this.method"
@@ -184,6 +220,8 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
+            @new-notification="response => createNotification(response)"
             ref="content"
         />
     </div>
@@ -197,13 +235,14 @@ import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
@@ -221,12 +260,18 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
+            // container login
             showContainerLogin: false,
             containerLoginDetails: null,
             containerLoginUser: "",
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
+            unreadNotifications: 0,
+            // user provided API key
+            showApiKeyDialog: false,
+            apiKeyMessage: null,
+            apiKey: null,
         }
     },
     methods: {
@@ -311,6 +356,12 @@ export default {
             }
         },
 
+        createNotification(response) {
+            const notificationArea = this.$refs.Notifications;
+            notificationArea.addNotificationBubble(response);
+            this.unreadNotifications += 1;
+        },
+
         handleContainerLogin(containerLoginDetails) {
             this.containerLoginDetails = containerLoginDetails;
             this.containerLoginError = this.containerLoginDetails.retry;
@@ -331,6 +382,21 @@ export default {
             this.containerLoginUser = "";
             this.containerLoginPassword = "";
             this.containerLoginDetails = null;
+        },
+
+        handleApiKey(apiKeyMessage) {
+            this.apiKeyMessage = apiKeyMessage;
+            this.showApiKeyDialog = true;
+        },
+
+        submitApiKey(submitApiKey) {
+            this.showApiKeyDialog = false;
+            if (submitApiKey) {
+                this.$refs.content.submitApiKey(this.apiKey);
+            } else {
+                this.$refs.content.submitApiKey("");
+            }
+            this.apiKey = "";
         },
 
         async waitForConnection() {

@@ -165,6 +165,18 @@ class ToolCall(BaseModel):
 
 
 class ScheduledTask(BaseModel):
+    """
+    An LLM Task scheduled for later execution, by sending the query to the LLM at a later time
+    
+    Attributes:
+        method: the AgentMethod originally used to create this task; will be used again for re-creating it
+        task_id: ID given to this task, needed for cancelling tasks
+        query: the query that will be played back to the LLM on execution
+        next_time: the next time this task should be executed
+        interval: interval between executions (or just until the first execution if no repetitions)
+        repetitions: how many more times this task should be executed; -1 for infinite (should never be zero)
+    """
+    method: str
     task_id: int
     query: str
     next_time: str
@@ -223,13 +235,15 @@ class SessionData(BaseModel):
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
+        scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         valid_until: Timestamp until session is active.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
+        _ws_out_cache: Used to cache outgoing WS messages if WS is disconnected, to be sent later
         _opaca_client: Client instance for OPACA, for calling agent actions.
         _llm_clients: Dictionary of LLM client instances.
-        _scheduled_tasks: LLM queries scheduled for later execution by Internal Tools. NOT saved to DB.
+        _user_api_keys: User-provided API keys for specific LLM hosts
 
     Note: The websocket from the session should not be used directly; instead use the send/receive
     methods. Especially the latter is necessary to ensure that messages are properly received while
@@ -241,20 +255,18 @@ class SessionData(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
+    scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
+    _ws_out_cache: list[dict] | None = PrivateAttr(default_factory=list)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
-    _scheduled_tasks: Dict[int, ScheduledTask] = PrivateAttr(default_factory=dict)
+    _user_api_keys: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @property
     def opaca_client(self) -> OpacaClient:
         return self._opaca_client
-
-    @property
-    def scheduled_tasks(self) -> Dict[int, ScheduledTask]:
-        return self._scheduled_tasks
 
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
@@ -284,16 +296,29 @@ class SessionData(BaseModel):
             return True
         return False
 
+    def set_api_key(self, model: str, api_key: str):
+        self._user_api_keys[model.rsplit("/", 1)[0]] = api_key
+
+    def get_api_key(self, model: str) -> str | None:
+        return self._user_api_keys.get(model.rsplit("/", 1)[0], None)
+
     def has_websocket(self) -> bool:
         return self._websocket is not None
+    
+    async def websocket_send_pending(self):
+        for msg in self._ws_out_cache:
+            await self._websocket.send_json(msg)
+        self._ws_out_cache.clear()
 
     async def websocket_send(self, message: BaseModel) -> bool:
         """Send object as JSON over websocket. The JSON will include the class name as "type"."""
+        typed_message = {"type": message.__class__.__name__, **message.model_dump()}
         if self._websocket:
-            typed_message = {"type": message.__class__.__name__, **message.model_dump()}
             await self._websocket.send_json(typed_message)
             return True
-        return False
+        else:
+            self._ws_out_cache.append(typed_message)
+            return False
 
     async def websocket_receive(self) -> dict:
         if self._websocket and self._ws_msg_queue:
@@ -326,7 +351,7 @@ class OpacaException(Exception):
     and error message (shown when clicking on the error-marker), as well as a status code.
     """
 
-    def __init__(self, user_message: str, error_message: str | None = None, status_code: int = 400):
+    def __init__(self, user_message: str, error_message: str = "", status_code: int = 400):
         super().__init__(user_message)
         self.user_message = user_message
         self.error_message = error_message
@@ -364,11 +389,6 @@ class MetricsMessage(BaseModel):
     execution_time: float
 
 
-class PendingCallback(BaseModel):
-    """Notification that an "execute-later" callback for the given query has been started."""
-    query: str
-
-
 class PushMessage(QueryResponse):
     """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
 
@@ -400,6 +420,24 @@ class ContainerLoginResponse(BaseModel):
     password: str
     timeout: int
 
+
+class MissingApiKeyNotification(BaseModel):
+    """
+    Notify about missing or invalid api keys for a specific model
+
+    Attributes:
+        is_invalid: True - The api key is invalid, False - The api key is missing
+        model: The model for which the api key is missing or invalid
+    """
+    is_invalid: bool
+    model: str
+
+
+class MissingApiKeyResponse(BaseModel):
+    api_key: str
+
+
+# METHOD CONFIGURATION
 
 class MethodConfig(BaseModel):
     """

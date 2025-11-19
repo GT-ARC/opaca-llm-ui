@@ -237,6 +237,8 @@ export default {
     emits: [
         'select-category',
         'container-login-required',
+        'api-key-required',
+        'new-notification',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -437,17 +439,21 @@ export default {
         },
 
         async handleStreamingSocketMessage(event) {
-            const aiBubble = this.getLastBubble();
             const result = JSON.parse(event.data);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
             }
 
+            if (result.type === "MissingApiKeyNotification") {
+                this.$emit('api-key-required', result);
+            }
+
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
                 if (result.is_output) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);
                     this.scrollDownChat();
@@ -470,25 +476,15 @@ export default {
                 const agentName = result.agent;
                 const message = result.status;
                 if (message) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.markStatusMessagesDone(agentName);
                     aiBubble.addStatusMessage(agentName, message, false);
                 }
                 this.scrollDownChat();
             }
 
-            if (result.type === "PendingCallback") {
-                await this.addChatBubble(`Working on deferred query: ${result.query}`, false, true);
-            }
-
             if (result.type === "PushMessage") {
-                if (result.error) {
-                    aiBubble.setError(result.error);
-                }
-                aiBubble.setContent(result.content);
-                aiBubble.toggleLoading(false);
-                this.isFinished = true;
-                this.startAutoSpeak();
-                this.scrollDownChat();
+                this.$emit('new-notification', result);
             }
 
             if (result.type === "MetricsMessage") {
@@ -527,6 +523,11 @@ export default {
                 timeout: containerLoginTimeout,
             });
             this.socket.send(containerLoginDetails);
+        },
+
+        submitApiKey(apiKey) {
+            const apiKeyResponse = JSON.stringify({api_key: apiKey});
+            this.socket.send(apiKeyResponse);
         },
 
 
