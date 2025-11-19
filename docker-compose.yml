@@ -17,9 +17,6 @@ services:
       VITE_AUTOCONNECT:
       VITE_COLOR_SCHEME:
       VITE_DEFAULT_LANGUAGE:
-    profiles:
-      - base
-      - all
 
   # FastAPI-based backend for SAGE Integration
   backend:
@@ -40,10 +37,6 @@ services:
       MONGODB_URI: "mongodb://user:pass@session-db:27017"
     volumes:
       - appdata:/app/data
-    profiles:
-      - base
-      - all
-      - benchmark
 
   # MongoDB for storing session data
   session-db:
@@ -56,9 +49,6 @@ services:
     volumes:
       - mongodata:/data/db
       - mongoconfig:/data/configdb
-    profiles:
-      - base
-      - all
 
   # TTS Server for voice synthesis
   tts:
@@ -69,8 +59,7 @@ services:
     environment:
       OPENAI_API_KEY:
     profiles:
-      - all
-      - tts
+      - whisper
 
   # Optional OPACA platform service
   platform:
@@ -86,8 +75,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     profiles:
-      - all
-      - benchmark
       - platform
 
 
