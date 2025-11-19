@@ -3,10 +3,17 @@
         <div v-for="{ elementId, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
-                <i class="fa fa-remove delete-button"
-                    @click.stop="this.dismissNotification(elementId)"
-                    title="Dismiss"
-                />
+                <!-- grouped buttons -->
+                <div class="d-flex gap-1">
+                    <i class="fa fa-paperclip append-button"
+                       @click.stop="this.appendToChat(content)"
+                       :title="Localizer.get('tooltipAppendNotification')"
+                    />
+                    <i class="fa fa-remove delete-button"
+                        @click.stop="this.dismissNotification(elementId)"
+                        :title="Localizer.get('tooltipDismissNotification')"
+                    />
+                </div>
             </div>
             <Chatbubble
                 :key="content"
@@ -40,6 +47,7 @@ export default {
     },
     emits: [
         // create new chat from notification
+        "append-to-chat"
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -58,9 +66,9 @@ export default {
         async addNotificationBubble(response) {
             const elementId = `chatbubble-${this.messages.length}`;
 
-            const message = { 
-                elementId: elementId, 
-                content: response.content , 
+            const message = {
+                elementId: elementId,
+                content: response.content ,
                 time: new Date().toLocaleString(),
             };
             this.messages.unshift(message);
@@ -88,8 +96,11 @@ export default {
 
         async dismissNotification(elementId) {
             this.messages = this.messages.filter(m => m.elementId != elementId);
-        }
+        },
 
+        async appendToChat(message) {
+            this.$emit('append-to-chat', message);
+        }
     },
 }
 
@@ -103,7 +114,7 @@ export default {
     max-width: calc(100vw - 9rem);
 }
 
-.delete-button {
+.delete-button, .append-button {
     width: 2rem;
     height: 2rem;
     display: inline-flex;

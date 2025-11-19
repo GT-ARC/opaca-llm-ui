@@ -17,7 +17,7 @@ from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException
+    SearchResult, get_supported_models, SessionData, OpacaException, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -232,6 +232,15 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
                 ))
 
     return results
+
+
+@app.post("/chats/{chat_id}/append", description="Append a single push message to a chat")
+async def append(chat_id: str, content: str, request: Request, response: Response) -> None:
+    session = await handle_session_id(request, response)
+    chat = session.get_or_create_chat(chat_id, True)
+    push_message = PushMessage(content=content)
+    chat.store_interaction(push_message)
+
 
 ## CONFIG ROUTES
 

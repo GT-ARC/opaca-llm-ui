@@ -91,6 +91,7 @@
                                  aria-labelledby="notifications-dropdown">
                                 <Notifications
                                     ref="Notifications"
+                                    @append-to-chat="message => handleAppendToChat(message)"
                                 />
                             </div>
                         </li>
@@ -410,6 +411,12 @@ export default {
             }
             alert("SAGE Backend is unreachable. Please check if the SAGE backend is running and reload the page.")
             throw new Error("SAGE Backend is unreachable.");
+        },
+
+        async handleAppendToChat(message) {
+            const chatId = this.$refs.content.selectedChatId;
+            await backendClient.append(chatId, message);
+            await this.$refs.content.addChatBubble(message, false, false);
         }
     },
 

@@ -658,8 +658,10 @@ export default {
                 for (const msg of res.responses) {
                     if (!msg) continue;
                     // request
-                    await this.addChatBubble(msg.query, true);
-                    debug.addDebugMessage(msg.query, "user");
+                    if (msg.query) {
+                        await this.addChatBubble(msg.query, true);
+                        debug.addDebugMessage(msg.query, "user");
+                    }
                     // response
                     await this.addChatBubble(msg.content, false);
                     for (const agent_message of msg.agent_messages) {

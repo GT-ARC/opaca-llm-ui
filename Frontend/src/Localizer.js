@@ -107,6 +107,8 @@ export const localizationData = {
         bookmarkHeader: "Bookmarked Prompts",
         apiKeyMissing: "Please provide an API key for this model: ",
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
+        tooltipAppendNotification: "Append to Chat",
+        tooltipDismissNotification: "Dismiss",
     },
 
     DE: {
@@ -211,6 +213,8 @@ export const localizationData = {
         bookmarkHeader: "Favoriten",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
+        tooltipAppendNotification: "An den Chat heften",
+        tooltipDismissNotification: "Entfernen",
     },
 };
 
