@@ -91,7 +91,7 @@
                                  aria-labelledby="notifications-dropdown">
                                 <Notifications
                                     ref="Notifications"
-                                    @append-to-chat="message => handleAppendToChat(message)"
+                                    @append-to-chat="(message, taskId) => showConfirmDialog(message, taskId)"
                                 />
                             </div>
                         </li>
@@ -214,6 +214,25 @@
         </div>
     </div>
 
+    <!-- Append-to-Chat Confirmation -->
+    <div v-if="showAppendDialog" class="auth-overlay">
+        <div class="p-4 login-container rounded shadow">
+            <h5 class="mb-3">Append message?</h5>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" v-model="appendDialogAuto">
+                <label class="form-check-label">
+                    Also append future notifications from this reminder
+                </label>
+            </div>
+            <button class="btn btn-primary w-100 mb-2" @click="confirmAppendDialog(true)">
+                Yes
+            </button>
+            <button class="btn btn-secondary w-100" @click="confirmAppendDialog(false)">
+                No
+            </button>
+        </div>
+    </div>
+
     <div class="col background">
         <MainContent
             :method="this.method"
@@ -268,7 +287,11 @@ export default {
             containerLoginPassword: "",
             containerLoginError: false,
             containerLoginTimeout: 300,
+            // notifications
             unreadNotifications: 0,
+            autoAppendNotifications: {},
+            showAppendDialog: false,
+            appendDialogAuto: false,
             // user provided API key
             showApiKeyDialog: false,
             apiKeyMessage: null,
@@ -361,6 +384,13 @@ export default {
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
+
+            // Automatically append to chat
+            const taskId = response.task_id;
+            const chatId = this.autoAppendNotifications[taskId];
+            if (chatId) {
+                this.handleAppendToChat(chatId, response.content);
+            }
         },
 
         handleContainerLogin(containerLoginDetails) {
@@ -413,8 +443,41 @@ export default {
             throw new Error("SAGE Backend is unreachable.");
         },
 
-        async handleAppendToChat(message) {
-            const chatId = this.$refs.content.selectedChatId;
+        async showConfirmDialog(message, taskId) {
+            this.appendDialogAuto = false; // Reset
+            this.showAppendDialog = true;
+
+            // Await user choice
+            const choice = await new Promise(
+                resolve => {
+                    this._appendResolver = resolve;
+                    this._appendState = { message, taskId };
+                }
+            );
+
+            if (choice.confirmation) {
+                const chatId = this.$refs.content.selectedChatId;
+                // Manual append
+                await this.handleAppendToChat(chatId, message);
+
+                // Remember chat for auto append
+                if (choice.auto && taskId) {
+                    this.autoAppendNotifications[taskId] = chatId;
+                }
+            }
+        },
+
+        confirmAppendDialog(confirmation) {
+            this.showAppendDialog = false;
+
+            this._appendResolver({
+                confirmation,
+                auto: this.appendDialogAuto,
+                ...this._appendState
+            });
+        },
+
+        async handleAppendToChat(chatId, message) {
             await backendClient.append(chatId, message);
             await this.$refs.content.addChatBubble(message, false, false);
         }

@@ -1,12 +1,12 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ elementId, content, time } in this.messages">
+        <div v-for="{ elementId, content, taskId, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <!-- grouped buttons -->
                 <div class="d-flex gap-1">
                     <i class="fa fa-paperclip append-button"
-                       @click.stop="this.appendToChat(content)"
+                       @click.stop="this.appendToChat(content, taskId)"
                        :title="Localizer.get('tooltipAppendNotification')"
                     />
                     <i class="fa fa-remove delete-button"
@@ -68,7 +68,8 @@ export default {
 
             const message = {
                 elementId: elementId,
-                content: response.content ,
+                content: response.content,
+                taskId: response.task_id,
                 time: new Date().toLocaleString(),
             };
             this.messages.unshift(message);
@@ -98,8 +99,8 @@ export default {
             this.messages = this.messages.filter(m => m.elementId != elementId);
         },
 
-        async appendToChat(message) {
-            this.$emit('append-to-chat', message);
+        async appendToChat(message, taskId) {
+            this.$emit('append-to-chat', message, taskId);
         }
     },
 }

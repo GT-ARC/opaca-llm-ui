@@ -373,7 +373,13 @@ class MetricsMessage(BaseModel):
 
 
 class PushMessage(QueryResponse):
-    """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
+    """
+    Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task.
+
+    Attributes:
+        task_id: The scheduled task the PushMessage belongs to
+    """
+    task_id: int = ""
 
 
 class ContainerLoginNotification(BaseModel):
