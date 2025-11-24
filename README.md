@@ -165,22 +165,19 @@ To use the above mentioned models, you need to provide the corresponding API key
 
 ### Using Docker Compose
 
-To build and start SAGE, you can use the included `docker-compose.yml` file. It has several predefined profiles to start different subsets of services:
+To build and start SAGE, you can use the included `docker-compose.yml` file. By default, it will start the Backend, Frontend, and Session-DB service, but it has several predefined profiles to start additional services, too:
 
-* `base`: Frontend, Backend, and Session DB.
-* `tts`: the TTS server.
+* `whisper`: the Whisper TTS server.
 * `platform`: The OPACA Runtime Platform.
-* `all`: Starts all services.
-* `benchmark`: Just the backend and OPACA RP.
 
-You can run a profile using `docker compose --profile <profile> up --build`. To run the base services, use:
-```bash
-docker compose --profile base up --build
-```
+Examples:
+
+* to run just the default setup, run `docker compose up --build`
+* to additionally run the TTS server, run `docker compose --profile whisper up --build`
 
 You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run, e.g.
 ```bash
-export COMPOSE_PROFILES=base,platform
+export COMPOSE_PROFILES=whisper,platform
 docker compose up --build
 ```
 
