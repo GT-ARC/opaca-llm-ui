@@ -225,6 +225,13 @@ class AbstractMethod(ABC):
         # If a "missing credentials" error is encountered, initiate container login
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
+        # fix out-of-sync logger-in state, otherwise deadlock in retry within login-lock
+        if container_id in self.session.opaca_client.logged_in_containers:
+            self.session.opaca_client.logged_in_containers.remove(container_id)
+
+        # This lock prevents more than one login-request message being sent to the UI at once. If multiple
+        # invokes to actions of not-logged-in containers arrive, the second will wait here until the first
+        # has been processed, and then immediately retry if it the same container, otherwise ask the user
         async with self.session.opaca_client.login_lock:
             # might already be logged in on lock-release if two actions of same container were called in parallel
             if container_id in self.session.opaca_client.logged_in_containers:

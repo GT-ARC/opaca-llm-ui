@@ -24,7 +24,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task())
     await load_all_sessions()
+    await restore_scheduled_tasks(METHODS)
 
     try:
         # app running
@@ -365,10 +366,11 @@ async def open_websocket(websocket: WebSocket):
     session = await handle_session_id(websocket)
     session._websocket = websocket
     session._ws_msg_queue = asyncio.Queue()
+    await session.websocket_send_pending()
     try:
         while True:
             logger.debug("websocket waiting...")
-            # message coming from the websocket are received here and put into an async queue
+            # messages coming from the websocket are received here and put into an async queue
             # so any exceptions (like websocket closing) can be handled here without losing messages
             response = await websocket.receive_json()
             await session._ws_msg_queue.put(response)
