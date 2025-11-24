@@ -175,7 +175,7 @@ Examples:
 * to run just the default setup, run `docker compose up --build`
 * to additionally run the TTS server, run `docker compose --profile whisper up --build`
 
-You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run, e.g.
+You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run (either using `export` or by putting it in your local `.env` file), e.g.
 ```bash
 export COMPOSE_PROFILES=whisper,platform
 docker compose up --build
