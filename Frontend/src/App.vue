@@ -479,7 +479,10 @@ export default {
 
         async handleAppendToChat(chatId, message) {
             await backendClient.append(chatId, message);
-            await this.$refs.content.addChatBubble(message, false, false);
+            // Only create chat bubble if chat is open
+            if (chatId === this.$refs.content.selectedChatId) {
+                await this.$refs.content.addChatBubble(message, false, false);
+            }
         }
     },
 
