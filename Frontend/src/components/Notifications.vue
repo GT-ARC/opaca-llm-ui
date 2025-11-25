@@ -1,6 +1,6 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ elementId, content, time } in this.messages">
+        <div v-for="{ taskId, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <i class="fa fa-remove delete-button"
@@ -10,14 +10,14 @@
             </div>
             <Chatbubble
                 :key="content"
-                :element-id="elementId"
+                :element-id="taskId"
                 :is-user="false"
                 :initial-content="content"
-                :initial-loading="false"
+                :initial-loading="loading"
                 :is-bookmarked="false"
                 :files="[]"
                 :chat-id="''"
-                :ref="elementId"
+                :ref="taskId"
                 @add-to-library=""
             />
         </div>
@@ -25,7 +25,6 @@
 </template>
 
 <script>
-import {nextTick} from "vue";
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import Localizer from "../Localizer.js";
@@ -56,20 +55,24 @@ export default {
          * adapted from different parts in content.vue
          */
         async addNotificationBubble(response) {
-            const elementId = `chatbubble-${this.messages.length}`;
-
             const message = { 
-                elementId: elementId, 
-                content: response.content , 
+                taskId: response.task_id,
+                loading: true, 
+                content: response.query, 
                 time: new Date().toLocaleString(),
             };
             this.messages.unshift(message);
+        },
 
-            // wait for the next rendering tick so that the component is mounted
-            await nextTick();
+        async finishNotificationBubble(response) {
+            // update message
+            const message = this.messages.find(m => m.taskId == response.task_id);
+            message.loading = false;
+            message.content = response.content;
+            message.time = new Date().toLocaleString();
 
             // add debug stuff to chat bubble
-            const chatBubble = this.$refs[elementId][0];
+            const chatBubble = this.$refs[response.task_id][0];
             for (const msg of response.agent_messages) {
                 chatBubble.addDebugMessage(msg.content, msg.agent, msg.id);
                 for (const tool of msg.tools) {

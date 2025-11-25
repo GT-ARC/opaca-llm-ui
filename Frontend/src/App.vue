@@ -83,6 +83,7 @@
                                role="button" data-bs-toggle="dropdown"
                                @click="this.unreadNotifications = 0">
                                 <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else-if="this.pendingNotification" class="fa-regular fa-bell text-info me-1" />
                                 <i v-else class="fa-regular fa-bell me-1" />
                                 <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
                             </a>
@@ -268,6 +269,7 @@ export default {
             containerLoginError: false,
             containerLoginTimeout: 300,
             unreadNotifications: 0,
+            pendingNotification: false,
             // user provided API key
             showApiKeyDialog: false,
             apiKeyMessage: null,
@@ -358,8 +360,15 @@ export default {
 
         createNotification(response) {
             const notificationArea = this.$refs.Notifications;
-            notificationArea.addNotificationBubble(response);
-            this.unreadNotifications += 1;
+            if (response.type == "PushAdvert")  {
+                notificationArea.addNotificationBubble(response);
+                this.pendingNotification = true;
+            }
+            if (response.type == "PushMessage")  {
+                notificationArea.finishNotificationBubble(response);
+                this.pendingNotification = false;
+                this.unreadNotifications += 1;
+            }
         },
 
         handleContainerLogin(containerLoginDetails) {

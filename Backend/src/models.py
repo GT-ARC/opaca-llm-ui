@@ -389,8 +389,15 @@ class MetricsMessage(BaseModel):
     execution_time: float
 
 
+class PushAdvert(BaseModel):
+    """Announcement for incoming PushMessage/Notification"""
+    task_id: int
+    query: str
+
+
 class PushMessage(QueryResponse):
     """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
+    task_id: int
 
 
 class ContainerLoginNotification(BaseModel):

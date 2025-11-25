@@ -12,7 +12,6 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
-from itertools import count
 from datetime import datetime, timedelta
 from math import ceil
 
@@ -20,7 +19,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
+from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -155,6 +154,7 @@ class InternalTools:
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
             # execute the task, then send result/error
+            await self.session.websocket_send(PushAdvert(task_id=task_id, query=query))
             try:
                 query_ext = dedent(f"""
                     This query was triggered by the 'ScheduleTask' tool: 
@@ -169,7 +169,7 @@ class InternalTools:
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
-            await self.session.websocket_send(PushMessage(**result.model_dump()))
+            await self.session.websocket_send(PushMessage(task_id=task_id, **result.model_dump()))
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
