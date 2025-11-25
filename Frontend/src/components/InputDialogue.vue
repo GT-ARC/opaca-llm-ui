@@ -6,7 +6,7 @@
                 <div class="mb-3">{{ message }}</div>
 
                 <div v-for="(type, label) in schema" :key="label">
-                    <input v-if="type == 'text' || type == 'password'"
+                    <input v-if="type == 'text' || type == 'password' || type == 'number'"
                         v-model="values[label]"
                         class="form-control mb-2"
                         :type="type"
@@ -16,7 +16,6 @@
                         <input class="form-check-input mb-2" type="checkbox" v-model="values[label]" />
                         <label class="form-check-label mx-2"> {{ label }} </label>
                     </div>
-                    <!-- TODO boolean, integer, ...-->
                      <select v-else 
                         v-model="values[label]"
                         class="form-select mb-2">
@@ -70,14 +69,26 @@ export default {
             this.schema = schema;
             this.callback = callback;
             this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, null]) // TODO derive default?
+                Object.entries(schema).map(([k, v]) => [k, this.getDefault(v)])
             );
             this.show = true;
             await nextTick();
         },
 
+        getDefault(type) {
+            switch (type) {
+                case "check": return false;
+                // the next are null so that the placeholder text is shown...
+                case "text": return null;
+                case "password": return null;
+                case "number": return null;
+                // else: options -> select first
+                default: return Object.keys(type)[0];
+            }
+        },
+
         isDisabled() {
-            return false; // TODO all values set, or all "required" set?
+            return Object.values(this.values).indexOf(null) != -1;
         },
 
         async handleSubmit(okay) {
