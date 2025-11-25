@@ -156,45 +156,7 @@
         </div>
     </div>
 
-    <!-- Container Login Context -->
-    <div v-if="showContainerLogin" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="submitContainerLogin">
-                <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
-                <input
-                        v-model="containerLoginUser"
-                        type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': containerLoginError}]"
-                        :placeholder="Localizer.get('username')"
-                        @input="containerLoginError = false"
-                />
-                <input
-                        v-model="containerLoginPassword"
-                        type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': containerLoginError}]"
-                        :placeholder="Localizer.get('password')"
-                        @input="containerLoginError = false"
-                />
-                <select v-model="containerLoginTimeout" class="form-select mb-3">
-                    <option value="0">Logout immediately</option>
-                    <option value="300">Logout after 5 minutes</option>
-                    <option value="1800">Logout after 30 minutes</option>
-                    <option value="3600">Logout after 1 hour</option>
-                    <option value="14400">Logout after 4 hours</option>
-                </select>
-                <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    {{ Localizer.get('authError') }}
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)" :disabled="!containerLoginUser || !containerLoginPassword">
-                    <span>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitContainerLogin(false)">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
+    <InputDialogue ref="input"/>
 
     <!-- Api Key Context -->
     <div v-if="showApiKeyDialog" class="auth-overlay">
@@ -239,10 +201,11 @@ import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
+import InputDialogue from './components/InputDialogue.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner, Notifications},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
@@ -260,13 +223,6 @@ export default {
             platformPassword: "",
             loginError: false,
             selectedCategory: null,
-            // container login
-            showContainerLogin: false,
-            containerLoginDetails: null,
-            containerLoginUser: "",
-            containerLoginPassword: "",
-            containerLoginError: false,
-            containerLoginTimeout: 300,
             unreadNotifications: 0,
             // user provided API key
             showApiKeyDialog: false,
@@ -362,26 +318,31 @@ export default {
             this.unreadNotifications += 1;
         },
 
-        handleContainerLogin(containerLoginDetails) {
-            this.containerLoginDetails = containerLoginDetails;
-            this.containerLoginError = this.containerLoginDetails.retry;
-            this.showContainerLogin = true;
-        },
-
-        submitContainerLogin(submitCredentials) {
-            this.showContainerLogin = false;
-
-            // If the credentials should be submitted
-            if (submitCredentials) {
-                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginTimeout);
-            } else {
-                this.$refs.content.submitContainerLogin("", "", 0)
-            }
-
-            // Reset the input fields
-            this.containerLoginUser = "";
-            this.containerLoginPassword = "";
-            this.containerLoginDetails = null;
+        async handleContainerLogin(containerLoginDetails) {
+            console.log("IN HANDLE LOGIN");
+            await this.$refs.input.showDialogue(
+                "Container Login", 
+                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`, 
+                containerLoginDetails.retry ? Localizer.get('authError') : null,
+                {
+                    username: "text",
+                    password: "password",
+                    timeout: {
+                        "0": "Logout immediately",
+                        "300": "Logout after 5 minutes",
+                        "1800": "Logout after 30 minutes",
+                        "3600": "Logout after 1 hour",
+                        "14400": "Logout after 4 hours",
+                    },
+                }, 
+                ([okay, values]) => {
+                    if (okay) {
+                        this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
+                    } else {
+                        this.$refs.content.submitContainerLogin("", "", 0);
+                    }
+                }
+            );
         },
 
         handleApiKey(apiKeyMessage) {
