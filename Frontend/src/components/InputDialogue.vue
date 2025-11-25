@@ -27,11 +27,16 @@
                     {{ errorMsg }}
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="isDisabled()">
-                    <span>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="handleSubmit(false)">
-                    {{ Localizer.get('cancel') }}
+                <div v-if="callback != null">
+                    <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="isDisabled()">
+                        <span>{{ Localizer.get('submit') }}</span>
+                    </button>
+                    <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="handleSubmit(false)">
+                        {{ Localizer.get('cancel') }}
+                    </button>
+                </div>
+                <button v-else type="button" class="btn btn-primary w-100" @click="show = false">
+                    Okay
                 </button>
             </form>
         </div>
@@ -75,6 +80,10 @@ export default {
             await nextTick();
         },
 
+        async showInfo(title, message) {
+            await this.showDialogue(title, message, null, {}, null);
+        },
+
         getDefault(type) {
             switch (type) {
                 case "check": return false;
@@ -92,9 +101,10 @@ export default {
         },
 
         async handleSubmit(okay) {
-            this.callback(okay ? this.values : null);
             this.show = false;
             await nextTick();
+            // callback is called last, so that it can show another dialogue
+            this.callback(okay ? this.values : null);
         },
 
     },
