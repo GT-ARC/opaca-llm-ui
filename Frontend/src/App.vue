@@ -381,7 +381,6 @@ export default {
         },
 
         createNotification(response) {
-            console.log(`Response: ${JSON.stringify(response)}`);
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
@@ -481,10 +480,7 @@ export default {
 
         async handleAppendToChat(chatId, pushMessage) {
             await backendClient.append(chatId, pushMessage);
-            // Only create chat bubble if chat is open
-            if (chatId === this.$refs.content.selectedChatId) {
-                await this.$refs.content.addChatBubble(pushMessage.content, false, false);
-            }
+            await this.$refs.content.loadHistory(chatId);
         }
     },
 

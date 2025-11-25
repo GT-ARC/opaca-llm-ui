@@ -646,7 +646,7 @@ export default {
         },
 
         async loadHistory(chatId) {
-            if (!chatId || chatId === this.selectedChatId) return;
+            if (!chatId) return;
             try {
                 const res = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
