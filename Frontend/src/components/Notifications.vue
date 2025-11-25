@@ -3,7 +3,7 @@
         <div v-for="{ taskId, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
-                <i class="fa fa-remove delete-button"
+                <i v-if="! loading" class="fa fa-remove delete-button"
                     @click.stop="this.dismissNotification(elementId)"
                     title="Dismiss"
                 />
