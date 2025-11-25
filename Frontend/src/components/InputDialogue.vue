@@ -37,19 +37,14 @@
 
 <script>
 import {nextTick} from "vue";
-import conf from '../../config.js';
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js"
 
 export default {
     name: 'InputDialogue',
-    components: {},
-    props: {
-
-    },
     setup() {
         const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, isMobile, screenWidth };
+        return { Localizer, isMobile, screenWidth };
     },
     data() {
         return {
@@ -70,12 +65,9 @@ export default {
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.callback = callback;
-
             this.values = Object.fromEntries(
                 Object.entries(schema).map(([k, v]) => [k, null]) // TODO derive default?
             );
-            console.log("IN SHOW DIALOGUE");
-            console.log("VALUES " + JSON.stringify(this.values));
             this.show = true;
             await nextTick();
         },
@@ -85,20 +77,12 @@ export default {
         },
 
         async handleSubmit(okay) {
-            console.log(`IN SUBMIT ${okay} ${JSON.stringify(this.values)}`)
-            if (okay) {
-                this.callback(this.values);
-            } else {
-                this.callback(null);
-            }
+            this.callback(okay ? this.values : null);
             this.show = false;
             await nextTick();
         },
 
     },
-
-    async mounted() {
-    }
 }
 </script>
 
