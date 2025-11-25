@@ -51,13 +51,14 @@ export default {
     },
     data() {
         return {
-            messages: []
+            messages: [],
+            nextElementId: 0,
         }
     },
     methods: {
 
         async addPendingNotificationBubble(response) {
-            const elementId = `chatbubble-${this.messages.length}`;
+            const elementId = `chatbubble-${this.nextElementId++}`;
             const message = { 
                 elementId: elementId,
                 loading: true, 
@@ -71,7 +72,7 @@ export default {
             // remove loading messages (also for other task if multiple in parallel...)
             this.messages = this.messages.filter(m => ! m.loading);
 
-            const elementId = `chatbubble-${this.messages.length}`;
+            const elementId = `chatbubble-${this.nextElementId++}`;
 
             const message = { 
                 elementId: elementId, 
