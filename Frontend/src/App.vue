@@ -122,59 +122,7 @@
         </div>
     </header>
 
-    <!-- Auth Modal
-    <div v-if="showAuthInput" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="connectToPlatform">
-                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
-                <input
-                        v-model="platformUser"
-                        type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('username')"
-                        @input="loginError = false"
-                />
-                <input
-                        v-model="platformPassword"
-                        type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('password')"
-                        @input="loginError = false"
-                />
-                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    {{ Localizer.get('authError') }}
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
-                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
-                    <span v-else>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
-     -->
-
     <InputDialogue ref="input"/>
-
-    <!-- Api Key Context -->
-    <div v-if="showApiKeyDialog" class="auth-overlay">
-        <div class="dropdown-menu show p-4 login-container">
-            <form @submit.prevent="submitApiKey">
-                <h5 v-if="this.apiKeyMessage?.is_invalid" class="mb-3">{{ Localizer.get("apiKeyInvalid") + this.apiKeyMessage?.model }}</h5>
-                <h5 v-else class="mb-3">{{ Localizer.get("apiKeyMissing") + this.apiKeyMessage?.model }}</h5>
-                <input v-model="apiKey" type="password" :class="['form-control', 'mb-3']"/>
-                <button type="submit" class="btn btn-primary w-100" @click="submitApiKey(true)" :disabled="!apiKey">
-                    <span>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitApiKey(false)">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
 
     <div class="col background">
         <MainContent
@@ -219,16 +167,8 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
-            //showAuthInput: false,
-            //platformUser: "",
-            //platformPassword: "",
-            //loginError: false,
             selectedCategory: null,
             unreadNotifications: 0,
-            // user provided API key
-            showApiKeyDialog: false,
-            apiKeyMessage: null,
-            apiKey: null,
         }
     },
     methods: {
@@ -358,19 +298,22 @@ export default {
             );
         },
 
-        handleApiKey(apiKeyMessage) {
-            this.apiKeyMessage = apiKeyMessage;
-            this.showApiKeyDialog = true;
-        },
-
-        submitApiKey(submitApiKey) {
-            this.showApiKeyDialog = false;
-            if (submitApiKey) {
-                this.$refs.content.submitApiKey(this.apiKey);
-            } else {
-                this.$refs.content.submitApiKey("");
-            }
-            this.apiKey = "";
+        async handleApiKey(apiKeyMessage) {
+            await this.$refs.input.showDialogue(
+                "API Key Required",
+                (apiKeyMessage?.is_invalid ? Localizer.get("apiKeyInvalid") : Localizer.get("apiKeyMissing")) + apiKeyMessage?.model,
+                null,
+                {
+                    apiKey: "password",
+                }, 
+                (values) => {
+                    if (values != null) {
+                        this.$refs.content.submitApiKey(values.apiKey);
+                    } else {
+                        this.$refs.content.submitApiKey("");
+                    }
+                }
+            );
         },
 
         async waitForConnection() {
