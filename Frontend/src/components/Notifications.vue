@@ -5,11 +5,11 @@
                 <span>{{ time }}</span>
                 <!-- grouped buttons -->
                 <div class="d-flex gap-1">
-                    <i class="fa fa-paperclip append-button"
+                    <i class="fa fa-comment-medical notification-button"
                        @click.stop="this.appendToChat(fullResponse)"
                        :title="Localizer.get('tooltipAppendNotification')"
                     />
-                    <i class="fa fa-remove delete-button"
+                    <i class="fa fa-remove notification-button"
                         @click.stop="this.dismissNotification(elementId)"
                         :title="Localizer.get('tooltipDismissNotification')"
                     />
@@ -115,7 +115,7 @@ export default {
     max-width: calc(100vw - 9rem);
 }
 
-.delete-button, .append-button {
+.notification-button {
     width: 2rem;
     height: 2rem;
     display: inline-flex;
