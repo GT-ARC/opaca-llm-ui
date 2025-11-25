@@ -3,8 +3,12 @@
         <div v-for="{ taskId, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
-                <i v-if="! loading" class="fa fa-remove delete-button"
-                    @click.stop="this.dismissNotification(elementId)"
+                <i v-if="loading" class="fa fa-stop chatbubble-button"
+                    @click.stop="this.stopNotifications()"
+                    title="Stop"
+                />
+                <i v-else class="fa fa-remove chatbubble-button"
+                    @click.stop="this.dismissNotification(taskId)"
                     title="Dismiss"
                 />
             </div>
@@ -29,6 +33,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import Localizer from "../Localizer.js";
 import { useDevice } from "../useIsMobile.js";
+import backendClient from "../utils.js";
 
 export default {
     name: 'notifications-area',
@@ -51,9 +56,6 @@ export default {
     },
     methods: {
 
-        /**
-         * adapted from different parts in content.vue
-         */
         async addNotificationBubble(response) {
             const message = { 
                 taskId: response.task_id,
@@ -89,8 +91,14 @@ export default {
             }
         },
 
-        async dismissNotification(elementId) {
-            this.messages = this.messages.filter(m => m.elementId != elementId);
+        async stopNotifications() {
+            backendClient.stop();
+            // there is no differentiation WHICH notification to stop, so this just removes all loading...
+            this.messages = this.messages.filter(m => ! m.loading);
+        },
+
+        async dismissNotification(taskId) {
+            this.messages = this.messages.filter(m => m.taskId != taskId);
         }
 
     },
@@ -106,7 +114,7 @@ export default {
     max-width: calc(100vw - 9rem);
 }
 
-.delete-button {
+.chatbubble-button {
     width: 2rem;
     height: 2rem;
     display: inline-flex;
