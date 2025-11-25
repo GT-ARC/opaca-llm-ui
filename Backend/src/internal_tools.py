@@ -202,6 +202,7 @@ class InternalTools:
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
+        self.session.abort_sent = False
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
 
     def create_task_id(self) -> int:
