@@ -361,11 +361,11 @@ export default {
         createNotification(response) {
             const notificationArea = this.$refs.Notifications;
             if (response.type == "PushAdvert")  {
-                notificationArea.addNotificationBubble(response);
+                notificationArea.addPendingNotificationBubble(response);
                 this.pendingNotification = true;
             }
             if (response.type == "PushMessage")  {
-                notificationArea.finishNotificationBubble(response);
+                notificationArea.addNotificationBubble(response);
                 this.pendingNotification = false;
                 this.unreadNotifications += 1;
             }

@@ -1,6 +1,6 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ taskId, loading, content, time } in this.messages">
+        <div v-for="{ elementId, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <i v-if="loading" class="fa fa-stop chatbubble-button"
@@ -8,20 +8,20 @@
                     title="Stop"
                 />
                 <i v-else class="fa fa-remove chatbubble-button"
-                    @click.stop="this.dismissNotification(taskId)"
+                    @click.stop="this.dismissNotification(elementId)"
                     title="Dismiss"
                 />
             </div>
             <Chatbubble
                 :key="content"
-                :element-id="taskId"
+                :element-id="elementId"
                 :is-user="false"
                 :initial-content="content"
                 :initial-loading="loading"
                 :is-bookmarked="false"
                 :files="[]"
                 :chat-id="''"
-                :ref="taskId"
+                :ref="elementId"
                 @add-to-library=""
             />
         </div>
@@ -56,9 +56,10 @@ export default {
     },
     methods: {
 
-        async addNotificationBubble(response) {
+        async addPendingNotificationBubble(response) {
+            const elementId = `chatbubble-${this.messages.length}`;
             const message = { 
-                taskId: response.task_id,
+                elementId: elementId,
                 loading: true, 
                 content: response.query, 
                 time: new Date().toLocaleString(),
@@ -66,15 +67,25 @@ export default {
             this.messages.unshift(message);
         },
 
-        async finishNotificationBubble(response) {
-            // update message
-            const message = this.messages.find(m => m.taskId == response.task_id);
-            message.loading = false;
-            message.content = response.content;
-            message.time = new Date().toLocaleString();
+        async addNotificationBubble(response) {
+            // remove loading messages (also for other task if multiple in parallel...)
+            this.messages = this.messages.filter(m => ! m.loading);
+
+            const elementId = `chatbubble-${this.messages.length}`;
+
+            const message = { 
+                elementId: elementId, 
+                loading: false,
+                content: response.content, 
+                time: new Date().toLocaleString(),
+            };
+            this.messages.unshift(message);
+
+            // wait for the next rendering tick so that the component is mounted
+            await nextTick();
 
             // add debug stuff to chat bubble
-            const chatBubble = this.$refs[response.task_id][0];
+            const chatBubble = this.$refs[elementId][0];
             for (const msg of response.agent_messages) {
                 chatBubble.addDebugMessage(msg.content, msg.agent, msg.id);
                 for (const tool of msg.tools) {
@@ -97,8 +108,8 @@ export default {
             this.messages = this.messages.filter(m => ! m.loading);
         },
 
-        async dismissNotification(taskId) {
-            this.messages = this.messages.filter(m => m.taskId != taskId);
+        async dismissNotification(elementId) {
+            this.messages = this.messages.filter(m => m.elementId != elementId);
         }
 
     },
