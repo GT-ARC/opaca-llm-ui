@@ -12,6 +12,10 @@
                         :type="type"
                         :placeholder="label"
                     />
+                    <div v-else-if="type == 'check'">
+                        <input class="form-check-input mb-2" type="checkbox" v-model="values[label]" />
+                        <label class="form-check-label mx-2"> {{ label }} </label>
+                    </div>
                     <!-- TODO boolean, integer, ...-->
                      <select v-else 
                         v-model="values[label]"
