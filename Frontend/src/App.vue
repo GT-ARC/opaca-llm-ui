@@ -459,15 +459,6 @@ header {
     display: block;
 }
 
-/* login stuff */
-.login-container {
-    max-width: 400px;
-    width: 100%;
-    margin: auto;
-    background-color: var(--surface-color);
-    color: var(--text-primary-color)
-}
-
 /* navbar stuff */
 .nav-link {
     padding: 0.5rem 1rem;
@@ -489,29 +480,6 @@ header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-}
-
-.auth-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999; /* Should appear above all other items */
-}
-
-.is-invalid {
-    border-color: #dc3545;
-    background-color: #f8d7da;
-    color: #842029;
-}
-
-.is-invalid::placeholder {
-    color: #842029
 }
 
 /* Voice Server Settings Styles */

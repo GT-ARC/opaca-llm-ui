@@ -126,13 +126,4 @@ export default {
     z-index: 9999; /* Should appear above all other items */
 }
 
-.is-invalid {
-    border-color: #dc3545;
-    background-color: #f8d7da;
-    color: #842029;
-}
-
-.is-invalid::placeholder {
-    color: #842029
-}
 </style>
