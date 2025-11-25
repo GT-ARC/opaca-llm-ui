@@ -236,10 +236,9 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
 
 
 @app.post("/chats/{chat_id}/append", description="Append a single push message to a chat")
-async def append(chat_id: str, content: str, request: Request, response: Response) -> None:
+async def append(chat_id: str, push_message: PushMessage, request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id, True)
-    push_message = PushMessage(content=content)
     chat.store_interaction(push_message)
 
 

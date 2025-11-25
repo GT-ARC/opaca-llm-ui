@@ -91,7 +91,7 @@
                                  aria-labelledby="notifications-dropdown">
                                 <Notifications
                                     ref="Notifications"
-                                    @append-to-chat="(message, taskId) => showConfirmDialog(message, taskId)"
+                                    @append-to-chat="(pushMessage) => showConfirmDialog(pushMessage)"
                                 />
                             </div>
                         </li>
@@ -381,6 +381,7 @@ export default {
         },
 
         createNotification(response) {
+            console.log(`Response: ${JSON.stringify(response)}`);
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
@@ -389,7 +390,7 @@ export default {
             const taskId = response.task_id;
             const chatId = this.autoAppendNotifications[taskId];
             if (chatId) {
-                this.handleAppendToChat(chatId, response.content);
+                this.handleAppendToChat(chatId, response);
             }
         },
 
@@ -443,7 +444,7 @@ export default {
             throw new Error("SAGE Backend is unreachable.");
         },
 
-        async showConfirmDialog(message, taskId) {
+        async showConfirmDialog(pushMessage) {
             this.appendDialogAuto = false; // Reset
             this.showAppendDialog = true;
 
@@ -451,15 +452,16 @@ export default {
             const choice = await new Promise(
                 resolve => {
                     this._appendResolver = resolve;
-                    this._appendState = { message, taskId };
+                    this._appendState = pushMessage;
                 }
             );
 
             if (choice.confirmation) {
                 const chatId = this.$refs.content.selectedChatId;
                 // Manual append
-                await this.handleAppendToChat(chatId, message);
+                await this.handleAppendToChat(chatId, pushMessage);
 
+                const taskId = pushMessage.task_id;
                 // Remember chat for auto append
                 if (choice.auto && taskId) {
                     this.autoAppendNotifications[taskId] = chatId;
@@ -473,15 +475,15 @@ export default {
             this._appendResolver({
                 confirmation,
                 auto: this.appendDialogAuto,
-                ...this._appendState
+                pushMessage: this._appendState
             });
         },
 
-        async handleAppendToChat(chatId, message) {
-            await backendClient.append(chatId, message);
+        async handleAppendToChat(chatId, pushMessage) {
+            await backendClient.append(chatId, pushMessage);
             // Only create chat bubble if chat is open
             if (chatId === this.$refs.content.selectedChatId) {
-                await this.$refs.content.addChatBubble(message, false, false);
+                await this.$refs.content.addChatBubble(pushMessage.content, false, false);
             }
         }
     },

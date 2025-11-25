@@ -67,9 +67,18 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
-    async append(chatId, content) {
-        const encoded = encodeURIComponent(content);
-        return await this.sendRequest("POST", `chats/${chatId}/append?content=${encoded}`);
+    async append(chatId, pushMessage) {
+        // Reconstruct PushMessage
+        const body = {
+            task_id: pushMessage.task_id,
+            query: "",
+            agent_messages: pushMessage.agent_messages,
+            iterations: pushMessage.iterations,
+            execution_time: pushMessage.execution_time,
+            content: pushMessage.content,
+            error: pushMessage.error
+        };
+        return await this.sendRequest("POST", `chats/${chatId}/append`, body);
     }
 
     // files

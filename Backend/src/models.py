@@ -167,7 +167,7 @@ class ToolCall(BaseModel):
 class ScheduledTask(BaseModel):
     """
     An LLM Task scheduled for later execution, by sending the query to the LLM at a later time
-    
+
     Attributes:
         method: the AgentMethod originally used to create this task; will be used again for re-creating it
         task_id: ID given to this task, needed for cancelling tasks
@@ -304,7 +304,7 @@ class SessionData(BaseModel):
 
     def has_websocket(self) -> bool:
         return self._websocket is not None
-    
+
     async def websocket_send_pending(self):
         for msg in self._ws_out_cache:
             await self._websocket.send_json(msg)
@@ -396,7 +396,7 @@ class PushMessage(QueryResponse):
     Attributes:
         task_id: The scheduled task the PushMessage belongs to
     """
-    task_id: int = ""
+    task_id: int
 
 
 class ContainerLoginNotification(BaseModel):
