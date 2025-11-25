@@ -107,8 +107,9 @@ export const localizationData = {
         bookmarkHeader: "Bookmarked Prompts",
         apiKeyMissing: "Please provide an API key for this model: ",
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
-        tooltipAppendNotification: "Append to Chat",
+        tooltipAppendNotification: "Append to current Chat",
         tooltipDismissNotification: "Dismiss",
+        autoAppendNotification: "Also append future notifications from this scheduled task",
     },
 
     DE: {
@@ -213,8 +214,9 @@ export const localizationData = {
         bookmarkHeader: "Favoriten",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
-        tooltipAppendNotification: "An den Chat heften",
+        tooltipAppendNotification: "An den geöffneten Chat heften",
         tooltipDismissNotification: "Entfernen",
+        autoAppendNotification: "Auch zukünftige Benachrichtigungen dieses Typs anhängen",
     },
 };
 

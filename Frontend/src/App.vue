@@ -217,11 +217,11 @@
     <!-- Append-to-Chat Confirmation -->
     <div v-if="showAppendDialog" class="auth-overlay">
         <div class="p-4 login-container rounded shadow">
-            <h5 class="mb-3">Append message?</h5>
+            <h5 class="mb-3">{{ Localizer.get('tooltipAppendNotification') }}</h5>
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" v-model="appendDialogAuto">
                 <label class="form-check-label">
-                    Also append future notifications from this reminder
+                    {{ Localizer.get('autoAppendNotification') }}
                 </label>
             </div>
             <button class="btn btn-primary w-100 mb-2" @click="confirmAppendDialog(true)">
