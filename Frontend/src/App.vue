@@ -122,7 +122,7 @@
         </div>
     </header>
 
-    <!-- Auth Modal -->
+    <!-- Auth Modal
     <div v-if="showAuthInput" class="auth-overlay">
         <div class="p-4 login-container rounded shadow">
             <form @submit.prevent="connectToPlatform">
@@ -155,6 +155,7 @@
             </form>
         </div>
     </div>
+     -->
 
     <InputDialogue ref="input"/>
 
@@ -218,10 +219,10 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
-            showAuthInput: false,
-            platformUser: "",
-            platformPassword: "",
-            loginError: false,
+            //showAuthInput: false,
+            //platformUser: "",
+            //platformPassword: "",
+            //loginError: false,
             selectedCategory: null,
             unreadNotifications: 0,
             // user provided API key
@@ -231,12 +232,12 @@ export default {
         }
     },
     methods: {
-        async connectToPlatform() {
+        async connectToPlatform(username="", password="") {
             try {
                 this.isConnecting = true;
                 this.loginError = false;
 
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, this.platformUser, this.platformPassword);
+                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
                 this.platformPassword = "";
 
                 if (rpStatus === 200) {
@@ -244,10 +245,22 @@ export default {
                     this.showAuthInput = false;
                 } else if (rpStatus === 403) {
                     this.connected = false;
-                    if (this.showAuthInput) {
-                        this.loginError = true;
-                    }
-                    this.showAuthInput = true;
+
+                    await this.$refs.input.showDialogue(
+                        "Platform Login", 
+                        Localizer.get('unauthenticated'),
+                        username != "" ? Localizer.get('authError') : null,
+                        {
+                            username: "text",
+                            password: "password",
+                        }, 
+                        (values) => {
+                            if (values != null) {
+                                this.connectToPlatform(values.username, values.password);
+                            }
+                        }
+                    );
+
                 } else {
                     this.connected = false;
                     alert(Localizer.get('unreachable'));
@@ -335,8 +348,8 @@ export default {
                         "14400": "Logout after 4 hours",
                     },
                 }, 
-                ([okay, values]) => {
-                    if (okay) {
+                (values) => {
+                    if (values != null) {
                         this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
                     } else {
                         this.$refs.content.submitContainerLogin("", "", 0);

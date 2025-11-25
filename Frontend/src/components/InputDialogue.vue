@@ -5,7 +5,7 @@
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="mb-3">{{ message }}</div>
 
-                <div v-for="(label, type) in schema">
+                <div v-for="(type, label) in schema" :key="label">
                     <input v-if="type == 'text' || type == 'password'"
                         v-model="values[label]"
                         class="form-control mb-2"
@@ -16,7 +16,7 @@
                      <select v-else 
                         v-model="values[label]"
                         class="form-select mb-2">
-                        <option v-for="(val, text) in type" :value="val">{{ text }}</option>
+                        <option v-for="(text, val) in type" :key="val" :value="val">{{ text }}</option>
                     </select>
                 </div>
 
@@ -87,9 +87,9 @@ export default {
         async handleSubmit(okay) {
             console.log(`IN SUBMIT ${okay} ${JSON.stringify(this.values)}`)
             if (okay) {
-                this.callback(true, this.values);
+                this.callback(this.values);
             } else {
-                this.callback(false, null);
+                this.callback(null);
             }
             this.show = false;
             await nextTick();
