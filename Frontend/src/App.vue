@@ -203,12 +203,12 @@ export default {
 
                 } else {
                     this.connected = false;
-                    alert(Localizer.get('unreachable'));
+                    alert(Localizer.get('opacaUnreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.connected = false;
-                alert('Backend server is unreachable.');
+                alert(Localizer.get('backendUnreachable'));
             } finally {
                 this.isConnecting = false;
                 this.toggleConnectionDropdown(!this.connected);
@@ -222,7 +222,7 @@ export default {
             } catch (e) {
                 console.error(e);
                 this.connected = true;
-                alert('Backend server is unreachable.');
+                alert(Localizer.get('backendUnreachable'));
             } finally {
                 this.toggleConnectionDropdown(this.connected);
             }
@@ -272,7 +272,6 @@ export default {
         },
 
         async handleContainerLogin(containerLoginDetails) {
-            console.log("IN HANDLE LOGIN");
             await this.$refs.input.showDialogue(
                 "Container Login", 
                 `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`, 
@@ -325,7 +324,7 @@ export default {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            alert("SAGE Backend is unreachable. Please check if the SAGE backend is running and reload the page.")
+            alert(Localizer.get('backendUnreachable'));
             throw new Error("SAGE Backend is unreachable.");
         }
     },
