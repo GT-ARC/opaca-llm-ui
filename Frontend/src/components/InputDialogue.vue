@@ -5,27 +5,27 @@
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="mb-3">{{ message }}</div>
 
-                <div v-for="(type, label) in schema" :key="label">
-                    <input v-if="type == 'text' || type == 'password' || type == 'number'"
-                        v-model="values[label]"
+                <div v-for="(val, key) in schema" :key="key">
+                    <input v-if="val.type == 'text' || val.type == 'password' || val.type == 'number'"
+                        v-model="values[key]"
                         class="form-control mb-2"
-                        :type="type"
-                        :placeholder="label"
+                        :type="val.type"
+                        :placeholder="val.label ?? key"
                     />
-                    <textarea v-else-if="type == 'textarea'"
-                        v-model="values[label]"
+                    <textarea v-if="val.type == 'textarea'"
+                        v-model="values[key]"
                         class="form-control"
                         rows="4" 
-                        :placeholder="label"
+                        :placeholder="val.label ?? key"
                     />
-                    <div v-else-if="type == 'check'">
-                        <input class="form-check-input mb-2" type="checkbox" v-model="values[label]" />
-                        <label class="form-check-label mx-2"> {{ label }} </label>
+                    <div v-if="val.type == 'checkbox'">
+                        <input class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
+                        <label class="form-check-label mx-2"> {{ val.label ?? key }} </label>
                     </div>
-                     <select v-else 
-                        v-model="values[label]"
+                     <select v-if="val.type == 'select'"
+                        v-model="values[key]"
                         class="form-select mb-2">
-                        <option v-for="(text, val) in type" :key="val" :value="val">{{ text }}</option>
+                        <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
                     </select>
                 </div>
 
@@ -73,34 +73,51 @@ export default {
     },
     methods: {
 
-        async showDialogue(title, message, errorMsg, schema, callback, values=null) {
+        /**
+         * Show input dialogue for asking various values according to given schema. Results are handed to
+         * callback function as dictionary mapping schema-keys to values, or null if "cancel" was pressed
+         * 
+         * THe format for "schema" is as follows
+         * 
+         * {
+         *      key1: {type: str, label: str, default: any, values: dict?},
+         *      ...
+         * }
+         * 
+         * Where
+         * - key: the internal name of the property, reused in the dict of results
+         * - type: one of "text", "textarea", "password", "checkbox", "number", or "select"
+         * - label: display label/placeholder, optional (if not present, key is used)
+         * - default: default value, optional (default-default is just null)
+         * - values: dict (value -> label) for options, only for type 'select'
+         * 
+         * @param title the title (bold)
+         * @param message message below the title, optional
+         * @param errorMsg error message (e.g. if previous attempt failed), optional
+         * @param schema defines the different values that should be entered in the dialogue (see above)
+         * @param callback callback function, should accept dict of values or null
+         */
+        async showDialogue(title, message, errorMsg, schema, callback) {
             this.title = title;
             this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.callback = callback;
             this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, values?.[k] ?? this.getDefault(v)])
+                Object.entries(schema).map(([k, v]) => [k, v.default])
             );
             this.show = true;
             await nextTick();
         },
 
+        /**
+         * Show simplified dialogue, no input values, just one "okay" button
+         * 
+         * @param title the title (bold)
+         * @param message message below the title (optional)
+         */
         async showInfo(title, message) {
             await this.showDialogue(title, message, null, {}, null);
-        },
-
-        getDefault(type) {
-            switch (type) {
-                case "check": return false;
-                // the next are null so that the placeholder text is shown...
-                case "textarea": return null;
-                case "text": return null;
-                case "password": return null;
-                case "number": return null;
-                // else: options -> select first
-                default: return Object.keys(type)[0];
-            }
         },
 
         isDisabled() {

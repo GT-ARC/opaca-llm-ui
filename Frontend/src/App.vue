@@ -191,8 +191,8 @@ export default {
                         Localizer.get('unauthenticated'),
                         username != "" ? Localizer.get('authError') : null,
                         {
-                            username: "text",
-                            password: "password",
+                            username: { type: "text" },
+                            password: { type: "password" },
                         }, 
                         (values) => {
                             if (values != null) {
@@ -277,15 +277,15 @@ export default {
                 `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`, 
                 containerLoginDetails.retry ? Localizer.get('authError') : null,
                 {
-                    username: "text",
-                    password: "password",
-                    timeout: {
+                    username: { type: "text" },
+                    password: { type: "password" },
+                    timeout: { type: "select", default: 300, values: {
                         "0": "Logout immediately",
                         "300": "Logout after 5 minutes",
                         "1800": "Logout after 30 minutes",
                         "3600": "Logout after 1 hour",
                         "14400": "Logout after 4 hours",
-                    },
+                    }},
                 }, 
                 (values) => {
                     if (values != null) {
@@ -303,7 +303,7 @@ export default {
                 (apiKeyMessage?.is_invalid ? Localizer.get("apiKeyInvalid") : Localizer.get("apiKeyMissing")) + apiKeyMessage?.model,
                 null,
                 {
-                    apiKey: "password",
+                    apiKey: { type: "password" },
                 }, 
                 (values) => {
                     if (values != null) {

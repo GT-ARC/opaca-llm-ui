@@ -234,11 +234,11 @@ export default {
 
         async openEditor(prompt = null, index = null) {
             await this.$refs.input.showDialogue(
-                prompt && prompt.question ? Localizer.get('editQuestion') : Localizer.get('addPersonalQuestion'),
+                prompt?.question ? Localizer.get('editQuestion') : Localizer.get('addPersonalQuestion'),
                 null,
                 null,
                 {
-                    prompt: "textarea",
+                    prompt: {type: "textarea", label: "Prompt", default: prompt?.question ?? "" },
                 }, 
                 (values) => {
                     if (values != null) {
@@ -249,10 +249,7 @@ export default {
                         }
                         this.savePersonalPrompts();
                     }
-                },
-                {
-                    prompt: prompt?.question ?? "",
-                }, 
+                }
             );
         },
 
