@@ -169,8 +169,15 @@ class InternalTools:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
 
+            # Clean mapping
+            self.prune_notifications_chats_map()
+
+            # Extract chats for this task
+            auto_append_chats = list(self.session.notifications_chats_map.get(task_id, []))
+
             msg_data = result.model_dump()
             msg_data["task_id"] = task_id
+            msg_data["auto_append_chats"] = auto_append_chats
             await self.session.websocket_send(PushMessage(**msg_data))
 
         def make_task(delay, remaining):
@@ -208,6 +215,32 @@ class InternalTools:
 
     def create_task_id(self) -> int:
         return max(self.session.scheduled_tasks, default=-1) + 1
+
+    def prune_notifications_chats_map(self):
+        """Remove orphaned taskIds and invalid chatIds."""
+        valid_tasks = set(self.session.scheduled_tasks.keys())
+        valid_chats = set(self.session.chats.keys())
+
+        to_delete = []
+
+        for task_id, chat_ids in self.session.notifications_chats_map.items():
+            # Delete map entries for tasks no longer scheduled
+            if task_id not in valid_tasks:
+                to_delete.append(task_id)
+                continue
+
+            # Remove chat_ids that no longer exist
+            cleaned = {cid for cid in chat_ids if cid in valid_chats}
+
+            # Replace or mark for deletion
+            if cleaned:
+                self.session.notifications_chats_map[task_id] = cleaned
+            else:
+                to_delete.append(task_id)
+
+        # Remove any empty / invalid entries
+        for task_id in to_delete:
+            del self.session.notifications_chats_map[task_id]
 
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)

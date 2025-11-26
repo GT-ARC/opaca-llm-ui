@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Set
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -236,6 +236,7 @@ class SessionData(BaseModel):
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
+        notifications_chats_map: Which notifications should be auto-appended to which chats.
         valid_until: Timestamp until session is active.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
@@ -256,6 +257,7 @@ class SessionData(BaseModel):
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
+    notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
@@ -397,6 +399,8 @@ class PushMessage(QueryResponse):
         task_id: The scheduled task the PushMessage belongs to
     """
     task_id: int
+    auto_append: bool = False
+    auto_append_chats: list[str] = []
 
 
 class ContainerLoginNotification(BaseModel):

@@ -240,6 +240,15 @@ async def append(chat_id: str, push_message: PushMessage, request: Request, resp
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id, True)
     chat.store_interaction(push_message)
+    # Update mapping for auto-append
+    logger.info(f"Called endpoint with: {push_message.auto_append}")
+    if push_message.auto_append:
+        task_id = push_message.task_id
+
+        mapping = session.notifications_chats_map
+        if task_id not in mapping:
+            mapping[task_id] = set()
+        mapping[task_id].add(chat_id)
 
 
 ## CONFIG ROUTES

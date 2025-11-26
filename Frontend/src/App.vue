@@ -289,7 +289,7 @@ export default {
             containerLoginTimeout: 300,
             // notifications
             unreadNotifications: 0,
-            autoAppendNotifications: {},
+            autoAppendNotifications: {}, // TODO remove
             showAppendDialog: false,
             appendDialogAuto: false,
             // user provided API key
@@ -381,16 +381,17 @@ export default {
         },
 
         createNotification(response) {
+            console.log("Whole response: ", response);
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
 
             // Automatically append to chat
-            const taskId = response.task_id;
-            const chatId = this.autoAppendNotifications[taskId];
-            if (chatId) {
+            const chats = response.auto_append_chats || [];
+            console.log("Got response. Auto append: ", chats);
+            chats.forEach(chatId => {
                 this.handleAppendToChat(chatId, response);
-            }
+            });
         },
 
         handleContainerLogin(containerLoginDetails) {
@@ -458,13 +459,7 @@ export default {
             if (choice.confirmation) {
                 const chatId = this.$refs.content.selectedChatId;
                 // Manual append
-                await this.handleAppendToChat(chatId, pushMessage);
-
-                const taskId = pushMessage.task_id;
-                // Remember chat for auto append
-                if (choice.auto && taskId) {
-                    this.autoAppendNotifications[taskId] = chatId;
-                }
+                await this.handleAppendToChat(chatId, pushMessage, choice.auto);
             }
         },
 
@@ -478,8 +473,9 @@ export default {
             });
         },
 
-        async handleAppendToChat(chatId, pushMessage) {
-            await backendClient.append(chatId, pushMessage);
+        async handleAppendToChat(chatId, pushMessage, autoAppend = false) {
+            console.log("Called handleAppendToChat with autoAppend= ", autoAppend);
+            await backendClient.append(chatId, pushMessage, autoAppend);
             await this.$refs.content.loadHistory(chatId);
         }
     },

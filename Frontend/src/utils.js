@@ -67,10 +67,11 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
-    async append(chatId, pushMessage) {
+    async append(chatId, pushMessage, autoAppend) {
         // Reconstruct PushMessage
         const body = {
             task_id: pushMessage.task_id,
+            auto_append: autoAppend,
             query: "",
             agent_messages: pushMessage.agent_messages,
             iterations: pushMessage.iterations,
