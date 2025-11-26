@@ -1,7 +1,7 @@
 <template>
     <div v-if="show" class="auth-overlay">
         <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="submitContainerLogin">
+            <form @submit.prevent="handleSubmit">
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="mb-3">{{ message }}</div>
 
@@ -10,6 +10,12 @@
                         v-model="values[label]"
                         class="form-control mb-2"
                         :type="type"
+                        :placeholder="label"
+                    />
+                    <textarea v-else-if="type == 'textarea'"
+                        v-model="values[label]"
+                        class="form-control"
+                        rows="4" 
                         :placeholder="label"
                     />
                     <div v-else-if="type == 'check'">
@@ -67,14 +73,14 @@ export default {
     },
     methods: {
 
-        async showDialogue(title, message, errorMsg, schema, callback) {
+        async showDialogue(title, message, errorMsg, schema, callback, values=null) {
             this.title = title;
             this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.callback = callback;
             this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, this.getDefault(v)])
+                Object.entries(schema).map(([k, v]) => [k, values?.[k] ?? this.getDefault(v)])
             );
             this.show = true;
             await nextTick();
@@ -88,6 +94,7 @@ export default {
             switch (type) {
                 case "check": return false;
                 // the next are null so that the placeholder text is shown...
+                case "textarea": return null;
                 case "text": return null;
                 case "password": return null;
                 case "number": return null;
