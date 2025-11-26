@@ -71,7 +71,6 @@ class BackendClient {
         // Reconstruct PushMessage
         const body = {
             task_id: pushMessage.task_id,
-            auto_append: autoAppend,
             query: "",
             agent_messages: pushMessage.agent_messages,
             iterations: pushMessage.iterations,
@@ -79,7 +78,7 @@ class BackendClient {
             content: pushMessage.content,
             error: pushMessage.error
         };
-        return await this.sendRequest("POST", `chats/${chatId}/append`, body);
+        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, body);
     }
 
     // files
