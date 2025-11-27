@@ -6,34 +6,34 @@
                 <div class="mb-3">{{ message }}</div>
 
                 <div v-for="(val, key) in schema" :key="key">
-                    <input v-if="val.type == 'text' || val.type == 'password' || val.type == 'number'"
+                    <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
                         v-model="values[key]"
                         class="form-control mb-2"
                         :type="val.type"
                         :placeholder="val.label ?? key"
                     />
-                    <textarea v-if="val.type == 'textarea'"
+                    <textarea v-if="val.type === 'textarea'"
                         v-model="values[key]"
                         class="form-control"
                         rows="4" 
                         :placeholder="val.label ?? key"
                     />
-                    <div v-if="val.type == 'checkbox'">
+                    <div v-if="val.type === 'checkbox'">
                         <input class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
                         <label class="form-check-label mx-2"> {{ val.label ?? key }} </label>
                     </div>
-                     <select v-if="val.type == 'select'"
+                     <select v-if="val.type === 'select'"
                         v-model="values[key]"
                         class="form-select mb-2">
                         <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
                     </select>
                 </div>
 
-                <div v-if="errorMsg != null" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                <div v-if="errorMsg !== null" class="text-danger bg-light border border-danger rounded p-2 mb-3">
                     {{ errorMsg }}
                 </div>
 
-                <div v-if="callback != null">
+                <div v-if="callback !== null">
                     <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="!canSubmit()">
                         <span>{{ Localizer.get('submit') }}</span>
                     </button>
@@ -121,7 +121,7 @@ export default {
         },
 
         canSubmit() {
-            return Object.values(this.values).indexOf(null) == -1;
+            return Object.values(this.values).indexOf(null) === -1;
         },
 
         async handleSubmit(okay) {
