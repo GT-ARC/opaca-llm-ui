@@ -203,12 +203,12 @@ export default {
 
                 } else {
                     this.connected = false;
-                    alert(Localizer.get('opacaUnreachable'));
+                    this.showInfo(Localizer.get('opacaUnreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.connected = false;
-                alert(Localizer.get('backendUnreachable'));
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.isConnecting = false;
                 this.toggleConnectionDropdown(!this.connected);
@@ -222,7 +222,7 @@ export default {
             } catch (e) {
                 console.error(e);
                 this.connected = true;
-                alert(Localizer.get('backendUnreachable'));
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.toggleConnectionDropdown(this.connected);
             }
@@ -269,6 +269,10 @@ export default {
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
+        },
+
+        async showInfo(message) {
+            await this.$refs.input.showInfo(null, message);
         },
 
         async handleContainerLogin(containerLoginDetails) {
@@ -324,7 +328,7 @@ export default {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            alert(Localizer.get('backendUnreachable'));
+            this.showInfo(Localizer.get('backendUnreachable'));
             throw new Error("SAGE Backend is unreachable.");
         }
     },
