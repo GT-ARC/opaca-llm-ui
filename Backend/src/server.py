@@ -22,9 +22,9 @@ from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
+from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, delete_all_sessions, \
-    cleanup_task, on_shutdown, load_all_sessions
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task())
     await load_all_sessions()
+    await restore_scheduled_tasks(METHODS)
 
     try:
         # app running
@@ -178,7 +179,8 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method](session, message.streaming).query(message.user_query, chat)
+        internal_tools = InternalTools(session, METHODS[method])
+        result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
@@ -314,19 +316,6 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
 
     return False
 
-## BOOKMARK ROUTES
-
-@app.get("/bookmarks")
-async def get_bookmarks(request: Request) -> list:
-    session = await handle_session_id(request)
-    return session.bookmarks
-
-@app.post("/bookmarks")
-async def save_bookmarks(request: Request) -> None:
-    session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
-
 
 @app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.")
 async def view_file(request: Request, response: Response, file_id: str):
@@ -351,6 +340,21 @@ async def view_file(request: Request, response: Response, file_id: str):
     )
 
 
+## BOOKMARK ROUTES
+
+@app.get("/bookmarks")
+async def get_bookmarks(request: Request) -> list:
+    session = await handle_session_id(request)
+    return session.bookmarks
+
+
+@app.post("/bookmarks")
+async def save_bookmarks(request: Request) -> None:
+    session = await handle_session_id(request)
+    new_bookmarks = await request.json()
+    session.bookmarks = new_bookmarks
+
+
 # WEBSOCKET CONNECTION (permanently opened)
 
 @app.websocket("/ws")
@@ -359,10 +363,11 @@ async def open_websocket(websocket: WebSocket):
     session = await handle_session_id(websocket)
     session._websocket = websocket
     session._ws_msg_queue = asyncio.Queue()
+    await session.websocket_send_pending()
     try:
         while True:
             logger.debug("websocket waiting...")
-            # message coming from the websocket are received here and put into an async queue
+            # messages coming from the websocket are received here and put into an async queue
             # so any exceptions (like websocket closing) can be handled here without losing messages
             response = await websocket.receive_json()
             await session._ws_msg_queue.put(response)

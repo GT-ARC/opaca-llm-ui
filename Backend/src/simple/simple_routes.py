@@ -58,8 +58,8 @@ class SimpleMethod(AbstractMethod):
     NAME = "simple"
     CONFIG = SimpleConfig
 
-    def __init__(self, session, streaming=False):
-        super().__init__(session, streaming)
+    def __init__(self, session, streaming=False, internal_tools=None):
+        super().__init__(session, streaming, internal_tools)
 
     async def query(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
@@ -116,9 +116,10 @@ class SimpleMethod(AbstractMethod):
 
     async def get_actions(self):
         try:
-            opaca_actions = await self.session.opaca_client.get_actions_simple()
-            internal_tools = self.internal_tools.get_internal_tools_simple()
-            return {**opaca_actions, **internal_tools}
+            actions = await self.session.opaca_client.get_actions_simple()
+            if self.internal_tools:
+                actions.update(self.internal_tools.get_internal_tools_simple())
+            return actions
         except:
             return "(No services, not connected yet.)"
 

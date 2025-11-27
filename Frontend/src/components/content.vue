@@ -237,6 +237,7 @@ export default {
     emits: [
         'select-category',
         'container-login-required',
+        'api-key-required',
         'new-notification',
     ],
     setup() {
@@ -438,17 +439,21 @@ export default {
         },
 
         async handleStreamingSocketMessage(event) {
-            const aiBubble = this.getLastBubble();
             const result = JSON.parse(event.data);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
             }
 
+            if (result.type === "MissingApiKeyNotification") {
+                this.$emit('api-key-required', result);
+            }
+
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
                 if (result.is_output) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);
                     this.scrollDownChat();
@@ -471,6 +476,7 @@ export default {
                 const agentName = result.agent;
                 const message = result.status;
                 if (message) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.markStatusMessagesDone(agentName);
                     aiBubble.addStatusMessage(agentName, message, false);
                 }
@@ -517,6 +523,11 @@ export default {
                 timeout: containerLoginTimeout,
             });
             this.socket.send(containerLoginDetails);
+        },
+
+        submitApiKey(apiKey) {
+            const apiKeyResponse = JSON.stringify({api_key: apiKey});
+            this.socket.send(apiKeyResponse);
         },
 
 

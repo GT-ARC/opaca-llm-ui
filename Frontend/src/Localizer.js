@@ -89,8 +89,8 @@ export const localizationData = {
         tooltipDeleteChat: "Delete Chat",
         confirmDeleteChat: "Are you sure that you want to delete the Chat?",
         buttonSearchChats: "Search Chats",
-    buttonDeleteAllChats: "Delete All Chats",
-    confirmDeleteAllChats: "Are you sure you want to delete all chats?",
+        buttonDeleteAllChats: "Delete All Chats",
+        confirmDeleteAllChats: "Are you sure you want to delete all chats?",
         dropFiles: "Drop files here to upload",
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
@@ -109,6 +109,8 @@ export const localizationData = {
         sidebarExtensionsLoading: "Loading available extensions...",
         sidebarExtensionsMissing: "No extensions available.",
         tooltipExpandExtension: "Expand",
+        apiKeyMissing: "Please provide an API key for this model: ",
+        apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
     },
 
     DE: {
@@ -195,8 +197,8 @@ export const localizationData = {
         tooltipDeleteChat: "Chat löschen",
         confirmDeleteChat: "Sind Sie sicher, dass Sie den Chat löschen wollen?",
         buttonSearchChats: "Chats Durchsuchen",
-    buttonDeleteAllChats: "Alle Chats löschen",
-    confirmDeleteAllChats: "Sind Sie sicher, dass Sie alle Chats löschen möchten?",
+        buttonDeleteAllChats: "Alle Chats löschen",
+        confirmDeleteAllChats: "Sind Sie sicher, dass Sie alle Chats löschen möchten?",
         dropFiles: "Dateien hier ablegen um sie hochzuladen",
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
@@ -215,6 +217,8 @@ export const localizationData = {
         sidebarExtensionsLoading: "Lade verfügbare Erweiterungen...",
         sidebarExtensionsMissing: "Keine Erweiterungen verfügbar.",
         tooltipExpandExtension: "Vergrößern",
+        apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
+        apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
     },
 };
 
