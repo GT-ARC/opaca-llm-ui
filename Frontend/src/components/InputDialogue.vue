@@ -34,7 +34,7 @@
                 </div>
 
                 <div v-if="callback != null">
-                    <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="isDisabled()">
+                    <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="!canSubmit()">
                         <span>{{ Localizer.get('submit') }}</span>
                     </button>
                     <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="handleSubmit(false)">
@@ -104,7 +104,7 @@ export default {
             this.schema = schema;
             this.callback = callback;
             this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, v.default])
+                Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
             );
             this.show = true;
             await nextTick();
@@ -120,8 +120,8 @@ export default {
             await this.showDialogue(title, message, null, {}, null);
         },
 
-        isDisabled() {
-            return Object.values(this.values).indexOf(null) != -1;
+        canSubmit() {
+            return Object.values(this.values).indexOf(null) == -1;
         },
 
         async handleSubmit(okay) {
