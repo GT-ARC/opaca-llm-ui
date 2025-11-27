@@ -48,15 +48,19 @@
                                     :aria-controls="'extension-body-' + containerIndex + '-' + extensionIndex">
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
-                                    @click.stop="this.maximized = extension.port"
+                                    @click.stop="this.maximized = getFullUrl(extension.port, container.token)"
                                     :title="Localizer.get('tooltipExpandExtension')"
+                                />
+                                <i class="fa fa-refresh extension-expand-button"
+                                    @click.stop="updatePlatformInfo(this.extraPorts != null)"
+                                    title="Refresh"
                                 />
                             </button>
 
                             <!-- extension body -->
                             <div :id="'extension-body-' + containerIndex + '-' + extensionIndex" class="accordion-collapse collapse extension-body"
                                  :aria-labelledby="'extension-header-' + containerIndex + '-' + extensionIndex" :data-bs-parent="'#extensions-accordion-' + containerIndex">
-                                <iframe :src="extension.port" />
+                                <iframe :src="getFullUrl(extension.port, container.token)" />
                             </div>
                         </div>
                     </div>
@@ -98,6 +102,10 @@ export default {
                 : null;
             this.isLoading = false;
         },
+
+        getFullUrl(extensionPort, token) {
+            return token ? `${extensionPort}?token=${token}` : extensionPort;
+        }
     }
 }
 </script>
