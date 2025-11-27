@@ -247,13 +247,18 @@ class AbstractMethod(ABC):
 
             # Check if credentials were provided
             if not response.username or not response.password:
+                # login aborted by user
                 return ToolCall(id=tool_id, name=tool_name, args=tool_args,
                                 result=f"Failed to invoke tool.\nNo credentials provided.")
 
-            # Send credentials to container via OPACA
+        # Send credentials to container via OPACA
+        try:
             await self.session.opaca_client.container_login(container_id, response.username, response.password)
+        except:
+            # login failed -> retry
+            return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, True)
 
-        # try to invoke the tool again
+        # login succeeded (or not checked by container) -> try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
         # Schedule a deferred logout based on the user-provided timeout
