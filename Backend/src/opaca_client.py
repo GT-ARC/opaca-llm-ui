@@ -115,7 +115,8 @@ class OpacaClient:
         try:
             await asyncio.sleep(delay_seconds)
         finally:
-            # make sure that logout still happens even if backend is shut down
+            # finally -> make sure that logout still happens even if backend is shut down
+            # login-lock -> make sure that container is not logged out while 2nd invoke-attempt is in locked-state
             async with self.login_lock:
                 # If container was logged out during sleep, do not logout again
                 if container_id not in self.logged_in_containers:

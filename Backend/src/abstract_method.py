@@ -225,7 +225,7 @@ class AbstractMethod(ABC):
         # If a "missing credentials" error is encountered, initiate container login
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
-        # fix out-of-sync logger-in state, otherwise deadlock in retry within login-lock
+        # fix out-of-sync logged-in state, otherwise deadlock in retry within login-lock
         if container_id in self.session.opaca_client.logged_in_containers:
             self.session.opaca_client.logged_in_containers.remove(container_id)
 
@@ -236,27 +236,23 @@ class AbstractMethod(ABC):
             # might already be logged in on lock-release if two actions of same container were called in parallel
             if container_id in self.session.opaca_client.logged_in_containers:
                 return await self.invoke_tool(tool_name, tool_args, tool_id, True)
-
-            # Get credentials from user
-            await self.session.websocket_send(ContainerLoginNotification(
-                container_name=container_name,
-                tool_name=tool_name,
-                retry=login_attempt_retry
-            ))
-            response = ContainerLoginResponse(**await self.session.websocket_receive())
-
-            # Check if credentials were provided
-            if not response.username or not response.password:
-                # login aborted by user
-                return ToolCall(id=tool_id, name=tool_name, args=tool_args,
-                                result=f"Failed to invoke tool.\nNo credentials provided.")
-
-        # Send credentials to container via OPACA
-        try:
-            await self.session.opaca_client.container_login(container_id, response.username, response.password)
-        except:
-            # login failed -> retry
-            return await self.handleContainerLogin(agent_name, action_name, tool_name, tool_args, tool_id, True)
+            while True:
+                # Get credentials from user
+                await self.session.websocket_send(ContainerLoginNotification(
+                    container_name=container_name,
+                    tool_name=tool_name,
+                    retry=login_attempt_retry
+                ))
+                response = ContainerLoginResponse(**await self.session.websocket_receive())
+                if not (response.username and response.password):
+                    return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
+                
+                # Attempt to login at container via OPACA (error if immediate login-check fails)
+                try:
+                    await self.session.opaca_client.container_login(container_id, response.username, response.password)
+                    break
+                except:
+                    login_attempt_retry = True
 
         # login succeeded (or not checked by container) -> try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
