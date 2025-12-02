@@ -44,7 +44,7 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
-    asyncio.create_task(cleanup_task())
+    asyncio.create_task(cleanup_task(60))
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
