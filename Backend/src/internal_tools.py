@@ -146,6 +146,7 @@ class InternalTools:
             # schedule next execution or remove task from list of tasks
             if remaining < 0:   # negative -> infinite more
                 asyncio.create_task(_callback(interval, remaining))
+                self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
             elif remaining > 0: # positive -> decrement and repeat
                 asyncio.create_task(_callback(interval, remaining-1))
                 self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
@@ -192,13 +193,14 @@ class InternalTools:
         if now >= then:
             skipped = ceil((now - then).seconds / task.interval)
             then += timedelta(seconds=task.interval) * skipped
-            if task.repetitions != -1:
+            if task.repetitions >= 0:
                 task.repetitions = max(0, task.repetitions - skipped)
         if task.repetitions != 0:
             logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
             await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
         else:
             logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
+            del self.session.scheduled_tasks[task.task_id]
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
