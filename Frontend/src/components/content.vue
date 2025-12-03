@@ -32,6 +32,8 @@
             ref="RecordingPopup"
         />
 
+        <InputDialogue ref="input" />
+
         <Sidebar
             :method="method"
             :language="language"
@@ -218,6 +220,7 @@ import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
+import InputDialogue from "./InputDialogue.vue";
 
 export default {
     name: 'main-content',
@@ -227,6 +230,7 @@ export default {
         OptionsSelect,
         Sidebar,
         RecordingPopup,
+        InputDialogue,
         Chatbubble
     },
     props: {
@@ -360,6 +364,10 @@ export default {
             }
         },
 
+        async showInfo(message) {
+            await this.$refs.input.showInfo(null, message);
+        },
+
         async toggleFileDropOverlay(show) {
             this.showFileDropOverlay = show;
         },
@@ -371,7 +379,7 @@ export default {
             const pdfFiles = files.filter(file => file.type === "application/pdf");
 
             if (pdfFiles.length === 0) {
-                alert("Only PDF files are allowed.");
+                this.showInfo("Only PDF files are allowed.");
                 return;
             }
 
@@ -394,7 +402,7 @@ export default {
                 });
             } catch (error) {
                 console.error("File upload failed:", error);
-                alert("File upload failed. See console for details.");
+                this.showInfo("File upload failed. See console for details.");
             } finally {
                 // Force vue to update
                 this.selectedFiles = [...this.selectedFiles];
@@ -533,7 +541,7 @@ export default {
 
         handleRecordingError(error) {
             console.error('Recording error:', error);
-            alert('Error recording audio: ' + error.message);
+            this.showInfo('Error recording audio: ' + error.message);
         },
 
         startRecognition() {
