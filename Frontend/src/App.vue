@@ -381,14 +381,12 @@ export default {
         },
 
         createNotification(response) {
-            console.log("Whole response: ", response);
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
 
             // Automatically append to chat
             const chats = response.auto_append_chats || [];
-            console.log("Got response. Auto append: ", chats);
             chats.forEach(chatId => {
                 this.handleAppendToChat(chatId, response);
             });
@@ -460,6 +458,8 @@ export default {
                 const chatId = this.$refs.content.selectedChatId;
                 // Manual append
                 await this.handleAppendToChat(chatId, pushMessage, choice.auto);
+                // Update chats sidebar (Just in case it is a new chat)
+                await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
@@ -474,7 +474,6 @@ export default {
         },
 
         async handleAppendToChat(chatId, pushMessage, autoAppend = false) {
-            console.log("Called handleAppendToChat with autoAppend= ", autoAppend);
             await backendClient.append(chatId, pushMessage, autoAppend);
             await this.$refs.content.loadHistory(chatId);
         }
