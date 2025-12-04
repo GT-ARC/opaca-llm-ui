@@ -172,13 +172,21 @@ class InternalTools:
             # Clean mapping
             self.prune_notifications_chats_map()
 
+            msg_data = result.model_dump()
+            msg_data["task_id"] = task_id
+            push_message = PushMessage(**msg_data)
+
             # Extract chats for this task
             auto_append_chats = list(self.session.notifications_chats_map.get(task_id, []))
 
-            msg_data = result.model_dump()
-            msg_data["task_id"] = task_id
-            msg_data["auto_append_chats"] = auto_append_chats
-            await self.session.websocket_send(PushMessage(**msg_data))
+            # Append to all chats that are selected for auto-append
+            for chat_id in auto_append_chats:
+                chat = self.session.get_or_create_chat(chat_id)
+                message_copy = push_message.model_copy(deep=True)
+                message_copy.query = ""
+                chat.store_interaction(message_copy)
+
+            await self.session.websocket_send(push_message)
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)

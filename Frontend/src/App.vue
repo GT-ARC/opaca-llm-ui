@@ -384,12 +384,6 @@ export default {
             const notificationArea = this.$refs.Notifications;
             notificationArea.addNotificationBubble(response);
             this.unreadNotifications += 1;
-
-            // Automatically append to chat
-            const chats = response.auto_append_chats || [];
-            chats.forEach(chatId => {
-                this.handleAppendToChat(chatId, response);
-            });
         },
 
         handleContainerLogin(containerLoginDetails) {
@@ -475,7 +469,7 @@ export default {
 
         async handleAppendToChat(chatId, pushMessage, autoAppend = false) {
             await backendClient.append(chatId, pushMessage, autoAppend);
-            await this.$refs.content.loadHistory(chatId);
+            await this.$refs.content.loadHistory(chatId, false);
         }
     },
 

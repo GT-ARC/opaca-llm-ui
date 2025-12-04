@@ -400,7 +400,6 @@ class PushMessage(QueryResponse):
         task_id: The scheduled task the PushMessage belongs to
     """
     task_id: int
-    auto_append_chats: list[str] = []
 
 
 class ContainerLoginNotification(BaseModel):

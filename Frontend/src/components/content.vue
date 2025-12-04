@@ -645,8 +645,8 @@ export default {
             });
         },
 
-        async loadHistory(chatId) {
-            if (!chatId) return;
+        async loadHistory(chatId, switchChat = true) {
+            if (!chatId || !switchChat && this.selectedChatId !== chatId) return;
             try {
                 const res = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
