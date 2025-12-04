@@ -57,7 +57,7 @@
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.handleUpdatePlatformInfo"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="info"
                 />
 
@@ -95,6 +95,7 @@
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
+                    :is-platform-connected="connected"
                     ref="agents"
                 />
 
@@ -178,11 +179,6 @@ export default {
         return {};
     },
     methods: {
-        handleUpdatePlatformInfo(isPlatformConnected) {
-            if (!this.$refs.agents) return;
-            this.$refs.agents.updatePlatformInfo(isPlatformConnected);
-        },
-
         setupResizer() {
             const resizer = document.getElementById('resizer');
             const sidebar = document.getElementById('sidebar-content');
