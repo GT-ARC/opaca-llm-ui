@@ -242,12 +242,7 @@ async def append(chat_id: str, auto_append: bool, push_message: PushMessage, req
     chat.store_interaction(push_message)
     # Update mapping for auto-append
     if auto_append:
-        task_id = push_message.task_id
-
-        mapping = session.notifications_chats_map
-        if task_id not in mapping:
-            mapping[task_id] = set()
-        mapping[task_id].add(chat_id)
+        session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
 
 
 ## CONFIG ROUTES

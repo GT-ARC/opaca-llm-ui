@@ -219,12 +219,9 @@ class Chat(BaseModel):
     def derive_name(self) -> None:
         """derive name from first interaction, if any, and if not set yet"""
         if not self.name and self.responses:
-            query = self.responses[0].query
-            if query:
-                self.name = (f'{query[:32]}…' if len(query) > 32 else query)
-            else:
-                message = self.responses[0].content
-                self.name = (f'{message[:32]}…' if len(message) > 32 else message)
+            message = self.responses[0].query or self.responses[0].content
+
+            self.name = self.name = (f'{message[:32]}…' if len(message) > 32 else message)
 
 
 class SessionData(BaseModel):
