@@ -123,115 +123,7 @@
         </div>
     </header>
 
-    <!-- Auth Modal -->
-    <div v-if="showAuthInput" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="connectToPlatform">
-                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
-                <input
-                        v-model="platformUser"
-                        type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('username')"
-                        @input="loginError = false"
-                />
-                <input
-                        v-model="platformPassword"
-                        type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('password')"
-                        @input="loginError = false"
-                />
-                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    {{ Localizer.get('authError') }}
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
-                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
-                    <span v-else>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Container Login Context -->
-    <div v-if="showContainerLogin" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="submitContainerLogin">
-                <h5 class="mb-3">{{ `${Localizer.get('containerLoginMessage')}\n${this.containerLoginDetails.container_name}--${this.containerLoginDetails.tool_name}` }}</h5>
-                <input
-                        v-model="containerLoginUser"
-                        type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': containerLoginError}]"
-                        :placeholder="Localizer.get('username')"
-                        @input="containerLoginError = false"
-                />
-                <input
-                        v-model="containerLoginPassword"
-                        type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': containerLoginError}]"
-                        :placeholder="Localizer.get('password')"
-                        @input="containerLoginError = false"
-                />
-                <select v-model="containerLoginTimeout" class="form-select mb-3">
-                    <option value="0">Logout immediately</option>
-                    <option value="300">Logout after 5 minutes</option>
-                    <option value="1800">Logout after 30 minutes</option>
-                    <option value="3600">Logout after 1 hour</option>
-                    <option value="14400">Logout after 4 hours</option>
-                </select>
-                <div v-if="containerLoginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    {{ Localizer.get('authError') }}
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" @click="submitContainerLogin(true)" :disabled="!containerLoginUser || !containerLoginPassword">
-                    <span>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitContainerLogin(false)">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Api Key Context -->
-    <div v-if="showApiKeyDialog" class="auth-overlay">
-        <div class="dropdown-menu show p-4 login-container">
-            <form @submit.prevent="submitApiKey">
-                <h5 v-if="this.apiKeyMessage?.is_invalid" class="mb-3">{{ Localizer.get("apiKeyInvalid") + this.apiKeyMessage?.model }}</h5>
-                <h5 v-else class="mb-3">{{ Localizer.get("apiKeyMissing") + this.apiKeyMessage?.model }}</h5>
-                <input v-model="apiKey" type="password" :class="['form-control', 'mb-3']"/>
-                <button type="submit" class="btn btn-primary w-100" @click="submitApiKey(true)" :disabled="!apiKey">
-                    <span>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="submitApiKey(false)">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Append-to-Chat Confirmation -->
-    <div v-if="showAppendDialog" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <h5 class="mb-3">{{ Localizer.get('tooltipAppendNotification') }}</h5>
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" v-model="appendDialogAuto">
-                <label class="form-check-label">
-                    {{ Localizer.get('autoAppendNotification') }}
-                </label>
-            </div>
-            <button class="btn btn-primary w-100 mb-2" @click="confirmAppendDialog(true)">
-                Yes
-            </button>
-            <button class="btn btn-secondary w-100" @click="confirmAppendDialog(false)">
-                No
-            </button>
-        </div>
-    </div>
+    <InputDialogue ref="input"/>
 
     <div class="col background">
         <MainContent
@@ -259,10 +151,11 @@ import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
+import InputDialogue from './components/InputDialogue.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner, Notifications},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
@@ -275,36 +168,17 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
-            showAuthInput: false,
-            platformUser: "",
-            platformPassword: "",
-            loginError: false,
             selectedCategory: null,
-            // container login
-            showContainerLogin: false,
-            containerLoginDetails: null,
-            containerLoginUser: "",
-            containerLoginPassword: "",
-            containerLoginError: false,
-            containerLoginTimeout: 300,
-            // notifications
             unreadNotifications: 0,
-            autoAppendNotifications: {}, // TODO remove
-            showAppendDialog: false,
-            appendDialogAuto: false,
-            // user provided API key
-            showApiKeyDialog: false,
-            apiKeyMessage: null,
-            apiKey: null,
         }
     },
     methods: {
-        async connectToPlatform() {
+        async connectToPlatform(username="", password="") {
             try {
                 this.isConnecting = true;
                 this.loginError = false;
 
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, this.platformUser, this.platformPassword);
+                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
                 this.platformPassword = "";
 
                 if (rpStatus === 200) {
@@ -312,18 +186,30 @@ export default {
                     this.showAuthInput = false;
                 } else if (rpStatus === 403) {
                     this.connected = false;
-                    if (this.showAuthInput) {
-                        this.loginError = true;
-                    }
-                    this.showAuthInput = true;
+
+                    await this.$refs.input.showDialogue(
+                        "Platform Login",
+                        Localizer.get('unauthenticated'),
+                        username != "" ? Localizer.get('authError') : null,
+                        {
+                            username: { type: "text", label: Localizer.get("username") },
+                            password: { type: "password", label: Localizer.get("password") },
+                        },
+                        (values) => {
+                            if (values != null) {
+                                this.connectToPlatform(values.username, values.password);
+                            }
+                        }
+                    );
+
                 } else {
                     this.connected = false;
-                    alert(Localizer.get('unreachable'));
+                    this.showInfo(Localizer.get('opacaUnreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.connected = false;
-                alert('Backend server is unreachable.');
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.isConnecting = false;
                 this.toggleConnectionDropdown(!this.connected);
@@ -337,7 +223,7 @@ export default {
             } catch (e) {
                 console.error(e);
                 this.connected = true;
-                alert('Backend server is unreachable.');
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.toggleConnectionDropdown(this.connected);
             }
@@ -386,41 +272,52 @@ export default {
             this.unreadNotifications += 1;
         },
 
-        handleContainerLogin(containerLoginDetails) {
-            this.containerLoginDetails = containerLoginDetails;
-            this.containerLoginError = this.containerLoginDetails.retry;
-            this.showContainerLogin = true;
+        async showInfo(message) {
+            await this.$refs.input.showInfo(null, message);
         },
 
-        submitContainerLogin(submitCredentials) {
-            this.showContainerLogin = false;
-
-            // If the credentials should be submitted
-            if (submitCredentials) {
-                this.$refs.content.submitContainerLogin(this.containerLoginUser, this.containerLoginPassword, this.containerLoginTimeout);
-            } else {
-                this.$refs.content.submitContainerLogin("", "", 0)
-            }
-
-            // Reset the input fields
-            this.containerLoginUser = "";
-            this.containerLoginPassword = "";
-            this.containerLoginDetails = null;
+        async handleContainerLogin(containerLoginDetails) {
+            await this.$refs.input.showDialogue(
+                "Container Login",
+                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
+                containerLoginDetails.retry ? Localizer.get('authError') : null,
+                {
+                    username: { type: "text", label: Localizer.get("username") },
+                    password: { type: "password", label: Localizer.get("password") },
+                    timeout: { type: "select", default: 300, values: {
+                        "0": "Logout immediately",
+                        "300": "Logout after 5 minutes",
+                        "1800": "Logout after 30 minutes",
+                        "3600": "Logout after 1 hour",
+                        "14400": "Logout after 4 hours",
+                    }},
+                },
+                (values) => {
+                    if (values != null) {
+                        this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
+                    } else {
+                        this.$refs.content.submitContainerLogin("", "", 0);
+                    }
+                }
+            );
         },
 
-        handleApiKey(apiKeyMessage) {
-            this.apiKeyMessage = apiKeyMessage;
-            this.showApiKeyDialog = true;
-        },
-
-        submitApiKey(submitApiKey) {
-            this.showApiKeyDialog = false;
-            if (submitApiKey) {
-                this.$refs.content.submitApiKey(this.apiKey);
-            } else {
-                this.$refs.content.submitApiKey("");
-            }
-            this.apiKey = "";
+        async handleApiKey(apiKeyMessage) {
+            await this.$refs.input.showDialogue(
+                "API Key Required",
+                (apiKeyMessage?.is_invalid ? Localizer.get("apiKeyInvalid") : Localizer.get("apiKeyMissing")) + apiKeyMessage?.model,
+                null,
+                {
+                    apiKey: { type: "password" },
+                },
+                (values) => {
+                    if (values != null) {
+                        this.$refs.content.submitApiKey(values.apiKey);
+                    } else {
+                        this.$refs.content.submitApiKey("");
+                    }
+                }
+            );
         },
 
         async waitForConnection() {
@@ -432,21 +329,46 @@ export default {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            alert("SAGE Backend is unreachable. Please check if the SAGE backend is running and reload the page.")
+            this.showInfo(Localizer.get('backendUnreachable'));
             throw new Error("SAGE Backend is unreachable.");
         },
 
         async showConfirmDialog(pushMessage) {
-            this.appendDialogAuto = false; // Reset
-            this.showAppendDialog = true;
-
-            // Await user choice
-            const choice = await new Promise(
-                resolve => {
-                    this._appendResolver = resolve;
-                    this._appendState = pushMessage;
+            const schema = {
+                autoAppend: {
+                    type: "checkbox",
+                    label: Localizer.get('autoAppendNotification'),
+                    default: false
                 }
-            );
+            };
+
+            const choice = await new Promise(resolve => {
+                // Open dialog for confirmation
+                this.$refs.input.showDialogue(
+                    Localizer.get('tooltipAppendNotification'),
+                    null,
+                    null,
+                    schema,
+                    (values) => {
+                        // Submit
+                        if (values !== null) {
+                            resolve({
+                                confirmation: true,
+                                auto: values.autoAppend,
+                                pushMessage
+                            });
+                        }
+                        // Cancel
+                        else {
+                            resolve({
+                                confirmation: false,
+                                auto: false,
+                                pushMessage
+                            });
+                        }
+                    }
+                );
+            });
 
             if (choice.confirmation) {
                 const chatId = this.$refs.content.selectedChatId;
@@ -455,16 +377,6 @@ export default {
                 // Update chats sidebar (Just in case it is a new chat)
                 await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
             }
-        },
-
-        confirmAppendDialog(confirmation) {
-            this.showAppendDialog = false;
-
-            this._appendResolver({
-                confirmation,
-                auto: this.appendDialogAuto,
-                pushMessage: this._appendState
-            });
         },
 
         async handleAppendToChat(chatId, pushMessage, autoAppend = false) {
@@ -602,15 +514,6 @@ header {
     display: block;
 }
 
-/* login stuff */
-.login-container {
-    max-width: 400px;
-    width: 100%;
-    margin: auto;
-    background-color: var(--surface-color);
-    color: var(--text-primary-color)
-}
-
 /* navbar stuff */
 .nav-link {
     padding: 0.5rem 1rem;
@@ -632,29 +535,6 @@ header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-}
-
-.auth-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999; /* Should appear above all other items */
-}
-
-.is-invalid {
-    border-color: #dc3545;
-    background-color: #f8d7da;
-    color: #842029;
-}
-
-.is-invalid::placeholder {
-    color: #842029
 }
 
 /* Voice Server Settings Styles */
