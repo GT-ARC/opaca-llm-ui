@@ -165,7 +165,24 @@ To use the above mentioned models, you need to provide the corresponding API key
 
 ### Using Docker Compose
 
-To build and start SAGE, simply run the Docker Compose: `docker compose up --build`. You can then find the Frontend at `http://localhost:5173` and the backend (FastAPI) at `http://localhost:3001/docs`. Specify the OPACA Platform to connect to (including login credentials, if authentication is enabled) and hit the "Connect" button. The UI should automatically switch to the view showing the available actions, and you can start interacting with the LLM via the chat window.
+To build and start SAGE, you can use the included `docker-compose.yml` file. By default, it will start the Backend, Frontend, and Session-DB service, but it has several predefined profiles to start additional services, too:
+
+* `whisper`: the Whisper TTS server.
+* `platform`: The OPACA Runtime Platform.
+
+Examples:
+
+* to run just the default setup, run `docker compose up --build`
+* to additionally run the TTS server, run `docker compose --profile whisper up --build`
+
+You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run (either using `export` or by putting it in your local `.env` file), e.g.
+```bash
+export COMPOSE_PROFILES=whisper,platform
+docker compose up --build
+```
+
+**Note:** For running the OPACA Runtime Platform in Docker, the `PUBLIC_URL` environment variable has to be set. For details, please refer to [the documentation in the OPACA Core repository](https://gitlab.dai-labor.de/jiacpp/opaca-core/-/blob/main/doc/environments.md?ref_type=heads).
+
 
 ### Development and testing
 

@@ -7,6 +7,6 @@ benchmark/test_runs
 venv
 .venv
 .DS_Store
-.env
+*.env
 .pytest_cache
 Backend/data
