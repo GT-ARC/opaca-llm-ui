@@ -1,29 +1,34 @@
 <template>
-    <div class="notifications-container overflow-auto">
+    <div class="notifications-container overflow-auto" @click.stop>
         <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary">
             {{Localizer.get('noNotifsAvailable')}}
         </div>
 
         <div v-for="{ elementId, content, time } in this.messages">
-            <div class="d-flex align-items-center justify-content-between px-1">
+            <div class="d-flex align-items-center px-1">
                 <span>{{ time }}</span>
-                <i class="fa fa-remove delete-button"
-                    @click.stop="this.dismissNotification(elementId)"
-                    title="Dismiss"
+                <div class="ms-auto">
+                    <i class="fa fa-remove delete-button"
+                       @click.stop="this.dismissNotification(elementId)"
+                       title="Dismiss"
+                    />
+                </div>
+            </div>
+            <div :key="content"
+                 @click.stop="this.collapseBubble(elementId)"
+                 style="cursor: pointer">
+                <Chatbubble
+                    :element-id="elementId"
+                    :is-user="false"
+                    :initial-content="content"
+                    :initial-loading="false"
+                    :is-bookmarked="false"
+                    :files="[]"
+                    :chat-id="''"
+                    :ref="elementId"
+                    :is-collapsible="true"
                 />
             </div>
-            <Chatbubble
-                :key="content"
-                :element-id="elementId"
-                :is-user="false"
-                :initial-content="content"
-                :initial-loading="false"
-                :is-bookmarked="false"
-                :files="[]"
-                :chat-id="''"
-                :ref="elementId"
-                @add-to-library=""
-            />
         </div>
     </div>
 </template>
@@ -91,8 +96,16 @@ export default {
         },
 
         async dismissNotification(elementId) {
-            this.messages = this.messages.filter(m => m.elementId != elementId);
-        }
+            this.messages = this.messages.filter(m => m.elementId !== elementId);
+        },
+
+        isBubbleCollapsed(elementId) {
+            return this.$refs[elementId]?.[0]?.isCollapsed;
+        },
+
+        collapseBubble(elementId) {
+            this.$refs[elementId]?.[0]?.toggleCollapsed();
+        },
 
     },
 }

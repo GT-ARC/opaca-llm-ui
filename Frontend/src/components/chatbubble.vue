@@ -2,7 +2,7 @@
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end">
+         class="d-flex flex-row justify-content-end" >
 
         <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
             <div v-html="this.getFormattedContent()" />
@@ -74,9 +74,15 @@
          class="d-flex flex-row justify-content-start w-100">
 
         <div class="chatbubble chatbubble-ai ms-2"
-             :class="{glow: this.isLoading}" :style="this.getGlowColors()">
+             :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
 
-            <div class="d-flex justify-content-start">
+            <div class="d-flex justify-content-start"
+                 :class="{'chatbubble-collapsed': this.isCollapsed}">
+
+                <div v-if="this.isCollapsed" class="chatbubble-collapsed-overlay">
+                    <i class="fa fa-arrow-alt-circle-down" />
+                </div>
+
                 <!-- loading spinner -->
                 <div v-show="this.isLoading" class="w-auto">
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
@@ -105,7 +111,8 @@
             </div>
 
             <!-- footer: icons -->
-            <div class="d-flex justify-content-start small mt-2">
+            <div v-if="!this.isCollapsed"
+                 class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
                 <div v-show="this.isCopyAvailable()"
@@ -217,6 +224,7 @@ export default {
         files: Array,
         selectedChatId: String,
         isBookmarked: Boolean,
+        isCollapsible: {type: Boolean, default: false},
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -237,6 +245,7 @@ export default {
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
+            isCollapsed: false,
         }
     },
 
@@ -330,11 +339,10 @@ export default {
                 });
 
                 // Sanitize html
-                const safeHtml = DOMPurify.sanitize(div.innerHTML, {
+                return DOMPurify.sanitize(div.innerHTML, {
                     // Keep attributes we set
                     ADD_ATTR: ['target', 'rel'],
                 });
-                return safeHtml;
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
@@ -434,6 +442,19 @@ export default {
                 || window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
+
+        toggleCollapsed(value = null) {
+            if (!this.isCollapsible) return;
+            this.isCollapsed = value === null
+                ? !this.isCollapsed
+                : value;
+        },
+    },
+
+    mounted() {
+        if (this.isCollapsible) {
+            this.isCollapsed = true;
+        }
     },
 
     updated() {
@@ -517,6 +538,26 @@ export default {
     --glow-color-2: #00ff0090;
     box-shadow: 0 0 8px #00ff0040;
     animation: glow 3s infinite;
+}
+
+.chatbubble-collapsed {
+    max-height: 60px !important;
+    overflow: hidden;
+}
+
+.chatbubble-collapsed-overlay {
+    height: 30px;
+    z-index: 2;
+    left: 0;
+    bottom: 0;
+    position: absolute;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom-left-radius: 1.25rem;
+    border-bottom-right-radius: 1.25rem;
+    background-color: rgba(128, 128, 128, 0.4);
 }
 
 @keyframes glow {
