@@ -22,7 +22,7 @@ class OpacaClient:
         self.token = None
         self.connected = False
         self.login_lock = asyncio.Lock()
-        self.logged_in_containers = set()  # Stores the container ids where the user is currently logged in
+        self.logged_in_containers = {}  # Stores the container ids where the user is currently logged in
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
@@ -53,6 +53,33 @@ class OpacaClient:
         self.url = None
         self.connected = False
         logger.info(f"Disconnected")
+
+    async def get_extra_ports(self) -> list[dict[str, Any]]:
+        try:
+            if not self.url:
+                return []
+            async with httpx.AsyncClient() as client:
+                res = await client.get(f"{self.url}/containers", headers=self._headers())
+            res.raise_for_status()
+            return [
+                {
+                    "container": container["image"]["imageName"],
+                    "token": self.logged_in_containers.get(container["containerId"]),
+                    "extraPorts": [
+                        {
+                            "port": f'{container["connectivity"]["publicUrl"]}:{k}',
+                            "description": v["description"],
+                        }
+                        for k, v in container["connectivity"]["extraPortMappings"].items()
+                        if v["protocol"] == "TCP"
+                    ]
+                }
+                for container in res.json()
+                if any(v["protocol"] == "TCP" for v in container["connectivity"]["extraPortMappings"].values())
+            ]
+        except Exception as e:
+            logger.error(f"Could not get Extra-Ports: {e}")
+            raise e
 
     async def get_actions(self) -> dict:
         """Get actions of OPACA agents, in original OPACA format."""
@@ -108,7 +135,7 @@ class OpacaClient:
         res.raise_for_status()
 
         # Mark container as logged in
-        self.logged_in_containers.add(container_id)
+        self.logged_in_containers[container_id] = res.text
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
         """Initiate delayed container logout for OPACA RP"""
@@ -125,7 +152,7 @@ class OpacaClient:
                 logger.info(f"Logout of container {container_id}")
                 async with httpx.AsyncClient() as client:
                     await client.post(f"{self.url}/containers/logout/{container_id}", headers=self._headers())
-                    self.logged_in_containers.remove(container_id)
+                    del self.logged_in_containers[container_id]
 
     async def get_most_likely_container_id(self, agent: str, action: str) -> tuple[str, str]:
         """Get most likely container id and name for given agent and action. Returns empty string if no match found."""

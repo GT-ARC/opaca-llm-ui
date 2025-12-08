@@ -227,7 +227,7 @@ class AbstractMethod(ABC):
 
         # fix out-of-sync logged-in state, otherwise deadlock in retry within login-lock
         if container_id in self.session.opaca_client.logged_in_containers:
-            self.session.opaca_client.logged_in_containers.remove(container_id)
+            del self.session.opaca_client.logged_in_containers[container_id]
 
         # This lock prevents more than one login-request message being sent to the UI at once. If multiple
         # invokes to actions of not-logged-in containers arrive, the second will wait here until the first

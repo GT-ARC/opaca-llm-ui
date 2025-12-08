@@ -27,6 +27,8 @@ The web UI is implemented in Javascript using Node and Vue. It consists of sever
 
 * A Navigation/Header bar, allowing to connect to an OPACA Runtime Platform, switch the UI language or color schema, and the used LLM prompting method.
 
+* Extension area in the sidebar, allowing to embed task-specific web-UIs provided by currently running OPACA Agent Containers via their `extraPorts` attribute.
+
 Several aspects of the UI, such as the selection of sample prompts, or the language can be configured in `config.js`.
 
 The Web-UI in this project was originally based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) by Tobias Schulz, but has since been significantly extended and refactored.
@@ -58,19 +60,20 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 #### General routes
 
 * `GET /methods`: Returns a list of available LLM prompting methods.
+* `GET /models`: Returns a list of available LLM model.
 * `POST /connect`: Attempts to establish a connection to the given OPACA platform.
 * `POST /disconnect`: Severs the connection to the currently connected OPACA platform.
 * `GET /actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
-* `POST /upload`: Add files to be taken into account with the next requests.
+* `GET /extra-ports`: Returns a dictionary of all the extra-ports provided by the Agent Containers currently running on the connected OPACA platform.
 * `POST /stop`: Stop all generation currently in progress for the session.
 * `POST /query/{method}`: Asks selected prompting method to generate an answer based on the given user query. This is independent of any existing chat histories (see below).
+* `POST /files`: Add files to be taken into account with the next requests; similar routes exist for getting, changing or deleting files.
 
 #### Chat routes
 
 * `GET /chats`: Returns a list of all chats associated with the current session, but without their full message histories.
 * `GET /chats/{chat_id}`: Returns the full message history and other details for the given chat.
 * `POST /chats/{chat_id}/query/{method}`: Makes a query to the given prompting method using a user query and the given chat's message history. The result is returned once, in full.
-* `WEBSOCKET /chats/{chat_id}/stream/{method}`: Streaming version of the route above. Here, some intermediate status messages as well as the final result message are streamed back to the user.
 * `PUT /chats/{chat_id}`: Used to update a chat's displayed name.
 * `DELETE /chats/{chat_id}`: Deletes the given chat.
 
