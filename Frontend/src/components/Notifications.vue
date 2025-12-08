@@ -1,5 +1,9 @@
 <template>
     <div class="notifications-container overflow-auto">
+        <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary">
+            {{Localizer.get('noNotifsAvailable')}}
+        </div>
+
         <div v-for="{ elementId, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>

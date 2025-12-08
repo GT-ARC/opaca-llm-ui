@@ -112,6 +112,7 @@ export const localizationData = {
         tooltipExpandExtension: "Expand",
         apiKeyMissing: "Please provide an API key for this model: ",
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
+        noNotifsAvailable: "There are currently no notifications",
     },
 
     DE: {
@@ -221,6 +222,7 @@ export const localizationData = {
         tooltipExpandExtension: "Vergrößern",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
+        noNotifsAvailable: "Gerade sind hier keine Benachrichtigungen",
     },
 };
 
