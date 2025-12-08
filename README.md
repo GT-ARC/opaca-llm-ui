@@ -27,6 +27,8 @@ The web UI is implemented in Javascript using Node and Vue. It consists of sever
 
 * A Navigation/Header bar, allowing to connect to an OPACA Runtime Platform, switch the UI language or color schema, and the used LLM prompting method.
 
+* Extension area in the sidebar, allowing to embed task-specific web-UIs provided by currently running OPACA Agent Containers via their `extraPorts` attribute.
+
 Several aspects of the UI, such as the selection of sample prompts, or the language can be configured in `config.js`.
 
 The Web-UI in this project was originally based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) by Tobias Schulz, but has since been significantly extended and refactored.
