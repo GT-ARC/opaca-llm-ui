@@ -29,6 +29,11 @@
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
+            <i @click="SidebarManager.toggleView('extensions')"
+               class="fa fa-puzzle-piece sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarExtensions')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
+
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarConfig')"
@@ -97,6 +102,11 @@
                     v-show="SidebarManager.isViewSelected('agents')"
                     ref="agents"
                 />
+                                <!-- agents/actions overview -->
+                <SidebarExtensions
+                    v-show="SidebarManager.isViewSelected('extensions')"
+                    ref="extensions"
+                />
 
                 <!-- method config -->
                 <SidebarConfig
@@ -131,6 +141,7 @@ import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
+import SidebarExtensions from './SidebarExtensions.vue';
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
@@ -148,6 +159,7 @@ export default {
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
+        SidebarExtensions,
         SidebarQuestions,
     },
     props: {
@@ -181,6 +193,7 @@ export default {
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);
+            this.$refs.extensions.updatePlatformInfo(isPlatformConnected);
         },
 
         setupResizer() {

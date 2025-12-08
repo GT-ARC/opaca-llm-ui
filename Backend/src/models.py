@@ -22,20 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 def get_supported_models(supports_structured_output: bool = False):
+    def get_env(key: str, alt: str = '') -> list[str]:
+        return os.getenv(key, alt).split(";")
+    hosts = get_env("LLM_HOSTS", "openai;mistral;anthropic;gemini")
+    api_keys = get_env("LLM_API_KEYS", ";;;")
+    models = get_env("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash")
     return [
         (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_HOSTS", "openai").split(";"),
-            os.getenv("LLM_API_KEYS", "").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5").split(";"),
-        )
-    ] if supports_structured_output else[
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_HOSTS", "openai;mistral;anthropic;gemini").split(";"),
-            os.getenv("LLM_API_KEYS", ";;;").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash").split(";"),
-        )
+        for url, key, models in zip(hosts, api_keys, models)
+        if url == "openai" or not supports_structured_output
     ]
 
 # VARIOUS REST REQUEST/RESPONSE CLASSES AND INTERNAL MODEL ELEMENTS

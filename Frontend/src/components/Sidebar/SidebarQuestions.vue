@@ -21,12 +21,7 @@
             </button>
         </div>
 
-        <PersonalPromptEditor
-            v-if="showEditor"
-            :prompt="editingPrompt"
-            @save="saveEditedPrompt"
-            @cancel="closeEditor"
-        />
+        <InputDialogue ref="input" />
 
         <!-- body -->
         <div id="personal-questions"
@@ -120,11 +115,11 @@ import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
 import {useDevice} from "../../useIsMobile.js";
-import PersonalPromptEditor from "../PersonalPromptEditor.vue";
+import InputDialogue from "../InputDialogue.vue";
 
 export default {
     name: 'SidebarQuestions',
-    components: { PersonalPromptEditor },
+    components: { InputDialogue },
     emits: [
         'select-question',
         'select-category',
@@ -132,9 +127,6 @@ export default {
     data() {
         return {
             isRegenerating: false,
-            showEditor: false,
-            editingPrompt: null,
-            editingIndex: null,
             icon: "🔖",
             personalPrompts: [],
         }
@@ -240,31 +232,30 @@ export default {
             this.savePersonalPrompts();
         },
 
-        openEditor(prompt = null, index = null) {
-            this.editingPrompt = prompt ? { ...prompt } : { question: "", icon: "⭐" };
-            this.editingIndex = index;
-            this.showEditor = true;
+        async openEditor(prompt = null, index = null) {
+            await this.$refs.input.showDialogue(
+                prompt?.question ? Localizer.get('editQuestion') : Localizer.get('addPersonalQuestion'),
+                null,
+                null,
+                {
+                    prompt: {type: "textarea", label: "Prompt", default: prompt?.question ?? "" },
+                }, 
+                (values) => {
+                    if (values != null) {
+                        if (index != null) {
+                            this.personalPrompts[index].question = values.prompt;
+                        } else {
+                            this.personalPrompts.push({ question: values.prompt, icon: "⭐" });
+                        }
+                        this.savePersonalPrompts();
+                    }
+                }
+            );
         },
 
         removePersonalPrompt(index) {
             this.personalPrompts.splice(index, 1);
             this.savePersonalPrompts();
-        },
-
-        closeEditor() {
-            this.showEditor = false;
-            this.editingPrompt = null;
-            this.editingIndex = null;
-        },
-
-        saveEditedPrompt(updatedPrompt) {
-            if (this.editingIndex != null) {
-                this.personalPrompts.splice(this.editingIndex, 1, updatedPrompt);
-            } else {
-                this.personalPrompts.push(updatedPrompt);
-            }
-            this.savePersonalPrompts();
-            this.closeEditor();
         },
 
         toggleSection(index, show = null) {
