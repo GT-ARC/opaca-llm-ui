@@ -172,15 +172,10 @@ class InternalTools:
             # Clean mapping
             self.session.prune_notifications_chats_map()
 
-            msg_data = result.model_dump()
-            msg_data["task_id"] = task_id
-            push_message = PushMessage(**msg_data)
-
-            # Extract chats for this task
-            auto_append_chats = list(self.session.notifications_chats_map.get(task_id, []))
+            push_message = PushMessage(task_id=task_id, **result.model_dump())
 
             # Append to all chats that are selected for auto-append
-            for chat_id in auto_append_chats:
+            for chat_id in self.session.notifications_chats_map.get(task_id, []):
                 chat = self.session.get_or_create_chat(chat_id)
                 message_copy = push_message.model_copy(deep=True)
                 message_copy.query = ""
