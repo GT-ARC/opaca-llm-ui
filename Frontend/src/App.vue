@@ -91,7 +91,7 @@
                                  aria-labelledby="notifications-dropdown">
                                 <Notifications
                                     ref="Notifications"
-                                    @append-to-chat="(pushMessage) => showConfirmDialog(pushMessage)"
+                                    @append-to-chat="(pushMessage) => handleAppendToChat(pushMessage)"
                                 />
                             </div>
                         </li>
@@ -333,56 +333,26 @@ export default {
             throw new Error("SAGE Backend is unreachable.");
         },
 
-        async showConfirmDialog(pushMessage) {
-            const schema = {
-                autoAppend: {
-                    type: "checkbox",
-                    label: Localizer.get('autoAppendNotification'),
-                    default: false
-                }
-            };
-
-            const choice = await new Promise(resolve => {
-                // Open dialog for confirmation
-                this.$refs.input.showDialogue(
-                    Localizer.get('tooltipAppendNotification'),
-                    null,
-                    null,
-                    schema,
-                    (values) => {
-                        // Submit
-                        if (values !== null) {
-                            resolve({
-                                confirmation: true,
-                                auto: values.autoAppend,
-                                pushMessage
-                            });
-                        }
-                        // Cancel
-                        else {
-                            resolve({
-                                confirmation: false,
-                                auto: false,
-                                pushMessage
-                            });
-                        }
+        async handleAppendToChat(pushMessage) {
+            await this.$refs.input.showDialogue(
+                Localizer.get('tooltipAppendNotification'),
+                null,
+                null,
+                {
+                    autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
+                },
+                async (values) => {
+                    if (values !== null) {
+                        // append to current chat
+                        const chatId = this.$refs.content.selectedChatId;
+                        await backendClient.append(chatId, pushMessage, values.autoAppend);
+                        // refresh current chat history and chats sidebar
+                        await this.$refs.content.loadHistory(chatId, false);
+                        await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
                     }
-                );
-            });
-
-            if (choice.confirmation) {
-                const chatId = this.$refs.content.selectedChatId;
-                // Manual append
-                await this.handleAppendToChat(chatId, pushMessage, choice.auto);
-                // Update chats sidebar (Just in case it is a new chat)
-                await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
-            }
+                }
+            );
         },
-
-        async handleAppendToChat(chatId, pushMessage, autoAppend = false) {
-            await backendClient.append(chatId, pushMessage, autoAppend);
-            await this.$refs.content.loadHistory(chatId, false);
-        }
     },
 
     async mounted() {
