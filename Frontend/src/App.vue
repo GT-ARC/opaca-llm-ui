@@ -505,12 +505,13 @@ header {
 }
 
 @media (max-width: 576px) {
-    #connection-menu {
+    #connection-menu, #notifications-area {
         position: fixed !important;
         top: auto !important;
         bottom: auto !important;
-        left: 2rem !important;
+        left: 5% !important;
         right: auto !important;
+        width: 90% !important;
     }
 }
 </style>

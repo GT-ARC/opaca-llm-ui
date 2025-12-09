@@ -6,7 +6,7 @@
     <div v-if="this.isUser" :id="this.elementId"
          class="d-flex flex-row justify-content-end" >
 
-        <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
+        <div class="chatbubble chatbubble-user ms-auto w-auto">
             <div v-html="this.getFormattedContent()" />
 
             <!-- footer: debug, generate audio, ... -->
@@ -75,7 +75,7 @@
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start w-100">
 
-        <div class="chatbubble chatbubble-ai ms-2"
+        <div class="chatbubble chatbubble-ai"
              :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
 
             <div class="d-flex justify-content-start"
@@ -565,6 +565,7 @@ export default {
     border-bottom-left-radius: 1.25rem;
     border-bottom-right-radius: 1.25rem;
     background-color: rgba(128, 128, 128, 0.4);
+    backdrop-filter: blur(2px);
 }
 
 @keyframes glow {

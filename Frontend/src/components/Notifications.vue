@@ -1,10 +1,10 @@
 <template>
-    <div class="notifications-container overflow-auto" @click.stop>
-        <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary">
+    <div class="notifications-container overflow-auto w-100" @click.stop>
+        <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary w-100">
             {{Localizer.get('noNotifsAvailable')}}
         </div>
 
-        <div v-for="{ elementId, content, time } in this.messages">
+        <div v-for="{ elementId, content, time } in this.messages" class="notification px-2">
             <div class="d-flex align-items-center px-1">
                 <span>{{ time }}</span>
                 <div class="ms-auto">
@@ -110,11 +110,9 @@ export default {
 </script>
 
 <style scoped>
-
 .notifications-container {
     max-height: 80vh;
     min-width: min(600px, 100vw - 9rem);
-    max-width: calc(100vw - 9rem);
 }
 
 .delete-button {
@@ -126,5 +124,4 @@ export default {
     border-radius: 1rem !important;
     cursor: pointer;
 }
-
 </style>
