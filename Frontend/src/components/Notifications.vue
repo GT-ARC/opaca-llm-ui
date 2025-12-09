@@ -14,21 +14,18 @@
                     />
                 </div>
             </div>
-            <div :key="content"
-                 @click.stop="this.collapseBubble(elementId)"
-                 style="cursor: pointer">
-                <Chatbubble
-                    :element-id="elementId"
-                    :is-user="false"
-                    :initial-content="content"
-                    :initial-loading="false"
-                    :is-bookmarked="false"
-                    :files="[]"
-                    :chat-id="''"
-                    :ref="elementId"
-                    :is-collapsible="true"
-                />
-            </div>
+            <Chatbubble
+                :key="content"
+                :element-id="elementId"
+                :is-user="false"
+                :initial-content="content"
+                :initial-loading="false"
+                :is-bookmarked="false"
+                :files="[]"
+                :chat-id="''"
+                :ref="elementId"
+                :is-collapsible="true"
+            />
         </div>
     </div>
 </template>

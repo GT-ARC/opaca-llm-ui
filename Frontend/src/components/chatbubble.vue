@@ -1,4 +1,6 @@
 <template>
+<div :class="{'chatbubble-collapsible': this.isCollapsible}"
+     @click.stop="this.toggleCollapsed()">
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
@@ -199,6 +201,7 @@
 
         </div>
     </div>
+</div>
 </template>
 
 <script>
@@ -538,6 +541,10 @@ export default {
     --glow-color-2: #00ff0090;
     box-shadow: 0 0 8px #00ff0040;
     animation: glow 3s infinite;
+}
+
+.chatbubble-collapsible {
+    cursor: pointer;
 }
 
 .chatbubble-collapsed {
