@@ -110,7 +110,7 @@ export const localizationData = {
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
         tooltipAppendNotification: "Append to current Chat",
         tooltipDismissNotification: "Dismiss",
-        autoAppendNotification: "Also append future notifications from this scheduled task",
+        autoAppendNotification: "Also append future notifications",
     },
 
     DE: {
@@ -218,7 +218,7 @@ export const localizationData = {
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
         tooltipAppendNotification: "An den geöffneten Chat heften",
         tooltipDismissNotification: "Entfernen",
-        autoAppendNotification: "Auch zukünftige Benachrichtigungen dieses Typs anhängen",
+        autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
     },
 };
 
