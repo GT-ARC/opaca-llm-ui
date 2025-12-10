@@ -67,6 +67,15 @@ class BackendClient {
         await this.sendRequest("DELETE", `chats`);
     }
 
+    async search(query) {
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    }
+
+    async append(chatId, pushMessage, autoAppend) {
+        // Reset query
+        pushMessage.query = "";
+        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, pushMessage);
+    }
 
     // files
 
@@ -114,10 +123,6 @@ class BackendClient {
 
     async resetConfig(method) {
         return await this.sendRequest('DELETE', `config/${method}`);
-    }
-
-    async search(query) {
-        return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
     // bookmarks

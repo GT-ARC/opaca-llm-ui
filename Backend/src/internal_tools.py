@@ -12,7 +12,6 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
-from itertools import count
 from datetime import datetime, timedelta
 from math import ceil
 
@@ -20,7 +19,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
+from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -144,17 +143,17 @@ class InternalTools:
                 return
 
             # schedule next execution or remove task from list of tasks
-            if remaining < 0:   # negative -> infinite more
-                asyncio.create_task(_callback(interval, remaining))
-            elif remaining > 0: # positive -> decrement and repeat
-                asyncio.create_task(_callback(interval, remaining-1))
-                self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
-            else: # zero -> remove task
+            new_remaining = remaining - 1 if remaining > 0 else remaining
+            if new_remaining != 0:
+                asyncio.create_task(_callback(interval, new_remaining))
+                self.session.scheduled_tasks[task_id] = make_task(interval, new_remaining)
+            else:
                 del self.session.scheduled_tasks[task_id]
 
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
             # execute the task, then send result/error
+            await self.session.websocket_send(PushAdvert(task_id=task_id, query=query))
             try:
                 query_ext = dedent(f"""
                     This query was triggered by the 'ScheduleTask' tool: 
@@ -169,7 +168,20 @@ class InternalTools:
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
-            await self.session.websocket_send(PushMessage(**result.model_dump()))
+
+            # Clean mapping
+            self.session.prune_notifications_chats_map()
+
+            push_message = PushMessage(task_id=task_id, **result.model_dump())
+
+            # Append to all chats that are selected for auto-append
+            for chat_id in self.session.notifications_chats_map.get(task_id, []):
+                chat = self.session.get_or_create_chat(chat_id)
+                message_copy = push_message.model_copy(deep=True)
+                message_copy.query = ""
+                chat.store_interaction(message_copy)
+
+            await self.session.websocket_send(push_message)
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
@@ -181,9 +193,9 @@ class InternalTools:
         if task_id is None:
             task_id = self.create_task_id()
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
-        asyncio.create_task(_callback(delay, repetitions-1))
+        asyncio.create_task(_callback(delay, repetitions))
         return task_id
-    
+
     async def resume_scheduled_task(self, task: ScheduledTask):
         """resume scheduled task after deserialization"""
         now = datetime.now()
@@ -192,13 +204,14 @@ class InternalTools:
         if now >= then:
             skipped = ceil((now - then).seconds / task.interval)
             then += timedelta(seconds=task.interval) * skipped
-            if task.repetitions != -1:
+            if task.repetitions >= 0:
                 task.repetitions = max(0, task.repetitions - skipped)
         if task.repetitions != 0:
             logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
             await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
         else:
             logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
+            del self.session.scheduled_tasks[task.task_id]
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
@@ -251,4 +264,3 @@ class InternalTools:
     async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
-    

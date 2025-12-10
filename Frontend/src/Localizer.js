@@ -112,6 +112,9 @@ export const localizationData = {
         tooltipExpandExtension: "Expand",
         apiKeyMissing: "Please provide an API key for this model: ",
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
+        tooltipAppendNotification: "Append to current Chat",
+        tooltipDismissNotification: "Dismiss",
+        autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "There are currently no notifications",
     },
 
@@ -222,6 +225,9 @@ export const localizationData = {
         tooltipExpandExtension: "Vergrößern",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
+        tooltipAppendNotification: "An den geöffneten Chat heften",
+        tooltipDismissNotification: "Entfernen",
+        autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Gerade sind hier keine Benachrichtigungen",
     },
 };

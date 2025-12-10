@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Set
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -22,20 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 def get_supported_models(supports_structured_output: bool = False):
+    def get_env(key: str, alt: str = '') -> list[str]:
+        return os.getenv(key, alt).split(";")
+    hosts = get_env("LLM_HOSTS", "openai;mistral;anthropic;gemini")
+    api_keys = get_env("LLM_API_KEYS", ";;;")
+    models = get_env("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash")
     return [
         (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_HOSTS", "openai").split(";"),
-            os.getenv("LLM_API_KEYS", "").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5").split(";"),
-        )
-    ] if supports_structured_output else[
-        (url, key, models.split(","))
-        for url, key, models in zip(
-            os.getenv("LLM_HOSTS", "openai;mistral;anthropic;gemini").split(";"),
-            os.getenv("LLM_API_KEYS", ";;;").split(";"),
-            os.getenv("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash").split(";"),
-        )
+        for url, key, models in zip(hosts, api_keys, models)
+        if url == "openai" or not supports_structured_output
     ]
 
 # VARIOUS REST REQUEST/RESPONSE CLASSES AND INTERNAL MODEL ELEMENTS
@@ -167,7 +162,7 @@ class ToolCall(BaseModel):
 class ScheduledTask(BaseModel):
     """
     An LLM Task scheduled for later execution, by sending the query to the LLM at a later time
-    
+
     Attributes:
         method: the AgentMethod originally used to create this task; will be used again for re-creating it
         task_id: ID given to this task, needed for cancelling tasks
@@ -219,8 +214,8 @@ class Chat(BaseModel):
     def derive_name(self) -> None:
         """derive name from first interaction, if any, and if not set yet"""
         if not self.name and self.responses:
-            query = self.responses[0].query
-            self.name = (f'{query[:32]}…' if len(query) > 32 else query)
+            message = self.responses[0].query or self.responses[0].content
+            self.name = (f'{message[:32]}…' if len(message) > 32 else message)
 
 
 class SessionData(BaseModel):
@@ -236,6 +231,7 @@ class SessionData(BaseModel):
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
+        notifications_chats_map: Which notifications should be auto-appended to which chats.
         valid_until: Timestamp until session is active.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
@@ -256,6 +252,7 @@ class SessionData(BaseModel):
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
+    notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
@@ -304,7 +301,7 @@ class SessionData(BaseModel):
 
     def has_websocket(self) -> bool:
         return self._websocket is not None
-    
+
     async def websocket_send_pending(self):
         for msg in self._ws_out_cache:
             await self._websocket.send_json(msg)
@@ -325,6 +322,26 @@ class SessionData(BaseModel):
             return await self._ws_msg_queue.get()
         else:
             raise Exception("Websocket not connected")
+
+    def prune_notifications_chats_map(self):
+        """Remove orphaned taskIds and invalid chatIds."""
+        to_delete = []
+
+        for task_id, chat_ids in list(self.notifications_chats_map.items()):
+            # Delete map entries for tasks no longer scheduled
+            if task_id not in self.scheduled_tasks:
+                to_delete.append(task_id)
+                continue
+
+            # Remove chat_ids that no longer exist
+            if cleaned := {cid for cid in chat_ids if cid in self.chats}:
+                self.notifications_chats_map[task_id] = cleaned
+            else:
+                to_delete.append(task_id)
+
+        # Remove any empty / invalid entries
+        for task_id in to_delete:
+            del self.notifications_chats_map[task_id]
 
 
 class SearchResult(BaseModel):
@@ -389,8 +406,21 @@ class MetricsMessage(BaseModel):
     execution_time: float
 
 
+class PushAdvert(BaseModel):
+    """Announcement for incoming PushMessage/Notification"""
+    task_id: int
+    query: str
+
+
 class PushMessage(QueryResponse):
-    """Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task"""
+    """
+    Basically just a QueryResponse, but sent via websocket at the end of "execute-later" task.
+
+    Attributes:
+        task_id: The scheduled task the PushMessage belongs to
+    """
+    model_config = {"extra": "ignore"}
+    task_id: int
 
 
 class ContainerLoginNotification(BaseModel):

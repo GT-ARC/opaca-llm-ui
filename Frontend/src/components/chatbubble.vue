@@ -455,7 +455,7 @@ export default {
     },
 
     mounted() {
-        if (this.isCollapsible) {
+        if (!this.isLoading && this.isCollapsible) {
             this.isCollapsed = true;
         }
     },
@@ -464,6 +464,14 @@ export default {
         this.scrollDownDebugMsg();
     },
 
+    watch: {
+        isLoading(newVal) {
+            if (!newVal && !this.isCollapsible) {
+                this.toggleCollapsed(true);
+            }
+        }
+    },
+    
 }
 </script>
 

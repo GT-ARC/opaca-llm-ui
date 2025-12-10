@@ -491,7 +491,7 @@ export default {
                 this.scrollDownChat();
             }
 
-            if (result.type === "PushMessage") {
+            if (result.type === "PushAdvert" || result.type === "PushMessage") {
                 this.$emit('new-notification', result);
             }
 
@@ -653,8 +653,8 @@ export default {
             });
         },
 
-        async loadHistory(chatId) {
-            if (!chatId || chatId === this.selectedChatId) return;
+        async loadHistory(chatId, switchChat = true) {
+            if (!chatId || !switchChat && this.selectedChatId !== chatId) return;
             try {
                 const res = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
@@ -667,8 +667,10 @@ export default {
                 for (const msg of res.responses) {
                     if (!msg) continue;
                     // request
-                    await this.addChatBubble(msg.query, true);
-                    debug.addDebugMessage(msg.query, "user");
+                    if (msg.query) {
+                        await this.addChatBubble(msg.query, true);
+                        debug.addDebugMessage(msg.query, "user");
+                    }
                     // response
                     await this.addChatBubble(msg.content, false);
                     for (const agent_message of msg.agent_messages) {

@@ -17,7 +17,7 @@ from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException
+    SearchResult, get_supported_models, SessionData, OpacaException, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -44,7 +44,7 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
-    asyncio.create_task(cleanup_task())
+    asyncio.create_task(cleanup_task(60))
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
@@ -239,6 +239,17 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
                 ))
 
     return results
+
+
+@app.post("/chats/{chat_id}/append", description="Append a single push message to a chat")
+async def append(chat_id: str, auto_append: bool, push_message: PushMessage, request: Request, response: Response) -> None:
+    session = await handle_session_id(request, response)
+    chat = session.get_or_create_chat(chat_id, True)
+    chat.store_interaction(push_message)
+    # Update mapping for auto-append
+    if auto_append:
+        session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
+
 
 ## CONFIG ROUTES
 

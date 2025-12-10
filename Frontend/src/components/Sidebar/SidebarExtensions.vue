@@ -82,7 +82,9 @@ import backendClient from "../../utils.js";
 
 export default {
     name: 'SidebarExtensions',
-    props: {},
+    props: {
+        isPlatformConnected: Boolean,
+    },
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Localizer, SidebarManager, isMobile, screenWidth };
@@ -95,9 +97,9 @@ export default {
         };
     },
     methods: {
-        async updatePlatformInfo(isPlatformConnected) {
+        async updatePlatformInfo() {
             this.isLoading = true;
-            this.extraPorts = isPlatformConnected
+            this.extraPorts = this.isPlatformConnected
                 ? await backendClient.getExtraPorts()
                 : null;
             this.isLoading = false;
@@ -106,6 +108,12 @@ export default {
         getFullUrl(extensionPort, token) {
             return token ? `${extensionPort}?token=${token}` : extensionPort;
         }
+    },
+
+    watch: {
+        isPlatformConnected() {
+            this.updatePlatformInfo();
+        },
     }
 }
 </script>

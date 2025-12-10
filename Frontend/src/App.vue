@@ -83,6 +83,7 @@
                                role="button" data-bs-toggle="dropdown"
                                @click="this.unreadNotifications = 0">
                                 <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else-if="this.pendingNotification" class="fa-regular fa-bell text-info me-1" />
                                 <i v-else class="fa-regular fa-bell me-1" />
                                 <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
                             </a>
@@ -91,6 +92,7 @@
                                  aria-labelledby="notifications-dropdown">
                                 <Notifications
                                     ref="Notifications"
+                                    @append-to-chat="(pushMessage) => handleAppendToChat(pushMessage)"
                                 />
                             </div>
                         </li>
@@ -169,6 +171,7 @@ export default {
             isConnecting: false,
             selectedCategory: null,
             unreadNotifications: 0,
+            pendingNotification: false,
         }
     },
     methods: {
@@ -187,13 +190,13 @@ export default {
                     this.connected = false;
 
                     await this.$refs.input.showDialogue(
-                        "Platform Login", 
+                        "Platform Login",
                         Localizer.get('unauthenticated'),
-                        username != "" ? Localizer.get('authError') : null,
+                        username !== "" ? Localizer.get('authError') : null,
                         {
                             username: { type: "text", label: Localizer.get("username") },
                             password: { type: "password", label: Localizer.get("password") },
-                        }, 
+                        },
                         (values) => {
                             if (values != null) {
                                 this.connectToPlatform(values.username, values.password);
@@ -267,8 +270,15 @@ export default {
 
         createNotification(response) {
             const notificationArea = this.$refs.Notifications;
-            notificationArea.addNotificationBubble(response);
-            this.unreadNotifications += 1;
+            if (response.type === "PushAdvert")  {
+                notificationArea.addPendingNotificationBubble(response);
+                this.pendingNotification = true;
+            }
+            if (response.type === "PushMessage")  {
+                notificationArea.addNotificationBubble(response);
+                this.pendingNotification = false;
+                this.unreadNotifications += 1;
+            }
         },
 
         async showInfo(message) {
@@ -277,8 +287,8 @@ export default {
 
         async handleContainerLogin(containerLoginDetails) {
             await this.$refs.input.showDialogue(
-                "Container Login", 
-                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`, 
+                "Container Login",
+                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
                 containerLoginDetails.retry ? Localizer.get('authError') : null,
                 {
                     username: { type: "text", label: Localizer.get("username") },
@@ -290,7 +300,7 @@ export default {
                         "3600": "Logout after 1 hour",
                         "14400": "Logout after 4 hours",
                     }},
-                }, 
+                },
                 (values) => {
                     if (values != null) {
                         this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
@@ -308,7 +318,7 @@ export default {
                 null,
                 {
                     apiKey: { type: "password" },
-                }, 
+                },
                 (values) => {
                     if (values != null) {
                         this.$refs.content.submitApiKey(values.apiKey);
@@ -330,7 +340,28 @@ export default {
             }
             this.showInfo(Localizer.get('backendUnreachable'));
             throw new Error("SAGE Backend is unreachable.");
-        }
+        },
+
+        async handleAppendToChat(pushMessage) {
+            await this.$refs.input.showDialogue(
+                Localizer.get('tooltipAppendNotification'),
+                null,
+                null,
+                {
+                    autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
+                },
+                async (values) => {
+                    if (values !== null) {
+                        // append to current chat
+                        const chatId = this.$refs.content.selectedChatId;
+                        await backendClient.append(chatId, pushMessage, values.autoAppend);
+                        // refresh current chat history and chats sidebar
+                        await this.$refs.content.loadHistory(chatId, false);
+                        await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
+                    }
+                }
+            );
+        },
     },
 
     async mounted() {
