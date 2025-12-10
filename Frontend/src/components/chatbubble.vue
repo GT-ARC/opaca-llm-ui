@@ -113,7 +113,7 @@
             </div>
 
             <!-- footer: icons -->
-            <div v-if="!this.isCollapsed"
+            <div v-if="!this.isCollapsed && !this.isCollapsed"
                  class="d-flex justify-content-start small mt-2">
 
                 <!-- copy to clipboard -->
@@ -168,7 +168,7 @@
             </div>
 
             <!-- footer: debug messages -->
-            <div v-show="this.isDebugExpanded">
+            <div v-show="this.isDebugExpanded && t">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
                      style="max-height: 200px"
                      @scroll="handleDebugScroll">
@@ -471,7 +471,7 @@ export default {
             }
         }
     },
-    
+
 }
 </script>
 
