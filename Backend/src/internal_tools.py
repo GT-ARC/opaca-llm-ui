@@ -144,12 +144,11 @@ class InternalTools:
                 return
 
             # schedule next execution or remove task from list of tasks
-            if remaining < 0:   # negative -> infinite more
-                asyncio.create_task(_callback(interval, remaining))
-            elif remaining > 0: # positive -> decrement and repeat
-                asyncio.create_task(_callback(interval, remaining-1))
-                self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
-            else: # zero -> remove task
+            new_remaining = remaining - 1 if remaining > 0 else remaining
+            if new_remaining != 0:
+                asyncio.create_task(_callback(interval, new_remaining))
+                self.session.scheduled_tasks[task_id] = make_task(interval, new_remaining)
+            else:
                 del self.session.scheduled_tasks[task_id]
 
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
@@ -181,7 +180,7 @@ class InternalTools:
         if task_id is None:
             task_id = self.create_task_id()
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
-        asyncio.create_task(_callback(delay, repetitions-1))
+        asyncio.create_task(_callback(delay, repetitions))
         return task_id
     
     async def resume_scheduled_task(self, task: ScheduledTask):
@@ -192,13 +191,14 @@ class InternalTools:
         if now >= then:
             skipped = ceil((now - then).seconds / task.interval)
             then += timedelta(seconds=task.interval) * skipped
-            if task.repetitions != -1:
+            if task.repetitions >= 0:
                 task.repetitions = max(0, task.repetitions - skipped)
         if task.repetitions != 0:
             logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
             await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
         else:
             logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
+            del self.session.scheduled_tasks[task.task_id]
 
     async def query_method(self, query: str) -> QueryResponse:
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""

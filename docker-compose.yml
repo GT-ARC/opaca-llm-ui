@@ -24,6 +24,8 @@ services:
     image: opaca-llm-backend
     ports:
       - "3001:3001"
+    depends_on:
+      - session-db
     environment:
       TZ: Europe/Berlin
       OPENAI_API_KEY:
