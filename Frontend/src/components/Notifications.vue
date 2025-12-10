@@ -157,4 +157,12 @@ export default {
     border-radius: 1rem !important;
     cursor: pointer;
 }
+
+.notification-button:hover {
+    background-color: var(--input-color);
+}
+
+.notification-button:active {
+    color: var(--text-danger-color);
+}
 </style>
