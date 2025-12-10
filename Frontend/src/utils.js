@@ -25,6 +25,10 @@ class BackendClient {
         return await this.sendRequest("GET", "actions");
     }
 
+    async getExtraPorts() {
+        return await this.sendRequest("GET", "extra-ports");
+    }
+
     // chat
 
     async query(chatId, method, user_query, streaming=False, timeout=10000) {

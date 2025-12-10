@@ -1,17 +1,21 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ elementId, fullResponse, content, time } in this.messages">
+        <div v-for="{ elementId, fullResponse, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <!-- grouped buttons -->
                 <div class="d-flex gap-1">
-                    <i class="fa fa-comment-medical notification-button"
+                    <i v-if="loading" class="fa fa-stop notification-button"
+                        @click.stop="this.stopNotifications()"
+                        title="Stop"
+                    />
+                    <i v-if="! loading" class="fa fa-comment-medical notification-button"
                        @click.stop="this.appendToChat(fullResponse)"
                        :title="Localizer.get('tooltipAppendNotification')"
                     />
-                    <i class="fa fa-remove notification-button"
+                    <i v-if="! loading"class="fa fa-remove notification-button"
                         @click.stop="this.dismissNotification(elementId)"
-                        :title="Localizer.get('tooltipDismissNotification')"
+                        title="Dismiss"
                     />
                 </div>
             </div>
@@ -20,7 +24,7 @@
                 :element-id="elementId"
                 :is-user="false"
                 :initial-content="content"
-                :initial-loading="false"
+                :initial-loading="loading"
                 :is-bookmarked="false"
                 :files="[]"
                 :chat-id="''"
@@ -32,11 +36,11 @@
 </template>
 
 <script>
-import {nextTick} from "vue";
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import Localizer from "../Localizer.js";
 import { useDevice } from "../useIsMobile.js";
+import backendClient from "../utils.js";
 
 export default {
     name: 'notifications-area',
@@ -55,21 +59,34 @@ export default {
     },
     data() {
         return {
-            messages: []
+            messages: [],
+            nextElementId: 0,
         }
     },
     methods: {
 
-        /**
-         * adapted from different parts in content.vue
-         */
-        async addNotificationBubble(response) {
-            const elementId = `chatbubble-${this.messages.length}`;
-
-            const message = {
+        async addPendingNotificationBubble(response) {
+            const elementId = `chatbubble-${this.nextElementId++}`;
+            const message = { 
                 elementId: elementId,
+                loading: true, 
+                content: response.query, 
+                time: new Date().toLocaleString(),
+            };
+            this.messages.unshift(message);
+        },
+
+        async addNotificationBubble(response) {
+            // remove loading messages (also for other task if multiple in parallel...)
+            this.messages = this.messages.filter(m => ! m.loading);
+
+            const elementId = `chatbubble-${this.nextElementId++}`;
+
+            const message = { 
+                elementId: elementId, 
                 fullResponse: response,
-                content: response.content,
+                loading: false,
+                content: response.content, 
                 time: new Date().toLocaleString(),
             };
             this.messages.unshift(message);
@@ -93,6 +110,12 @@ export default {
             if (response.error) {
                 chatBubble.setError(response.error);
             }
+        },
+
+        async stopNotifications() {
+            backendClient.stop();
+            // there is no differentiation WHICH notification to stop, so this just removes all loading...
+            this.messages = this.messages.filter(m => ! m.loading);
         },
 
         async dismissNotification(elementId) {

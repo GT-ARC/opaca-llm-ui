@@ -44,7 +44,7 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
-    asyncio.create_task(cleanup_task())
+    asyncio.create_task(cleanup_task(60))
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
@@ -122,6 +122,12 @@ async def disconnect(request: Request, response: Response) -> Response:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
     return Response(status_code=204)
+
+
+@app.get("/extra-ports", description="Get extra ports providing additional functionalities.")
+async def get_extra_ports(request: Request, response: Response) -> list[dict[str, Any]]:
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.get_extra_ports()
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
@@ -379,6 +385,9 @@ async def open_websocket(websocket: WebSocket):
     except Exception as e:
         pass  # this is normal when e.g. the browser is closed
     finally:
+        # when the browser session is closed, immediately logout of all previously logged in containers
+        for container_id in list(session.opaca_client.logged_in_containers):
+            await session.opaca_client.deferred_container_logout(container_id, 0)
         session._websocket = None
 
 

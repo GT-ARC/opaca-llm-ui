@@ -491,7 +491,7 @@ export default {
                 this.scrollDownChat();
             }
 
-            if (result.type === "PushMessage") {
+            if (result.type === "PushAdvert" || result.type === "PushMessage") {
                 this.$emit('new-notification', result);
             }
 
