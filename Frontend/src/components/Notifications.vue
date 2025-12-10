@@ -1,9 +1,13 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ elementId, content, time } in this.messages">
+        <div v-for="{ elementId, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
-                <i class="fa fa-remove delete-button"
+                <i v-if="loading" class="fa fa-stop chatbubble-button"
+                    @click.stop="this.stopNotifications()"
+                    title="Stop"
+                />
+                <i v-else class="fa fa-remove chatbubble-button"
                     @click.stop="this.dismissNotification(elementId)"
                     title="Dismiss"
                 />
@@ -13,7 +17,7 @@
                 :element-id="elementId"
                 :is-user="false"
                 :initial-content="content"
-                :initial-loading="false"
+                :initial-loading="loading"
                 :is-bookmarked="false"
                 :files="[]"
                 :chat-id="''"
@@ -25,11 +29,11 @@
 </template>
 
 <script>
-import {nextTick} from "vue";
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import Localizer from "../Localizer.js";
 import { useDevice } from "../useIsMobile.js";
+import backendClient from "../utils.js";
 
 export default {
     name: 'notifications-area',
@@ -47,20 +51,33 @@ export default {
     },
     data() {
         return {
-            messages: []
+            messages: [],
+            nextElementId: 0,
         }
     },
     methods: {
 
-        /**
-         * adapted from different parts in content.vue
-         */
+        async addPendingNotificationBubble(response) {
+            const elementId = `chatbubble-${this.nextElementId++}`;
+            const message = { 
+                elementId: elementId,
+                loading: true, 
+                content: response.query, 
+                time: new Date().toLocaleString(),
+            };
+            this.messages.unshift(message);
+        },
+
         async addNotificationBubble(response) {
-            const elementId = `chatbubble-${this.messages.length}`;
+            // remove loading messages (also for other task if multiple in parallel...)
+            this.messages = this.messages.filter(m => ! m.loading);
+
+            const elementId = `chatbubble-${this.nextElementId++}`;
 
             const message = { 
                 elementId: elementId, 
-                content: response.content , 
+                loading: false,
+                content: response.content, 
                 time: new Date().toLocaleString(),
             };
             this.messages.unshift(message);
@@ -86,6 +103,12 @@ export default {
             }
         },
 
+        async stopNotifications() {
+            backendClient.stop();
+            // there is no differentiation WHICH notification to stop, so this just removes all loading...
+            this.messages = this.messages.filter(m => ! m.loading);
+        },
+
         async dismissNotification(elementId) {
             this.messages = this.messages.filter(m => m.elementId != elementId);
         }
@@ -103,7 +126,7 @@ export default {
     max-width: calc(100vw - 9rem);
 }
 
-.delete-button {
+.chatbubble-button {
     width: 2rem;
     height: 2rem;
     display: inline-flex;

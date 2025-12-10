@@ -83,6 +83,7 @@
                                role="button" data-bs-toggle="dropdown"
                                @click="this.unreadNotifications = 0">
                                 <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else-if="this.pendingNotification" class="fa-regular fa-bell text-info me-1" />
                                 <i v-else class="fa-regular fa-bell me-1" />
                                 <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
                             </a>
@@ -169,6 +170,7 @@ export default {
             isConnecting: false,
             selectedCategory: null,
             unreadNotifications: 0,
+            pendingNotification: false,
         }
     },
     methods: {
@@ -267,8 +269,15 @@ export default {
 
         createNotification(response) {
             const notificationArea = this.$refs.Notifications;
-            notificationArea.addNotificationBubble(response);
-            this.unreadNotifications += 1;
+            if (response.type == "PushAdvert")  {
+                notificationArea.addPendingNotificationBubble(response);
+                this.pendingNotification = true;
+            }
+            if (response.type == "PushMessage")  {
+                notificationArea.addNotificationBubble(response);
+                this.pendingNotification = false;
+                this.unreadNotifications += 1;
+            }
         },
 
         async showInfo(message) {
