@@ -56,7 +56,7 @@ class ToolLLMMethod(AbstractMethod):
         total_exec_time = time.time()
 
         # If files were uploaded, check if any tools need to be called with extracted information
-        if self.session.uploaded_files:
+        if not all(f.suspended for _, f in self.session.uploaded_files.items()):
             result = await self.call_llm(
                 model=config.tool_eval_model,
                 agent='Tool Evaluator',
