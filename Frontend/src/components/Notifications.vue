@@ -1,16 +1,23 @@
 <template>
     <div class="notifications-container overflow-auto">
-        <div v-for="{ elementId, loading, content, time } in this.messages">
+        <div v-for="{ elementId, fullResponse, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
-                <i v-if="loading" class="fa fa-stop chatbubble-button"
-                    @click.stop="this.stopNotifications()"
-                    title="Stop"
-                />
-                <i v-else class="fa fa-remove chatbubble-button"
-                    @click.stop="this.dismissNotification(elementId)"
-                    title="Dismiss"
-                />
+                <!-- grouped buttons -->
+                <div class="d-flex gap-1">
+                    <i v-if="loading" class="fa fa-stop notification-button"
+                        @click.stop="this.stopNotifications()"
+                        title="Stop"
+                    />
+                    <i v-if="! loading" class="fa fa-comment-medical notification-button"
+                       @click.stop="this.appendToChat(fullResponse)"
+                       :title="Localizer.get('tooltipAppendNotification')"
+                    />
+                    <i v-if="! loading"class="fa fa-remove notification-button"
+                        @click.stop="this.dismissNotification(elementId)"
+                        title="Dismiss"
+                    />
+                </div>
             </div>
             <Chatbubble
                 :key="content"
@@ -44,6 +51,7 @@ export default {
     },
     emits: [
         // create new chat from notification
+        "append-to-chat"
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice()
@@ -76,6 +84,7 @@ export default {
 
             const message = { 
                 elementId: elementId, 
+                fullResponse: response,
                 loading: false,
                 content: response.content, 
                 time: new Date().toLocaleString(),
@@ -111,8 +120,11 @@ export default {
 
         async dismissNotification(elementId) {
             this.messages = this.messages.filter(m => m.elementId != elementId);
-        }
+        },
 
+        async appendToChat(response) {
+            this.$emit('append-to-chat', response);
+        }
     },
 }
 
@@ -126,7 +138,7 @@ export default {
     max-width: calc(100vw - 9rem);
 }
 
-.chatbubble-button {
+.notification-button {
     width: 2rem;
     height: 2rem;
     display: inline-flex;

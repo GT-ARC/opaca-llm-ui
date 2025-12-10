@@ -168,7 +168,20 @@ class InternalTools:
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
-            await self.session.websocket_send(PushMessage(task_id=task_id, **result.model_dump()))
+
+            # Clean mapping
+            self.session.prune_notifications_chats_map()
+
+            push_message = PushMessage(task_id=task_id, **result.model_dump())
+
+            # Append to all chats that are selected for auto-append
+            for chat_id in self.session.notifications_chats_map.get(task_id, []):
+                chat = self.session.get_or_create_chat(chat_id)
+                message_copy = push_message.model_copy(deep=True)
+                message_copy.query = ""
+                chat.store_interaction(message_copy)
+
+            await self.session.websocket_send(push_message)
 
         def make_task(delay, remaining):
             next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
@@ -182,7 +195,7 @@ class InternalTools:
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions))
         return task_id
-    
+
     async def resume_scheduled_task(self, task: ScheduledTask):
         """resume scheduled task after deserialization"""
         now = datetime.now()
@@ -251,4 +264,3 @@ class InternalTools:
     async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
-    
