@@ -328,11 +328,10 @@ class SessionData(BaseModel):
             return await self._ws_msg_queue.get()
         else:
             raise Exception("Websocket not connected")
-        
+
     def prune_notifications_chats_map(self):
         """Remove orphaned taskIds and invalid chatIds."""
         to_delete = []
-        print("BEFORE CLEANUP", self.notifications_chats_map)
 
         for task_id, chat_ids in list(self.notifications_chats_map.items()):
             # Delete map entries for tasks no longer scheduled
@@ -349,8 +348,6 @@ class SessionData(BaseModel):
         # Remove any empty / invalid entries
         for task_id in to_delete:
             del self.notifications_chats_map[task_id]
-
-        print("AFTER CLEANUP", self.notifications_chats_map)
 
 
 class SearchResult(BaseModel):
@@ -422,6 +419,7 @@ class PushMessage(QueryResponse):
     Attributes:
         task_id: The scheduled task the PushMessage belongs to
     """
+    model_config = {"extra": "ignore"}
     task_id: int
 
 

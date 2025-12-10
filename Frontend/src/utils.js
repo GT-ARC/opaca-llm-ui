@@ -68,17 +68,9 @@ class BackendClient {
     }
 
     async append(chatId, pushMessage, autoAppend) {
-        // Reconstruct PushMessage
-        const body = {
-            task_id: pushMessage.task_id,
-            query: "",
-            agent_messages: pushMessage.agent_messages,
-            iterations: pushMessage.iterations,
-            execution_time: pushMessage.execution_time,
-            content: pushMessage.content,
-            error: pushMessage.error
-        };
-        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, body);
+        // Reset query
+        pushMessage.query = "";
+        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, pushMessage);
     }
 
     // files
