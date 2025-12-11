@@ -126,6 +126,16 @@ class BackendClient {
         return await this.sendRequest("POST", "bookmarks", bookmarks);
     }
 
+    // mcp
+
+    async getMCPs() {
+        return await this.sendRequest("GET", "mcp");
+    }
+
+    async saveMCPs(mcp) {
+        return await this.sendRequest("POST", "mcp", mcp);
+    }
+
     // internal helper
 
     async sendRequest(method, path, body = null, timeout = 10000) {

@@ -29,6 +29,13 @@
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
+            <i
+               @click="SidebarManager.toggleView('mcp')"
+               class="sidebar-menu-item mcp-logo"
+               :class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"
+               :title="Localizer.get('tooltipSidebarMcp')"
+            />
+
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarConfig')"
@@ -98,6 +105,12 @@
                     ref="agents"
                 />
 
+                <!-- MCP servers -->
+                <SidebarMcp
+                    v-show="SidebarManager.isViewSelected('mcp')"
+                    ref="mcp"
+                />
+
                 <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
@@ -137,10 +150,12 @@ import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
+import SidebarMcp from "./SidebarMcp.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarMcp,
         SidebarFiles,
         SidebarChats,
         SidebarFaq,
@@ -181,6 +196,7 @@ export default {
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);
+            this.$refs.mcp.updateMcp(isPlatformConnected);
         },
 
         setupResizer() {
@@ -299,6 +315,29 @@ export default {
 
 .resizer:hover {
     background-color: var(--primary-color);
+}
+
+.sidebar-menu-item.mcp-logo {
+    width: 2em;
+    height: 2em;
+    mask-image: url('../../assets/Icons/mcp_logo.png');
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    background-color: var(--text-secondary-color);
+    color: transparent;
+}
+
+.sidebar-menu-item.mcp-logo:hover {
+    background-color: var(--primary-color);
+}
+
+.sidebar-menu-item-select.mcp-logo {
+    background-color: white !important;
+}
+
+.sidebar-menu-item-select.mcp-logo:hover {
+    background-color: white !important;
 }
 
 /* mobile design */
