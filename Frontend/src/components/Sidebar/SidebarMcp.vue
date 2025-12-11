@@ -65,7 +65,7 @@
         </div>
     </div>
     <div class="accordion-button d-flex align-items-center justify-content-center mb-2 cursor-pointer"
-         @click.stop="openEditor()">
+         @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
         <span>{{ Localizer.get('addMcp')}}</span>
     </div>
@@ -97,7 +97,6 @@ export default {
             platformMcp: null,
             isLoading: false,
             searchQuery: '',
-            jsonError: "Please enter valid MCP JSON",
         };
     },
     methods: {
@@ -109,18 +108,39 @@ export default {
             this.isLoading = false;
         },
 
-        async addMcp(mcpJson) {
-            const data = JSON.parse(mcpJson);
-
-            this.jsonError = "Please enter valid MCP JSON";
-            await backendClient.addMcp({"content": data});
-            this.showEditor = false;
-            await this.updateMcp(true);
+        async addMcp() {
+            await this.$refs.input.showDialogue(
+                Localizer.get('addMcp'),
+                null,
+                null,
+                {
+                    mcpJson: {type: "textarea", label: "MCP Server", default: "" },
+                }, 
+                async (values) => {
+                    if (values != null) {
+                        try {
+                            const data = JSON.parse(values.mcpJson);
+                            await backendClient.addMcp({"content": data});
+                            await this.updateMcp(true);
+                        } catch {
+                            await this.$refs.input.showInfo("MCP Server", "Please enter valid MCP JSON");
+                        }
+                    }
+                }
+            );
+            
         },
 
         async deleteMcp(mcpName) {
-            await backendClient.deleteMcp({"name": mcpName});
-            await this.updateMcp(true);
+            await this.$refs.input.showDialogue(
+                "Delete MCP server?", null, null, {}, 
+                async (values) => {
+                    if (values != null) {
+                        await backendClient.deleteMcp({"name": mcpName});
+                        await this.updateMcp(true);
+                    }
+                }
+            );
         },
 
         getMcp() {
@@ -136,23 +156,7 @@ export default {
                     acc[mcp] = this.platformMcp[mcp];
                     return acc;
                 }, {});
-        },
-
-        async openEditor() {
-            await this.$refs.input.showDialogue(
-                Localizer.get('addMcp'),
-                null,
-                null,
-                {
-                    mcpJson: {type: "textarea", label: "MCP Server", default: "" },
-                }, 
-                async (values) => {
-                    if (values != null) {
-                        await this.addMcp(values.mcpJson);
-                    }
-                }
-            );
-        },
+        }
     }
 }
 </script>
