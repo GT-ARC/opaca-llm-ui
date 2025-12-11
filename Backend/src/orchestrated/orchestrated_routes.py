@@ -40,8 +40,8 @@ class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
     CONFIG = OrchestrationConfig
 
-    def __init__(self, session, streaming=False):
-        super().__init__(session, streaming)
+    def __init__(self, session, streaming=False, internal_tools=None):
+        super().__init__(session, streaming, internal_tools)
 
     async def _execute_round(
             self,

@@ -15,9 +15,9 @@ from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-    ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
-    ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig
-)
+                     ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
+                     ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
+                     MissingApiKeyNotification, MissingApiKeyResponse)
 from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
@@ -28,11 +28,11 @@ class AbstractMethod(ABC):
     NAME: str
     CONFIG: type[MethodConfig]
 
-    def __init__(self, session: SessionData, streaming=False):
+    def __init__(self, session: SessionData, streaming=False, internal_tools: InternalTools = None):
         self.session = session
         self.streaming = streaming
         self.tool_counter = count(0)
-        self.internal_tools = InternalTools(session, type(self))
+        self.internal_tools = internal_tools
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
@@ -83,6 +83,10 @@ class AbstractMethod(ABC):
         if status_message:
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
 
+        # Check if an additional API key is required for this model
+        if not self.session.get_api_key(model) and not litellm.validate_environment(model).get("keys_in_environment"):
+            await self.handle_invalid_api_key(model)
+
         # Initialize variables
         exec_time = time.time()
         agent_message = AgentMessage(agent=agent, content='', tools=[])
@@ -95,6 +99,7 @@ class AbstractMethod(ABC):
 
         # Set settings for model invocation
         kwargs = {
+            'api_key': self.session.get_api_key(model),
             'model': model,
             'instructions': system_prompt,
             'input': [m.model_dump() for m in messages],
@@ -209,10 +214,10 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        opaca_tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        internal_tools = self.internal_tools.get_internal_tools_openai()
-        tools = [*opaca_tools, *internal_tools, *self.session.mcp_servers]
-
+        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        tools.extend(self.session.mcp_servers)
+        if self.internal_tools:
+            tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
@@ -226,28 +231,36 @@ class AbstractMethod(ABC):
         # If a "missing credentials" error is encountered, initiate container login
         container_id, container_name = await self.session.opaca_client.get_most_likely_container_id(agent_name, action_name)
 
+        # fix out-of-sync logged-in state, otherwise deadlock in retry within login-lock
+        if container_id in self.session.opaca_client.logged_in_containers:
+            del self.session.opaca_client.logged_in_containers[container_id]
+
+        # This lock prevents more than one login-request message being sent to the UI at once. If multiple
+        # invokes to actions of not-logged-in containers arrive, the second will wait here until the first
+        # has been processed, and then immediately retry if it the same container, otherwise ask the user
         async with self.session.opaca_client.login_lock:
             # might already be logged in on lock-release if two actions of same container were called in parallel
             if container_id in self.session.opaca_client.logged_in_containers:
                 return await self.invoke_tool(tool_name, tool_args, tool_id, True)
+            while True:
+                # Get credentials from user
+                await self.session.websocket_send(ContainerLoginNotification(
+                    container_name=container_name,
+                    tool_name=tool_name,
+                    retry=login_attempt_retry
+                ))
+                response = ContainerLoginResponse(**await self.session.websocket_receive())
+                if not (response.username and response.password):
+                    return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
+                
+                # Attempt to login at container via OPACA (error if immediate login-check fails)
+                try:
+                    await self.session.opaca_client.container_login(container_id, response.username, response.password)
+                    break
+                except:
+                    login_attempt_retry = True
 
-            # Get credentials from user
-            await self.session.websocket_send(ContainerLoginNotification(
-                container_name=container_name,
-                tool_name=tool_name,
-                retry=login_attempt_retry
-            ))
-            response = ContainerLoginResponse(**await self.session.websocket_receive())
-
-            # Check if credentials were provided
-            if not response.username or not response.password:
-                return ToolCall(id=tool_id, name=tool_name, args=tool_args,
-                                result=f"Failed to invoke tool.\nNo credentials provided.")
-
-            # Send credentials to container via OPACA
-            await self.session.opaca_client.container_login(container_id, response.username, response.password)
-
-        # try to invoke the tool again
+        # login succeeded (or not checked by container) -> try to invoke the tool again
         res = await self.invoke_tool(tool_name, tool_args, tool_id, True)
 
         # Schedule a deferred logout based on the user-provided timeout
@@ -255,6 +268,16 @@ class AbstractMethod(ABC):
 
         return res
 
+    async def handle_invalid_api_key(self, model, is_invalid: bool = False):
+        await self.send_to_websocket(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
+        response = MissingApiKeyResponse(**await self.session.websocket_receive())
+        if response.api_key:
+            if litellm.check_valid_key(model, response.api_key):
+                self.session.set_api_key(model, response.api_key)
+            else:
+                await self.handle_invalid_api_key(model, True)
+        else:
+            raise OpacaException(user_message=f"No valid API key was provided for model {model}!")
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):
     """

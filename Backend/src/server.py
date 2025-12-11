@@ -18,14 +18,14 @@ from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
+from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, delete_all_sessions, \
-    cleanup_task, on_shutdown, load_all_sessions
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -45,8 +45,9 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
-    asyncio.create_task(cleanup_task())
+    asyncio.create_task(cleanup_task(60))
     await load_all_sessions()
+    await restore_scheduled_tasks(METHODS)
 
     try:
         # app running
@@ -124,6 +125,12 @@ async def disconnect(request: Request, response: Response) -> Response:
     return Response(status_code=204)
 
 
+@app.get("/extra-ports", description="Get extra ports providing additional functionalities.")
+async def get_extra_ports(request: Request, response: Response) -> list[dict[str, Any]]:
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.get_extra_ports()
+
+
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
@@ -199,7 +206,8 @@ async def query_chat(request: Request, response: Response, method: str, chat_id:
     session.abort_sent = False
     result = None
     try:
-        result = await METHODS[method](session, message.streaming).query(message.user_query, chat)
+        internal_tools = InternalTools(session, METHODS[method])
+        result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
@@ -258,6 +266,17 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
                 ))
 
     return results
+
+
+@app.post("/chats/{chat_id}/append", description="Append a single push message to a chat")
+async def append(chat_id: str, auto_append: bool, push_message: PushMessage, request: Request, response: Response) -> None:
+    session = await handle_session_id(request, response)
+    chat = session.get_or_create_chat(chat_id, True)
+    chat.store_interaction(push_message)
+    # Update mapping for auto-append
+    if auto_append:
+        session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
+
 
 ## CONFIG ROUTES
 
@@ -335,19 +354,6 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
 
     return False
 
-## BOOKMARK ROUTES
-
-@app.get("/bookmarks")
-async def get_bookmarks(request: Request) -> list:
-    session = await handle_session_id(request)
-    return session.bookmarks
-
-@app.post("/bookmarks")
-async def save_bookmarks(request: Request) -> None:
-    session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
-
 
 @app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.")
 async def view_file(request: Request, response: Response, file_id: str):
@@ -372,6 +378,21 @@ async def view_file(request: Request, response: Response, file_id: str):
     )
 
 
+## BOOKMARK ROUTES
+
+@app.get("/bookmarks")
+async def get_bookmarks(request: Request) -> list:
+    session = await handle_session_id(request)
+    return session.bookmarks
+
+
+@app.post("/bookmarks")
+async def save_bookmarks(request: Request) -> None:
+    session = await handle_session_id(request)
+    new_bookmarks = await request.json()
+    session.bookmarks = new_bookmarks
+
+
 # WEBSOCKET CONNECTION (permanently opened)
 
 @app.websocket("/ws")
@@ -380,16 +401,20 @@ async def open_websocket(websocket: WebSocket):
     session = await handle_session_id(websocket)
     session._websocket = websocket
     session._ws_msg_queue = asyncio.Queue()
+    await session.websocket_send_pending()
     try:
         while True:
             logger.debug("websocket waiting...")
-            # message coming from the websocket are received here and put into an async queue
+            # messages coming from the websocket are received here and put into an async queue
             # so any exceptions (like websocket closing) can be handled here without losing messages
             response = await websocket.receive_json()
             await session._ws_msg_queue.put(response)
     except Exception as e:
         pass  # this is normal when e.g. the browser is closed
     finally:
+        # when the browser session is closed, immediately logout of all previously logged in containers
+        for container_id in list(session.opaca_client.logged_in_containers):
+            await session.opaca_client.deferred_container_logout(container_id, 0)
         session._websocket = None
 
 

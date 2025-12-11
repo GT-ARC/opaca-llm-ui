@@ -29,12 +29,15 @@
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
-            <i
-               @click="SidebarManager.toggleView('mcp')"
+            <i @click="SidebarManager.toggleView('extensions')"
+               class="fa fa-puzzle-piece sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarExtensions')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
+
+            <i @click="SidebarManager.toggleView('mcp')"
                class="sidebar-menu-item mcp-logo"
-               :class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"
                :title="Localizer.get('tooltipSidebarMcp')"
-            />
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
 
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog sidebar-menu-item"
@@ -64,7 +67,7 @@
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.handleUpdatePlatformInfo"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="info"
                 />
 
@@ -102,7 +105,15 @@
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
+                    :is-platform-connected="connected"
                     ref="agents"
+                />
+
+                <!-- UI extensions -->
+                <SidebarExtensions
+                    v-show="SidebarManager.isViewSelected('extensions')"
+                    :is-platform-connected="connected"
+                    ref="extensions"
                 />
 
                 <!-- MCP servers -->
@@ -144,6 +155,7 @@ import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
+import SidebarExtensions from './SidebarExtensions.vue';
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
@@ -163,6 +175,7 @@ export default {
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
+        SidebarExtensions,
         SidebarQuestions,
     },
     props: {
@@ -193,11 +206,14 @@ export default {
         return {};
     },
     methods: {
+        // not sure where this should go now...
+        /*
         handleUpdatePlatformInfo(isPlatformConnected) {
             if (!this.$refs.agents) return;
             this.$refs.agents.updatePlatformInfo(isPlatformConnected);
             this.$refs.mcp.updateMcp(isPlatformConnected);
         },
+        */
 
         setupResizer() {
             const resizer = document.getElementById('resizer');

@@ -12,21 +12,20 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
-from itertools import count
 from datetime import datetime, timedelta
+from math import ceil
 
 from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from .models import SessionData, Chat, PushMessage, ScheduledTask, QueryResponse
+from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 
 
+TIME_FORMAT = "%b %d %Y %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 logger = logging.getLogger(__name__)
-
-task_ids_provider = count()
 
 
 class InternalTool(BaseModel):
@@ -127,11 +126,15 @@ class InternalTools:
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
+        """get callback method for internal tool matching the name and call with given parameters"""
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
 
-    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int):
-        
+    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
+        """
+        helper method used for creating different sorts of scheduled tasks (interval and daily)
+        and for restoring serialized scheduled tasks after restart
+        """
         async def _callback(wait_time: int, remaining: int):
             # wait until it's time to execute the task...
             await asyncio.sleep(wait_time)
@@ -140,39 +143,83 @@ class InternalTools:
                 return
 
             # schedule next execution or remove task from list of tasks
-            if remaining < 0:   # negative -> infinite more
-                asyncio.create_task(_callback(interval, remaining))
-            elif remaining > 0: # positive -> decrement and repeat
-                asyncio.create_task(_callback(interval, remaining-1))
-                self.session.scheduled_tasks[task_id] = make_task(interval, remaining)
-            else: # zero -> remove task
+            new_remaining = remaining - 1 if remaining > 0 else remaining
+            if new_remaining != 0:
+                asyncio.create_task(_callback(interval, new_remaining))
+                self.session.scheduled_tasks[task_id] = make_task(interval, new_remaining)
+            else:
                 del self.session.scheduled_tasks[task_id]
 
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
             # execute the task, then send result/error
+            await self.session.websocket_send(PushAdvert(task_id=task_id, query=query))
             try:
-                query_extra = "\n\nNOTE: This query was triggered by the 'ScheduleTask' tool. If it says to 'remind' the user of something, just output that thing the user asked about, e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder! If it asked you to do something by that time, just do it and report on the results as usual."
-                result = await self.query_method(query + query_extra)
+                query_ext = dedent(f"""
+                    This query was triggered by the 'ScheduleTask' tool: 
+
+                    {query}
+
+                    If it says to 'remind' the user of something, just output that thing the user asked about,
+                    e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder!
+                    If it asked you to do something by that time, just do it and report on the results as usual.
+                """)
+                result = await self.query_method(query_ext)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse.from_exception(query, e)
-            await self.session.websocket_send(PushMessage(**result.model_dump()))
+
+            # Clean mapping
+            self.session.prune_notifications_chats_map()
+
+            push_message = PushMessage(task_id=task_id, **result.model_dump())
+
+            # Append to all chats that are selected for auto-append
+            for chat_id in self.session.notifications_chats_map.get(task_id, []):
+                chat = self.session.get_or_create_chat(chat_id)
+                message_copy = push_message.model_copy(deep=True)
+                message_copy.query = ""
+                chat.store_interaction(message_copy)
+
+            await self.session.websocket_send(push_message)
 
         def make_task(delay, remaining):
-            next_time = (datetime.now() + timedelta(seconds=delay)).strftime("%b %d %H:%M")
-            return ScheduledTask(task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
+            next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
+            return ScheduledTask(method=self.agent_method.NAME, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
 
-        task_id = next(task_ids_provider)
+        if task_id is None:
+            task_id = self.create_task_id()
         self.session.scheduled_tasks[task_id] = make_task(delay, repetitions)
-        asyncio.create_task(_callback(delay, repetitions-1))
+        asyncio.create_task(_callback(delay, repetitions))
         return task_id
-    
+
+    async def resume_scheduled_task(self, task: ScheduledTask):
+        """resume scheduled task after deserialization"""
+        now = datetime.now()
+        then = datetime.strptime(task.next_time, TIME_FORMAT)
+        skipped = 0
+        if now >= then:
+            skipped = ceil((now - then).seconds / task.interval)
+            then += timedelta(seconds=task.interval) * skipped
+            if task.repetitions >= 0:
+                task.repetitions = max(0, task.repetitions - skipped)
+        if task.repetitions != 0:
+            logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
+            await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
+        else:
+            logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
+            del self.session.scheduled_tasks[task.task_id]
+
     async def query_method(self, query: str) -> QueryResponse:
+        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
+        self.session.abort_sent = False
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
+
+    def create_task_id(self) -> int:
+        return max(self.session.scheduled_tasks, default=-1) + 1
 
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
@@ -200,13 +247,13 @@ class InternalTools:
     async def tool_search_chats(self, search_query: str) -> str:
         messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]
         query = dedent(f"""
-        In the following is the full transcript of all past interactions between the User and the LLM Assistant:
-        
-        {json.dumps(messages, indent=2)}
+            In the following is the full transcript of all past interactions between the User and the LLM Assistant:
+            
+            {json.dumps(messages, indent=2)}
 
-        Use this transcript to answer the following query:
+            Use this transcript to answer the following query:
 
-        {search_query}
+            {search_query}
         """)
         try:
             res = await self.query_method(query)
@@ -217,4 +264,3 @@ class InternalTools:
     async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
-    

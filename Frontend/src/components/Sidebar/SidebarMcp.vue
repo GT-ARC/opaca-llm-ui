@@ -70,12 +70,7 @@
         <span>{{ Localizer.get('addMcp')}}</span>
     </div>
 
-    <TextSubmissionOverlay
-        v-if="showEditor"
-        locTitle="addMcp"
-        @submit="mcpJson => addMcp(mcpJson)"
-        @cancel="closeEditor"
-    />
+    <InputDialogue ref="input" />
 </div>
 
 </template>
@@ -87,11 +82,11 @@ import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
-import TextSubmissionOverlay from "../TextSubmissionOverlay.vue";
+import InputDialogue from '../InputDialogue.vue';
 
 export default {
     name: 'SidebarMcp',
-    components: {TextSubmissionOverlay},
+    components: {InputDialogue},
     props: {},
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -102,7 +97,6 @@ export default {
             platformMcp: null,
             isLoading: false,
             searchQuery: '',
-            showEditor: false,
             jsonError: "Please enter valid MCP JSON",
         };
     },
@@ -144,12 +138,20 @@ export default {
                 }, {});
         },
 
-        openEditor() {
-            this.showEditor = true;
-        },
-
-        closeEditor() {
-            this.showEditor = false;
+        async openEditor() {
+            await this.$refs.input.showDialogue(
+                Localizer.get('addMcp'),
+                null,
+                null,
+                {
+                    mcpJson: {type: "textarea", label: "MCP Server", default: "" },
+                }, 
+                async (values) => {
+                    if (values != null) {
+                        await this.addMcp(values.mcpJson);
+                    }
+                }
+            );
         },
     }
 }

@@ -32,6 +32,8 @@
             ref="RecordingPopup"
         />
 
+        <InputDialogue ref="input" />
+
         <Sidebar
             :method="method"
             :language="language"
@@ -218,6 +220,7 @@ import SidebarManager from "../SidebarManager";
 import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
+import InputDialogue from "./InputDialogue.vue";
 
 export default {
     name: 'main-content',
@@ -227,6 +230,7 @@ export default {
         OptionsSelect,
         Sidebar,
         RecordingPopup,
+        InputDialogue,
         Chatbubble
     },
     props: {
@@ -237,6 +241,7 @@ export default {
     emits: [
         'select-category',
         'container-login-required',
+        'api-key-required',
         'new-notification',
     ],
     setup() {
@@ -359,6 +364,10 @@ export default {
             }
         },
 
+        async showInfo(message) {
+            await this.$refs.input.showInfo(null, message);
+        },
+
         async toggleFileDropOverlay(show) {
             this.showFileDropOverlay = show;
         },
@@ -370,7 +379,7 @@ export default {
             const pdfFiles = files.filter(file => file.type === "application/pdf");
 
             if (pdfFiles.length === 0) {
-                alert("Only PDF files are allowed.");
+                this.showInfo("Only PDF files are allowed.");
                 return;
             }
 
@@ -393,7 +402,7 @@ export default {
                 });
             } catch (error) {
                 console.error("File upload failed:", error);
-                alert("File upload failed. See console for details.");
+                this.showInfo("File upload failed. See console for details.");
             } finally {
                 // Force vue to update
                 this.selectedFiles = [...this.selectedFiles];
@@ -438,17 +447,21 @@ export default {
         },
 
         async handleStreamingSocketMessage(event) {
-            const aiBubble = this.getLastBubble();
             const result = JSON.parse(event.data);
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
             }
 
+            if (result.type === "MissingApiKeyNotification") {
+                this.$emit('api-key-required', result);
+            }
+
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
                 if (result.is_output) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);
                     this.scrollDownChat();
@@ -471,13 +484,14 @@ export default {
                 const agentName = result.agent;
                 const message = result.status;
                 if (message) {
+                    const aiBubble = this.getLastBubble();
                     aiBubble.markStatusMessagesDone(agentName);
                     aiBubble.addStatusMessage(agentName, message, false);
                 }
                 this.scrollDownChat();
             }
 
-            if (result.type === "PushMessage") {
+            if (result.type === "PushAdvert" || result.type === "PushMessage") {
                 this.$emit('new-notification', result);
             }
 
@@ -519,10 +533,15 @@ export default {
             this.socket.send(containerLoginDetails);
         },
 
+        submitApiKey(apiKey) {
+            const apiKeyResponse = JSON.stringify({api_key: apiKey});
+            this.socket.send(apiKeyResponse);
+        },
+
 
         handleRecordingError(error) {
             console.error('Recording error:', error);
-            alert('Error recording audio: ' + error.message);
+            this.showInfo('Error recording audio: ' + error.message);
         },
 
         startRecognition() {
@@ -634,8 +653,8 @@ export default {
             });
         },
 
-        async loadHistory(chatId) {
-            if (!chatId || chatId === this.selectedChatId) return;
+        async loadHistory(chatId, switchChat = true) {
+            if (!chatId || !switchChat && this.selectedChatId !== chatId) return;
             try {
                 const res = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
@@ -648,8 +667,10 @@ export default {
                 for (const msg of res.responses) {
                     if (!msg) continue;
                     // request
-                    await this.addChatBubble(msg.query, true);
-                    debug.addDebugMessage(msg.query, "user");
+                    if (msg.query) {
+                        await this.addChatBubble(msg.query, true);
+                        debug.addDebugMessage(msg.query, "user");
+                    }
                     // response
                     await this.addChatBubble(msg.content, false);
                     for (const agent_message of msg.agent_messages) {

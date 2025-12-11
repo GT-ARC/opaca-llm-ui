@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_all_files_from_disk
+from .internal_tools import InternalTools
 from .models import SessionData
 
 
@@ -183,6 +184,24 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
         await cleanup_old_sessions()
         await store_sessions_in_db()
         await asyncio.sleep(delay_seconds)
+
+
+async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) -> None:
+    """
+    Re-create scheduled tasks on restart. Details see InternalTools. In short, missed tasks are NOT
+    executed but just skipped, also decrementing the remaining repetitions accordingly. The first
+    execution is set such that the planned interval is kept as best as possible. This means that 
+    tasks to be executed as a certain time are still executed at that time, but an hourly task missed
+    by one minute will only be executed again in another hour.
+    """
+    for session in sessions.values():
+        for task_id in list(session.scheduled_tasks):
+            task = session.scheduled_tasks[task_id]
+            try:
+                await InternalTools(session, methods[task.method]).resume_scheduled_task(task)
+            except Exception as e:
+                logger.warning(f"Failed to restore Scheduled Task {task_id} ({task.query})")
+                del session.scheduled_tasks[task_id]
 
 
 async def on_shutdown():
