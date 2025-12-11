@@ -12,6 +12,7 @@ import time
 import traceback
 import asyncio
 
+from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError
 
@@ -224,6 +225,7 @@ class SessionData(BaseModel):
         abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         valid_until: Timestamp until session is active.
+        mcp_servers: All added mcp server information in JSON format.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -242,6 +244,7 @@ class SessionData(BaseModel):
     abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     valid_until: float = -1
+    mcp_servers: List[Dict] = Field(default_factory=list)
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
@@ -300,6 +303,28 @@ class SessionData(BaseModel):
             return await self._ws_msg_queue.get()
         else:
             raise Exception("Websocket not connected")
+
+    async def get_mcp_tools(self) -> Dict:
+        tools = {}
+
+        for mcp_server in self.mcp_servers:
+            client = MCPClient(server_url=mcp_server["server_url"])
+            tools[mcp_server.get("server_label", mcp_server["server_url"])] = await client.list_tools()
+        return tools
+
+    def add_mcp_server(self, mcp_server: dict) -> bool:
+        if "server_url" not in mcp_server and "command" not in mcp_server:
+            return False
+        self.mcp_servers.append(mcp_server)
+        return True
+
+    def delete_mcp_server(self, mcp_server: str) -> bool:
+        """Deletes a mcp server based on its 'server_url'"""
+        for mcp in self.mcp_servers:
+            if mcp["server_url"] == mcp_server:
+                self.mcp_servers.remove(mcp)
+                return True
+        return False
 
 
 class SearchResult(BaseModel):

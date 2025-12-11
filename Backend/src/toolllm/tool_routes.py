@@ -211,6 +211,9 @@ class ToolLLMMethod(AbstractMethod):
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
+        # Strip mcp servers from tools
+        tools_stripped = [t for t in tools if t.get("type", "") != "mcp"]
+
         # Since the gpt models can generate multiple tools, iterate over each generated call
         for call in calls:
 
@@ -221,7 +224,7 @@ class ToolLLMMethod(AbstractMethod):
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
             action_def = None
-            for a in tools:
+            for a in tools_stripped:
                 if a['name'] == action:
                     action_def = a
             if not action_def:

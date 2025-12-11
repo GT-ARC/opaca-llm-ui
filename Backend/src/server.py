@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from litellm.types.mcp_server.mcp_server_manager import MCPServer
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
@@ -127,6 +128,30 @@ async def disconnect(request: Request, response: Response) -> Response:
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
+
+
+@app.get("/mcp", description="Get a list of all added MCP servers and their actions")
+async def get_mcp_list(request: Request, response: Response) -> Dict:
+    session = await handle_session_id(request, response)
+    return await session.get_mcp_tools()
+
+
+@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
+async def add_mcp_server(request: Request, response: Response, mcp_server: Dict) -> Response:
+    session = await handle_session_id(request, response)
+    if session.add_mcp_server(mcp_server):
+        return Response(status_code=201)
+    else:
+        return Response(status_code=400)
+
+
+@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
+async def delete_mcp_server(request: Request, response: Response, mcp_server: str) -> Response:
+    session = await handle_session_id(request, response)
+    if session.delete_mcp_server(mcp_server):
+        return Response(status_code=204)
+    else:
+        return Response(status_code=400)
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")

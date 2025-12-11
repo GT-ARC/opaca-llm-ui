@@ -110,8 +110,10 @@ class AbstractMethod(ABC):
             kwargs['tool_choice'] = 'auto'
 
         # Main stream logic
-        stream = await litellm.aresponses(**kwargs)
+        stream = await litellm.aresponses_api_with_mcp(**kwargs)
         async for event in stream:
+
+            print(event.type)
 
             # Check if an "abort" message has been sent by the user
             if self.session.abort_sent:
@@ -119,6 +121,9 @@ class AbstractMethod(ABC):
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
+
+            elif event.type == event_type.MCP_CALL_COMPLETED:
+                print(event)
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
@@ -206,7 +211,8 @@ class AbstractMethod(ABC):
         """
         opaca_tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         internal_tools = self.internal_tools.get_internal_tools_openai()
-        tools = [*opaca_tools, *internal_tools]
+        tools = [*opaca_tools, *internal_tools, *self.session.mcp_servers]
+
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
                       f"of {max_tools}. All tools after index {max_tools} will be ignored!\n")
