@@ -37,7 +37,6 @@ class ToolLLMMethod(AbstractMethod):
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
-        no_tools = False            # If no tools were generated, the Output Generator will include available tools
         skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
         eval_reason = ""            # Saves the last reason the Evaluator Agent output for its decision
 
@@ -56,7 +55,7 @@ class ToolLLMMethod(AbstractMethod):
         total_exec_time = time.time()
 
         # If files were uploaded, check if any tools need to be called with extracted information
-        if not all(f.suspended for _, f in self.session.uploaded_files.items()):
+        if not all(f.suspended for f in self.session.uploaded_files.values()):
             result = await self.call_llm(
                 model=config.tool_eval_model,
                 agent='Tool Evaluator',
@@ -82,7 +81,6 @@ class ToolLLMMethod(AbstractMethod):
         # If no tools are available, skip the internal chain and go straight to the output generation
         if len(tools) == 0:
             skip_chain = True
-            no_tools = True
 
 
         # Run until request is finished or maximum number of iterations is reached
@@ -103,7 +101,6 @@ class ToolLLMMethod(AbstractMethod):
             )
 
             if not result.tools:
-                no_tools = len(called_tools) == 0
                 break
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -188,7 +185,7 @@ class ToolLLMMethod(AbstractMethod):
             system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
                 *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
                 OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
                     eval_reason=eval_reason,
@@ -196,7 +193,7 @@ class ToolLLMMethod(AbstractMethod):
                 )),
             ],
             temperature=config.temperature,
-            tools=tools if no_tools else [],
+            tools=tools,
             tool_choice="none",
             status_message="Generating final output...",
             is_output=True,
