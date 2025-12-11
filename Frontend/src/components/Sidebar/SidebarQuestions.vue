@@ -21,10 +21,10 @@
             </button>
         </div>
 
-        <PersonalPromptEditor
+        <TextSubmissionOverlay
             v-if="showEditor"
-            :prompt="editingPrompt"
-            @save="saveEditedPrompt"
+            locTitle="addPersonalQuestion"
+            @submit="prompt => saveEditedPrompt(prompt)"
             @cancel="closeEditor"
         />
 
@@ -120,11 +120,11 @@ import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
 import {useDevice} from "../../useIsMobile.js";
-import PersonalPromptEditor from "../PersonalPromptEditor.vue";
+import TextSubmissionOverlay from "../TextSubmissionOverlay.vue";
 
 export default {
     name: 'SidebarQuestions',
-    components: { PersonalPromptEditor },
+    components: {TextSubmissionOverlay},
     emits: [
         'select-question',
         'select-category',
@@ -259,9 +259,9 @@ export default {
 
         saveEditedPrompt(updatedPrompt) {
             if (this.editingIndex != null) {
-                this.personalPrompts.splice(this.editingIndex, 1, updatedPrompt);
+                this.personalPrompts.splice(this.editingIndex, 1, {question: updatedPrompt, icon: ''});
             } else {
-                this.personalPrompts.push(updatedPrompt);
+                this.personalPrompts.push({question: updatedPrompt, icon: ''});
             }
             this.savePersonalPrompts();
             this.closeEditor();
