@@ -305,23 +305,24 @@ class SessionData(BaseModel):
             raise Exception("Websocket not connected")
 
     async def get_mcp_tools(self) -> Dict:
+        """Returns a list of all available mcp server tools"""
         tools = {}
-
         for mcp_server in self.mcp_servers:
             client = MCPClient(server_url=mcp_server["server_url"])
             tools[mcp_server.get("server_label", mcp_server["server_url"])] = await client.list_tools()
         return tools
 
-    def add_mcp_server(self, mcp_server: dict) -> bool:
+    def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
+        """Adds a new mcp server json"""
         if "server_url" not in mcp_server and "command" not in mcp_server:
             return False
         self.mcp_servers.append(mcp_server)
         return True
 
-    def delete_mcp_server(self, mcp_server: str) -> bool:
-        """Deletes a mcp server based on its 'server_url'"""
+    def delete_mcp_server(self, mcp_name: str) -> bool:
+        """Deletes a mcp server based on its name"""
         for mcp in self.mcp_servers:
-            if mcp["server_url"] == mcp_server:
+            if mcp.get("server_label", mcp["server_url"]) == mcp_name:
                 self.mcp_servers.remove(mcp)
                 return True
         return False
@@ -420,6 +421,18 @@ class ContainerLoginResponse(BaseModel):
     password: str
     timeout: int
 
+
+# MCP Messages
+
+class MCPCreateMessage(BaseModel):
+    content: Dict[str, Any]
+
+
+class MCPDeleteMessage(BaseModel):
+    name: str
+
+
+# Method Configuration
 
 class MethodConfig(BaseModel):
     """

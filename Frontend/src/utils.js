@@ -132,8 +132,12 @@ class BackendClient {
         return await this.sendRequest("GET", "mcp");
     }
 
-    async saveMCPs(mcp) {
+    async addMcp(mcp) {
         return await this.sendRequest("POST", "mcp", mcp);
+    }
+
+    async deleteMcp(mcp_name) {
+        return await this.sendRequest("DELETE", `mcp/`, mcp_name);
     }
 
     // internal helper

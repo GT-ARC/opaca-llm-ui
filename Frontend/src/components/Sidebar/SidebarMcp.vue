@@ -24,6 +24,13 @@
                             :aria-controls="'mcp-body-' + mcpServerIndex">
                         <i class="fa fa-user me-3"/>
                         <strong>{{ mcpName }}</strong>
+
+                        <!-- Delete Button -->
+                        <i
+                            class="fa fa-trash delete-icon"
+                            @click.stop="this.deleteMcp(mcpName)"
+                            title="Delete MCP Server"
+                        />
                     </button>
                 </h2>
 
@@ -57,6 +64,18 @@
             </div>
         </div>
     </div>
+    <div class="accordion-button d-flex align-items-center justify-content-center mb-2 cursor-pointer"
+         @click.stop="openEditor()">
+        <i class="fa fa-plus me-2"></i>
+        <span>{{ Localizer.get('addMcp')}}</span>
+    </div>
+
+    <TextSubmissionOverlay
+        v-if="showEditor"
+        locTitle="addMcp"
+        @submit="mcpJson => addMcp(mcpJson)"
+        @cancel="closeEditor"
+    />
 </div>
 
 </template>
@@ -68,9 +87,11 @@ import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
+import TextSubmissionOverlay from "../TextSubmissionOverlay.vue";
 
 export default {
     name: 'SidebarMcp',
+    components: {TextSubmissionOverlay},
     props: {},
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -81,6 +102,8 @@ export default {
             platformMcp: null,
             isLoading: false,
             searchQuery: '',
+            showEditor: false,
+            jsonError: "Please enter valid MCP JSON",
         };
     },
     methods: {
@@ -92,8 +115,18 @@ export default {
             this.isLoading = false;
         },
 
-        formatJSON(obj) {
-            return JSON.stringify(obj, null, 2)
+        async addMcp(mcpJson) {
+            const data = JSON.parse(mcpJson);
+
+            this.jsonError = "Please enter valid MCP JSON";
+            await backendClient.addMcp({"content": data});
+            this.showEditor = false;
+            await this.updateMcp(true);
+        },
+
+        async deleteMcp(mcpName) {
+            await backendClient.deleteMcp({"name": mcpName});
+            await this.updateMcp(true);
         },
 
         getMcp() {
@@ -109,6 +142,14 @@ export default {
                     acc[mcp] = this.platformMcp[mcp];
                     return acc;
                 }, {});
+        },
+
+        openEditor() {
+            this.showEditor = true;
+        },
+
+        closeEditor() {
+            this.showEditor = false;
         },
     }
 }
@@ -136,6 +177,27 @@ export default {
 
 .mcp-body {
     padding: 0.5rem 0;
+}
+
+.delete-icon {
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    right: 2rem;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: var(--bs-border-radius-lg);
+    color: var(--text-danger-color);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+    color: var(--primary-color);
+    background-color: var(--background-color);
 }
 
 </style>
