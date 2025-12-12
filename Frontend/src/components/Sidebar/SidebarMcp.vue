@@ -87,7 +87,9 @@ import InputDialogue from '../InputDialogue.vue';
 export default {
     name: 'SidebarMcp',
     components: {InputDialogue},
-    props: {},
+    props: {
+        isPlatformConnected: Boolean,
+    },
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Localizer, SidebarManager, isMobile, screenWidth };
@@ -156,6 +158,11 @@ export default {
                     acc[mcp] = this.platformMcp[mcp];
                     return acc;
                 }, {});
+        }
+    },
+    watch: {
+        isPlatformConnected() {
+            this.updateMcp(this.isPlatformConnected);
         }
     }
 }

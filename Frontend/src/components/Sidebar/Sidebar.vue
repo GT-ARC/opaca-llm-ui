@@ -35,7 +35,7 @@
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
 
             <i @click="SidebarManager.toggleView('mcp')"
-               class="sidebar-menu-item mcp-logo"
+               class="fa fa-server sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarMcp')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
 
@@ -119,6 +119,7 @@
                 <!-- MCP servers -->
                 <SidebarMcp
                     v-show="SidebarManager.isViewSelected('mcp')"
+                    :is-platform-connected="connected"
                     ref="mcp"
                 />
 
@@ -331,29 +332,6 @@ export default {
 
 .resizer:hover {
     background-color: var(--primary-color);
-}
-
-.sidebar-menu-item.mcp-logo {
-    width: 2em;
-    height: 2em;
-    mask-image: url('../../assets/Icons/mcp_logo.png');
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    mask-position: center;
-    background-color: var(--text-secondary-color);
-    color: transparent;
-}
-
-.sidebar-menu-item.mcp-logo:hover {
-    background-color: var(--primary-color);
-}
-
-.sidebar-menu-item-select.mcp-logo {
-    background-color: white !important;
-}
-
-.sidebar-menu-item-select.mcp-logo:hover {
-    background-color: white !important;
 }
 
 /* mobile design */
