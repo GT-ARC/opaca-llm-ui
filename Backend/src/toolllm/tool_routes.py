@@ -37,8 +37,8 @@ class ToolLLMMethod(AbstractMethod):
         called_tools = {}           # Formatted list of tool calls including their results
         c_it = 0                    # Current internal iteration
         should_continue = True      # Whether the internal iteration should continue or not
-        no_tools = False            # If no tools were generated, the Output Generator will include available tools
         skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
+        eval_reason = ""            # Saves the last reason the Evaluator Agent output for its decision
 
         # Initialize the response object
         response = QueryResponse()
@@ -55,7 +55,7 @@ class ToolLLMMethod(AbstractMethod):
         total_exec_time = time.time()
 
         # If files were uploaded, check if any tools need to be called with extracted information
-        if self.session.uploaded_files:
+        if not all(f.suspended for f in self.session.uploaded_files.values()):
             result = await self.call_llm(
                 model=config.tool_eval_model,
                 agent='Tool Evaluator',
@@ -81,7 +81,6 @@ class ToolLLMMethod(AbstractMethod):
         # If no tools are available, skip the internal chain and go straight to the output generation
         if len(tools) == 0:
             skip_chain = True
-            no_tools = True
 
 
         # Run until request is finished or maximum number of iterations is reached
@@ -102,7 +101,6 @@ class ToolLLMMethod(AbstractMethod):
             )
 
             if not result.tools:
-                no_tools = True
                 break
 
             # Check the generated tool calls for errors and regenerate them if necessary
@@ -149,6 +147,7 @@ class ToolLLMMethod(AbstractMethod):
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
+                        *chat.messages,
                         ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                             message=message,
                             called_tools=called_tools,
@@ -165,16 +164,16 @@ class ToolLLMMethod(AbstractMethod):
                 try:
                     formatted_result = json.loads(result.content)
                     should_continue = formatted_result["decision"] == 'CONTINUE'
-                    result.content = formatted_result["reason"]
+                    eval_reason = formatted_result["reason"]
                 except json.JSONDecodeError:
                     should_continue = False
-                    result.content = "ERROR: The response from the Tool Evaluator was not in the correct format!"
+                    eval_reason = "ERROR: The response from the Tool Evaluator was not in the correct format!"
 
                 # Add generated response to internal history to give result to first llm agent
                 tool_messages.append(ChatMessage(role="assistant", content=str(called_tools)))
                 tool_messages.append(ChatMessage(role="user", content=f"Based on the called tools, another LLM has "
                                                                        f"decided to continue the process with the "
-                                                                       f"following reason: {result.content}"))
+                                                                       f"following reason: {eval_reason}"))
             else:
                 should_continue = False
 
@@ -186,14 +185,15 @@ class ToolLLMMethod(AbstractMethod):
             system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
             messages=[
                 *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if no_tools else
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
                 OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,
+                    eval_reason=eval_reason,
                     called_tools=called_tools or "",
                 )),
             ],
             temperature=config.temperature,
-            tools=tools if no_tools else [],
+            tools=tools,
             tool_choice="none",
             status_message="Generating final output...",
             is_output=True,
