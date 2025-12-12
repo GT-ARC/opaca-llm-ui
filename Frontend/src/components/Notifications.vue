@@ -91,7 +91,7 @@ export default {
                 fullResponse: response,
                 loading: false,
                 content: response.content, 
-                time: new Date().toLocaleString(),
+                time: new Date().toLocaleString('de'),
             };
             this.messages.unshift(message);
 
