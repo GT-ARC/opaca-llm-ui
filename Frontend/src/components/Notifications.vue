@@ -17,7 +17,7 @@
                        @click.stop="this.appendToChat(fullResponse)"
                        :title="Localizer.get('tooltipAppendNotification')"
                     />
-                    <i v-if="! loading"class="fa fa-remove notification-button"
+                    <i v-if="! loading" class="fa fa-remove notification-button"
                         @click.stop="this.dismissNotification(elementId)"
                         :title="Localizer.get('tooltipDismissNotification')"
                     />

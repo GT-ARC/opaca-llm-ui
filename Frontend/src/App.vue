@@ -540,9 +540,9 @@ header {
         position: fixed !important;
         top: auto !important;
         bottom: auto !important;
-        left: 5% !important;
+        left: 2% !important;
         right: auto !important;
-        width: 90% !important;
+        width: 96% !important;
     }
 }
 </style>

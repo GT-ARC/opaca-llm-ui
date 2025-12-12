@@ -556,6 +556,7 @@ export default {
 }
 
 .chatbubble-collapsed {
+    min-height: 40px !important;
     max-height: 60px !important;
     overflow: hidden;
 }
