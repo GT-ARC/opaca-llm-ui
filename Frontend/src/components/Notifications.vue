@@ -8,7 +8,7 @@
             <div class="d-flex align-items-center justify-content-between px-1">
                 <span>{{ time }}</span>
                 <!-- grouped buttons -->
-                <div class="d-flex gap-1">
+                <div class="d-flex gap-1 align-items-center">
                     <i v-if="loading" class="fa fa-stop notification-button"
                         @click.stop="this.stopNotifications()"
                         title="Stop"
@@ -75,7 +75,7 @@ export default {
                 elementId: elementId,
                 loading: true, 
                 content: response.query, 
-                time: new Date().toLocaleString(),
+                time: new Date().toLocaleString('en-GB'),
             };
             this.messages.unshift(message);
         },
@@ -96,7 +96,7 @@ export default {
             this.messages.unshift(message);
 
             // wait for the next rendering tick so that the component is mounted
-            await nextTick();
+            await this.$nextTick();
 
             // add debug stuff to chat bubble
             const chatBubble = this.$refs[elementId][0];
