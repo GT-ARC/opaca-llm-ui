@@ -168,7 +168,7 @@
             </div>
 
             <!-- footer: debug messages -->
-            <div v-show="this.isDebugExpanded && t">
+            <div v-show="this.isDebugExpanded && !this.isCollapsed">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
                      style="max-height: 200px"
                      @scroll="handleDebugScroll">
@@ -180,7 +180,7 @@
             </div>
 
             <!-- footer: tool calls -->
-            <div v-show="this.isToolsExpanded">
+            <div v-show="this.isToolsExpanded && !this.isCollapsed">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                      <div v-for="text in this.getToolCalls()">
@@ -190,7 +190,7 @@
             </div>
 
             <!-- footer: errors -->
-            <div v-show="this.isErrorExpanded">
+            <div v-show="this.isErrorExpanded && !this.isCollapsed">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px">
                     <div class="message-text w-auto text-danger"
