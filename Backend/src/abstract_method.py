@@ -9,6 +9,7 @@ from itertools import count
 
 import httpx
 from openai.types.responses import ResponseFunctionToolCall
+from openai.types.responses.response_output_item import McpCall
 from pydantic import BaseModel, ValidationError
 import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
@@ -118,8 +119,6 @@ class AbstractMethod(ABC):
         stream = await litellm.aresponses_api_with_mcp(**kwargs)
         async for event in stream:
 
-            print(event.type)
-
             # Check if an "abort" message has been sent by the user
             if self.session.abort_sent:
                 raise OpacaException(
@@ -127,8 +126,23 @@ class AbstractMethod(ABC):
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
 
-            elif event.type == event_type.MCP_CALL_COMPLETED:
-                print(event)
+            elif event.type == event_type.OUTPUT_ITEM_DONE:
+                if event.item.type == "mcp_call":
+                    try:
+                        tool = ToolCall(
+                            name=f'{event.item.server_label}--{event.item.name}',
+                            type="mcp",
+                            id=self.next_tool_id(agent_message),
+                            args=json.loads(event.item.arguments),
+                            result=event.item.output
+                        )
+                    except json.JSONDecodeError:
+                        logger.warning(f"Could not parse mcp tool arguments: {event.item.arguments}")
+                        tool = ToolCall(name=event.item.name, type="mcp", id=self.next_tool_id(agent_message), args={}, result=event.item.output)
+                    agent_message.tools.append(tool)
+                    # Stream the tool call and the result
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
+                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result))
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
@@ -152,12 +166,12 @@ class AbstractMethod(ABC):
 
                 # Alternative tool output
                 for t in event.response.output:
-                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall, McpCall)):
                         try:
-                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse tool arguments: {t.arguments}")
-                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args={})
+                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args={})
                         agent_message.tools.append(tool)
                         await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 # Capture token usage

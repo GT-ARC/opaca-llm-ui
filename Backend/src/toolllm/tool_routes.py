@@ -132,12 +132,17 @@ class ToolLLMMethod(AbstractMethod):
 
             response.agent_messages.append(result)
 
-            # Check if tools were generated and if so, execute them by calling the opaca-proxy
+            # Check if opaca tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
+            mcp_tools = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(call.name, call.args, call.id))
+                if call.type == "opaca":
+                    tasks.append(self.invoke_tool(call.name, call.args, call.id))
+                elif call.type == "mcp":
+                    mcp_tools.append(call)
 
             result.tools = await asyncio.gather(*tasks)
+            result.tools.extend(mcp_tools)
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
@@ -211,11 +216,12 @@ class ToolLLMMethod(AbstractMethod):
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
-        # Strip mcp servers from tools
-        tools_stripped = [t for t in tools if t.get("type", "") != "mcp"]
-
         # Since the gpt models can generate multiple tools, iterate over each generated call
         for call in calls:
+
+            # MCP Tools do not need a validation check
+            if call.type == "mcp":
+                continue
 
             # Get the generated name and parameters
             action = call.name
@@ -224,7 +230,7 @@ class ToolLLMMethod(AbstractMethod):
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
             action_def = None
-            for a in tools_stripped:
+            for a in tools:
                 if a['name'] == action:
                     action_def = a
             if not action_def:

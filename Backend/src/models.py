@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Callable, Set
+from typing import Iterable, Callable, Set, Literal
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -151,6 +151,7 @@ class ChatMessage(BaseModel):
 
 class ToolCall(BaseModel):
     id: str
+    type: Literal["opaca", "mcp"]
     name: str
     args: Dict[str, Any] = {}
     result: Any | None = None
