@@ -75,7 +75,7 @@ export default {
                 elementId: elementId,
                 loading: true, 
                 content: response.query, 
-                time: new Date().toLocaleString('en-GB'),
+                time: new Date().toLocaleString(Localizer.getLanguageForDate()),
             };
             this.messages.unshift(message);
         },
@@ -91,7 +91,7 @@ export default {
                 fullResponse: response,
                 loading: false,
                 content: response.content, 
-                time: new Date().toLocaleString('de'),
+                time: new Date().toLocaleString(Localizer.getLanguageForDate()),
             };
             this.messages.unshift(message);
 

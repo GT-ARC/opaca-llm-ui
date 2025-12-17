@@ -569,6 +569,10 @@ class Localizer {
         if (!langName) return false;
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
     }
+
+    getLanguageForDate() {
+        return voiceGenLocalesWebSpeech[this.language];
+    }
 }
 
 /**
