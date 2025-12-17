@@ -99,6 +99,7 @@ export default {
             platformMcp: null,
             isLoading: false,
             searchQuery: '',
+            mcpError: null
         };
     },
     methods: {
@@ -114,19 +115,29 @@ export default {
             await this.$refs.input.showDialogue(
                 Localizer.get('addMcp'),
                 null,
-                null,
+                this.mcpError,
                 {
-                    mcpJson: {type: "textarea", label: "MCP Server", default: "" },
-                }, 
+                    mcpServerUrl: {type: "text", label: "Server URL", default: "" },
+                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
+                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "never", always: "always (not implemented yet)"}},
+                },
                 async (values) => {
                     if (values != null) {
-                        try {
-                            const data = JSON.parse(values.mcpJson);
-                            await backendClient.addMcp({"content": data});
-                            await this.updateMcp(true);
-                        } catch {
-                            await this.$refs.input.showInfo("MCP Server", "Please enter valid MCP JSON");
+                        // Validate input
+                        if (!values.mcpServerUrl) {
+                            this.mcpError = "The Server Url cannot be empty!"
+                            await this.addMcp()
+                            return
+                        } else if (!this.isValidUrl(values.mcpServerUrl)) {
+                            this.mcpError = "The server url needs to be in a valid format (\"https://...\")"
+                            await this.addMcp()
+                            return
                         }
+                        this.mcpError = null
+
+                        const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+                        await backendClient.addMcp({"content": data});
+                        await this.updateMcp(true);
                     }
                 }
             );
@@ -158,6 +169,16 @@ export default {
                     acc[mcp] = this.platformMcp[mcp];
                     return acc;
                 }, {});
+        },
+
+        isValidUrl(s) {
+            let url;
+            try {
+                url = new URL(s);
+            } catch (_) {
+                return false;
+            }
+            return url.protocol === "http:" || url.protocol === "https:";
         }
     },
     watch: {

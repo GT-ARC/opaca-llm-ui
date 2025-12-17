@@ -332,7 +332,8 @@ class SessionData(BaseModel):
         tools = {}
         for mcp_server in self.mcp_servers:
             client = MCPClient(server_url=mcp_server["server_url"])
-            tools[mcp_server.get("server_label", mcp_server["server_url"])] = await client.list_tools()
+            # Use friendly server label if available, otherwise fall back to server url
+            tools[mcp_server["server_label"] or mcp_server["server_url"]] = await client.list_tools()
         return tools
 
     def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
@@ -343,9 +344,9 @@ class SessionData(BaseModel):
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
-        """Deletes a mcp server based on its name"""
+        """Deletes a mcp server based on its name. Use the server url as fallback name"""
         for mcp in self.mcp_servers:
-            if mcp.get("server_label", mcp["server_url"]) == mcp_name:
+            if (mcp["server_label"] or mcp["server_url"]) == mcp_name:
                 self.mcp_servers.remove(mcp)
                 return True
         return False
