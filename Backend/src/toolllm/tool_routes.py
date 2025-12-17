@@ -69,7 +69,7 @@ class ToolLLMMethod(AbstractMethod):
                 temperature=config.temperature,
                 tools=tools,
                 tool_choice="none",
-                status_message="Checking if tools are needed...",
+                status_message="Checking if tools are needed",
             )
             response.agent_messages.append(result)
             try:
@@ -97,7 +97,7 @@ class ToolLLMMethod(AbstractMethod):
                 temperature=config.temperature,
                 tool_choice="only",
                 tools=tools,
-                status_message="Generating Tool Calls..."
+                status_message="Generating Tool Calls"
             )
 
             if not result.tools:
@@ -124,7 +124,7 @@ class ToolLLMMethod(AbstractMethod):
                     temperature=config.temperature,
                     tool_choice="only",
                     tools=tools,
-                    status_message="Fixing Tool Calls..."
+                    status_message="Fixing Tool Calls"
                 )
                 correction_limit += 1
 
@@ -157,7 +157,7 @@ class ToolLLMMethod(AbstractMethod):
                     temperature=config.temperature,
                     tools=tools,
                     tool_choice="none",
-                    status_message="Evaluating Tool Call Results..."
+                    status_message="Evaluating Tool Call Results"
                 )
                 response.agent_messages.append(result)
 
@@ -195,7 +195,7 @@ class ToolLLMMethod(AbstractMethod):
             temperature=config.temperature,
             tools=tools,
             tool_choice="none",
-            status_message="Generating final output...",
+            status_message="Generating final output",
             is_output=True,
         )
         response.agent_messages.append(result)
