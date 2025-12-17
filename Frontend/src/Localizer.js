@@ -115,7 +115,7 @@ export const localizationData = {
         tooltipAppendNotification: "Append to current Chat",
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
-        noNotifsAvailable: "There are currently no notifications",
+        noNotifsAvailable: "No notifications",
     },
 
     DE: {
@@ -228,7 +228,7 @@ export const localizationData = {
         tooltipAppendNotification: "An den geöffneten Chat heften",
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
-        noNotifsAvailable: "Gerade sind hier keine Benachrichtigungen",
+        noNotifsAvailable: "Keine Benachrichtigungen",
     },
 };
 

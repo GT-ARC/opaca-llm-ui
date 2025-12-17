@@ -112,91 +112,95 @@
 
             </div>
 
-            <!-- footer: icons -->
-            <div v-if="!this.isCollapsed && !this.isCollapsed"
-                 class="d-flex justify-content-start small mt-2">
+            <!-- expandable footer menus -->
+            <div v-show="!this.isCollapsed">
 
-                <!-- copy to clipboard -->
-                <div v-show="this.isCopyAvailable()"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.copyContentToClipboard()"
-                     :title="Localizer.get('tooltipChatbubbleCopy')">
-                    <i v-if="this.copySuccess" class="fa fa-check" />
-                    <i v-else class="fa fa-copy" />
+                <!-- footer: icons -->
+                <div class="d-flex justify-content-start small mt-2">
+
+                    <!-- copy to clipboard -->
+                    <div v-show="this.isCopyAvailable()"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.copyContentToClipboard()"
+                         :title="Localizer.get('tooltipChatbubbleCopy')">
+                        <i v-if="this.copySuccess" class="fa fa-check" />
+                        <i v-else class="fa fa-copy" />
+                    </div>
+
+                    <!-- audio stuff -->
+                    <div v-show="!this.isLoading"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.startAudioPlayback()">
+                        <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                        <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                        <i v-else class="fa fa-volume-up"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                    </div>
+
+                    <!-- debug messages -->
+                    <div v-show="this.debugMessages.length > 0"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
+                         :title="Localizer.get('tooltipChatbubbleDebug')">
+                        <i class="fa fa-bug" />
+                    </div>
+
+                    <!-- tool calls -->
+                    <div v-show="this.getToolCalls().length > 0"
+                         class="footer-item w-auto me-2"
+                         style="cursor: pointer;"
+                         @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
+                         :title="Localizer.get('tooltipChatbubbleTools')">
+                        <i class="fa fa-wrench" />
+                    </div>
+
+                    <!-- error handling -->
+                    <div v-show="this.error !== null"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
+                         :title="Localizer.get('tooltipChatbubbleError')">
+                        <i class="fa fa-exclamation-circle text-danger me-1" />
+                    </div>
+
                 </div>
 
-                <!-- audio stuff -->
-                <div v-show="!this.isLoading"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
-                    <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                <!-- footer: debug messages -->
+                <div v-show="this.isDebugExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
+                         style="max-height: 200px"
+                         @scroll="handleDebugScroll">
+                        <DebugMessage v-for="{ text, type } in this.debugMessages"
+                                      :text="text"
+                                      :type="type"
+                        />
+                    </div>
                 </div>
 
-                <!-- debug messages -->
-                <div v-show="this.debugMessages.length > 0"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
-                     :title="Localizer.get('tooltipChatbubbleDebug')">
-                    <i class="fa fa-bug" />
+                <!-- footer: tool calls -->
+                <div v-show="this.isToolsExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div v-for="text in this.getToolCalls()">
+                            {{ text }}
+                        </div>
+                    </div>
                 </div>
 
-                <!-- tool calls -->
-                <div v-show="this.getToolCalls().length > 0"
-                     class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
-                     @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
-                     :title="Localizer.get('tooltipChatbubbleTools')">
-                    <i class="fa fa-wrench" />
+                <!-- footer: errors -->
+                <div v-show="this.isErrorExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div class="message-text w-auto text-danger"
+                             v-html="this.error"
+                        />
+                    </div>
                 </div>
 
-                <!-- error handling -->
-                <div v-show="this.error !== null"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
-                     :title="Localizer.get('tooltipChatbubbleError')">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
-            </div>
-
-            <!-- footer: debug messages -->
-            <div v-show="this.isDebugExpanded && !this.isCollapsed">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
-                     style="max-height: 200px"
-                     @scroll="handleDebugScroll">
-                    <DebugMessage v-for="{ text, type } in this.debugMessages"
-                        :text="text"
-                        :type="type"
-                    />
-                </div>
-            </div>
-
-            <!-- footer: tool calls -->
-            <div v-show="this.isToolsExpanded && !this.isCollapsed">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                     <div v-for="text in this.getToolCalls()">
-                        {{ text }}
-                     </div>
-                </div>
-            </div>
-
-            <!-- footer: errors -->
-            <div v-show="this.isErrorExpanded && !this.isCollapsed">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                    <div class="message-text w-auto text-danger"
-                         v-html="this.error"
-                    />
-                </div>
             </div>
 
         </div>
