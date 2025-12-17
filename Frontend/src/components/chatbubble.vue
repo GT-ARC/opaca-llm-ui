@@ -579,6 +579,8 @@ export default {
     border-bottom-right-radius: 1.25rem;
     background-color: rgba(128, 128, 128, 0.4);
     backdrop-filter: blur(2px);
+    /* box shadow for smooth transition to blurred area */
+    box-shadow: 0 -5px 10px rgba(128, 128, 128, 0.4);
 }
 
 @keyframes glow {
