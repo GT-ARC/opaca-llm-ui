@@ -115,6 +115,7 @@ export const localizationData = {
         tooltipAppendNotification: "Append to current Chat",
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
+        noNotifsAvailable: "No notifications",
     },
 
     DE: {
@@ -227,6 +228,7 @@ export const localizationData = {
         tooltipAppendNotification: "An den geöffneten Chat heften",
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
+        noNotifsAvailable: "Keine Benachrichtigungen",
     },
 };
 
@@ -566,6 +568,10 @@ class Localizer {
     isAvailableLanguage(langName) {
         if (!langName) return false;
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
+    }
+
+    getLanguageForDate() {
+        return voiceGenLocalesWebSpeech[this.language];
     }
 }
 

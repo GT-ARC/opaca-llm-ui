@@ -1,10 +1,12 @@
 <template>
+<div :class="{'chatbubble-collapsible': this.isCollapsible}"
+     @click.stop="this.toggleCollapsed()">
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end">
+         class="d-flex flex-row justify-content-end" >
 
-        <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
+        <div class="chatbubble chatbubble-user ms-auto w-auto">
             <div v-html="this.getFormattedContent()" />
 
             <!-- footer: debug, generate audio, ... -->
@@ -73,10 +75,16 @@
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start w-100">
 
-        <div class="chatbubble chatbubble-ai ms-2"
-             :class="{glow: this.isLoading}" :style="this.getGlowColors()">
+        <div class="chatbubble chatbubble-ai"
+             :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
 
-            <div class="d-flex justify-content-start">
+            <div class="d-flex justify-content-start"
+                 :class="{'chatbubble-collapsed': this.isCollapsed}">
+
+                <div v-if="this.isCollapsed" class="chatbubble-collapsed-overlay">
+                    <i class="fa fa-arrow-alt-circle-down" />
+                </div>
+
                 <!-- loading spinner -->
                 <div v-show="this.isLoading" class="w-auto">
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
@@ -104,94 +112,100 @@
 
             </div>
 
-            <!-- footer: icons -->
-            <div class="d-flex justify-content-start small mt-2">
+            <!-- expandable footer menus -->
+            <div v-show="!this.isCollapsed">
 
-                <!-- copy to clipboard -->
-                <div v-show="this.isCopyAvailable()"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.copyContentToClipboard()"
-                     :title="Localizer.get('tooltipChatbubbleCopy')">
-                    <i v-if="this.copySuccess" class="fa fa-check" />
-                    <i v-else class="fa fa-copy" />
+                <!-- footer: icons -->
+                <div class="d-flex justify-content-start small mt-2">
+
+                    <!-- copy to clipboard -->
+                    <div v-show="this.isCopyAvailable()"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.copyContentToClipboard()"
+                         :title="Localizer.get('tooltipChatbubbleCopy')">
+                        <i v-if="this.copySuccess" class="fa fa-check" />
+                        <i v-else class="fa fa-copy" />
+                    </div>
+
+                    <!-- audio stuff -->
+                    <div v-show="!this.isLoading"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.startAudioPlayback()">
+                        <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                        <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                        <i v-else class="fa fa-volume-up"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                    </div>
+
+                    <!-- debug messages -->
+                    <div v-show="this.debugMessages.length > 0"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
+                         :title="Localizer.get('tooltipChatbubbleDebug')">
+                        <i class="fa fa-bug" />
+                    </div>
+
+                    <!-- tool calls -->
+                    <div v-show="this.getToolCalls().length > 0"
+                         class="footer-item w-auto me-2"
+                         style="cursor: pointer;"
+                         @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
+                         :title="Localizer.get('tooltipChatbubbleTools')">
+                        <i class="fa fa-wrench" />
+                    </div>
+
+                    <!-- error handling -->
+                    <div v-show="this.error !== null"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
+                         :title="Localizer.get('tooltipChatbubbleError')">
+                        <i class="fa fa-exclamation-circle text-danger me-1" />
+                    </div>
+
                 </div>
 
-                <!-- audio stuff -->
-                <div v-show="!this.isLoading"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
-                    <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                <!-- footer: debug messages -->
+                <div v-show="this.isDebugExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
+                         style="max-height: 200px"
+                         @scroll="handleDebugScroll">
+                        <DebugMessage v-for="{ text, type } in this.debugMessages"
+                                      :text="text"
+                                      :type="type"
+                        />
+                    </div>
                 </div>
 
-                <!-- debug messages -->
-                <div v-show="this.debugMessages.length > 0"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
-                     :title="Localizer.get('tooltipChatbubbleDebug')">
-                    <i class="fa fa-bug" />
+                <!-- footer: tool calls -->
+                <div v-show="this.isToolsExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div v-for="text in this.getToolCalls()">
+                            {{ text }}
+                        </div>
+                    </div>
                 </div>
 
-                <!-- tool calls -->
-                <div v-show="this.getToolCalls().length > 0"
-                     class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
-                     @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
-                     :title="Localizer.get('tooltipChatbubbleTools')">
-                    <i class="fa fa-wrench" />
+                <!-- footer: errors -->
+                <div v-show="this.isErrorExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div class="message-text w-auto text-danger"
+                             v-html="this.error"
+                        />
+                    </div>
                 </div>
 
-                <!-- error handling -->
-                <div v-show="this.error !== null"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
-                     :title="Localizer.get('tooltipChatbubbleError')">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
-            </div>
-
-            <!-- footer: debug messages -->
-            <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
-                     style="max-height: 200px"
-                     @scroll="handleDebugScroll">
-                    <DebugMessage v-for="{ text, type } in this.debugMessages"
-                        :text="text"
-                        :type="type"
-                    />
-                </div>
-            </div>
-
-            <!-- footer: tool calls -->
-            <div v-show="this.isToolsExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                     <div v-for="text in this.getToolCalls()">
-                        {{ text }}
-                     </div>
-                </div>
-            </div>
-
-            <!-- footer: errors -->
-            <div v-show="this.isErrorExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                    <div class="message-text w-auto text-danger"
-                         v-html="this.error"
-                    />
-                </div>
             </div>
 
         </div>
     </div>
+</div>
 </template>
 
 <script>
@@ -217,6 +231,7 @@ export default {
         files: Array,
         selectedChatId: String,
         isBookmarked: Boolean,
+        isCollapsible: {type: Boolean, default: false},
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -237,6 +252,7 @@ export default {
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
+            isCollapsed: false,
         }
     },
 
@@ -330,11 +346,10 @@ export default {
                 });
 
                 // Sanitize html
-                const safeHtml = DOMPurify.sanitize(div.innerHTML, {
+                return DOMPurify.sanitize(div.innerHTML, {
                     // Keep attributes we set
                     ADD_ATTR: ['target', 'rel'],
                 });
-                return safeHtml;
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
@@ -434,10 +449,31 @@ export default {
                 || window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
+
+        toggleCollapsed(value = null) {
+            if (!this.isCollapsible) return;
+            this.isCollapsed = value === null
+                ? !this.isCollapsed
+                : value;
+        },
+    },
+
+    mounted() {
+        if (!this.isLoading && this.isCollapsible) {
+            this.isCollapsed = true;
+        }
     },
 
     updated() {
         this.scrollDownDebugMsg();
+    },
+
+    watch: {
+        isLoading(newVal) {
+            if (!newVal && !this.isCollapsible) {
+                this.toggleCollapsed(true);
+            }
+        }
     },
 
 }
@@ -517,6 +553,34 @@ export default {
     --glow-color-2: #00ff0090;
     box-shadow: 0 0 8px #00ff0040;
     animation: glow 3s infinite;
+}
+
+.chatbubble-collapsible {
+    cursor: pointer;
+}
+
+.chatbubble-collapsed {
+    min-height: 40px !important;
+    max-height: 60px !important;
+    overflow: hidden;
+}
+
+.chatbubble-collapsed-overlay {
+    height: 30px;
+    z-index: 2;
+    left: 0;
+    bottom: 0;
+    position: absolute;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom-left-radius: 1.25rem;
+    border-bottom-right-radius: 1.25rem;
+    background-color: rgba(128, 128, 128, 0.4);
+    backdrop-filter: blur(2px);
+    /* box shadow for smooth transition to blurred area */
+    box-shadow: 0 -5px 10px rgba(128, 128, 128, 0.4);
 }
 
 @keyframes glow {
