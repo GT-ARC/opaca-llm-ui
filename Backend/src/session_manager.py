@@ -203,7 +203,7 @@ async def update_session(session_id: str, action: SessionAction):
         if action == SessionAction.DELETE:
             # the session still lives in the scope of already started tasks, but those stop if they are no longer in the list
             session.scheduled_tasks.clear()
-            del sessions[session_id]
+            await delete_session(session_id)
 
         if action == SessionAction.LOGOUT:
             await session._opaca_client.logout_all_containers()
