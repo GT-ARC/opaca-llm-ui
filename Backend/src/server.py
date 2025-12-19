@@ -10,7 +10,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
@@ -24,7 +24,7 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks, get_all_sessions
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -70,6 +70,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# SIMPLE AUTH FOR SELECTED ROUTES
+
+def require_password(x_api_password: str | None = Header(None)):
+    admin_pwd = os.getenv('SESSION_ADMIN_PWD')
+    if admin_pwd and x_api_password != admin_pwd:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized")
+
 
 # EXCEPTION HANDLING
 
@@ -103,6 +110,11 @@ async def get_models() -> dict[str, list[str]]:
         url: models
         for url, _key, models in get_supported_models()
     }
+
+
+@app.get("/admin/sessions", description="Get short info on all current sessions. Requires authentication, if configured.")
+async def session_admin(auth = Depends(require_password)):
+    return await get_all_sessions()
 
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")

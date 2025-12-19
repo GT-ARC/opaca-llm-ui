@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 import logging
+from datetime import datetime
 from logging import Logger
 from typing import Dict, Optional, List
 from pydantic import ValidationError
@@ -169,6 +170,24 @@ async def delete_all_sessions() -> None:
         for session_id in sessions:
             await db_client.delete_session(session_id)
         sessions.clear()
+
+
+async def get_all_sessions() -> list[dict]:
+    """
+    Get simplified view on sessions for sessions-admin route.
+    """
+    return {
+        _id: {
+            "valid_until": datetime.fromtimestamp(session.valid_until).isoformat(),
+            "chats": [chat.name for chat in session.chats.values()],
+            "files": [file.file_name for file in session.uploaded_files.values()],
+            "tasks": [(task.query, task.interval, task.repetitions) for task in session.scheduled_tasks.values()],
+            "platform": session._opaca_client.url,
+            "container-logins": session._opaca_client.logged_in_containers.keys(),
+            "user_api_keys": list(session._user_api_keys),
+        }
+        for _id, session in sessions.items()
+    }
 
 
 # LIFECYCLE
