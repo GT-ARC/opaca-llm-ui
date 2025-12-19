@@ -111,7 +111,7 @@ class ToolLLMMethod(AbstractMethod):
             # These steps are sequentially dependent and require at most 3 steps
             correction_limit = 0
             full_err = '\n'
-            while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
+            while (err_msg := await self.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
                     model=config.tool_gen_model,
@@ -211,10 +211,12 @@ class ToolLLMMethod(AbstractMethod):
         response.error = error
         return response
 
-    @staticmethod
-    def check_valid_action(tools, calls: List[ToolCall]) -> str:
+    async def check_valid_action(self, calls: List[ToolCall]) -> str:
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
+
+        # Get the list of available tools without mcp tools
+        tools, _ = await self.get_tools(include_mcp=False)
 
         # Since the gpt models can generate multiple tools, iterate over each generated call
         for call in calls:

@@ -221,16 +221,17 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
         await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+        return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=t_result)
 
 
-    async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
+    async def get_tools(self, include_internal: bool = True, include_mcp: bool = True, max_tools=128) -> tuple[list[dict], str]:
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        tools.extend(self.session.mcp_servers)
-        if self.internal_tools:
+        if self.session.mcp_servers and include_mcp:
+            tools.extend(self.session.mcp_servers)
+        if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "
