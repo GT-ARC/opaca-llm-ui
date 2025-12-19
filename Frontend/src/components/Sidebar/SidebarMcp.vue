@@ -187,6 +187,8 @@ export default {
             } else if (url.protocol === "https:") {
                 return ""
             }
+
+            return "Unknown error encountered!"
         }
     },
     watch: {
