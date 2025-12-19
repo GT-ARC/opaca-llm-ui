@@ -99,7 +99,6 @@ export default {
             platformMcp: null,
             isLoading: false,
             searchQuery: '',
-            mcpError: null
         };
     },
     methods: {
@@ -111,11 +110,11 @@ export default {
             this.isLoading = false;
         },
 
-        async addMcp() {
+        async addMcp(mcpError = null) {
             await this.$refs.input.showDialogue(
                 Localizer.get('addMcp'),
                 null,
-                this.mcpError,
+                mcpError,
                 {
                     mcpServerUrl: {type: "text", label: "Server URL", default: "" },
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
@@ -125,15 +124,12 @@ export default {
                     if (values != null) {
                         // Validate input
                         if (!values.mcpServerUrl) {
-                            this.mcpError = "The Server Url cannot be empty!"
-                            await this.addMcp()
+                            await this.addMcp("The Server Url cannot be empty!")
                             return
                         } else if (!this.isValidUrl(values.mcpServerUrl)) {
-                            this.mcpError = "The server url needs to be in a valid format (\"https://...\")"
-                            await this.addMcp()
+                            await this.addMcp("The server url needs to be in a valid format (\"https://...\")")
                             return
                         }
-                        this.mcpError = null
 
                         const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
                         await backendClient.addMcp({"content": data});

@@ -332,21 +332,40 @@ class SessionData(BaseModel):
         tools = {}
         for mcp_server in self.mcp_servers:
             client = MCPClient(server_url=mcp_server["server_url"])
-            # Use friendly server label if available, otherwise fall back to server url
-            tools[mcp_server["server_label"] or mcp_server["server_url"]] = await client.list_tools()
+            tools[mcp_server["server_label"]] = await client.list_tools()
         return tools
 
     def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
-        if "server_url" not in mcp_server and "command" not in mcp_server:
+
+        # Check if the server_url field is existing
+        if "server_url" not in mcp_server:
             return False
+
+        # Check if the server url is in a valid format:
+        if not re.match(r'^https?://', mcp_server["server_url"]):
+            return False
+
+        # Check if a previous mcp server with the same url already exists
+        if mcp_server["server_url"] in [m["server_url"] for m in self.mcp_servers]:
+            return False
+
+        # If no server label was given, transform the server_url into the label
+        if not mcp_server["server_label"]:
+            mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
+
+            # For the rare case that the same host provides multiple mcp servers, check if the server_label exists
+            # and append a number to it to make it unique (important for deletion process)
+            if mcp_server["server_label"] in [m["server_label"] for m in self.mcp_servers]:
+                mcp_server["server_label"] += f"_{len(self.mcp_servers)}"
+
         self.mcp_servers.append(mcp_server)
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
-        """Deletes a mcp server based on its name. Use the server url as fallback name"""
+        """Deletes an mcp server based on its name. The UI only stores the server_label."""
         for mcp in self.mcp_servers:
-            if (mcp["server_label"] or mcp["server_url"]) == mcp_name:
+            if (mcp["server_label"]) == mcp_name:
                 self.mcp_servers.remove(mcp)
                 return True
         return False
