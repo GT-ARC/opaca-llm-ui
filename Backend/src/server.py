@@ -24,7 +24,8 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks, get_all_sessions
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
+    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -115,6 +116,11 @@ async def get_models() -> dict[str, list[str]]:
 @app.get("/admin/sessions", description="Get short info on all current sessions. Requires authentication, if configured.")
 async def session_admin(auth = Depends(require_password)):
     return await get_all_sessions()
+
+
+@app.put("/admin/sessions/{session_id}/{action}", description="Get short info on all current sessions. Requires authentication, if configured.")
+async def session_admin(session_id: str, action: SessionAction, auth = Depends(require_password)):
+    return await update_session(session_id, action)
 
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")

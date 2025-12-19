@@ -5,12 +5,19 @@ import logging
 from datetime import datetime
 from logging import Logger
 from typing import Dict, Optional, List
+from enum import Enum
 from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_all_files_from_disk
 from .internal_tools import InternalTools
 from .models import SessionData
+
+
+class SessionAction(Enum):
+    DELETE = "DELETE"         # delete the session entirely
+    LOGOUT = "LOGOUT"         # log-out of all logged-in containers and LLM-Hosts
+    STOP_TASKS = "STOP_TASKS" # stop (i.e. delete) all scheduled tasks
 
 
 logger: Logger = logging.getLogger(__name__)
@@ -188,6 +195,24 @@ async def get_all_sessions() -> list[dict]:
         }
         for _id, session in sessions.items()
     }
+
+async def update_session(session_id: str, action: SessionAction):
+    session = sessions[session_id]
+
+    if action == SessionAction.DELETE:
+        # TODO this must also stop tasks, otherwise those will just go on even without a session
+        # TODO then, just remove the session from the sessions-dict (DB will follow on next sync)
+        pass
+
+    if action == SessionAction.LOGOUT:
+        # TODO call deferred-logout of client (or some new method for this, I think we use this three times then)
+        # TODO clear api-keys dict
+        pass
+
+    if action == SessionAction.STOP_TASKS:
+        # TODO clear scheduled-tasks dict
+        # TODO this will not stop the next, already scheduled execution of the task, though; for this, maybe just set "stop" flag?
+        pass
 
 
 # LIFECYCLE
