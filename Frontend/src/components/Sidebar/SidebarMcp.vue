@@ -118,7 +118,7 @@ export default {
                 {
                     mcpServerUrl: {type: "text", label: "Server URL", default: "" },
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
-                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "never", always: "always (not implemented yet)"}},
+                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "Require Approval - never", always: "Require Approval - always (not implemented yet)"}},
                 },
                 async (values) => {
                     if (values != null) {

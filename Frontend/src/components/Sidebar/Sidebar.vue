@@ -207,14 +207,6 @@ export default {
         return {};
     },
     methods: {
-        // not sure where this should go now...
-        /*
-        handleUpdatePlatformInfo(isPlatformConnected) {
-            if (!this.$refs.agents) return;
-            this.$refs.agents.updatePlatformInfo(isPlatformConnected);
-            this.$refs.mcp.updateMcp(isPlatformConnected);
-        },
-        */
 
         setupResizer() {
             const resizer = document.getElementById('resizer');

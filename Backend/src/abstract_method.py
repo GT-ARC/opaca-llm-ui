@@ -9,7 +9,6 @@ from itertools import count
 
 import httpx
 from openai.types.responses import ResponseFunctionToolCall
-from openai.types.responses.response_output_item import McpCall
 from pydantic import BaseModel, ValidationError
 import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
@@ -166,7 +165,7 @@ class AbstractMethod(ABC):
 
                 # Alternative tool output
                 for t in event.response.output:
-                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall, McpCall)):
+                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
                         try:
                             tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
                         except json.JSONDecodeError:
