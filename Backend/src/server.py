@@ -403,8 +403,7 @@ async def open_websocket(websocket: WebSocket):
         pass  # this is normal when e.g. the browser is closed
     finally:
         # when the browser session is closed, immediately logout of all previously logged in containers
-        for container_id in list(session.opaca_client.logged_in_containers):
-            await session.opaca_client.deferred_container_logout(container_id, 0)
+        await session.opaca_client.logout_all_containers()
         session._websocket = None
 
 
