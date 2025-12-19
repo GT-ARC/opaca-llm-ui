@@ -123,11 +123,9 @@ export default {
                 async (values) => {
                     if (values != null) {
                         // Validate input
-                        if (!values.mcpServerUrl) {
-                            await this.addMcp("The Server Url cannot be empty!")
-                            return
-                        } else if (!this.isValidUrl(values.mcpServerUrl)) {
-                            await this.addMcp("The server url needs to be in a valid format (\"https://...\")")
+                        mcpError = this.isValidUrl(values.mcpServerUrl);
+                        if (mcpError !== "") {
+                            await this.addMcp(mcpError)
                             return
                         }
 
@@ -168,13 +166,27 @@ export default {
         },
 
         isValidUrl(s) {
+            // Return a detailed error msg if the mcp server url is malformed. Return an empty string if the url is valid.
+
+            // Check if the string is empty
+            if (!s) {
+                return "The Server Url cannot be empty!"
+            }
+
+            // Check if the string is in a valid url format
             let url;
             try {
                 url = new URL(s);
             } catch (_) {
-                return false;
+                return "The server url needs to be in a valid format (\"https://...\")!";
             }
-            return url.protocol === "http:" || url.protocol === "https:";
+
+            // Check if the protocol is https. Otherwise mcp tools will not work.
+            if (url.protocol === "http:") {
+                return "Only HTTPS is allowed for MCP Servers!"
+            } else if (url.protocol === "https:") {
+                return ""
+            }
         }
     },
     watch: {
