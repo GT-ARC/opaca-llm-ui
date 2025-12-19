@@ -429,6 +429,9 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
     # create Cookie (or just update max-age if already exists)
     session = await create_or_refresh_session(session_id, max_age)
 
+    if session.blocked:
+        raise OpacaException("The session has been blocked. If you think this is an error, please consult the platform administrator.")
+
     # If it's an HTTP request, and you want to set a cookie
     if response is not None:
         response.set_cookie("session_id", session.session_id, max_age=max_age)

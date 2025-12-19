@@ -18,6 +18,8 @@ class SessionAction(Enum):
     DELETE = "DELETE"         # delete the session entirely
     LOGOUT = "LOGOUT"         # log-out of all logged-in containers and LLM-Hosts
     STOP_TASKS = "STOP_TASKS" # stop (i.e. delete) all scheduled tasks
+    BLOCK = "BLOCK"           # block the session, preventing any further requests
+    UNBLOCK = "UNBLOCK"       # unblock the session again
 
 
 logger: Logger = logging.getLogger(__name__)
@@ -192,6 +194,7 @@ async def get_all_sessions() -> dict:
             "platform": session._opaca_client.url,
             "container-logins": list(session._opaca_client.logged_in_containers.keys()),
             "user_api_keys": list(session._user_api_keys),
+            "blocked": session.blocked,
         }
         for _id, session in sessions.items()
     }
@@ -212,6 +215,12 @@ async def update_session(session_id: str, action: SessionAction):
         if action == SessionAction.STOP_TASKS:
             # already scheduled tasks consider themselves cancelled if no longer in this list
             session.scheduled_tasks.clear()
+        
+        if action == SessionAction.BLOCK:
+            session.blocked = True
+        
+        if action == SessionAction.UNBLOCK:
+            session.blocked = False
 
 
 # LIFECYCLE
