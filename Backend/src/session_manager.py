@@ -179,7 +179,7 @@ async def delete_all_sessions() -> None:
         sessions.clear()
 
 
-async def get_all_sessions() -> list[dict]:
+async def get_all_sessions() -> dict:
     """
     Get simplified view on sessions for sessions-admin route.
     """
@@ -190,29 +190,28 @@ async def get_all_sessions() -> list[dict]:
             "files": [file.file_name for file in session.uploaded_files.values()],
             "tasks": [(task.query, task.interval, task.repetitions) for task in session.scheduled_tasks.values()],
             "platform": session._opaca_client.url,
-            "container-logins": session._opaca_client.logged_in_containers.keys(),
+            "container-logins": list(session._opaca_client.logged_in_containers.keys()),
             "user_api_keys": list(session._user_api_keys),
         }
         for _id, session in sessions.items()
     }
 
 async def update_session(session_id: str, action: SessionAction):
-    session = sessions[session_id]
+    async with sessions_lock:
+        session = sessions[session_id]
 
-    if action == SessionAction.DELETE:
-        # TODO this must also stop tasks, otherwise those will just go on even without a session
-        # TODO then, just remove the session from the sessions-dict (DB will follow on next sync)
-        pass
+        if action == SessionAction.DELETE:
+            # the session still lives in the scope of already started tasks, but those stop if they are no longer in the list
+            session.scheduled_tasks.clear()
+            del sessions[session_id]
 
-    if action == SessionAction.LOGOUT:
-        # TODO call deferred-logout of client (or some new method for this, I think we use this three times then)
-        # TODO clear api-keys dict
-        pass
+        if action == SessionAction.LOGOUT:
+            await session._opaca_client.logout_all_containers()
+            session._user_api_keys.clear()
 
-    if action == SessionAction.STOP_TASKS:
-        # TODO clear scheduled-tasks dict
-        # TODO this will not stop the next, already scheduled execution of the task, though; for this, maybe just set "stop" flag?
-        pass
+        if action == SessionAction.STOP_TASKS:
+            # already scheduled tasks consider themselves cancelled if no longer in this list
+            session.scheduled_tasks.clear()
 
 
 # LIFECYCLE
