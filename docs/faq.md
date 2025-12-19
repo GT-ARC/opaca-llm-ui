@@ -48,10 +48,16 @@ Complex queries may require multiple steps. The assistant can chain tool calls t
 Yes, if those systems are connected as services. Use caution when enabling access to critical systems.
 
 **Can I deploy my own tools or services to OPACA?**
-Yes. If you have access to the OPACA platform, you can deploy custom OPACA agent containers and register new tools.
+Yes. If you have access to the OPACA platform, you can deploy custom OPACA agent containers and register new tools. You can use our [opaca python sdk](https://github.com/GT-ARC/opaca-python-sdk) to simplify this process.
 
 **Can I chain tools manually?**
 Not directly through the UI. You can simulate chaining by prompting the assistant with follow-up instructions based on previous outputs, or by explicitly asking the assistant to use tools in a specific order.
+
+**Can I add MCP Servers to SAGE?**
+Yes, MCP Servers and their functions are treated the same way as OPACA actions. However, the functions from MCP Servers are only available on SAGE and not on the OPACA platform.
+
+**Can I add my own MCP Server to SAGE?**
+Generally yes, although your MCP Server must run as an https service. We currently only support Streamable-http transport types for MCP Servers.
 
 ## Prompts and Language Model Behavior
 
