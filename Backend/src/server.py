@@ -156,9 +156,9 @@ async def get_actions(request: Request, response: Response) -> dict[str, List[Di
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
 async def query_no_history(request: Request, response: Response, method: str, message: QueryRequest) -> QueryResponse:
-    session = await handle_session_id(request, response)
-    session.abort_sent = False
     try:
+        session = await handle_session_id(request, response)
+        session.abort_sent = False
         return await METHODS[method](session, message.streaming).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return QueryResponse.from_exception(message.user_query, e)
@@ -192,17 +192,18 @@ async def get_chat_history(request: Request, response: Response, chat_id: str) -
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
-    session = await handle_session_id(request, response)
-    chat = session.get_or_create_chat(chat_id, True)
-    session.abort_sent = False
-    result = None
+    chat = None
     try:
+        session = await handle_session_id(request, response)
+        session.abort_sent = False
+        chat = session.get_or_create_chat(chat_id, True)
         internal_tools = InternalTools(session, METHODS[method])
         result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
-        chat.store_interaction(result)
+        if chat is not None:
+            chat.store_interaction(result)
         return result
 
 
