@@ -276,8 +276,23 @@ export default {
             }
             if (response.type === "PushMessage")  {
                 notificationArea.addNotificationBubble(response);
+                this.showDesktopNotification(response.content, true);
                 this.pendingNotification = false;
                 this.unreadNotifications += 1;
+            }
+        },
+
+        showDesktopNotification(text, ask) {
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") {
+                    const notification = new Notification(text);
+                    // what else to do here???
+                } else if (ask && Notification.permission !== "denied") {
+                    // We need to ask the user for permission
+                    Notification.requestPermission().then((_permission) => {
+                        this.showDesktopNotification(text, false);
+                    });
+                }
             }
         },
 
