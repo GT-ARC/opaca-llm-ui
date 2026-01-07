@@ -13,7 +13,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from litellm.types.mcp_server.mcp_server_manager import MCPServer
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
@@ -167,7 +166,7 @@ async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMes
     if session.add_mcp_server(mcp.content):
         return Response(status_code=201)
     else:
-        return Response(status_code=400)
+        return Response(status_code=400, content="Encountered an error while adding the MCP server!")
 
 
 @app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
@@ -176,7 +175,7 @@ async def delete_mcp_server(request: Request, response: Response, mcp_server: MC
     if session.delete_mcp_server(mcp_server.name):
         return Response(status_code=204)
     else:
-        return Response(status_code=400, content="No matching mcp server found")
+        return Response(status_code=404, content="No matching mcp server found!")
 
 
 ### CHAT ROUTES

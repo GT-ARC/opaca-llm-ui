@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Callable, Set, Literal
+from typing import Iterable, Set, Literal
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -347,7 +347,7 @@ class SessionData(BaseModel):
             return False
 
         # Check if a previous mcp server with the same url already exists
-        if mcp_server["server_url"] in [m["server_url"] for m in self.mcp_servers]:
+        if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
             return False
 
         # If no server label was given, transform the server_url into the label
@@ -356,8 +356,8 @@ class SessionData(BaseModel):
 
             # For the rare case that the same host provides multiple mcp servers, check if the server_label exists
             # and append a number to it to make it unique (important for deletion process)
-            if mcp_server["server_label"] in [m["server_label"] for m in self.mcp_servers]:
-                mcp_server["server_label"] += f"_{len(self.mcp_servers)}"
+            if (idx := [m["server_label"] for m in self.mcp_servers].count(mcp_server["server_label"])) > 0:
+                mcp_server["server_label"] += f"_{idx}"
 
         self.mcp_servers.append(mcp_server)
         return True

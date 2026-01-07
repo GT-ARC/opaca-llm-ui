@@ -231,10 +231,7 @@ class ToolLLMMethod(AbstractMethod):
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
-            action_def = None
-            for a in tools:
-                if a['name'] == action:
-                    action_def = a
+            action_def = next((a for a in tools if a['name'] == action), None)
             if not action_def:
                 err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
                             f'defined in your tool section. Please make sure to separate the agent name and function '

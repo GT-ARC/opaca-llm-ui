@@ -123,7 +123,7 @@ export default {
                 async (values) => {
                     if (values != null) {
                         // Validate input
-                        mcpError = this.isValidUrl(values.mcpServerUrl);
+                        mcpError = this.isValidInput(values.mcpServerUrl, values.mcpServerLabel);
                         if (mcpError !== "") {
                             await this.addMcp(mcpError)
                             return
@@ -143,7 +143,7 @@ export default {
                 "Delete MCP server?", null, null, {}, 
                 async (values) => {
                     if (values != null) {
-                        await backendClient.deleteMcp({"name": mcpName});
+                        await backendClient.deleteMcp(mcpName);
                         await this.updateMcp(true);
                     }
                 }
@@ -165,18 +165,23 @@ export default {
                 }, {});
         },
 
-        isValidUrl(s) {
-            // Return a detailed error msg if the mcp server url is malformed. Return an empty string if the url is valid.
+        isValidInput(s_url, s_label) {
+            // Return a detailed error msg if the mcp server url or label is malformed. Return an empty string if the url is valid.
 
-            // Check if the string is empty
-            if (!s) {
+            // Check if the url string is empty
+            if (!s_url) {
                 return "The Server Url cannot be empty!"
+            }
+
+            // Check if the label starts with a letter and only contains letters, digits, '-', and '_'
+            if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(s_label)) {
+                return "The server label must start with a letter and consist of only letters, digits, '-' and '_'"
             }
 
             // Check if the string is in a valid url format
             let url;
             try {
-                url = new URL(s);
+                url = new URL(s_url);
             } catch (_) {
                 return "The server url needs to be in a valid format (\"https://...\")!";
             }
