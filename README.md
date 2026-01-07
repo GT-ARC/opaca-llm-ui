@@ -83,6 +83,18 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 * `PUT /config/{method}`: Update the configuration of that prompting method (e.g. the used model).
 * `DELETE /config/{method}`: Reset the configuration of that prompting method (e.g. the used model) to the default values.
 
+#### Admin routes
+
+The following routes can be used to administer all currently active sessions, including those of other users. They therefor require a password, which can be set in the `SESSION_ADMIN_PWD` environment variable. (A more fine-grained inspection and manipulation of the sessions would be possible by directly accessing the DB, but these routes are more convenient in case there is e.g. some out-of-control scheduled task in another session.)
+
+* `GET /admin/sessions`: Get an overview of current sessions, including chat-names (no full chats), uploaded files' names, scheduled tasks, etc.
+* `PUT /admin/sessions/{session_id}/{action}`: Perform some action on the given session. Available actions are:
+  * `DELETE`: Deletes the session.
+  * `LOGOUT`: Logout of all logged-in containers for this session.
+  * `STOP_TASKS`: Stop/delete all Scheduled Tasks of this session.
+  * `BLOCK`: Block this session, disallowing any future requests until unblocked.
+  * `UNBLOCK`: Unblock the session.
+
 You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
 
 
@@ -144,6 +156,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `LLM_MODELS`: Semicolon-separated list of comma-separated lists of supported models for each of the above hosts.
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 * `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
+* `SESSION_ADMIN_PWD`: password needed to call any of the `/admin/...` routes.
 
 ## Supported Models
 
