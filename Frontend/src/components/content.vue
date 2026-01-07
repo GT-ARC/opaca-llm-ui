@@ -156,7 +156,7 @@
                             <input
                                 type="file"
                                 ref="fileInput"
-                                accept=".pdf"
+                                accept=".pdf,image/*"
                                 class="d-none"
                                 :disabled="!this.isFinished"
                                 @change="e => uploadFiles(e.target.files)"
@@ -375,17 +375,9 @@ export default {
         async uploadFiles(fileList) {
             const files = Array.from(fileList);
 
-            // Filter out non-PDFs
-            const pdfFiles = files.filter(file => file.type === "application/pdf");
-
-            if (pdfFiles.length === 0) {
-                this.showInfo("Only PDF files are allowed.");
-                return;
-            }
-
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
-            const wrappedFiles = pdfFiles.map(file => ({
+            const wrappedFiles = files.map(file => ({
                 file,
                 fileId: null,
                 isUploading: true

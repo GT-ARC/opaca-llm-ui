@@ -1,4 +1,5 @@
 import io
+import os
 import logging
 import shutil
 from pathlib import Path
@@ -18,19 +19,44 @@ async def upload_files(session: SessionData, model: str):
 
     host = model.rsplit("/", 1)[0]
 
+    # Check if the selected host supports file upload
+    if not host in ["openai", "azure", "vertex_ai", "bedrock"]:
+        logger.warning(f"Host {host} does not support file upload.")
+        return
+
+    # Check if model supports vision
+    try:
+        model_supports_vision = (bool(litellm.supports_vision(model=model)) and host == "openai")
+    except Exception:
+        model_supports_vision = False
+
     # Upload all files that haven't been uploaded to this host
     for file_id, file_data in session.uploaded_files.items():
         # Skip suspended files
         if file_data.suspended:
             continue
 
-        # Check if the selected host supports file upload
-        if not host in ["openai", "azure", "vertex_ai", "bedrock"]:
-            logger.warning(f"Host {host} does not support file upload.")
-            break
-
         # If this host already has an uploaded id for this file, skip
         if host in file_data.host_ids:
+            continue
+
+        filename = file_data.file_name
+
+        # Check file type
+        file_is_pdf = is_pdf(filename)
+        file_is_img = is_image(filename)
+
+        # Only upload images if the model supports vision
+        if file_is_img:
+            if not model_supports_vision:
+                logger.info(f"Skipping image upload (model/host has no vision): {model} ({filename})")
+                continue
+
+            purpose = "vision"
+        elif file_is_pdf:
+            purpose = "assistants"
+        else:
+            logger.info(f"Skipping file upload (Type not supported): {filename}")
             continue
 
         # prepare file for upload
@@ -40,16 +66,24 @@ async def upload_files(session: SessionData, model: str):
             file_obj.name = file_data.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
-        uploaded = await litellm.acreate_file(file=file_obj, purpose="assistants", custom_llm_provider=host)
+        uploaded = await litellm.acreate_file(file=file_obj, purpose="purpose", custom_llm_provider=host)
         logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
         # record host id under this host_url
         file_data.host_ids[host] = uploaded.id
 
-    return [
-        {"type": "input_file", "file_id": filedata.host_ids[host]}
-        for filedata in session.uploaded_files.values()
-        if (not filedata.suspended) and (host in filedata.host_ids)
-    ]
+    parts = []
+    for filedata in session.uploaded_files.values():
+        if filedata.suspended or (host not in filedata.host_ids):
+            continue
+
+        if is_image(filedata.file_name):
+            if not model_supports_vision:
+                continue
+            parts.append({"type": "input_image", "file_id": filedata.host_ids[host]})
+        else:
+            parts.append({"type": "input_file", "file_id": filedata.host_ids[host]})
+
+    return parts
 
 
 async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bool:
@@ -117,3 +151,9 @@ def create_path(session_id: str, file_id: str = None) -> Path:
     if not file_id:
         return Path(FILES_PATH, session_id)
     return Path(FILES_PATH, session_id, file_id)
+
+def is_pdf(filename: str) -> bool:
+    return os.path.splitext(filename.lower())[1] == ".pdf"
+
+def is_image(filename: str) -> bool:
+    return os.path.splitext(filename.lower())[1] in {".jpg", ".png", ".jpeg", ".gif"}
