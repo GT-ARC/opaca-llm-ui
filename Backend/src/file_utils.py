@@ -66,7 +66,7 @@ async def upload_files(session: SessionData, model: str):
             file_obj.name = file_data.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
-        uploaded = await litellm.acreate_file(file=file_obj, purpose="purpose", custom_llm_provider=host)
+        uploaded = await litellm.acreate_file(file=file_obj, purpose=purpose, custom_llm_provider=host)
         logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
         # record host id under this host_url
         file_data.host_ids[host] = uploaded.id
