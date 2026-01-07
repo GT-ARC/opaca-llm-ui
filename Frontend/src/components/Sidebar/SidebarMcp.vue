@@ -130,7 +130,12 @@ export default {
                         }
 
                         const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
-                        await backendClient.addMcp({"content": data});
+                        try {
+                            await backendClient.addMcp({"content": data});
+                        } catch (err) {
+                            await this.addMcp(err.response.data);
+                            return
+                        }
                         await this.updateMcp(true);
                     }
                 }
