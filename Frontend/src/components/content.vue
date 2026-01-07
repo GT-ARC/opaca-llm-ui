@@ -9,7 +9,7 @@
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
                 <p>{{ Localizer.get("dropFiles") }}</p>
-                <span class="fa fa-file-pdf" />
+                <span class="fa fa-file" />
             </div>
         </div>
 
@@ -286,7 +286,7 @@ export default {
                 this.resizeTextInput();
 
                 const files = this.selectedFiles
-                    ? this.selectedFiles.map(file => file.name)
+                    ? this.selectedFiles.map(target => target.file.name)
                     : [];
                 await this.askChatGpt(userInput, files);
 

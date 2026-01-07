@@ -51,7 +51,7 @@
                      class="footer-item w-auto me-2"
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
                      :title="Localizer.get('tooltipChatbubbleFiles')">
-                    <i class="fa fa-file-pdf" />
+                    <i class="fa" :class="getFilesIconClass()" />
                 </div>
 
             </div>
@@ -456,6 +456,22 @@ export default {
                 ? !this.isCollapsed
                 : value;
         },
+
+        getFilesIconClass() {
+            const hasImage = this.files.some(f =>
+                /\.(png|jpe?g|gif)$/i.test(f)
+            );
+            const hasPdf = this.files.some(f =>
+                f?.toLowerCase().endsWith(".pdf")
+            );
+
+            if (hasImage && hasPdf) return "fa-file-lines";
+            if (hasImage) return "fa-file-image";
+            if (hasPdf) return "fa-file-pdf";
+
+            // Fallback
+            return "fa-file";
+        }
     },
 
     mounted() {
