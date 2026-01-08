@@ -33,7 +33,7 @@
                             aria-expanded="false"
                             :aria-controls="'accordion-body-' + agentIndex">
                         <i class="fa fa-user me-3"/>
-                        <strong>{{ agent }}</strong>
+                        <strong>{{ agent }}</strong>&nbsp;({{ actions.length }})
                     </button>
                 </h2>
 

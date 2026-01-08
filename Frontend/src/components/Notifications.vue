@@ -1,10 +1,14 @@
 <template>
-    <div class="notifications-container overflow-auto">
+    <div class="notifications-container overflow-auto" @click.stop>
+        <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary w-100">
+            {{Localizer.get('noNotifsAvailable')}}
+        </div>
+
         <div v-for="{ elementId, fullResponse, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
-                <span>{{ time }}</span>
+                <span>{{ time.toLocaleString(Localizer.getLanguageForDate()) }}</span>
                 <!-- grouped buttons -->
-                <div class="d-flex gap-1">
+                <div class="d-flex gap-1 align-items-center">
                     <i v-if="loading" class="fa fa-stop notification-button"
                         @click.stop="this.stopNotifications()"
                         title="Stop"
@@ -13,24 +17,25 @@
                        @click.stop="this.appendToChat(fullResponse)"
                        :title="Localizer.get('tooltipAppendNotification')"
                     />
-                    <i v-if="! loading"class="fa fa-remove notification-button"
+                    <i v-if="! loading" class="fa fa-remove notification-button"
                         @click.stop="this.dismissNotification(elementId)"
-                        title="Dismiss"
+                        :title="Localizer.get('tooltipDismissNotification')"
                     />
                 </div>
             </div>
-            <Chatbubble
-                :key="content"
-                :element-id="elementId"
-                :is-user="false"
-                :initial-content="content"
-                :initial-loading="loading"
-                :is-bookmarked="false"
-                :files="[]"
-                :chat-id="''"
-                :ref="elementId"
-                @add-to-library=""
-            />
+            <div class="px-2" :key="content">
+                <Chatbubble
+                    :element-id="elementId"
+                    :is-user="false"
+                    :initial-content="content"
+                    :initial-loading="loading"
+                    :is-bookmarked="false"
+                    :files="[]"
+                    :chat-id="''"
+                    :ref="elementId"
+                    :is-collapsible="true"
+                />
+            </div>
         </div>
     </div>
 </template>
@@ -50,7 +55,6 @@ export default {
     props: {
     },
     emits: [
-        // create new chat from notification
         "append-to-chat"
     ],
     setup() {
@@ -71,7 +75,7 @@ export default {
                 elementId: elementId,
                 loading: true, 
                 content: response.query, 
-                time: new Date().toLocaleString(),
+                time: new Date(),
             };
             this.messages.unshift(message);
         },
@@ -87,12 +91,12 @@ export default {
                 fullResponse: response,
                 loading: false,
                 content: response.content, 
-                time: new Date().toLocaleString(),
+                time: new Date(),
             };
             this.messages.unshift(message);
 
             // wait for the next rendering tick so that the component is mounted
-            await nextTick();
+            await this.$nextTick();
 
             // add debug stuff to chat bubble
             const chatBubble = this.$refs[elementId][0];
@@ -119,7 +123,15 @@ export default {
         },
 
         async dismissNotification(elementId) {
-            this.messages = this.messages.filter(m => m.elementId != elementId);
+            this.messages = this.messages.filter(m => m.elementId !== elementId);
+        },
+
+        isBubbleCollapsed(elementId) {
+            return this.$refs[elementId]?.[0]?.isCollapsed;
+        },
+
+        collapseBubble(elementId) {
+            this.$refs[elementId]?.[0]?.toggleCollapsed();
         },
 
         async appendToChat(response) {
@@ -131,11 +143,9 @@ export default {
 </script>
 
 <style scoped>
-
 .notifications-container {
     max-height: 80vh;
     min-width: min(600px, 100vw - 9rem);
-    max-width: calc(100vw - 9rem);
 }
 
 .notification-button {
@@ -148,4 +158,11 @@ export default {
     cursor: pointer;
 }
 
+.notification-button:hover {
+    background-color: var(--input-color);
+}
+
+.notification-button:active {
+    color: var(--text-danger-color);
+}
 </style>

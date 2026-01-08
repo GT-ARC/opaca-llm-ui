@@ -192,7 +192,7 @@ export default {
                     await this.$refs.input.showDialogue(
                         "Platform Login",
                         Localizer.get('unauthenticated'),
-                        username != "" ? Localizer.get('authError') : null,
+                        username !== "" ? Localizer.get('authError') : null,
                         {
                             username: { type: "text", label: Localizer.get("username") },
                             password: { type: "password", label: Localizer.get("password") },
@@ -270,11 +270,11 @@ export default {
 
         createNotification(response) {
             const notificationArea = this.$refs.Notifications;
-            if (response.type == "PushAdvert")  {
+            if (response.type === "PushAdvert")  {
                 notificationArea.addPendingNotificationBubble(response);
                 this.pendingNotification = true;
             }
-            if (response.type == "PushMessage")  {
+            if (response.type === "PushMessage")  {
                 notificationArea.addNotificationBubble(response);
                 this.pendingNotification = false;
                 this.unreadNotifications += 1;
@@ -536,12 +536,13 @@ header {
 }
 
 @media (max-width: 576px) {
-    #connection-menu {
+    #connection-menu, #notifications-area {
         position: fixed !important;
         top: auto !important;
         bottom: auto !important;
-        left: 2rem !important;
+        left: 2% !important;
         right: auto !important;
+        width: 96% !important;
     }
 }
 </style>

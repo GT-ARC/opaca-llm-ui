@@ -223,7 +223,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         messages=agent_evaluator.messages(task_str, result),
                         temperature=config.temperature,
                         response_format=agent_evaluator.schema,
-                        status_message=f"Evaluating {task.agent_name}'s task completion..."
+                        status_message=f"Evaluating {task.agent_name}'s task completion"
                     )
                     agent_messages.append(evaluation_message)
                     should_retry = evaluation_message.formatted_output.reiterate
@@ -260,7 +260,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         temperature=config.temperature,
                         tool_choice="required",
                         tools=agent.tools,
-                        status_message="Retrying task..."
+                        status_message="Retrying task"
                     )
 
                     result = await self.invoke_tools(agent, task.task, worker_message)
@@ -321,7 +321,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
-                    status_message="Creating detailed orchestration plan..."
+                    status_message="Creating detailed orchestration plan"
                 )
 
                 # Extract pre-formatted Orchestrator Plan
@@ -395,7 +395,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=overall_evaluator.messages(message, all_results),
                         temperature=config.temperature,
                         response_format=overall_evaluator.schema,
-                        status_message="Overall evaluation..."
+                        status_message="Overall evaluation"
                     )
                     should_retry = evaluation_message.formatted_output.reiterate
                     response.agent_messages.append(evaluation_message)
@@ -409,7 +409,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         messages=iteration_advisor.messages(message, all_results),
                         temperature=config.temperature,
                         response_format=iteration_advisor.schema,
-                        status_message="Analyzing results and preparing advice for next iteration..."
+                        status_message="Analyzing results and preparing advice for next iteration"
                     )
                     advice = advisor_message.formatted_output
                     response.agent_messages.append(advisor_message)
@@ -454,7 +454,7 @@ Please address these specific improvements:
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 temperature=config.temperature,
-                status_message="Generating final response...",
+                status_message="Generating final response",
                 is_output=True,
             )
             response.agent_messages.append(final_output)
