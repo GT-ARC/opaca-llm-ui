@@ -110,30 +110,33 @@ export default {
             this.isLoading = false;
         },
 
-        async addMcp(mcpError = null) {
+        async addMcp(mcpError = null, url_placeholder = "", label_placeholder = "") {
             await this.$refs.input.showDialogue(
                 Localizer.get('addMcp'),
                 null,
                 mcpError,
                 {
-                    mcpServerUrl: {type: "text", label: "Server URL", default: "" },
-                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
+                    mcpServerUrl: {type: "text", label: "Server URL", default: url_placeholder },
+                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: label_placeholder },
                     mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "Require Approval - never", always: "Require Approval - always (not implemented yet)"}},
                 },
                 async (values) => {
                     if (values != null) {
+                        // Get values from submission dialogue
+                        const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+
                         // Validate input
-                        mcpError = this.isValidInput(values.mcpServerUrl, values.mcpServerLabel);
+                        mcpError = this.isValidInput(data.server_url, data.server_label);
                         if (mcpError !== "") {
-                            await this.addMcp(mcpError)
+                            await this.addMcp(mcpError, data.server_url, data.server_label)
                             return
                         }
 
-                        const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+                        // Add MCP server to backend, retry on failure
                         try {
                             await backendClient.addMcp({"content": data});
                         } catch (err) {
-                            await this.addMcp(err.response.data);
+                            await this.addMcp(err.response.data.detail, data.server_url, data.server_label);
                             return
                         }
                         await this.updateMcp(true);
@@ -179,7 +182,7 @@ export default {
             }
 
             // Check if the label starts with a letter and only contains letters, digits, '-', and '_'
-            if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(s_label)) {
+            if (s_label && !/^[A-Za-z][A-Za-z0-9_-]*$/.test(s_label)) {
                 return "The server label must start with a letter and consist of only letters, digits, '-' and '_'"
             }
 
