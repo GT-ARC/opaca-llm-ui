@@ -276,8 +276,20 @@ export default {
             }
             if (response.type === "PushMessage")  {
                 notificationArea.addNotificationBubble(response);
+                this.showDesktopNotification(response.content);
                 this.pendingNotification = false;
                 this.unreadNotifications += 1;
+            }
+        },
+
+        async showDesktopNotification(text) {
+            const canShowNotification = (("Notification" in window) && (
+                Notification.permission === "granted" ||
+                Notification.permission !== "denied" && await (Notification.requestPermission() === "granted")
+            ));
+            if (canShowNotification) {
+                const notification = new Notification(text);
+                notification.onclick = (e) => { window.focus(); };
             }
         },
 
