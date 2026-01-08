@@ -10,7 +10,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException, UploadFile
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
@@ -24,7 +24,8 @@ from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
-from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, restore_scheduled_tasks
+from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
+    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -58,7 +59,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SAGE Backend Services",
-    summary="Provides services for interacting with the SAGE. Mainly to be used by the frontend, but can also be called directly.",
+    summary="Provides services for interacting with SAGE. Mainly to be used by the frontend, but can also be called directly.",
     lifespan=lifespan
 )
 
@@ -69,6 +70,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# SIMPLE AUTH FOR SELECTED ROUTES
+
+def require_password(x_api_password: str | None = Header(None)):
+    admin_pwd = os.getenv('SESSION_ADMIN_PWD')
+    if admin_pwd and x_api_password != admin_pwd:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized")
 
 
 # EXCEPTION HANDLING
@@ -92,12 +100,12 @@ async def handle_custom_error(request: Request, exc: OpacaException):
 
 # 'GENERAL' ROUTES
 
-@app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.")
+@app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.", tags=["methods"])
 async def get_methods() -> list:
     return list(METHODS)
 
 
-@app.get("/models", description="Get supported models, grouped by LLM server URL")
+@app.get("/models", description="Get supported models, grouped by LLM server URL", tags=["methods"])
 async def get_models() -> dict[str, list[str]]:
     return {
         url: models
@@ -105,48 +113,58 @@ async def get_models() -> dict[str, list[str]]:
     }
 
 
-@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).")
+@app.get("/admin/sessions", description="Get short info on all current sessions. Requires authentication, if configured.", tags=["admin"])
+async def session_admin_get(auth = Depends(require_password)):
+    return await get_all_sessions()
+
+
+@app.put("/admin/sessions/{session_id}/{action}", description="Perform different actions on sessions. Requires authentication, if configured.", tags=["admin"])
+async def session_admin_update(session_id: str, action: SessionAction, auth = Depends(require_password)):
+    return await update_session(session_id, action)
+
+
+@app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).", tags=["opaca"])
 async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
     return await session.opaca_client.connect(connect.url, connect.user, connect.pwd)
 
 
-@app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.")
+@app.get("/connection", description="Get URL of currently connected OPACA Runtime Platform, if any, or null.", tags=["opaca"])
 async def get_connection(request: Request, response: Response) -> str | None:
     session = await handle_session_id(request, response)
     return session.opaca_client.url if session.opaca_client.connected else None
 
 
-@app.post("/disconnect", description="Reset OPACA Runtime Connection.")
+@app.post("/disconnect", description="Reset OPACA Runtime Connection.", tags=["opaca"])
 async def disconnect(request: Request, response: Response) -> Response:
     session = await handle_session_id(request, response)
     await session.opaca_client.disconnect()
     return Response(status_code=204)
 
 
-@app.get("/extra-ports", description="Get extra ports providing additional functionalities.")
+@app.get("/extra-ports", description="Get extra ports providing additional functionalities.", tags=["opaca"])
 async def get_extra_ports(request: Request, response: Response) -> list[dict[str, Any]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_extra_ports()
 
 
-@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.")
+@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
 
 
-@app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.")
+@app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
 async def query_no_history(request: Request, response: Response, method: str, message: QueryRequest) -> QueryResponse:
-    session = await handle_session_id(request, response)
-    session.abort_sent = False
     try:
+        session = await handle_session_id(request, response)
+        session.abort_sent = False
         return await METHODS[method](session, message.streaming).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return QueryResponse.from_exception(message.user_query, e)
 
 
-@app.post("/stop", description="Abort generation for every query of the current session.")
+@app.post("/stop", description="Abort generation for every query of the current session.", tags=["chat"])
 async def stop_query(request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
@@ -154,7 +172,7 @@ async def stop_query(request: Request, response: Response) -> None:
 
 ### CHAT ROUTES
 
-@app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.")
+@app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.", tags=["chat"])
 async def get_chats(request: Request, response: Response) -> List[Chat]:
     session = await handle_session_id(request, response)
     chats = [
@@ -165,30 +183,31 @@ async def get_chats(request: Request, response: Response) -> List[Chat]:
     return chats
 
 
-@app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).")
+@app.get("/chats/{chat_id}", description="Get a chat's full history (including user queries, LLM responses, internal/intermediate messages, metrics, etc.).", tags=["chat"])
 async def get_chat_history(request: Request, response: Response, chat_id: str) -> Chat:
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id)
     return chat
 
 
-@app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.")
+@app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(request: Request, response: Response, method: str, chat_id: str, message: QueryRequest) -> QueryResponse:
-    session = await handle_session_id(request, response)
-    chat = session.get_or_create_chat(chat_id, True)
-    session.abort_sent = False
-    result = None
+    chat = None
     try:
+        session = await handle_session_id(request, response)
+        session.abort_sent = False
+        chat = session.get_or_create_chat(chat_id, True)
         internal_tools = InternalTools(session, METHODS[method])
         result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:
-        chat.store_interaction(result)
+        if chat is not None:
+            chat.store_interaction(result)
         return result
 
 
-@app.put("/chats/{chat_id}", description="Update a chat's name.")
+@app.put("/chats/{chat_id}", description="Update a chat's name.", tags=["chat"])
 async def update_chat(request: Request, response: Response, chat_id: str, new_name: str) -> None:
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id)
@@ -196,20 +215,20 @@ async def update_chat(request: Request, response: Response, chat_id: str, new_na
     chat.update_modified()
 
 
-@app.delete("/chats/{chat_id}", description="Delete a single chat.")
+@app.delete("/chats/{chat_id}", description="Delete a single chat.", tags=["chat"])
 async def delete_chat(request: Request, response: Response, chat_id: str) -> bool:
     session = await handle_session_id(request, response)
     return session.delete_chat(chat_id)
 
 
-@app.delete("/chats", description="Delete all chats of the current session.")
+@app.delete("/chats", description="Delete all chats of the current session.", tags=["chat"])
 async def delete_all_chats(request: Request, response: Response) -> bool:
     session = await handle_session_id(request, response)
     session.chats.clear()
     return True
 
 
-@app.post("/chats/search", description="Search through all chats for a given query.")
+@app.post("/chats/search", description="Search through all chats for a given query.", tags=["chat"])
 async def search_chats(request: Request, response: Response, query: str) -> Dict[str, List[SearchResult]]:
     def make_excerpt(text: str, query: str, index: int, buffer_length: int = 30) -> str:
         start = max(0, index - buffer_length)
@@ -241,7 +260,7 @@ async def search_chats(request: Request, response: Response, query: str) -> Dict
     return results
 
 
-@app.post("/chats/{chat_id}/append", description="Append a single push message to a chat")
+@app.post("/chats/{chat_id}/append", description="Append a single push message to a chat", tags=["chat"])
 async def append(chat_id: str, auto_append: bool, push_message: PushMessage, request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     chat = session.get_or_create_chat(chat_id, True)
@@ -253,13 +272,13 @@ async def append(chat_id: str, auto_append: bool, push_message: PushMessage, req
 
 ## CONFIG ROUTES
 
-@app.get("/config/{method}", description="Get current configuration of the given prompting method.")
+@app.get("/config/{method}", description="Get current configuration of the given prompting method.", tags=["methods"])
 async def get_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     return ConfigPayload(config_values=session.get_config(METHODS[method]), config_schema=METHODS[method].config_schema())
 
 
-@app.put("/config/{method}", description="Update configuration of the given prompting method.")
+@app.put("/config/{method}", description="Update configuration of the given prompting method.", tags=["methods"])
 async def set_config(request: Request, response: Response, method: str, config: dict) -> ConfigPayload:
     session = await handle_session_id(request, response)
     try:
@@ -269,7 +288,7 @@ async def set_config(request: Request, response: Response, method: str, config: 
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
-@app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.")
+@app.delete("/config/{method}", description="Resets the configuration of the prompting method to its default.", tags=["methods"])
 async def reset_config(request: Request, response: Response, method: str) -> ConfigPayload:
     session = await handle_session_id(request, response)
     session.config[method] = METHODS[method].CONFIG()
@@ -277,14 +296,13 @@ async def reset_config(request: Request, response: Response, method: str) -> Con
 
 ## FILE ROUTES
 
-@app.get("/files", description="Get a list of all uploaded files.")
+@app.get("/files", description="Get a list of all uploaded files.", tags=["other"])
 async def get_files(request: Request, response: Response) -> dict:
     session = await handle_session_id(request, response)
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration "
-                                "with the next user queries. Currently only supports PDF.")
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.", tags=["other"])
 async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
@@ -302,7 +320,7 @@ async def upload_files(request: Request, response: Response, files: List[UploadF
     return {"uploaded_files": uploaded}
 
 
-@app.delete("/files/{file_id}", description="Delete an uploaded file.")
+@app.delete("/files/{file_id}", description="Delete an uploaded file.", tags=["other"])
 async def delete_file(request: Request, response: Response, file_id: str) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
@@ -315,7 +333,7 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
     return False
 
 
-@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.")
+@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["other"])
 async def update_file(request: Request, response: Response, file_id: str, suspend: bool) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
@@ -328,7 +346,7 @@ async def update_file(request: Request, response: Response, file_id: str, suspen
     return False
 
 
-@app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.")
+@app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.", tags=["other"])
 async def view_file(request: Request, response: Response, file_id: str):
     session = await handle_session_id(request, response)
     files = session.uploaded_files
@@ -353,13 +371,13 @@ async def view_file(request: Request, response: Response, file_id: str):
 
 ## BOOKMARK ROUTES
 
-@app.get("/bookmarks")
+@app.get("/bookmarks", tags=["other"])
 async def get_bookmarks(request: Request) -> list:
     session = await handle_session_id(request)
     return session.bookmarks
 
 
-@app.post("/bookmarks")
+@app.post("/bookmarks", tags=["other"])
 async def save_bookmarks(request: Request) -> None:
     session = await handle_session_id(request)
     new_bookmarks = await request.json()
@@ -386,8 +404,7 @@ async def open_websocket(websocket: WebSocket):
         pass  # this is normal when e.g. the browser is closed
     finally:
         # when the browser session is closed, immediately logout of all previously logged in containers
-        for container_id in list(session.opaca_client.logged_in_containers):
-            await session.opaca_client.deferred_container_logout(container_id, 0)
+        await session.opaca_client.logout_all_containers()
         session._websocket = None
 
 
@@ -412,6 +429,9 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
     max_age = 60 * 60 * 24 * 30  # 30 days
     # create Cookie (or just update max-age if already exists)
     session = await create_or_refresh_session(session_id, max_age)
+
+    if session.blocked:
+        raise OpacaException("The session has been blocked. If you think this is an error, please consult the platform administrator.")
 
     # If it's an HTTP request, and you want to set a cookie
     if response is not None:

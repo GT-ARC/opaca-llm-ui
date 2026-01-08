@@ -47,8 +47,7 @@ class OpacaClient:
 
     async def disconnect(self) -> None:
         """Clears authentication and connection state."""
-        for cid in list(self.logged_in_containers):
-            await self.deferred_container_logout(cid, 0)
+        await self.logout_all_containers()
         self.token = None
         self.url = None
         self.connected = False
@@ -136,6 +135,10 @@ class OpacaClient:
 
         # Mark container as logged in
         self.logged_in_containers[container_id] = res.text
+
+    async def logout_all_containers(self):
+        for cid in list(self.logged_in_containers):
+            await self.deferred_container_logout(cid, 0)
 
     async def deferred_container_logout(self, container_id: str, delay_seconds: int):
         """Initiate delayed container logout for OPACA RP"""

@@ -37,6 +37,7 @@ services:
       LLM_MODELS:
       CORS_WHITELIST:
       MONGODB_URI: "mongodb://user:pass@session-db:27017"
+      SESSION_ADMIN_PWD:
     volumes:
       - appdata:/app/data
 

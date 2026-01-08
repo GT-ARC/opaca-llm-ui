@@ -233,6 +233,7 @@ class SessionData(BaseModel):
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         notifications_chats_map: Which notifications should be auto-appended to which chats.
         valid_until: Timestamp until session is active.
+        blocked: Whether this session is currently blocked, not accepting any requests.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -254,6 +255,7 @@ class SessionData(BaseModel):
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
+    blocked: bool = False
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

@@ -2,14 +2,24 @@ import asyncio
 import os
 import time
 import logging
+from datetime import datetime
 from logging import Logger
 from typing import Dict, Optional, List
+from enum import Enum
 from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_all_files_from_disk
 from .internal_tools import InternalTools
 from .models import SessionData
+
+
+class SessionAction(Enum):
+    DELETE = "DELETE"         # delete the session entirely
+    LOGOUT = "LOGOUT"         # log-out of all logged-in containers and LLM-Hosts
+    STOP_TASKS = "STOP_TASKS" # stop (i.e. delete) all scheduled tasks
+    BLOCK = "BLOCK"           # block the session, preventing any further requests
+    UNBLOCK = "UNBLOCK"       # unblock the session again
 
 
 logger: Logger = logging.getLogger(__name__)
@@ -169,6 +179,48 @@ async def delete_all_sessions() -> None:
         for session_id in sessions:
             await db_client.delete_session(session_id)
         sessions.clear()
+
+
+async def get_all_sessions() -> dict:
+    """
+    Get simplified view on sessions for sessions-admin route.
+    """
+    return {
+        _id: {
+            "valid_until": datetime.fromtimestamp(session.valid_until).isoformat(),
+            "chats": [chat.name for chat in session.chats.values()],
+            "files": [file.file_name for file in session.uploaded_files.values()],
+            "tasks": [(task.query, task.interval, task.repetitions) for task in session.scheduled_tasks.values()],
+            "platform": session._opaca_client.url,
+            "container-logins": list(session._opaca_client.logged_in_containers.keys()),
+            "user_api_keys": list(session._user_api_keys),
+            "blocked": session.blocked,
+        }
+        for _id, session in sessions.items()
+    }
+
+async def update_session(session_id: str, action: SessionAction):
+    async with sessions_lock:
+        session = sessions[session_id]
+
+        if action == SessionAction.DELETE:
+            # the session still lives in the scope of already started tasks, but those won't execute if they are no longer in the list
+            session.scheduled_tasks.clear()
+            await delete_session(session_id)
+
+        elif action == SessionAction.LOGOUT:
+            await session._opaca_client.logout_all_containers()
+            session._user_api_keys.clear()
+
+        elif action == SessionAction.STOP_TASKS:
+            # already scheduled tasks consider themselves cancelled if no longer in this list
+            session.scheduled_tasks.clear()
+        
+        elif action == SessionAction.BLOCK:
+            session.blocked = True
+        
+        elif action == SessionAction.UNBLOCK:
+            session.blocked = False
 
 
 # LIFECYCLE
