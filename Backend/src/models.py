@@ -340,15 +340,15 @@ class SessionData(BaseModel):
 
         # Check if the server_url field is existing
         if "server_url" not in mcp_server:
-            return False
+            raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!")
 
         # Check if the server url is in a valid format:
         if not re.match(r'^https?://', mcp_server["server_url"]):
-            return False
+            raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!")
 
         # Check if a previous mcp server with the same url already exists
         if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
-            return False
+            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!")
 
         # If no server label was given, transform the server_url into the label
         if not mcp_server["server_label"]:
