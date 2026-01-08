@@ -48,7 +48,7 @@ Complex queries may require multiple steps. The assistant can chain tool calls t
 Yes, if those systems are connected as services. Use caution when enabling access to critical systems.
 
 **Can I deploy my own tools or services to OPACA?**
-Yes. If you have access to the OPACA platform, you can deploy custom OPACA agent containers and register new tools. You can use our [opaca python sdk](https://github.com/GT-ARC/opaca-python-sdk) to simplify this process.
+Yes. If you have access to the OPACA platform, you can deploy custom OPACA agent containers and register new tools. You can use our [OPACA Python SDK](https://github.com/GT-ARC/opaca-python-sdk) to simplify this process.
 
 **Can I chain tools manually?**
 Not directly through the UI. You can simulate chaining by prompting the assistant with follow-up instructions based on previous outputs, or by explicitly asking the assistant to use tools in a specific order.

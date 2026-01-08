@@ -354,11 +354,6 @@ class SessionData(BaseModel):
         if not mcp_server["server_label"]:
             mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
 
-            # For the rare case that the same host provides multiple mcp servers, check if the server_label exists
-            # and append a number to it to make it unique (important for deletion process)
-            if (idx := [m["server_label"] for m in self.mcp_servers].count(mcp_server["server_label"])) > 0:
-                mcp_server["server_label"] += f"_{idx}"
-
         self.mcp_servers.append(mcp_server)
         return True
 
