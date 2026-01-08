@@ -7,6 +7,7 @@ import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
+from litellm.vector_stores import acreate
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class OpacaClient:
         self.connected = False
         self.login_lock = asyncio.Lock()
         self.logged_in_containers = {}  # Stores the container ids where the user is currently logged in
+        self.how_can_you_help: dict[str, str] = {}
 
     async def connect(self, url: str, user: str, pwd: str):
         """Connect with OPACA platform, get access token if necessary and try to fetch actions.
