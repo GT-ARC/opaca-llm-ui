@@ -163,10 +163,8 @@ async def get_mcp_list(request: Request, response: Response) -> Dict:
 @app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
 async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMessage) -> Response:
     session = await handle_session_id(request, response)
-    if session.add_mcp_server(mcp.content):
-        return Response(status_code=201)
-    else:
-        return Response(status_code=400, content="Encountered an error while adding the MCP server!")
+    session.add_mcp_server(mcp.content)
+    return Response(status_code=201)
 
 
 @app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")

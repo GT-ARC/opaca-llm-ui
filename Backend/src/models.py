@@ -340,19 +340,23 @@ class SessionData(BaseModel):
 
         # Check if the server_url field is existing
         if "server_url" not in mcp_server:
-            raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!")
+            raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!", 400)
 
         # Check if the server url is in a valid format:
         if not re.match(r'^https?://', mcp_server["server_url"]):
-            raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!")
+            raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!", 400)
 
         # Check if a previous mcp server with the same url already exists
         if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
-            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!")
+            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
 
         # If no server label was given, transform the server_url into the label
         if not mcp_server["server_label"]:
             mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
+
+        # Check if a previous mcp server with the same label already exists (UI saves mcp servers based on label)
+        if any(m["server_label"] == mcp_server["server_label"] for m in self.mcp_servers):
+            raise OpacaException(f"An MCP server with the given server_label '{mcp_server['server_label']} already exists!", "Duplicate 'server_label'!", 400)
 
         self.mcp_servers.append(mcp_server)
         return True
