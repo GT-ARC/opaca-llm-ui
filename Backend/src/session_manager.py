@@ -204,22 +204,22 @@ async def update_session(session_id: str, action: SessionAction):
         session = sessions[session_id]
 
         if action == SessionAction.DELETE:
-            # the session still lives in the scope of already started tasks, but those stop if they are no longer in the list
+            # the session still lives in the scope of already started tasks, but those won't execute if they are no longer in the list
             session.scheduled_tasks.clear()
             await delete_session(session_id)
 
-        if action == SessionAction.LOGOUT:
+        elif action == SessionAction.LOGOUT:
             await session._opaca_client.logout_all_containers()
             session._user_api_keys.clear()
 
-        if action == SessionAction.STOP_TASKS:
+        elif action == SessionAction.STOP_TASKS:
             # already scheduled tasks consider themselves cancelled if no longer in this list
             session.scheduled_tasks.clear()
         
-        if action == SessionAction.BLOCK:
+        elif action == SessionAction.BLOCK:
             session.blocked = True
         
-        if action == SessionAction.UNBLOCK:
+        elif action == SessionAction.UNBLOCK:
             session.blocked = False
 
 
