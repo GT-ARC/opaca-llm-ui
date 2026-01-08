@@ -335,7 +335,7 @@ class SessionData(BaseModel):
             tools[mcp_server["server_label"]] = await client.list_tools()
         return tools
 
-    def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
+    async def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
 
         # Check if the server_url field is existing
@@ -357,6 +357,11 @@ class SessionData(BaseModel):
         # Check if a previous mcp server with the same label already exists (UI saves mcp servers based on label)
         if any(m["server_label"] == mcp_server["server_label"] for m in self.mcp_servers):
             raise OpacaException(f"An MCP server with the given server_label '{mcp_server['server_label']} already exists!", "Duplicate 'server_label'!", 400)
+
+        # Check if the given server-url is actually an mcp server
+        client = MCPClient(server_url=mcp_server["server_url"])
+        if not await client.list_tools():
+            raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
         self.mcp_servers.append(mcp_server)
         return True
