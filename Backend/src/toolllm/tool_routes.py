@@ -109,7 +109,7 @@ class ToolLLMMethod(AbstractMethod):
             # These steps are sequentially dependent and require at most 3 steps
             correction_limit = 0
             full_err = '\n'
-            while (err_msg := self.check_valid_action(tools, result.tools)) and correction_limit < 3:
+            while (err_msg := await self.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
                     model=config.tool_gen_model,
@@ -130,12 +130,17 @@ class ToolLLMMethod(AbstractMethod):
 
             response.agent_messages.append(result)
 
-            # Check if tools were generated and if so, execute them by calling the opaca-proxy
+            # Check if opaca tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
+            mcp_tools = []
             for i, call in enumerate(result.tools):
-                tasks.append(self.invoke_tool(call.name, call.args, call.id))
+                if call.type == "opaca":
+                    tasks.append(self.invoke_tool(call.name, call.args, call.id))
+                elif call.type == "mcp":
+                    mcp_tools.append(call)
 
             result.tools = await asyncio.gather(*tasks)
+            result.tools.extend(mcp_tools)
 
             called_tools[c_it] = self._build_tool_desc(c_it, result.tools)
 
@@ -206,13 +211,19 @@ class ToolLLMMethod(AbstractMethod):
         response.error = error
         return response
 
-    @staticmethod
-    def check_valid_action(tools, calls: List[ToolCall]) -> str:
+    async def check_valid_action(self, calls: List[ToolCall]) -> str:
         # Save all encountered errors in a single string, which will be given to the llm as an input
         err_out = ""
 
+        # Get the list of available tools without mcp tools
+        tools, _ = await self.get_tools(include_mcp=False)
+
         # Since the gpt models can generate multiple tools, iterate over each generated call
         for call in calls:
+
+            # MCP Tools do not need a validation check
+            if call.type == "mcp":
+                continue
 
             # Get the generated name and parameters
             action = call.name
@@ -220,10 +231,7 @@ class ToolLLMMethod(AbstractMethod):
 
             # Check if the generated action name is found in the list of action definitions
             # If not, abort current iteration since no reference parameters can be found
-            action_def = None
-            for a in tools:
-                if a['name'] == action:
-                    action_def = a
+            action_def = next((a for a in tools if a['name'] == action), None)
             if not action_def:
                 err_out += (f'Your generated function name "{action}" does not exist. Only use the exact function name '
                             f'defined in your tool section. Please make sure to separate the agent name and function '

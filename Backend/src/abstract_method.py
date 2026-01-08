@@ -115,7 +115,7 @@ class AbstractMethod(ABC):
             kwargs['tool_choice'] = 'auto'
 
         # Main stream logic
-        stream = await litellm.aresponses(**kwargs)
+        stream = await litellm.aresponses_api_with_mcp(**kwargs)
         async for event in stream:
 
             # Check if an "abort" message has been sent by the user
@@ -124,6 +124,24 @@ class AbstractMethod(ABC):
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
+
+            elif event.type == event_type.OUTPUT_ITEM_DONE:
+                if event.item.type == "mcp_call":
+                    try:
+                        tool = ToolCall(
+                            name=f'{event.item.server_label}--{event.item.name}',
+                            type="mcp",
+                            id=self.next_tool_id(agent_message),
+                            args=json.loads(event.item.arguments),
+                            result=event.item.output
+                        )
+                    except json.JSONDecodeError:
+                        logger.warning(f"Could not parse mcp tool arguments: {event.item.arguments}")
+                        tool = ToolCall(name=event.item.name, type="mcp", id=self.next_tool_id(agent_message), args={}, result=event.item.output)
+                    agent_message.tools.append(tool)
+                    # Stream the tool call and the result
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
+                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result))
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
@@ -149,10 +167,10 @@ class AbstractMethod(ABC):
                 for t in event.response.output:
                     if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
                         try:
-                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse tool arguments: {t.arguments}")
-                            tool = ToolCall(name=t.name, id=self.next_tool_id(agent_message), args={})
+                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args={})
                         agent_message.tools.append(tool)
                         await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                 # Capture token usage
@@ -202,15 +220,17 @@ class AbstractMethod(ABC):
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
         await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-        return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=t_result)
+        return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=t_result)
 
 
-    async def get_tools(self, max_tools=128) -> tuple[list[dict], str]:
+    async def get_tools(self, include_internal: bool = True, include_mcp: bool = True, max_tools=128) -> tuple[list[dict], str]:
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        if self.internal_tools:
+        if self.session.mcp_servers and include_mcp:
+            tools.extend(self.session.mcp_servers)
+        if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
             error += (f"WARNING: Your number of tools ({len(tools)}) exceeds the maximum tool limit "

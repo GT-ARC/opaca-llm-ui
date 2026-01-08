@@ -34,6 +34,11 @@
                :title="Localizer.get('tooltipSidebarExtensions')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
 
+            <i @click="SidebarManager.toggleView('mcp')"
+               class="fa fa-server sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarMcp')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
+
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarConfig')"
@@ -111,6 +116,13 @@
                     ref="extensions"
                 />
 
+                <!-- MCP servers -->
+                <SidebarMcp
+                    v-show="SidebarManager.isViewSelected('mcp')"
+                    :is-platform-connected="connected"
+                    ref="mcp"
+                />
+
                 <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
@@ -151,10 +163,12 @@ import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
+import SidebarMcp from "./SidebarMcp.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarMcp,
         SidebarFiles,
         SidebarChats,
         SidebarFaq,
@@ -193,6 +207,7 @@ export default {
         return {};
     },
     methods: {
+
         setupResizer() {
             const resizer = document.getElementById('resizer');
             const sidebar = document.getElementById('sidebar-content');

@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Callable, Set
+from typing import Iterable, Set, Literal
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -12,6 +12,7 @@ import time
 import traceback
 import asyncio
 
+from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError
 
@@ -150,6 +151,7 @@ class ChatMessage(BaseModel):
 
 class ToolCall(BaseModel):
     id: str
+    type: Literal["opaca", "mcp"]
     name: str
     args: Dict[str, Any] = {}
     result: Any | None = None
@@ -233,6 +235,7 @@ class SessionData(BaseModel):
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         notifications_chats_map: Which notifications should be auto-appended to which chats.
         valid_until: Timestamp until session is active.
+        mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
@@ -255,6 +258,7 @@ class SessionData(BaseModel):
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
+    mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
@@ -325,6 +329,53 @@ class SessionData(BaseModel):
         else:
             raise Exception("Websocket not connected")
 
+    async def get_mcp_tools(self) -> Dict:
+        """Returns a list of all available mcp server tools"""
+        tools = {}
+        for mcp_server in self.mcp_servers:
+            client = MCPClient(server_url=mcp_server["server_url"])
+            tools[mcp_server["server_label"]] = await client.list_tools()
+        return tools
+
+    async def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
+        """Adds a new mcp server json"""
+
+        # Check if the server_url field is existing
+        if "server_url" not in mcp_server:
+            raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!", 400)
+
+        # Check if the server url is in a valid format:
+        if not re.match(r'^https?://', mcp_server["server_url"]):
+            raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!", 400)
+
+        # Check if a previous mcp server with the same url already exists
+        if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
+            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
+
+        # If no server label was given, transform the server_url into the label
+        if not mcp_server["server_label"]:
+            mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
+
+        # Check if a previous mcp server with the same label already exists (UI saves mcp servers based on label)
+        if any(m["server_label"] == mcp_server["server_label"] for m in self.mcp_servers):
+            raise OpacaException(f"An MCP server with the given server_label '{mcp_server['server_label']} already exists!", "Duplicate 'server_label'!", 400)
+
+        # Check if the given server-url is actually an mcp server
+        client = MCPClient(server_url=mcp_server["server_url"])
+        if not await client.list_tools():
+            raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
+
+        self.mcp_servers.append(mcp_server)
+        return True
+
+    def delete_mcp_server(self, mcp_name: str) -> bool:
+        """Deletes an mcp server based on its name. The UI only stores the server_label."""
+        for mcp in self.mcp_servers:
+            if (mcp["server_label"]) == mcp_name:
+                self.mcp_servers.remove(mcp)
+                return True
+        return False
+
     def prune_notifications_chats_map(self):
         """Remove orphaned taskIds and invalid chatIds."""
         to_delete = []
@@ -375,6 +426,16 @@ class OpacaException(Exception):
         self.user_message = user_message
         self.error_message = error_message
         self.status_code = status_code
+
+
+# MCP MESSAGES
+
+class MCPCreateMessage(BaseModel):
+    content: Dict[str, Any]
+
+
+class MCPDeleteMessage(BaseModel):
+    name: str
 
 
 # MESSAGES SENT OR RECEIVED VIA WEBSOCKET

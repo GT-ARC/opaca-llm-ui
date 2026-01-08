@@ -12,7 +12,7 @@ This repository includes software developed in the course of the project "Offene
 
 ## About
 
-SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE includes a small set of internal or 'introspective' actions, but all services for productive day-to-ady use are taken from the connected OPACA platform.
+SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE includes a small set of internal or 'introspective' actions, but all services for productive day-to-day use are taken from the connected OPACA platform or added MCP Servers.
 
 ![SAGE UI Screenshot](docs/img/opaca-llm-ui.png)
 

@@ -17,7 +17,7 @@ from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException, PushMessage
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -168,6 +168,30 @@ async def query_no_history(request: Request, response: Response, method: str, me
 async def stop_query(request: Request, response: Response) -> None:
     session = await handle_session_id(request, response)
     session.abort_sent = True
+
+
+# MCP Routes
+
+@app.get("/mcp", description="Get a list of all added MCP servers and their actions")
+async def get_mcp_list(request: Request, response: Response) -> Dict:
+    session = await handle_session_id(request, response)
+    return await session.get_mcp_tools()
+
+
+@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
+async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMessage) -> Response:
+    session = await handle_session_id(request, response)
+    await session.add_mcp_server(mcp.content)
+    return Response(status_code=201)
+
+
+@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
+async def delete_mcp_server(request: Request, response: Response, mcp_server: MCPDeleteMessage) -> Response:
+    session = await handle_session_id(request, response)
+    if session.delete_mcp_server(mcp_server.name):
+        return Response(status_code=204)
+    else:
+        return Response(status_code=404, content="No matching mcp server found!")
 
 
 ### CHAT ROUTES

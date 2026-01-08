@@ -13,6 +13,7 @@ class SidebarManager {
         'questions',
         'agents',
         'extensions',
+        'mcp',
         'config',
         'debug',
         'faq',
