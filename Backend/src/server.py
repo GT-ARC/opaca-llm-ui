@@ -4,6 +4,7 @@ Provides a list of available LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
+import json
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
 import asyncio
@@ -144,13 +145,12 @@ async def disconnect(request: Request, response: Response) -> Response:
 
 @app.post("/platform-info", description="Get info about the connected platform", tags=["opaca"])
 async def platform_info(request: Request, response: Response, query: str) -> str:
-    import json
     session = await handle_session_id(request, response)
     actions = await session.opaca_client.get_actions()
     actions = json.dumps(actions, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     if actions not in session.opaca_client.how_can_you_help:
         info = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
-        info = json.dumps(info, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        info = info.content
         session.opaca_client.how_can_you_help[actions] = info
     return session.opaca_client.how_can_you_help[actions]
 

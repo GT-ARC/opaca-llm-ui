@@ -49,11 +49,12 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.sendRequest("simple-tools", "platform-info", Localizer.get('platformInfoRequest'), false);
-                const answer = response.agent_messages[0].content;
-                this.howAssistContent = marked.parse(answer);
+                const path = `platform-info?query=${Localizer.get('platformInfoRequest')}`
+                const response = await backendClient.sendRequest("POST", path, null, false);
+                this.howAssistContent = marked.parse(response);
             } catch (error) {
                 console.error("ERROR " + error);
+                console.error(error.stack);
                 this.howAssistContent = Localizer.get('platformInfoFailed', error);
             } finally {
                 this.isLoading = false;
