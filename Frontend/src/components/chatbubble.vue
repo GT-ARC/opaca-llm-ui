@@ -459,16 +459,13 @@ export default {
 
         getFilesIconClass() {
             const hasImage = this.files.some(f =>
-                /\.(png|jpe?g|gif)$/i.test(f)
+                /\.(png|jpe?g|gif|webp)$/i.test(f)
             );
             const hasPdf = this.files.some(f =>
                 f?.toLowerCase().endsWith(".pdf")
             );
-
-            if (hasImage && hasPdf) return "fa-file-lines";
             if (hasImage) return "fa-file-image";
             if (hasPdf) return "fa-file-pdf";
-
             // Fallback
             return "fa-file";
         }
