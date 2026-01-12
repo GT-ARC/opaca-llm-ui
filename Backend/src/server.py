@@ -43,6 +43,10 @@ METHODS = {
 logger = logging.getLogger("uvicorn")
 
 
+# dict for storing platform info
+platform_infos: dict[str, str] = {}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # before start
@@ -148,11 +152,11 @@ async def platform_info(request: Request, response: Response, query: str) -> str
     session = await handle_session_id(request, response)
     actions = await session.opaca_client.get_actions()
     actions = json.dumps(actions, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    if actions not in session.opaca_client.how_can_you_help:
+    if actions not in platform_infos:
         info = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
         info = info.content
-        session.opaca_client.how_can_you_help[actions] = info
-    return session.opaca_client.how_can_you_help[actions]
+        platform_infos[actions] = info
+    return platform_infos[actions]
 
 
 @app.get("/extra-ports", description="Get extra ports providing additional functionalities.", tags=["opaca"])
