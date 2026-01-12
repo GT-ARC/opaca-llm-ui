@@ -156,7 +156,7 @@
                             <input
                                 type="file"
                                 ref="fileInput"
-                                accept=".pdf,image/*"
+                                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
                                 :disabled="!this.isFinished"
                                 @change="e => uploadFiles(e.target.files)"
