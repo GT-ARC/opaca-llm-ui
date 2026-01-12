@@ -25,10 +25,7 @@ async def upload_files(session: SessionData, model: str):
         return
 
     # Check if model supports vision
-    try:
-        model_supports_vision = (bool(litellm.supports_vision(model=model)) and host == "openai")
-    except Exception:
-        model_supports_vision = False
+    model_supports_vision = (bool(litellm.supports_vision(model=model)) and host == "openai")
 
     # Upload all files that haven't been uploaded to this host
     for file_id, file_data in session.uploaded_files.items():
@@ -42,21 +39,13 @@ async def upload_files(session: SessionData, model: str):
 
         filename = file_data.file_name
 
-        # Check file type
-        file_is_pdf = is_pdf(filename)
-        file_is_img = is_image(filename)
-
-        # Only upload images if the model supports vision
-        if file_is_img:
-            if not model_supports_vision:
-                logger.info(f"Skipping image upload (model/host has no vision): {model} ({filename})")
-                continue
-
+        # Check file type (purpose)
+        if is_image(filename) and model_supports_vision:
             purpose = "vision"
-        elif file_is_pdf:
+        elif is_pdf(filename):
             purpose = "assistants"
         else:
-            logger.info(f"Skipping file upload (Type not supported): {filename}")
+            logger.info(f"Skipping file upload (Type not supported): {model} ({filename})")
             continue
 
         # prepare file for upload
@@ -76,9 +65,7 @@ async def upload_files(session: SessionData, model: str):
         if filedata.suspended or (host not in filedata.host_ids):
             continue
 
-        if is_image(filedata.file_name):
-            if not model_supports_vision:
-                continue
+        if is_image(filedata.file_name) and model_supports_vision:
             parts.append({"type": "input_image", "file_id": filedata.host_ids[host]})
         else:
             parts.append({"type": "input_file", "file_id": filedata.host_ids[host]})
@@ -156,4 +143,4 @@ def is_pdf(filename: str) -> bool:
     return os.path.splitext(filename.lower())[1] == ".pdf"
 
 def is_image(filename: str) -> bool:
-    return os.path.splitext(filename.lower())[1] in {".jpg", ".png", ".jpeg", ".gif"}
+    return os.path.splitext(filename.lower())[1] in {".jpg", ".png", ".jpeg", ".gif", ".webp"}
