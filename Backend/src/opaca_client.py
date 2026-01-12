@@ -7,8 +7,6 @@ import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
-from litellm.vector_stores import acreate
-
 logger = logging.getLogger(__name__)
 
 
