@@ -1,10 +1,8 @@
 <template>
-    <div class="file align-items-center" :class="{ 'file-suspended': file.suspended }">
+    <div class="file align-items-center"
+         :class="{ 'file-suspended': file.suspended }"
+         @click.stop="this.viewFile()">
         <div class="file-name"> {{file.file_name}} </div>
-        <i class="fa fa-eye file-menu-button"
-           @click.stop="this.viewFile()"
-           :title="Localizer.get('tooltipViewUploadedFile')"
-        />
         <i :class="[
             'fa fa-lg',
             file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
@@ -13,6 +11,9 @@
             ]"
            @click.stop="this.suspendFile()"
            :title="Localizer.get('tooltipSuspendUploadedFile')"
+        />
+        <i class="fa fa-pen-to-square file-menu-button"
+           @click.stop="this.renameFile()"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
@@ -62,6 +63,10 @@ export default {
                 mimeType: this.file.content_type
             });
         },
+
+        renameFile() {
+            // todo
+        }
     },
     mounted() {
     },
@@ -78,6 +83,7 @@ export default {
     width: 100%;
     background-color: var(--background-color);
     color: var(--text-primary-color);
+    cursor: pointer;
 }
 
 .file:hover {
