@@ -6,7 +6,7 @@ from pathlib import Path
 
 import litellm
 from fastapi import UploadFile
-from .models import SessionData, OpacaFile
+from .models import SessionData, OpacaFile, OpacaException
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,6 @@ async def upload_files(session: SessionData, model: str):
 
     host = model.rsplit("/", 1)[0]
 
-    # Check if the selected host supports file upload
-    if not host in ["openai", "azure", "vertex_ai", "bedrock"]:
-        logger.warning(f"Host {host} does not support file upload.")
-        return
-
     # Check if model supports vision
     model_supports_vision = (bool(litellm.supports_vision(model=model)) and host == "openai")
 
@@ -32,6 +27,10 @@ async def upload_files(session: SessionData, model: str):
         # Skip suspended files
         if file_data.suspended:
             continue
+
+        # Check if the selected host supports file upload
+        if host not in ["openai", "azure", "vertex_ai", "bedrock"]:
+            raise OpacaException(user_message=f"Host {host} does not support file upload.")
 
         # If this host already has an uploaded id for this file, skip
         if host in file_data.host_ids:
