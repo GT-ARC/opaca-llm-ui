@@ -17,6 +17,7 @@
                 @delete-file="fileId => this.$emit('delete-file', fileId)"
                 @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
                 @view-file="$emit('view-file', $event)"
+                @rename-file="(fileId, newName) => this.$emit('rename-file', fileId, newName)"
             />
         </div>
     </div>
@@ -41,6 +42,7 @@ export default {
         'delete-file',
         'suspend-file',
         'view-file',
+        'rename-file',
     ],
     data() {
         return {

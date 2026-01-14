@@ -50,6 +50,7 @@
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @view-file="openViewer"
+            @rename-file="handleRenameFile"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
             @delete-all-chats="() => this.handleDeleteAllChats()"
         />
@@ -433,6 +434,11 @@ export default {
                     await backendClient.suspendFile(file.file_id, true);
                 }
             }
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async handleRenameFile(fileId, newName) {
+            await backendClient.renameFile(fileId, newName);
             await this.$refs.sidebar.$refs.files.updateFiles();
         },
 
