@@ -458,6 +458,9 @@ export default {
         },
 
         getFilesIconClass() {
+            if (!this.files || this.files.length === 0) {
+                return;
+            }
             const hasImage = this.files.some(f =>
                 /\.(png|jpe?g|gif|webp)$/i.test(f)
             );
