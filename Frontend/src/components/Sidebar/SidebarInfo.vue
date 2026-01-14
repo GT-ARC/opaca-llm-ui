@@ -49,7 +49,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const path = `platform-info?query=${Localizer.get('platformInfoRequest')}`
+                const path = `platform-info?lang=${Localizer.language}`
                 const response = await backendClient.sendRequest("POST", path, null, false);
                 this.howAssistContent = marked.parse(response);
             } catch (error) {

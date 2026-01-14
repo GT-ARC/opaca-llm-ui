@@ -43,8 +43,13 @@ METHODS = {
 logger = logging.getLogger("uvicorn")
 
 
-# dict for storing platform info
-platform_infos: dict[str, str] = {}
+# queries and dict for storing platform info
+# mapping language -> (hash -> info)
+platform_infos: dict[int, str] = {}
+info_queries = {
+    'DE': 'Wie kannst du mir helfen?',
+    'GB': 'How can you assist me?',
+}
 
 
 @asynccontextmanager
@@ -148,15 +153,18 @@ async def disconnect(request: Request, response: Response) -> Response:
 
 
 @app.post("/platform-info", description="Get info about the connected platform", tags=["opaca"])
-async def platform_info(request: Request, response: Response, query: str) -> str:
+async def get_platform_info(request: Request, response: Response, lang) -> str:
+    if lang not in info_queries:
+        lang = 'GB'
+    query = info_queries[lang]
     session = await handle_session_id(request, response)
     actions = await session.opaca_client.get_actions()
-    actions = json.dumps(actions, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    if actions not in platform_infos:
+    key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
+    if key not in platform_infos:
         info = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
         info = info.content
-        platform_infos[actions] = info
-    return platform_infos[actions]
+        platform_infos[key] = info
+    return platform_infos[key]
 
 
 @app.get("/extra-ports", description="Get extra ports providing additional functionalities.", tags=["opaca"])
