@@ -243,11 +243,8 @@ export const sidebarQuestions = reactive({
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
                 {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic!", "icon": "📑"},
-                {"question": "I need the phone numbers of the people working with LLM from the GoKI project.", "icon": "📞"},
                 {"question": "Schedule a brainstorming session with Robert.", "icon": "🧠"},
-                {"question": "Find a meeting slot for tomorrow that works for myself, Robert and Tobias.", "icon": "👥"},
-                {"question": "For my next meetings, search for any external people (not gt-arc or dai-labor affiliated) and give me more information about them you can find online.", "icon": "📅"},
-                {"question": "Using my gitlab user id, create a tabular comparison of all open GitLab issues assigned me.", "icon": "📜"},
+                {"question": "Get my gitlab user id and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"},
             ]
         },
         {
@@ -257,12 +254,9 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What can you tell me about ZEKI?", "icon": "❓"},
-                {"question": "What are some recent breakthroughs in AI that I should be aware of?", "icon": "🧑‍💻"},
-                {"question": "What are 'Large Language Models'?", "icon": "🧠"},
                 {"question": "What are the most exciting tech trends for 2026?", "icon": "🚀"},
-                {"question": "Explain Agile methodology.", "icon": "🔄"},
                 {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
-                {"question": "Please show me details on the study program Computer Science (Informatik).", "icon": "🎓"},
+                {"question": "What study program at TU Berlin is best suited for me when I want to do something with machine learning?", "icon": "🎓"},
             ]
         },
         {
@@ -270,9 +264,10 @@ export const sidebarQuestions = reactive({
             "header": "Data Analysis",
             "icon": "📊",
             "questions": [
-                {"question": "Retrieve the current noise levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "🔊"},
+                {"question": "Retrieve the current co2 levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "☁️"},
                 {"question": "Create a bar plot comparing the current stock prices of Siemens, Volkswagen, Deutsche Bank and SAP.", "icon": "📊"},
                 {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
+                {"question": "Get my gitlab user id and then plot my user statistics for the last 30 days as a bar plot.", "icon": "📈️"},
             ]
         },
         {
@@ -280,14 +275,10 @@ export const sidebarQuestions = reactive({
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "Which room is quieter, the Co-Working Space or Focus Space?", "icon": "🔊"},
                 {"question": "What is the temperature and CO2 level in the conference room?", "icon": "🌡️"},
-                {"question": "Set the height of my smart desk to 120 cm.", "icon": "⬆️"},
                 {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
                 {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
                 {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
-                {"question": "Please book me any free table in the Co-Working Space.", "icon": "🖥️"},
-                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
             ]
         },
         /*
@@ -313,11 +304,8 @@ export const sidebarQuestions = reactive({
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
                 {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst.", "icon": "📑"},
-                {"question": "Zeige mir die Telefonnummern aller Personen im GoKI Projekt die am Thema LLM arbeiten.", "icon": "📞"},
                 {"question": "Plane ein Brainstorming-Meeting mit Robert.", "icon": "🧠"},
-                {"question": "Finde eine Zeit für ein Meeting Morgen, die für mich, Robert und Tobias passt.", "icon": "👥"},
-                {"question": "Für meine nächsten Meetings: Suche nach allen externen Personen (nicht gt-arc oder dai-labor) und gib mir Informationen über diese, welche du online finden kannst.", "icon": "📅"},
-                {"question": "Erstelle mithilfe meiner Gitlab user id eine Tabelle, in welcher du alle meine offenen Gitlab Issues anzeigst welche mir zugewiesen sind.", "icon": "🖥️"},
+                {"question": "Finde meine GitLab Benutzer id und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"},
             ]
         },
         {
@@ -327,12 +315,9 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Was kannst du mir über das ZEKI erzählen?", "icon": "❓"},
-                {"question": "Was sind kürzliche Durchbrüche im Bereich KI von denen ich wissen muss?", "icon": "🧑‍💻"},
-                {"question": "Was sind 'Large Language Models'?", "icon": "🧠"},
                 {"question": "Was sind die spannendsten Tech-Trends für 2026?", "icon": "🚀"},
-                {"question": "Erkläre die Agile-Methodik.", "icon": "🔄"},
                 {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
-                {"question": "Bitte zeig mir die Details zum Studienprogramm Informatik.", "icon": "🎓"},
+                {"question": "Welche Studiengänge der TU Berlin passen am besten zu mir wenn ich etwas mit Machine Learning machen will?", "icon": "🎓"},
             ]
         },
         {
@@ -340,9 +325,10 @@ export const sidebarQuestions = reactive({
             "header": "Data Analysis",
             "icon": "📊",
             "questions": [
-                {"question": "Finde die aktuelle Lautstärke in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "🔊"},
+                {"question": "Finde den aktuellen Co2 Wert in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "☁️"},
                 {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Siemens, Volkswagen, Deutsche Bank und SAP.", "icon": "📊"},
                 {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
+                {"question": "Finde meine GitLab Benutzer id und stelle dann meine Benutzeraktivitäten für die letzten 30 Tage in einem Balkendiagramm dar.", "icon": "📈️"},
             ]
         },
         {
@@ -350,14 +336,10 @@ export const sidebarQuestions = reactive({
             "header": "Smart Office",
             "icon": "🏢",
             "questions": [
-                {"question": "Welcher Raum ist ruhiger, der Co-Working-Space oder der Focus-Space?", "icon": "🔊"},
                 {"question": "Wie ist die Temperatur und das CO2-Level im Conference Space?", "icon": "🌡️"},
-                {"question": "Stelle die Höhe meines Schreibtisches auf 120cm ein.", "icon": "⬆️"},
                 {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
                 {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
-                {"question": "Bitte buche mir einen freien Tisch im Co-Working Space.", "icon": "🖥️"},
-                {"question": "Bitte zeig mit den Weg zum Konferenzraum.", "icon": "🧭"},
             ]
         },
         /*
