@@ -242,7 +242,7 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic!", "icon": "📑"},
+                {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic and get the available phone numbers of the participants!", "icon": "📑"},
                 {"question": "Schedule a brainstorming session with Robert.", "icon": "🧠"},
                 {"question": "Get my gitlab user id and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"},
             ]
@@ -303,7 +303,7 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst.", "icon": "📑"},
+                {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst und die verfügbaren Telefonnummern der Teilnehmer holst.", "icon": "📑"},
                 {"question": "Plane ein Brainstorming-Meeting mit Robert.", "icon": "🧠"},
                 {"question": "Finde meine GitLab Benutzer id und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"},
             ]
