@@ -153,7 +153,7 @@ async def disconnect(request: Request, response: Response) -> Response:
 
 
 @app.post("/platform-info", description="Get info about the connected platform", tags=["opaca"])
-async def get_platform_info(request: Request, response: Response, lang) -> str:
+async def get_platform_info(request: Request, response: Response, lang: str) -> str:
     if lang not in info_queries:
         lang = 'GB'
     query = info_queries[lang]
@@ -161,9 +161,8 @@ async def get_platform_info(request: Request, response: Response, lang) -> str:
     actions = await session.opaca_client.get_actions()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
-        info = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
-        info = info.content
-        platform_infos[key] = info
+        result = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
+        platform_infos[key] = result.content
     return platform_infos[key]
 
 

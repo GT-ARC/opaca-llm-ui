@@ -49,12 +49,10 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const path = `platform-info?lang=${Localizer.language}`
-                const response = await backendClient.sendRequest("POST", path, null, false);
-                this.howAssistContent = marked.parse(response);
+                const answer = await backendClient.getPlatformInfo(Localizer.language);
+                this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);
-                console.error(error.stack);
                 this.howAssistContent = Localizer.get('platformInfoFailed', error);
             } finally {
                 this.isLoading = false;

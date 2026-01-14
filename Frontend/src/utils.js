@@ -29,6 +29,10 @@ class BackendClient {
         return await this.sendRequest("GET", "extra-ports");
     }
 
+    async getPlatformInfo(lang) {
+        return await this.sendRequest("POST", `platform-info?lang=${lang}`);
+    }
+
     // chat
 
     async query(chatId, method, user_query, streaming=False, timeout=10000) {
