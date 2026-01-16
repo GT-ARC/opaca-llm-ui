@@ -254,9 +254,9 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
                 {"question": "What can you tell me about ZEKI?", "icon": "❓"},
-                {"question": "What are the most exciting tech trends for 2026?", "icon": "🚀"},
+                {"question": "What are the most exciting tech trends for 2026 in the domain \"Consumer Electronics\"?", "icon": "🚀"},
                 {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
-                {"question": "What study program at TU Berlin is best suited for me when I want to do something with machine learning?", "icon": "🎓"},
+                {"question": "I want to start my master at TU Berlin and focus on AI applications. What program and courses are available?", "icon": "🎓"},
             ]
         },
         {
@@ -315,9 +315,9 @@ export const sidebarQuestions = reactive({
             "questions": [
                 {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
                 {"question": "Was kannst du mir über das ZEKI erzählen?", "icon": "❓"},
-                {"question": "Was sind die spannendsten Tech-Trends für 2026?", "icon": "🚀"},
+                {"question": "Was sind die spannendsten Tech-Trends für 2026 im Bereich \"Consumer Electronics\"?", "icon": "🚀"},
                 {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
-                {"question": "Welche Studiengänge der TU Berlin passen am besten zu mir wenn ich etwas mit Machine Learning machen will?", "icon": "🎓"},
+                {"question": "Ich möchte meinen Master an der TU Berlin anfangen mit dem Schwerpunkt KI Anwendungen. Welche Studiengänge und Kurse sind dazu verfügbar?", "icon": "🎓"},
             ]
         },
         {
