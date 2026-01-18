@@ -7,6 +7,13 @@
          class="d-flex flex-row justify-content-end" >
 
         <div class="chatbubble chatbubble-user ms-auto w-auto">
+            <img
+                v-if="getFirstImage()"
+                :src="getFirstImage()"
+                alt="Image preview"
+                class="bubble-image-preview"
+            />
+
             <div v-html="this.getFormattedContent()" />
 
             <!-- footer: debug, generate audio, ... -->
@@ -61,12 +68,11 @@
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px; max-width: 600px;">
                     <div class="message-text w-auto"
-                         v-for="file in this.files">
-                        {{ file }}
+                         v-for="fileObj in this.files">
+                        {{ fileObj.file.name }}
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -457,21 +463,37 @@ export default {
                 : value;
         },
 
+        isImageFileName(name) {
+            return /\.(png|jpe?g|gif|webp)$/i.test(name || "");
+        },
+
+        isPdfFileName(name) {
+            return (name || "").toLowerCase().endsWith(".pdf");
+        },
+
         getFilesIconClass() {
-            if (!this.files || this.files.length === 0) {
-                return;
-            }
-            const hasImage = this.files.some(f =>
-                /\.(png|jpe?g|gif|webp)$/i.test(f)
-            );
-            const hasPdf = this.files.some(f =>
-                f?.toLowerCase().endsWith(".pdf")
-            );
+            if (!this.files || this.files.length === 0) return;
+
+            const names = this.files.map(fileObj => fileObj.file.name)
+
+            const hasImage = names.some(n => this.isImageFileName(n));
+            const hasPdf = names.some(n => this.isPdfFileName(n));
+
             if (hasImage) return "fa-file-image";
             if (hasPdf) return "fa-file-pdf";
-            // Fallback
             return "fa-file";
-        }
+        },
+
+        getImages() {
+            return (this.files || [])
+                .filter(fileObj => this.isImageFileName(fileObj.file.name))
+                .map(fileObj => fileObj.file.url || URL.createObjectURL(fileObj.file));
+        },
+
+        getFirstImage() {
+            // TODO for now show only first image
+            return this.getImages()[0] || "";
+        },
     },
 
     mounted() {
@@ -597,6 +619,13 @@ export default {
     backdrop-filter: blur(2px);
     /* box shadow for smooth transition to blurred area */
     box-shadow: 0 -5px 10px rgba(128, 128, 128, 0.4);
+}
+
+.bubble-image-preview {
+    max-width: 100%;
+    max-height: 320px;
+    margin-top: 8px;
+    border-radius: 6px;
 }
 
 @keyframes glow {
