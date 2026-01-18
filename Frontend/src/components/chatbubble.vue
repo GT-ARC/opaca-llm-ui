@@ -68,8 +68,8 @@
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px; max-width: 600px;">
                     <div class="message-text w-auto"
-                         v-for="fileObj in this.files">
-                        {{ fileObj.file.name }}
+                         v-for="file in this.files">
+                        {{ file.name }}
                     </div>
                 </div>
             </div>
@@ -474,7 +474,7 @@ export default {
         getFilesIconClass() {
             if (!this.files || this.files.length === 0) return;
 
-            const names = this.files.map(fileObj => fileObj.file.name)
+            const names = this.files.map(file => file.name)
 
             const hasImage = names.some(n => this.isImageFileName(n));
             const hasPdf = names.some(n => this.isPdfFileName(n));
@@ -486,8 +486,8 @@ export default {
 
         getImages() {
             return (this.files || [])
-                .filter(fileObj => this.isImageFileName(fileObj.file.name))
-                .map(fileObj => fileObj.file.url || URL.createObjectURL(fileObj.file));
+                .filter(file => this.isImageFileName(file.name))
+                .map(file => file.url || URL.createObjectURL(file));
         },
 
         getFirstImage() {

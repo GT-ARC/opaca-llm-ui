@@ -285,7 +285,8 @@ export default {
                 await nextTick();
                 this.resizeTextInput();
 
-                await this.askChatGpt(userInput, this.selectedFiles);
+                const files = this.selectedFiles.map(wrappedFile => wrappedFile.file);
+                await this.askChatGpt(userInput, files);
 
                 // Clear files list after sending
                 this.selectedFiles = [];
