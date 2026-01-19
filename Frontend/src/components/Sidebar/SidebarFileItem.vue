@@ -177,7 +177,7 @@ export default {
     outline: none !important;
 }
 
-.file-suspended .file-name {
+.file-suspended .file-name:disabled {
     opacity: 0.5;
 }
 
