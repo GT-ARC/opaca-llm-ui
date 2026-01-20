@@ -1,5 +1,6 @@
 import logging
 import time
+import json
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig
@@ -41,7 +42,7 @@ class SimpleToolsMethod(AbstractMethod):
 
         config: SimpleToolConfig = self.get_config()
         max_iters = config.max_rounds
-        
+
         # Get tools and transform them into the OpenAI Function Schema
         tools, error = await self.get_tools()
 
@@ -71,17 +72,36 @@ class SimpleToolsMethod(AbstractMethod):
                     await self.invoke_tool(call.name, call.args, call.id)
                     for call in result.tools
                 ]
-                tool_contents = "\n".join(
-                    f"The result of tool '{tool.name}' with parameters '{tool.args}' was: {tool.result}"
-                    for tool in tool_entries
+
+                all_media_parts = []
+                summaries = []
+
+                for tool in tool_entries:
+                    summary, media_parts = tool_result_to_parts(tool)
+                    summaries.append(
+                        f"Tool '{tool.name}' with parameters '{tool.args}' returned:\n{summary}"
+                    )
+                    all_media_parts.extend(media_parts)
+
+                text_block = (
+                        f"A user had the following request: {message}\n\n"
+                        f"You have used the following tools:\n\n" +
+                        "\n\n".join(summaries)
                 )
-                messages.append(ChatMessage(
-                    role="user",
-                    content=f"A user had the following request: {message}\n"
-                            f"You have used the following tools: \n{tool_contents}")
-                )
+
+                if all_media_parts:
+                    messages.append(ChatMessage(
+                        role="user",
+                        content=[{"type": "input_text", "text": text_block}, *all_media_parts]
+                    ))
+                else:
+                    messages.append(ChatMessage(
+                        role="user",
+                        content=text_block
+                    ))
+
                 response.agent_messages[-1].tools = tool_entries
-                
+
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
@@ -93,3 +113,37 @@ class SimpleToolsMethod(AbstractMethod):
         response.content = result.content
         response.execution_time = time.time() - exec_time
         return response
+
+
+def tool_result_to_parts(tool):
+    """
+    Returns (text_summary, media_parts)
+    media_parts are content parts like input_image
+    """
+    media_parts = []
+    summary = []
+
+    result = tool.result
+
+    # Try to parse JSON result
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except Exception:
+            pass
+
+    # Image tool output
+    if isinstance(result, dict) and result.get("type") == "image":
+        b64 = result.get("data_base64")
+        ct = result.get("content_type", "image/png")
+        if b64:
+            media_parts.append({
+                "type": "input_image",
+                "image_url": f"data:{ct};base64,{b64}"
+            })
+            summary.append("[image attached]")
+            return "\n".join(summary), media_parts
+
+    # Fallback: text-only summary (truncate)
+    summary.append(str(result)[:1000])
+    return "\n".join(summary), []

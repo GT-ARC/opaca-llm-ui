@@ -12,6 +12,12 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
+import requests
+import io
+import re
+import base64
+from PIL import Image, ImageOps
+from urllib.parse import urlparse, unquote
 from datetime import datetime, timedelta
 from math import ceil
 
@@ -86,6 +92,24 @@ class InternalTools:
                 result="string",
                 function=self.tool_search_chats,
             ),
+            InternalTool(
+                name="ReadPdfFromUrl",
+                description=(
+                    "Downloads a PDF from a URL and returns base64-encoded bytes and metadata. "
+                    #"Also includes best-effort extracted text for convenience."
+                ),
+                params={"url": "string"},
+                result="object",
+                function=self.tool_read_pdf_from_url,
+            ),
+            InternalTool(
+                name="ReadImageFromUrl",
+                description="Downloads an image from a URL and returns base64-encoded bytes so the LLM can analyze it.",
+                params={"url": "string", "max_bytes": "integer"},
+                result="object",
+                function=self.tool_read_image_from_url,
+            )
+
         ]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
@@ -264,3 +288,135 @@ class InternalTools:
     async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
+
+    # JUST EXTRACT TEXT
+    #async def tool_read_pdf_from_url(self, url: str) -> str:
+    #    try:
+    #        def _read_pdf():
+    #            response = requests.get(url, timeout=10)
+    #            response.raise_for_status()
+    #            with io.BytesIO(response.content) as f:
+    #                reader = pypdf.PdfReader(f)
+    #                text = ""
+    #                for page in reader.pages:
+    #                    text += page.extract_text() + "\n"
+    #            return text
+
+    #        return await asyncio.get_event_loop().run_in_executor(None, _read_pdf)
+    #    except Exception as e:
+    #        return f"Failed to read PDF from URL: {e}"
+
+
+    # EXTRACT EVERYTHING
+    async def tool_read_pdf_from_url(self, url: str, max_bytes: int = 25_000_000,
+            max_pages_text: int = 50,
+            include_text: bool = True,
+    ) -> dict:
+
+        try:
+            def _read_pdf_sync() -> dict:
+                headers = {"User-Agent": "Mozilla/5.0 (compatible; PdfFetcher/1.0)"}
+
+                # 1) Download PDF bytes (streaming + size cap)
+                with requests.get(url, stream=True, timeout=15, headers=headers) as resp:
+                    resp.raise_for_status()
+                    server_content_type = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                    content_disposition = resp.headers.get("Content-Disposition")
+
+                    buf = io.BytesIO()
+                    total = 0
+                    for chunk in resp.iter_content(chunk_size=128 * 1024):
+                        if not chunk:
+                            continue
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise ValueError(f"PDF too large (>{max_bytes} bytes).")
+                        buf.write(chunk)
+
+                pdf_bytes = buf.getvalue()
+
+                result: dict = {
+                    "type": "pdf",
+                    "source_url": url,
+                    "content_type": "application/pdf",
+                    "server_content_type": server_content_type or None,
+                    "byte_length": len(pdf_bytes),
+                    "data_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+                    #"page_count": None,
+                    #"text": None,
+                    #"notes": [],
+                }
+
+                # Soft warning if server claims something else
+                if server_content_type and server_content_type not in ("application/pdf", "application/octet-stream"):
+                    result["notes"].append(
+                        f"Server Content-Type was '{server_content_type}', but content was fetched and treated as PDF."
+                    )
+
+                return result
+
+            return await asyncio.get_event_loop().run_in_executor(None, _read_pdf_sync)
+
+        except Exception as e:
+            return {"error": f"Failed to read PDF from URL: {e}"}
+
+    async def tool_read_image_from_url(self, url: str, max_bytes: int = 10_000_000) -> dict:
+        HEADERS = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            ),
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+
+        try:
+            def _read():
+                # Download with size cap
+                with requests.get(url, stream=True, timeout=10, headers=HEADERS, allow_redirects=True) as r:
+                    r.raise_for_status()
+                    content_type = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+
+                    buf = io.BytesIO()
+                    total = 0
+                    for chunk in r.iter_content(chunk_size=64 * 1024):
+                        if not chunk:
+                            continue
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise ValueError(f"Image too large (> {max_bytes} bytes)")
+                        buf.write(chunk)
+
+                buf.seek(0)
+
+                # Normalize for downstream vision
+                img = Image.open(buf)
+                img.load()
+                try:
+                    img = ImageOps.exif_transpose(img)
+                except Exception:
+                    pass
+
+                out = io.BytesIO()
+                img.save(out, format="PNG")
+                data = out.getvalue()
+
+                img = {
+                    "type": "image",
+                    "source_url": url,
+                    "content_type": "image/png",
+                    "width": img.width,
+                    "height": img.height,
+                    "data_base64": base64.b64encode(data).decode("ascii"),
+                    "server_content_type": content_type,
+                }
+
+                return img
+
+            return await asyncio.get_event_loop().run_in_executor(None, _read)
+
+        except Exception as e:
+            return {"error": f"Failed to read image from URL: {e}"}
