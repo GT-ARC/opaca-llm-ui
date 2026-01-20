@@ -1,5 +1,5 @@
 import io
-import os
+import re
 import logging
 import shutil
 from pathlib import Path
@@ -139,7 +139,7 @@ def create_path(session_id: str, file_id: str = None) -> Path:
     return Path(FILES_PATH, session_id, file_id)
 
 def is_pdf(filename: str) -> bool:
-    return os.path.splitext(filename.lower())[1] == ".pdf"
+    return bool(re.search(r"\.pdf$", filename or "", re.IGNORECASE))
 
 def is_image(filename: str) -> bool:
-    return os.path.splitext(filename.lower())[1] in {".jpg", ".png", ".jpeg", ".gif", ".webp"}
+    return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))

@@ -468,7 +468,7 @@ export default {
         },
 
         isPdfFileName(name) {
-            return (name || "").toLowerCase().endsWith(".pdf");
+            return /\.pdf$/i.test(name || "");
         },
 
         getFilesIconClass() {
@@ -479,9 +479,9 @@ export default {
             const hasImage = names.some(n => this.isImageFileName(n));
             const hasPdf = names.some(n => this.isPdfFileName(n));
 
+            if (hasImage === hasPdf) return "fa-file";
             if (hasImage) return "fa-file-image";
             if (hasPdf) return "fa-file-pdf";
-            return "fa-file";
         },
 
         getImages() {
