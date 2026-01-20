@@ -49,8 +49,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.queryNoChat("simple-tools", Localizer.get('platformInfoRequest'), false);
-                const answer = response.agent_messages[0].content;
+                const answer = await backendClient.getPlatformInfo(Localizer.language);
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);

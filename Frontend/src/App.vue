@@ -186,7 +186,7 @@ export default {
                 if (rpStatus === 200) {
                     this.connected = true;
                     this.showAuthInput = false;
-                } else if (rpStatus === 403) {
+                } else if ([401, 403].includes(rpStatus)) {
                     this.connected = false;
 
                     await this.$refs.input.showDialogue(

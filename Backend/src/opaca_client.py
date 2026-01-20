@@ -7,7 +7,6 @@ import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
-
 logger = logging.getLogger(__name__)
 
 
