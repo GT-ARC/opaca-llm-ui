@@ -35,6 +35,7 @@
 <script>
 import Localizer from "../../Localizer.js";
 import config from "../../../config.js";
+import {nextTick} from "vue";
 
 const BACKEND_ADDRESS = config.BackendAddress;
 
@@ -78,7 +79,9 @@ export default {
             });
         },
 
-        renameFile() {
+        async renameFile() {
+            this.nameInput = this.nameInput.replace(/\.[^.]+$/, "");
+            await nextTick(); // necessary for the input.select() below to properly work
             this.isEditingName = true;
             const input = this.$refs.nameInput;
             input.disabled = false;
@@ -119,6 +122,11 @@ export default {
     mounted() {
         this.nameInput = this.file.file_name;
     },
+    watch: {
+        file(newFile) {
+            this.nameInput = newFile.file_name;
+        }
+    }
 }
 </script>
 
