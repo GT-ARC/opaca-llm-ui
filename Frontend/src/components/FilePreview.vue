@@ -5,7 +5,7 @@
         @click="this.viewFile()">
         <!-- Icon changes based on upload status -->
         <div class="d-flex h-100 align-items-center me-1">
-            <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file-pdf'" />
+            <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file'" />
         </div>
 
         <!-- File name -->

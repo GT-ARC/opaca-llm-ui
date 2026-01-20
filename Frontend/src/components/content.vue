@@ -9,7 +9,7 @@
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
                 <p>{{ Localizer.get("dropFiles") }}</p>
-                <span class="fa fa-file-pdf" />
+                <span class="fa fa-file" />
             </div>
         </div>
 
@@ -156,7 +156,7 @@
                             <input
                                 type="file"
                                 ref="fileInput"
-                                accept=".pdf"
+                                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
                                 :disabled="!this.isFinished"
                                 @change="e => uploadFiles(e.target.files)"
@@ -285,9 +285,7 @@ export default {
                 await nextTick();
                 this.resizeTextInput();
 
-                const files = this.selectedFiles
-                    ? this.selectedFiles.map(file => file.name)
-                    : [];
+                const files = this.selectedFiles.map(wrappedFile => wrappedFile.file);
                 await this.askChatGpt(userInput, files);
 
                 // Clear files list after sending
@@ -375,17 +373,9 @@ export default {
         async uploadFiles(fileList) {
             const files = Array.from(fileList);
 
-            // Filter out non-PDFs
-            const pdfFiles = files.filter(file => file.type === "application/pdf");
-
-            if (pdfFiles.length === 0) {
-                this.showInfo("Only PDF files are allowed.");
-                return;
-            }
-
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
-            const wrappedFiles = pdfFiles.map(file => ({
+            const wrappedFiles = files.map(file => ({
                 file,
                 fileId: null,
                 isUploading: true
