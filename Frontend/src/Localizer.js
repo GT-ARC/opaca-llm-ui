@@ -279,6 +279,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
                 {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
                 {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
+                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
             ]
         },
         /*
@@ -340,6 +341,7 @@ export const sidebarQuestions = reactive({
                 {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
                 {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
                 {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
+                {"question": "Bitte zeige mir den Weg zum Konferenzraum.", "icon": "🧭"},
             ]
         },
         /*
