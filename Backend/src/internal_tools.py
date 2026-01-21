@@ -13,25 +13,14 @@ import asyncio
 import logging
 import json
 import requests
-import io
-import re
-import base64
-from PIL import Image, ImageOps
-from urllib.parse import urlparse, unquote
 from datetime import datetime, timedelta
 from math import ceil
-
-from fastapi import UploadFile
-import tempfile
-import os
 
 from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
-from starlette.datastructures import Headers
-
-from .file_utils import save_file_to_disk
+from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 
 
@@ -100,20 +89,12 @@ class InternalTools:
                 function=self.tool_search_chats,
             ),
             InternalTool(
-                name="ReadPdfFromUrl",
-                description="Downloads a PDF from a URL and uploads it to the backend to be used by the LLM.",
+                name="ReadFileFromUrl",
+                description="Downloads a file from a URL and uploads it to the backend to be used by the LLM.",
                 params={"url": "string"},
                 result="object",
-                function=self.tool_read_pdf_from_url,
-            ),
-            InternalTool(
-                name="ReadImageFromUrl",
-                description="Downloads an image from a URL and uploads it to the backend to be used by the LLM.",
-                params={"url": "string"},
-                result="object",
-                function=self.tool_read_image_from_url,
+                function=self.tool_read_file_from_url,
             )
-
         ]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
@@ -293,116 +274,34 @@ class InternalTools:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
 
-    async def tool_read_pdf_from_url(self, url: str) -> dict:
+    async def tool_read_file_from_url(self, url: str) -> dict:
         try:
             resp = requests.get(
                 url,
-                timeout=15,
+                timeout=20,
                 headers={"User-Agent": "Mozilla/5.0"},
             )
             resp.raise_for_status()
 
-            filedata = await register_bytes_as_uploaded_file(
+            content_type = resp.headers.get("Content-Type")
+            filename = filename_from_url_and_type(url, content_type)
+
+            await register_bytes_as_uploaded_file(
                 session=self.session,
-                filename=url.split("/")[-1] or "document.pdf",
-                content_type="application/pdf",
-                data=resp.content,
-            )
-
-            return {
-                "ok": True,
-                "type": "pdf",
-                "source": url,
-                "note": "Document downloaded and made available in the backend."
-            }
-
-        except Exception as e:
-            logger.error(str(e))
-            return {
-                "ok": False,
-                "type": "pdf",
-                "error": str(e),
-            }
-
-    async def tool_read_image_from_url(self, url: str) -> dict:
-        try:
-            resp = requests.get(
-                url,
-                timeout=15,
-                headers={
-                    "User-Agent": (
-                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/122.0.0.0 Safari/537.36"
-                    )
-                },
-            )
-            resp.raise_for_status()
-
-            content_type = resp.headers.get("Content-Type", "image/png")
-            filename = url.split("/")[-1] or "image"
-
-            filedata = await register_bytes_as_uploaded_file(
-                session=self.session,
-                filename=filename,
                 content_type=content_type,
+                filename=filename,
                 data=resp.content,
             )
 
             return {
                 "ok": True,
-                "type": "image",
-                "source": url,
-                "note": "Image downloaded and made available in the backend."
+                "filename": filename,
+                "note": "File downloaded and made available for analysis.",
             }
 
         except Exception as e:
             logger.error(str(e))
             return {
                 "ok": False,
-                "type": "image",
                 "error": str(e),
             }
-
-
-async def register_bytes_as_uploaded_file(
-        *,
-        session,
-        filename: str,
-        content_type: str,
-        data: bytes,
-):
-    """
-    Registers raw bytes as an uploaded file in the current session,
-    exactly like the /files route does.
-    """
-    # Create a temporary file
-    tmp = tempfile.NamedTemporaryFile(delete=False)
-    try:
-        tmp.write(data)
-        tmp.flush()
-        tmp.close()
-
-        # If there's no extension, guess one
-        if "." not in filename:
-            if content_type == "application/pdf":
-                filename += ".pdf"
-            elif content_type.startswith("image/"):
-                filename += ".jpg"
-
-        upload = UploadFile(
-            filename=filename,
-            file=open(tmp.name, "rb"),
-            headers=Headers({"content-type": content_type})
-        )
-
-        filedata = await save_file_to_disk(upload, session.session_id)
-        session.uploaded_files[filedata.file_id] = filedata
-        return filedata
-    except Exception as e:
-        logger.error(str(e))
-    finally:
-        try:
-            os.unlink(tmp.name)
-        except Exception:
-            pass

@@ -1,6 +1,5 @@
 import logging
 import time
-import json
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig

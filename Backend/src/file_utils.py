@@ -1,11 +1,16 @@
 import io
 import re
+import os
+import tempfile
 import logging
 import shutil
 from pathlib import Path
+from urllib.parse import urlparse
 
 import litellm
 from fastapi import UploadFile
+from starlette.datastructures import Headers
+
 from .models import SessionData, OpacaFile, OpacaException
 
 logger = logging.getLogger(__name__)
@@ -143,3 +148,65 @@ def is_pdf(filename: str) -> bool:
 
 def is_image(filename: str) -> bool:
     return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))
+
+EXT_BY_MIME = {
+    "application/pdf": ".pdf",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+def filename_from_url_and_type(url: str, content_type: str | None) -> str:
+    """
+    Filename = last URL path segment + extension derived from content-type.
+    No sanitization, deterministic.
+    """
+    parsed = urlparse(url)
+    base = os.path.basename(parsed.path) or "file"
+
+    # drop any existing extension
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+
+    ct = (content_type or "").split(";", 1)[0].lower()
+    ext = EXT_BY_MIME.get(ct, ".bin")
+
+    return base + ext
+
+
+async def register_bytes_as_uploaded_file(
+        *,
+        session: SessionData,
+        content_type: str,
+        filename: str,
+        data: bytes,
+) -> OpacaFile:
+    """
+    Registers raw bytes as an uploaded file in the current session,
+    exactly like the /files route does.
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        tmp.write(data)
+        tmp.flush()
+        tmp.close()
+
+        upload = UploadFile(
+            filename=filename,
+            file=open(tmp.name, "rb"),
+            headers=Headers({"content-type": content_type})
+        )
+
+        filedata = await save_file_to_disk(upload, session.session_id)
+        session.uploaded_files[filedata.file_id] = filedata
+        return filedata
+
+    except Exception as e:
+        logger.error(str(e))
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
