@@ -9,7 +9,6 @@ from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMP
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig
-from ..prompts import build_full_prompt
 
 
 class ToolLlmConfig(MethodConfig):
@@ -89,7 +88,7 @@ class ToolLLMMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.tool_gen_model,
                 agent='Tool Generator',
-                system_prompt=build_full_prompt(GENERATOR_PROMPT),
+                system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
@@ -115,7 +114,7 @@ class ToolLLMMethod(AbstractMethod):
                 result = await self.call_llm(
                     model=config.tool_gen_model,
                     agent='Tool Generator',
-                    system_prompt=build_full_prompt(GENERATOR_PROMPT),
+                    system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                     messages=[
                         *chat.messages,
                         ChatMessage(role="user", content=message),
@@ -188,7 +187,7 @@ class ToolLLMMethod(AbstractMethod):
         result = await self.call_llm(
             model=config.output_model,
             agent='Output Generator',
-            system_prompt=build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
+            system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
             messages=[
                 *chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else

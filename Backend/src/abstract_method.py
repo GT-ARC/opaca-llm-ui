@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 from itertools import count
+from datetime import datetime as dt
+import os
 
 import httpx
 from openai.types.responses import ResponseFunctionToolCall
@@ -292,6 +294,27 @@ class AbstractMethod(ABC):
                 await self.handle_invalid_api_key(model, True)
         else:
             raise OpacaException(user_message=f"No valid API key was provided for model {model}!")
+
+    def build_full_prompt(self, specific_prompt: str) -> str:
+        """
+        Provides a certain level of awareness of the LLM to (a) who it is, without repeating that
+        in each prompt, as well as (b) things like the current date and time or the location.
+        """
+        SELF_INTRODUCTION_AND_CAPABILITIES = f"""
+        You are part of an LLM Assistant called \"SAGE\". {self.get_time_and_location()} Following are your 
+        individual tasks:
+        """
+        return "\n".join((SELF_INTRODUCTION_AND_CAPABILITIES, specific_prompt))
+
+    @staticmethod
+    def get_time_and_location():
+        """dynamic prompt fragment including current date, time, and, if set, the location"""
+        now = dt.strftime(dt.now(), "%B %d %Y, %H:%M")
+        loc = os.getenv("LOCATION")
+        if loc:
+            return f"The current date and time is {now}. You are located at {loc}."
+        else:
+            return f"The current date and time is {now}."
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):
     """

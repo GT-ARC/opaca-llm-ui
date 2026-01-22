@@ -3,7 +3,6 @@ import time
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig
-from ..prompts import build_full_prompt
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -57,7 +56,7 @@ class SimpleToolsMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=build_full_prompt(SYSTEM_PROMPT),
+                system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
                 messages=messages,
                 temperature=config.temperature,
                 tools=tools,

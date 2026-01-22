@@ -5,7 +5,6 @@ import json
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
-from ..prompts import build_full_prompt
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'SAGE'.
@@ -82,7 +81,7 @@ class SimpleMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=build_full_prompt(prompt),
+                system_prompt=self.build_full_prompt(prompt),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
