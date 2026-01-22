@@ -1,6 +1,10 @@
 <template>
     <div class="file align-items-center" :class="{ 'file-suspended': file.suspended }">
         <div class="file-name"> {{file.file_name}} </div>
+        <i class="fa fa-eye file-menu-button"
+           @click.stop="this.viewFile()"
+           :title="Localizer.get('tooltipViewUploadedFile')"
+        />
         <i :class="[
             'fa fa-lg',
             file.suspended ? 'fa-toggle-off' : 'fa-toggle-on',
@@ -19,6 +23,9 @@
 
 <script>
 import Localizer from "../../Localizer.js";
+import config from "../../../config.js";
+
+const BACKEND_ADDRESS = config.BackendAddress;
 
 export default {
     name: 'SidebarFileItem',
@@ -28,7 +35,8 @@ export default {
     },
     emits: [
         'delete-file',
-        'suspend-file'
+        'suspend-file',
+        'view-file',
     ],
     setup() {
         return { Localizer }
@@ -45,7 +53,15 @@ export default {
 
         suspendFile() {
             this.$emit('suspend-file', this.fileId, !this.file.suspended);
-        }
+        },
+
+        viewFile() {
+            this.$emit('view-file', {
+                fileName: this.file.file_name,
+                src: `${BACKEND_ADDRESS}/files/${this.fileId}/view`,
+                mimeType: this.file.content_type
+            });
+        },
     },
     mounted() {
     },

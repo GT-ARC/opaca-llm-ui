@@ -30,11 +30,11 @@ class BackendTestClient:
         body = {"user_query": query}
         return self.request("POST", f"/query/{method}", body)
 
-    def reset_all(self):
-        return self.request("POST", "/reset_all")
-
     def get_chats(self) -> list[dict]:
         return self.request("GET", f"/chats")
+    
+    def delete_chats(self) -> bool:
+        return self.request("DELETE", f"/chats")
 
     def get_chat_history(self, chat_id: str) -> dict:
         return self.request("GET", f"/chats/{chat_id}")

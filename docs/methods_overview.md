@@ -1,6 +1,6 @@
 # Methods
 
-The OPACA LLM implements different methods/strategies to fulfill user queries. Each of these methods/strategies have their own advantages and disadvantages. To give a brief overview of the implemented methods, the  following list is given to provide a brief overview of each method/strategy and their general idea and functionality.
+SAGE implements different methods/strategies to fulfill user queries. Each of these methods/strategies have their own advantages and disadvantages. To give a brief overview of the implemented methods, the  following list is given to provide a brief overview of each method/strategy and their general idea and functionality.
 
 ## Tool LLM
 

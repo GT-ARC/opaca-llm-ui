@@ -29,6 +29,16 @@
                :title="Localizer.get('tooltipSidebarAgents')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
+            <i @click="SidebarManager.toggleView('extensions')"
+               class="fa fa-puzzle-piece sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarExtensions')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
+
+            <i @click="SidebarManager.toggleView('mcp')"
+               class="fa fa-server sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarMcp')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
+
             <i @click="SidebarManager.toggleView('config')"
                class="fa fa-cog sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarConfig')"
@@ -57,7 +67,7 @@
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.handleUpdatePlatformInfo"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="info"
                 />
 
@@ -71,6 +81,7 @@
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
                     @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
+                    @delete-all-chats="() => this.$emit('delete-all-chats')"
                     ref="chats"
                 />
 
@@ -79,6 +90,7 @@
                     v-show="SidebarManager.isViewSelected('files')"
                     @delete-file="fileId => this.$emit('delete-file', fileId)"
                     @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    @view-file="$emit('view-file', $event)"
                     ref="files"
                 />
 
@@ -93,7 +105,22 @@
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
+                    :is-platform-connected="connected"
                     ref="agents"
+                />
+
+                <!-- UI extensions -->
+                <SidebarExtensions
+                    v-show="SidebarManager.isViewSelected('extensions')"
+                    :is-platform-connected="connected"
+                    ref="extensions"
+                />
+
+                <!-- MCP servers -->
+                <SidebarMcp
+                    v-show="SidebarManager.isViewSelected('mcp')"
+                    :is-platform-connected="connected"
+                    ref="mcp"
                 />
 
                 <!-- method config -->
@@ -129,16 +156,19 @@ import SidebarManager from "../../SidebarManager.js";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
+import SidebarExtensions from './SidebarExtensions.vue';
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
+import SidebarMcp from "./SidebarMcp.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarMcp,
         SidebarFiles,
         SidebarChats,
         SidebarFaq,
@@ -146,6 +176,7 @@ export default {
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
+        SidebarExtensions,
         SidebarQuestions,
     },
     props: {
@@ -164,7 +195,9 @@ export default {
         'new-chat',
         'delete-file',
         'suspend-file',
+        'view-file',
         'goto-search-result',
+        'delete-all-chats',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -174,10 +207,6 @@ export default {
         return {};
     },
     methods: {
-        handleUpdatePlatformInfo(isPlatformConnected) {
-            if (!this.$refs.agents) return;
-            this.$refs.agents.updatePlatformInfo(isPlatformConnected);
-        },
 
         setupResizer() {
             const resizer = document.getElementById('resizer');

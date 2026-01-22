@@ -1,10 +1,19 @@
 <template>
+<div :class="{'chatbubble-collapsible': this.isCollapsible}"
+     @click.stop="this.toggleCollapsed()">
 
     <!-- user bubble -->
     <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end">
+         class="d-flex flex-row justify-content-end" >
 
-        <div class="chatbubble chatbubble-user me-2 ms-auto w-auto">
+        <div class="chatbubble chatbubble-user ms-auto w-auto">
+            <img
+                v-if="getFirstImage()"
+                :src="getFirstImage()"
+                alt="Image preview"
+                class="bubble-image-preview"
+            />
+
             <div v-html="this.getFormattedContent()" />
 
             <!-- footer: debug, generate audio, ... -->
@@ -17,6 +26,16 @@
                      :title="Localizer.get('tooltipChatbubbleCopy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
+                </div>
+
+                <!-- save prompt to user library -->
+                <div v-show="this.content?.length > 0"
+                     class="footer-item w-auto me-2"
+                     :class="{ 'disabled': bookmarked }"
+                     @click="this.addPromptToUserLibrary()"
+                     :title="Localizer.get('tooltipChatbubbleSave')">
+                    <i v-if="this.bookmarked" class="fa-solid fa-bookmark" />
+                    <i v-else class="fa-regular fa-bookmark" />
                 </div>
 
                 <!-- audio stuff -->
@@ -39,7 +58,7 @@
                      class="footer-item w-auto me-2"
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
                      :title="Localizer.get('tooltipChatbubbleFiles')">
-                    <i class="fa fa-file-pdf" />
+                    <i class="fa" :class="getFilesIconClass()" />
                 </div>
 
             </div>
@@ -50,11 +69,10 @@
                      style="max-height: 200px; max-width: 600px;">
                     <div class="message-text w-auto"
                          v-for="file in this.files">
-                        {{ file }}
+                        {{ file.name }}
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -63,10 +81,16 @@
     <div v-else :id="this.elementId"
          class="d-flex flex-row justify-content-start w-100">
 
-        <div class="chatbubble chatbubble-ai ms-2"
-             :class="{glow: this.isLoading}" :style="this.getGlowColors()">
+        <div class="chatbubble chatbubble-ai"
+             :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
 
-            <div class="d-flex justify-content-start">
+            <div class="d-flex justify-content-start"
+                 :class="{'chatbubble-collapsed': this.isCollapsed}">
+
+                <div v-if="this.isCollapsed" class="chatbubble-collapsed-overlay">
+                    <i class="fa fa-arrow-alt-circle-down" />
+                </div>
+
                 <!-- loading spinner -->
                 <div v-show="this.isLoading" class="w-auto">
                     <i class="fa fa-spin fa-circle-o-notch me-1" />
@@ -94,94 +118,100 @@
 
             </div>
 
-            <!-- footer: icons -->
-            <div class="d-flex justify-content-start small mt-2">
+            <!-- expandable footer menus -->
+            <div v-show="!this.isCollapsed">
 
-                <!-- copy to clipboard -->
-                <div v-show="this.isCopyAvailable()"
-                     class="footer-item w-auto me-2"
-                     @click="this.copyContentToClipboard()"
-                     :title="Localizer.get('tooltipChatbubbleCopy')">
-                    <i v-if="this.copySuccess" class="fa fa-check" />
-                    <i v-else class="fa fa-copy" />
+                <!-- footer: icons -->
+                <div class="d-flex justify-content-start small mt-2">
+
+                    <!-- copy to clipboard -->
+                    <div v-show="this.isCopyAvailable()"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.copyContentToClipboard()"
+                         :title="Localizer.get('tooltipChatbubbleCopy')">
+                        <i v-if="this.copySuccess" class="fa fa-check" />
+                        <i v-else class="fa fa-copy" />
+                    </div>
+
+                    <!-- audio stuff -->
+                    <div v-show="!this.isLoading"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.startAudioPlayback()">
+                        <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                        <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                        <i v-else class="fa fa-volume-up"
+                           data-toggle="tooltip" data-placement="down"
+                           :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                    </div>
+
+                    <!-- debug messages -->
+                    <div v-show="this.debugMessages.length > 0"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
+                         :title="Localizer.get('tooltipChatbubbleDebug')">
+                        <i class="fa fa-bug" />
+                    </div>
+
+                    <!-- tool calls -->
+                    <div v-show="this.getToolCalls().length > 0"
+                         class="footer-item w-auto me-2"
+                         style="cursor: pointer;"
+                         @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
+                         :title="Localizer.get('tooltipChatbubbleTools')">
+                        <i class="fa fa-wrench" />
+                    </div>
+
+                    <!-- error handling -->
+                    <div v-show="this.error !== null"
+                         class="footer-item w-auto me-2"
+                         @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
+                         :title="Localizer.get('tooltipChatbubbleError')">
+                        <i class="fa fa-exclamation-circle text-danger me-1" />
+                    </div>
+
                 </div>
 
-                <!-- audio stuff -->
-                <div v-show="!this.isLoading"
-                     class="footer-item w-auto me-2"
-                     @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
-                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
-                    <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                <!-- footer: debug messages -->
+                <div v-show="this.isDebugExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
+                         style="max-height: 200px"
+                         @scroll="handleDebugScroll">
+                        <DebugMessage v-for="{ text, type } in this.debugMessages"
+                                      :text="text"
+                                      :type="type"
+                        />
+                    </div>
                 </div>
 
-                <!-- debug messages -->
-                <div v-show="this.debugMessages.length > 0"
-                     class="footer-item w-auto me-2"
-                     @click="this.isDebugExpanded = !this.isDebugExpanded"
-                     :title="Localizer.get('tooltipChatbubbleDebug')">
-                    <i class="fa fa-bug" />
+                <!-- footer: tool calls -->
+                <div v-show="this.isToolsExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div v-for="text in this.getToolCalls()">
+                            {{ text }}
+                        </div>
+                    </div>
                 </div>
 
-                <!-- tool calls -->
-                <div v-show="this.getToolCalls().length > 0"
-                     class="footer-item w-auto me-2"
-                     style="cursor: pointer;"
-                     @click="this.isToolsExpanded = !this.isToolsExpanded"
-                     :title="Localizer.get('tooltipChatbubbleTools')">
-                    <i class="fa fa-wrench" />
+                <!-- footer: errors -->
+                <div v-show="this.isErrorExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div class="message-text w-auto text-danger"
+                             v-html="this.error"
+                        />
+                    </div>
                 </div>
 
-                <!-- error handling -->
-                <div v-show="this.error !== null"
-                     class="footer-item w-auto me-2"
-                     @click="this.isErrorExpanded = !this.isErrorExpanded"
-                     :title="Localizer.get('tooltipChatbubbleError')">
-                    <i class="fa fa-exclamation-circle text-danger me-1" />
-                </div>
-
-            </div>
-
-            <!-- footer: debug messages -->
-            <div v-show="this.isDebugExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
-                     style="max-height: 200px"
-                     @scroll="handleDebugScroll">
-                    <DebugMessage v-for="{ text, type } in this.debugMessages"
-                        :text="text"
-                        :type="type"
-                    />
-                </div>
-            </div>
-
-            <!-- footer: tool calls -->
-            <div v-show="this.isToolsExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                     <div v-for="text in this.getToolCalls()">
-                        {{ text }}
-                     </div>
-                </div>
-            </div>
-
-            <!-- footer: errors -->
-            <div v-show="this.isErrorExpanded">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px">
-                    <div class="message-text w-auto text-danger"
-                         v-html="this.error"
-                    />
-                </div>
             </div>
 
         </div>
     </div>
+</div>
 </template>
 
 <script>
@@ -206,6 +236,8 @@ export default {
         initialLoading: Boolean,
         files: Array,
         selectedChatId: String,
+        isBookmarked: Boolean,
+        isCollapsible: {type: Boolean, default: false},
     },
     setup() {
         const { isMobile, screenWidth } = useDevice();
@@ -222,9 +254,11 @@ export default {
             isErrorExpanded: false,
             ttsAudio: null,
             copySuccess: false,
+            bookmarked: this.isBookmarked ?? false,
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
+            isCollapsed: false,
         }
     },
 
@@ -256,16 +290,17 @@ export default {
         },
 
         getToolCalls() {
-            const regex = /Tool\s+([^\n]+):\nName:\s*([^\n]+)\nArguments:\s*([^\n]+)\nResult:\s*([^\n]+)/gs
+            const regex = /^Tool: (\d+)\nAgent: ([^\n]+)\nAction: ([^\n]+)\nArguments:((?:\n- [^\n]+)*)\n+(?:Result: (.+))?$/gs
             return this.debugMessages
                 .flatMap( debug => [...debug.text.matchAll(regex)] )
                 .map( match => {
                     const id = match[1];
-                    const name = match[2].replace("--", ": ");
-                    var params = match[3].replace(/"(\w+)":/g, "$1="); // XXX this may fail for strings, better proper json-parse?
-                    var results = match[4];
-                    if (results.length > 30) results = results.substring(0, 30) + " [...]";
-                    return `${id}. ${name}(${params}) → ${results}`;
+                    const agent = match[2];
+                    const action = match[3];
+                    const params = match[4].replace("\n- ", " ");
+                    var results = match[5];
+                    if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
+                    return `${id}. ${agent}: ${action}(${params}) → ${results}`;
                 });
         },
 
@@ -317,11 +352,10 @@ export default {
                 });
 
                 // Sanitize html
-                const safeHtml = DOMPurify.sanitize(div.innerHTML, {
+                return DOMPurify.sanitize(div.innerHTML, {
                     // Keep attributes we set
                     ADD_ATTR: ['target', 'rel'],
                 });
-                return safeHtml;
             } catch (error) {
                 console.error('Failed to parse chat bubble content:', this.content, error);
                 return this.content;
@@ -366,6 +400,13 @@ export default {
                     setTimeout(() => this.copySuccess = false, 2000);
                 })
                 .catch(error => console.error('Failed to copy text: ', error));
+        },
+
+        addPromptToUserLibrary() {
+            const prompt = this.content;
+            if (prompt.length <= 0 || this.bookmarked) return;
+            this.$emit('add-to-library', prompt);
+            this.bookmarked = true;
         },
 
         /**
@@ -414,10 +455,63 @@ export default {
                 || window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
+
+        toggleCollapsed(value = null) {
+            if (!this.isCollapsible) return;
+            this.isCollapsed = value === null
+                ? !this.isCollapsed
+                : value;
+        },
+
+        isImageFileName(name) {
+            return /\.(png|jpe?g|gif|webp)$/i.test(name || "");
+        },
+
+        isPdfFileName(name) {
+            return /\.pdf$/i.test(name || "");
+        },
+
+        getFilesIconClass() {
+            if (!this.files || this.files.length === 0) return;
+
+            const names = this.files.map(file => file.name)
+
+            const hasImage = names.some(n => this.isImageFileName(n));
+            const hasPdf = names.some(n => this.isPdfFileName(n));
+
+            if (hasImage === hasPdf) return "fa-file";
+            if (hasImage) return "fa-file-image";
+            if (hasPdf) return "fa-file-pdf";
+        },
+
+        getImages() {
+            return (this.files || [])
+                .filter(file => this.isImageFileName(file.name))
+                .map(file => file.url || URL.createObjectURL(file));
+        },
+
+        getFirstImage() {
+            // TODO for now show only first image
+            return this.getImages()[0] || "";
+        },
+    },
+
+    mounted() {
+        if (!this.isLoading && this.isCollapsible) {
+            this.isCollapsed = true;
+        }
     },
 
     updated() {
         this.scrollDownDebugMsg();
+    },
+
+    watch: {
+        isLoading(newVal) {
+            if (!newVal && !this.isCollapsible) {
+                this.toggleCollapsed(true);
+            }
+        }
     },
 
 }
@@ -482,6 +576,11 @@ export default {
     color: var(--primary-color);
 }
 
+.footer-item.disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .bubble-debug-text {
     background-color: var(--debug-console-color);
     color: var(--text-secondary-color);
@@ -492,6 +591,41 @@ export default {
     --glow-color-2: #00ff0090;
     box-shadow: 0 0 8px #00ff0040;
     animation: glow 3s infinite;
+}
+
+.chatbubble-collapsible {
+    cursor: pointer;
+}
+
+.chatbubble-collapsed {
+    min-height: 40px !important;
+    max-height: 60px !important;
+    overflow: hidden;
+}
+
+.chatbubble-collapsed-overlay {
+    height: 30px;
+    z-index: 2;
+    left: 0;
+    bottom: 0;
+    position: absolute;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom-left-radius: 1.25rem;
+    border-bottom-right-radius: 1.25rem;
+    background-color: rgba(128, 128, 128, 0.4);
+    backdrop-filter: blur(2px);
+    /* box shadow for smooth transition to blurred area */
+    box-shadow: 0 -5px 10px rgba(128, 128, 128, 0.4);
+}
+
+.bubble-image-preview {
+    max-width: 100%;
+    max-height: 320px;
+    margin-top: 8px;
+    border-radius: 6px;
 }
 
 @keyframes glow {

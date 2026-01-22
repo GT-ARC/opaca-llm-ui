@@ -32,8 +32,9 @@ export default {
     name: "SidebarInfo",
     props: {
         isPlatformConnected: Boolean,
+        sidebarView: String,
     },
-    emits: ['update-platform-info'],
+    emits: [],
     setup() {
         const { isMobile } = useDevice();
         return { conf, Localizer, isMobile };
@@ -48,8 +49,7 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.queryNoChat("simple-tools", Localizer.get('platformInfoRequest'), false);
-                const answer = response.agent_messages[0].content;
+                const answer = await backendClient.getPlatformInfo(Localizer.language);
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);
@@ -63,10 +63,18 @@ export default {
     mounted() {},
     watch: {
         isPlatformConnected(newVal) {
-            if (newVal) {
+            if (newVal && this.sidebarView === 'info') {
+                this.showHowCanYouHelpInSidebar();
+            } else if (!newVal) {
+                this.howAssistContent = '';
+            }
+        },
+        sidebarView(newView) {
+            if (newView === 'info'
+                && this.isPlatformConnected
+                && !this.howAssistContent) {
                 this.showHowCanYouHelpInSidebar();
             }
-            this.$emit('update-platform-info', newVal);
         }
     }
 }

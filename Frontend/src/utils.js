@@ -25,11 +25,19 @@ class BackendClient {
         return await this.sendRequest("GET", "actions");
     }
 
+    async getExtraPorts() {
+        return await this.sendRequest("GET", "extra-ports");
+    }
+
+    async getPlatformInfo(lang) {
+        return await this.sendRequest("POST", `platform-info?lang=${lang}`);
+    }
+
     // chat
 
-    async query(chatId, method, user_query) {
-        const body = {user_query: user_query};
-        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body);
+    async query(chatId, method, user_query, streaming=False, timeout=10000) {
+        const body = {user_query: user_query, streaming: streaming};
+        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
     async queryNoChat(method, user_query) {
@@ -59,6 +67,19 @@ class BackendClient {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
+    async deleteAllChats() {
+        await this.sendRequest("DELETE", `chats`);
+    }
+
+    async search(query) {
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    }
+
+    async append(chatId, pushMessage, autoAppend) {
+        // Reset query
+        pushMessage.query = "";
+        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, pushMessage);
+    }
 
     // files
 
@@ -108,8 +129,28 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
-    async search(query) {
-        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    // bookmarks
+
+    async getBookmarks() {
+        return await this.sendRequest("GET", "bookmarks");
+    }
+
+    async saveBookmarks(bookmarks) {
+        return await this.sendRequest("POST", "bookmarks", bookmarks);
+    }
+
+    // mcp
+
+    async getMCPs() {
+        return await this.sendRequest("GET", "mcp");
+    }
+
+    async addMcp(mcp) {
+        return await this.sendRequest("POST", "mcp", mcp);
+    }
+
+    async deleteMcp(mcp_name) {
+        return await this.sendRequest("DELETE", `mcp/`, {"name": mcp_name});
     }
 
     // internal helper
@@ -154,22 +195,13 @@ export function shuffleArray(array) {
  */
 export function addDebugMessage(debugMessages, message) {
     if (! message || ! message.text) return;
-    message = structuredClone(message); // since it may be modified later
-
-    // if there are no messages yet, just push the new one
-    if (debugMessages.length === 0) {
-        debugMessages.push(message);
+    // find debug message with the same ID, if any
+    const matchingMessage = debugMessages.find( (m) => m.id === message.id);
+    if (message.id != null && matchingMessage != null) {
+        // append to existing message
+        matchingMessage.text += message.text;
     } else {
-        const lastMessage = debugMessages[debugMessages.length - 1];
-        if (message.id != null && lastMessage.id === message.id) {
-            if (/^Tool \d+/.test(message.text)) {
-                lastMessage.text = message.text;  // replace
-            } else {
-                lastMessage.text += message.text; // append
-            }
-        } else {
-            // new message type
-            debugMessages.push(message);
-        }
+        // add copy of new message
+        debugMessages.push(structuredClone(message));
     }
 }

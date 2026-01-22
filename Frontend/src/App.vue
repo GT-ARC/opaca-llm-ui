@@ -15,8 +15,8 @@
 
                 <!-- logos -->
                 <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
-                    <a href="https://github.com/GT-ARC/opaca-core" target="blank">
-                        <img v-bind:src="isMobile ? 'src/assets/opaca-logo-small.png' : 'src/assets/opaca-logo.png'"
+                    <a href="https://github.com/GT-ARC/opaca-llm-ui" target="blank">
+                        <img v-bind:src="isMobile ? 'src/assets/sage-logo-small.png' : 'src/assets/sage-logo.png'"
                              class="logo" alt="Opaca Logo"
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
@@ -75,6 +75,28 @@
                             </div>
                         </li>
 
+                        <!-- Notifications -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle"
+                               href="#"
+                               id="notifications-dropdown"
+                               role="button" data-bs-toggle="dropdown"
+                               @click="this.unreadNotifications = 0">
+                                <i v-if="this.unreadNotifications > 0" class="fa-solid fa-bell text-info me-1" />
+                                <i v-else-if="this.pendingNotification" class="fa-regular fa-bell text-info me-1" />
+                                <i v-else class="fa-regular fa-bell me-1" />
+                                <span v-show="!isMobile">{{ this.unreadNotifications }}</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end"
+                                 id="notifications-area"
+                                 aria-labelledby="notifications-dropdown">
+                                <Notifications
+                                    ref="Notifications"
+                                    @append-to-chat="(pushMessage) => handleAppendToChat(pushMessage)"
+                                />
+                            </div>
+                        </li>
+
                         <!-- Options -->
                         <li class="nav-item dropdown me-2">
                             <a class="nav-link dropdown-toggle"
@@ -102,39 +124,7 @@
         </div>
     </header>
 
-    <!-- Auth Modal -->
-    <div v-if="showAuthInput" class="auth-overlay">
-        <div class="dropdown-menu show p-4">
-            <form @submit.prevent="connectToPlatform">
-                <h5 class="mb-3">{{ Localizer.get('unauthenticated') }}</h5>
-                <input
-                        v-model="platformUser"
-                        type="text"
-                        :class="['form-control', 'mb-2', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('username')"
-                        @input="loginError = false"
-                />
-                <input
-                        v-model="platformPassword"
-                        type="password"
-                        :class="['form-control', 'mb-3', { 'is-invalid': loginError}]"
-                        :placeholder="Localizer.get('password')"
-                        @input="loginError = false"
-                />
-                <div v-if="loginError" class="text-danger bg-light border border-danger rounded p-2 mb-3">
-                    {{ Localizer.get('authError') }}
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" @click="connectToPlatform" :disabled="isConnecting">
-                    <span v-if="isConnecting" class="fa fa-spinner fa-spin"></span>
-                    <span v-else>{{ Localizer.get('submit') }}</span>
-                </button>
-                <button type="button" class="btn btn-link w-100 mt-2 text-muted" @click="showAuthInput = false">
-                    {{ Localizer.get('cancel') }}
-                </button>
-            </form>
-        </div>
-    </div>
+    <InputDialogue ref="input"/>
 
     <div class="col background">
         <MainContent
@@ -142,6 +132,9 @@
             :language="this.language"
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
+            @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
+            @new-notification="response => createNotification(response)"
             ref="content"
         />
     </div>
@@ -155,13 +148,15 @@ import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
+import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
 import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
+import InputDialogue from './components/InputDialogue.vue';
 
 export default {
     name: 'App',
-    components: {OptionsSelect, MainContent, CookieBanner},
+    components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
@@ -174,39 +169,49 @@ export default {
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
-            showAuthInput: false,
-            platformUser: "",
-            platformPassword: "",
-            loginError: false,
             selectedCategory: null,
+            unreadNotifications: 0,
+            pendingNotification: false,
         }
     },
     methods: {
-        async connectToPlatform() {
+        async connectToPlatform(username="", password="") {
             try {
                 this.isConnecting = true;
                 this.loginError = false;
 
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, this.platformUser, this.platformPassword);
+                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
                 this.platformPassword = "";
 
                 if (rpStatus === 200) {
                     this.connected = true;
                     this.showAuthInput = false;
-                } else if (rpStatus === 403) {
+                } else if ([401, 403].includes(rpStatus)) {
                     this.connected = false;
-                    if (this.showAuthInput) {
-                        this.loginError = true;
-                    }
-                    this.showAuthInput = true;
+
+                    await this.$refs.input.showDialogue(
+                        "Platform Login",
+                        Localizer.get('unauthenticated'),
+                        username !== "" ? Localizer.get('authError') : null,
+                        {
+                            username: { type: "text", label: Localizer.get("username") },
+                            password: { type: "password", label: Localizer.get("password") },
+                        },
+                        (values) => {
+                            if (values != null) {
+                                this.connectToPlatform(values.username, values.password);
+                            }
+                        }
+                    );
+
                 } else {
                     this.connected = false;
-                    alert(Localizer.get('unreachable'));
+                    this.showInfo(Localizer.get('opacaUnreachable'));
                 }
             } catch (e) {
                 console.error('Error while initiating prompt:', e);
                 this.connected = false;
-                alert('Backend server is unreachable.');
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.isConnecting = false;
                 this.toggleConnectionDropdown(!this.connected);
@@ -220,7 +225,7 @@ export default {
             } catch (e) {
                 console.error(e);
                 this.connected = true;
-                alert('Backend server is unreachable.');
+                this.showInfo(Localizer.get('backendUnreachable'));
             } finally {
                 this.toggleConnectionDropdown(this.connected);
             }
@@ -261,10 +266,117 @@ export default {
                 case 'colorMode': this.setTheme(value); break;
                 default: break;
             }
-        }
+        },
+
+        createNotification(response) {
+            const notificationArea = this.$refs.Notifications;
+            if (response.type === "PushAdvert")  {
+                notificationArea.addPendingNotificationBubble(response);
+                this.pendingNotification = true;
+            }
+            if (response.type === "PushMessage")  {
+                notificationArea.addNotificationBubble(response);
+                this.showDesktopNotification(response.content);
+                this.pendingNotification = false;
+                this.unreadNotifications += 1;
+            }
+        },
+
+        async showDesktopNotification(text) {
+            const canShowNotification = (("Notification" in window) && (
+                Notification.permission === "granted" ||
+                Notification.permission !== "denied" && await (Notification.requestPermission() === "granted")
+            ));
+            if (canShowNotification) {
+                const notification = new Notification(text);
+                notification.onclick = (e) => { window.focus(); };
+            }
+        },
+
+        async showInfo(message) {
+            await this.$refs.input.showInfo(null, message);
+        },
+
+        async handleContainerLogin(containerLoginDetails) {
+            await this.$refs.input.showDialogue(
+                "Container Login",
+                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
+                containerLoginDetails.retry ? Localizer.get('authError') : null,
+                {
+                    username: { type: "text", label: Localizer.get("username") },
+                    password: { type: "password", label: Localizer.get("password") },
+                    timeout: { type: "select", default: 300, values: {
+                        "0": "Logout immediately",
+                        "300": "Logout after 5 minutes",
+                        "1800": "Logout after 30 minutes",
+                        "3600": "Logout after 1 hour",
+                        "14400": "Logout after 4 hours",
+                    }},
+                },
+                (values) => {
+                    if (values != null) {
+                        this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
+                    } else {
+                        this.$refs.content.submitContainerLogin("", "", 0);
+                    }
+                }
+            );
+        },
+
+        async handleApiKey(apiKeyMessage) {
+            await this.$refs.input.showDialogue(
+                "API Key Required",
+                (apiKeyMessage?.is_invalid ? Localizer.get("apiKeyInvalid") : Localizer.get("apiKeyMissing")) + apiKeyMessage?.model,
+                null,
+                {
+                    apiKey: { type: "password" },
+                },
+                (values) => {
+                    if (values != null) {
+                        this.$refs.content.submitApiKey(values.apiKey);
+                    } else {
+                        this.$refs.content.submitApiKey("");
+                    }
+                }
+            );
+        },
+
+        async waitForConnection() {
+            const maxAttempts = 15;
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    return await backendClient.getConnection()
+                } catch {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            this.showInfo(Localizer.get('backendUnreachable'));
+            throw new Error("SAGE Backend is unreachable.");
+        },
+
+        async handleAppendToChat(pushMessage) {
+            await this.$refs.input.showDialogue(
+                Localizer.get('tooltipAppendNotification'),
+                null,
+                null,
+                {
+                    autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
+                },
+                async (values) => {
+                    if (values !== null) {
+                        // append to current chat
+                        const chatId = this.$refs.content.selectedChatId;
+                        await backendClient.append(chatId, pushMessage, values.autoAppend);
+                        // refresh current chat history and chats sidebar
+                        await this.$refs.content.loadHistory(chatId, false);
+                        await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
+                    }
+                }
+            );
+        },
     },
 
-    mounted() {
+    async mounted() {
         if (conf.ColorScheme !== "system") {
             this.setTheme(conf.ColorScheme);
         }
@@ -272,17 +384,6 @@ export default {
         if (AudioManager.isBackendConfigured()) {
             AudioManager.initVoiceServerConnection();
         }
-
-        backendClient.getConnection().then(url => {
-            if (url != null) {
-                this.connected = true;
-                this.opacaRuntimePlatform = url;
-            } else if (conf.AutoConnect) {
-                this.connectToPlatform();
-            } else {
-                this.toggleConnectionDropdown(true);
-            }
-        });
 
         if (this.isMobile) {
             SidebarManager.close()
@@ -295,6 +396,26 @@ export default {
             e.stopPropagation();
         });
 
+        // check connection state until backend is reachable; also acts as initial "handshake" to initialize the Session
+        // if no connection is established, display the user an error
+        const url = await this.waitForConnection();
+        if (url != null) {
+            this.connected = true;
+            this.opacaRuntimePlatform = url;
+        } else if (conf.AutoConnect) {
+            await this.connectToPlatform();
+        } else {
+            this.toggleConnectionDropdown(true);
+        }
+        // initialize sidebar states; NOTE: this is done here, and not in their respective mounted() methods
+        // to ensure that all those steps are executed sequentially and no redundant sessions are created!
+        const sidebars = await this.$refs.content.$refs.sidebar.$refs;
+        await sidebars.files.updateFiles();
+        await sidebars.chats.updateChats();
+        await sidebars.config.fetchMethodConfig();
+        await sidebars.questions.loadPersonalPrompts();
+        // open permanent websocket connection to backend for "push notifications" to the UI
+        this.$refs.content.connectWebsocket();
     }
 }
 </script>
@@ -407,29 +528,6 @@ header {
     gap: 0.5rem;
 }
 
-.auth-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparent overlay */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999; /* Should appear above all other items */
-}
-
-.is-invalid {
-    border-color: #dc3545;
-    background-color: #f8d7da;
-    color: #842029;
-}
-
-.is-invalid::placeholder {
-    color: #842029
-}
-
 /* Voice Server Settings Styles */
 .dropdown-item .fa {
     width: 1.25rem;
@@ -450,12 +548,13 @@ header {
 }
 
 @media (max-width: 576px) {
-    #connection-menu {
+    #connection-menu, #notifications-area {
         position: fixed !important;
         top: auto !important;
         bottom: auto !important;
-        left: 2rem !important;
+        left: 2% !important;
         right: auto !important;
+        width: 96% !important;
     }
 }
 </style>

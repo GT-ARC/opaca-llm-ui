@@ -71,9 +71,13 @@
                  class="accordion-collapse collapse"
                  data-bs-parent="#options-selector">
                 <div class="accordion-body">
+
+                    <!-- Whisper Server Address -->
                     <div class="text-muted options-item options-item-disabled">
                         {{ String(conf.VoiceServerUrl) }}
                     </div>
+
+                    <!-- Retry Connection Button -->
                     <div v-if="! AudioManager.isVoiceServerConnected"
                          class="options-item text-center">
                         <button type="button" class="btn btn-outline-danger w-100"
@@ -81,6 +85,29 @@
                             <i class="fa fa-refresh" :class="{'fa-spin': this.isAudioConnecting}" />
                             {{ Localizer.get('ttsRetry') }}
                         </button>
+                    </div>
+
+                    <!-- Toggle TTS/STT -->
+                    <div class="options-item d-flex flex-row align-items-center"
+                         @click="AudioManager.useWhisperTts = !AudioManager.useWhisperTts;">
+                        <span>
+                            {{ Localizer.get('useWhisperTts') }}
+                        </span>
+                        <span class="ms-auto fs-5">
+                            <i v-if="AudioManager.useWhisperTts" class="fa fa-toggle-on" />
+                            <i v-else class="fa fa-toggle-off" />
+                        </span>
+                    </div>
+                    <div v-if="AudioManager.isWebSpeechSupported()"
+                         class="options-item d-flex flex-row align-items-center"
+                         @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
+                        <span>
+                            {{ Localizer.get('useWhisperStt') }}
+                        </span>
+                        <span class="ms-auto fs-5">
+                            <i v-if="AudioManager.useWhisperStt" class="fa fa-toggle-on" />
+                            <i v-else class="fa fa-toggle-off" />
+                        </span>
                     </div>
                 </div>
             </div>
@@ -97,10 +124,11 @@ import conf, {Methods} from '../../config.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { getColorThemes } from '../ColorThemes.js';
+import ComboBox from "./ComboBox.vue";
 
 export default {
     name: "OptionsSelect",
-    components: {},
+    components: {ComboBox},
     props: {},
     data() {
         return {
@@ -181,6 +209,14 @@ export default {
             this.isAudioConnecting = true;
             await AudioManager.initVoiceServerConnection();
             this.isAudioConnecting = false;
+        },
+
+        toggleWhisperTts() {
+            AudioManager.useWhisperTts = !AudioManager.useWhisperTts;
+        },
+
+        toggleWhisperStt() {
+            AudioManager.useWhisperStt = !AudioManager.useWhisperStt;
         },
     },
 

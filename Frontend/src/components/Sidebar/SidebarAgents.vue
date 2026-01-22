@@ -33,7 +33,7 @@
                             aria-expanded="false"
                             :aria-controls="'accordion-body-' + agentIndex">
                         <i class="fa fa-user me-3"/>
-                        <strong>{{ agent }}</strong>
+                        <strong>{{ agent }}</strong>&nbsp;({{ actions.length }})
                     </button>
                 </h2>
 
@@ -85,7 +85,9 @@ import backendClient from "../../utils.js";
 
 export default {
     name: 'SidebarAgents',
-    props: {},
+    props: {
+        isPlatformConnected: Boolean,
+    },
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Localizer, SidebarManager, isMobile, screenWidth };
@@ -98,9 +100,9 @@ export default {
         };
     },
     methods: {
-        async updatePlatformInfo(isPlatformConnected) {
+        async updatePlatformInfo() {
             this.isLoading = true;
-            this.platformActions = isPlatformConnected
+            this.platformActions = this.isPlatformConnected
                 ? await backendClient.getActions()
                 : null;
             this.isLoading = false;
@@ -124,6 +126,11 @@ export default {
                     return acc;
                 }, {});
         },
+    },
+    watch: {
+        isPlatformConnected() {
+            this.updatePlatformInfo();
+        }
     }
 }
 </script>
