@@ -1,8 +1,10 @@
 import io
+import json
 import re
 import logging
 import shutil
 from pathlib import Path
+from typing import Any
 
 import litellm
 from fastapi import UploadFile
@@ -127,19 +129,33 @@ def delete_file_from_disk(session_id: str, file_id: str) -> None:
         logger.info(f'Deleting file {file_id} for session "{session_id}": {file_path}')
         file_path.unlink()
 
+
 def delete_all_files_from_disk(session_id: str) -> None:
     dir_path = create_path(session_id)
     if dir_path.is_dir():
         logger.info(f'Deleting all files for session "{session_id}": {dir_path}')
         shutil.rmtree(dir_path)  # path.rmdir would require the dir to be empty first
 
+
 def create_path(session_id: str, file_id: str = None) -> Path:
     if not file_id:
         return Path(FILES_PATH, session_id)
     return Path(FILES_PATH, session_id, file_id)
 
+
 def is_pdf(filename: str) -> bool:
     return bool(re.search(r"\.pdf$", filename or "", re.IGNORECASE))
 
+
 def is_image(filename: str) -> bool:
     return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))
+
+
+def load_json(filename: str | Path) -> Any:
+    with open(filename, encoding='utf-8') as f:
+        return json.load(f)
+
+
+def save_json(filename: str | Path, data: Any, indent: int = 4) -> None:
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=indent)

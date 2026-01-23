@@ -181,6 +181,18 @@ class ScheduledTask(BaseModel):
     repetitions: int
 
 
+class Prompt(BaseModel):
+    question: str
+    icon: str = None
+
+
+class PromptCategory(BaseModel):
+    id: str
+    header: str
+    icon: str = None
+    questions: List[Prompt] = []
+
+
 class Chat(BaseModel):
     """
     Stores information about each chat.
@@ -250,7 +262,6 @@ class SessionData(BaseModel):
     the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
-    bookmarks: list[dict] = Field(default_factory=list)
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
@@ -260,6 +271,7 @@ class SessionData(BaseModel):
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
+    prompts: List[PromptCategory] = None
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

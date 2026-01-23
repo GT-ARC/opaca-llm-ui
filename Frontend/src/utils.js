@@ -129,14 +129,18 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
-    // bookmarks
+    // prompts
 
-    async getBookmarks() {
-        return await this.sendRequest("GET", "bookmarks");
+    async getPrompts() {
+        return await this.sendRequest("GET", "prompts");
     }
 
-    async saveBookmarks(bookmarks) {
-        return await this.sendRequest("POST", "bookmarks", bookmarks);
+    async savePrompts(prompts) {
+        return await this.sendRequest("POST", "prompts", prompts);
+    }
+
+    async resetPrompts() {
+        return await this.sendRequest("DELETE", "prompts");
     }
 
     // mcp

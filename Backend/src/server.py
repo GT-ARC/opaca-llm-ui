@@ -17,8 +17,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
+import src.sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
+    PromptCategory
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -417,19 +419,36 @@ async def view_file(request: Request, response: Response, file_id: str):
     )
 
 
-## BOOKMARK ROUTES
+# sample prompts
 
-@app.get("/bookmarks", tags=["other"])
-async def get_bookmarks(request: Request) -> list:
+@app.get("/prompts", tags=["other"])
+async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]:
     session = await handle_session_id(request)
-    return session.bookmarks
+    if session.prompts is None:
+        session.prompts = prompts.get_default_prompts(key)
+    return session.prompts
 
 
-@app.post("/bookmarks", tags=["other"])
-async def save_bookmarks(request: Request) -> None:
+@app.post("/prompts", tags=["other"])
+async def post_prompts(request: Request, data: List[PromptCategory]) -> None:
     session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
+    session.prompts = data
+
+
+@app.delete("/prompts", description="Reset the prompt library to the default values.", tags=["other"])
+async def delete_prompts(request: Request, key: str = 'GB') -> None:
+    session = await handle_session_id(request)
+    session.prompts = prompts.get_default_prompts(key)
+
+
+@app.get("/prompts/default", tags=["other"])
+async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+    return prompts.load_default_prompts()
+
+
+@app.post("/prompts/default", tags=["other"])
+async def post_default_prompts(data: Dict[str, List[PromptCategory]]) -> None:
+    prompts.save_default_prompts(data)
 
 
 # WEBSOCKET CONNECTION (permanently opened)
