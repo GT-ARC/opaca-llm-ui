@@ -308,6 +308,7 @@ class Localizer {
             : ref(fallbackLanguage);
 
         this._randomSampleQuestions = ref(null);
+        this._samplePrompts = ref(null);
     }
 
     set language(newLang) {
@@ -334,6 +335,14 @@ class Localizer {
 
     get randomSampleQuestions() {
         return this._randomSampleQuestions.value;
+    }
+
+    set samplePrompts(value) {
+        this._samplePrompts.value = value;
+    }
+
+    get samplePrompts() {
+        return this._samplePrompts.value;
     }
 
     _verifySettings() {
@@ -391,9 +400,9 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(textinput, categoryHeader) {
-        if (textinput) {
-            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+    getSampleQuestions(textInput, categoryHeader) {
+        if (textInput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textInput, 3);
         } else if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
         }
@@ -404,18 +413,22 @@ class Localizer {
         this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
     }
 
-    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
+    getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
+        if (!this.samplePrompts) {
+            console.log('no sample prompts');
+            return [];
+        }
         // assemble questions from all or selected category into a single array
-        let questions = sidebarQuestions[this.language]
+        let filteredQuestions = this.samplePrompts
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
-            .filter(question => textinput === null || matches(question.question, textinput));
+            .filter(question => textInput === null || matches(question.question, textInput));
 
         // if no text input was given -> shuffle and get first k questions
-        if (!textinput) {
-            shuffleArray(questions);
+        if (!textInput) {
+            shuffleArray(filteredQuestions);
         }
-        return questions.slice(0, numQuestions);
+        return filteredQuestions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
@@ -451,8 +464,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-function matches(question, textinput) {
-    return textinput.toLowerCase().split(/\s+/)
+function matches(question, textInput) {
+    return textInput.toLowerCase().split(/\s+/)
         .every(word => question.toLowerCase().includes(word));
 }
 
