@@ -9,4 +9,4 @@ venv
 .DS_Store
 *.env
 .pytest_cache
-Backend/data
+Backend/data/files/
