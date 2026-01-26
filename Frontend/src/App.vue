@@ -388,7 +388,8 @@ export default {
         if (this.isMobile) {
             SidebarManager.close()
         } else {
-            SidebarManager.selectView(conf.DefaultSidebarView);
+            const sidebarLevel = await backendClient.getSidebarLevel();
+            SidebarManager.selectView(conf.DefaultSidebarView, sidebarLevel);
         }
 
         // prevent options dropdown menu from closing once anything in it is clicked

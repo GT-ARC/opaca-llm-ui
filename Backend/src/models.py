@@ -260,6 +260,7 @@ class SessionData(BaseModel):
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
+    sidebar_level: int = 1
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

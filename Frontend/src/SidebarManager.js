@@ -19,6 +19,17 @@ class SidebarManager {
         'faq',
     ]
 
+    static minLevelByView = {
+        chats: 1,
+        files: 1,
+        questions: 1,
+        agents: 2,
+        extensions: 2,
+        mcp: 2,
+        config: 2,
+        debug: 2,
+    };
+
     /**
      * @param selectedView {string} The initially selected view.
      */
@@ -35,9 +46,11 @@ class SidebarManager {
     }
 
     /** select view, keep as-is if already open */
-    selectView(key) {
+    selectView(key, level= 2) {
         if (this.isValidView(key)) {
-            this._selectedView.value = key;
+            if (this.isViewAllowedAtLevel(key, level)){
+                this._selectedView.value = key;
+            }
         } else {
             console.warn(`${key} is not a valid sidebar view`);
             this._selectedView.value = 'none';
@@ -65,6 +78,10 @@ class SidebarManager {
         this.selectView('none');
     }
 
+    isViewAllowedAtLevel(view, level) {
+        const min = SidebarManager.minLevelByView[view];
+        return min == null ? true : level >= min;
+    }
 }
 
 const sidebarManager = new SidebarManager();

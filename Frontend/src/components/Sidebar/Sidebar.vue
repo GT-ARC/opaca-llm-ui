@@ -4,54 +4,68 @@
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center gap-2">
 
+            <!-- Always Visible: Info -->
             <i @click="SidebarManager.toggleView('info')"
                class="fa fa-circle-info sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
-            <i @click="SidebarManager.toggleView('chats')"
-               class="fa fa-message sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarChats')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
+            <!-- Stage Toggle Button -->
+            <i @click="toggleSidebarLevel()"
+               class="fa sidebar-menu-item"
+               :class="getSidebarToggleIcon()"
+               :title="getSidebarToggleTooltip()" />
 
-            <i @click="SidebarManager.toggleView('files')"
-               class="fa fa-file sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFiles')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
+            <!-- Level 1: Standard Tools -->
+            <div v-if="sidebarLevel >= 1" class="d-flex flex-column gap-2">
+                <i @click="SidebarManager.toggleView('chats')"
+                   class="fa fa-message sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarChats')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
-            <i @click="SidebarManager.toggleView('questions')"
-               class="fa fa-book sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarPrompts')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
+                <i @click="SidebarManager.toggleView('files')"
+                   class="fa fa-file sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarFiles')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
 
-            <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarAgents')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
+                <i @click="SidebarManager.toggleView('questions')"
+                   class="fa fa-book sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarPrompts')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
+            </div>
 
-            <i @click="SidebarManager.toggleView('extensions')"
-               class="fa fa-puzzle-piece sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarExtensions')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
+            <!-- Level 2: Advanced Tools & System -->
+            <div v-if="sidebarLevel >= 2" class="d-flex flex-column gap-2">
+                <i @click="SidebarManager.toggleView('agents')"
+                   class="fa fa-users sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarAgents')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
-            <i @click="SidebarManager.toggleView('mcp')"
-               class="fa fa-server sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarMcp')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
+                <i @click="SidebarManager.toggleView('extensions')"
+                   class="fa fa-puzzle-piece sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarExtensions')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
 
-            <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarConfig')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
+                <i @click="SidebarManager.toggleView('mcp')"
+                   class="fa fa-server sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarMcp')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
 
-            <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarLogs')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
+                <i @click="SidebarManager.toggleView('config')"
+                   class="fa fa-cog sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarConfig')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
+
+                <i @click="SidebarManager.toggleView('debug')"
+                   class="fa fa-bug sidebar-menu-item"
+                   :title="Localizer.get('tooltipSidebarLogs')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
+            </div>
 
             <!-- spacer -->
             <div class="flex-grow-1" />
 
+            <!-- Always Visible: FAQ -->
             <i @click="SidebarManager.toggleView('faq')"
                class="fa fa-question-circle sidebar-menu-item"
                :title="Localizer.get('tooltipSidebarFaq')"
@@ -153,6 +167,7 @@
 import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
+import backendClient from "../../utils.js";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
@@ -204,9 +219,34 @@ export default {
         return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
-        return {};
+        return {
+            sidebarLevel: 0,
+        };
     },
     methods: {
+
+        toggleSidebarLevel() {
+            this.sidebarLevel = (this.sidebarLevel + 1) % 3;
+            backendClient.setSidebarLevel(this.sidebarLevel);
+
+            // Close view if it is now hidden
+            const view = this.SidebarManager.getSelectedView();
+            if (!this.SidebarManager.isViewAllowedAtLevel(view, this.sidebarLevel)) {
+                this.SidebarManager.close();
+            }
+        },
+
+        getSidebarToggleIcon() {
+            if (this.sidebarLevel === 0) return 'fa-angle-down';
+            if (this.sidebarLevel === 1) return 'fa-angles-down';
+            return 'fa-angles-up';
+        },
+
+        getSidebarToggleTooltip() {
+            if (this.sidebarLevel === 0) return Localizer.get('tooltipSidebarShowStandard');
+            if (this.sidebarLevel === 1) return Localizer.get('tooltipSidebarShowAdvanced');
+            return Localizer.get('tooltipSidebarCollapse');
+        },
 
         setupResizer() {
             const resizer = document.getElementById('resizer');
@@ -236,8 +276,10 @@ export default {
         },
 
     },
-    mounted() {
+    async mounted() {
         this.setupResizer();
+
+        this.sidebarLevel = await backendClient.getSidebarLevel();
     },
 }
 </script>
