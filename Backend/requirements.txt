@@ -11,5 +11,3 @@ pymongo>=4.15.1
 litellm>=1.80.9
 mcp>=1.23.3
 rich>=14.0.0
-pypdf>=3.17.0
-Pillow>=10.0.0
