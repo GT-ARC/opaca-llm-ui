@@ -64,13 +64,12 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
-                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
@@ -561,7 +560,6 @@ export default {
                 content: content,
                 isLoading: isLoading,
                 files: files,
-                bookmarked: true,
             };
             this.messages.push(message);
 

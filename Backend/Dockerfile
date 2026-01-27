@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY src Backend
+COPY data/default_prompts.json data/default_prompts.json
 
 EXPOSE 3001
 

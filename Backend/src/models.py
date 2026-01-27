@@ -240,7 +240,6 @@ class SessionData(BaseModel):
 
     Attributes:
         session_id: The session's internal ID.
-        bookmarks: All prompts bookmarked during the session.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.

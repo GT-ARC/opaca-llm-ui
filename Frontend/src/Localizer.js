@@ -108,7 +108,6 @@ export const localizationData = {
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper Voice",
-        bookmarkHeader: "Bookmarked Prompts",
         tooltipSidebarExtensions: "Extensions",
         sidebarExtensionsLoading: "Loading available extensions...",
         sidebarExtensionsMissing: "No extensions available.",
@@ -224,7 +223,6 @@ export const localizationData = {
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
         whisperVoiceSelectPlaceholder: "Whisper-Stimme",
-        bookmarkHeader: "Favoriten",
         tooltipSidebarExtensions: "Erweiterungen",
         sidebarExtensionsLoading: "Lade verfügbare Erweiterungen...",
         sidebarExtensionsMissing: "Keine Erweiterungen verfügbar.",
@@ -415,7 +413,6 @@ class Localizer {
 
     getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
         if (!this.samplePrompts) {
-            console.log('no sample prompts');
             return [];
         }
         // assemble questions from all or selected category into a single array
