@@ -198,20 +198,20 @@ async def stop_query(request: Request, response: Response) -> None:
 
 # MCP Routes
 
-@app.get("/mcp", description="Get a list of all added MCP servers and their actions")
+@app.get("/mcp", description="Get a list of all added MCP servers and their actions", tags=["mcp"])
 async def get_mcp_list(request: Request, response: Response) -> Dict:
     session = await handle_session_id(request, response)
     return await session.get_mcp_tools()
 
 
-@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
+@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers", tags=["mcp"])
 async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMessage) -> Response:
     session = await handle_session_id(request, response)
     await session.add_mcp_server(mcp.content)
     return Response(status_code=201)
 
 
-@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
+@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
 async def delete_mcp_server(request: Request, response: Response, mcp_server: MCPDeleteMessage) -> Response:
     session = await handle_session_id(request, response)
     if session.delete_mcp_server(mcp_server.name):
@@ -421,7 +421,7 @@ async def view_file(request: Request, response: Response, file_id: str):
 
 # sample prompts
 
-@app.get("/prompts", tags=["other"])
+@app.get("/prompts", tags=["sample prompts"])
 async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]:
     session = await handle_session_id(request)
     if session.prompts is None:
@@ -429,25 +429,25 @@ async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]
     return session.prompts
 
 
-@app.post("/prompts", tags=["other"])
+@app.post("/prompts", tags=["sample prompts"])
 async def post_prompts(request: Request, data: List[PromptCategory]) -> None:
     session = await handle_session_id(request)
     session.prompts = data
 
 
-@app.delete("/prompts", description="Reset the prompt library to the default values.", tags=["other"])
+@app.delete("/prompts", description="Reset the prompt library to the default values.", tags=["sample prompts"])
 async def delete_prompts(request: Request, key: str = 'GB') -> None:
     session = await handle_session_id(request)
     session.prompts = prompts.get_default_prompts(key)
 
 
-@app.get("/prompts/default", tags=["other"])
+@app.get("/prompts/default", tags=["sample prompts"])
 async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
     return prompts.load_default_prompts()
 
 
-@app.post("/prompts/default", tags=["other"])
-async def post_default_prompts(data: Dict[str, List[PromptCategory]]) -> None:
+@app.post("/prompts/default", tags=["sample prompts", "admin"])
+async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
     prompts.save_default_prompts(data)
 
 

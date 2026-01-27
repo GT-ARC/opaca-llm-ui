@@ -29,7 +29,7 @@ def save_default_prompts(prompts: Dict[str, List[PromptCategory]]) -> None:
 
 def get_default_prompts(key: str) -> List[PromptCategory]:
     data = load_default_prompts()
-    if key is not None and key not in data:
+    if key not in data:
         raise KeyError(f'Invalid default prompts key: {key}')
     return data[key]
 
