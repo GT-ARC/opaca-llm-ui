@@ -155,7 +155,8 @@ export default {
         },
 
         async loadPrompts() {
-            Localizer.samplePrompts = [...await backendClient.getPrompts()];
+            Localizer.samplePrompts = await backendClient.getPrompts();
+            Localizer.reloadSampleQuestions();
         },
 
         toggleSection(index, show = null) {

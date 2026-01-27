@@ -51,7 +51,7 @@
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @view-file="openViewer"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
-                @delete-all-chats="() => this.handleDeleteAllChats()"
+            @delete-all-chats="() => this.handleDeleteAllChats()"
         />
 
 

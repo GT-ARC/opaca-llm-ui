@@ -10,7 +10,7 @@
                 {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
                 {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic and get the available phone numbers of the participants!", "icon": "📑"},
                 {"question": "Schedule a brainstorming session with Robert.", "icon": "🧠"},
-                {"question": "Get my gitlab user id and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"}
+                {"question": "Get my GitLab User ID and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"}
             ]
         },
         {
