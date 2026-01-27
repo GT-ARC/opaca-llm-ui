@@ -95,6 +95,10 @@ class BackendClient {
         await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
     }
 
+    async renameFile(file_id, name) {
+        await this.sendRequest("PATCH", `files/${file_id}?name=${name}`);
+    }
+
     async uploadFiles(files) {
         const formData = new FormData();
         for (const file of files) {

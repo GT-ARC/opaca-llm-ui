@@ -143,6 +143,10 @@ def create_path(session_id: str, file_id: str = None) -> Path:
     return Path(FILES_PATH, session_id, file_id)
 
 
+def rename_file(file: OpacaFile, new_name: str) -> None:
+    file.file_name = f'{Path(file.file_name).with_stem(new_name)}'
+
+
 def is_pdf(filename: str) -> bool:
     return bool(re.search(r"\.pdf$", filename or "", re.IGNORECASE))
 

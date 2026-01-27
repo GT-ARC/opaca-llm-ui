@@ -26,7 +26,7 @@ from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 
@@ -384,13 +384,16 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["other"])
-async def update_file(request: Request, response: Response, file_id: str, suspend: bool) -> bool:
+async def update_file(request: Request, response: Response, file_id: str, suspend: bool = None, name: str = None) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
     if file_id in files:
         file = files[file_id]
-        file.suspended = suspend
+        if suspend is not None:
+            file.suspended = suspend
+        if name is not None:
+            rename_file(file, name)
         return True
 
     return False
