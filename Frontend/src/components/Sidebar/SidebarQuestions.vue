@@ -7,6 +7,7 @@
 
     <div id="sidebar-questions" class="accordion">
         <div v-for="(section, index) in Localizer.samplePrompts"
+             v-show="section.visible"
              :key="index"
              class="accordion-item">
 
