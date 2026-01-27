@@ -149,13 +149,3 @@ def is_pdf(filename: str) -> bool:
 
 def is_image(filename: str) -> bool:
     return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))
-
-
-def load_json(filename: str | Path) -> Any:
-    with open(filename, encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_json(filename: str | Path, data: Any, indent: int = 4) -> None:
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=indent)

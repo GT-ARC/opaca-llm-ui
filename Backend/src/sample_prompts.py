@@ -1,8 +1,8 @@
 import logging
+import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
 
-from .file_utils import load_json, save_json
 from .models import PromptCategory
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,6 @@ DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
 
 
 def load_default_prompts() -> Dict[str, List[PromptCategory]]:
-    print(DEFAULT_PROMPTS_FILE.absolute().resolve())
     if not DEFAULT_PROMPTS_FILE.is_file():
         raise FileNotFoundError('Default prompts file not found')
     return {
@@ -33,3 +32,13 @@ def get_default_prompts(key: str) -> List[PromptCategory]:
     if key is not None and key not in data:
         raise KeyError(f'Invalid default prompts key: {key}')
     return data[key]
+
+
+def load_json(filename: str | Path) -> Any:
+    with open(filename, encoding='utf-8') as f:
+        return json.load(f)
+
+
+def save_json(filename: str | Path, data: Any, indent: int = 4) -> None:
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=indent)
