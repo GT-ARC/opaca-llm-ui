@@ -56,9 +56,9 @@
             "questions": [
                 {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
                 {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst und die verfügbaren Telefonnummern der Teilnehmer holst.", "icon": "📑"},
+                {"question": "Such nach meinem nächsten Meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst und die verfügbaren Telefonnummern der Teilnehmer holst.", "icon": "📑"},
                 {"question": "Plane ein Brainstorming-Meeting mit Robert.", "icon": "🧠"},
-                {"question": "Finde meine GitLab Benutzer id und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"}
+                {"question": "Finde meine GitLab Benutzer ID und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"}
             ]
         },
         {
