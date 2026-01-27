@@ -127,19 +127,27 @@ def delete_file_from_disk(session_id: str, file_id: str) -> None:
         logger.info(f'Deleting file {file_id} for session "{session_id}": {file_path}')
         file_path.unlink()
 
+
 def delete_all_files_from_disk(session_id: str) -> None:
     dir_path = create_path(session_id)
     if dir_path.is_dir():
         logger.info(f'Deleting all files for session "{session_id}": {dir_path}')
         shutil.rmtree(dir_path)  # path.rmdir would require the dir to be empty first
 
+
 def create_path(session_id: str, file_id: str = None) -> Path:
     if not file_id:
         return Path(FILES_PATH, session_id)
     return Path(FILES_PATH, session_id, file_id)
 
+
+def rename_file(file: OpacaFile, new_name: str) -> None:
+    file.file_name = f'{Path(file.file_name).with_stem(new_name)}'
+
+
 def is_pdf(filename: str) -> bool:
     return bool(re.search(r"\.pdf$", filename or "", re.IGNORECASE))
+
 
 def is_image(filename: str) -> bool:
     return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))
