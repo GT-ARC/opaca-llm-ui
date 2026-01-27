@@ -254,8 +254,10 @@ export default {
         },
 
         removePersonalPrompt(index) {
-            this.personalPrompts.splice(index, 1);
-            this.savePersonalPrompts();
+            if (confirm(Localizer.get("confirmDeleteBookmark"))) {
+                this.personalPrompts.splice(index, 1);
+                this.savePersonalPrompts();
+            }
         },
 
         toggleSection(index, show = null) {
