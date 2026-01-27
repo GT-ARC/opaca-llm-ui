@@ -118,6 +118,7 @@ export const localizationData = {
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "No notifications",
+        autogenQuestionsTitle: "Auto-Generated Prompts",
     },
 
     DE: {
@@ -233,6 +234,7 @@ export const localizationData = {
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Keine Benachrichtigungen",
+        autogenQuestionsTitle: "Auto-Generierte Prompts",
     },
 };
 
