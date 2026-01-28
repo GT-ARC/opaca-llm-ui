@@ -313,24 +313,22 @@ export default {
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         if (values !== null) {
-                            for (const key in values) {
-                                questionText = questionText.replace(key, values[key]);
-                            }
                             // ask the completed question
-                            this.textInput = questionText
-                            await nextTick();
-                            this.resizeTextInput();
-                            await this.submitText();
+                            await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
                         }
                     }
                 );
             } else {
                 // just ask the question
-                this.textInput = questionText
-                await nextTick();
-                this.resizeTextInput();
-                await this.submitText();
+                await this.setTextAndSubmit(questionText);
             }
+        },
+
+        async setTextAndSubmit(questionText) {
+            this.textInput = questionText
+            await nextTick();
+            this.resizeTextInput();
+            await this.submitText();
         },
 
         resizeTextInput() {
