@@ -27,6 +27,7 @@ from .internal_tools import InternalTools
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
+from .opaca_client import actions_blacklist
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -131,6 +132,16 @@ async def session_admin_get(auth = Depends(require_password)):
 @app.put("/admin/sessions/{session_id}/{action}", description="Perform different actions on sessions. Requires authentication, if configured.", tags=["admin"])
 async def session_admin_update(session_id: str, action: SessionAction, auth = Depends(require_password)):
     return await update_session(session_id, action)
+
+
+@app.get("/admin/blacklist", description="Get list of 'forbidden' terms in action and agent names.", tags=["admin"])
+async def get_blacklist():
+    return actions_blacklist
+
+
+@app.put("/admin/blacklist", description="Update list of 'forbidden' terms in action and agent names, blocking those actions from being executed.", tags=["admin"])
+async def set_blacklist(new_blacklist: List[str], auth = Depends(require_password)):
+    actions_blacklist[:] = new_blacklist
 
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).", tags=["opaca"])

@@ -10,6 +10,10 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 
+# list of string fragments that must NOT appear in the action names, else they will be filtered out
+actions_blacklist = []
+
+
 class OpacaClient:
     """
     Client for OPACA Runtime Platform, for establishing a connection, managing access tokens,
@@ -119,6 +123,8 @@ class OpacaClient:
 
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         """Invoke the given OPACA agent at the given agent (or any agent) with given parameters."""
+        if any(x in agent.lower() or x in action.lower() for x in map(str.lower, actions_blacklist)):
+            raise Exception("Executing this action is currently not permitted.")
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
