@@ -735,7 +735,7 @@ export default {
                 Localizer.reloadSampleQuestions(null);
             }
             await nextTick();
-            this.$refs.textInputRef.focus();
+            this.$refs.textInputRef?.focus();
         },
 
         async scrollToMessage(messageId) {

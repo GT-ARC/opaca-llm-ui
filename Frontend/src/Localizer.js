@@ -99,11 +99,6 @@ export const localizationData = {
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
-        tooltipChatbubbleSave: "Save prompt to user library",
-        personalQuestionsEmpty: "No personal prompts saved",
-        tooltipDeleteQuestion: "Delete Prompt",
-        editQuestion: "Edit Prompt",
-        addPersonalQuestion: "New Prompt",
         containerLoginMessage: "The following action requires additional credentials: ",
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
@@ -119,6 +114,9 @@ export const localizationData = {
         autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "No notifications",
         autogenQuestionsTitle: "Auto-Generated Prompts",
+        confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
+        checkboxDeleteSampleQuestion: "Delete?",
+
     },
 
     DE: {
@@ -215,11 +213,6 @@ export const localizationData = {
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
-        tooltipChatbubbleSave: "Prompt in Nutzerbibliothek speichern",
-        personalQuestionsEmpty: "Keine persönlichen Prompts gespeichert",
-        tooltipDeleteQuestion: "Prompt löschen",
-        editQuestion: "Prompt bearbeiten",
-        addPersonalQuestion: "Neuer Prompt",
         containerLoginMessage: "Die auszuführende Aktion benötigt weitere Zugangsdaten: ",
         useWhisperTts: "Whisper TTS",
         useWhisperStt: "Whisper STT",
@@ -235,6 +228,8 @@ export const localizationData = {
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Keine Benachrichtigungen",
         autogenQuestionsTitle: "Auto-Generierte Prompts",
+        confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
+        checkboxDeleteSampleQuestion: "Löschen?",
     },
 };
 

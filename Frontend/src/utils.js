@@ -1,6 +1,7 @@
 import conf from '../config.js';
 
 import axios from "axios";
+import Localizer from "./Localizer.js";
 
 
 class BackendClient {
@@ -136,7 +137,7 @@ class BackendClient {
     // prompts
 
     async getPrompts() {
-        return await this.sendRequest("GET", "prompts");
+        return await this.sendRequest("GET", `prompts?key=${Localizer.language}`);
     }
 
     async savePrompts(prompts) {
@@ -144,7 +145,7 @@ class BackendClient {
     }
 
     async resetPrompts() {
-        return await this.sendRequest("DELETE", "prompts");
+        return await this.sendRequest("DELETE", `prompts?key=${Localizer.language}`);
     }
 
     // mcp
