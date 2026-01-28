@@ -356,8 +356,7 @@ async def upload_files(request: Request, response: Response, files: List[UploadF
     uploaded = []
     for file in files:
         try:
-            filedata = await save_file_to_disk(file, session.session_id)
-            session.uploaded_files[filedata.file_id] = filedata
+            filedata = await save_file_to_disk(file, session)
             uploaded.append(filedata)
         except Exception as e:
             raise HTTPException(

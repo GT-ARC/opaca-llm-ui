@@ -112,13 +112,22 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
     return True
 
 
-async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
+async def save_file_to_disk(file: UploadFile, session: SessionData) -> OpacaFile:
     """
     Save an UploadFile to disk.
     """
-    file_data = OpacaFile(content_type=file.content_type, file_name=file.filename)
-    file_path = create_path(session_id, file_data.file_id)
+    filename = file.filename
+
+    # de-dupe by name
+    for f in session.uploaded_files.values():
+        if f.file_name == filename:
+            return f
+
+    file_data = OpacaFile(content_type=file.content_type, file_name=filename)
+    file_path = create_path(session.session_id, file_data.file_id)
     file_path.parent.mkdir(parents=True, exist_ok=True)
+    # Add to uploaded_files
+    session.uploaded_files[file_data.file_id] = file_data
     logger.info(f'Saving file to "{file_path}"')
     with open(file_path, 'wb') as f:
         while chunk := await file.read(1024 * 1024):
@@ -199,8 +208,7 @@ async def register_bytes_as_uploaded_file(
             headers=Headers({"content-type": content_type})
         )
 
-        filedata = await save_file_to_disk(upload, session.session_id)
-        session.uploaded_files[filedata.file_id] = filedata
+        filedata = await save_file_to_disk(upload, session)
         return filedata
 
     except Exception as e:
