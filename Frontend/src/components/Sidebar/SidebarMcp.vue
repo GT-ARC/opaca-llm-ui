@@ -121,26 +121,24 @@ export default {
                     mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "Require Approval - never", always: "Require Approval - always (not implemented yet)"}},
                 },
                 async (values) => {
-                    if (values != null) {
-                        // Get values from submission dialogue
-                        const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+                    // Get values from submission dialogue
+                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
 
-                        // Validate input
-                        mcpError = this.isValidInput(data.server_url, data.server_label);
-                        if (mcpError !== "") {
-                            await this.addMcp(mcpError, data.server_url, data.server_label)
-                            return
-                        }
-
-                        // Add MCP server to backend, retry on failure
-                        try {
-                            await backendClient.addMcp({"content": data});
-                        } catch (err) {
-                            await this.addMcp(err.response.data.detail, data.server_url, data.server_label);
-                            return
-                        }
-                        await this.updateMcp(true);
+                    // Validate input
+                    mcpError = this.isValidInput(data.server_url, data.server_label);
+                    if (mcpError !== "") {
+                        await this.addMcp(mcpError, data.server_url, data.server_label)
+                        return
                     }
+
+                    // Add MCP server to backend, retry on failure
+                    try {
+                        await backendClient.addMcp({"content": data});
+                    } catch (err) {
+                        await this.addMcp(err.response.data.detail, data.server_url, data.server_label);
+                        return
+                    }
+                    await this.updateMcp(true);
                 }
             );
             
@@ -150,10 +148,8 @@ export default {
             await this.$refs.input.showDialogue(
                 "Delete MCP server?", null, null, {}, 
                 async (values) => {
-                    if (values != null) {
-                        await backendClient.deleteMcp(mcpName);
-                        await this.updateMcp(true);
-                    }
+                    await backendClient.deleteMcp(mcpName);
+                    await this.updateMcp(true);
                 }
             );
         },

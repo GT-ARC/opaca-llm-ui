@@ -33,7 +33,7 @@
                     {{ errorMsg }}
                 </div>
 
-                <div v-if="callback !== null">
+                <div v-if="onOkay !== null">
                     <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="!canSubmit()">
                         <span>{{ Localizer.get('submit') }}</span>
                     </button>
@@ -68,14 +68,15 @@ export default {
             errorMsg: null,
             schema: null,
             values: null,
-            callback: null,
+            onOkay: null,
+            onCancel: null,
         }
     },
     methods: {
 
         /**
          * Show input dialogue for asking various values according to given schema. Results are handed to
-         * callback function as dictionary mapping schema-keys to values, or null if "cancel" was pressed
+         * callback functions as dictionary mapping schema-keys to values on "okay", or nothing if "cancel" was pressed
          * 
          * THe format for "schema" is as follows
          * 
@@ -95,14 +96,16 @@ export default {
          * @param message message below the title, optional
          * @param errorMsg error message (e.g. if previous attempt failed), optional
          * @param schema defines the different values that should be entered in the dialogue (see above)
-         * @param callback callback function, should accept dict of values or null
+         * @param onOkay callback function, should accept dict of values
+         * @param onCancel callback function, should accept no parameters (optional)
          */
-        async showDialogue(title, message, errorMsg, schema, callback) {
+        async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
             this.title = title;
             this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
-            this.callback = callback;
+            this.onOkay = onOkay;
+            this.onCancel = onCancel;
             this.values = Object.fromEntries(
                 Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
             );
@@ -128,7 +131,11 @@ export default {
             this.show = false;
             await nextTick();
             // callback is called last, so that it can show another dialogue
-            this.callback(okay ? this.values : null);
+            if (okay) {
+                this.onOkay(this.values);
+            } else if (this.onCancel !== null) {
+                this.onCancel();
+            }
         },
 
     },
