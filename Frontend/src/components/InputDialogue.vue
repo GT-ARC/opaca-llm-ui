@@ -33,16 +33,17 @@
                     {{ errorMsg }}
                 </div>
 
-                <div v-if="onOkay !== null">
-                    <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        <span>{{ Localizer.get('submit') }}</span>
+                <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
+                        {{ Localizer.get('dialogCancel') }}
                     </button>
-                    <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="handleSubmit(false)">
-                        {{ Localizer.get('cancel') }}
+                    <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
+                        {{ Localizer.get('dialogOkay') }}
                     </button>
+                    
                 </div>
                 <button v-else type="button" class="btn btn-primary w-100" @click="show = false">
-                    Okay
+                    {{ Localizer.get('dialogOkay') }}
                 </button>
             </form>
         </div>
