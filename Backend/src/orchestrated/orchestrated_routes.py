@@ -117,7 +117,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     agent_name="GeneralAgent",
                     task=task_str,
                     output="Retrieved system capabilities",  # Keep output minimal since data is in tool result
-                    tool_calls=[ToolCall(id="-1", name="GetCapabilities", args={}, result=predefined_response)],
+                    tool_calls=[ToolCall(id="-1", type="opaca", name="GetCapabilities", args={}, result=predefined_response)],
                 )
 
             # Create planner if enabled
