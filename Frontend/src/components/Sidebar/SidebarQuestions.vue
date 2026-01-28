@@ -1,6 +1,8 @@
 <!-- SidebarQuestions Component -->
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+    <InputDialogue ref="editDialog" />
+
     <div v-if="!isMobile" class="sidebar-title">
         {{ Localizer.get('tooltipSidebarPrompts') }}
     </div>
@@ -28,6 +30,8 @@
                  data-bs-parent="#sidebar-questions"
                  v-on:[bsCollapseEvent]="this.$emit('select-category', section.header)">
                 <div class="accordion-body">
+
+                    <!-- category questions -->
                     <div v-for="(q, qIndex) in section.questions"
                          :key="qIndex"
                          class="question-item"
@@ -38,7 +42,11 @@
                             />
                             <i v-else>{{ q.question }}</i>
                         </span>
+                        <i class="fa fa-pen-to-square p-1 mb-auto question-menu-button"
+                           @click.stop="this.editQuestion(section, q)"
+                        />
                     </div>
+
                 </div>
             </div>
         </div>
@@ -196,6 +204,29 @@ export default {
         expandSectionByHeader(header) {
             this.toggleSectionByHeader(header, true);
         },
+
+        editQuestion(category, question) {
+            const callback = (values) => {
+                // todo
+            };
+            const schema = {
+                text: {
+                    type: 'textarea',
+                    label: question.question, // todo: question text
+                },
+                delete: {
+                    type: 'checkbox',
+                    label: 'Delete?',
+                }
+            }
+            this.$refs.editDialog.showDialogue(
+                'Edit Question',
+                null,
+                'error',
+                schema,
+                callback
+            );
+        },
     },
 
     async mounted() {
@@ -235,7 +266,7 @@ export default {
 .question-item {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.25rem 0.75rem 0.75rem;
     cursor: pointer;
     color: var(--text-primary-color);
     background-color: var(--background-color);
@@ -267,15 +298,17 @@ export default {
 
 .question-menu-button {
     flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    aspect-ratio: 1 / 1;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1rem;
+    padding: 0.25rem;
+    aspect-ratio: 1 / 1 !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 1rem !important;
+    border-radius: 0.75rem !important;
     cursor: pointer;
+    color: var(--text-primary-color);
 }
 
 .question-menu-button:hover {
