@@ -247,6 +247,8 @@ export default {
 <style>
 /* used in the sub-components! */
 .sidebar-title {
+    display: flex;
+    align-items: center;
     font-size: 150%;
     border-left: 5px solid var(--primary-color);
     padding-left: .5em;

@@ -189,7 +189,7 @@ class Prompt(BaseModel):
 class PromptCategory(BaseModel):
     id: str
     header: str
-    icon: str = None
+    icon: str | None = None
     visible: bool = True
     questions: List[Prompt] = []
 
