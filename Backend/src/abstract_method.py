@@ -275,8 +275,8 @@ class AbstractMethod(ABC):
                 ))
                 response = ContainerLoginResponse(**await self.session.websocket_receive())
                 if not (response.username and response.password):
-                    return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
-
+                    return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
+                
                 # Attempt to login at container via OPACA (error if immediate login-check fails)
                 try:
                     await self.session.opaca_client.container_login(container_id, response.username, response.password)

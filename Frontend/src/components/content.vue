@@ -50,8 +50,9 @@
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @view-file="openViewer"
+            @rename-file="handleRenameFile"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
-                @delete-all-chats="() => this.handleDeleteAllChats()"
+            @delete-all-chats="() => this.handleDeleteAllChats()"
         />
 
 
@@ -304,6 +305,26 @@ export default {
             // Do not send questions during autogeneration
             if (questionText === "__loading__") return;
 
+            var placeholders = questionText.match(/\[[^\]]+\]/g);
+            if (placeholders !== null) {
+                // substitute placeholders
+                await this.$refs.input.showDialogue(
+                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
+                    async (values) => {
+                        if (values !== null) {
+                            // ask the completed question
+                            await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
+                        }
+                    }
+                );
+            } else {
+                // just ask the question
+                await this.setTextAndSubmit(questionText);
+            }
+        },
+
+        async setTextAndSubmit(questionText) {
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
@@ -423,6 +444,11 @@ export default {
                     await backendClient.suspendFile(file.file_id, true);
                 }
             }
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
+        async handleRenameFile(fileId, newName) {
+            await backendClient.renameFile(fileId, newName);
             await this.$refs.sidebar.$refs.files.updateFiles();
         },
 

@@ -71,7 +71,6 @@ class SimpleToolsMethod(AbstractMethod):
                     await self.invoke_tool(call.name, call.args, call.id)
                     for call in result.tools
                 ]
-
                 tool_contents = "\n".join(
                     f"The result of tool '{tool.name}' with parameters '{tool.args}' was: {tool.result}"
                     for tool in tool_entries
@@ -81,7 +80,6 @@ class SimpleToolsMethod(AbstractMethod):
                     content=f"A user had the following request: {message}\n"
                             f"You have used the following tools: \n{tool_contents}")
                 )
-
                 response.agent_messages[-1].tools = tool_entries
 
             except Exception as e:
