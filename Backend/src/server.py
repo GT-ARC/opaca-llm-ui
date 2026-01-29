@@ -350,14 +350,13 @@ async def get_files(request: Request, response: Response) -> dict:
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.", tags=["other"])
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["other"])
 async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
         try:
-            filedata = await save_file_to_disk(file, session.session_id)
-            session.uploaded_files[filedata.file_id] = filedata
+            filedata = await save_file_to_disk(file, session)
             uploaded.append(filedata)
         except Exception as e:
             raise HTTPException(

@@ -305,6 +305,26 @@ export default {
             // Do not send questions during autogeneration
             if (questionText === "__loading__") return;
 
+            var placeholders = questionText.match(/\[[^\]]+\]/g);
+            if (placeholders !== null) {
+                // substitute placeholders
+                await this.$refs.input.showDialogue(
+                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
+                    async (values) => {
+                        if (values !== null) {
+                            // ask the completed question
+                            await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
+                        }
+                    }
+                );
+            } else {
+                // just ask the question
+                await this.setTextAndSubmit(questionText);
+            }
+        },
+
+        async setTextAndSubmit(questionText) {
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
