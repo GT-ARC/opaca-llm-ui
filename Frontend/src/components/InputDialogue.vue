@@ -32,7 +32,7 @@
                     </select>
                 </div>
 
-                <div v-if="errorMsg !== null" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                <div v-if="errorMsg !== null" class="text-danger border border-danger rounded p-2 mb-3">
                     {{ errorMsg }}
                 </div>
 
