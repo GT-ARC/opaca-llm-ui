@@ -19,8 +19,8 @@
                         :placeholder="val.label ?? key"
                     />
                     <div v-if="val.type === 'checkbox'">
-                        <input class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
-                        <label class="form-check-label mx-2"> {{ val.label ?? key }} </label>
+                        <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
+                        <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
                     </div>
                      <select v-if="val.type === 'select'"
                         v-model="values[key]"
