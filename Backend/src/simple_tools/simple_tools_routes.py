@@ -56,7 +56,7 @@ class SimpleToolsMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=SYSTEM_PROMPT,
+                system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
                 messages=messages,
                 temperature=config.temperature,
                 tools=tools,
