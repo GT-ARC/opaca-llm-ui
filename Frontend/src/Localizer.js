@@ -115,7 +115,7 @@ export const localizationData = {
         noNotifsAvailable: "No notifications",
         autogenQuestionsTitle: "Auto-Generated Prompts",
         confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
-        checkboxDeleteSampleQuestion: "Delete?",
+        checkboxDeleteFromPromptLibrary: "Delete this?",
         specifyPlaceholders: "Values for Placeholders",
     },
 

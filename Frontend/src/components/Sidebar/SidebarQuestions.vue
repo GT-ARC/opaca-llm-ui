@@ -18,13 +18,17 @@
              class="accordion-item">
 
             <!-- header -->
-            <div class="accordion-header text-center">
+            <div class="accordion-header text-center d-flex align-items-center" style="background-color: var(--background-color)">
                 <button class="accordion-button collapsed text-center" type="button"
                         data-bs-toggle="collapse"
                         :data-bs-target="'#questions-' + index"
-                        aria-expanded="false" :aria-controls="'questions-' + index">
+                        aria-expanded="false" :aria-controls="'questions-' + index" >
                     <span class="section-icon">{{ section.icon }}</span>
                     <span class="section-title">{{ section.header }}</span>
+                    <i v-if="isEditModeActive"
+                       class="fa fa-edit click-btn"
+                       @click.stop.prevent="this.editCategory(section)"
+                    />
                 </button>
             </div>
 
@@ -48,7 +52,7 @@
                         </span>
                         <i v-if="isEditModeActive"
                            class="fa fa-pen-to-square p-1 mb-auto click-btn"
-                           @click.stop="this.editQuestion(section, q)"
+                           @click.stop="this.editPrompt(section, q)"
                         />
                     </div>
 
@@ -234,16 +238,6 @@ export default {
             this.toggleSectionByHeader(header, true);
         },
 
-        editQuestion(category, question) {
-            if (!this.editingAllowed) return;
-            const schema = {
-                question: { type: 'textarea', label: 'Prompt', default: question.question, },
-                delete: {type: 'checkbox', label: Localizer.get('checkboxDeleteSampleQuestion'), default: false, }
-            };
-            this.$refs.editDialog.showDialogue('Edit Prompt', null, null, schema,
-                values => this.handleEditPromptOk(values, category, question));
-        },
-
         async resetPrompts() {
             if (!confirm(Localizer.get('confirmSampleQuestionReset'))) return;
             this.editingAllowed = false;
@@ -251,6 +245,23 @@ export default {
             Localizer.samplePrompts = await backendClient.getPrompts();
             Localizer.reloadSampleQuestions();
             this.editingAllowed = true;
+        },
+
+        addNewPrompt(category) {
+            if (!this.editingAllowed) return;
+            const schema = {question: { type: 'textarea', label: 'Prompt', default: "" }};
+            this.$refs.editDialog.showDialogue('Add New Prompt', null, null, schema,
+                values => this.handleAddPromptOk(values, category));
+        },
+
+        editPrompt(category, question) {
+            if (!this.editingAllowed) return;
+            const schema = {
+                question: { type: 'textarea', label: 'Prompt', default: question.question, },
+                delete: {type: 'checkbox', label: Localizer.get('checkboxDeleteFromPromptLibrary'), default: false, }
+            };
+            this.$refs.editDialog.showDialogue('Edit Prompt', null, null, schema,
+                values => this.handleEditPromptOk(values, category, question));
         },
 
         addNewCategory() {
@@ -263,11 +274,27 @@ export default {
                 values => this.handleAddCategoryOk(values));
         },
 
-        addNewPrompt(category) {
+        editCategory(category) {
             if (!this.editingAllowed) return;
-            const schema = {question: { type: 'textarea', label: 'Prompt', default: "" }};
-            this.$refs.editDialog.showDialogue('Add New Prompt', null, null, schema,
-                values => this.handleAddPromptOk(values, category));
+            const schema = {
+                header: { type: 'text', label: 'Header', default: category.header },
+                icon: { type: 'text', label: 'Icon', default: category.icon },
+                delete: {type: 'checkbox', label: Localizer.get('checkboxDeleteFromPromptLibrary'), default: false, }
+            };
+            this.$refs.editDialog.showDialogue('Edit Category', null, null, schema,
+                values => this.handleEditCategoryOk(values, category));
+        },
+
+        async handleAddPromptOk(values, category) {
+            if (!values || !values.question) return;
+            this.editingAllowed = false;
+            category.questions.push({
+                question: values.question,
+                icon: "",
+            });
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.editingAllowed = true;
         },
 
         async handleEditPromptOk(values, category, question) {
@@ -279,18 +306,6 @@ export default {
             } else {
                 question.question = values.question;
             }
-            await backendClient.savePrompts(Localizer.samplePrompts);
-            Localizer.reloadSampleQuestions();
-            this.editingAllowed = true;
-        },
-
-        async handleAddPromptOk(values, category) {
-            if (!values || !values.question) return;
-            this.editingAllowed = false;
-            category.questions.push({
-                question: values.question,
-                icon: "",
-            });
             await backendClient.savePrompts(Localizer.samplePrompts);
             Localizer.reloadSampleQuestions();
             this.editingAllowed = true;
@@ -319,6 +334,21 @@ export default {
             Localizer.reloadSampleQuestions();
             this.editingAllowed = true;
         },
+
+        async handleEditCategoryOk(values, category) {
+            if (!values) return;
+            this.editingAllowed = false;
+            if (values.delete) {
+                const index = Localizer.samplePrompts.indexOf(category);
+                Localizer.samplePrompts.splice(index, 1);
+            } else {
+                category.header = values.header;
+                category.icon = values.icon;
+            }
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.editingAllowed = true;
+        },
     },
 
     async mounted() {
@@ -337,7 +367,6 @@ export default {
 
         // open default category
         this.expandSectionByHeader(conf.DefaultQuestions);
-
     }
 }
 </script>
@@ -419,7 +448,7 @@ export default {
     border: 1px solid var(--primary-color);
 }
 
-.question-item:hover .invisible {
-    visibility: visible !important;
+.accordion-header:hover .click-btn:hover {
+    background-color: var(--primary-color);
 }
 </style>
