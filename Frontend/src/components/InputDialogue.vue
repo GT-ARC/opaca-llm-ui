@@ -5,25 +5,28 @@
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="mb-3">{{ message }}</div>
 
-                <div v-for="(val, key) in schema" :key="key">
+                <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
                         v-model="values[key]"
                         class="form-control mb-2"
                         :type="val.type"
                         :placeholder="val.label ?? key"
+                        v-bind:autofocus="idx === 0"
                     />
                     <textarea v-if="val.type === 'textarea'"
                         v-model="values[key]"
                         class="form-control"
                         rows="4" 
                         :placeholder="val.label ?? key"
+                        v-bind:autofocus="idx === 0"
                     />
                     <div v-if="val.type === 'checkbox'">
-                        <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
+                        <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" v-bind:autofocus="idx === 0"/>
                         <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
                     </div>
                      <select v-if="val.type === 'select'"
                         v-model="values[key]"
+                        v-bind:autofocus="idx === 0"
                         class="form-select mb-2">
                         <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
                     </select>
