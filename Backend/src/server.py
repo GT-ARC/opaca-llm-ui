@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-import src.sample_prompts as prompts
+from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
     PromptCategory
@@ -427,7 +427,7 @@ async def view_file(request: Request, response: Response, file_id: str):
 async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]:
     session = await handle_session_id(request)
     if session.prompts is None:
-        session.prompts = prompts.get_default_prompts(key)
+        session.prompts = prompts.get_default_prompts_by(key)
     return session.prompts
 
 
@@ -440,7 +440,7 @@ async def post_prompts(request: Request, data: List[PromptCategory]) -> None:
 @app.delete("/prompts", description="Reset the prompt library to the default values.", tags=["sample prompts"])
 async def delete_prompts(request: Request, key: str = 'GB') -> None:
     session = await handle_session_id(request)
-    session.prompts = prompts.get_default_prompts(key)
+    session.prompts = prompts.get_default_prompts_by(key)
 
 
 @app.get("/prompts/default", tags=["sample prompts"])
