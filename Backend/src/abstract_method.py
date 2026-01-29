@@ -95,7 +95,17 @@ class AbstractMethod(ABC):
 
         # Modify the last user message to include file parts
         if file_message_parts:
-            messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
+            last = messages[-1]
+
+            # Normalize last content to "content parts"
+            if isinstance(last.content, list):
+                parts = last.content
+            else:
+                # assume string (or None)
+                parts = [{"type": "input_text", "text": last.content or ""}]
+
+            # Prepend file parts
+            last.content = [*file_message_parts, *parts]
 
         # Set settings for model invocation
         kwargs = {
