@@ -79,7 +79,7 @@ export default {
          * Show input dialogue for asking various values according to given schema. Results are handed to
          * callback functions as dictionary mapping schema-keys to values on "okay", or nothing if "cancel" was pressed
          * 
-         * THe format for "schema" is as follows
+         * The format for "schema" is as follows
          * 
          * {
          *      key1: {type: str, label: str, default: any, values: dict?},
@@ -139,6 +139,16 @@ export default {
             }
         },
 
+    },
+    mounted() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.show) {
+                this.handleSubmit(false);
+            }
+            if (e.key === 'Enter' && e.ctrlKey && this.show) {
+                this.handleSubmit(true);
+            }
+        });
     },
 }
 </script>
