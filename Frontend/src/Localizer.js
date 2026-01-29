@@ -116,7 +116,7 @@ export const localizationData = {
         autogenQuestionsTitle: "Auto-Generated Prompts",
         confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
         checkboxDeleteSampleQuestion: "Delete?",
-
+        specifyPlaceholders: "Values for Placeholders",
     },
 
     DE: {
@@ -230,6 +230,7 @@ export const localizationData = {
         autogenQuestionsTitle: "Auto-Generierte Prompts",
         confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
         checkboxDeleteSampleQuestion: "Löschen?",
+        specifyPlaceholders: "Werte für Platzhalter",
     },
 };
 

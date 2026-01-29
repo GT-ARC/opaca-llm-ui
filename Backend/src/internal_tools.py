@@ -12,6 +12,7 @@ For this they have access to the AbstractMethod they are used by.
 import asyncio
 import logging
 import json
+import requests
 from datetime import datetime, timedelta
 from math import ceil
 
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 from typing import Callable
 from textwrap import dedent
 
+from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 
 
@@ -86,6 +88,13 @@ class InternalTools:
                 result="string",
                 function=self.tool_search_chats,
             ),
+            InternalTool(
+                name="ReadFileFromUrl",
+                description="Downloads a file from a URL and uploads it to the backend to be used by the LLM.",
+                params={"url": "string"},
+                result="object",
+                function=self.tool_read_file_from_url,
+            )
         ]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
@@ -264,3 +273,35 @@ class InternalTools:
     async def tool_gather_user_infos(self) -> str:
         search_query = "Compile a short exposé about the current chat user, their personal situation, preferences, etc.."
         return await self.tool_search_chats(search_query)
+
+    async def tool_read_file_from_url(self, url: str) -> dict:
+        try:
+            resp = requests.get(
+                url,
+                timeout=20,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            resp.raise_for_status()
+
+            content_type = resp.headers.get("Content-Type")
+            filename = filename_from_url_and_type(url, content_type)
+
+            await register_bytes_as_uploaded_file(
+                session=self.session,
+                content_type=content_type,
+                filename=filename,
+                data=resp.content,
+            )
+
+            return {
+                "ok": True,
+                "filename": filename,
+                "note": "File downloaded and made available for analysis.",
+            }
+
+        except Exception as e:
+            logger.error(str(e))
+            return {
+                "ok": False,
+                "error": str(e),
+            }

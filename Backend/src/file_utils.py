@@ -1,13 +1,16 @@
 import io
-import json
 import re
+import os
+import tempfile
 import logging
 import shutil
 from pathlib import Path
-from typing import Any
+from urllib.parse import urlparse
 
 import litellm
 from fastapi import UploadFile
+from starlette.datastructures import Headers
+
 from .models import SessionData, OpacaFile, OpacaException
 
 logger = logging.getLogger(__name__)
@@ -109,13 +112,22 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
     return True
 
 
-async def save_file_to_disk(file: UploadFile, session_id: str) -> OpacaFile:
+async def save_file_to_disk(file: UploadFile, session: SessionData) -> OpacaFile:
     """
     Save an UploadFile to disk.
     """
-    file_data = OpacaFile(content_type=file.content_type, file_name=file.filename)
-    file_path = create_path(session_id, file_data.file_id)
+    filename = file.filename
+
+    # de-dupe by name
+    for f in session.uploaded_files.values():
+        if f.file_name == filename:
+            return f
+
+    file_data = OpacaFile(content_type=file.content_type, file_name=filename)
+    file_path = create_path(session.session_id, file_data.file_id)
     file_path.parent.mkdir(parents=True, exist_ok=True)
+    # Add to uploaded_files
+    session.uploaded_files[file_data.file_id] = file_data
     logger.info(f'Saving file to "{file_path}"')
     with open(file_path, 'wb') as f:
         while chunk := await file.read(1024 * 1024):
@@ -153,3 +165,64 @@ def is_pdf(filename: str) -> bool:
 
 def is_image(filename: str) -> bool:
     return bool(re.search(r"\.(png|jpe?g|gif|webp)$", filename or "", re.IGNORECASE))
+
+EXT_BY_MIME = {
+    "application/pdf": ".pdf",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+def filename_from_url_and_type(url: str, content_type: str | None) -> str:
+    """
+    Filename = last URL path segment + extension derived from content-type.
+    No sanitization, deterministic.
+    """
+    parsed = urlparse(url)
+    base = os.path.basename(parsed.path) or "file"
+
+    # drop any existing extension
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+
+    ct = (content_type or "").split(";", 1)[0].lower()
+    ext = EXT_BY_MIME.get(ct, ".bin")
+
+    return base + ext
+
+
+async def register_bytes_as_uploaded_file(
+        *,
+        session: SessionData,
+        content_type: str,
+        filename: str,
+        data: bytes,
+) -> OpacaFile:
+    """
+    Registers raw bytes as an uploaded file in the current session,
+    exactly like the /files route does.
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        tmp.write(data)
+        tmp.flush()
+        tmp.close()
+
+        upload = UploadFile(
+            filename=filename,
+            file=open(tmp.name, "rb"),
+            headers=Headers({"content-type": content_type})
+        )
+
+        filedata = await save_file_to_disk(upload, session)
+        return filedata
+
+    except Exception as e:
+        logger.error(str(e))
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
