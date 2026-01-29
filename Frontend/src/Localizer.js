@@ -119,6 +119,7 @@ export const localizationData = {
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "No notifications",
+        specifyPlaceholders: "Values for Placeholders",
     },
 
     DE: {
@@ -235,6 +236,7 @@ export const localizationData = {
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Keine Benachrichtigungen",
+        specifyPlaceholders: "Werte für Platzhalter",
     },
 };
 
