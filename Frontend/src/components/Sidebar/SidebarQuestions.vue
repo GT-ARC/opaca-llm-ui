@@ -452,16 +452,18 @@ export default {
 
 .click-icon.disabled {
     opacity: 0.5;
-    cursor: not-allowed;
+    cursor: default;
     transform: none;
+    pointer-events: none;
     color: var(--text-primary-color) !important;
     background: none !important;
 }
 
 .question-item.disabled {
     opacity: 0.5;
-    cursor: not-allowed;
+    cursor: default;
     transform: none;
+    pointer-events: none;
     color: var(--text-primary-color) !important;
     border-color: var(--border-color) !important;
     background-color: var(--background-color) !important;
