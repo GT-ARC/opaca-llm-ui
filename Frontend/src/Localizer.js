@@ -117,6 +117,12 @@ export const localizationData = {
         confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
         checkboxDeleteFromPromptLibrary: "Delete this?",
         specifyPlaceholders: "Values for Placeholders",
+        buttonAddNewPrompt: "Add New Prompt",
+        buttonAddNewCategory: "Add New Category",
+        buttonResetPrompts: "Reset Prompts",
+        tooltipEditPrompt: "Edit Prompt",
+        tooltipEditCategory: "Edit Category",
+        tooltipToggleEditMode: "Edit Prompt Library",
     },
 
     DE: {
@@ -231,6 +237,12 @@ export const localizationData = {
         confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
         checkboxDeleteSampleQuestion: "Löschen?",
         specifyPlaceholders: "Werte für Platzhalter",
+        buttonAddNewPrompt: "Neuer Prompt",
+        buttonAddNewCategory: "Neue Kategorie",
+        buttonResetPrompts: "Prompts zurücksetzen",
+        tooltipEditPrompt: "Prompt Bearbeiten",
+        tooltipEditCategory: "Kategorie Bearbeiten",
+        tooltipToggleEditMode: "Prompt-Bibliothek Bearbeiten",
     },
 };
 

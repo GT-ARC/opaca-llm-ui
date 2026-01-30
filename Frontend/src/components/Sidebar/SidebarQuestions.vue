@@ -8,7 +8,7 @@
         <i class="fa fa-edit ms-auto click-icon"
            :class="{'click-icon-active': isEditModeActive}"
            @click="isEditModeActive = !isEditModeActive"
-           title="Edit Mode" />
+           :title="Localizer.get('tooltipToggleEditMode')" />
     </div>
 
     <div id="sidebar-questions" class="accordion">
@@ -29,6 +29,7 @@
                        class="fa fa-edit click-icon"
                        :class="{'disabled': !this.editingAllowed}"
                        @click.stop.prevent="this.editCategory(section)"
+                       :title="Localizer.get('tooltipEditCategory')"
                     />
                 </button>
             </div>
@@ -55,6 +56,7 @@
                            class="fa fa-pen-to-square p-1 mb-auto click-icon"
                            :class="{'disabled': !this.editingAllowed}"
                            @click.stop="this.editPrompt(section, q)"
+                           :title="Localizer.get('tooltipEditPrompt')"
                         />
                     </div>
 
@@ -65,7 +67,7 @@
                          :aria-disabled="!editingAllowed"
                          @click.stop="this.addNewPrompt(section)">
                         <i class="fa fa-plus me-1" />
-                        <span>Add New Prompt</span>
+                        <span>{{ Localizer.get('buttonAddNewPrompt') }}</span>
                     </div>
 
                 </div>
@@ -74,15 +76,6 @@
     </div>
 
     <div>
-        <!-- add new category button -->
-        <button class="btn btn-primary w-100 mt-3" type="button"
-                :disabled="!editingAllowed"
-                v-if="isEditModeActive"
-                @click="this.addNewCategory()">
-            <i class="fa fa-plus" />
-            Add New Category
-        </button>
-
         <!-- autogen questions button -->
         <button class="btn btn-primary w-100 mt-3" type="button"
                 :disabled="isRegenerating || !editingAllowed"
@@ -92,13 +85,22 @@
             {{ Localizer.get('regenerate')}}
         </button>
 
+        <!-- add new category button -->
+        <button class="btn btn-primary w-100 mt-3" type="button"
+                :disabled="!editingAllowed"
+                v-if="isEditModeActive"
+                @click="this.addNewCategory()">
+            <i class="fa fa-plus" />
+            <span>{{ Localizer.get('buttonAddNewCategory') }}</span>
+        </button>
+
         <!-- reset to defaults button -->
         <button class="btn btn-danger w-100 mt-3" type="button"
                 :disabled="!editingAllowed"
                 v-if="isEditModeActive"
                 @click="this.resetPrompts()">
             <i class="fa fa-undo" />
-            {{ Localizer.get('buttonConfigReset')}}
+            <span>{{ Localizer.get('buttonResetPrompts')}}</span>
         </button>
     </div>
 </div>
