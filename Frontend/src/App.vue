@@ -197,11 +197,7 @@ export default {
                             username: { type: "text", label: Localizer.get("username") },
                             password: { type: "password", label: Localizer.get("password") },
                         },
-                        (values) => {
-                            if (values != null) {
-                                this.connectToPlatform(values.username, values.password);
-                            }
-                        }
+                        (values) => this.connectToPlatform(values.username, values.password)
                     );
 
                 } else {
@@ -313,13 +309,8 @@ export default {
                         "14400": "Logout after 4 hours",
                     }},
                 },
-                (values) => {
-                    if (values != null) {
-                        this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
-                    } else {
-                        this.$refs.content.submitContainerLogin("", "", 0);
-                    }
-                }
+                (values) => this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout),
+                () => this.$refs.content.submitContainerLogin("", "", 0)
             );
         },
 
@@ -331,13 +322,8 @@ export default {
                 {
                     apiKey: { type: "password" },
                 },
-                (values) => {
-                    if (values != null) {
-                        this.$refs.content.submitApiKey(values.apiKey);
-                    } else {
-                        this.$refs.content.submitApiKey("");
-                    }
-                }
+                (values) => this.$refs.content.submitApiKey(values.apiKey),
+                () => this.$refs.content.submitApiKey("")
             );
         },
 
@@ -363,14 +349,12 @@ export default {
                     autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
                 },
                 async (values) => {
-                    if (values !== null) {
-                        // append to current chat
-                        const chatId = this.$refs.content.selectedChatId;
-                        await backendClient.append(chatId, pushMessage, values.autoAppend);
-                        // refresh current chat history and chats sidebar
-                        await this.$refs.content.loadHistory(chatId, false);
-                        await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
-                    }
+                    // append to current chat
+                    const chatId = this.$refs.content.selectedChatId;
+                    await backendClient.append(chatId, pushMessage, values.autoAppend);
+                    // refresh current chat history and chats sidebar
+                    await this.$refs.content.loadHistory(chatId, false);
+                    await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
                 }
             );
         },

@@ -286,7 +286,7 @@ export default {
         },
 
         async handleAddPromptOk(values, category) {
-            if (!values || !values.question) return;
+            if (!values.question) return;
             this.editingAllowed = false;
             category.questions.push({
                 question: values.question,
@@ -298,7 +298,6 @@ export default {
         },
 
         async handleEditPromptOk(values, category, question) {
-            if (!values) return;
             this.editingAllowed = false;
             if (values.delete) {
                 const index = category.questions.indexOf(question);
@@ -312,7 +311,7 @@ export default {
         },
 
         async handleAddCategoryOk(values) {
-            if (!values || !values.header) return;
+            if (!values.header) return;
             this.editingAllowed = false;
             Localizer.samplePrompts.push({
                 id: values.header,
@@ -336,7 +335,6 @@ export default {
         },
 
         async handleEditCategoryOk(values, category) {
-            if (!values) return;
             this.editingAllowed = false;
             if (values.delete) {
                 const index = Localizer.samplePrompts.indexOf(category);

@@ -81,7 +81,7 @@ class SimpleMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=prompt,
+                system_prompt=self.build_full_prompt(prompt),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),

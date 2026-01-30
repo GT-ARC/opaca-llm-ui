@@ -310,10 +310,8 @@ export default {
                     Localizer.get("specifyPlaceholders"), questionText, null, 
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
-                        if (values !== null) {
-                            // ask the completed question
-                            await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
-                        }
+                        // ask the completed question
+                        await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
                     }
                 );
             } else {

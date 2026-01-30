@@ -38,6 +38,7 @@ services:
       CORS_WHITELIST:
       MONGODB_URI: "mongodb://user:pass@session-db:27017"
       SESSION_ADMIN_PWD:
+      LOCATION:
     volumes:
       - appdata:/app/data
 
@@ -66,7 +67,7 @@ services:
 
   # Optional OPACA platform service
   platform:
-    image: ghcr.io/gt-arc/opaca/opaca-platform:latest
+    image: ghcr.io/gt-arc/opaca/opaca-platform:main
     ports:
       - "8000:8000"
     environment:
