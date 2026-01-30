@@ -5,44 +5,48 @@
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="mb-3">{{ message }}</div>
 
-                <div v-for="(val, key) in schema" :key="key">
+                <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
                         v-model="values[key]"
                         class="form-control mb-2"
                         :type="val.type"
                         :placeholder="val.label ?? key"
+                        v-bind:autofocus="idx === 0"
                     />
                     <textarea v-if="val.type === 'textarea'"
                         v-model="values[key]"
                         class="form-control"
                         rows="4" 
                         :placeholder="val.label ?? key"
+                        v-bind:autofocus="idx === 0"
                     />
                     <div v-if="val.type === 'checkbox'">
-                        <input class="form-check-input mb-2" type="checkbox" v-model="values[key]" />
-                        <label class="form-check-label mx-2"> {{ val.label ?? key }} </label>
+                        <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" v-bind:autofocus="idx === 0"/>
+                        <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
                     </div>
                      <select v-if="val.type === 'select'"
                         v-model="values[key]"
+                        v-bind:autofocus="idx === 0"
                         class="form-select mb-2">
                         <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
                     </select>
                 </div>
 
-                <div v-if="errorMsg !== null" class="text-danger bg-light border border-danger rounded p-2 mb-3">
+                <div v-if="errorMsg !== null" class="text-danger border border-danger rounded p-2 mb-3">
                     {{ errorMsg }}
                 </div>
 
-                <div v-if="callback !== null">
-                    <button type="submit" class="btn btn-primary w-100" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        <span>{{ Localizer.get('submit') }}</span>
+                <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
+                        {{ Localizer.get('dialogCancel') }}
                     </button>
-                    <button type="button" class="btn btn-link mt-2 text-muted d-block mx-auto" @click="handleSubmit(false)">
-                        {{ Localizer.get('cancel') }}
+                    <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
+                        {{ Localizer.get('dialogOkay') }}
                     </button>
+                    
                 </div>
                 <button v-else type="button" class="btn btn-primary w-100" @click="show = false">
-                    Okay
+                    {{ Localizer.get('dialogOkay') }}
                 </button>
             </form>
         </div>
@@ -68,16 +72,17 @@ export default {
             errorMsg: null,
             schema: null,
             values: null,
-            callback: null,
+            onOkay: null,
+            onCancel: null,
         }
     },
     methods: {
 
         /**
          * Show input dialogue for asking various values according to given schema. Results are handed to
-         * callback function as dictionary mapping schema-keys to values, or null if "cancel" was pressed
+         * callback functions as dictionary mapping schema-keys to values on "okay", or nothing if "cancel" was pressed
          * 
-         * THe format for "schema" is as follows
+         * The format for "schema" is as follows
          * 
          * {
          *      key1: {type: str, label: str, default: any, values: dict?},
@@ -95,14 +100,16 @@ export default {
          * @param message message below the title, optional
          * @param errorMsg error message (e.g. if previous attempt failed), optional
          * @param schema defines the different values that should be entered in the dialogue (see above)
-         * @param callback callback function, should accept dict of values or null
+         * @param onOkay callback function, should accept dict of values
+         * @param onCancel callback function, should accept no parameters (optional)
          */
-        async showDialogue(title, message, errorMsg, schema, callback) {
+        async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
             this.title = title;
             this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
-            this.callback = callback;
+            this.onOkay = onOkay;
+            this.onCancel = onCancel;
             this.values = Object.fromEntries(
                 Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
             );
@@ -128,9 +135,23 @@ export default {
             this.show = false;
             await nextTick();
             // callback is called last, so that it can show another dialogue
-            this.callback(okay ? this.values : null);
+            if (okay) {
+                this.onOkay(this.values);
+            } else if (this.onCancel !== null) {
+                this.onCancel();
+            }
         },
 
+    },
+    mounted() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.show) {
+                this.handleSubmit(false);
+            }
+            if (e.key === 'Enter' && e.ctrlKey && this.show) {
+                this.handleSubmit(true);
+            }
+        });
     },
 }
 </script>

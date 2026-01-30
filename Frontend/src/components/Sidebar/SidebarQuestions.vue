@@ -241,14 +241,12 @@ export default {
                     prompt: {type: "textarea", label: "Prompt", default: prompt?.question ?? "" },
                 }, 
                 (values) => {
-                    if (values != null) {
-                        if (index != null) {
-                            this.personalPrompts[index].question = values.prompt;
-                        } else {
-                            this.personalPrompts.push({ question: values.prompt, icon: "⭐" });
-                        }
-                        this.savePersonalPrompts();
+                    if (index != null) {
+                        this.personalPrompts[index].question = values.prompt;
+                    } else {
+                        this.personalPrompts.push({ question: values.prompt, icon: "⭐" });
                     }
+                    this.savePersonalPrompts();
                 }
             );
         },
