@@ -5,8 +5,8 @@
 
     <div v-if="!isMobile" class="sidebar-title">
         {{ Localizer.get('tooltipSidebarPrompts') }}
-        <i class="fa fa-edit ms-auto click-btn"
-           :class="{'click-btn-active': isEditModeActive}"
+        <i class="fa fa-edit ms-auto click-icon"
+           :class="{'click-icon-active': isEditModeActive}"
            @click="isEditModeActive = !isEditModeActive"
            title="Edit Mode" />
     </div>
@@ -26,7 +26,8 @@
                     <span class="section-icon">{{ section.icon }}</span>
                     <span class="section-title">{{ section.header }}</span>
                     <i v-if="isEditModeActive"
-                       class="fa fa-edit click-btn"
+                       class="fa fa-edit click-icon"
+                       :class="{'disabled': !this.editingAllowed}"
                        @click.stop.prevent="this.editCategory(section)"
                     />
                 </button>
@@ -51,13 +52,16 @@
                             <span v-else class="mb-auto">{{ q.question }}</span>
                         </span>
                         <i v-if="isEditModeActive"
-                           class="fa fa-pen-to-square p-1 mb-auto click-btn"
+                           class="fa fa-pen-to-square p-1 mb-auto click-icon"
+                           :class="{'disabled': !this.editingAllowed}"
                            @click.stop="this.editPrompt(section, q)"
                         />
                     </div>
 
                     <!-- add new prompt button -->
-                    <div v-if="isEditModeActive" class="question-item justify-content-center"
+                    <div v-if="isEditModeActive"
+                         class="question-item justify-content-center"
+                         :class="{'disabled': !this.editingAllowed}"
                          :aria-disabled="!editingAllowed"
                          @click.stop="this.addNewPrompt(section)">
                         <i class="fa fa-plus me-1" />
@@ -420,7 +424,7 @@ export default {
     color: var(--text-danger-color);
 }
 
-.click-btn {
+.click-icon {
     flex: 0 0 auto;
     width: 2rem;
     height: 2rem;
@@ -435,18 +439,35 @@ export default {
     color: var(--text-primary-color);
 }
 
-.click-btn:hover {
+.click-icon:hover {
     background-color: var(--input-color);
     color: var(--text-danger-color);
     transform: translateY(-1px);
 }
 
-.click-btn.click-btn-active {
+.click-icon.click-icon-active {
     color: var(--primary-color) !important;
     border: 1px solid var(--primary-color);
 }
 
-.accordion-header:hover .click-btn:hover {
+.click-icon.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    color: var(--text-primary-color) !important;
+    background: none !important;
+}
+
+.question-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    color: var(--text-primary-color) !important;
+    border-color: var(--border-color) !important;
+    background-color: var(--background-color) !important;
+}
+
+.accordion-header:hover .click-icon:hover {
     background-color: var(--primary-color);
 }
 </style>
