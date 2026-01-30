@@ -15,7 +15,7 @@
                     />
                     <textarea v-if="val.type === 'textarea'"
                         v-model="values[key]"
-                        class="form-control"
+                        class="form-control mb-2"
                         rows="4" 
                         :placeholder="val.label ?? key"
                         v-bind:autofocus="idx === 0"
@@ -36,7 +36,7 @@
                     {{ errorMsg }}
                 </div>
 
-                <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2">
+                <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
                     <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
                         {{ Localizer.get('dialogCancel') }}
                     </button>
@@ -45,7 +45,7 @@
                     </button>
                     
                 </div>
-                <button v-else type="button" class="btn btn-primary w-100" @click="show = false">
+                <button v-else type="button" class="btn btn-primary w-100 mt-2" @click="show = false">
                     {{ Localizer.get('dialogOkay') }}
                 </button>
             </form>
