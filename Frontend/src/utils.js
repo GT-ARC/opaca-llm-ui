@@ -41,9 +41,9 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
-    async queryNoChat(method, user_query) {
+    async queryNoChat(method, user_query, timeout = 10000) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${method}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body, timeout);
     }
 
     // TODO query stream
