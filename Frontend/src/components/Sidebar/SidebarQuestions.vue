@@ -255,7 +255,10 @@ export default {
 
         addNewPrompt(category) {
             if (!this.editingAllowed) return;
-            const schema = {question: { type: 'textarea', label: 'Prompt', default: "" }};
+            const schema = {
+                question: { type: 'textarea', label: 'Prompt', default: "" },
+                icon: { type: 'text', label: 'Icon', default: "⭐" },
+            };
             this.$refs.editDialog.showDialogue('Add New Prompt', null, null, schema,
                 values => this.handleAddPromptOk(values, category));
         },
@@ -264,6 +267,7 @@ export default {
             if (!this.editingAllowed) return;
             const schema = {
                 question: { type: 'textarea', label: 'Prompt', default: question.question, },
+                icon: { type: 'text', label: 'Icon', default: question.icon },
                 delete: {type: 'checkbox', label: Localizer.get('checkboxDeleteFromPromptLibrary'), default: false, }
             };
             this.$refs.editDialog.showDialogue('Edit Prompt', null, null, schema,
@@ -296,7 +300,7 @@ export default {
             this.editingAllowed = false;
             category.questions.push({
                 question: values.question,
-                icon: "",
+                icon: values.icon[0] || "⭐",
             });
             await backendClient.savePrompts(Localizer.samplePrompts);
             Localizer.reloadSampleQuestions();
@@ -322,7 +326,7 @@ export default {
             Localizer.samplePrompts.push({
                 id: values.header,
                 header: values.header,
-                icon: values.icon,
+                icon: values.icon[0] || "⭐",
                 visible: true,
                 questions: [],
             });
