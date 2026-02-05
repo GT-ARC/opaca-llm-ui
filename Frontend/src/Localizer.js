@@ -349,6 +349,9 @@ class Localizer {
         this._samplePrompts.value = value;
     }
 
+    /**
+     * @returns {Array}
+     */
     get samplePrompts() {
         return this._samplePrompts.value;
     }

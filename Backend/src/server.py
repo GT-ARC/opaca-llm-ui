@@ -423,7 +423,7 @@ async def view_file(request: Request, response: Response, file_id: str):
 
 # sample prompts
 
-@app.get("/prompts", tags=["sample prompts"])
+@app.get("/prompts", description="Get the Prompt Library data.", tags=["sample prompts"])
 async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]:
     session = await handle_session_id(request)
     if session.prompts is None:
@@ -431,7 +431,7 @@ async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]
     return session.prompts
 
 
-@app.post("/prompts", tags=["sample prompts"])
+@app.post("/prompts", description="Save the modified Prompt library.", tags=["sample prompts"])
 async def post_prompts(request: Request, data: List[PromptCategory]) -> None:
     session = await handle_session_id(request)
     session.prompts = data

@@ -249,6 +249,7 @@ class SessionData(BaseModel):
         valid_until: Timestamp until session is active.
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
+        prompts: Prompt Library data.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
