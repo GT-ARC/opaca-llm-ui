@@ -2,8 +2,6 @@
 
 A modular LLM chatbot UI for OPACA platforms with multi-agent orchestration and tool calling.
 
-## TODO Instant Deployment buttons
-
 ## ❓ What is SAGE?
 
 SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected [OPACA platform](https://github.com/gt-arc/opaca-core). It can be easily extended with additional agents, developed in any programming language. Multiple reference implementations can be found in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. Further, the repository for our python package [opaca](https://github.com/gt-arc/opaca-python-sdk) includes a detailed step-by-step guide on how to develop and deploy new agents very easily using Python.
@@ -75,10 +73,16 @@ npm run dev
 * [Tool-LLM](docs/methods/tool_llm.md) - A more complex approach using 3 distinct agents.
 * [Orchestration](docs/methods/orchestration.md) - An orchestration approach dynamically generating multiple AI agents.
 
+### Agent Development
+
+* [Python Development Guide](https://github.com/gt-arc/opaca-python-sdk) - Our Python SDK provides a simple way to develop new agent containers.
+* [Example Agent Containers](https://github.com/gt-arc/opaca-example-containers) - A selection of example agent containers for different use cases.
+
 ### Deployment & Testing
 
-* [Configuration](docs/configuration.md)
-* [Benchmarks](docs/benchmarks.md)
+* [How to deploy containers](docs/container_deployment.md) - Deploy agent containers to your OPACA platform.
+* [Configuration](docs/configuration.md) - Overview of SAGE configuration options.
+* [Benchmarks](docs/benchmarks.md) - Performance benchmarks of SAGE.
 
 ### Help
 
@@ -168,6 +172,7 @@ An admin can further create additional users for SAGE by using the OPACA platfor
 
 Copyright 2024 - 2026, GT-ARC & DAI-Labor, TU Berlin
 
+* Main Contributors: Robert Strehlow, Tobias Küster, Oskar Kupke, Daniel Wetzel
 * Further contributions by: Cedric Braun, Brandon Llanque Kurps, Chenluanxing Liu, Abdullah Kiwan, Benjamin Acar
 
 This repository includes software developed in the course of the project "Offenes Innovationslabor KI zur Förderung gemeinwohlorientierter KI-Anwendungen" (aka Go-KI, https://go-ki.org/) funded by the German Federal Ministry of Labour and Social Affairs (BMAS) under the funding reference number DKI.00.00032.21.
