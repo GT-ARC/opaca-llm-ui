@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'SAGE'.
@@ -96,6 +96,8 @@ class SimpleMethod(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
+                tool.id = self.next_tool_id(result)
+                await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant"))
                 tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
