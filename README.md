@@ -1,234 +1,153 @@
-# SAGE: The OPACA LLM UI
+# ![SAGE](Frontend/src/assets/sage-logo-with-background.png)
 
-Copyright 2024 - 2025, GT-ARC & DAI-Labor, TU Berlin
+A modular LLM chatbot UI for OPACA platforms with multi-agent orchestration and tool calling.
 
-* Main Contributors: Robert Strehlow, Tobias Küster, Oskar Kupke, Daniel Wetzel
-* Further contributions by: Cedric Braun, Brandon Llanque Kurps, Abdullah Kiwan, Benjamin Acar
+## TODO Instant Deployment buttons
 
-This (https://github.com/gt-arc/opaca-llm-ui/) is the public repository of the SAGE (OPACA LLM UI) project. Feel free to create issues if you have any suggestions, or improve things yourself with a fork and pull request. The main development work still happens in the internal/private repository at https://gitlab.dai-labor.de, including most (internal) tickets, development branches, merge requests, build pipelines, etc.
+## ❓ What is SAGE?
+
+SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected [OPACA platform](https://github.com/gt-arc/opaca-core). It can be easily extended with additional agents, developed in any programming language. Multiple reference implementations can be found in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. Further, the repository for our python package [opaca](https://github.com/gt-arc/opaca-python-sdk) includes a detailed step-by-step guide on how to develop and deploy new agents very easily using Python.
+
+![SAGE UI Screenshot](docs/img/sage-ui.png)
+
+## 🚀 Quickstart
+
+### Docker (recommended)
+
+##### 1. Create a new .env file by copying the example
+
+```bash
+cp .env.example .env
+```
+
+##### 2. Configure (`~/.env`)
+
+```bash
+URL="http://<YOUR_IP>"                     # For example "http://192.168.1.100"
+PUBLIC_URL="${URL}:8000"
+VITE_PLATFORM_BASE_URL="${PUBLIC_URL}"
+VITE_BACKEND_BASE_URL="${URL}:3001"
+CORS_WHITELIST="${URL}:5173"
+```
+
+##### 3. Start SAGE using Docker
+
+```bash
+docker compose --profile platform up --build
+```
+
+### Native
+
+```bash
+# Change into the backend directory
+cd Backend
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the server
+python -m src.server
+
+# Change into the frontend directory
+cd ../Frontend
+
+# Install dependencies
+npm install
+
+# Start the frontend
+npm run dev
+```
+
+## 📚 Documentation
+
+[View full documentation](docs) - Browse all available documentation pages.
+
+### Core Components
+
+* [User-Interface](docs/ui.md) - The main user interface of the OPACA LLM UI.
+* [Methods](docs/methods_overview.md) - A brief overview of all integrated methods for task-solving.
+* [Session-Handling](docs/session_handling.md) - How sessions are handled and how messages are stored.
+* [Backend-API](docs/api.md) - The RESTful API of the backend.
+
+### Task-Solving Methods
+
+* [Simple](docs/methods/simple.md) - A simple approach using a single agent.
+* [Tool-LLM](docs/methods/tool_llm.md) - A more complex approach using 3 distinct agents.
+* [Orchestration](docs/methods/orchestration.md) - An orchestration approach dynamically generating multiple AI agents.
+
+### Deployment & Testing
+
+* [Configuration](docs/configuration.md)
+* [Benchmarks](docs/benchmarks.md)
+
+### Help
+
+* [FAQ](docs/faq.md) - Frequently asked questions.
+
+## ✨ Features
+
+### Internal Tools
+
+Alongside the OPACA agent actions, SAGE defines a few internal tools that can be used to perform core tasks. These include:
+
+* `ScheduleIntervalTask`: Schedules a task to be executed with a given delay and a specified amount of repititions.
+* `ScheduleDailyTask`: Schedules a daily task to be executed at a given time.
+* `GetScheduledTasks`: Returns a list of all scheduled tasks, yet to be executed.
+* `CancelScheduledTask`: Cancels a scheduled task.
+* `GatherUserInfo`: Compiles a short summary of the user (session) based on all existing conversations.
+* `SearchChats`: Searches all conversations for a given query.
+
+### Method Configuration
+
+Each [method](docs/methods_overview.md) can be configured using the UI. Especially, each LLM component can be configured to a different model, even a locally running model. This allows for a more flexible and customizable approach to task-solving.
+
+### Speech I/O
+
+The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under tts-server, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
+
+### Sample Prompts
+
+When you start SAGE, you will notice a set of sample prompts that give an overview of the capabilities of SAGE. These prompts may only work if specific agents are available in the connected OPACA platform. Users are free to modify them to their liking or admins can change the default prompts.
+
+### File Handling
+
+Currently, SAGE can support the following file types as input:
+
+* PDFs: `.pdf`
+* Images: `.jpg, .jpeg, .png, .gif, .webp`,
+
+Files are uploaded to the selected models in the (Method Configuration)[docs/methods_overview.md] and can be accessed by the LLM afterwards. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+
+## 📄 Publication
+
+* arXiv Pre-Print: [SAGE: Tool-Augmented LLM Task Solving Strategies in Scalable Multi-Agent Environments](https://arxiv.org/abs/2601.09750)
+
+
+
+
+
+
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+<a href="https://github.com/GT-ARC/opaca-llm-ui/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=GT-ARC/opaca-llm-ui" />
+</a>
+
+## Acknowledgements
+
+Copyright 2024 - 2026, GT-ARC & DAI-Labor, TU Berlin
+
+* Further contributions by: Cedric Braun, Brandon Llanque Kurps, Chenluanxing Liu, Abdullah Kiwan, Benjamin Acar
 
 This repository includes software developed in the course of the project "Offenes Innovationslabor KI zur Förderung gemeinwohlorientierter KI-Anwendungen" (aka Go-KI, https://go-ki.org/) funded by the German Federal Ministry of Labour and Social Affairs (BMAS) under the funding reference number DKI.00.00032.21.
 
-
-## About
-
-SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE includes a small set of internal or 'introspective' actions, but all services for productive day-to-day use are taken from the connected OPACA platform or added MCP Servers.
-
-![SAGE UI Screenshot](docs/img/opaca-llm-ui.png)
-
-
-### Frontend
-
-The web UI is implemented in Javascript using Node and Vue. It consists of several components:
-
-* A main chat window, showing the messages in the current interaction and an input field for submitting messages. The LLM's output is interpreted and formatted as Markdown, allowing for text formatting, code snippets, and embedded images (the LLM itself an not generate images, but it can display images if e.g. the URL to an image was returned from an action). The UI also allows for speech input and output (if the last message was spoken, the response will automatically be read out aloud). Each response by the LLM includes additional "debug" output that can be expanded.
-
-* A collapsible sidebar providing different sections for, among others, switching between different chats, browsing the list of available agents and actions, configuring details of the used LLM prompting method, and showing additional debug output.
-
-* A Navigation/Header bar, allowing to connect to an OPACA Runtime Platform, switch the UI language or color schema, and the used LLM prompting method.
-
-* Extension area in the sidebar, allowing to embed task-specific web-UIs provided by currently running OPACA Agent Containers via their `extraPorts` attribute.
-
-Several aspects of the UI, such as the selection of sample prompts, or the language can be configured in `config.js`.
-
-The Web-UI in this project was originally based on the LLM-Chat feature of the [ZEKI Wayfinding](https://gitlab.dai-labor.de/smart-space/wayfindingzeki) by Tobias Schulz, but has since been significantly extended and refactored.
-
-[read more...](docs/ui.md)
-
-### Backend
-
-The backend consists of a general part, providing a simple HTTP API to be used by the frontend for calling the LLM functions (also providing a simple FastAPI UI, useful for testing), and a client for connecting to a specific OPACA runtime platform for retrieving and calling the available agent actions, and several alternative approaches to actually querying the LLM and extracting the agent actions to be executed: 
-
-* Simple: Using a simple prompt including the different available actions and querying the LLM in a loop, extracting the actions to call from the LLM's output.
-
-* Tool-LLM: Three agents using the built-in 'tools' parameter of newer models.
-
-* Orchestration: A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.
-
-* Simple Tool: A single agent, as in 'Simple', but using the 'tools' parameter.
-
-
-The different approaches provide additional configuration parameters, e.g. the used model for each component. Read more about [supported models](#supported-models).
-
-[read more...](docs/methods_overview.md)
-
-
-### Backend API
-
-SAGE provides a RESTful API for most requests, while also providing a websocket for streaming responses. The API is used internally for communication between Frontend and Backend, so below are just the most relevant routes. 
-
-#### General routes
-
-* `GET /methods`: Returns a list of available LLM prompting methods.
-* `GET /models`: Returns a list of available LLM model.
-* `POST /connect`: Attempts to establish a connection to the given OPACA platform.
-* `POST /disconnect`: Severs the connection to the currently connected OPACA platform.
-* `GET /actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
-* `GET /extra-ports`: Returns a dictionary of all the extra-ports provided by the Agent Containers currently running on the connected OPACA platform.
-* `POST /stop`: Stop all generation currently in progress for the session.
-* `POST /query/{method}`: Asks selected prompting method to generate an answer based on the given user query. This is independent of any existing chat histories (see below).
-* `POST /files`: Add files to be taken into account with the next requests; similar routes exist for getting, changing or deleting files.
-
-#### Chat routes
-
-* `GET /chats`: Returns a list of all chats associated with the current session, but without their full message histories.
-* `GET /chats/{chat_id}`: Returns the full message history and other details for the given chat.
-* `POST /chats/{chat_id}/query/{method}`: Makes a query to the given prompting method using a user query and the given chat's message history. The result is returned once, in full.
-* `PUT /chats/{chat_id}`: Used to update a chat's displayed name.
-* `DELETE /chats/{chat_id}`: Deletes the given chat.
-
-#### Config routes
-
-* `GET /config/{method}`: Get the configuration of that prompting method (e.g. the used model).
-* `PUT /config/{method}`: Update the configuration of that prompting method (e.g. the used model).
-* `DELETE /config/{method}`: Reset the configuration of that prompting method (e.g. the used model) to the default values.
-
-#### Admin routes
-
-The following routes can be used to administer all currently active sessions, including those of other users. They therefore require a password in the `X-Api-Password` header (see FastAPI UI for details), which can be set in the `SESSION_ADMIN_PWD` environment variable. (A more fine-grained inspection and manipulation of the sessions would be possible by directly accessing the DB, but these routes are more convenient in case there is e.g. some out-of-control scheduled task in another session.)
-
-* `GET /admin/sessions`: Get an overview of current sessions, including chat-names (no full chats), uploaded files' names, scheduled tasks, etc.
-* `PUT /admin/sessions/{session_id}/{action}`: Perform some action on the given session. Available actions are:
-  * `DELETE`: Deletes the session.
-  * `LOGOUT`: Logout of all logged-in containers and additional LLM hosts for this session.
-  * `STOP_TASKS`: Stop/delete all Scheduled Tasks of this session.
-  * `BLOCK`: Block this session, disallowing any future requests until unblocked.
-  * `UNBLOCK`: Unblock the session.
-
-You can find all routes, their parameters and descriptions in the interactive FastAPI UI on port 3001, path `/docs`.
-
-
-### Users, Sessions, Message History and Configuration
-
-The chat histories and configuration (model version, temperature, etc.) are stored in the backend, along with a session ID, associating it with a specific browser/user. The chat histories are shared between different LLM prompting method, i.e. if the performance of one method is not satisfactory, one can switch to another one and continue the same conversation. Also, the LLM will "remember" the past messages when revisiting the site later, or opening a second tab in the same browser. Users can start new chats in the Chat view in the sidebar. They can also edit their chats' names or delete them, and search in past and current chats.
-
-To reset the configuration, a user can click the "Reset to Default" button in the configuration view, which resets the configuration for the currently selected method to its default values.
-
-The Session ID is stored as a Cookie in the frontend and sent to the backend. On the first request, when no Cookie is set, the backend will create a new random Session ID and associated session data and set the Session ID as a Cookie in the response. It will then automatically be used by the frontend in all subsequent requests.
-
-![Tool LLM Message Handling](docs/img/Tool-LLM-Messages.png)
-
-The message handling of SAGE is illustrated in the image above. During a request, only the initial message query which was entered by the user in the UI is sent to the backend. Upon retrieval, the session ID associated with that user and the ID of the current chat are used to fetch the individual message history. It consists of message pairs, linking a user query to the final output of SAGE. These message pairs are the exact messages displayed in the UI. Combined with the current user query, all messages are sent to SAGE to generate an answer. In the case of the Tool LLM method, only the Tool Generator agent needs the complete message history. The Tool Evaluator agent only requires the current query and the internal message history. The internal messages are the generated outputs of both agents, used as inputs for the next agent. The final answer generated by SAGE is then added with the current query as a message pair to the message history in the backend, associated with the session and chat.
-
-[read more...](docs/session_handling.md)
-
-
-### Speech Input and Output
-
-The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under `tts-server`, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
-
-
-### Internal Actions
-
-Besides services provided by OPACA agents, the LLM also has access to a small number of internal, or "introspective" actions. Those are actions implemented directly in the OPACA LLM Backend and thus they have access to internal workings of the OPACA LLM that actions from OPACA Agent Containers would not have, e.g. for reading parts of the OPACA LLM's own configuration, the chat history, or sending messages to the UI. At the moment, these actions can e.g. be used to schedule tasks for execution at a later point in time (including regular execution), internally sending the given request back to the LLM at a later time, or for collecting information for other chats (e.g. if the user wants the LLM to integrate information from different tasks they worked on in the past).
-
-
-## Configuration and Parameters
-
-SAGE can be configured in various ways using the `config.js` file in the Frontend directory. Here, you can configure, among others, the default OPACA Platform to connect to, which sample questions to show, as well as some UI settings. Some of those settings can also be configured using Environment Variables (see next section), while others can be overwritten using Query parameters (i.e. appending `?abc=foo&xyz=bar` to the request URL):
-
-* `autoconnect`: If true, attempt to automatically connect to the default OPACA Platform (without authentication)
-* `sidebar`: Which tab of the sidebar to show after connecting; possible options: `none` (hide), `info` (summary of OPACA platform), `questions` (sample questions), `agents` (agents and actions), `config`, `debug`, or `faq`.
-* `samples`: Which category of sample questions to show; possible options see "headers" in the `sidebarQuestions` section in the config (special characters might have to be URL-encoded), plus `random` for a random selection.
-* `lang`: Which language to use by default; possible options: "GB" (english) and "DE" (german).
-* `colorscheme`: The starting color scheme, can be "light", "dark", or "system".
-
-
-## Environment Variables
-
-### Frontend
-
-Frontend env-vars correspond to settings in `config.js`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system).
-
-* `VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
-* `VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
-* `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.js`
-* `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
-* `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
-* `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
-* `VITE_COLOR_SCHEME`: The starting color scheme, can be "light", "dark", or "system"; can be overwritten by `colorscheme` query param.
-* `VITE_DEFAULT_LANGUAGE`: The language to use by default in the UI. Possible options: "GB" (english), "DE" (german).
-
-### Backend
-
-* `LLM_HOSTS`: Semicolon-separated list of LLM server hosts/providers, e.g. `openai`, `gemini`, `anthropic`, `mistral`, `<custom-base-url>`, etc.
-* `LLM_API_KEYS`: Semicolon-separated list of API-keys for each of the above hosts; default is `""` (for common providers, the API Key is taken from the default api key field, e.g., for `openai` from `OPENAI_API_KEY`, for `gemini` from `GEMINI_API_KEY`, etc. but can be overwritten here if a non-default key is explicitly provided).
-* `LLM_MODELS`: Semicolon-separated list of comma-separated lists of supported models for each of the above hosts.
-* `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
-* `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
-* `SESSION_ADMIN_PWD`: password needed to call any of the `/admin/...` routes.
-
-## Supported Models
-
-SAGE is using [LiteLLM](https://github.com/BerriAI/litellm) for its LLM API communication. Therefore it supports all models that LiteLLM supports. A complete list of supported models is available [here](https://models.litellm.ai/). The preconfigured list of models include:
-
-* `openai/gpt-5`
-* `openai/gpt-5-mini`
-* `openai/gpt-4o`
-* `openai/gpt-4o-mini`
-* `anthropic/claude-sonnet-4-5`
-* `anthropic/claude-opus-4-1`
-* `gemini/gemini-2.5-pro`
-* `gemini/gemini-2.5-flash`
-* `mistral/mistral-medium-latest`
-* `mistral/magistral-medium-latest`
-
-To use the above mentioned models, you need to provide the corresponding API keys in the providers default environment field. These are:
-
-`["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY"]`
-
-## Getting Started
-
-### Using Docker Compose
-
-To build and start SAGE, you can use the included `docker-compose.yml` file. By default, it will start the Backend, Frontend, and Session-DB service, but it has several predefined profiles to start additional services, too:
-
-* `whisper`: the Whisper TTS server.
-* `platform`: The OPACA Runtime Platform.
-
-Examples:
-
-* to run just the default setup, run `docker compose up --build`
-* to additionally run the TTS server, run `docker compose --profile whisper up --build`
-
-You can use the `COMPOSE_PROFILES` environment variable to set one or more default profile to run (either using `export` or by putting it in your local `.env` file), e.g.
-```bash
-export COMPOSE_PROFILES=whisper,platform
-docker compose up --build
-```
-
-**Note:** For running the OPACA Runtime Platform in Docker, the `PUBLIC_URL` environment variable has to be set. For details, please refer to [the documentation in the OPACA Core repository](https://gitlab.dai-labor.de/jiacpp/opaca-core/-/blob/main/doc/environments.md?ref_type=heads).
-
-
-### Development and testing
-
-For testing and development, you might want to run your own OPACA Platform and example containers.
-
-1. Start the OPACA Platform
-
-   * Clone the [OPACA-Core Repository](https://github.com/GT-ARC/opaca-core) and follow the **Getting Started** guide to build and launch an OPACA runtime platform.
-   * Alternatively, pull the OPACA Docker image `docker pull ghcr.io/gt-arc/opaca/opaca-platform:main`; see the OPACA Core readme for instructions on how to start OPACA as a Docker image.
-
-2. Deploy a container for testing
-   * Create and build a sample OPACA Agent Container following the same guide. You can use the `demo-services` or `dummy-services` in the `examples` directory in the OPACA Core repository (see above).
-    * Alternatively, a Smart-Office themed example container is available from Docker Hub as `rkader2811/smart-office`
-    * Use the OPACA Platform's `POST /containers` route to deploy the container
-
-3. Start SAGE
-
-   * In the Backend directory, run `pip3 install -r requirements.txt` and then `python3 -m src.server` to start the backend server.
-   * In the Frontend directory, run `npm install` followed by `npm run dev` to run the frontend / web-UI; other than using Docker Compose, this allows for hot code replace while the application is running.
-   * Alternatively, run `npm run dev_all` to start both, the backend and the frontend in parallel.
-
-Then, as above, go to `http://localhost:5173`, connect to the OPACA platform and start interacting with the LLM.
-
-
-## Read More...
-
-* [User Interface](docs/ui.md)
-* [Session Handling](docs/session_handling.md)
-* [LLM Communication Methods](docs/methods_overview.md)
-  * [Simple](docs/methods/simple.md)
-  * [Tool-LLM](docs/methods/tool_llm.md)
-  * [Orchestration](docs/methods/orchestration.md)
-* [Frequently Asked Questions](docs/faq.md)
