@@ -57,10 +57,10 @@
                     </div>
                     <div class="d-flex flex-column">
                         <div>
-                            {{Localizer.get(AudioManager.isVoiceServerConnected ? 'ttsConnected' : 'ttsDisconnected') }}
+                            {{Localizer.get(AudioManager.isVoiceServerConnected ? 'settings_audio_connected' : 'settings_audio_disconnected') }}
                         </div>
                         <div class="text-muted">
-                            {{ Localizer.get('audioServerSettings') }}
+                            {{ Localizer.get('settings_audio') }}
                         </div>
                     </div>
                 </div>
@@ -83,7 +83,7 @@
                         <button type="button" class="btn btn-outline-danger w-100"
                                 @click="() => this.connectToAudioServer()">
                             <i class="fa fa-refresh" :class="{'fa-spin': this.isAudioConnecting}" />
-                            {{ Localizer.get('ttsRetry') }}
+                            {{ Localizer.get('settings_audio_retry') }}
                         </button>
                     </div>
 
@@ -91,7 +91,7 @@
                     <div class="options-item d-flex flex-row align-items-center"
                          @click="AudioManager.useWhisperTts = !AudioManager.useWhisperTts;">
                         <span>
-                            {{ Localizer.get('useWhisperTts') }}
+                            {{ Localizer.get('settings_audio_whisperTts') }}
                         </span>
                         <span class="ms-auto fs-5">
                             <i v-if="AudioManager.useWhisperTts" class="fa fa-toggle-on" />
@@ -102,7 +102,7 @@
                          class="options-item d-flex flex-row align-items-center"
                          @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
                         <span>
-                            {{ Localizer.get('useWhisperStt') }}
+                            {{ Localizer.get('settings_audio_whisperStt') }}
                         </span>
                         <span class="ms-auto fs-5">
                             <i v-if="AudioManager.useWhisperStt" class="fa fa-toggle-on" />
@@ -156,7 +156,7 @@ export default {
         getMethodsData() {
             return {
                 data: Methods,
-                name: Localizer.get('method'),
+                name: Localizer.get('settings_method'),
                 elementId: 'method',
                 icon: 'fa-server',
             }
@@ -170,7 +170,7 @@ export default {
             }
             return {
                 data: langData,
-                name: Localizer.get('language'),
+                name: Localizer.get('settings_language'),
                 elementId: 'language',
                 icon: 'fa-globe',
             }
@@ -179,7 +179,7 @@ export default {
         getColorModeData() {
             return {
                 data: getColorThemes(),
-                name: Localizer.get('colorMode'),
+                name: Localizer.get('settings_colorMode'),
                 elementId: 'colorMode',
                 icon: 'fa-adjust',
             }

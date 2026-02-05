@@ -1,9 +1,9 @@
 <template>
     <div v-if="!isCookieAccepted" class="cookie-banner">
         <p>
-            {{ Localizer.get('cookiesText') }}
+            {{ Localizer.get('cookies_text') }}
         </p>         
-        <button class="btn btn-primary" @click="acceptCookies()">{{ Localizer.get('cookiesAccept') }}</button>
+        <button class="btn btn-primary" @click="acceptCookies()">{{ Localizer.get('cookies_accept') }}</button>
     </div>
 </template>
 
