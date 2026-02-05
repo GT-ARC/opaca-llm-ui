@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 
 # default-default file
-DEFAULT_PROMPTS_BASE = Path('./src/default_prompts.json')
+DEFAULT_PROMPTS_BASE = Path('./default_prompts.json')
 
 # live changes via the `POST /prompts/default` route are saved here
 DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
@@ -34,13 +34,6 @@ def save_default_prompts(prompts: Dict[str, List[PromptCategory]]) -> None:
         for key, cats in prompts.items()
     }
     save_json(DEFAULT_PROMPTS_FILE, data)
-
-
-def get_default_prompts_by(key: str) -> List[PromptCategory]:
-    data = load_default_prompts()
-    if key not in data:
-        raise KeyError(f'Invalid default prompts key: {key}')
-    return data[key]
 
 
 def load_json(filename: str | Path) -> Any:
