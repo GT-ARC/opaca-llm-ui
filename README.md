@@ -1,4 +1,4 @@
-# ![SAGE](Frontend/src/assets/sage-logo-with-background.png)
+# ![SAGE](docs/img/sage-logo.png)
 
 A modular LLM chatbot UI for OPACA platforms with multi-agent orchestration and tool calling.
 
