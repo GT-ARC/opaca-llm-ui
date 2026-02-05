@@ -101,13 +101,19 @@ Alongside the OPACA agent actions, SAGE defines a few internal tools that can be
 
 Each [method](docs/methods_overview.md) can be configured using the UI. Especially, each LLM component can be configured to a different model, even a locally running model. This allows for a more flexible and customizable approach to task-solving.
 
+### Container Login
+
+Some agent containers provide function which can only be called when authenticated, for example the Exchange Agent or Gitlab Agent available in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. When called, these functions will prompt another login window to enter credentials for the specific service. Credentials are then sent via the platform to the agent container, which will use them to authenticate the request user. Please note that entered credentials are **never** stored in SAGE or the OPACA platform, and that after the first successful login, tokens are generated to authenticate the user instead and sent in the header for each subsequent request to that container. However, please note that the credentials will also be sent to the agent container for authentication, so only add trusted containers to your platform environment.
+
+Also be aware that tokens are bound to an **OPACA user**, not to a session. This means that if you are running your OPACA platform with authentication disabled, ALL sessions will share their container login tokens. To enable platform authentication, see the [Authentication](#-authentication) section below.
+
 ### Speech I/O
 
 The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under tts-server, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
 
 ### Sample Prompts
 
-When you start SAGE, you will notice a set of sample prompts that give an overview of the capabilities of SAGE. These prompts may only work if specific agents are available in the connected OPACA platform. Users are free to modify them to their liking or admins can change the default prompts.
+When you start SAGE, you will notice a set of sample prompts that give an overview of the capabilities of SAGE. These prompts may only work if specific agents are available in the connected OPACA platform. Users are free to modify them to their liking and admins can change the default prompts.
 
 ### File Handling
 
@@ -116,17 +122,32 @@ Currently, SAGE can support the following file types as input:
 * PDFs: `.pdf`
 * Images: `.jpg, .jpeg, .png, .gif, .webp`,
 
-Files are uploaded to the selected models in the (Method Configuration)[docs/methods_overview.md] and can be accessed by the LLM afterwards. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+Files are uploaded to the selected models in the [Method Configuration](docs/methods_overview.md) and can be accessed by the LLM afterwards. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+
+## 🔒 Authentication
+
+The OPACA platform that SAGE is connected to can be protected using authentication. To enable authentication on the OPACA platform, set the following environment variables in your `.env` file or directly in the [docker-compose.yml](docker-compose.yml) file under the `opaca-platform` service:
+
+```bash
+REQUIRE_AUTHENTICATION=true
+SECRET=<YOUR_SECRET_KEY>
+PLATFORM_ADMIN_USER=<YOUR_ADMIN_USER>
+PLATFORM_ADMIN_PWD=<YOUR_ADMIN_PASSWORD>
+```
+
+Then start SAGE using the `platform` profile:
+
+```bash
+docker compose --profile platform up --build
+```
+
+When you then try to connect to the platform with SAGE, you will be prompted to enter your credentials.
+
+An admin can further create additional users for SAGE by using the OPACA platform's Swagger-UI, usually available under http://localhost:8000/swagger-ui/index.html.
 
 ## 📄 Publication
 
 * arXiv Pre-Print: [SAGE: Tool-Augmented LLM Task Solving Strategies in Scalable Multi-Agent Environments](https://arxiv.org/abs/2601.09750)
-
-
-
-
-
-
 
 ## Contributors
 
@@ -150,4 +171,3 @@ Copyright 2024 - 2026, GT-ARC & DAI-Labor, TU Berlin
 * Further contributions by: Cedric Braun, Brandon Llanque Kurps, Chenluanxing Liu, Abdullah Kiwan, Benjamin Acar
 
 This repository includes software developed in the course of the project "Offenes Innovationslabor KI zur Förderung gemeinwohlorientierter KI-Anwendungen" (aka Go-KI, https://go-ki.org/) funded by the German Federal Ministry of Labour and Social Affairs (BMAS) under the funding reference number DKI.00.00032.21.
-
