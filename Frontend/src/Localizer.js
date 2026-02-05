@@ -115,7 +115,6 @@ export const localizationData = {
         noNotifsAvailable: "No notifications",
         autogenQuestionsTitle: "Auto-Generated Prompts",
         confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
-        checkboxDeleteFromPromptLibrary: "Delete this?",
         specifyPlaceholders: "Values for Placeholders",
         buttonAddNewPrompt: "Add New Prompt",
         buttonAddNewCategory: "Add New Category",
@@ -123,6 +122,10 @@ export const localizationData = {
         tooltipEditPrompt: "Edit Prompt",
         tooltipEditCategory: "Edit Category",
         tooltipToggleEditMode: "Edit Prompt Library",
+        tooltipDeletePrompt: "Delete Prompt",
+        tooltipDeleteCategory: "Delete Category",
+        confirmDeletePrompt: "Delete prompt \"%1\"?",
+        confirmDeleteCategory: "Delete category \"%1\"?",
     },
 
     DE: {
@@ -235,7 +238,6 @@ export const localizationData = {
         noNotifsAvailable: "Keine Benachrichtigungen",
         autogenQuestionsTitle: "Auto-Generierte Prompts",
         confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
-        checkboxDeleteFromPromptLibrary: "Löschen?",
         specifyPlaceholders: "Werte für Platzhalter",
         buttonAddNewPrompt: "Neuer Prompt",
         buttonAddNewCategory: "Neue Kategorie",
@@ -243,6 +245,10 @@ export const localizationData = {
         tooltipEditPrompt: "Prompt Bearbeiten",
         tooltipEditCategory: "Kategorie Bearbeiten",
         tooltipToggleEditMode: "Prompt-Bibliothek Bearbeiten",
+        tooltipDeletePrompt: "Prompt Löschen",
+        tooltipDeleteCategory: "Kategorie Löschen",
+        confirmDeletePrompt: "Prompt \"%1\" löschen?",
+        confirmDeleteCategory: "Kategorie \"%1\" löschen?",
     },
 };
 
