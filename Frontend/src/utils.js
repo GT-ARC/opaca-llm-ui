@@ -137,7 +137,7 @@ class BackendClient {
     // prompts
 
     async getPrompts() {
-        return await this.sendRequest("GET", `prompts?key=${Localizer.language}`);
+        return await this.sendRequest("GET", "prompts");
     }
 
     async savePrompts(prompts) {
@@ -145,7 +145,7 @@ class BackendClient {
     }
 
     async resetPrompts() {
-        return await this.sendRequest("DELETE", `prompts?key=${Localizer.language}`);
+        return await this.sendRequest("DELETE", "prompts");
     }
 
     // mcp

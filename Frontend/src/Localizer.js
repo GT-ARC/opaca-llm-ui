@@ -235,7 +235,7 @@ export const localizationData = {
         noNotifsAvailable: "Keine Benachrichtigungen",
         autogenQuestionsTitle: "Auto-Generierte Prompts",
         confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
-        checkboxDeleteSampleQuestion: "Löschen?",
+        checkboxDeleteFromPromptLibrary: "Löschen?",
         specifyPlaceholders: "Werte für Platzhalter",
         buttonAddNewPrompt: "Neuer Prompt",
         buttonAddNewCategory: "Neue Kategorie",
@@ -349,9 +349,6 @@ class Localizer {
         this._samplePrompts.value = value;
     }
 
-    /**
-     * @returns {Array}
-     */
     get samplePrompts() {
         return this._samplePrompts.value;
     }
@@ -425,11 +422,11 @@ class Localizer {
     }
 
     getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
-        if (!this.samplePrompts) {
+        if (!this.getPrompts()) {
             return [];
         }
         // assemble questions from all or selected category into a single array
-        let filteredQuestions = this.samplePrompts
+        let filteredQuestions = this.getPrompts()
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textInput === null || matches(question.question, textInput));
@@ -459,6 +456,13 @@ class Localizer {
 
     getLanguageForDate() {
         return voiceGenLocalesWebSpeech[this.language];
+    }
+
+    /**
+     * @returns {Array}
+     */
+    getPrompts() {
+        return this.samplePrompts?.[this.language];
     }
 }
 

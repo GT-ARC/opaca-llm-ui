@@ -424,23 +424,23 @@ async def view_file(request: Request, response: Response, file_id: str):
 # sample prompts
 
 @app.get("/prompts", description="Get the Prompt Library data.", tags=["sample prompts"])
-async def get_prompts(request: Request, key: str = 'GB') -> List[PromptCategory]:
+async def get_prompts(request: Request) -> Dict[str, List[PromptCategory]]:
     session = await handle_session_id(request)
     if session.prompts is None:
-        session.prompts = prompts.get_default_prompts_by(key)
+        session.prompts = prompts.load_default_prompts()
     return session.prompts
 
 
 @app.post("/prompts", description="Save the modified Prompt library.", tags=["sample prompts"])
-async def post_prompts(request: Request, data: List[PromptCategory]) -> None:
+async def post_prompts(request: Request, data: Dict[str, List[PromptCategory]]) -> None:
     session = await handle_session_id(request)
     session.prompts = data
 
 
 @app.delete("/prompts", description="Reset the prompt library to the default values.", tags=["sample prompts"])
-async def delete_prompts(request: Request, key: str = 'GB') -> None:
+async def delete_prompts(request: Request) -> None:
     session = await handle_session_id(request)
-    session.prompts = prompts.get_default_prompts_by(key)
+    session.prompts = prompts.load_default_prompts()
 
 
 @app.get("/prompts/default", tags=["sample prompts"])
