@@ -110,33 +110,32 @@ export default {
             this.isLoading = false;
         },
 
-        async addMcp(mcpError = null, url_placeholder = "", label_placeholder = "") {
+        async addMcp() {
             await this.$refs.input.showDialogue(
-                Localizer.get('addMcp'),
-                null,
-                mcpError,
+                Localizer.get('addMcp'), null, null,
                 {
-                    mcpServerUrl: {type: "text", label: "Server URL", default: url_placeholder },
-                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: label_placeholder },
-                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "Require Approval - never", always: "Require Approval - always (not implemented yet)"}},
+                    mcpServerUrl: {type: "text", label: "Server URL"},
+                    mcpServerLabel: {type: "text", label: "Server Label (Optional)"},
+                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {
+                        never: "Require Approval - never",
+                        always: "Require Approval - always (not implemented yet)"
+                    }},
                 },
                 async (values) => {
                     // Get values from submission dialogue
                     const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
 
                     // Validate input
-                    mcpError = this.isValidInput(data.server_url, data.server_label);
+                    var mcpError = this.isValidInput(data.server_url, data.server_label);
                     if (mcpError !== "") {
-                        await this.addMcp(mcpError, data.server_url, data.server_label)
-                        return
+                        throw new Error(mcpError);
                     }
 
                     // Add MCP server to backend, retry on failure
                     try {
                         await backendClient.addMcp({"content": data});
                     } catch (err) {
-                        await this.addMcp(err.response.data.detail, data.server_url, data.server_label);
-                        return
+                        throw new Error(err.response.data.detail);
                     }
                     await this.updateMcp(true);
                 }
