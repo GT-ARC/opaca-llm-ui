@@ -60,7 +60,12 @@
                             <!-- extension body -->
                             <div :id="'extension-body-' + containerIndex + '-' + extensionIndex" class="accordion-collapse collapse extension-body"
                                  :aria-labelledby="'extension-header-' + containerIndex + '-' + extensionIndex" :data-bs-parent="'#extensions-accordion-' + containerIndex">
-                                <iframe :src="getFullUrl(extension.port, container.token)" />
+                                <div v-if="testConnection(getFullUrl(extension.port, container.token))">
+                                    <iframe :src="getFullUrl(extension.port, container.token)" />
+                                </div>
+                                <div v-else>
+                                    Could not load Extension IFrame.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -103,6 +108,15 @@ export default {
                 ? await backendClient.getExtraPorts()
                 : null;
             this.isLoading = false;
+        },
+
+        async testConnection(url) {
+            try {
+                const response = await fetch(url);
+                return response.ok;
+            } catch (e) {
+                return false;
+            }
         },
 
         getFullUrl(extensionPort, token) {
