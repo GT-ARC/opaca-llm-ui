@@ -4,6 +4,8 @@
         {{ Localizer.get('tooltipSidebarAgents') }}
     </div>
 
+    <InputDialogue ref="input"/>
+
     <div v-if="platformActions && Object.keys(platformActions).length > 0"
          class="my-2">
         <input
@@ -51,6 +53,11 @@
                                     :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
                                 <i class="fa fa-wrench me-3"/>
                                 {{ action.name }}
+
+                                <i class="fa fa-gears"
+                                    @click.stop="invokeAction(agent, action.name, action.parameters)"
+                                    title="Invoke"
+                                />
                             </button>
 
                             <!-- action body -->
@@ -82,9 +89,11 @@ import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
+import InputDialogue from '../InputDialogue.vue';
 
 export default {
     name: 'SidebarAgents',
+    components: {InputDialogue},
     props: {
         isPlatformConnected: Boolean,
     },
@@ -125,6 +134,29 @@ export default {
                     acc[agent] = this.platformActions[agent];
                     return acc;
                 }, {});
+        },
+        async invokeAction(agent, action, schema) {
+            const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
+            await this.$refs.input.showDialogue(
+                "Invoke Action",
+                `${agent}--${action}`,
+                null,
+                Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea"}])
+                ),
+                async values => {
+                    // JSON-parse non-primitive inputs
+                    for (var v in values) {
+                        if (types[schema[v].type] === undefined) {
+                            values[v] = JSON.parse(values[v]);
+                        }
+                    }
+                    // TODO container login? SHOULD work out-of-the-box if we move the container-login login in the backend to opaca-client instead of abstract agent?
+                    var res = await backendClient.invokeAction(agent, action, values);
+                    await this.$refs.input.showInfo("Result", JSON.stringify(res));
+                }
+            );
+
         },
     },
     watch: {
