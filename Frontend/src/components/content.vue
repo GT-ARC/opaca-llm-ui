@@ -463,6 +463,10 @@ export default {
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
 
+            if (result.type === "ConfirmActionNotification") {
+                this.$emit('action-confirmation-required', result);
+            }
+
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
             }
@@ -545,6 +549,10 @@ export default {
                 timeout: containerLoginTimeout,
             });
             this.socket.send(containerLoginDetails);
+        },
+
+        submitConfirmAction(allowed) {
+            this.socket.send(JSON.stringify({allowed: allowed}));
         },
 
         submitApiKey(apiKey) {

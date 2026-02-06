@@ -133,6 +133,7 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
             @new-notification="response => createNotification(response)"
             ref="content"
@@ -291,6 +292,17 @@ export default {
 
         async showInfo(message) {
             await this.$refs.input.showInfo(null, message);
+        },
+
+        async handleConfirmAction(confirmActionDetails) {
+            await this.$refs.input.showDialogue(
+                "Confirm Action",
+                null,
+                null,
+                {},
+                (_) => this.$refs.content.submitConfirmAction(true),
+                () => this.$refs.content.submitConfirmAction(false)
+            );
         },
 
         async handleContainerLogin(containerLoginDetails) {
