@@ -50,6 +50,12 @@ class ConnectRequest(BaseModel):
     pwd: str | None
 
 
+class InvokeRequest(BaseModel):
+    action: str
+    agent: str
+    parameters: Dict[str, Any]
+
+
 class QueryRequest(BaseModel):
     """
     Used as the expected body argument in the `/query/{method}` endpoints

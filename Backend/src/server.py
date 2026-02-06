@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, InvokeRequest, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
@@ -187,6 +187,12 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
 async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_actions_simple()
+
+
+@app.post("/actions/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
+async def invoke_action(request: Request, response: Response, invoke: InvokeRequest) -> Any:
+    session = await handle_session_id(request, response)
+    return await session.opaca_client.invoke_opaca_action(invoke.action, invoke.agent, invoke.parameters)
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
