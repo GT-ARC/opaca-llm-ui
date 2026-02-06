@@ -145,18 +145,15 @@ export default {
                     Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea"}])
                 ),
                 async values => {
-                    // JSON-parse non-primitive inputs
-                    for (var v in values) {
-                        if (types[schema[v].type] === undefined) {
-                            values[v] = JSON.parse(values[v]);
-                        }
-                    }
-                    // TODO container login? SHOULD work out-of-the-box if we move the container-login login in the backend to opaca-client instead of abstract agent?
-                    var res = await backendClient.invokeAction(agent, action, values);
+                    // JSON-parse non-primitive inputs --> parse errors are shown in error label
+                    var parameters = Object.fromEntries(
+                        Object.entries(values).map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
+                    );
+                    // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
+                    var res = await backendClient.invokeAction(agent, action, parameters);
                     await this.$refs.input.showInfo("Result", JSON.stringify(res));
                 }
             );
-
         },
     },
     watch: {
