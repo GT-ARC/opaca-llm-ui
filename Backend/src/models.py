@@ -50,6 +50,11 @@ class ConnectRequest(BaseModel):
     pwd: str | None
 
 
+class RestrictedActions(BaseModel):
+    forbidden: List[str]
+    need_confirmation: List[str]
+
+
 class QueryRequest(BaseModel):
     """
     Used as the expected body argument in the `/query/{method}` endpoints
@@ -484,6 +489,15 @@ class PushMessage(QueryResponse):
     """
     model_config = {"extra": "ignore"}
     task_id: int
+
+
+class ConfirmActionNotification(BaseModel):
+    tool: str
+    params: dict
+
+
+class ConfirmActionResponse(BaseModel):
+    allowed: bool
 
 
 class ContainerLoginNotification(BaseModel):
