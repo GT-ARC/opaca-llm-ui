@@ -133,15 +133,18 @@ export default {
 
         async handleSubmit(okay) {
             await nextTick();
+            // hide dialogue, to allow for opening another dialogue in the callback...
+            this.show = false;
             try {
                 if (okay) {
                     await this.onOkay(this.values);
                 } else if (this.onCancel !== null) {
                     await this.onCancel();
                 }
-                this.show = false;
             } catch (e) {
+                // ... or re-open directly in case of error
                 this.errorMsg = e.message;
+                this.show = true;
             }
         },
 
