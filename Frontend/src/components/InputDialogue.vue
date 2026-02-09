@@ -3,7 +3,7 @@
         <div class="p-4 login-container rounded shadow">
             <form @submit.prevent="handleSubmit">
                 <h5 class="mb-3">{{ title }}</h5>
-                <div class="mb-3">{{ message }}</div>
+                <div class="mb-3" v-html="message" />
 
                 <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
@@ -57,6 +57,7 @@
 import {nextTick} from "vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js"
+import {marked} from "marked";
 
 export default {
     name: 'InputDialogue',
@@ -97,7 +98,7 @@ export default {
          * - values: dict (value -> label) for options, only for type 'select'
          * 
          * @param title the title (bold)
-         * @param message message below the title, optional
+         * @param message message below the title, optional; can contain Markdown
          * @param errorMsg error message (e.g. if previous attempt failed), optional)
          * @param schema defines the different values that should be entered in the dialogue (see above)
          * @param onOkay async callback function, should accept dict of values; can raise error
@@ -105,7 +106,7 @@ export default {
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
             this.title = title;
-            this.message = message;
+            this.message = marked.parse(message ?? "");
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.onOkay = onOkay;

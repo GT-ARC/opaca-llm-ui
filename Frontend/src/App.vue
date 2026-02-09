@@ -17,7 +17,7 @@
                 <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
                     <a href="https://github.com/GT-ARC/opaca-llm-ui" target="blank">
                         <img v-bind:src="isMobile ? 'src/assets/sage-logo-small.png' : 'src/assets/sage-logo.png'"
-                             class="logo" alt="Opaca Logo"
+                             class="logo" alt="SAGE Logo"
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
@@ -295,9 +295,13 @@ export default {
         },
 
         async handleConfirmAction(confirmActionDetails) {
+            let message = `**Tool:** ${confirmActionDetails.tool}\n`;
+            Object.entries(confirmActionDetails.params).forEach( ([key, val]) => {
+                message += `* **${key}:** \`${JSON.stringify(val)}\`\n`;
+            });
             await this.$refs.input.showDialogue(
                 "Confirm Action",
-                null,
+                message,
                 null,
                 {},
                 (_) => this.$refs.content.submitConfirmAction(true),
