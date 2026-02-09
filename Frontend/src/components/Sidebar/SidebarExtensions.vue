@@ -1,15 +1,15 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarExtensions') }}
+        {{ Localizer.get('sidebar_extensions') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarExtensionsLoading') }}
+        {{ Localizer.get('sidebar_extensions_loading') }}
     </div>
     <div v-else-if="!this.extraPorts || Object.keys(this.extraPorts).length === 0">
-        {{ Localizer.get('sidebarExtensionsMissing') }}
+        {{ Localizer.get('sidebar_extensions_missing') }}
     </div>
     <div v-else class="flex-row" >
 
@@ -49,7 +49,7 @@
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
                                     @click.stop="this.maximized = extension.port"
-                                    :title="Localizer.get('tooltipExpandExtension')"
+                                    :title="Localizer.get('sidebar_extensions_expand')"
                                 />
                             </button>
 
@@ -71,7 +71,7 @@
                 @click.stop="updatePlatformInfo()"
                 :disabled="this.isLoading" >
             <i class="fa fa-refresh" />
-            Refresh
+            {{ Localizer.get('sidebar_extensions_refresh') }}
         </button>
     </div>
 </div>
