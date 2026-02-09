@@ -139,6 +139,12 @@ class AbstractMethod(ABC):
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
+            
+            elif event.type == event_type.RESPONSE_FAILED:
+                raise OpacaException(
+                    user_message="(The generation of the response has failed. See error message for details.)",
+                    error_message=f"{event.response.error['code']}: {event.response.error['message']}"
+                )
 
             elif event.type == event_type.OUTPUT_ITEM_DONE:
                 if event.item.type == "mcp_call":
