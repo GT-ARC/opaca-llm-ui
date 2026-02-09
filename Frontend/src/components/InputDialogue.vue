@@ -98,10 +98,10 @@ export default {
          * 
          * @param title the title (bold)
          * @param message message below the title, optional
-         * @param errorMsg error message (e.g. if previous attempt failed), optional
+         * @param errorMsg error message (e.g. if previous attempt failed), optional)
          * @param schema defines the different values that should be entered in the dialogue (see above)
-         * @param onOkay callback function, should accept dict of values
-         * @param onCancel callback function, should accept no parameters (optional)
+         * @param onOkay async callback function, should accept dict of values; can raise error
+         * @param onCancel async callback function, should accept no parameters (optional); can raise error
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
             this.title = title;
@@ -132,13 +132,19 @@ export default {
         },
 
         async handleSubmit(okay) {
-            this.show = false;
             await nextTick();
-            // callback is called last, so that it can show another dialogue
-            if (okay) {
-                this.onOkay(this.values);
-            } else if (this.onCancel !== null) {
-                this.onCancel();
+            // hide dialogue, to allow for opening another dialogue in the callback...
+            this.show = false;
+            try {
+                if (okay) {
+                    await this.onOkay(this.values);
+                } else if (this.onCancel !== null) {
+                    await this.onCancel();
+                }
+            } catch (e) {
+                // ... or re-open directly in case of error
+                this.errorMsg = e.message;
+                this.show = true;
             }
         },
 
