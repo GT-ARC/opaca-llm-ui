@@ -48,30 +48,31 @@
                                     :aria-controls="'extension-body-' + containerIndex + '-' + extensionIndex">
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
-                                    @click.stop="this.maximized = getFullUrl(extension.port, container.token)"
+                                    @click.stop="this.maximized = extension.port"
                                     :title="Localizer.get('tooltipExpandExtension')"
-                                />
-                                <i class="fa fa-refresh extension-expand-button"
-                                    @click.stop="updatePlatformInfo(this.extraPorts != null)"
-                                    title="Refresh"
                                 />
                             </button>
 
                             <!-- extension body -->
                             <div :id="'extension-body-' + containerIndex + '-' + extensionIndex" class="accordion-collapse collapse extension-body"
                                  :aria-labelledby="'extension-header-' + containerIndex + '-' + extensionIndex" :data-bs-parent="'#extensions-accordion-' + containerIndex">
-                                <div v-if="testConnection(getFullUrl(extension.port, container.token))">
-                                    <iframe :src="getFullUrl(extension.port, container.token)" />
-                                </div>
-                                <div v-else>
-                                    Could not load Extension IFrame.
-                                </div>
+                                <iframe :src="extension.port" />
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="d-grid gap-2">
+        <button type="button"
+                class="btn btn-secondary py-2 w-100"
+                @click.stop="updatePlatformInfo()"
+                :disabled="this.isLoading" >
+            <i class="fa fa-refresh" />
+            Refresh
+        </button>
     </div>
 </div>
 
@@ -118,10 +119,6 @@ export default {
                 return false;
             }
         },
-
-        getFullUrl(extensionPort, token) {
-            return token ? `${extensionPort}?token=${token}` : extensionPort;
-        }
     },
 
     watch: {
