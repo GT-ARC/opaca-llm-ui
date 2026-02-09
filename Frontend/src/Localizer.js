@@ -222,7 +222,7 @@ export const localizationData = {
         sidebar_extensions: "Erweiterungen",
         sidebar_extensions_loading: "Lade verfügbare Erweiterungen...",
         sidebar_extensions_missing: "Keine Erweiterungen verfügbar.",
-        sidebar_extensions_refresh: "Auffrischen",
+        sidebar_extensions_refresh: "Neu laden",
         sidebar_extensions_expand: "Vergrößern",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",

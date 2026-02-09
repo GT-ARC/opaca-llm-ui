@@ -48,7 +48,7 @@
                                     :aria-controls="'extension-body-' + containerIndex + '-' + extensionIndex">
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
-                                    @click.stop="this.maximized = extension.port"
+                                    @click.stop="this.maximized = extension.fullUrl"
                                     :title="Localizer.get('sidebar_extensions_expand')"
                                 />
                             </button>
@@ -56,7 +56,7 @@
                             <!-- extension body -->
                             <div :id="'extension-body-' + containerIndex + '-' + extensionIndex" class="accordion-collapse collapse extension-body"
                                  :aria-labelledby="'extension-header-' + containerIndex + '-' + extensionIndex" :data-bs-parent="'#extensions-accordion-' + containerIndex">
-                                <iframe :src="extension.port" />
+                                <iframe :src="extension.fullUrl" />
                             </div>
                         </div>
                     </div>

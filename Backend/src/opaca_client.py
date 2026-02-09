@@ -78,14 +78,13 @@ class OpacaClient:
                             if cid not in tmp:
                                 tmp[cid] = {
                                     "container": container["image"]["imageName"],
-                                    "token": token,
                                     "extraPorts": []
                                 }
                             tmp[cid]["extraPorts"].append(
-                                {"port": url, "description": v["description"]}
+                                {"fullUrl": url, "description": v["description"]}
                             )
-                        except:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Could not load extension {url}: {e}")
             return list(tmp.values())
 
         except Exception as e:
