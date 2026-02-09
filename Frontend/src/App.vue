@@ -49,7 +49,7 @@
                                data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
-                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('general_connected') : Localizer.get('general_disconnected') }}</span>
                             </a>
                             <div id="connection-menu"
                                  class="dropdown-menu dropdown-menu-end p-4"
@@ -69,7 +69,7 @@
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
                                     <span v-else>
-                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
+                                        {{ connected ? Localizer.get('general_disconnect') : Localizer.get('general_connect') }}
                                     </span>
                                 </button>
                             </div>
@@ -195,8 +195,8 @@ export default {
                         Localizer.get('unauthenticated'),
                         username !== "" ? Localizer.get('authError') : null,
                         {
-                            username: { type: "text", label: Localizer.get("username") },
-                            password: { type: "password", label: Localizer.get("password") },
+                            username: { type: "text", label: Localizer.get("general_username") },
+                            password: { type: "password", label: Localizer.get("general_password") },
                         },
                         (values) => this.connectToPlatform(values.username, values.password)
                     );
@@ -315,8 +315,8 @@ export default {
                 `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
                 containerLoginDetails.retry ? Localizer.get('authError') : null,
                 {
-                    username: { type: "text", label: Localizer.get("username") },
-                    password: { type: "password", label: Localizer.get("password") },
+                    username: { type: "text", label: Localizer.get("general_username") },
+                    password: { type: "password", label: Localizer.get("general_password") },
                     timeout: { type: "select", default: 300, values: {
                         "0": "Logout immediately",
                         "300": "Logout after 5 minutes",

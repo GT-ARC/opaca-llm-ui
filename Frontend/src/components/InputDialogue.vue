@@ -38,15 +38,15 @@
 
                 <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
                     <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
-                        {{ Localizer.get('dialogCancel') }}
+                        {{ Localizer.get('general_cancel') }}
                     </button>
                     <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        {{ Localizer.get('dialogOkay') }}
+                        {{ Localizer.get('general_okay') }}
                     </button>
                     
                 </div>
                 <button v-else type="button" class="btn btn-primary w-100 mt-2" @click="show = false">
-                    {{ Localizer.get('dialogOkay') }}
+                    {{ Localizer.get('general_okay') }}
                 </button>
             </form>
         </div>
