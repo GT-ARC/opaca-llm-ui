@@ -110,15 +110,6 @@ export default {
                 : null;
             this.isLoading = false;
         },
-
-        async testConnection(url) {
-            try {
-                const response = await fetch(url);
-                return response.ok;
-            } catch (e) {
-                return false;
-            }
-        },
     },
 
     watch: {
