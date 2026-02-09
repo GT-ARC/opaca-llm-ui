@@ -2,7 +2,7 @@
 
 Following is an overview of all environment variables that can be set in the [docker-compose.yml](../docker-compose.yml). **Required** variables will be marked with a star (*).
 
-#### Frontend
+## Frontend
 
 Frontend env-vars correspond to settings in `config.js`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system).
 
@@ -15,7 +15,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VITE_COLOR_SCHEME`: The starting color scheme, can be "light", "dark", or "system"; can be overwritten by `colorscheme` query param.
 * `VITE_DEFAULT_LANGUAGE`: The language to use by default in the UI. Possible options: "GB" (english), "DE" (german).
 
-#### Backend
+## Backend
 
 * `LLM_HOSTS`: Semicolon-separated list of LLM server hosts/providers, e.g. `openai`, `gemini`, `anthropic`, `mistral`, `<custom-base-url>`, etc.
 * `LLM_API_KEYS`: Semicolon-separated list of API-keys for each of the above hosts; default is `""` (for common providers, the API Key is taken from the default api key field, e.g., for `openai` from `OPENAI_API_KEY`, for `gemini` from `GEMINI_API_KEY`, etc. but can be overwritten here if a non-default key is explicitly provided).
@@ -24,11 +24,11 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
 * `SESSION_ADMIN_PWD`: password needed to call any of the `/admin/...` routes.
 
-#### Session-DB
+## Session-DB
 
 * `MONGO_INITDB_ROOT_USERNAME`: Username for the MongoDB root user.
 * `MONGO_INITDB_ROOT_PASSWORD`: Password for the MongoDB root user.
 
-#### OPACA-Platform
+## OPACA-Platform
 
 An extended documentation of the environment variables of the OPACA platform can be found [here](https://github.com/GT-ARC/opaca-core?tab=readme-ov-file#environment-variables-runtime-platform). Please note that due to simplicity, not all available environment variables are used in the [docker-compose.yml](../docker-compose.yml)

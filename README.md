@@ -36,6 +36,8 @@ docker compose --profile platform up --build
 
 ### Native
 
+#### Backend
+
 ```bash
 # Change into the backend directory
 cd Backend
@@ -45,9 +47,13 @@ pip install -r requirements.txt
 
 # Start the server
 python -m src.server
+```
 
+#### Frontend
+
+```bash
 # Change into the frontend directory
-cd ../Frontend
+cd Frontend
 
 # Install dependencies
 npm install
@@ -133,7 +139,7 @@ Files are uploaded to the selected models in the [Method Configuration](docs/met
 The OPACA platform that SAGE is connected to can be protected using authentication. To enable authentication on the OPACA platform, set the following environment variables in your `.env` file or directly in the [docker-compose.yml](docker-compose.yml) file under the `opaca-platform` service:
 
 ```bash
-REQUIRE_AUTHENTICATION=true
+REQUIRE_AUTH=true
 SECRET=<YOUR_SECRET_KEY>
 PLATFORM_ADMIN_USER=<YOUR_ADMIN_USER>
 PLATFORM_ADMIN_PWD=<YOUR_ADMIN_PASSWORD>

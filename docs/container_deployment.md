@@ -53,7 +53,7 @@ If you need to provide environment variables to your container, you must define 
 
 ### Developing Agent Containers
 
-For more information about how to develop containers, check out our [opaca Python SDK](https://github.com/gt-arc/opaca-python-sdk).
+For more information about how to develop containers, check out our [OPACA Python SDK](https://github.com/gt-arc/opaca-python-sdk).
 
 ## SAGE-UI
 
