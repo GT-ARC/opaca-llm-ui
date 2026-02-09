@@ -115,7 +115,7 @@ export default {
                 Localizer.get('addMcp'), null, null,
                 {
                     mcpServerUrl: {type: "text", label: "Server URL"},
-                    mcpServerLabel: {type: "text", label: "Server Label (Optional)"},
+                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
                     mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {
                         never: "Require Approval - never",
                         always: "Require Approval - always (not implemented yet)"
