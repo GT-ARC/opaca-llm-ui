@@ -3,7 +3,7 @@
         <div class="p-4 input-container rounded shadow">
             <form @submit.prevent="handleSubmit">
                 <h5 class="mb-3">{{ title }}</h5>
-                <div class="mb-3 input-message" v-html="message" />
+                <div class="mb-3" v-html="message" />
 
                 <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
@@ -170,7 +170,10 @@ export default {
     width: 100%;
     margin: auto;
     background-color: var(--surface-color);
-    color: var(--text-primary-color)
+    color: var(--text-primary-color);
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 .input-dialog {
@@ -184,12 +187,6 @@ export default {
     align-items: center;
     justify-content: center;
     z-index: 9999; /* Should appear above all other items */
-}
-
-.input-message {
-    max-height: 500px;
-    overflow-y: auto;
-    overflow-x: auto;
 }
 
 </style>
