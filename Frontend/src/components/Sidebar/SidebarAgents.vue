@@ -139,7 +139,7 @@ export default {
             const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
             await this.$refs.input.showDialogue(
                 "Invoke Action",
-                `${agent}--${action}`,
+                `**Agent:** ${agent}\n\n**Action:** ${action}`,
                 null,
                 Object.fromEntries(
                     Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea"}])
@@ -151,7 +151,7 @@ export default {
                     );
                     // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
                     var res = await backendClient.invokeAction(agent, action, parameters);
-                    await this.$refs.input.showInfo("Result", JSON.stringify(res));
+                    await this.$refs.input.showInfo("Result", "```\n" + JSON.stringify(res, null, 2) + "\n```");
                 }
             );
         },

@@ -1,9 +1,9 @@
 <template>
-    <div v-if="show" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
+    <div v-if="show" class="input-dialog">
+        <div class="p-4 input-container rounded shadow">
             <form @submit.prevent="handleSubmit">
                 <h5 class="mb-3">{{ title }}</h5>
-                <div class="mb-3" v-html="message" />
+                <div class="mb-3 input-message" v-html="message" />
 
                 <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
@@ -165,8 +165,7 @@ export default {
 
 <style scoped>
 
-/* login stuff */
-.login-container {
+.input-container {
     max-width: 400px;
     width: 100%;
     margin: auto;
@@ -174,7 +173,7 @@ export default {
     color: var(--text-primary-color)
 }
 
-.auth-overlay {
+.input-dialog {
     position: fixed;
     top: 0;
     left: 0;
@@ -185,6 +184,12 @@ export default {
     align-items: center;
     justify-content: center;
     z-index: 9999; /* Should appear above all other items */
+}
+
+.input-message {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 </style>
