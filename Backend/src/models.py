@@ -51,7 +51,15 @@ class ConnectRequest(BaseModel):
 
 
 class RestrictedActions(BaseModel):
-    forbidden: List[str]
+    """
+    Used as payload/result for /admin/restrict routes. Both lists contain string-fragments.
+    Rules apply to tools where action or agent name matches (ignoring case) any of those strings.
+
+    Attributes:
+        hidden: actions are filtered out in the backend and not shown to the user or LLM at all
+        need_confirmation: actions will require confirmation by the user each time they are called
+    """
+    hidden: List[str]
     need_confirmation: List[str]
 
 

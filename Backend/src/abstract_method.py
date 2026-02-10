@@ -24,7 +24,8 @@ from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
 
-actions_needing_confirmation = []
+# list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool
+actions_needing_confirmation: List[str] = []
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +265,9 @@ class AbstractMethod(ABC):
 
 
     async def check_confirmation(self, tool_name: str, parameters: dict) -> bool:
+        """Use websocket to ask user for confirmation before executing the action if it matches any of the "needing confirmation" actions.
+        Returns whether the action may be executed or not.
+        """
         if any(x.lower() in tool_name.lower() for x in actions_needing_confirmation):
             if not self.session.has_websocket(): return False
             # ask user for confirmation, sharing lock-mechanism with container-login

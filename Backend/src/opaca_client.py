@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # list of string fragments that must NOT appear in the action names, else they will be filtered out
-actions_blacklist = []
+actions_blacklist: List[str] = []
 
 
 class OpacaClient:
