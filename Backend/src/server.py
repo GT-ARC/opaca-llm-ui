@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, InvokeRequest, \
+from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, InvokeRequest, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
@@ -28,6 +28,7 @@ from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 from .opaca_client import actions_blacklist
+from .abstract_method import actions_needing_confirmation
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -134,14 +135,15 @@ async def session_admin_update(session_id: str, action: SessionAction, auth = De
     return await update_session(session_id, action)
 
 
-@app.get("/admin/blacklist", description="Get list of 'forbidden' terms in action and agent names.", tags=["admin"])
-async def get_blacklist():
-    return actions_blacklist
+@app.get("/admin/restrict", description="Get list of 'restricted' terms in action and agent names.", tags=["admin"])
+async def get_blacklist() -> RestrictedActions:
+    return RestrictedActions(forbidden=actions_blacklist, need_confirmation=actions_needing_confirmation)
 
 
-@app.put("/admin/blacklist", description="Update list of 'forbidden' terms in action and agent names, blocking those actions from being executed.", tags=["admin"])
-async def set_blacklist(new_blacklist: List[str], auth = Depends(require_password)):
-    actions_blacklist[:] = new_blacklist
+@app.put("/admin/restrict", description="Update list of 'restricted' terms in action and agent names, blocking those actions from being executed.", tags=["admin"])
+async def set_blacklist(restrictions: RestrictedActions, auth = Depends(require_password)):
+    actions_blacklist[:] = restrictions.forbidden
+    actions_needing_confirmation[:] = restrictions.need_confirmation
 
 
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).", tags=["opaca"])

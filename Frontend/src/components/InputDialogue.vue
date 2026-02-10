@@ -3,7 +3,7 @@
         <div class="p-4 login-container rounded shadow">
             <form @submit.prevent="handleSubmit">
                 <h5 class="mb-3">{{ title }}</h5>
-                <div class="mb-3">{{ message }}</div>
+                <div class="mb-3" v-html="message" />
 
                 <div v-for="(val, key, idx) in schema" :key="key">
                     <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
@@ -38,15 +38,15 @@
 
                 <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
                     <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
-                        {{ Localizer.get('dialogCancel') }}
+                        {{ Localizer.get('general_cancel') }}
                     </button>
                     <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        {{ Localizer.get('dialogOkay') }}
+                        {{ Localizer.get('general_okay') }}
                     </button>
                     
                 </div>
                 <button v-else type="button" class="btn btn-primary w-100 mt-2" @click="show = false">
-                    {{ Localizer.get('dialogOkay') }}
+                    {{ Localizer.get('general_okay') }}
                 </button>
             </form>
         </div>
@@ -57,6 +57,7 @@
 import {nextTick} from "vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js"
+import {marked} from "marked";
 
 export default {
     name: 'InputDialogue',
@@ -97,15 +98,15 @@ export default {
          * - values: dict (value -> label) for options, only for type 'select'
          * 
          * @param title the title (bold)
-         * @param message message below the title, optional
-         * @param errorMsg error message (e.g. if previous attempt failed), optional
+         * @param message message below the title, optional; can contain Markdown
+         * @param errorMsg error message (e.g. if previous attempt failed), optional)
          * @param schema defines the different values that should be entered in the dialogue (see above)
-         * @param onOkay callback function, should accept dict of values
-         * @param onCancel callback function, should accept no parameters (optional)
+         * @param onOkay async callback function, should accept dict of values; can raise error
+         * @param onCancel async callback function, should accept no parameters (optional); can raise error
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
             this.title = title;
-            this.message = message;
+            this.message = marked.parse(message ?? "");
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.onOkay = onOkay;
@@ -132,13 +133,19 @@ export default {
         },
 
         async handleSubmit(okay) {
-            this.show = false;
             await nextTick();
-            // callback is called last, so that it can show another dialogue
-            if (okay) {
-                this.onOkay(this.values);
-            } else if (this.onCancel !== null) {
-                this.onCancel();
+            // hide dialogue, to allow for opening another dialogue in the callback...
+            this.show = false;
+            try {
+                if (okay) {
+                    await this.onOkay(this.values);
+                } else if (this.onCancel !== null) {
+                    await this.onCancel();
+                }
+            } catch (e) {
+                // ... or re-open directly in case of error
+                this.errorMsg = e.message;
+                this.show = true;
             }
         },
 
