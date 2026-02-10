@@ -137,12 +137,12 @@ async def session_admin_update(session_id: str, action: SessionAction, auth = De
 
 @app.get("/admin/restrict", description="Get list of 'restricted' terms in action and agent names.", tags=["admin"])
 async def get_blacklist() -> RestrictedActions:
-    return RestrictedActions(hidden=actions_blacklist, need_confirmation=actions_needing_confirmation)
+    return RestrictedActions(forbidden=actions_blacklist, need_confirmation=actions_needing_confirmation)
 
 
 @app.put("/admin/restrict", description="Update list of 'restricted' terms in action and agent names, blocking those actions from being executed.", tags=["admin"])
 async def set_blacklist(restrictions: RestrictedActions, auth = Depends(require_password)):
-    actions_blacklist[:] = restrictions.hidden
+    actions_blacklist[:] = restrictions.forbidden
     actions_needing_confirmation[:] = restrictions.need_confirmation
 
 

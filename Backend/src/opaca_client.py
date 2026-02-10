@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 
-# list of string fragments that must NOT appear in the action names, else they will be filtered out
+# list of string fragments that must NOT appear in the action names, else they will be forbidden
 actions_blacklist: List[str] = []
 
 

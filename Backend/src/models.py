@@ -56,10 +56,10 @@ class RestrictedActions(BaseModel):
     Rules apply to tools where action or agent name matches (ignoring case) any of those strings.
 
     Attributes:
-        hidden: actions are filtered out in the backend and not shown to the user or LLM at all
+        forbidden: actions are forbidden and will result in an error if the LLM tries to call them
         need_confirmation: actions will require confirmation by the user each time they are called
     """
-    hidden: List[str]
+    forbidden: List[str]
     need_confirmation: List[str]
 
 
