@@ -225,7 +225,7 @@ class AbstractMethod(ABC):
         else:
             agent_name, action_name = None, tool_name
 
-        if not await self.check_confirmation(tool_name, tool_args):
+        if not (login_attempt_retry or await self.check_confirmation(tool_name, tool_args)):
             return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result="Execution declined by user, do not attempt again.")
 
         try:
@@ -266,8 +266,10 @@ class AbstractMethod(ABC):
     async def check_confirmation(self, tool_name: str, parameters: dict) -> bool:
         if any(x.lower() in tool_name.lower() for x in actions_needing_confirmation):
             if not self.session.has_websocket(): return False
-            await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
-            return ConfirmActionResponse(**await self.session.websocket_receive()).allowed
+            # ask user for confirmation, sharing lock-mechanism with container-login
+            async with self.session.opaca_client.login_lock:
+                await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
+                return ConfirmActionResponse(**await self.session.websocket_receive()).allowed
         return True
 
 
