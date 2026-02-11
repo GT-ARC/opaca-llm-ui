@@ -24,6 +24,8 @@
 
             <!-- Collapse/Extend Button -->
             <i @click="toggleSidebarLevel()"
+               @mouseenter="sidebarToggleHovered = true"
+               @mouseleave="sidebarToggleHovered = false"
                class="fa sidebar-menu-item"
                :class="getSidebarToggleIcon()"
                :title="getSidebarToggleTooltip()" />
@@ -220,6 +222,7 @@ export default {
     data() {
         return {
             sidebarLevel: 0,
+            sidebarToggleHovered: false,
         };
     },
     methods: {
@@ -240,7 +243,8 @@ export default {
 
         getSidebarToggleIcon() {
             if (this.sidebarLevel === 0) return 'fa-angle-down';
-            return 'fa-angle-up';
+            if (this.sidebarToggleHovered) return 'fa-angle-up';
+            return 'fa-minus';
         },
 
         getSidebarToggleTooltip() {
