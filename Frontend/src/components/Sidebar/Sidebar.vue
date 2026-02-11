@@ -10,32 +10,31 @@
                :title="Localizer.get('tooltipSidebarInfo')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
-            <!-- Stage Toggle Button -->
+            <!-- Always Visible: Chats -->
+            <i @click="SidebarManager.toggleView('chats')"
+               class="fa fa-message sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarChats')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
+
+            <!-- Always Visible: Prompts -->
+            <i @click="SidebarManager.toggleView('questions')"
+               class="fa fa-book sidebar-menu-item"
+               :title="Localizer.get('tooltipSidebarPrompts')"
+               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
+
+            <!-- Collapse/Extend Button -->
             <i @click="toggleSidebarLevel()"
                class="fa sidebar-menu-item"
                :class="getSidebarToggleIcon()"
                :title="getSidebarToggleTooltip()" />
 
-            <!-- Level 1: Standard Tools -->
+            <!-- Expanded-only tools -->
             <div v-if="sidebarLevel >= 1" class="d-flex flex-column gap-2">
-                <i @click="SidebarManager.toggleView('chats')"
-                   class="fa fa-message sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarChats')"
-                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
-
                 <i @click="SidebarManager.toggleView('files')"
                    class="fa fa-file sidebar-menu-item"
                    :title="Localizer.get('tooltipSidebarFiles')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
 
-                <i @click="SidebarManager.toggleView('questions')"
-                   class="fa fa-book sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarPrompts')"
-                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
-            </div>
-
-            <!-- Level 2: Advanced Tools & System -->
-            <div v-if="sidebarLevel >= 2" class="d-flex flex-column gap-2">
                 <i @click="SidebarManager.toggleView('agents')"
                    class="fa fa-users sidebar-menu-item"
                    :title="Localizer.get('tooltipSidebarAgents')"
@@ -224,9 +223,12 @@ export default {
         };
     },
     methods: {
+        normalizeSidebarLevel(level) {
+            return Number(level) >= 1 ? 1 : 0;
+        },
 
         toggleSidebarLevel() {
-            this.sidebarLevel = (this.sidebarLevel + 1) % 3;
+            this.sidebarLevel = this.sidebarLevel === 0 ? 1 : 0;
             backendClient.setSidebarLevel(this.sidebarLevel);
 
             // Close view if it is now hidden
@@ -238,13 +240,11 @@ export default {
 
         getSidebarToggleIcon() {
             if (this.sidebarLevel === 0) return 'fa-angle-down';
-            if (this.sidebarLevel === 1) return 'fa-angles-down';
-            return 'fa-angles-up';
+            return 'fa-angle-up';
         },
 
         getSidebarToggleTooltip() {
-            if (this.sidebarLevel === 0) return Localizer.get('tooltipSidebarShowStandard');
-            if (this.sidebarLevel === 1) return Localizer.get('tooltipSidebarShowAdvanced');
+            if (this.sidebarLevel === 0) return Localizer.get('tooltipSidebarShowAdvanced');
             return Localizer.get('tooltipSidebarCollapse');
         },
 
@@ -279,7 +279,12 @@ export default {
     async mounted() {
         this.setupResizer();
 
-        this.sidebarLevel = await backendClient.getSidebarLevel();
+        const level = await backendClient.getSidebarLevel();
+        const normalizedLevel = this.normalizeSidebarLevel(level);
+        this.sidebarLevel = normalizedLevel;
+        if (normalizedLevel !== level) {
+            backendClient.setSidebarLevel(normalizedLevel);
+        }
     },
 }
 </script>

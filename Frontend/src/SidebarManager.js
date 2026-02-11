@@ -20,14 +20,12 @@ class SidebarManager {
     ]
 
     static minLevelByView = {
-        chats: 1,
         files: 1,
-        questions: 1,
-        agents: 2,
-        extensions: 2,
-        mcp: 2,
-        config: 2,
-        debug: 2,
+        agents: 1,
+        extensions: 1,
+        mcp: 1,
+        config: 1,
+        debug: 1,
     };
 
     /**
@@ -46,7 +44,7 @@ class SidebarManager {
     }
 
     /** select view, keep as-is if already open */
-    selectView(key, level= 2) {
+    selectView(key, level= 1) {
         if (this.isValidView(key)) {
             if (this.isViewAllowedAtLevel(key, level)){
                 this._selectedView.value = key;
