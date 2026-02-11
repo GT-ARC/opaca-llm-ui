@@ -17,7 +17,7 @@
                 <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
                     <a href="https://github.com/GT-ARC/opaca-llm-ui" target="blank">
                         <img v-bind:src="isMobile ? 'src/assets/sage-logo-small.png' : 'src/assets/sage-logo.png'"
-                             class="logo" alt="Opaca Logo"
+                             class="logo" alt="SAGE Logo"
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
@@ -49,7 +49,7 @@
                                data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
-                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('general_connected') : Localizer.get('general_disconnected') }}</span>
                             </a>
                             <div id="connection-menu"
                                  class="dropdown-menu dropdown-menu-end p-4"
@@ -69,7 +69,7 @@
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
                                     <span v-else>
-                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
+                                        {{ connected ? Localizer.get('general_disconnect') : Localizer.get('general_connect') }}
                                     </span>
                                 </button>
                             </div>
@@ -133,6 +133,7 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
             @new-notification="response => createNotification(response)"
             ref="content"
@@ -194,8 +195,8 @@ export default {
                         Localizer.get('unauthenticated'),
                         username !== "" ? Localizer.get('authError') : null,
                         {
-                            username: { type: "text", label: Localizer.get("username") },
-                            password: { type: "password", label: Localizer.get("password") },
+                            username: { type: "text", label: Localizer.get("general_username") },
+                            password: { type: "password", label: Localizer.get("general_password") },
                         },
                         (values) => this.connectToPlatform(values.username, values.password)
                     );
@@ -293,14 +294,29 @@ export default {
             await this.$refs.input.showInfo(null, message);
         },
 
+        async handleConfirmAction(confirmActionDetails) {
+            let message = `**Tool:** ${confirmActionDetails.tool}\n`;
+            Object.entries(confirmActionDetails.params).forEach( ([key, val]) => {
+                message += `* **${key}:** \`${JSON.stringify(val)}\`\n`;
+            });
+            await this.$refs.input.showDialogue(
+                "Confirm Action",
+                message,
+                null,
+                {},
+                (_) => this.$refs.content.submitConfirmAction(true),
+                () => this.$refs.content.submitConfirmAction(false)
+            );
+        },
+
         async handleContainerLogin(containerLoginDetails) {
             await this.$refs.input.showDialogue(
                 "Container Login",
                 `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
                 containerLoginDetails.retry ? Localizer.get('authError') : null,
                 {
-                    username: { type: "text", label: Localizer.get("username") },
-                    password: { type: "password", label: Localizer.get("password") },
+                    username: { type: "text", label: Localizer.get("general_username") },
+                    password: { type: "password", label: Localizer.get("general_password") },
                     timeout: { type: "select", default: 300, values: {
                         "0": "Logout immediately",
                         "300": "Logout after 5 minutes",

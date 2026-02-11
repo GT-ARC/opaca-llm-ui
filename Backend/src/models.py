@@ -50,6 +50,19 @@ class ConnectRequest(BaseModel):
     pwd: str | None
 
 
+class RestrictedActions(BaseModel):
+    """
+    Used as payload/result for /admin/restrict routes. Both lists contain string-fragments.
+    Rules apply to tools where action or agent name matches (ignoring case) any of those strings.
+
+    Attributes:
+        forbidden: actions are forbidden and will result in an error if the LLM tries to call them
+        need_confirmation: actions will require confirmation by the user each time they are called
+    """
+    forbidden: List[str]
+    need_confirmation: List[str]
+
+
 class QueryRequest(BaseModel):
     """
     Used as the expected body argument in the `/query/{method}` endpoints
@@ -497,6 +510,15 @@ class PushMessage(QueryResponse):
     """
     model_config = {"extra": "ignore"}
     task_id: int
+
+
+class ConfirmActionNotification(BaseModel):
+    tool: str
+    params: dict
+
+
+class ConfirmActionResponse(BaseModel):
+    allowed: bool
 
 
 class ContainerLoginNotification(BaseModel):

@@ -31,7 +31,7 @@
 
             <i @click="SidebarManager.toggleView('extensions')"
                class="fa fa-puzzle-piece sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarExtensions')"
+               :title="Localizer.get('sidebar_extensions')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
 
             <i @click="SidebarManager.toggleView('mcp')"

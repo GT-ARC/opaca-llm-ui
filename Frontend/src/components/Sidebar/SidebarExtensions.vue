@@ -1,15 +1,15 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarExtensions') }}
+        {{ Localizer.get('sidebar_extensions') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarExtensionsLoading') }}
+        {{ Localizer.get('sidebar_extensions_loading') }}
     </div>
     <div v-else-if="!this.extraPorts || Object.keys(this.extraPorts).length === 0">
-        {{ Localizer.get('sidebarExtensionsMissing') }}
+        {{ Localizer.get('sidebar_extensions_missing') }}
     </div>
     <div v-else class="flex-row" >
 
@@ -48,25 +48,31 @@
                                     :aria-controls="'extension-body-' + containerIndex + '-' + extensionIndex">
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
-                                    @click.stop="this.maximized = getFullUrl(extension.port, container.token)"
-                                    :title="Localizer.get('tooltipExpandExtension')"
-                                />
-                                <i class="fa fa-refresh extension-expand-button"
-                                    @click.stop="updatePlatformInfo(this.extraPorts != null)"
-                                    title="Refresh"
+                                    @click.stop="this.maximized = extension.fullUrl"
+                                    :title="Localizer.get('sidebar_extensions_expand')"
                                 />
                             </button>
 
                             <!-- extension body -->
                             <div :id="'extension-body-' + containerIndex + '-' + extensionIndex" class="accordion-collapse collapse extension-body"
                                  :aria-labelledby="'extension-header-' + containerIndex + '-' + extensionIndex" :data-bs-parent="'#extensions-accordion-' + containerIndex">
-                                <iframe :src="getFullUrl(extension.port, container.token)" />
+                                <iframe :src="extension.fullUrl" />
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="d-grid gap-2">
+        <button type="button"
+                class="btn btn-secondary py-2 w-100"
+                @click.stop="updatePlatformInfo()"
+                :disabled="this.isLoading" >
+            <i class="fa fa-refresh" />
+            {{ Localizer.get('sidebar_extensions_refresh') }}
+        </button>
     </div>
 </div>
 
@@ -104,10 +110,6 @@ export default {
                 : null;
             this.isLoading = false;
         },
-
-        getFullUrl(extensionPort, token) {
-            return token ? `${extensionPort}?token=${token}` : extensionPort;
-        }
     },
 
     watch: {

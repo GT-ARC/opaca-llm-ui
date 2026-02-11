@@ -3,11 +3,16 @@ import functools
 import logging
 import asyncio
 
+import requests
 import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+
+# list of string fragments that must NOT appear in the action names, else they will be forbidden
+actions_blacklist: List[str] = []
 
 
 class OpacaClient:
@@ -59,22 +64,29 @@ class OpacaClient:
             async with httpx.AsyncClient() as client:
                 res = await client.get(f"{self.url}/containers", headers=self._headers())
             res.raise_for_status()
-            return [
-                {
-                    "container": container["image"]["imageName"],
-                    "token": self.logged_in_containers.get(container["containerId"]),
-                    "extraPorts": [
-                        {
-                            "port": f'{container["connectivity"]["publicUrl"]}:{k}',
-                            "description": v["description"],
-                        }
-                        for k, v in container["connectivity"]["extraPortMappings"].items()
-                        if v["protocol"] == "TCP"
-                    ]
-                }
-                for container in res.json()
-                if any(v["protocol"] == "TCP" for v in container["connectivity"]["extraPortMappings"].values())
-            ]
+            # build dict of all accessible extra codes
+            tmp = {}
+            for container in res.json():
+                cid = container["containerId"]
+                token = self.logged_in_containers.get(cid)
+                for k, v in container["connectivity"]["extraPortMappings"].items():
+                    if v["protocol"] == "TCP":
+                        url = f'{container["connectivity"]["publicUrl"]}:{k}'
+                        if token: url += f"?token={token}"
+                        try:
+                            requests.get(url).raise_for_status()
+                            if cid not in tmp:
+                                tmp[cid] = {
+                                    "container": container["image"]["imageName"],
+                                    "extraPorts": []
+                                }
+                            tmp[cid]["extraPorts"].append(
+                                {"fullUrl": url, "description": v["description"]}
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not load extension {url}: {e}")
+            return list(tmp.values())
+
         except Exception as e:
             logger.error(f"Could not get Extra-Ports: {e}")
             raise e
@@ -119,6 +131,8 @@ class OpacaClient:
 
     async def invoke_opaca_action(self, action: str, agent: Optional[str], params: dict) -> dict:
         """Invoke the given OPACA agent at the given agent (or any agent) with given parameters."""
+        if any(x in agent.lower() or x in action.lower() for x in map(str.lower, actions_blacklist)):
+            raise Exception("Executing this action is currently not permitted.")
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
