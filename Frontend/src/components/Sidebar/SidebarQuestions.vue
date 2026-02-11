@@ -1,87 +1,54 @@
 <!-- SidebarQuestions Component -->
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+    <InputDialogue ref="editDialog" />
+
     <div v-if="!isMobile" class="sidebar-title">
         {{ Localizer.get('tooltipSidebarPrompts') }}
-    </div>
-
-    <!-- Personal prompts -->
-    <div id="sidebar-personal-questions" class="accordion">
-        <div class="accordion-item">
-
-        <!-- header -->
-        <div class="accordion-header text-center">
-            <button class="accordion-button collapsed text-center" type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#personal-questions"
-                  aria-expanded="false"
-                  aria-controls="personal-questions">
-            <span class="section-icon">{{ icon }}</span>
-            <span class="section-title">{{ Localizer.get('bookmarkHeader') }}</span>
-            </button>
-        </div>
-
-        <InputDialogue ref="input" />
-
-        <!-- body -->
-        <div id="personal-questions"
-             class="accordion-collapse collapse"
-             data-bs-parent="#sidebar-personal-questions">
-            <div class="accordion-body">
-                <!-- Create new Button -->
-                <div class="question-item add-prompt-button d-flex align-items-center justify-content-center mb-2"
-                     @click.stop="openEditor()">
-                    <i class="fa fa-plus me-2"></i>
-                    <span>{{ Localizer.get('addPersonalQuestion')}}</span>
-                </div>
-                <!-- Questions -->
-                <div v-if="personalPrompts">
-                    <div class="question-item d-flex justify-content-between align-items-center"
-                       v-for="(q, qIndex) in personalPrompts"
-                       :key="qIndex"
-                       @click="this.$emit('select-question', q.question, true)">
-                        <span class="question-text">
-                            <i>{{ q.question }}</i>
-                        </span>
-                        <i class="fa fa-edit question-menu-button"
-                           @click.stop="openEditor(q, qIndex)"
-                           :title="Localizer.get('editQuestion')"
-                        />
-                        <i class="fa fa-remove question-menu-button"
-                           @click.stop="removePersonalPrompt(qIndex)"
-                           :title="Localizer.get('tooltipDeleteQuestion')"
-                        />
-                    </div>
-                </div>
-                <div v-else class="personal-questions-empty">
-                    {{ Localizer.get("personalQuestionsEmpty") }}
-                </div>
-            </div>
-        </div>
-        </div>
+        <i class="fa fa-edit ms-auto click-icon"
+           :class="{'click-icon-active': isEditModeActive}"
+           @click="isEditModeActive = !isEditModeActive"
+           :title="Localizer.get('sidebar_questions_toggleEditMode')" />
     </div>
 
     <div id="sidebar-questions" class="accordion">
-        <div v-for="(section, index) in this.getQuestions()"
+        <div v-for="(section, index) in Localizer.getPrompts()"
+             v-show="section.visible"
              :key="index"
              class="accordion-item">
 
             <!-- header -->
-            <div class="accordion-header text-center">
+            <div class="accordion-header text-center d-flex align-items-center" style="background-color: var(--background-color)">
                 <button class="accordion-button collapsed text-center" type="button"
-                        data-bs-toggle="collapse"
-                        :data-bs-target="'#questions-' + index"
-                        aria-expanded="false" :aria-controls="'questions-' + index">
+                        @click="this.toggleSection(index)"
+                        aria-expanded="false" :aria-controls="'questions-' + index" >
                     <span class="section-icon">{{ section.icon }}</span>
                     <span class="section-title">{{ section.header }}</span>
+                    <span class="float-end">
+                        <i v-if="isEditModeActive"
+                           class="fa fa-edit click-icon"
+                           :class="{'disabled': !this.isEditingAllowed}"
+                           @click.stop.prevent="this.editCategory(section)"
+                           :title="Localizer.get('sidebar_questions_editCategory')"
+                        />
+                        <i v-if="isEditModeActive"
+                           class="fa fa-remove click-icon"
+                           :class="{'disabled': !this.isEditingAllowed}"
+                           @click.stop.prevent="this.deleteCategory(section, index)"
+                           :title="Localizer.get('sidebar_questions_deleteCategory')"
+                        />
+                    </span>
                 </button>
             </div>
 
             <!-- body -->
             <div :id="'questions-' + index"
                  class="accordion-collapse collapse"
-                 data-bs-parent="#sidebar-questions">
+                 data-bs-parent="#sidebar-questions"
+                 v-on:[bsCollapseEvent]="this.$emit('select-category', section.header)">
                 <div class="accordion-body">
+
+                    <!-- category questions -->
                     <div v-for="(q, qIndex) in section.questions"
                          :key="qIndex"
                          class="question-item"
@@ -90,27 +57,70 @@
                             <i v-if="section.id === 'autogenerated-questions' && isRegenerating"
                                :class="['fa', 'fa-ellipsis', 'fa-beat-fade', 'text-center', 'w-100']"
                             />
-                            <i v-else>{{ q.question }}</i>
+                            <span v-else class="mb-auto">{{ q?.question }}</span>
                         </span>
+                        <i v-if="isEditModeActive && section.id !== 'autogenerated-questions'"
+                           class="fa fa-edit click-icon"
+                           :class="{'disabled': !this.isEditingAllowed}"
+                           @click.stop="this.editPrompt(section, q)"
+                           :title="Localizer.get('sidebar_questions_editPrompt')"
+                        />
+                        <i v-if="isEditModeActive && section.id !== 'autogenerated-questions'"
+                           class="fa fa-remove click-icon"
+                           :class="{'disabled': !this.isEditingAllowed}"
+                           @click.stop="this.deletePrompt(section, q, qIndex)"
+                           :title="Localizer.get('sidebar_questions_deletePrompt')"
+                        />
                     </div>
+
+                    <!-- add new prompt button -->
+                    <div v-if="isEditModeActive && section.id !== 'autogenerated-questions'"
+                         class="question-item justify-content-center"
+                         :class="{'disabled': !this.isEditingAllowed}"
+                         :aria-disabled="!isEditingAllowed"
+                         @click.stop="this.addNewPrompt(section)">
+                        <i class="fa fa-plus me-1" />
+                        <span>{{ Localizer.get('sidebar_questions_addPrompt') }}</span>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Regenerate autogenerated questions button -->
-    <div class="regenerate-container">
-        <button class="btn btn-primary w-100" type="button"
-                :disabled="isRegenerating"
+    <div>
+        <!-- autogen questions button -->
+        <button class="btn btn-primary w-100 mt-3" type="button"
+                :disabled="isRegenerating || !isEditingAllowed"
+                v-if="!isEditModeActive"
                 @click="autogenerateSampleQuestions()">
-            <i :class="['fa', 'fa-sync', isRegenerating ? 'fa-spin' : '']"></i>{{ Localizer.get('regenerate')}}
+            <i :class="['fa', 'fa-sync', isRegenerating ? 'fa-spin' : '']" />
+            {{ Localizer.get('regenerate')}}
+        </button>
+
+        <!-- add new category button -->
+        <button class="btn btn-primary w-100 mt-3" type="button"
+                :disabled="!isEditingAllowed"
+                v-if="isEditModeActive"
+                @click="this.addNewCategory()">
+            <i class="fa fa-plus" />
+            <span>{{ Localizer.get('sidebar_questions_addCategory') }}</span>
+        </button>
+
+        <!-- reset to defaults button -->
+        <button class="btn btn-danger w-100 mt-3" type="button"
+                :disabled="!isEditingAllowed"
+                v-if="isEditModeActive"
+                @click="this.resetPrompts()">
+            <i class="fa fa-undo" />
+            <span>{{ Localizer.get('sidebar_questions_reset')}}</span>
         </button>
     </div>
 </div>
 </template>
 
 <script>
-import Localizer, {sidebarQuestions} from "../../Localizer.js";
+import Localizer from "../../Localizer.js";
 import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
@@ -126,136 +136,93 @@ export default {
     ],
     data() {
         return {
+            isEditModeActive: false,
+            isEditingAllowed: true, // not allowed while save/load calls are in progress
             isRegenerating: false,
-            icon: "🔖",
-            personalPrompts: [],
         }
     },
     setup() {
         const {isMobile} = useDevice();
-        return { conf, Localizer, isMobile };
+        const bsCollapseEvent = 'show.bs.collapse';
+        return { conf, Localizer, isMobile, bsCollapseEvent };
     },
     methods: {
-        getQuestions() {
-            return sidebarQuestions[Localizer.language];
-        },
-
         async autogenerateSampleQuestions(numQuestions = 5) {
+            this.isRegenerating = true;
+            const newQuestions = {
+                id: "autogenerated-questions",
+                header: Localizer.get('autogenQuestionsTitle'),
+                icon: "🪄",
+                visible: true,
+                questions: (new Array(numQuestions)).map(() => ({
+                    question: "__loading__",
+                    icon: "",
+                }))
+            };
+
+            // Push new section or replace old questions with placeholders
+            let prevIdx = Localizer.getPrompts().findIndex(obj => obj.id === 'autogenerated-questions')
+            let prevQuestions = null
+            if (prevIdx === -1) {
+                Localizer.getPrompts().push(newQuestions);
+                prevIdx = Localizer.getPrompts().length - 1;
+            } else {
+                newQuestions.header = Localizer.getPrompts()[prevIdx].header;
+                newQuestions.icon = Localizer.getPrompts()[prevIdx].icon;
+                prevQuestions = Localizer.getPrompts()[prevIdx].questions;
+                Localizer.getPrompts()[prevIdx] = newQuestions;
+            }
+
+            // Wait for initial push of questions and then show autogenerated questions
+            await nextTick();
+            this.expandSectionById('autogenerated-questions');
+            Localizer.reloadSampleQuestions("Autogenerated Questions");
+
+            // Construct LLM request
+            let user_query = "Based on your available tools, I want you to " +
+                        `generate me exactly ${numQuestions} requests or questions a user could give you. These ${numQuestions} requests or ` +
+                        "questions should directly reference one or more of your available tools. I want you to " +
+                        "provide me your answer as a JSON file and NOTHING ELSE. Your response should look like this:" +
+                        "" +
+                        "{" +
+                        "   '1': {'question': 'Example request...', 'icon': '🪄'}," +
+                        "   '2': {'question': 'Example request...', 'icon': '🤖'}," +
+                        "   '3': ..." +
+                        "}";
+
+            if (Localizer.language === 'DE') {
+                user_query += "\n\nGenerate all questions in German!";
+            }
+
+            // Make sure to not generate any of the previous questions
+            if (prevQuestions) {
+                user_query += "\n\nPlease DO NOT generate the following questions:\n" +
+                        JSON.stringify(prevQuestions);
+            }
+
             try {
-                this.isRegenerating = true;
-
-                const newQuestions = {
-                    "id": "autogenerated-questions",
-                    "header": "Autogenerated Questions",
-                    "icon": "🪄",
-                    "questions": Array.from({ length: numQuestions }).map(() => ({
-                        question: "__loading__",
-                        icon: "",
-                    }))
-                }
-
-                // Push new section or replace old questions with placeholders
-                let prevIdx = sidebarQuestions[Localizer.language].findIndex((obj) => obj.id === 'autogenerated-questions')
-                let prevQuestions = null
-                if (prevIdx === -1) {
-                    sidebarQuestions[Localizer.language].push(newQuestions);
-                    prevIdx = sidebarQuestions[Localizer.language].length - 1;
-                } else {
-                    prevQuestions = sidebarQuestions[Localizer.language][prevIdx].questions;
-                    sidebarQuestions[Localizer.language][prevIdx] = newQuestions;
-                }
-
-                // Wait for initial push of questions and then show autogenerated questions
-                await nextTick(() => this.expandSectionByHeader("Autogenerated Questions"))
-                Localizer.reloadSampleQuestions("Autogenerated Questions");
-
-                // Construct LLM request
-                var user_query = "Based on your available tools, I want you to " +
-                            `generate me exactly ${numQuestions} requests or questions a user could give you. These ${numQuestions} requests or ` +
-                            "questions should directly reference one or more of your available tools. I want you to " +
-                            "provide me your answer as a JSON file and NOTHING ELSE. Your response should look like this:" +
-                            "" +
-                            "{" +
-                            "   '1': {'question': 'Example request...', 'icon': '🪄'}," +
-                            "   '2': {'question': 'Example request...', 'icon': '🤖'}," +
-                            "   '3': ..." +
-                            "}";
-                if (Localizer.language === 'DE') {
-                    user_query += "\n\nGenerate all questions in German!";
-                }
-                // Make sure to not generate any of the previous questions
-                if (prevQuestions) {
-                    user_query += "\n\nPlease DO NOT generate the following questions:\n" +
-                            JSON.stringify(prevQuestions);
-                }
-
                 // Let backend generate user questions
-                const res = await backendClient.queryNoChat("simple-tools", user_query, false);
+                const res = await backendClient.queryNoChat("simple-tools", user_query, 30000);
                 const questions = res.content;
                 const parsedQuestions = JSON.parse(questions.slice(questions.indexOf('{'), questions.lastIndexOf('}') + 1));
                 newQuestions.questions = Object.values(parsedQuestions);
 
                 // Replace autogenerated requests into sidebarQuestions
-                sidebarQuestions[Localizer.language][prevIdx] = newQuestions;
-                Localizer.reloadSampleQuestions("Autogenerated Questions");
+                Localizer.getPrompts()[prevIdx] = newQuestions;
 
-                // Add event listener to new section
-                const toggle = document.getElementById('questions-' + prevIdx);
-                toggle.addEventListener('show.bs.collapse', () => {
-                    this.$emit('select-category', 'Autogenerated Questions');
-                });
+                // save new prompts
+                await backendClient.savePrompts(Localizer.samplePrompts);
             } catch (error) {
-                console.log("ERROR " + error);
+                console.log("Failed to auto-generate prompts: " + error);
+                Localizer.getPrompts().splice(prevIdx, 1);
             } finally {
                 this.isRegenerating = false;
             }
         },
 
-        async loadPersonalPrompts() {
-            try {
-                this.personalPrompts = await backendClient.getBookmarks();
-            } catch (err) {
-                console.warn("Falling back to local storage:", err);
-                const saved = localStorage.getItem("personalPrompts");
-                if (saved) this.personalPrompts = JSON.parse(saved);
-            }
-        },
-
-        async savePersonalPrompts() {
-            localStorage.setItem('personalPrompts', JSON.stringify(this.personalPrompts));
-            await backendClient.saveBookmarks(this.personalPrompts);
-        },
-
-        addPersonalPrompt(question) {
-            const newPrompt = { question, icon: "⭐" };
-            this.personalPrompts.push(newPrompt);
-            this.savePersonalPrompts();
-        },
-
-        async openEditor(prompt = null, index = null) {
-            await this.$refs.input.showDialogue(
-                prompt?.question ? Localizer.get('editQuestion') : Localizer.get('addPersonalQuestion'),
-                null,
-                null,
-                {
-                    prompt: {type: "textarea", label: "Prompt", default: prompt?.question ?? "" },
-                }, 
-                (values) => {
-                    if (index != null) {
-                        this.personalPrompts[index].question = values.prompt;
-                    } else {
-                        this.personalPrompts.push({ question: values.prompt, icon: "⭐" });
-                    }
-                    this.savePersonalPrompts();
-                }
-            );
-        },
-
-        removePersonalPrompt(index) {
-            if (confirm(Localizer.get("confirmDeleteBookmark"))) {
-                this.personalPrompts.splice(index, 1);
-                this.savePersonalPrompts();
-            }
+        async loadPrompts() {
+            Localizer.samplePrompts = await backendClient.getPrompts();
+            Localizer.reloadSampleQuestions();
         },
 
         toggleSection(index, show = null) {
@@ -271,7 +238,7 @@ export default {
 
             if (show) {
                 collapse.show();
-                const questions = this.getQuestions();
+                const questions = Localizer.getPrompts();
                 const header = index in questions ? questions[index].header : 'none';
                 this.$emit('select-category', header);
             } else {
@@ -281,22 +248,156 @@ export default {
         },
 
         toggleSectionByHeader(header, show = null) {
-            const index = this.getQuestions().findIndex(section => section.header === header);
+            const index = Localizer.getPrompts().findIndex(section => section.header === header);
             this.toggleSection(index, show);
         },
 
         expandSectionByHeader(header) {
             this.toggleSectionByHeader(header, true);
         },
+
+        toggleSectionById(id, show = null) {
+            const index = Localizer.getPrompts().findIndex(section => section.id === id);
+            this.toggleSection(index, show);
+        },
+
+        expandSectionById(id) {
+            this.toggleSectionById(id, true);
+        },
+
+        async resetPrompts() {
+            if (!confirm(Localizer.get('confirmSampleQuestionReset'))) return;
+            this.isEditingAllowed = false;
+            await backendClient.resetPrompts();
+            Localizer.samplePrompts = await backendClient.getPrompts();
+            Localizer.reloadSampleQuestions();
+            this.isEditingAllowed = true;
+        },
+
+        addNewPrompt(category) {
+            if (!this.isEditingAllowed) return;
+            const schema = {
+                question: { type: 'textarea', label: 'Prompt', default: "" },
+                icon: { type: 'text', label: 'Icon', default: "⭐" },
+            };
+            this.$refs.editDialog.showDialogue('Add New Prompt', null, null, schema,
+                values => this.handleAddPromptOk(values, category));
+        },
+
+        editPrompt(category, question) {
+            if (!this.isEditingAllowed) return;
+            const schema = {
+                question: { type: 'textarea', label: 'Prompt', default: question.question, },
+                icon: { type: 'text', label: 'Icon', default: question.icon },
+            };
+            this.$refs.editDialog.showDialogue('Edit Prompt', null, null, schema,
+                values => this.handleEditPromptOk(values, category, question));
+        },
+
+        async deletePrompt(category, question, index) {
+            if (!confirm(Localizer.get('sidebar_questions_deletePrompt_confirm', question?.question))) return;
+            this.isEditingAllowed = false;
+            category.questions.splice(index, 1);
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            this.isEditingAllowed = true;
+        },
+
+        addNewCategory() {
+            if (!this.isEditingAllowed) return;
+            const schema = {
+                header: { type: 'text', label: 'Header' },
+                icon: { type: 'text', label: 'Icon', default: "⭐" },
+            };
+            this.$refs.editDialog.showDialogue('Add New Category', null, null, schema,
+                values => this.handleAddCategoryOk(values));
+        },
+
+        editCategory(category) {
+            if (!this.isEditingAllowed) return;
+            const schema = {
+                header: { type: 'text', label: 'Header', default: category.header },
+                icon: { type: 'text', label: 'Icon', default: category.icon },
+            };
+            this.$refs.editDialog.showDialogue('Edit Category', null, null, schema,
+                values => this.handleEditCategoryOk(values, category));
+        },
+
+        async deleteCategory(category, index) {
+            if (!confirm(Localizer.get('sidebar_questions_deleteCategory_confirm', category.header))) return;
+            this.isEditingAllowed = false;
+            Localizer.getPrompts().splice(index, 1);
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            this.isEditingAllowed = true;
+        },
+
+        async handleAddPromptOk(values, category) {
+            if (!values.question) return;
+            this.isEditingAllowed = false;
+            category.questions.push({
+                question: values.question,
+                icon: values.icon[0] || "⭐",
+            });
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.isEditingAllowed = true;
+        },
+
+        async handleEditPromptOk(values, category, question) {
+            this.isEditingAllowed = false;
+            if (values.delete) {
+                const index = category.questions.indexOf(question);
+                category.questions.splice(index, 1);
+            } else {
+                question.question = values.question;
+            }
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.isEditingAllowed = true;
+        },
+
+        async handleAddCategoryOk(values) {
+            if (!values.header) return;
+            this.isEditingAllowed = false;
+            Localizer.getPrompts().push({
+                id: values.header,
+                header: values.header,
+                icon: values.icon[0] || "⭐",
+                visible: true,
+                questions: [],
+            });
+
+            // put autogenned questions at the end
+            const index = Localizer.getPrompts()
+                .findIndex(item => item.id === 'autogenerated-questions');
+            if (index >= 0) {
+                const [autogenCat] = Localizer.getPrompts().splice(index, 1);
+                Localizer.getPrompts().push(autogenCat);
+            }
+
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.isEditingAllowed = true;
+        },
+
+        async handleEditCategoryOk(values, category) {
+            this.isEditingAllowed = false;
+            category.header = values.header;
+            category.icon = values.icon;
+            await backendClient.savePrompts(Localizer.samplePrompts);
+            Localizer.reloadSampleQuestions();
+            this.isEditingAllowed = true;
+        },
     },
 
-    mounted() {
+    async mounted() {
+        Localizer.samplePrompts = await backendClient.getPrompts();
+
         // attach listeners for category opening
-        for (let i = 0; i < this.getQuestions()?.length; ++i) {
+        for (let i = 0; i < Localizer.getPrompts()?.length; ++i) {
             const toggle = document.getElementById('questions-' + i);
             if (! toggle) continue;
 
-            const header = this.getQuestions()[i].header;
+            const header = Localizer.getPrompts()[i].header;
             toggle.addEventListener('show.bs.collapse', () => {
                 this.$emit('select-category', header);
             });
@@ -304,7 +405,6 @@ export default {
 
         // open default category
         this.expandSectionByHeader(conf.DefaultQuestions);
-
     }
 }
 </script>
@@ -325,7 +425,7 @@ export default {
 .question-item {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.25rem 0.75rem 0.75rem;
     cursor: pointer;
     color: var(--text-primary-color);
     background-color: var(--background-color);
@@ -339,14 +439,6 @@ export default {
     box-shadow: var(--shadow-sm);
     border-color: var(--primary-color);
     color: var(--primary-color);
-}
-
-.personal-questions-empty {
-    display: flex;
-    justify-content: center;
-    color: var(--text-primary-color);
-    background-color: var(--background-color);
-    padding: 0.75rem 1rem;
 }
 
 .question-text {
@@ -363,21 +455,58 @@ export default {
     white-space: normal;
 }
 
-.question-menu-button {
+.question-menu-button:hover {
+    background-color: var(--input-color);
+    color: var(--text-danger-color);
+}
+
+.click-icon {
     flex: 0 0 auto;
     width: 2rem;
     height: 2rem;
+    font-size: 1rem;
     padding: 0;
-    aspect-ratio: 1 / 1;
+    margin: 0;
+    aspect-ratio: 1 / 1 !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 1rem !important;
     cursor: pointer;
+    color: var(--text-primary-color);
 }
 
-.question-menu-button:hover {
+.click-icon:hover {
     background-color: var(--input-color);
     color: var(--text-danger-color);
+    transform: translateY(-1px);
+}
+
+.click-icon.click-icon-active {
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color);
+}
+
+.click-icon.disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+    pointer-events: none;
+    color: var(--text-primary-color) !important;
+    background: none !important;
+}
+
+.question-item.disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+    pointer-events: none;
+    color: var(--text-primary-color) !important;
+    border-color: var(--border-color) !important;
+    background-color: var(--background-color) !important;
+}
+
+.accordion-header:hover .click-icon:hover {
+    background-color: var(--primary-color);
 }
 </style>

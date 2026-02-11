@@ -65,17 +65,15 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
-                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
-                        @add-to-library="addPromptToSidebar"
                     />
                 </div>
 
@@ -588,34 +586,18 @@ export default {
         async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
 
-            const bookmarked = this.compareToBookmarks(content);
-
             const message = {
                 elementId: elementId,
                 isUser: isUser,
                 content: content,
                 isLoading: isLoading,
                 files: files,
-                bookmarked: bookmarked,
             };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
             this.scrollDownChat();
-        },
-
-        compareToBookmarks(content) {
-            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts;
-            return bookmarks.some(b => b.question.trim() === content.trim());
-        },
-
-        handleUnexpectedConnectionClosed(message) {
-            console.error('Connection closed unexpectedly', message);
-            const aiBubble = this.getLastBubble();
-            aiBubble.setContent(message);
-            aiBubble.toggleLoading(false);
-            aiBubble.setError("Connection closed unexpectedly");
         },
 
         handleChatScroll() {
@@ -779,7 +761,7 @@ export default {
                 Localizer.reloadSampleQuestions(null);
             }
             await nextTick();
-            this.$refs.textInputRef.focus();
+            this.$refs.textInputRef?.focus();
         },
 
         async scrollToMessage(messageId) {
@@ -829,11 +811,6 @@ export default {
 
         openViewer(file) {
             this.viewerFile = file;
-        },
-
-        addPromptToSidebar(prompt) {
-            // call SidebarQuestions method
-            this.$refs.sidebar.$refs.questions.addPersonalPrompt(prompt);
         },
     },
 

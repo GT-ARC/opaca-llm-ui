@@ -97,14 +97,7 @@ export const localizationData = {
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
-        tooltipChatbubbleSave: "Save prompt to user library",
-        personalQuestionsEmpty: "No personal prompts saved",
-        tooltipDeleteQuestion: "Delete Prompt",
-        editQuestion: "Edit Prompt",
-        addPersonalQuestion: "New Prompt",
         containerLoginMessage: "The following action requires additional credentials: ",
-        bookmarkHeader: "Bookmarked Prompts",
-        confirmDeleteBookmark: "Are you sure that you want to remove the Bookmark?",
         sidebar_extensions: "Extensions",
         sidebar_extensions_loading: "Loading available extensions...",
         sidebar_extensions_missing: "No extensions available.",
@@ -116,7 +109,19 @@ export const localizationData = {
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "No notifications",
+        autogenQuestionsTitle: "Auto-Generated Prompts",
+        confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
         specifyPlaceholders: "Values for Placeholders",
+        sidebar_questions_addPrompt: "Add New Prompt",
+        sidebar_questions_addCategory: "Add New Category",
+        sidebar_questions_reset: "Reset Prompts",
+        sidebar_questions_editPrompt: "Edit Prompt",
+        sidebar_questions_editCategory: "Edit Category",
+        sidebar_questions_toggleEditMode: "Edit Prompt Library",
+        sidebar_questions_deletePrompt: "Delete Prompt",
+        sidebar_questions_deleteCategory: "Delete Category",
+        sidebar_questions_deletePrompt_confirm: "Delete prompt \"%1\"?",
+        sidebar_questions_deleteCategory_confirm: "Delete category \"%1\"?",
     },
 
     DE: {
@@ -211,14 +216,7 @@ export const localizationData = {
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
-        tooltipChatbubbleSave: "Prompt in Nutzerbibliothek speichern",
-        personalQuestionsEmpty: "Keine persönlichen Prompts gespeichert",
-        tooltipDeleteQuestion: "Prompt löschen",
-        editQuestion: "Prompt bearbeiten",
-        addPersonalQuestion: "Neuer Prompt",
         containerLoginMessage: "Die auszuführende Aktion benötigt weitere Zugangsdaten: ",
-        bookmarkHeader: "Favoriten",
-        confirmDeleteBookmark: "Sind Sie sicher, dass Sie den Favoriten löschen wollen?",
         sidebar_extensions: "Erweiterungen",
         sidebar_extensions_loading: "Lade verfügbare Erweiterungen...",
         sidebar_extensions_missing: "Keine Erweiterungen verfügbar.",
@@ -230,137 +228,21 @@ export const localizationData = {
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Keine Benachrichtigungen",
+        autogenQuestionsTitle: "Auto-Generierte Prompts",
+        confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
         specifyPlaceholders: "Werte für Platzhalter",
+        sidebar_questions_addPrompt: "Neuer Prompt",
+        sidebar_questions_addCategory: "Neue Kategorie",
+        sidebar_questions_reset: "Prompts zurücksetzen",
+        sidebar_questions_editPrompt: "Prompt bearbeiten",
+        sidebar_questions_editCategory: "Kategorie bearbeiten",
+        sidebar_questions_toggleEditMode: "Prompt-Bibliothek bearbeiten",
+        sidebar_questions_deletePrompt: "Prompt löschen",
+        sidebar_questions_deleteCategory: "Kategorie löschen",
+        sidebar_questions_deletePrompt_confirm: "Prompt \"%1\" löschen?",
+        sidebar_questions_deleteCategory_confirm: "Kategorie \"%1\" löschen?",
     },
 };
-
-
-export const sidebarQuestions = reactive({
-    GB: [
-        {
-            "id": "taskAutomation",
-            "header": "Task Automation",
-            "icon": "🤖",
-            "questions": [
-                {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
-                {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic and get the available phone numbers of the participants!", "icon": "📑"},
-                {"question": "Schedule a brainstorming session with Robert.", "icon": "🧠"},
-                {"question": "Get my gitlab user id and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"},
-            ]
-        },
-        {
-            "id": "informationUpskilling",
-            "header": "Information & Upskilling",
-            "icon": "📚",
-            "questions": [
-                {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
-                {"question": "What can you tell me about ZEKI?", "icon": "❓"},
-                {"question": "What are the most exciting tech trends for 2026 in the domain \"Consumer Electronics\"?", "icon": "🚀"},
-                {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
-                {"question": "I want to start my master at TU Berlin and focus on AI applications. What program and courses are available?", "icon": "🎓"},
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Retrieve the current co2 levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "☁️"},
-                {"question": "Create a bar plot comparing the current stock prices of Siemens, Volkswagen, Deutsche Bank and SAP.", "icon": "📊"},
-                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
-                {"question": "Get my gitlab user id and then plot my user statistics for the last 30 days as a bar plot.", "icon": "📈️"},
-            ]
-        },
-        {
-            "id": "smartOffice",
-            "header": "Smart Office",
-            "icon": "🏢",
-            "questions": [
-                {"question": "What is the temperature and CO2 level in the conference room?", "icon": "🌡️"},
-                {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
-                {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
-                {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
-                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
-            ]
-        },
-        /*
-        {
-            "id": "mobility",
-            "header": "Mobility",
-            "icon": "🚗",
-            "questions": [
-                {"question": "Where is my Tiguan Car?", "icon": "📍"},
-                {"question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.", "icon": "🧭"},
-                {"question": "Find a parking spot near the current location of my Tiguan car.", "icon": "🅿️"},
-                {"question": "What's the current air quality near Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
-            ]
-        },
-        */
-    ],
-    DE: [
-        {
-            "id": "taskAutomation",
-            "header": "Task Automation",
-            "icon": "🤖",
-            "questions": [
-                {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
-                {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst und die verfügbaren Telefonnummern der Teilnehmer holst.", "icon": "📑"},
-                {"question": "Plane ein Brainstorming-Meeting mit Robert.", "icon": "🧠"},
-                {"question": "Finde meine GitLab Benutzer id und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"},
-            ]
-        },
-        {
-            "id": "informationUpskilling",
-            "header": "Information & Upskilling",
-            "icon": "📚",
-            "questions": [
-                {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
-                {"question": "Was kannst du mir über das ZEKI erzählen?", "icon": "❓"},
-                {"question": "Was sind die spannendsten Tech-Trends für 2026 im Bereich \"Consumer Electronics\"?", "icon": "🚀"},
-                {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
-                {"question": "Ich möchte meinen Master an der TU Berlin anfangen mit dem Schwerpunkt KI Anwendungen. Welche Studiengänge und Kurse sind dazu verfügbar?", "icon": "🎓"},
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Finde den aktuellen Co2 Wert in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "☁️"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Siemens, Volkswagen, Deutsche Bank und SAP.", "icon": "📊"},
-                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
-                {"question": "Finde meine GitLab Benutzer id und stelle dann meine Benutzeraktivitäten für die letzten 30 Tage in einem Balkendiagramm dar.", "icon": "📈️"},
-            ]
-        },
-        {
-            "id": "smartOffice",
-            "header": "Smart Office",
-            "icon": "🏢",
-            "questions": [
-                {"question": "Wie ist die Temperatur und das CO2-Level im Conference Space?", "icon": "🌡️"},
-                {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
-                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
-                {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
-                {"question": "Bitte zeige mir den Weg zum Konferenzraum.", "icon": "🧭"},
-            ]
-        },
-        /*
-        {
-            "id": "mobility",
-            "header": "Mobilität",
-            "icon": "🚗",
-            "questions": [
-                {"question": "Wo ist mein Tiguan Auto?", "icon": "📍"},
-                {"question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.", "icon": "🧭"},
-                {"question": "Finde einen Parkplatz in der Nähe der aktuellen Position meines Tiguan Autos.", "icon": "🅿️"},
-                {"question": "Wie ist die aktuelle Luftqualität am Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
-            ]
-        },
-        */
-    ],
-})
 
 
 // Placeholder messages for streaming in different languages
@@ -432,6 +314,7 @@ class Localizer {
             : ref(fallbackLanguage);
 
         this._randomSampleQuestions = ref(null);
+        this._samplePrompts = ref(null);
     }
 
     set language(newLang) {
@@ -458,6 +341,14 @@ class Localizer {
 
     get randomSampleQuestions() {
         return this._randomSampleQuestions.value;
+    }
+
+    set samplePrompts(value) {
+        this._samplePrompts.value = value;
+    }
+
+    get samplePrompts() {
+        return this._samplePrompts.value;
     }
 
     _verifySettings() {
@@ -515,9 +406,9 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(textinput, categoryHeader) {
-        if (textinput) {
-            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+    getSampleQuestions(textInput, categoryHeader) {
+        if (textInput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textInput, 3);
         } else if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
         }
@@ -528,18 +419,21 @@ class Localizer {
         this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
     }
 
-    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
+    getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
+        if (!this.getPrompts()) {
+            return [];
+        }
         // assemble questions from all or selected category into a single array
-        let questions = sidebarQuestions[this.language]
+        let filteredQuestions = this.getPrompts()
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
-            .filter(question => textinput === null || matches(question.question, textinput));
+            .filter(question => textInput === null || matches(question.question, textInput));
 
         // if no text input was given -> shuffle and get first k questions
-        if (!textinput) {
-            shuffleArray(questions);
+        if (!textInput) {
+            shuffleArray(filteredQuestions);
         }
-        return questions.slice(0, numQuestions);
+        return filteredQuestions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
@@ -561,6 +455,13 @@ class Localizer {
     getLanguageForDate() {
         return voiceGenLocalesWebSpeech[this.language];
     }
+
+    /**
+     * @returns {Array}
+     */
+    getPrompts() {
+        return this.samplePrompts?.[this.language];
+    }
 }
 
 /**
@@ -575,8 +476,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-function matches(question, textinput) {
-    return textinput.toLowerCase().split(/\s+/)
+function matches(question, textInput) {
+    return textInput.toLowerCase().split(/\s+/)
         .every(word => question.toLowerCase().includes(word));
 }
 

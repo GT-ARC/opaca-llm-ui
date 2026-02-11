@@ -76,6 +76,11 @@ body {
     color: var(--text-primary-color);
 }
 
+input[type="checkbox"] {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+}
+
 /* override bootstrap button styles */
 .btn {
     /*border-radius: var(--bs-border-radius-pill);*/
