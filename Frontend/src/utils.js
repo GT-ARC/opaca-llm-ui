@@ -1,7 +1,5 @@
 import conf from '../config.js';
-
 import axios from "axios";
-import Localizer from "./Localizer.js";
 
 
 class BackendClient {
