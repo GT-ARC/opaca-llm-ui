@@ -6,7 +6,7 @@ A modular LLM chatbot UI for OPACA platforms with multi-agent orchestration and 
 
 SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can fulfill user requests by calling actions from a connected [OPACA platform](https://github.com/gt-arc/opaca-core). It can be easily extended with additional agents, developed in any programming language. Multiple reference implementations can be found in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. Further, the repository for our python package [opaca](https://github.com/gt-arc/opaca-python-sdk) includes a detailed step-by-step guide on how to develop and deploy new agents very easily using Python.
 
-![SAGE UI Screenshot](docs/img/sage-ui.png)
+![SAGE Overview](docs/img/sage_overview.png)
 
 ## 🚀 Quickstart
 
@@ -18,7 +18,7 @@ SAGE, also referred to as the 'OPACA LLM UI', is a powerful chatbot that can ful
 cp .env.example .env
 ```
 
-##### 2. Configure (`~/.env`)
+##### 2. Configure (`.env`)
 
 ```bash
 URL="http://<YOUR_IP>"                     # For example "http://192.168.1.100"
@@ -33,6 +33,8 @@ CORS_WHITELIST="${URL}:5173"
 ```bash
 docker compose --profile platform up --build
 ```
+
+The `--profile platform` flag will automatically start and configure an OPACA platform SAGE can connect to.
 
 ### Native
 
@@ -59,8 +61,12 @@ cd Frontend
 npm install
 
 # Start the frontend
-npm run dev
+npm run host
 ```
+
+#### OPACA Platform
+
+Please refer to the [OPACA documentation](https://github.com/gt-arc/opaca-core) for more information on how to set up your own OPACA platform.
 
 ## 📚 Documentation
 

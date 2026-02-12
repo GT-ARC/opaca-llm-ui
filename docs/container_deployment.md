@@ -11,7 +11,7 @@
       }
    }
    ```
-3. If an uuid was returned, your container was successfully deployed. Otherwise, check the docker logs of your container for any errors.
+3. If a UUID was returned, your container was successfully deployed. Otherwise, check the docker logs of your container for any errors.
 
 **Note**: OPACA is also able to pull containers from container registries, such as DockerHub, Github Container Registry, or any private registry the host machine has access to.
 
