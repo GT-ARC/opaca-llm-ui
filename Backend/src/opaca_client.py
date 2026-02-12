@@ -36,7 +36,7 @@ class OpacaClient:
         self.connected = False
         try:
             await self._get_token(user, pwd)
-            await self.get_actions_simple()
+            await self.get_actions()
             self.connected = True
             logger.info(f"Connected to {url}")
             return 200
@@ -95,7 +95,7 @@ class OpacaClient:
         """Get actions of OPACA agents, in original OPACA format."""
         try:
             if not self.url:
-                return {}
+                return []
             async with httpx.AsyncClient() as client:
                 res = await client.get(f"{self.url}/containers", headers=self._headers())
             res.raise_for_status()
