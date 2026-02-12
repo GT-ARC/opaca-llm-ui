@@ -91,13 +91,13 @@ class OpacaClient:
             logger.error(f"Could not get Extra-Ports: {e}")
             raise e
 
-    async def get_actions(self) -> dict:
+    async def get_actions(self) -> list:
         """Get actions of OPACA agents, in original OPACA format."""
         try:
             if not self.url:
                 return {}
             async with httpx.AsyncClient() as client:
-                res = await client.get(f"{self.url}/agents", headers=self._headers())
+                res = await client.get(f"{self.url}/containers", headers=self._headers())
             res.raise_for_status()
             return res.json()
         except Exception as e:

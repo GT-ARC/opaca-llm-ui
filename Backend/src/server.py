@@ -188,9 +188,9 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
 
 
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
-async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
+async def get_actions(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions_simple()
+    return await session.opaca_client.get_actions()
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
