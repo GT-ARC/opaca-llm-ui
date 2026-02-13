@@ -9,6 +9,8 @@ RUN pip install -r requirements.txt
 
 COPY src src
 
+COPY default_prompts.json .
+
 EXPOSE 3001
 
 ENTRYPOINT [ "python3", "-m", "src.server" ]
