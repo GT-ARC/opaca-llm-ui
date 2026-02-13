@@ -53,8 +53,7 @@
                                     :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
                                 <i class="fa fa-wrench me-3"/>
                                 {{ action.name }}
-
-                                <i class="fa fa-gears"
+                                <i class="fa fa-circle-play invoke float-end"
                                     @click.stop="invokeAction(agent, action.name, action.parameters)"
                                     title="Invoke"
                                 />
@@ -182,6 +181,10 @@ export default {
 
 .action-header-button::after {
     display: none;
+}
+
+.invoke:hover {
+    color: var(--primary-color);
 }
 
 .action-body {
