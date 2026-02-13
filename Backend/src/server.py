@@ -17,8 +17,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
+from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, InvokeRequest, RestrictedActions, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
+    PromptCategory
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -215,20 +217,20 @@ async def stop_query(request: Request, response: Response) -> None:
 
 # MCP Routes
 
-@app.get("/mcp", description="Get a list of all added MCP servers and their actions")
+@app.get("/mcp", description="Get a list of all added MCP servers and their actions", tags=["mcp"])
 async def get_mcp_list(request: Request, response: Response) -> Dict:
     session = await handle_session_id(request, response)
     return await session.get_mcp_tools()
 
 
-@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
+@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers", tags=["mcp"])
 async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMessage) -> Response:
     session = await handle_session_id(request, response)
     await session.add_mcp_server(mcp.content)
     return Response(status_code=201)
 
 
-@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
+@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
 async def delete_mcp_server(request: Request, response: Response, mcp_server: MCPDeleteMessage) -> Response:
     session = await handle_session_id(request, response)
     if session.delete_mcp_server(mcp_server.name):
@@ -438,19 +440,36 @@ async def view_file(request: Request, response: Response, file_id: str):
     )
 
 
-## BOOKMARK ROUTES
+# sample prompts
 
-@app.get("/bookmarks", tags=["other"])
-async def get_bookmarks(request: Request) -> list:
+@app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
+async def get_prompts(request: Request) -> Dict[str, List[PromptCategory]]:
     session = await handle_session_id(request)
-    return session.bookmarks
+    if session.prompts is None:
+        session.prompts = prompts.load_default_prompts()
+    return session.prompts
 
 
-@app.post("/bookmarks", tags=["other"])
-async def save_bookmarks(request: Request) -> None:
+@app.post("/prompts", description="Save the modified Prompt library for the current session.", tags=["sample prompts"])
+async def post_prompts(request: Request, data: Dict[str, List[PromptCategory]]) -> None:
     session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
+    session.prompts = data
+
+
+@app.delete("/prompts", description="Reset the session's prompt library to the default values.", tags=["sample prompts"])
+async def delete_prompts(request: Request) -> None:
+    session = await handle_session_id(request)
+    session.prompts = prompts.load_default_prompts()
+
+
+@app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
+async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+    return prompts.load_default_prompts()
+
+
+@app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
+async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
+    prompts.save_default_prompts(data)
 
 
 # WEBSOCKET CONNECTION (permanently opened)

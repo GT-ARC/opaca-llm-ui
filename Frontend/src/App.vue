@@ -413,7 +413,7 @@ export default {
         await sidebars.files.updateFiles();
         await sidebars.chats.updateChats();
         await sidebars.config.fetchMethodConfig();
-        await sidebars.questions.loadPersonalPrompts();
+        await sidebars.questions.loadPrompts();
         // open permanent websocket connection to backend for "push notifications" to the UI
         this.$refs.content.connectWebsocket();
     }

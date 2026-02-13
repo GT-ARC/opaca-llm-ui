@@ -1,5 +1,4 @@
 import conf from '../config.js';
-
 import axios from "axios";
 
 
@@ -45,9 +44,9 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
-    async queryNoChat(method, user_query) {
+    async queryNoChat(method, user_query, timeout = 10000) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${method}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body, timeout);
     }
 
     // TODO query stream
@@ -138,14 +137,18 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
-    // bookmarks
+    // prompts
 
-    async getBookmarks() {
-        return await this.sendRequest("GET", "bookmarks");
+    async getPrompts() {
+        return await this.sendRequest("GET", "prompts");
     }
 
-    async saveBookmarks(bookmarks) {
-        return await this.sendRequest("POST", "bookmarks", bookmarks);
+    async savePrompts(prompts) {
+        return await this.sendRequest("POST", "prompts", prompts);
+    }
+
+    async resetPrompts() {
+        return await this.sendRequest("DELETE", "prompts");
     }
 
     // mcp
