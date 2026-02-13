@@ -102,6 +102,10 @@ Please refer to the [OPACA documentation](https://github.com/gt-arc/opaca-core) 
 
 ## ✨ Features
 
+### OPACA Agent Actions
+
+SAGE can connect to a running [OPACA platform](https://github.com/gt-arc/opaca-core) and call actions from agent containers. Actions are internally transformed into _tools_ and passed to an LLM, which then returns tool calls including their names and parameters. All generated tools/actions are then invoked via the OPACA platform. 
+
 ### Internal Tools
 
 Alongside the OPACA agent actions, SAGE defines a few internal tools that can be used to perform core tasks. These include:
@@ -112,14 +116,15 @@ Alongside the OPACA agent actions, SAGE defines a few internal tools that can be
 * `CancelScheduledTask`: Cancels a scheduled task.
 * `GatherUserInfo`: Compiles a short summary of the user (session) based on all existing conversations.
 * `SearchChats`: Searches all conversations for a given query.
+* 
 
 ### Method Configuration
 
-Each [method](docs/methods_overview.md) can be configured using the UI. Especially, each LLM component can be configured to a different model, even a locally running model. This allows for a more flexible and customizable approach to task-solving.
+Multiple task-solving [methods](docs/methods_overview.md) have been implemented in SAGE. Each method can be selected and configured using the [UI](docs/ui.md). Especially, each LLM component can be configured to a different model, even a locally running model. This allows for a more flexible and customizable approach to task-solving.
 
 ### Container Login
 
-Some agent containers provide function which can only be called when authenticated, for example the Exchange Agent or Gitlab Agent available in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. When called, these functions will prompt another login window to enter credentials for the specific service. Credentials are then sent via the platform to the agent container, which will use them to authenticate the request user. Please note that entered credentials are **never** stored in SAGE or the OPACA platform, and that after the first successful login, tokens are generated to authenticate the user instead and sent in the header for each subsequent request to that container. However, please note that the credentials will also be sent to the agent container for authentication, so only add trusted containers to your platform environment.
+Some agent containers provide function which can only be called when authenticated, for example the Exchange Agent or Gitlab Agent available in the [opaca-example-containers](https://github.com/gt-arc/opaca-example-containers) repository. When called, these functions will prompt a login window to enter credentials for the specific service. Credentials are then sent via the platform to the agent container, which will use them to authenticate the request user. Please note that entered credentials are **never** stored in SAGE or the OPACA platform, and that after the first successful login, tokens are generated to authenticate the user instead and sent in the header for each subsequent request to that container. However, please note that the credentials will also be sent to the agent container for authentication, so only add trusted containers to your platform environment.
 
 Also be aware that tokens are bound to an **OPACA user**, not to a session. This means that if you are running your OPACA platform with authentication disabled, ALL sessions will share their container login tokens. To enable platform authentication, see the [Authentication](#-authentication) section below.
 
@@ -138,7 +143,7 @@ Currently, SAGE can support the following file types as input:
 * PDFs: `.pdf`
 * Images: `.jpg, .jpeg, .png, .gif, .webp`,
 
-Files are uploaded to the selected models in the [Method Configuration](docs/methods_overview.md) and can be accessed by the LLM afterwards. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+Files can be added to a conversation by either adding them via the "Upload File" button in the chat input section or by dragging them into the screen. Files are first uploaded to the SAGE backend and then to the individual selected models in the method configuration upon querying. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
 
 ## 🔒 Authentication
 
@@ -184,7 +189,7 @@ An admin can further create additional users for SAGE by using the OPACA platfor
 
 Copyright 2024 - 2026, GT-ARC & DAI-Labor, TU Berlin
 
-* Main Contributors: Robert Strehlow, Tobias Küster, Oskar Kupke, Daniel Wetzel
-* Further contributions by: Cedric Braun, Brandon Llanque Kurps, Chenluanxing Liu, Abdullah Kiwan, Benjamin Acar
+* Main Contributors: Robert Strehlow, Tobias Küster, Oskar Kupke, Cedric Braun
+* Further contributions by: Daniel Wetzel, Brandon Llanque Kurps, Chenluanxing Liu, Abdullah Kiwan, Benjamin Acar
 
 This repository includes software developed in the course of the project "Offenes Innovationslabor KI zur Förderung gemeinwohlorientierter KI-Anwendungen" (aka Go-KI, https://go-ki.org/) funded by the German Federal Ministry of Labour and Social Affairs (BMAS) under the funding reference number DKI.00.00032.21.
