@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Set, Literal
+from typing import Iterable, Set, Literal, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -12,9 +12,10 @@ import time
 import traceback
 import asyncio
 
+from litellm import get_supported_openai_params
 from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
-from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer
 
 from .opaca_client import OpacaClient
 
@@ -604,6 +605,52 @@ class MethodConfig(BaseModel):
     @staticmethod
     def max_rounds_field(default: int = 5, min: int = 1, max: int = 10, step: int = 1) -> Any:
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
+
+    @staticmethod
+    def nested(model_cls: type[BaseModel], title: str = None, description: str = None) -> Any:
+        return Field(default_factory=model_cls, title=title, description=description)
+
+    @staticmethod
+    def llm_role(title: str, description: str) -> Any:
+        return Field(default_factory=SingleLLMConfig, title=title, description=description)
+
+
+class LLMConfig(BaseModel):
+    """
+    List of possible parameters for the LLM. Available parameters depend on the model.
+    """
+    temperature: Annotated[float, MethodConfig.number(default=0, min=0, max=2, step=0.1, title="Temperature", description="Temperature for the model")]
+    reasoning_effort: Annotated[str, MethodConfig.string(default="none", options=["none", "low", "medium", "high"], title="Reasoning Effort", description="How much reasoning should be applied to the model's output")]
+    top_p: Annotated[float, MethodConfig.number(default=1, min=0, max=1, step=0.01, title="Top P", description="Top P sampling parameter for nucleus sampling")]
+    frequency_penalty: Annotated[float, MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Frequency Penalty", description="Penalty applied to repeated tokens based on their frequency in the prompt")]
+    presence_penalty: Annotated[float, MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Presence Penalty", description="Penalty applied to repeated tokens based on their presence in the prompt")]
+
+
+class SingleLLMConfig(BaseModel):
+    """
+    Saves a single model and its configuration. Checks during serialization what parameters are supported by the LLM.
+    """
+    model: Annotated[str, MethodConfig.llm_field("title", "LLM to use for this agent")]
+    config: LLMConfig = MethodConfig.nested(LLMConfig, title="LLM Parameters", description="Parameters for the LLM")
+
+    @model_serializer(mode="wrap")
+    def filer_unsupported_params(self, serializer):
+        """Filter out unsupported parameters from the serialized config."""
+        data = serializer(self)
+
+        supported = get_supported_openai_params(self.model)
+
+        data["config"] = {
+            k: v
+            for k, v in data["config"].items()
+            if k in supported
+        }
+
+        # Special handling for gpt-5 models
+        if "gpt-5" in self.model and "temperature" in data["config"]:
+            del data["config"]["temperature"]
+
+        return data
 
 
 class ConfigPayload(BaseModel):
