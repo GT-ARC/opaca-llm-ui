@@ -52,43 +52,43 @@
                              class="accordion-item" :key="agentIndex">
 
                             <!-- Agent Header -->
-                            <h2 class="accordion-header" :id="'accordion-header-' + agentIndex">
+                            <h2 class="accordion-header" :id="`agents-accordion-header-${containerId}-${agentIndex}`">
                                 <button class="accordion-button collapsed"
                                         type="button" data-bs-toggle="collapse"
-                                        :data-bs-target="'#accordion-body-' + agentIndex"
+                                        :data-bs-target="`#agents-accordion-body-${containerId}-${agentIndex}`"
                                         aria-expanded="false"
-                                        :aria-controls="'accordion-body-' + agentIndex">
+                                        :aria-controls="`agents-accordion-body-${containerId}-${agentIndex}`">
                                     <i class="fa fa-user me-3"/>
                                     <strong>{{ agentId }}</strong>&nbsp;({{ actions?.length }})
                                 </button>
                             </h2>
 
                             <!-- Agent Body -->
-                            <div :id="'accordion-body-' + agentIndex"
+                            <div :id="`agents-accordion-body-${containerId}-${agentIndex}`"
                                  class="accordion-collapse collapse ps-1"
-                                 :aria-labelledby="'accordion-header-' + agentIndex"
+                                 :aria-labelledby="`agents-accordion-header-${containerId}-${agentIndex}`"
                                  :data-bs-parent="`#agents-accordion-${containerId}`">
                                 <div :id="`actions-accordion-${containerId}-${agentIndex}`"
                                      class="list-group list-group-flush" >
                                     <div v-for="(action, actionIndex) in actions" :key="actionIndex" class="list-group-item p-0">
 
                                         <!-- Action Header -->
-                                        <h2 :id="`action-accordion-header-${action.name}`"
+                                        <h2 :id="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                             class="accordion-header">
                                             <button class="accordion-button collapsed"
                                                     type="button" data-bs-toggle="collapse"
-                                                    :data-bs-target="'#action-body-' + agentIndex + '-' + actionIndex"
-                                                    aria-expanded="false"
-                                                    :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
+                                                    :data-bs-target="`#action-accordion-body-${containerId}-${agentIndex}-${actionIndex}`"
+                                                    :aria-controls="`action-accordion-body-${containerId}-${agentIndex}-${actionIndex}`"
+                                                    aria-expanded="false">
                                                 <i class="fa fa-wrench me-3"/>
                                                 {{ action.name }}
                                             </button>
                                         </h2>
 
                                         <!-- Action Body -->
-                                        <div :id="'action-body-' + agentIndex + '-' + actionIndex"
+                                        <div :id="`action-accordion-body-${containerId}-${agentIndex}-${actionIndex}`"
                                              class="accordion-collapse collapse action-body p-2"
-                                             :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex"
+                                             :aria-labelledby="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                              :data-bs-parent="`#actions-accordion-${containerId}-${agentIndex}`">
                                             <p v-if="action.description">
                                                 <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
@@ -155,16 +155,24 @@ export default {
 
         getAgents() {
             const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
-            this.platformActions.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-            this.platformActions.forEach(container => {
+            if (!this.platformActions) return [];
+            let containers = JSON.parse(JSON.stringify(this.platformActions));
+
+            // sort containers/agents/actions alphabetically
+            containers.sort((a, b) => a.image.imageName.toLowerCase().localeCompare(b.image.imageName.toLowerCase()));
+            containers.forEach(container => {
                 container.agents.sort((a, b) => a.agentId.toLowerCase().localeCompare(b.agentId.toLowerCase()));
                 container.agents.forEach(agent => {
                     agent.actions.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
                 });
             });
 
-            // todo: filter for agent/action names
-            return this.platformActions;
+            // filter for search query
+            containers.forEach(container => {
+                container.agents = container.agents.filter(agent => matches(agent.agentId)
+                    || agent.actions.some(action => matches(action.name) || matches(action?.description)));
+            });
+            return containers.filter(container => container.agents.length > 0);
         },
     },
     watch: {
