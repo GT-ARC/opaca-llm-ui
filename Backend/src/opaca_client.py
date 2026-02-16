@@ -7,7 +7,6 @@ import requests
 import httpx
 import jsonref
 from typing import Optional, List, Dict, Any
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -137,10 +136,7 @@ class OpacaClient:
         agent = f"/{agent}" if agent else ""
         async with httpx.AsyncClient() as client:
             res = await client.post(f"{self.url}/invoke/{action}{agent}", json=params, headers=self._headers(), timeout=None)
-        try:
-            res.raise_for_status()
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=res.text)
+        res.raise_for_status()
         return res.json()
 
     async def container_login(self, container_id: str, username: str, password: str):

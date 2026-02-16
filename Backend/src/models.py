@@ -64,6 +64,12 @@ class InvokeRequest(BaseModel):
     parameters: Dict[str, Any]
 
 
+class InvokeResponse(BaseModel):
+    success: bool
+    result: Any | None
+    error: str | None
+
+
 class RestrictedActions(BaseModel):
     """
     Used as payload/result for /admin/restrict routes. Both lists contain string-fragments.
