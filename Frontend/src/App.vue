@@ -166,7 +166,6 @@ export default {
         return {
             language: 'GB',
             method: conf.DefaultMethod,
-            sidebar: 'connect',
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             connected: false,
             isConnecting: false,
@@ -176,43 +175,36 @@ export default {
         }
     },
     methods: {
-        async connectToPlatform(username="", password="") {
-            try {
-                this.isConnecting = true;
-                this.loginError = false;
 
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
-                this.platformPassword = "";
-
-                if (rpStatus === 200) {
-                    this.connected = true;
-                    this.showAuthInput = false;
-                } else if ([401, 403].includes(rpStatus)) {
+        async connectToPlatform() {
+            await this.$refs.input.showDialogue(
+                "Platform Login", null, null,
+                {
+                    url:  { type: "text", label: "OPACA Platform URL", default: this.opacaRuntimePlatform },
+                    username: { type: "text", label: Localizer.get("general_username"), default: "" },
+                    password: { type: "password", label: Localizer.get("general_password"), default: "" },
+                },
+                async (values) => {
+                    this.opacaRuntimePlatform = values.url;
+                    this.isConnecting = true;
                     this.connected = false;
-
-                    await this.$refs.input.showDialogue(
-                        "Platform Login",
-                        Localizer.get('unauthenticated'),
-                        username !== "" ? Localizer.get('authError') : null,
-                        {
-                            username: { type: "text", label: Localizer.get("general_username") },
-                            password: { type: "password", label: Localizer.get("general_password") },
-                        },
-                        (values) => this.connectToPlatform(values.username, values.password)
-                    );
-
-                } else {
-                    this.connected = false;
-                    this.showInfo(Localizer.get('opacaUnreachable'));
+                    var rpStatus = null;
+                    try {
+                        rpStatus = await backendClient.connect(values.url, values.username, values.password);
+                    } catch (e) {
+                        throw new Error(Localizer.get('backendUnreachable'));
+                    }
+                    if (rpStatus === 200) {
+                        this.connected = true;
+                    } else if ([401, 403].includes(rpStatus)) {
+                        throw new Error(Localizer.get('authError'));
+                    } else {
+                        throw new Error(Localizer.get('opacaUnreachable'));
+                    }
+                    this.isConnecting = false;
+                    this.toggleConnectionDropdown(!this.connected);
                 }
-            } catch (e) {
-                console.error('Error while initiating prompt:', e);
-                this.connected = false;
-                this.showInfo(Localizer.get('backendUnreachable'));
-            } finally {
-                this.isConnecting = false;
-                this.toggleConnectionDropdown(!this.connected);
-            }
+            );
         },
 
         async disconnectFromPlatform() {
