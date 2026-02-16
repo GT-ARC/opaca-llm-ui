@@ -84,7 +84,7 @@ Alongside the OPACA agent actions, SAGE defines a few internal tools that can be
 * `CancelScheduledTask`: Cancels a scheduled task.
 * `GatherUserInfo`: Compiles a short summary of the user (session) based on all existing conversations.
 * `SearchChats`: Searches all conversations for a given query.
-* 
+* `ReadFileFromUrl`: Downloads a file from a given URL and uses it as input for the LLM.
 
 ### Method Configuration
 
