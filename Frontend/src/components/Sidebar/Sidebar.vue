@@ -26,7 +26,7 @@
 
             <i @click="SidebarManager.toggleView('agents')"
                class="fa fa-users sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarAgents')"
+               :title="Localizer.get('sidebar_agents')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
             <i @click="SidebarManager.toggleView('extensions')"
