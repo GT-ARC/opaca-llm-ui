@@ -31,7 +31,9 @@
                :title="getSidebarToggleTooltip()" />
 
             <!-- Expanded-only tools -->
-            <div v-if="sidebarLevel >= 1" class="d-flex flex-column gap-2">
+            <div v-if="sidebarLevel >= 1"
+                 class="d-flex flex-column align-items-center gap-2"
+                 style="min-height: 0; overflow: hidden;">
                 <i @click="SidebarManager.toggleView('files')"
                    class="fa fa-file sidebar-menu-item"
                    :title="Localizer.get('tooltipSidebarFiles')"
