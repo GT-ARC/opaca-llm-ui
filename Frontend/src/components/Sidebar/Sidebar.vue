@@ -26,7 +26,7 @@
             <i @click="toggleSidebarLevel()"
                @mouseenter="sidebarToggleHovered = true"
                @mouseleave="sidebarToggleHovered = false"
-               class="fa sidebar-menu-item"
+               class="fa sidebar-menu-toggle"
                :class="getSidebarToggleIcon()"
                :title="getSidebarToggleTooltip()" />
 
@@ -365,6 +365,22 @@ export default {
     color: white !important;
 }
 
+.sidebar-menu-toggle {
+    font-size: 1.25rem;
+    cursor: pointer;
+    width: 3rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary-color);
+    transition: all 0.2s ease;
+}
+
+.sidebar-menu-toggle:hover {
+    color: var(--primary-color);
+}
+
 .resizer {
     width: 4px;
     cursor: ew-resize;
@@ -397,6 +413,12 @@ export default {
         font-size: 1rem;
         width: 2.5rem;
         height: 2.5rem;
+    }
+
+    .sidebar-menu-toggle {
+        width: 2.5rem;
+        height: 1rem;
+        font-size: 1rem;
     }
 
     #sidebar-content {
