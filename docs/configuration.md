@@ -1,13 +1,13 @@
 # Configuration
 
-Following is an overview of all environment variables that can be set in the [docker-compose.yml](../docker-compose.yml). **Required** variables will be marked with a star (*).
+Following is an overview of all environment variables that can be set in the [docker-compose.yml](../docker-compose.yml).
 
 ## Frontend
 
 Frontend env-vars correspond to settings in `config.js`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system).
 
-* `*VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
-* `*VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
+* `VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
+* `VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
 * `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.js`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
 * `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
@@ -20,7 +20,7 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `LLM_HOSTS`: Semicolon-separated list of LLM server hosts/providers, e.g. `openai`, `gemini`, `anthropic`, `mistral`, `<custom-base-url>`, etc.
 * `LLM_API_KEYS`: Semicolon-separated list of API-keys for each of the above hosts; default is `""` (for common providers, the API Key is taken from the default api key field, e.g., for `openai` from `OPENAI_API_KEY`, for `gemini` from `GEMINI_API_KEY`, etc. but can be overwritten here if a non-default key is explicitly provided).
 * `LLM_MODELS`: Semicolon-separated list of comma-separated lists of supported models for each of the above hosts.
-* `*CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
+* `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 * `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
 * `SESSION_ADMIN_PWD`: password needed to call any of the `/admin/...` routes.
 
