@@ -37,11 +37,12 @@
                 </div>
 
                 <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
-                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
+                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)" v-if="!loading">
                         {{ Localizer.get('general_cancel') }}
                     </button>
                     <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        {{ Localizer.get('general_okay') }}
+                        <span v-if="loading"><i class="fa fa-spin fa-spinner" /></span>
+                        <span v-else>{{ Localizer.get('general_okay') }}</span>
                     </button>
                     
                 </div>
@@ -67,6 +68,7 @@ export default {
     },
     data() {
         return {
+            queue: [],
             show: false,
             title: null,
             message: null,
@@ -75,6 +77,7 @@ export default {
             values: null,
             onOkay: null,
             onCancel: null,
+            loading: false,
         }
     },
     methods: {
@@ -105,15 +108,35 @@ export default {
          * @param onCancel async callback function, should accept no parameters (optional); can raise error
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
+            this.queue.push({
+                title: title,
+                message: marked.parse(message ?? ""),
+                errorMsg: errorMsg,
+                schema: schema,
+                onOkay: onOkay ?? (async () => {}),
+                onCancel: onCancel ?? (async () => {}),
+                values: Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
+                ),
+            });
+            await this.updateDialogue();
+        },
+
+        async updateDialogue() {
+            if (this.loading) return;
+            if (this.show) return;
+            if (this.queue.length === 0) {
+                this.show = false;
+                return;
+            }
+            const {title, message, errorMsg, schema, onOkay, onCancel, values} = this.queue.shift();
             this.title = title;
-            this.message = marked.parse(message ?? "");
+            this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.onOkay = onOkay;
             this.onCancel = onCancel;
-            this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
-            );
+            this.values = values;
             this.show = true;
             await nextTick();
         },
@@ -129,24 +152,25 @@ export default {
         },
 
         canSubmit() {
+            if (this.loading) return false;
             return Object.values(this.values).indexOf(null) === -1;
         },
 
         async handleSubmit(okay) {
             await nextTick();
-            // hide dialogue, to allow for opening another dialogue in the callback...
-            this.show = false;
-            try {
-                if (okay) {
-                    await this.onOkay(this.values);
-                } else if (this.onCancel !== null) {
-                    await this.onCancel();
-                }
-            } catch (e) {
-                // ... or re-open directly in case of error
+            this.loading = true;
+
+            const callback = okay ? this.onOkay : this.onCancel;
+            callback(this.values).then(() => {
+                this.show = false;
+            }).catch(e => {
                 this.errorMsg = e.message;
-                this.show = true;
-            }
+                console.error(e);
+            }).finally(() => {
+                this.loading = false;
+                this.updateDialogue();
+            });
+
         },
 
     },
