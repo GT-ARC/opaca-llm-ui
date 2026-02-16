@@ -142,7 +142,7 @@ export default {
                 `**Agent:** ${agent}\n\n**Action:** ${action}`,
                 null,
                 Object.fromEntries(
-                    Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea"}])
+                    Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea", label: `${k} (${this.typeHint(v)})`}])
                 ),
                 async values => {
                     // JSON-parse non-primitive inputs --> parse errors are shown in error label
@@ -154,6 +154,14 @@ export default {
                     await this.$refs.input.showInfo("Result", "```\n" + JSON.stringify(res, null, 2) + "\n```");
                 }
             );
+        },
+
+        typeHint(json) {
+            if (json.type === "array") {
+                return `list of ${this.typeHint(json.items)}`;
+            } else {
+                return json.type;
+            }
         },
     },
     watch: {
