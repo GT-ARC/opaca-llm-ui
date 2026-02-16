@@ -54,7 +54,7 @@
                             <div :id="'mcp-body-' + mcpServerIndex + '-' + mcpIndex" class="accordion-collapse collapse mcp-body"
                                  :aria-labelledby="'mcp-header-' + mcpServerIndex + '-' + mcpIndex" :data-bs-parent="'#mcp-accordion-' + mcpServerIndex">
                                 <p v-if="mcp.description">
-                                    <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
+                                    <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
                                     {{ mcp.description }}
                                 </p>
                             </div>
