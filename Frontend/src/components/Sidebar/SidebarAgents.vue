@@ -53,16 +53,17 @@
                                     :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
                                 <i class="fa fa-wrench me-3"/>
                                 {{ action.name }}
-                                <i class="fa fa-circle-play invoke float-end"
-                                    @click.stop="invokeAction(agent, action.name, action.parameters)"
-                                    title="Invoke"
-                                />
+                                
                             </button>
 
                             <!-- action body -->
                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse action-body"
                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                <p v-if="action.description">
+                                <p class="invoke" @click.stop="invokeAction(agent, action.name, action.parameters)">
+                                    <strong>Invoke</strong>
+                                    <i class="fa fa-circle-play mx-2"/>
+                                </p>
+                                 <p v-if="action.description">
                                     <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
                                     {{ action.description }}
                                 </p>
