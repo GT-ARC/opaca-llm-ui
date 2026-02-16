@@ -113,7 +113,7 @@ export default {
                 message: marked.parse(message ?? ""),
                 errorMsg: errorMsg,
                 schema: schema,
-                onOkay: onOkay ?? (async () => {}),
+                onOkay: onOkay,
                 onCancel: onCancel ?? (async () => {}),
                 values: Object.fromEntries(
                     Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
