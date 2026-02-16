@@ -55,12 +55,11 @@
                                  class="dropdown-menu dropdown-menu-end p-4"
                                  aria-labelledby="connectionSelector"
                                  :style="{'min-width': !isMobile && '320px'}">
-                                <div class="mb-3">
-                                    <input :disabled="connected"
-                                           type="text"
-                                           v-model="opacaRuntimePlatform"
-                                           placeholder="Enter URL"
-                                           class="form-control form-control-sm me-2"/>
+                                <div v-if="this.connected" class="mb-3">
+                                    <span v-if="this.opacaUser ?? '' !== ''">
+                                        {{ this.opacaUser }} @
+                                    </span>
+                                    {{ this.opacaRuntimePlatform }}
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
@@ -167,6 +166,7 @@ export default {
             language: 'GB',
             method: conf.DefaultMethod,
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
+            opacaUser: "",
             connected: false,
             isConnecting: false,
             selectedCategory: null,
@@ -181,11 +181,12 @@ export default {
                 "Platform Login", null, null,
                 {
                     url:  { type: "text", label: "OPACA Platform URL", default: this.opacaRuntimePlatform },
-                    username: { type: "text", label: Localizer.get("general_username"), default: "" },
+                    username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser },
                     password: { type: "password", label: Localizer.get("general_password"), default: "" },
                 },
                 async (values) => {
                     this.opacaRuntimePlatform = values.url;
+                    this.opacaUser = values.username;
                     this.isConnecting = true;
                     this.connected = false;
                     var rpStatus = null;
