@@ -159,18 +159,18 @@ export default {
         async handleSubmit(okay) {
             await nextTick();
             this.loading = true;
-
-            const callback = okay ? this.onOkay : this.onCancel;
-            callback(this.values).then(() => {
+            try {
+                const callback = okay ? this.onOkay : this.onCancel;
+                await callback(this.values);
                 this.show = false;
-            }).catch(e => {
-                this.errorMsg = e.message;
-                console.error(e);
-            }).finally(() => {
+            } catch (error) {
+                console.warn(error);
+                this.errorMsg = error.message;
+                this.show = true;
+            } finally {
                 this.loading = false;
-                this.updateDialogue();
-            });
-
+                await this.updateDialogue();
+            }
         },
 
     },
