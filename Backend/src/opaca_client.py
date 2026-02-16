@@ -186,7 +186,7 @@ class OpacaClient:
     async def _get_token(self, user, pwd):
         """Get and store JWT access token for OPACA RP"""
         self.token = None
-        if user and pwd:
+        if user:
             async with httpx.AsyncClient() as client:
                 res = await client.post(f"{self.url}/login", json={"username": user, "password": pwd})
             res.raise_for_status()
