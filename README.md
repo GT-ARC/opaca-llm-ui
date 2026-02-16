@@ -68,38 +68,6 @@ npm run host
 
 Please refer to the [OPACA documentation](https://github.com/gt-arc/opaca-core) for more information on how to set up your own OPACA platform.
 
-## 📚 Documentation
-
-[View full documentation](docs) - Browse all available documentation pages.
-
-### Core Components
-
-* [User-Interface](docs/ui.md) - The main user interface of the OPACA LLM UI.
-* [Methods](docs/methods_overview.md) - A brief overview of all integrated methods for task-solving.
-* [Session-Handling](docs/session_handling.md) - How sessions are handled and how messages are stored.
-* [Backend-API](docs/api.md) - The RESTful API of the backend.
-
-### Task-Solving Methods
-
-* [Simple](docs/methods/simple.md) - A simple approach using a single agent.
-* [Tool-LLM](docs/methods/tool_llm.md) - A more complex approach using 3 distinct agents.
-* [Orchestration](docs/methods/orchestration.md) - An orchestration approach dynamically generating multiple AI agents.
-
-### Agent Development
-
-* [Python Development Guide](https://github.com/gt-arc/opaca-python-sdk) - Our Python SDK provides a simple way to develop new agent containers.
-* [Example Agent Containers](https://github.com/gt-arc/opaca-example-containers) - A selection of example agent containers for different use cases.
-
-### Deployment & Testing
-
-* [How to deploy containers](docs/container_deployment.md) - Deploy agent containers to your OPACA platform.
-* [Configuration](docs/configuration.md) - Overview of SAGE configuration options.
-* [Benchmarks](docs/benchmarks.md) - Performance benchmarks of SAGE.
-
-### Help
-
-* [FAQ](docs/faq.md) - Frequently asked questions.
-
 ## ✨ Features
 
 ### OPACA Agent Actions
@@ -144,6 +112,38 @@ Currently, SAGE can support the following file types as input:
 * Images: `.jpg, .jpeg, .png, .gif, .webp`,
 
 Files can be added to a conversation by either adding them via the "Upload File" button in the chat input section or by dragging them into the screen. Files are first uploaded to the SAGE backend and then to the individual selected models in the method configuration upon querying. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+
+## 📚 Documentation
+
+[View full documentation](docs) - Browse all available documentation pages.
+
+### Core Components
+
+* [User-Interface](docs/ui.md) - The main user interface of the OPACA LLM UI.
+* [Methods](docs/methods_overview.md) - A brief overview of all integrated methods for task-solving.
+* [Session-Handling](docs/session_handling.md) - How sessions are handled and how messages are stored.
+* [Backend-API](docs/api.md) - The RESTful API of the backend.
+
+### Task-Solving Methods
+
+* [Simple](docs/methods/simple.md) - A simple approach using a single agent.
+* [Tool-LLM](docs/methods/tool_llm.md) - A more complex approach using 3 distinct agents.
+* [Orchestration](docs/methods/orchestration.md) - An orchestration approach dynamically generating multiple AI agents.
+
+### Agent Development
+
+* [Python Development Guide](https://github.com/gt-arc/opaca-python-sdk) - Our Python SDK provides a simple way to develop new agent containers.
+* [Example Agent Containers](https://github.com/gt-arc/opaca-example-containers) - A selection of example agent containers for different use cases.
+
+### Deployment & Testing
+
+* [How to deploy containers](docs/container_deployment.md) - Deploy agent containers to your OPACA platform.
+* [Configuration](docs/configuration.md) - Overview of SAGE configuration options.
+* [Benchmarks](docs/benchmarks.md) - Performance benchmarks of SAGE.
+
+### Help
+
+* [FAQ](docs/faq.md) - Frequently asked questions.
 
 ## 🔒 Authentication
 
