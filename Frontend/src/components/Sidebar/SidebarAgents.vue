@@ -151,7 +151,11 @@ export default {
                     );
                     // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
                     var res = await backendClient.invokeAction(agent, action, parameters);
-                    await this.$refs.input.showInfo(Localizer.get('sidebar_agents_result'), "```\n" + JSON.stringify(res, null, 2) + "\n```");
+                    if (res.success) {
+                        await this.$refs.input.showInfo(Localizer.get('sidebar_agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
+                    } else {
+                        throw new Error(res.error);
+                    }
                 }
             );
         },
