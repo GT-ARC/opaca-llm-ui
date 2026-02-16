@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'SAGE'.
@@ -81,7 +81,7 @@ class SimpleMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=prompt,
+                system_prompt=self.build_full_prompt(prompt),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
@@ -96,6 +96,8 @@ class SimpleMethod(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
+                tool.id = self.next_tool_id(result)
+                await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant"))
                 tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
@@ -127,7 +129,7 @@ class SimpleMethod(AbstractMethod):
         try:
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
-                return ToolCall(id="0", name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
+                return ToolCall(id="0", type="opaca", name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass
         return None

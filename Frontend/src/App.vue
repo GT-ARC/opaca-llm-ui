@@ -17,7 +17,7 @@
                 <div class="me-2 w-auto text-start" :class="{'ms-5': !this.isMobile}">
                     <a href="https://github.com/GT-ARC/opaca-llm-ui" target="blank">
                         <img v-bind:src="isMobile ? 'src/assets/sage-logo-small.png' : 'src/assets/sage-logo.png'"
-                             class="logo" alt="Opaca Logo"
+                             class="logo" alt="SAGE Logo"
                              v-bind:height="isMobile ? 24 : 40"/>
                     </a>
                 </div>
@@ -49,7 +49,7 @@
                                data-bs-toggle="dropdown">
                                 <span v-if="isConnecting" class="fa fa-spin fa-spinner fa-dis"></span>
                                 <i :class="['fa', connected ? 'fa-link' : 'fa-unlink', 'me-1']" :style="{'color': connected ? 'green' : 'red'}"/>
-                                <span v-show="!isMobile">{{ connected ? Localizer.get('pltConnected') : Localizer.get('pltDisconnected') }}</span>
+                                <span v-show="!isMobile">{{ connected ? Localizer.get('general_connected') : Localizer.get('general_disconnected') }}</span>
                             </a>
                             <div id="connection-menu"
                                  class="dropdown-menu dropdown-menu-end p-4"
@@ -69,7 +69,7 @@
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
                                     <span v-else>
-                                        {{ connected ? Localizer.get('disconnect') : Localizer.get('connect') }}
+                                        {{ connected ? Localizer.get('general_disconnect') : Localizer.get('general_connect') }}
                                     </span>
                                 </button>
                             </div>
@@ -133,6 +133,7 @@
             :connected="this.connected"
             @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
+            @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
             @new-notification="response => createNotification(response)"
             ref="content"
@@ -194,14 +195,10 @@ export default {
                         Localizer.get('unauthenticated'),
                         username !== "" ? Localizer.get('authError') : null,
                         {
-                            username: { type: "text", label: Localizer.get("username") },
-                            password: { type: "password", label: Localizer.get("password") },
+                            username: { type: "text", label: Localizer.get("general_username") },
+                            password: { type: "password", label: Localizer.get("general_password") },
                         },
-                        (values) => {
-                            if (values != null) {
-                                this.connectToPlatform(values.username, values.password);
-                            }
-                        }
+                        (values) => this.connectToPlatform(values.username, values.password)
                     );
 
                 } else {
@@ -297,14 +294,29 @@ export default {
             await this.$refs.input.showInfo(null, message);
         },
 
+        async handleConfirmAction(confirmActionDetails) {
+            let message = `**Tool:** ${confirmActionDetails.tool}\n`;
+            Object.entries(confirmActionDetails.params).forEach( ([key, val]) => {
+                message += `* **${key}:** \`${JSON.stringify(val)}\`\n`;
+            });
+            await this.$refs.input.showDialogue(
+                "Confirm Action",
+                message,
+                null,
+                {},
+                (_) => this.$refs.content.submitConfirmAction(true),
+                () => this.$refs.content.submitConfirmAction(false)
+            );
+        },
+
         async handleContainerLogin(containerLoginDetails) {
             await this.$refs.input.showDialogue(
                 "Container Login",
                 `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
                 containerLoginDetails.retry ? Localizer.get('authError') : null,
                 {
-                    username: { type: "text", label: Localizer.get("username") },
-                    password: { type: "password", label: Localizer.get("password") },
+                    username: { type: "text", label: Localizer.get("general_username") },
+                    password: { type: "password", label: Localizer.get("general_password") },
                     timeout: { type: "select", default: 300, values: {
                         "0": "Logout immediately",
                         "300": "Logout after 5 minutes",
@@ -313,13 +325,8 @@ export default {
                         "14400": "Logout after 4 hours",
                     }},
                 },
-                (values) => {
-                    if (values != null) {
-                        this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout);
-                    } else {
-                        this.$refs.content.submitContainerLogin("", "", 0);
-                    }
-                }
+                (values) => this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout),
+                () => this.$refs.content.submitContainerLogin("", "", 0)
             );
         },
 
@@ -331,13 +338,8 @@ export default {
                 {
                     apiKey: { type: "password" },
                 },
-                (values) => {
-                    if (values != null) {
-                        this.$refs.content.submitApiKey(values.apiKey);
-                    } else {
-                        this.$refs.content.submitApiKey("");
-                    }
-                }
+                (values) => this.$refs.content.submitApiKey(values.apiKey),
+                () => this.$refs.content.submitApiKey("")
             );
         },
 
@@ -363,14 +365,12 @@ export default {
                     autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
                 },
                 async (values) => {
-                    if (values !== null) {
-                        // append to current chat
-                        const chatId = this.$refs.content.selectedChatId;
-                        await backendClient.append(chatId, pushMessage, values.autoAppend);
-                        // refresh current chat history and chats sidebar
-                        await this.$refs.content.loadHistory(chatId, false);
-                        await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
-                    }
+                    // append to current chat
+                    const chatId = this.$refs.content.selectedChatId;
+                    await backendClient.append(chatId, pushMessage, values.autoAppend);
+                    // refresh current chat history and chats sidebar
+                    await this.$refs.content.loadHistory(chatId, false);
+                    await this.$refs.content.$refs.sidebar.$refs.chats.updateChats();
                 }
             );
         },
@@ -414,7 +414,7 @@ export default {
         await sidebars.files.updateFiles();
         await sidebars.chats.updateChats();
         await sidebars.config.fetchMethodConfig();
-        await sidebars.questions.loadPersonalPrompts();
+        await sidebars.questions.loadPrompts();
         // open permanent websocket connection to backend for "push notifications" to the UI
         this.$refs.content.connectWebsocket();
     }

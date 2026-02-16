@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 from itertools import count
+from datetime import datetime as dt
+import os
 
 import httpx
 from openai.types.responses import ResponseFunctionToolCall
@@ -17,9 +19,13 @@ from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
                      ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
-                     MissingApiKeyNotification, MissingApiKeyResponse)
+                     MissingApiKeyNotification, MissingApiKeyResponse, ConfirmActionNotification, ConfirmActionResponse)
 from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
+
+
+# list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool
+actions_needing_confirmation: List[str] = []
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +101,17 @@ class AbstractMethod(ABC):
 
         # Modify the last user message to include file parts
         if file_message_parts:
-            messages[-1].content = [*file_message_parts, {"type": "input_text", "text": messages[-1].content}]
+            last = messages[-1]
+
+            # Normalize last content to "content parts"
+            if isinstance(last.content, list):
+                parts = last.content
+            else:
+                # assume string (or None)
+                parts = [{"type": "input_text", "text": last.content or ""}]
+
+            # Prepend file parts
+            last.content = [*file_message_parts, *parts]
 
         # Set settings for model invocation
         kwargs = {
@@ -123,6 +139,12 @@ class AbstractMethod(ABC):
                 raise OpacaException(
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
+                )
+            
+            elif event.type == event_type.RESPONSE_FAILED:
+                raise OpacaException(
+                    user_message="(The generation of the response has failed. See error message for details.)",
+                    error_message=f"{event.response.error['code']}: {event.response.error['message']}"
                 )
 
             elif event.type == event_type.OUTPUT_ITEM_DONE:
@@ -204,6 +226,9 @@ class AbstractMethod(ABC):
         else:
             agent_name, action_name = None, tool_name
 
+        if not (login_attempt_retry or await self.check_confirmation(tool_name, tool_args)):
+            return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result="Execution declined by user, do not attempt again.")
+
         try:
             if agent_name == INTERNAL_TOOLS_AGENT_NAME:
                 t_result = await self.internal_tools.call_internal_tool(action_name, tool_args)
@@ -239,6 +264,19 @@ class AbstractMethod(ABC):
         return tools, error
 
 
+    async def check_confirmation(self, tool_name: str, parameters: dict) -> bool:
+        """Use websocket to ask user for confirmation before executing the action if it matches any of the "needing confirmation" actions.
+        Returns whether the action may be executed or not.
+        """
+        if any(x.lower() in tool_name.lower() for x in actions_needing_confirmation):
+            if not self.session.has_websocket(): return False
+            # ask user for confirmation, sharing lock-mechanism with container-login
+            async with self.session.opaca_client.login_lock:
+                await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
+                return ConfirmActionResponse(**await self.session.websocket_receive()).allowed
+        return True
+
+
     async def handleContainerLogin(self, agent_name: str, action_name: str, tool_name: str, tool_args: dict, tool_id: str, login_attempt_retry: bool = False):
         """Handles failed tool invocation due to missing credentials."""
 
@@ -265,7 +303,7 @@ class AbstractMethod(ABC):
                 ))
                 response = ContainerLoginResponse(**await self.session.websocket_receive())
                 if not (response.username and response.password):
-                    return ToolCall(id=tool_id, name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
+                    return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=f"Failed to invoke tool.\nNo credentials provided.")
                 
                 # Attempt to login at container via OPACA (error if immediate login-check fails)
                 try:
@@ -292,6 +330,27 @@ class AbstractMethod(ABC):
                 await self.handle_invalid_api_key(model, True)
         else:
             raise OpacaException(user_message=f"No valid API key was provided for model {model}!")
+
+    def build_full_prompt(self, specific_prompt: str) -> str:
+        """
+        Provides a certain level of awareness of the LLM to (a) who it is, without repeating that
+        in each prompt, as well as (b) things like the current date and time or the location.
+        """
+        SELF_INTRODUCTION_AND_CAPABILITIES = f"""
+        You are part of an LLM Assistant called \"SAGE\". {self.get_time_and_location()} Following are your 
+        individual tasks:
+        """
+        return "\n".join((SELF_INTRODUCTION_AND_CAPABILITIES, specific_prompt))
+
+    @staticmethod
+    def get_time_and_location():
+        """dynamic prompt fragment including current date, time, and, if set, the location"""
+        now = dt.strftime(dt.now(), "%B %d %Y, %H:%M")
+        loc = os.getenv("LOCATION")
+        if loc:
+            return f"The current date and time is {now}. You are located at {loc}."
+        else:
+            return f"The current date and time is {now}."
 
 def openapi_to_functions(openapi_spec, agent: str | None = None):
     """

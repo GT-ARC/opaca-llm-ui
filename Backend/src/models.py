@@ -50,6 +50,19 @@ class ConnectRequest(BaseModel):
     pwd: str | None
 
 
+class RestrictedActions(BaseModel):
+    """
+    Used as payload/result for /admin/restrict routes. Both lists contain string-fragments.
+    Rules apply to tools where action or agent name matches (ignoring case) any of those strings.
+
+    Attributes:
+        forbidden: actions are forbidden and will result in an error if the LLM tries to call them
+        need_confirmation: actions will require confirmation by the user each time they are called
+    """
+    forbidden: List[str]
+    need_confirmation: List[str]
+
+
 class QueryRequest(BaseModel):
     """
     Used as the expected body argument in the `/query/{method}` endpoints
@@ -181,6 +194,19 @@ class ScheduledTask(BaseModel):
     repetitions: int
 
 
+class Prompt(BaseModel):
+    question: str
+    icon: str = None
+
+
+class PromptCategory(BaseModel):
+    id: str
+    header: str
+    icon: str | None = None
+    visible: bool = True
+    questions: List[Prompt] = []
+
+
 class Chat(BaseModel):
     """
     Stores information about each chat.
@@ -227,7 +253,6 @@ class SessionData(BaseModel):
 
     Attributes:
         session_id: The session's internal ID.
-        bookmarks: All prompts bookmarked during the session.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
         abort_sent: Boolean indicating whether the current interaction should be aborted.
@@ -237,6 +262,8 @@ class SessionData(BaseModel):
         valid_until: Timestamp until session is active.
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
+        sidebar_level: State of sidebar (extended or not).
+        prompts: Prompt Library data.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -250,7 +277,6 @@ class SessionData(BaseModel):
     the server is using the same method for waiting for the webserver to be closed again.
     """
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
-    bookmarks: list[dict] = Field(default_factory=list)
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
     abort_sent: bool = False
@@ -261,6 +287,7 @@ class SessionData(BaseModel):
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
     sidebar_level: int = 0
+    prompts: Dict[str, List[PromptCategory]] = None
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
@@ -485,6 +512,15 @@ class PushMessage(QueryResponse):
     """
     model_config = {"extra": "ignore"}
     task_id: int
+
+
+class ConfirmActionNotification(BaseModel):
+    tool: str
+    params: dict
+
+
+class ConfirmActionResponse(BaseModel):
+    allowed: bool
 
 
 class ContainerLoginNotification(BaseModel):

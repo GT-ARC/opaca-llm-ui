@@ -44,7 +44,7 @@
 
                 <i @click="SidebarManager.toggleView('extensions')"
                    class="fa fa-puzzle-piece sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarExtensions')"
+                   :title="Localizer.get('sidebar_extensions')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
 
                 <i @click="SidebarManager.toggleView('mcp')"
@@ -106,6 +106,7 @@
                     @delete-file="fileId => this.$emit('delete-file', fileId)"
                     @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
                     @view-file="$emit('view-file', $event)"
+                    @rename-file="(fileId, newName) => this.$emit('rename-file', fileId, newName)"
                     ref="files"
                 />
 
@@ -212,6 +213,7 @@ export default {
         'delete-file',
         'suspend-file',
         'view-file',
+        'rename-file',
         'goto-search-result',
         'delete-all-chats',
     ],
@@ -248,8 +250,8 @@ export default {
         },
 
         getSidebarToggleTooltip() {
-            if (this.sidebarLevel === 0) return Localizer.get('tooltipSidebarShowAdvanced');
-            return Localizer.get('tooltipSidebarCollapse');
+            if (this.sidebarLevel === 0) return Localizer.get('sidebar_show_advanced_tools');
+            return Localizer.get('sidebar_show_standard_tools');
         },
 
         setupResizer() {
@@ -296,6 +298,8 @@ export default {
 <style>
 /* used in the sub-components! */
 .sidebar-title {
+    display: flex;
+    align-items: center;
     font-size: 150%;
     border-left: 5px solid var(--primary-color);
     padding-left: .5em;

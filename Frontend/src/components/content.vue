@@ -50,8 +50,9 @@
             @delete-file="fileId => this.handleDeleteFile(fileId)"
             @suspend-file="(fileId, suspend) => this.handleSuspendFile(fileId, suspend)"
             @view-file="openViewer"
+            @rename-file="handleRenameFile"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
-                @delete-all-chats="() => this.handleDeleteAllChats()"
+            @delete-all-chats="() => this.handleDeleteAllChats()"
         />
 
 
@@ -64,17 +65,15 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
-                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
-                        @add-to-library="addPromptToSidebar"
                     />
                 </div>
 
@@ -304,6 +303,24 @@ export default {
             // Do not send questions during autogeneration
             if (questionText === "__loading__") return;
 
+            var placeholders = questionText.match(/\[[^\]]+\]/g);
+            if (placeholders !== null) {
+                // substitute placeholders
+                await this.$refs.input.showDialogue(
+                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
+                    async (values) => {
+                        // ask the completed question
+                        await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
+                    }
+                );
+            } else {
+                // just ask the question
+                await this.setTextAndSubmit(questionText);
+            }
+        },
+
+        async setTextAndSubmit(questionText) {
             this.textInput = questionText
             await nextTick();
             this.resizeTextInput();
@@ -426,6 +443,11 @@ export default {
             await this.$refs.sidebar.$refs.files.updateFiles();
         },
 
+        async handleRenameFile(fileId, newName) {
+            await backendClient.renameFile(fileId, newName);
+            await this.$refs.sidebar.$refs.files.updateFiles();
+        },
+
         maxDisplayedFiles() {
             return this.isMobile ? 2 : 4;
         },
@@ -438,6 +460,10 @@ export default {
 
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
+
+            if (result.type === "ConfirmActionNotification") {
+                this.$emit('action-confirmation-required', result);
+            }
 
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
@@ -523,6 +549,10 @@ export default {
             this.socket.send(containerLoginDetails);
         },
 
+        submitConfirmAction(allowed) {
+            this.socket.send(JSON.stringify({allowed: allowed}));
+        },
+
         submitApiKey(apiKey) {
             const apiKeyResponse = JSON.stringify({api_key: apiKey});
             this.socket.send(apiKeyResponse);
@@ -556,34 +586,18 @@ export default {
         async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
 
-            const bookmarked = this.compareToBookmarks(content);
-
             const message = {
                 elementId: elementId,
                 isUser: isUser,
                 content: content,
                 isLoading: isLoading,
                 files: files,
-                bookmarked: bookmarked,
             };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
             this.scrollDownChat();
-        },
-
-        compareToBookmarks(content) {
-            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts;
-            return bookmarks.some(b => b.question.trim() === content.trim());
-        },
-
-        handleUnexpectedConnectionClosed(message) {
-            console.error('Connection closed unexpectedly', message);
-            const aiBubble = this.getLastBubble();
-            aiBubble.setContent(message);
-            aiBubble.toggleLoading(false);
-            aiBubble.setError("Connection closed unexpectedly");
         },
 
         handleChatScroll() {
@@ -747,7 +761,7 @@ export default {
                 Localizer.reloadSampleQuestions(null);
             }
             await nextTick();
-            this.$refs.textInputRef.focus();
+            this.$refs.textInputRef?.focus();
         },
 
         async scrollToMessage(messageId) {
@@ -797,11 +811,6 @@ export default {
 
         openViewer(file) {
             this.viewerFile = file;
-        },
-
-        addPromptToSidebar(prompt) {
-            // call SidebarQuestions method
-            this.$refs.sidebar.$refs.questions.addPersonalPrompt(prompt);
         },
     },
 

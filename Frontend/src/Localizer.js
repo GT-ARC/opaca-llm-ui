@@ -6,36 +6,35 @@ import conf from '../config.js';
 
 export const localizationData = {
     GB: {
-        pltConnected: "Connected",
-        pltDisconnected: "Disconnected",
-        connect: "Connect",
-        disconnect: "Disconnect",
         name: "English",
+        general_connected: "Connected",
+        general_disconnected: "Disconnected",
+        general_connect: "Connect",
+        general_disconnect: "Disconnect",
+        general_okay: 'Okay',
+        general_cancel: 'Cancel',
+        general_username: 'Username',
+        general_password: 'Password',
         settings: "Settings",
-        method: "Method",
-        colorMode: "Color Scheme",
-        language: 'Language',
-        submit: 'Submit',
-        cancel: 'Cancel',
-        username: 'Username',
-        password: 'Password',
+        settings_language: 'Language',
+        settings_method: "Method",
+        settings_colorMode: "Color Scheme",
+        settings_audio: "Audio",
+        settings_audio_connected: 'Connected',
+        settings_audio_disconnected: 'Disconnected',
+        settings_audio_retry: 'Retry Connection',
+        settings_audio_whisperTts: "Whisper TTS",
+        settings_audio_whisperStt: "Whisper STT",
         welcome: 'What can I do for you today? Try one of the sample queries or ask me anything you like!',
         opacaUnreachable: 'Could not connect to OPACA platform.',
         backendUnreachable: 'SAGE Backend is unreachable. Please check if the backend is running and reload the page.',
         unauthenticated: 'Authentication Required',
         authError: 'Invalid username or password.',
         none: 'None',
-        speechRecognition: 'Speak' ,
-        readLastMessage: 'Read Last',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Send a message ...',
         socketClosed: 'It seems there was a problem in the response generation.',
         socketError: 'An Error occurred in the response generation: %1',
-        ttsConnected: 'Connected',
-        ttsDisconnected: 'Disconnected',
-        ttsRetry: 'Retry Connection',
-        ttsServerInfo: '%1 on %2',
-        ttsServerUnavailable: 'Audio service not available',
         tooltipSidebarInfo: "General Information",
         tooltipSidebarChats: "Chats",
         tooltipSidebarFiles: "Uploaded Files",
@@ -61,14 +60,13 @@ export const localizationData = {
         buttonConfigSave: "Save Config",
         buttonConfigReset: "Reset to Defaults",
         tooltipSidebarFaq: "Help/FAQ",
-        audioServerSettings: "Audio",
         rerollQuestions: "More…",
         regenerate: "Suggest More",
         platformInfoMissing: "It's a little quiet here...",
         platformInfoLoading: "Querying functionality, please wait...",
         platformInfoFailed: "There was an error when querying the functionality: %1",
-        cookiesText: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
-        cookiesAccept: "Accept",
+        cookies_text: "This website uses cookies to associate your chat session (message history and settings) with you. This cookie is kept for 30 days after the last interaction, or until manually deleted. The session data is stored in the backend and the messages are sent to the configured LLM. The session data will be deleted from the backend when the cookie expires, or by clicking the Reset button. The cookies and session data are used for the sole purpose of the chat interaction. Without, no continued conversation with the LLM is possible. By using this website, you consent to the above policy.",
+        cookies_accept: "Accept",
         tooltipDeleteUploadedFile: "Remove File",
         tooltipSuspendUploadedFile: "Include File in conversations?",
         tooltipViewUploadedFile: "View File",
@@ -99,62 +97,65 @@ export const localizationData = {
         sidebarFilesEmpty: "No files uploaded",
         confirmDeleteFile: "Are you sure that you want to remove and forget the File '%1'?",
         searchAgentsPlaceholder: "Search…",
-        tooltipChatbubbleSave: "Save prompt to user library",
-        personalQuestionsEmpty: "No personal prompts saved",
-        tooltipDeleteQuestion: "Delete Prompt",
-        editQuestion: "Edit Prompt",
-        addPersonalQuestion: "New Prompt",
         containerLoginMessage: "The following action requires additional credentials: ",
-        useWhisperTts: "Whisper TTS",
-        useWhisperStt: "Whisper STT",
-        whisperVoiceSelectPlaceholder: "Whisper Voice",
-        bookmarkHeader: "Bookmarked Prompts",
-        tooltipSidebarExtensions: "Extensions",
-        tooltipSidebarShowStandard: "Show Standard Tools",
-        tooltipSidebarShowAdvanced: "Show Advanced Tools",
-        tooltipSidebarCollapse: "Show Less",
-        sidebarExtensionsLoading: "Loading available extensions...",
-        sidebarExtensionsMissing: "No extensions available.",
-        tooltipExpandExtension: "Expand",
+        sidebar_extensions: "Extensions",
+        sidebar_extensions_loading: "Loading available extensions...",
+        sidebar_extensions_missing: "No extensions available.",
+        sidebar_extensions_refresh: "Refresh",
+        sidebar_extensions_expand: "Expand",
+        sidebar_show_standard_tools: "Show Standard Tools",
+        sidebar_show_advanced_tools: "Show Advanced Tools",
         apiKeyMissing: "Please provide an API key for this model: ",
         apiKeyInvalid: "The entered API key for following model is invalid! Try again: ",
         tooltipAppendNotification: "Append to current Chat",
         tooltipDismissNotification: "Dismiss",
         autoAppendNotification: "Also append future notifications",
         noNotifsAvailable: "No notifications",
+        autogenQuestionsTitle: "Auto-Generated Prompts",
+        confirmSampleQuestionReset: "Are you sure you want to reset the sample question to the default ones?",
+        specifyPlaceholders: "Values for Placeholders",
+        sidebar_questions_addPrompt: "Add New Prompt",
+        sidebar_questions_addCategory: "Add New Category",
+        sidebar_questions_reset: "Reset Prompts",
+        sidebar_questions_editPrompt: "Edit Prompt",
+        sidebar_questions_editCategory: "Edit Category",
+        sidebar_questions_toggleEditMode: "Edit Prompt Library",
+        sidebar_questions_deletePrompt: "Delete Prompt",
+        sidebar_questions_deleteCategory: "Delete Category",
+        sidebar_questions_deletePrompt_confirm: "Delete prompt \"%1\"?",
+        sidebar_questions_deleteCategory_confirm: "Delete category \"%1\"?",
     },
 
     DE: {
-        pltConnected: "Verbunden",
-        pltDisconnected: "Nicht verbunden",
-        connect: "Verbinden",
-        disconnect: "Trennen",
         name: "Deutsch",
+        general_connected: "Verbunden",
+        general_disconnected: "Nicht verbunden",
+        general_connect: "Verbinden",
+        general_disconnect: "Trennen",
+        general_okay: 'Okay',
+        general_cancel: 'Abbrechen',
+        general_username: 'Benutzer',
+        general_password: 'Passwort',
         settings: "Einstellungen",
-        language: 'Sprache',
-        method: "Methode",
-        colorMode: "Farbschema",
-        submit: 'Senden',
-        cancel: 'Abbrechen',
-        username: 'Benutzer',
-        password: 'Passwort',
+        settings_language: 'Sprache',
+        settings_method: "Methode",
+        settings_colorMode: "Farbschema",
+        settings_audio: "Audio",
+        settings_audio_connected: 'Verbunden',
+        settings_audio_disconnected: 'Nicht verbunden',
+        settings_audio_retry: 'Erneut verbinden',
+        settings_audio_whisperTts: "Whisper TTS",
+        settings_audio_whisperStt: "Whisper STT",
         welcome: 'Was kann ich heute für Dich tun? Versuch einen der Beispiel-Queries, oder frag mich alles was Du willst!',
         opacaUnreachable: 'Verbindung mit OPACA Plattform fehlgeschlagen.',
         backendUnreachable: 'SAGE Backend nicht erreichbar. Bitte überprüfen Sie ob das Backend läuft und laden Sie die Seite neu.',
         unauthenticated: 'Authentifizierung erforderlich',
         authError: 'Benutzer oder Passwort falsch.',
         none: 'Keine',
-        speechRecognition: 'Sprechen' ,
-        readLastMessage: 'Vorlesen',
         opacaLocation: 'OPACA URL',
         inputPlaceholder: 'Nachricht senden ...',
         socketClosed: 'Es scheint ein Problem bei der Erstellung der Antwort aufgetreten zu sein.',
         socketError: 'Bei der Erstellung der Antwort ist ein Fehler aufgetreten: %1',
-        ttsConnected: 'Verbunden',
-        ttsDisconnected: 'Nicht verbunden',
-        ttsRetry: 'Erneut verbinden',
-        ttsServerInfo: '%1 auf %2',
-        ttsServerUnavailable: 'Audio-Dienst ist nicht erreichbar',
         tooltipSidebarInfo: "Generelle Informationen",
         tooltipSidebarChats: "Chats",
         tooltipSidebarFiles: "Hochgeladene Dateien",
@@ -180,14 +181,13 @@ export const localizationData = {
         buttonConfigSave: "Speichern",
         buttonConfigReset: "Zurücksetzen",
         tooltipSidebarFaq: "Hilfe/FAQ",
-        audioServerSettings: "Audio",
         rerollQuestions: "Mehr…",
         regenerate: "Weitere Beispiele",
         platformInfoMissing: "Hier gibt es gerade nichts...",
         platformInfoLoading: "Frage Funktionalitäten an, bitte warten...",
         platformInfoFailed: "Es gab einen Fehler bei der Anfrage: %1",
-        cookiesText: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
-        cookiesAccept: "Annehmen",
+        cookies_text: "Diese Website verwendet Cookies, um Ihre Chat-Sitzung (Nachrichtenverlauf und Einstellungen) mit Ihnen zu verknüpfen. Die Cookies werden 30 Tage nach der letzten Interaktion oder bis zur manuellen Löschung gespeichert. Die Sitzungsdaten werden im Backend gespeichert und die Nachrichten werden an das konfigurierte LLM gesendet. Die Sitzungsdaten werden aus dem Backend gelöscht, wenn das Cookie abläuft oder wenn Sie auf die Reset-Schaltfläche klicken. Die Cookies und Sitzungsdaten werden ausschließlich für die Chat-Interaktion verwendet. Ohne sie ist keine fortgesetzte Konversation mit dem LLM möglich. Durch die Nutzung dieser Website stimmen Sie den oben genannten Richtlinien zu.",
+        cookies_accept: "Annehmen",
         tooltipDeleteUploadedFile: "Datei entfernen",
         tooltipSuspendUploadedFile: "Datei in Konversationen einbeziehen?",
         tooltipViewUploadedFile: "Datei anzeigen",
@@ -218,159 +218,35 @@ export const localizationData = {
         sidebarFilesEmpty: "Keine Dateien hochgeladen",
         confirmDeleteFile: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
         searchAgentsPlaceholder: "Suchen…",
-        tooltipChatbubbleSave: "Prompt in Nutzerbibliothek speichern",
-        personalQuestionsEmpty: "Keine persönlichen Prompts gespeichert",
-        tooltipDeleteQuestion: "Prompt löschen",
-        editQuestion: "Prompt bearbeiten",
-        addPersonalQuestion: "Neuer Prompt",
         containerLoginMessage: "Die auszuführende Aktion benötigt weitere Zugangsdaten: ",
-        useWhisperTts: "Whisper TTS",
-        useWhisperStt: "Whisper STT",
-        whisperVoiceSelectPlaceholder: "Whisper-Stimme",
-        bookmarkHeader: "Favoriten",
-        tooltipSidebarExtensions: "Erweiterungen",
-        tooltipSidebarShowStandard: "Standard-Werkzeuge anzeigen",
-        tooltipSidebarShowAdvanced: "Erweiterte Werkzeuge anzeigen",
-        tooltipSidebarCollapse: "Weniger anzeigen",
-        sidebarExtensionsLoading: "Lade verfügbare Erweiterungen...",
-        sidebarExtensionsMissing: "Keine Erweiterungen verfügbar.",
-        tooltipExpandExtension: "Vergrößern",
+        sidebar_extensions: "Erweiterungen",
+        sidebar_extensions_loading: "Lade verfügbare Erweiterungen...",
+        sidebar_extensions_missing: "Keine Erweiterungen verfügbar.",
+        sidebar_extensions_refresh: "Neu laden",
+        sidebar_extensions_expand: "Vergrößern",
+        sidebar_show_standard_tools: "Standard-Werkzeuge anzeigen",
+        sidebar_show_advanced_tools: "Erweiterte Werkzeuge anzeigen",
         apiKeyMissing: "Bitte geben Sie für das folgende Model einen API-Key ein: ",
         apiKeyInvalid: "Der eingegebene API-Key für das folgende Model ist ungültig! Versuchen Sie es erneut: ",
         tooltipAppendNotification: "An den geöffneten Chat heften",
         tooltipDismissNotification: "Entfernen",
         autoAppendNotification: "Auch künftige Benachrichtigungen anhängen",
         noNotifsAvailable: "Keine Benachrichtigungen",
+        autogenQuestionsTitle: "Auto-Generierte Prompts",
+        confirmSampleQuestionReset: "Wirklich auf die Standardeinstellungen zurücksetzen?",
+        specifyPlaceholders: "Werte für Platzhalter",
+        sidebar_questions_addPrompt: "Neuer Prompt",
+        sidebar_questions_addCategory: "Neue Kategorie",
+        sidebar_questions_reset: "Prompts zurücksetzen",
+        sidebar_questions_editPrompt: "Prompt bearbeiten",
+        sidebar_questions_editCategory: "Kategorie bearbeiten",
+        sidebar_questions_toggleEditMode: "Prompt-Bibliothek bearbeiten",
+        sidebar_questions_deletePrompt: "Prompt löschen",
+        sidebar_questions_deleteCategory: "Kategorie löschen",
+        sidebar_questions_deletePrompt_confirm: "Prompt \"%1\" löschen?",
+        sidebar_questions_deleteCategory_confirm: "Kategorie \"%1\" löschen?",
     },
 };
-
-
-export const sidebarQuestions = reactive({
-    GB: [
-        {
-            "id": "taskAutomation",
-            "header": "Task Automation",
-            "icon": "🤖",
-            "questions": [
-                {"question": "Please fetch and summarize my latest e-mails.", "icon": "📧"},
-                {"question": "Summarize my upcoming meetings for the next 3 days.", "icon": "📅"},
-                {"question": "Fetch my next meeting and prepare me for it by giving me some background information on the topic and get the available phone numbers of the participants!", "icon": "📑"},
-                {"question": "Schedule a brainstorming session with Robert.", "icon": "🧠"},
-                {"question": "Get my gitlab user id and give me a tabular overview of all open GitLab issues assigned me.", "icon": "📜"},
-            ]
-        },
-        {
-            "id": "informationUpskilling",
-            "header": "Information & Upskilling",
-            "icon": "📚",
-            "questions": [
-                {"question": "Tell me something about the 'go-KI' project by GT-ARC.", "icon": "🤖"},
-                {"question": "What can you tell me about ZEKI?", "icon": "❓"},
-                {"question": "What are the most exciting tech trends for 2026 in the domain \"Consumer Electronics\"?", "icon": "🚀"},
-                {"question": "Please suggest a curriculum for getting started with computer vision.", "icon": "💻"},
-                {"question": "I want to start my master at TU Berlin and focus on AI applications. What program and courses are available?", "icon": "🎓"},
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Retrieve the current co2 levels in the kitchen and coworking space. Then, plot them in a bar chart for comparison.", "icon": "☁️"},
-                {"question": "Create a bar plot comparing the current stock prices of Siemens, Volkswagen, Deutsche Bank and SAP.", "icon": "📊"},
-                {"question": "Get the weather for Berlin for the next three days, show the details and plot a simple temperature graph.", "icon": "🌤️"},
-                {"question": "Get my gitlab user id and then plot my user statistics for the last 30 days as a bar plot.", "icon": "📈️"},
-            ]
-        },
-        {
-            "id": "smartOffice",
-            "header": "Smart Office",
-            "icon": "🏢",
-            "questions": [
-                {"question": "What is the temperature and CO2 level in the conference room?", "icon": "🌡️"},
-                {"question": "Where can I find the espresso cups in the kitchen?", "icon": "☕"},
-                {"question": "Open the shelf where I can store a glass.", "icon": "🥃"},
-                {"question": "Set the light in the Experience Hub to half brightness.", "icon": "💡"},
-                {"question": "Guide me to the conference room, please.", "icon": "🧭"},
-            ]
-        },
-        /*
-        {
-            "id": "mobility",
-            "header": "Mobility",
-            "icon": "🚗",
-            "questions": [
-                {"question": "Where is my Tiguan Car?", "icon": "📍"},
-                {"question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.", "icon": "🧭"},
-                {"question": "Find a parking spot near the current location of my Tiguan car.", "icon": "🅿️"},
-                {"question": "What's the current air quality near Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
-            ]
-        },
-        */
-    ],
-    DE: [
-        {
-            "id": "taskAutomation",
-            "header": "Task Automation",
-            "icon": "🤖",
-            "questions": [
-                {"question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen.", "icon": "📧"},
-                {"question": "Fasse mir meine Termine für die nächsten 3 Tage zusammen.", "icon": "📅"},
-                {"question": "Such nach meinem nächsten meeting und bereite mich auf dieses vor, indem du mir Hintergrundinformationen zu dem besprochenen Thema lieferst und die verfügbaren Telefonnummern der Teilnehmer holst.", "icon": "📑"},
-                {"question": "Plane ein Brainstorming-Meeting mit Robert.", "icon": "🧠"},
-                {"question": "Finde meine GitLab Benutzer id und gib mir dann eine tabellarische Übersicht aller meiner offenen GitLab Issues wieder.", "icon": "📜"},
-            ]
-        },
-        {
-            "id": "informationUpskilling",
-            "header": "Information & Upskilling",
-            "icon": "📚",
-            "questions": [
-                {"question": "Erzähl mir etwas über das 'go-KI' Projekt von GT-ARC.", "icon": "🤖"},
-                {"question": "Was kannst du mir über das ZEKI erzählen?", "icon": "❓"},
-                {"question": "Was sind die spannendsten Tech-Trends für 2026 im Bereich \"Consumer Electronics\"?", "icon": "🚀"},
-                {"question": "Schlag mir einen Lernplan vor, um mich in Computer Vision einzuarbeiten.", "icon": "💻"},
-                {"question": "Ich möchte meinen Master an der TU Berlin anfangen mit dem Schwerpunkt KI Anwendungen. Welche Studiengänge und Kurse sind dazu verfügbar?", "icon": "🎓"},
-            ]
-        },
-        {
-            "id": "dataAnalysis",
-            "header": "Data Analysis",
-            "icon": "📊",
-            "questions": [
-                {"question": "Finde den aktuellen Co2 Wert in der Küche und dem Coworking Space. Dann visualisiere die Daten in einem Balkendiagramm für einen Vergleich.", "icon": "☁️"},
-                {"question": "Erstelle ein Balkendiagramm der aktuellen Aktienpreise von Siemens, Volkswagen, Deutsche Bank und SAP.", "icon": "📊"},
-                {"question": "Ruf das Wetter für Berlin in den nächsten drei Tagen ab, zeig die Details und erstelle einen einfachen Graphen der Temperatur.", "icon": "🌤️"},
-                {"question": "Finde meine GitLab Benutzer id und stelle dann meine Benutzeraktivitäten für die letzten 30 Tage in einem Balkendiagramm dar.", "icon": "📈️"},
-            ]
-        },
-        {
-            "id": "smartOffice",
-            "header": "Smart Office",
-            "icon": "🏢",
-            "questions": [
-                {"question": "Wie ist die Temperatur und das CO2-Level im Conference Space?", "icon": "🌡️"},
-                {"question": "Wo finde ich die Espressotassen in der Küche?", "icon": "☕"},
-                {"question": "Öffne den Küchenschrank, in den die Gläser gehören.", "icon": "🥃"},
-                {"question": "Stell die Beleuchtung im Experience Hub auf halbe Helligkeit ein.", "icon": "💡"},
-                {"question": "Bitte zeige mir den Weg zum Konferenzraum.", "icon": "🧭"},
-            ]
-        },
-        /*
-        {
-            "id": "mobility",
-            "header": "Mobilität",
-            "icon": "🚗",
-            "questions": [
-                {"question": "Wo ist mein Tiguan Auto?", "icon": "📍"},
-                {"question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.", "icon": "🧭"},
-                {"question": "Finde einen Parkplatz in der Nähe der aktuellen Position meines Tiguan Autos.", "icon": "🅿️"},
-                {"question": "Wie ist die aktuelle Luftqualität am Ernst-Reuter-Platz, Berlin?", "icon": "🌫️"},
-            ]
-        },
-        */
-    ],
-})
 
 
 // Placeholder messages for streaming in different languages
@@ -442,6 +318,7 @@ class Localizer {
             : ref(fallbackLanguage);
 
         this._randomSampleQuestions = ref(null);
+        this._samplePrompts = ref(null);
     }
 
     set language(newLang) {
@@ -468,6 +345,14 @@ class Localizer {
 
     get randomSampleQuestions() {
         return this._randomSampleQuestions.value;
+    }
+
+    set samplePrompts(value) {
+        this._samplePrompts.value = value;
+    }
+
+    get samplePrompts() {
+        return this._samplePrompts.value;
     }
 
     _verifySettings() {
@@ -525,9 +410,9 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(textinput, categoryHeader) {
-        if (textinput) {
-            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textinput, 3);
+    getSampleQuestions(textInput, categoryHeader) {
+        if (textInput) {
+            this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textInput, 3);
         } else if (! this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
         }
@@ -538,18 +423,21 @@ class Localizer {
         this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
     }
 
-    getFilteredSampleQuestions(categoryHeader = null, textinput = null, numQuestions = 3) {
+    getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
+        if (!this.getPrompts()) {
+            return [];
+        }
         // assemble questions from all or selected category into a single array
-        let questions = sidebarQuestions[this.language]
+        let filteredQuestions = this.getPrompts()
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
-            .filter(question => textinput === null || matches(question.question, textinput));
+            .filter(question => textInput === null || matches(question.question, textInput));
 
         // if no text input was given -> shuffle and get first k questions
-        if (!textinput) {
-            shuffleArray(questions);
+        if (!textInput) {
+            shuffleArray(filteredQuestions);
         }
-        return questions.slice(0, numQuestions);
+        return filteredQuestions.slice(0, numQuestions);
     }
 
     getAvailableLocales() {
@@ -571,6 +459,13 @@ class Localizer {
     getLanguageForDate() {
         return voiceGenLocalesWebSpeech[this.language];
     }
+
+    /**
+     * @returns {Array}
+     */
+    getPrompts() {
+        return this.samplePrompts?.[this.language];
+    }
 }
 
 /**
@@ -585,8 +480,8 @@ function _mapCategoryIcons(question, category) {
     };
 }
 
-function matches(question, textinput) {
-    return textinput.toLowerCase().split(/\s+/)
+function matches(question, textInput) {
+    return textInput.toLowerCase().split(/\s+/)
         .every(word => question.toLowerCase().includes(word));
 }
 

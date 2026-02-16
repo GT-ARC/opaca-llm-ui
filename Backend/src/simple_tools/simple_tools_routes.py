@@ -41,7 +41,7 @@ class SimpleToolsMethod(AbstractMethod):
 
         config: SimpleToolConfig = self.get_config()
         max_iters = config.max_rounds
-        
+
         # Get tools and transform them into the OpenAI Function Schema
         tools, error = await self.get_tools()
 
@@ -56,7 +56,7 @@ class SimpleToolsMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.model,
                 agent="assistant",
-                system_prompt=SYSTEM_PROMPT,
+                system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
                 messages=messages,
                 temperature=config.temperature,
                 tools=tools,
@@ -81,7 +81,7 @@ class SimpleToolsMethod(AbstractMethod):
                             f"You have used the following tools: \n{tool_contents}")
                 )
                 response.agent_messages[-1].tools = tool_entries
-                
+
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))

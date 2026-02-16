@@ -64,11 +64,11 @@
             </div>
         </div>
     </div>
-    <div class="accordion-button d-flex align-items-center justify-content-center mb-2 cursor-pointer"
+    <button class="accordion-button align-items-center mb-2"
          @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
         <span>{{ Localizer.get('addMcp')}}</span>
-    </div>
+    </button>
 
     <InputDialogue ref="input" />
 </div>
@@ -110,37 +110,34 @@ export default {
             this.isLoading = false;
         },
 
-        async addMcp(mcpError = null, url_placeholder = "", label_placeholder = "") {
+        async addMcp() {
             await this.$refs.input.showDialogue(
-                Localizer.get('addMcp'),
-                null,
-                mcpError,
+                Localizer.get('addMcp'), null, null,
                 {
-                    mcpServerUrl: {type: "text", label: "Server URL", default: url_placeholder },
-                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: label_placeholder },
-                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {never: "Require Approval - never", always: "Require Approval - always (not implemented yet)"}},
+                    mcpServerUrl: {type: "text", label: "Server URL"},
+                    mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
+                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {
+                        never: "Require Approval - never",
+                        always: "Require Approval - always (not implemented yet)"
+                    }},
                 },
                 async (values) => {
-                    if (values != null) {
-                        // Get values from submission dialogue
-                        const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+                    // Get values from submission dialogue
+                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
 
-                        // Validate input
-                        mcpError = this.isValidInput(data.server_url, data.server_label);
-                        if (mcpError !== "") {
-                            await this.addMcp(mcpError, data.server_url, data.server_label)
-                            return
-                        }
-
-                        // Add MCP server to backend, retry on failure
-                        try {
-                            await backendClient.addMcp({"content": data});
-                        } catch (err) {
-                            await this.addMcp(err.response.data.detail, data.server_url, data.server_label);
-                            return
-                        }
-                        await this.updateMcp(true);
+                    // Validate input
+                    var mcpError = this.isValidInput(data.server_url, data.server_label);
+                    if (mcpError !== "") {
+                        throw new Error(mcpError);
                     }
+
+                    // Add MCP server to backend, retry on failure
+                    try {
+                        await backendClient.addMcp({"content": data});
+                    } catch (err) {
+                        throw new Error(err.response.data.detail);
+                    }
+                    await this.updateMcp(true);
                 }
             );
             
@@ -150,10 +147,8 @@ export default {
             await this.$refs.input.showDialogue(
                 "Delete MCP server?", null, null, {}, 
                 async (values) => {
-                    if (values != null) {
-                        await backendClient.deleteMcp(mcpName);
-                        await this.updateMcp(true);
-                    }
+                    await backendClient.deleteMcp(mcpName);
+                    await this.updateMcp(true);
                 }
             );
         },

@@ -17,16 +17,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 
-from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage
+from . import sample_prompts as prompts
+from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
+    PromptCategory
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk
+from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
+from .opaca_client import actions_blacklist
+from .abstract_method import actions_needing_confirmation
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -133,6 +137,17 @@ async def session_admin_update(session_id: str, action: SessionAction, auth = De
     return await update_session(session_id, action)
 
 
+@app.get("/admin/restrict", description="Get list of 'restricted' terms in action and agent names.", tags=["admin"])
+async def get_blacklist() -> RestrictedActions:
+    return RestrictedActions(forbidden=actions_blacklist, need_confirmation=actions_needing_confirmation)
+
+
+@app.put("/admin/restrict", description="Update list of 'restricted' terms in action and agent names, blocking those actions from being executed.", tags=["admin"])
+async def set_blacklist(restrictions: RestrictedActions, auth = Depends(require_password)):
+    actions_blacklist[:] = restrictions.forbidden
+    actions_needing_confirmation[:] = restrictions.need_confirmation
+
+
 @app.post("/connect", description="Connect to OPACA Runtime Platform. Returns the status code of the original request (to differentiate from errors resulting from this call itself).", tags=["opaca"])
 async def connect(request: Request, response: Response, connect: ConnectRequest) -> int:
     session = await handle_session_id(request, response)
@@ -196,20 +211,20 @@ async def stop_query(request: Request, response: Response) -> None:
 
 # MCP Routes
 
-@app.get("/mcp", description="Get a list of all added MCP servers and their actions")
+@app.get("/mcp", description="Get a list of all added MCP servers and their actions", tags=["mcp"])
 async def get_mcp_list(request: Request, response: Response) -> Dict:
     session = await handle_session_id(request, response)
     return await session.get_mcp_tools()
 
 
-@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers")
+@app.post("/mcp", description="Add a new MCP server to the list of available MCP servers", tags=["mcp"])
 async def add_mcp_server(request: Request, response: Response, mcp: MCPCreateMessage) -> Response:
     session = await handle_session_id(request, response)
     await session.add_mcp_server(mcp.content)
     return Response(status_code=201)
 
 
-@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers")
+@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
 async def delete_mcp_server(request: Request, response: Response, mcp_server: MCPDeleteMessage) -> Response:
     session = await handle_session_id(request, response)
     if session.delete_mcp_server(mcp_server.name):
@@ -350,14 +365,13 @@ async def get_files(request: Request, response: Response) -> dict:
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries. Currently only supports PDF.", tags=["other"])
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["other"])
 async def upload_files(request: Request, response: Response, files: List[UploadFile]):
     session = await handle_session_id(request, response)
     uploaded = []
     for file in files:
         try:
-            filedata = await save_file_to_disk(file, session.session_id)
-            session.uploaded_files[filedata.file_id] = filedata
+            filedata = await save_file_to_disk(file, session)
             uploaded.append(filedata)
         except Exception as e:
             raise HTTPException(
@@ -382,13 +396,16 @@ async def delete_file(request: Request, response: Response, file_id: str) -> boo
 
 
 @app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["other"])
-async def update_file(request: Request, response: Response, file_id: str, suspend: bool) -> bool:
+async def update_file(request: Request, response: Response, file_id: str, suspend: bool = None, name: str = None) -> bool:
     session = await handle_session_id(request, response)
     files = session.uploaded_files
 
     if file_id in files:
         file = files[file_id]
-        file.suspended = suspend
+        if suspend is not None:
+            file.suspended = suspend
+        if name is not None:
+            rename_file(file, name)
         return True
 
     return False
@@ -417,19 +434,36 @@ async def view_file(request: Request, response: Response, file_id: str):
     )
 
 
-## BOOKMARK ROUTES
+# sample prompts
 
-@app.get("/bookmarks", tags=["other"])
-async def get_bookmarks(request: Request) -> list:
+@app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
+async def get_prompts(request: Request) -> Dict[str, List[PromptCategory]]:
     session = await handle_session_id(request)
-    return session.bookmarks
+    if session.prompts is None:
+        session.prompts = prompts.load_default_prompts()
+    return session.prompts
 
 
-@app.post("/bookmarks", tags=["other"])
-async def save_bookmarks(request: Request) -> None:
+@app.post("/prompts", description="Save the modified Prompt library for the current session.", tags=["sample prompts"])
+async def post_prompts(request: Request, data: Dict[str, List[PromptCategory]]) -> None:
     session = await handle_session_id(request)
-    new_bookmarks = await request.json()
-    session.bookmarks = new_bookmarks
+    session.prompts = data
+
+
+@app.delete("/prompts", description="Reset the session's prompt library to the default values.", tags=["sample prompts"])
+async def delete_prompts(request: Request) -> None:
+    session = await handle_session_id(request)
+    session.prompts = prompts.load_default_prompts()
+
+
+@app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
+async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+    return prompts.load_default_prompts()
+
+
+@app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
+async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
+    prompts.save_default_prompts(data)
 
 
 @app.get("/sidebar-level", tags=["other"])

@@ -29,7 +29,6 @@
                     :is-user="false"
                     :initial-content="content"
                     :initial-loading="loading"
-                    :is-bookmarked="false"
                     :files="[]"
                     :chat-id="''"
                     :ref="elementId"

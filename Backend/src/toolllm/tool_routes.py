@@ -88,7 +88,7 @@ class ToolLLMMethod(AbstractMethod):
             result = await self.call_llm(
                 model=config.tool_gen_model,
                 agent='Tool Generator',
-                system_prompt=GENERATOR_PROMPT,
+                system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
@@ -114,7 +114,7 @@ class ToolLLMMethod(AbstractMethod):
                 result = await self.call_llm(
                     model=config.tool_gen_model,
                     agent='Tool Generator',
-                    system_prompt=GENERATOR_PROMPT,
+                    system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                     messages=[
                         *chat.messages,
                         ChatMessage(role="user", content=message),
@@ -187,7 +187,7 @@ class ToolLLMMethod(AbstractMethod):
         result = await self.call_llm(
             model=config.output_model,
             agent='Output Generator',
-            system_prompt=OUTPUT_GENERATOR_SYSTEM_PROMPT,
+            system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
             messages=[
                 *chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
