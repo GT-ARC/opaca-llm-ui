@@ -57,6 +57,7 @@ class ToolLLMMethod(AbstractMethod):
         if not all(f.suspended for f in self.session.uploaded_files.values()):
             result = await self.call_llm(
                 model=config.tool_eval_model.model,
+                model_config=config.tool_eval_model.config,
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
                 messages=[
@@ -65,7 +66,6 @@ class ToolLLMMethod(AbstractMethod):
                     )),
                 ],
                 response_format=self.EvaluatorResponse,
-                temperature=config.tool_eval_model.config.temperature,
                 tools=tools,
                 tool_choice="none",
                 status_message="Checking if tools are needed",
@@ -86,6 +86,7 @@ class ToolLLMMethod(AbstractMethod):
         while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
                 model=config.tool_gen_model.model,
+                model_config=config.tool_gen_model.config,
                 agent='Tool Generator',
                 system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                 messages=[
@@ -93,7 +94,6 @@ class ToolLLMMethod(AbstractMethod):
                     ChatMessage(role="user", content=message),
                     *tool_messages,
                 ],
-                temperature=config.tool_gen_model.config.temperature,
                 tool_choice="only",
                 tools=tools,
                 status_message="Generating Tool Calls"
@@ -112,6 +112,7 @@ class ToolLLMMethod(AbstractMethod):
                 full_err += err_msg
                 result = await self.call_llm(
                     model=config.tool_gen_model.model,
+                    model_config=config.tool_gen_model.config,
                     agent='Tool Generator',
                     system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                     messages=[
@@ -120,7 +121,6 @@ class ToolLLMMethod(AbstractMethod):
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
                     ],
-                    temperature=config.tool_gen_model.config.temperature,
                     tool_choice="only",
                     tools=tools,
                     status_message="Fixing Tool Calls"
@@ -148,6 +148,7 @@ class ToolLLMMethod(AbstractMethod):
             if len(result.tools) > 0:
                 result = await self.call_llm(
                     model=config.tool_eval_model.model,
+                    model_config=config.tool_eval_model.config,
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
@@ -158,7 +159,6 @@ class ToolLLMMethod(AbstractMethod):
                         )),
                     ],
                     response_format=self.EvaluatorResponse,
-                    temperature=config.tool_eval_model.config.temperature,
                     tools=tools,
                     tool_choice="none",
                     status_message="Evaluating Tool Call Results"
@@ -185,6 +185,7 @@ class ToolLLMMethod(AbstractMethod):
 
         result = await self.call_llm(
             model=config.output_model.model,
+            model_config=config.output_model.config,
             agent='Output Generator',
             system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
             messages=[
@@ -196,7 +197,6 @@ class ToolLLMMethod(AbstractMethod):
                     called_tools=called_tools or "",
                 )),
             ],
-            temperature=config.output_model.config.temperature,
             tools=tools,
             tool_choice="none",
             status_message="Generating final output",

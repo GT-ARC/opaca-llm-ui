@@ -15,7 +15,7 @@ import asyncio
 from litellm import get_supported_openai_params
 from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
-from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
 from .opaca_client import OpacaClient
 
@@ -630,11 +630,11 @@ class SingleLLMConfig(BaseModel):
     """
     Saves a single model and its configuration. Checks during serialization what parameters are supported by the LLM.
     """
-    model: Annotated[str, MethodConfig.llm_field("title", "LLM to use for this agent")]
+    model: Annotated[str, MethodConfig.llm_field("model", "LLM to use for this agent")]
     config: LLMConfig = MethodConfig.nested(LLMConfig, title="LLM Parameters", description="Parameters for the LLM")
 
     @model_serializer(mode="wrap")
-    def filer_unsupported_params(self, serializer):
+    def filter_unsupported_params_for_serialization(self, serializer):
         """Filter out unsupported parameters from the serialized config."""
         data = serializer(self)
 
@@ -651,6 +651,27 @@ class SingleLLMConfig(BaseModel):
             del data["config"]["temperature"]
 
         return data
+
+    @model_validator(mode="after")
+    def filter_unsupported_params_for_validation(self):
+        """Filter out unsupported parameters when validated."""
+
+        supported = get_supported_openai_params(self.model)
+
+        filtered = {
+            k: v
+            for k, v in self.config.model_dump().items()
+            if k in supported
+        }
+
+        # Special handling for gpt-5 models
+        if "gpt-5" in self.model:
+            filtered.pop("temperature", None)
+
+        # Rebuild LLMConfig with only supported fields
+        self.config = LLMConfig(**filtered)
+
+        return self
 
 
 class ConfigPayload(BaseModel):
