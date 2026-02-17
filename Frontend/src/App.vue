@@ -63,7 +63,7 @@
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
-                                        @click="connected ? disconnectFromPlatform() : connectToPlatform()">
+                                        @click="connected ? disconnectFromPlatform() : showConnectDialog()">
                                     <span v-if="isConnecting">
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
@@ -176,9 +176,9 @@ export default {
     },
     methods: {
 
-        async connectToPlatform() {
+        async showConnectDialog(error=null) {
             await this.$refs.input.showDialogue(
-                "Platform Login", Localizer.get("main_connectHint"), null,
+                Localizer.get("general_connect"), Localizer.get("main_connectHint"), error,
                 {
                     url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: this.opacaRuntimePlatform },
                     username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser },
@@ -187,25 +187,29 @@ export default {
                 async (values) => {
                     this.opacaRuntimePlatform = values.url;
                     this.opacaUser = values.username;
-                    this.isConnecting = true;
-                    this.connected = false;
-                    var rpStatus = null;
-                    try {
-                        rpStatus = await backendClient.connect(values.url, values.username, values.password);
-                    } catch (e) {
-                        throw new Error(Localizer.get('main_backendUnreachable'));
-                    }
-                    this.isConnecting = false;
-                    if (rpStatus === 200) {
-                        this.connected = true;
-                    } else if ([401, 403].includes(rpStatus)) {
-                        throw new Error(Localizer.get('main_authError'));
-                    } else {
-                        throw new Error(Localizer.get('main_opacaUnreachable'));
-                    }
-                    this.toggleConnectionDropdown(!this.connected);
+                    await this.connectToPlatform(values.username, values.password);
                 }
             );
+        },
+
+        async connectToPlatform(username="", password="") {
+            this.connected = false;
+            this.isConnecting = true;
+            try {
+                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
+                this.isConnecting = false;
+                if (rpStatus === 200) {
+                    this.connected = true;
+                } else if ([401, 403].includes(rpStatus)) {
+                    await this.showConnectDialog(Localizer.get('main_authError'));
+                } else {
+                    await this.showConnectDialog(Localizer.get('main_opacaUnreachable'));
+                }
+            } catch (e) {
+                this.showInfo(Localizer.get('main_backendUnreachable'));
+            } finally {
+                this.toggleConnectionDropdown(!this.connected);
+            }
         },
 
         async disconnectFromPlatform() {
