@@ -252,8 +252,8 @@ export default {
         },
 
         getSidebarToggleTooltip() {
-            if (this.sidebarLevel === 0) return Localizer.get('sidebar_show_advanced_tools');
-            return Localizer.get('sidebar_show_standard_tools');
+            if (this.sidebarLevel === 0) return Localizer.get('sidebar_showAdvancedTools');
+            return Localizer.get('sidebar_showStandardTools');
         },
 
         setupResizer() {
