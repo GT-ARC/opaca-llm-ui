@@ -68,7 +68,7 @@
                                         <i class="fa fa-spin fa-spinner"></i>
                                     </span>
                                     <span v-else>
-                                        {{ connected ? Localizer.get('general_disconnect') : Localizer.get('general_connect') }}
+                                        {{ connected ? Localizer.get('general_disconnect') : Localizer.get('general_connect') + "..." }}
                                     </span>
                                 </button>
                             </div>
@@ -178,7 +178,7 @@ export default {
 
         async connectToPlatform() {
             await this.$refs.input.showDialogue(
-                "Platform Login", null, null,
+                "Platform Login", Localizer.get("main_connectHint"), null,
                 {
                     url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: this.opacaRuntimePlatform },
                     username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser },
@@ -195,6 +195,7 @@ export default {
                     } catch (e) {
                         throw new Error(Localizer.get('main_backendUnreachable'));
                     }
+                    this.isConnecting = false;
                     if (rpStatus === 200) {
                         this.connected = true;
                     } else if ([401, 403].includes(rpStatus)) {
@@ -202,7 +203,6 @@ export default {
                     } else {
                         throw new Error(Localizer.get('main_opacaUnreachable'));
                     }
-                    this.isConnecting = false;
                     this.toggleConnectionDropdown(!this.connected);
                 }
             );
