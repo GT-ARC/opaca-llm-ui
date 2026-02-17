@@ -1,6 +1,6 @@
 # User Interface
 
-![SAGE UI Screenshot](img/opaca-llm-ui.png)
+![SAGE UI Screenshot](img/sage-ui.png)
 
 The web UI is implemented in Javascript using Node and Vue. 
 
