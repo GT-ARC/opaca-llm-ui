@@ -198,6 +198,7 @@ export default {
 
 .invoke:hover {
     color: var(--primary-color);
+    cursor: pointer;
 }
 
 .action-body {
