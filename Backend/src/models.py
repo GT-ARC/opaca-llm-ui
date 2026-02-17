@@ -262,7 +262,6 @@ class SessionData(BaseModel):
         valid_until: Timestamp until session is active.
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
-        sidebar_level: State of sidebar (extended or not).
         prompts: Prompt Library data.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
@@ -286,7 +285,6 @@ class SessionData(BaseModel):
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
-    sidebar_level: int = 0
     prompts: Dict[str, List[PromptCategory]] = None
 
     _websocket: WebSocket | None = PrivateAttr(default=None)

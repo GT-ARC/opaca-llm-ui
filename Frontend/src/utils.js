@@ -146,16 +146,6 @@ class BackendClient {
         return await this.sendRequest("DELETE", "prompts");
     }
 
-    // sidebar
-
-    async getSidebarLevel() {
-        return await this.sendRequest("GET", "sidebar-level");
-    }
-
-    async setSidebarLevel(level) {
-        return await this.sendRequest("POST", `sidebar-level?level=${level}`);
-    }
-
     // mcp
 
     async getMCPs() {

@@ -147,6 +147,7 @@ import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
+import Cookie from "js-cookie";
 import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import Notifications from './components/Notifications.vue';
@@ -388,7 +389,7 @@ export default {
         if (this.isMobile) {
             SidebarManager.close()
         } else {
-            const sidebarLevel = await backendClient.getSidebarLevel();
+            const sidebarLevel = Cookie.get('sidebarLevel') ?? 0;
             SidebarManager.selectView(conf.DefaultSidebarView, sidebarLevel);
         }
 

@@ -171,7 +171,7 @@
 import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
-import backendClient from "../../utils.js";
+import Cookie from "js-cookie";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
@@ -236,7 +236,7 @@ export default {
 
         toggleSidebarLevel() {
             this.sidebarLevel = this.sidebarLevel === 0 ? 1 : 0;
-            backendClient.setSidebarLevel(this.sidebarLevel);
+            Cookie.set('sidebarLevel', this.sidebarLevel);
 
             // Close view if it is now hidden
             const view = this.SidebarManager.getSelectedView();
@@ -284,15 +284,12 @@ export default {
         },
 
     },
-    async mounted() {
+    mounted() {
         this.setupResizer();
 
-        const level = await backendClient.getSidebarLevel();
-        const normalizedLevel = this.normalizeSidebarLevel(level);
-        this.sidebarLevel = normalizedLevel;
-        if (normalizedLevel !== level) {
-            backendClient.setSidebarLevel(normalizedLevel);
-        }
+        this.sidebarLevel = this.normalizeSidebarLevel(
+            Cookie.get('sidebarLevel') ?? 0
+        );
     },
 }
 </script>

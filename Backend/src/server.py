@@ -466,19 +466,6 @@ async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Dep
     prompts.save_default_prompts(data)
 
 
-@app.get("/sidebar-level", tags=["other"])
-async def get_sidebar_level(request: Request, response: Response) -> int:
-    session = await handle_session_id(request, response)
-    session.sidebar_level = 1 if session.sidebar_level >= 1 else 0
-    return session.sidebar_level
-
-
-@app.post("/sidebar-level", tags=["other"])
-async def set_sidebar_level(request: Request, response: Response, level: int = 0) -> None:
-    session = await handle_session_id(request, response)
-    session.sidebar_level = 1 if level >= 1 else 0
-
-
 # WEBSOCKET CONNECTION (permanently opened)
 
 @app.websocket("/ws")
