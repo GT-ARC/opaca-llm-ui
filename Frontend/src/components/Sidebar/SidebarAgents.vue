@@ -24,7 +24,7 @@
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
 
-            <div v-for="{containerId, agents, image} in this.getAgents()" :key="containerId"
+            <div v-for="{containerId, agents, image} in this.getContainers()" :key="containerId"
                  class="accordion-item">
 
                 <!-- Container Header -->
@@ -153,8 +153,11 @@ export default {
             return JSON.stringify(obj, null, 2);
         },
 
-        getAgents() {
-            const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+        getContainers() {
+            const matches = (s) => {
+                if (!this.searchQuery) return true;
+                return s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+            }
             if (!this.platformActions) return [];
             let containers = JSON.parse(JSON.stringify(this.platformActions));
 
@@ -168,11 +171,19 @@ export default {
             });
 
             // filter for search query
-            containers.forEach(container => {
-                container.agents = container.agents.filter(agent => matches(agent.agentId)
-                    || agent.actions.some(action => matches(action.name) || matches(action?.description)));
+            containers = containers.filter(container => {
+                if (matches(container.image.imageName)) return true;
+                container.agents = container.agents.filter(agent => {
+                    if (matches(agent.agentId)) return true;
+                    agent.actions = agent.actions.filter(action => {
+                        return matches(action.name) || matches(action.description);
+                    });
+                    return agent.actions.length > 0;
+                });
+                return container.agents.length > 0;
             });
-            return containers.filter(container => container.agents.length > 0);
+
+            return containers;
         },
     },
     watch: {
