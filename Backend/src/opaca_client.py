@@ -36,7 +36,7 @@ class OpacaClient:
         self.connected = False
         try:
             await self._get_token(user, pwd)
-            await self.get_actions()
+            await self.get_containers()
             self.connected = True
             logger.info(f"Connected to {url}")
             return 200
@@ -91,7 +91,7 @@ class OpacaClient:
             logger.error(f"Could not get Extra-Ports: {e}")
             raise e
 
-    async def get_actions(self) -> list:
+    async def get_containers(self) -> list:
         """Get actions of OPACA agents, in original OPACA format."""
         try:
             if not self.url:
@@ -107,7 +107,9 @@ class OpacaClient:
     async def get_actions_simple(self) -> dict[str, List[Dict[str, Any]]]:
         """Get actions of OPACA agents, grouped by agent, but a bit simplified: just agent-ids and actions"""
         return {
-            agent["agentId"]: agent["actions"] for agent in await self.get_actions()
+            agent["agentId"]: agent["actions"]
+            for container in await self.get_containers()
+            for agent in container["agents"]
         }
 
     async def get_actions_openapi(self, inline_refs=False):

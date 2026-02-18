@@ -173,7 +173,7 @@ async def get_platform_info(request: Request, response: Response, lang: str) -> 
         lang = 'GB'
     query = info_queries[lang]
     session = await handle_session_id(request, response)
-    actions = await session.opaca_client.get_actions()
+    actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
         result = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
@@ -190,7 +190,7 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
 @app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
 async def get_actions(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions()
+    return await session.opaca_client.get_containers()
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
