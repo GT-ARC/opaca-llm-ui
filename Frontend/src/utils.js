@@ -24,6 +24,11 @@ class BackendClient {
         return await this.sendRequest("GET", "actions");
     }
 
+    async invokeAction(agent, action, parameters) {
+        const body = {agent: agent, action: action, parameters: parameters};
+        return await this.sendRequest("POST", "actions/invoke", body);
+    }
+
     async getExtraPorts() {
         return await this.sendRequest("GET", "extra-ports");
     }

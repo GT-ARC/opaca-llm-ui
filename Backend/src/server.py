@@ -7,6 +7,7 @@ import os
 import json
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
+from httpx import HTTPStatusError
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -20,7 +21,7 @@ from starlette.datastructures import Headers
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
-    PromptCategory
+    PromptCategory, InvokeRequest, InvokeResponse
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -191,6 +192,18 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
 async def get_actions(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_containers()
+
+
+@app.post("/actions/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
+async def invoke_action(request: Request, response: Response, invoke: InvokeRequest) -> InvokeResponse:
+    session = await handle_session_id(request, response)
+    try:
+        res = await session.opaca_client.invoke_opaca_action(invoke.action, invoke.agent, invoke.parameters)
+        return InvokeResponse(success=True, result=res, error=None)
+    except HTTPStatusError as e:
+        return InvokeResponse(success=False, result=None, error=unpack_error(e.response.json()))
+    except Exception as e:
+        return InvokeResponse(success=False, result=None, error=str(e))
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
@@ -521,6 +534,12 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
 
     # Return the session data for the session ID
     return session
+
+
+def unpack_error(error: dict) -> str:
+    """get "inner-most" (error) message in a nested JSON"""
+    if error is None: return None
+    return unpack_error(error.get("cause")) or error.get("message")
 
 
 # run as `python3 -m Backend.server`
