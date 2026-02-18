@@ -11,6 +11,7 @@
                 :name="name"
                 :schema="schema"
                 v-model="localValue[name]"
+                v-show="!collapsed"
             />
 
             <ConfigParameter
@@ -19,6 +20,18 @@
                 :config-param="schema"
                 v-model="localValue[name]"
             />
+
+            <div v-if="showTitle && schema.type !== 'object'" class="group-header mt-3>">
+                <div class="header-right" @click="toggleCollapse">
+                    <strong>Settings</strong>
+                    <span
+                        class="chevron"
+                        :class="{ rotated: !collapsed }"
+                    >
+                        ▶
+                    </span>
+                </div>
+            </div>
 
         </template>
     </div>
@@ -46,7 +59,7 @@ export default {
     },
     data() {
         return {
-            showTooltip: false,
+            collapsed: true,
         }
     },
     emits: ['update:modelValue'],
@@ -61,9 +74,43 @@ export default {
         }
     },
     methods: {
-        toggleTooltip() {
-            this.showTooltip = !this.showTooltip;
-        },
+        toggleCollapse() {
+            if (this.showTitle) {
+                this.collapsed = !this.collapsed;
+            }
+        }
     }
 }
 </script>
+
+<style scoped>
+
+.group-header {
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.header-right {
+    cursor: pointer;
+    display: flex;
+    margin-left: auto;
+    gap: 0.5rem;
+}
+
+.header-right:hover {
+    color: var(--primary-color);
+}
+
+.chevron {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.8rem;
+    transform: rotate(90deg);
+}
+
+.chevron.rotated {
+    transform: rotate(-90deg);
+}
+
+</style>
