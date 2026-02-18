@@ -9,7 +9,8 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig, \
+    SingleLLMConfig
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -25,11 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 class OrchestrationConfig(MethodConfig):
-    orchestrator_model: str = MethodConfig.llm_field(title='Orchestrator', description='For delegating tasks', supports_structured_output=True)
-    worker_model: str = MethodConfig.llm_field(title='Workers', description='For selecting tools')
-    evaluator_model: str = MethodConfig.llm_field(title='Evaluators', description='For evaluating tool results', supports_structured_output=True)
-    generator_model: str = MethodConfig.llm_field(title='Output', description='For generating the final response')
-    temperature: float = MethodConfig.temperature_field()
+    orchestrator_model: SingleLLMConfig = MethodConfig.llm_role(title='Orchestrator', description='For delegating tasks')
+    worker_model: SingleLLMConfig = MethodConfig.llm_role(title='Workers', description='For selecting tools')
+    evaluator_model: SingleLLMConfig = MethodConfig.llm_role(title='Evaluators', description='For evaluating tool results')
+    generator_model: SingleLLMConfig = MethodConfig.llm_role(title='Output', description='For generating the final response')
     max_rounds: int = MethodConfig.max_rounds_field()
     max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
     use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')
@@ -83,11 +83,10 @@ class SelfOrchestratedMethod(AbstractMethod):
 
             # Generate a concrete opaca action call for the given subtask
             worker_message = await self.call_llm(
-                model=config.worker_model,
+                model_config=config.worker_model,
                 agent="WorkerAgent",
                 system_prompt=worker_agent.system_prompt(),
                 messages=worker_agent.messages(subtask),
-                temperature=config.temperature,
                 tool_choice="required",
                 tools=worker_agent.tools
             )
@@ -131,11 +130,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                 
                 # Create plan first, passing previous results
                 planner_message = await self.call_llm(
-                    model=config.orchestrator_model,
+                    model_config=config.orchestrator_model,
                     agent="AgentPlanner",
                     system_prompt=planner.system_prompt(),
                     messages=planner.messages(task, previous_results=all_results),
-                    temperature=config.temperature,
                     tools=planner.tools,
                     tool_choice="none",
                     response_format=planner.schema,
@@ -200,11 +198,10 @@ class SelfOrchestratedMethod(AbstractMethod):
 
                 # Generate a concrete tool call by the worker agent with its tools
                 worker_message = await self.call_llm(
-                    model=config.worker_model,
+                    model_config=config.worker_model,
                     agent="WorkerAgent",
                     system_prompt=agent.system_prompt(),
                     messages=agent.messages(task),
-                    temperature=config.temperature,
                     tool_choice="required",
                     tools=agent.tools,
                 )
@@ -217,11 +214,10 @@ class SelfOrchestratedMethod(AbstractMethod):
                 # If manual evaluation passes, run the AgentEvaluator
                 if not (should_retry := agent_evaluator.has_error(result)):
                     evaluation_message = await self.call_llm(
-                        model=config.evaluator_model,
+                        model_config=config.evaluator_model,
                         agent="AgentEvaluator",
                         system_prompt=agent_evaluator.system_prompt(),
                         messages=agent_evaluator.messages(task_str, result),
-                        temperature=config.temperature,
                         response_format=agent_evaluator.schema,
                         status_message=f"Evaluating {task.agent_name}'s task completion"
                     )
@@ -253,11 +249,10 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                     # Execute retry
                     worker_message = await self.call_llm(
-                        model=config.worker_model,
+                        model_config=config.worker_model,
                         agent="WorkerAgent",
                         system_prompt=agent.system_prompt(),
                         messages=agent.messages(retry_task),
-                        temperature=config.temperature,
                         tool_choice="required",
                         tools=agent.tools,
                         status_message="Retrying task"
@@ -313,11 +308,10 @@ Now, using the tools available to you and the previous results, continue with yo
             while rounds < config.max_rounds:
                 # Create orchestration plan
                 orchestrator_message = await self.call_llm(
-                    model=config.orchestrator_model,
+                    model_config=config.orchestrator_model,
                     agent="Orchestrator",
                     system_prompt=orchestrator.system_prompt(),
                     messages=orchestrator.messages(message),
-                    temperature=config.temperature,
                     tools=orchestrator.tools,
                     tool_choice='none',
                     response_format=orchestrator.schema,
@@ -389,11 +383,10 @@ Now, using the tools available to you and the previous results, continue with yo
                 # Evaluate overall progress
                 if not (should_retry := overall_evaluator.has_error(all_results)):
                     evaluation_message = await self.call_llm(
-                        model=config.evaluator_model,
+                        model_config=config.evaluator_model,
                         agent="OverallEvaluator",
                         system_prompt=overall_evaluator.system_prompt(),
                         messages=overall_evaluator.messages(message, all_results),
-                        temperature=config.temperature,
                         response_format=overall_evaluator.schema,
                         status_message="Overall evaluation"
                     )
@@ -403,11 +396,10 @@ Now, using the tools available to you and the previous results, continue with yo
                 if should_retry:
                     # Get iteration advice before continuing
                     advisor_message = await self.call_llm(
-                        model=config.orchestrator_model,
+                        model_config=config.orchestrator_model,
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
                         messages=iteration_advisor.messages(message, all_results),
-                        temperature=config.temperature,
                         response_format=iteration_advisor.schema,
                         status_message="Analyzing results and preparing advice for next iteration"
                     )
@@ -449,11 +441,10 @@ Please address these specific improvements:
             
             # Stream the final response
             final_output = await self.call_llm(
-                model=config.generator_model,
+                model_config=config.generator_model,
                 agent="Output Generator",
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
-                temperature=config.temperature,
                 status_message="Generating final response",
                 is_output=True,
             )
