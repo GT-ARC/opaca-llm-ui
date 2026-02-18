@@ -164,6 +164,8 @@ export default {
                 return s?.toLowerCase().includes(this.searchQuery.toLowerCase());
             }
             if (!this.platformActions) return [];
+
+            // Create local deep-copy of the container data
             let containers = JSON.parse(JSON.stringify(this.platformActions));
 
             // sort containers/agents/actions alphabetically
