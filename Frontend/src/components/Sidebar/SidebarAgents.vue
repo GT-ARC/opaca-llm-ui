@@ -32,7 +32,7 @@
                 <!-- Container Header -->
                 <h2 :id="`container-accordion-header-${containerId}`"
                     class="accordion-header">
-                    <button class="accordion-button collapsed"
+                    <button class="accordion-button containers-header collapsed"
                             type="button" data-bs-toggle="collapse"
                             :data-bs-target="`#container-accordion-body-${containerId}`"
                             :aria-controls="`container-accordion-body-${containerId}`"
@@ -54,8 +54,9 @@
                              class="accordion-item" :key="agentIndex">
 
                             <!-- Agent Header -->
-                            <h2 class="accordion-header" :id="`agents-accordion-header-${containerId}-${agentIndex}`">
-                                <button class="accordion-button collapsed"
+                            <h2 :id="`agents-accordion-header-${containerId}-${agentIndex}`"
+                                class="accordion-header">
+                                <button class="accordion-button agents-header collapsed"
                                         type="button" data-bs-toggle="collapse"
                                         :data-bs-target="`#agents-accordion-body-${containerId}-${agentIndex}`"
                                         aria-expanded="false"
@@ -77,7 +78,7 @@
                                         <!-- Action Header -->
                                         <h2 :id="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                             class="accordion-header">
-                                            <button class="accordion-button collapsed"
+                                            <button class="accordion-button actions-header collapsed"
                                                     type="button" data-bs-toggle="collapse"
                                                     :data-bs-target="`#action-accordion-body-${containerId}-${agentIndex}-${actionIndex}`"
                                                     :aria-controls="`action-accordion-body-${containerId}-${agentIndex}-${actionIndex}`"
@@ -242,6 +243,18 @@ export default {
 
 .accordion-header {
     margin-bottom: 0.25rem;
+}
+
+.accordion-button.containers-header {
+    padding: 1rem 1rem;
+}
+
+.accordion-button.agents-header {
+    padding: 0.9rem 1rem;
+}
+
+.accordion-button.actions-header {
+    padding: 0.8rem 1rem;
 }
 
 .list-group-item {
