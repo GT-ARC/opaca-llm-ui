@@ -56,8 +56,7 @@ class ToolLLMMethod(AbstractMethod):
         # If files were uploaded, check if any tools need to be called with extracted information
         if not all(f.suspended for f in self.session.uploaded_files.values()):
             result = await self.call_llm(
-                model=config.tool_eval_model.model,
-                model_config=config.tool_eval_model.config,
+                model_config=config.tool_eval_model,
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
                 messages=[
@@ -85,8 +84,7 @@ class ToolLLMMethod(AbstractMethod):
         # Run until request is finished or maximum number of iterations is reached
         while should_continue and c_it < max_iters and not skip_chain:
             result = await self.call_llm(
-                model=config.tool_gen_model.model,
-                model_config=config.tool_gen_model.config,
+                model_config=config.tool_gen_model,
                 agent='Tool Generator',
                 system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                 messages=[
@@ -111,8 +109,7 @@ class ToolLLMMethod(AbstractMethod):
             while (err_msg := await self.check_valid_action(result.tools)) and correction_limit < 3:
                 full_err += err_msg
                 result = await self.call_llm(
-                    model=config.tool_gen_model.model,
-                    model_config=config.tool_gen_model.config,
+                    model_config=config.tool_gen_model,
                     agent='Tool Generator',
                     system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                     messages=[
@@ -147,8 +144,7 @@ class ToolLLMMethod(AbstractMethod):
             # either for the user or for the first model for better understanding
             if len(result.tools) > 0:
                 result = await self.call_llm(
-                    model=config.tool_eval_model.model,
-                    model_config=config.tool_eval_model.config,
+                    model_config=config.tool_eval_model,
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
@@ -184,8 +180,7 @@ class ToolLLMMethod(AbstractMethod):
             c_it += 1
 
         result = await self.call_llm(
-            model=config.output_model.model,
-            model_config=config.output_model.config,
+            model_config=config.output_model,
             agent='Output Generator',
             system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
             messages=[
