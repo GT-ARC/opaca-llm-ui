@@ -9,6 +9,7 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 * `POST /connect`: Attempts to establish a connection to the given OPACA platform.
 * `POST /disconnect`: Severs the connection to the currently connected OPACA platform.
 * `GET /actions`: Returns a dictionary of all the available actions that were returned by the OPACA platform. The key in the dictionary represents the agent's name with a list of all its provided services as the value.
+* `POST /actions/invoke`: Allows to invoke an OPACA action directly from the UI.
 * `GET /extra-ports`: Returns a dictionary of all the extra-ports provided by the Agent Containers currently running on the connected OPACA platform.
 * `POST /stop`: Stop all generation currently in progress for the session.
 * `POST /query/{method}`: Asks the selected prompting method to generate an answer based on the given user query. This is independent of any existing chat histories (see below).

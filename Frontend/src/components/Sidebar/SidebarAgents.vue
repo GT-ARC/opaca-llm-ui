@@ -1,8 +1,10 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarAgents') }}
+        {{ Localizer.get('sidebar_agents') }}
     </div>
+
+    <InputDialogue ref="input"/>
 
     <div v-if="platformActions && Object.keys(platformActions).length > 0"
          class="my-2">
@@ -16,10 +18,10 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarAgentsLoading') }}
+        {{ Localizer.get('sidebar_agents_loading') }}
     </div>
     <div v-else-if="!platformActions || Object.keys(platformActions).length === 0">
-        {{ Localizer.get('sidebarAgentsMissing') }}
+        {{ Localizer.get('sidebar_agents_missing') }}
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="agents-accordion">
@@ -51,18 +53,23 @@
                                     :aria-controls="'action-body-' + agentIndex + '-' + actionIndex">
                                 <i class="fa fa-wrench me-3"/>
                                 {{ action.name }}
+                                
                             </button>
 
                             <!-- action body -->
                             <div :id="'action-body-' + agentIndex + '-' + actionIndex" class="accordion-collapse collapse action-body"
                                  :aria-labelledby="'action-header-' + agentIndex + '-' + actionIndex" :data-bs-parent="'#actions-accordion-' + agentIndex">
-                                <p v-if="action.description">
-                                    <strong>{{ Localizer.get('agentActionDescription') }}:</strong>
+                                <p class="invoke" @click.stop="invokeAction(agent, action.name, action.parameters)">
+                                    <strong>{{ Localizer.get('sidebar_agents_invoke') }}</strong>
+                                    <i class="fa fa-circle-play mx-2"/>
+                                </p>
+                                 <p v-if="action.description">
+                                    <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
                                     {{ action.description }}
                                 </p>
-                                <strong>{{ Localizer.get('agentActionParameters') }}:</strong>
+                                <strong>{{ Localizer.get('sidebar_agents_parameters') }}:</strong>
                                 <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
-                                <strong>{{ Localizer.get('agentActionResult') }}:</strong>
+                                <strong>{{ Localizer.get('sidebar_agents_result') }}:</strong>
                                 <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                             </div>
                         </div>
@@ -82,9 +89,11 @@ import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
+import InputDialogue from '../InputDialogue.vue';
 
 export default {
     name: 'SidebarAgents',
+    components: {InputDialogue},
     props: {
         isPlatformConnected: Boolean,
     },
@@ -126,6 +135,38 @@ export default {
                     return acc;
                 }, {});
         },
+        async invokeAction(agent, action, schema) {
+            const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
+            await this.$refs.input.showDialogue(
+                Localizer.get('sidebar_agents_invoke'),
+                `**Agent:** ${agent}\n\n**Action:** ${action}`,
+                null,
+                Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea", label: `${k} (${this.typeHint(v)})`}])
+                ),
+                async values => {
+                    // JSON-parse non-primitive inputs --> parse errors are shown in error label
+                    var parameters = Object.fromEntries(
+                        Object.entries(values).map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
+                    );
+                    // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
+                    var res = await backendClient.invokeAction(agent, action, parameters);
+                    if (res.success) {
+                        await this.$refs.input.showInfo(Localizer.get('sidebar_agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
+                    } else {
+                        throw new Error(res.error);
+                    }
+                }
+            );
+        },
+
+        typeHint(json) {
+            if (json.type === "array") {
+                return `list of ${this.typeHint(json.items)}`;
+            } else {
+                return json.type;
+            }
+        },
     },
     watch: {
         isPlatformConnected() {
@@ -153,6 +194,11 @@ export default {
 
 .action-header-button::after {
     display: none;
+}
+
+.invoke:hover {
+    color: var(--primary-color);
+    cursor: pointer;
 }
 
 .action-body {
