@@ -6,7 +6,7 @@
 
     <InputDialogue ref="input"/>
 
-    <div v-if="platformContainers"
+    <div v-if="platformContainers && platformContainers.length > 0"
          class="my-2">
         <input
             type="text"
@@ -20,7 +20,7 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebar_agents_loading') }}
     </div>
-    <div v-else-if="!platformContainers">
+    <div v-else-if="!platformContainers || platformContainers.length === 0">
         {{ Localizer.get('sidebar_agents_missing') }}
     </div>
     <div v-else class="flex-row" >
