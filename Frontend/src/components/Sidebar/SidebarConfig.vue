@@ -24,7 +24,7 @@
         <template v-for="(schema, name) in methodConfigSchema" :key="name">
             <ConfigGroup
                 v-if="schema.type === 'object'"
-                :name="name"
+                :name="schema?.title || name"
                 :schema="schema"
                 :showTitle="true"
                 v-model="methodConfig[name]"
@@ -150,7 +150,15 @@ export default {
                 // Resolve $ref
                 if (obj.$ref) {
                     const key = obj.$ref.replace("#/$defs/", "");
-                    return resolve(defs[key]);
+                    const resolvedRef = resolve(defs[key]);
+
+                    // Merge referenced schema with local overrides
+                    const { $ref, ...localOverrides } = obj;
+
+                    return {
+                        ...resolvedRef,
+                        ...localOverrides
+                    };
                 }
 
                 // Recursively resolve object properties
