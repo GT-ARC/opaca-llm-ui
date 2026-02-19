@@ -90,7 +90,9 @@ export default {
 }
 
 .nested-group.no-header {
-    background-color: var(--background-color);
+    border-color: var(--border-color);
+    border-style: solid;
+    border-width: 1px;
     padding: 1rem;
     border-radius: var(--bs-border-radius);
 }
