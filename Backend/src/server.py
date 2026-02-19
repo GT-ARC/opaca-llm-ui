@@ -174,7 +174,7 @@ async def get_platform_info(request: Request, response: Response, lang: str) -> 
         lang = 'GB'
     query = info_queries[lang]
     session = await handle_session_id(request, response)
-    actions = await session.opaca_client.get_actions()
+    actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
         result = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
@@ -188,13 +188,13 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
     return await session.opaca_client.get_extra_ports()
 
 
-@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
-async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
+@app.get("/containers", description="Get available containers on connected OPACA Runtime Platform, including agents and their actions, using the same format as the OPACA platform itself.", tags=["opaca"])
+async def get_containers(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions_simple()
+    return await session.opaca_client.get_containers()
 
 
-@app.post("/actions/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
+@app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
 async def invoke_action(request: Request, response: Response, invoke: InvokeRequest) -> InvokeResponse:
     session = await handle_session_id(request, response)
     try:
