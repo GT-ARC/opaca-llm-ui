@@ -619,9 +619,9 @@ class LLMConfig(BaseModel):
     """
     List of possible parameters for the LLM. Available parameters depend on the model.
     """
-    temperature: Annotated[float, MethodConfig.number(default=0, min=0, max=2, step=0.1, title="Temperature", description="Temperature for the model")]
+    temperature: Annotated[float, MethodConfig.number(default=0, min=0, max=2, step=0.1, title="Temperature", description="Randomness of model response. Higher values will make the output more random while lower values are more deterministic")]
     reasoning_effort: Annotated[str, MethodConfig.string(default="none", options=["none", "low", "medium", "high"], title="Reasoning Effort", description="How much reasoning should be applied to the model's output")]
-    top_p: Annotated[float, MethodConfig.number(default=1, min=0, max=1, step=0.01, title="Top P", description="Top P sampling parameter for nucleus sampling")]
+    top_p: Annotated[float, MethodConfig.number(default=1, min=0, max=1, step=0.01, title="Top P", description="Alternative to temperature. Uses nucleus sampling where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the top 10% of tokens are considered")]
     frequency_penalty: Annotated[float, MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Frequency Penalty", description="Penalty applied to repeated tokens based on their frequency in the prompt")]
     presence_penalty: Annotated[float, MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Presence Penalty", description="Penalty applied to repeated tokens based on their presence in the prompt")]
 

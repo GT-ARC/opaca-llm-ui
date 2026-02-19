@@ -95,8 +95,6 @@ export default {
                 const res = await backendClient.getConfig(method);
                 this.methodConfig = res.config_values;
                 this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
-                console.log(this.methodConfig)
-                console.log(this.methodConfigSchema)
             } catch (error) {
                 console.error('Error fetching method config:', error);
             }
