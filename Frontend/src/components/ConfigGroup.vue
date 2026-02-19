@@ -3,7 +3,7 @@
 
     <h5 v-if="showTitle" class="mt-3>"><strong>{{ name }}</strong></h5>
 
-    <div class="nested-group">
+    <div class="nested-group" :class="{ 'no-header': !showTitle }">
         <template v-for="(schema, name) in schema.properties" :key="schema">
 
             <ConfigGroup
@@ -22,8 +22,8 @@
             />
 
             <div v-if="showTitle && schema.type !== 'object'" class="group-header mt-3>">
-                <div class="header-right" @click="toggleCollapse">
-                    <strong>Settings</strong>
+                <div class="header" @click="toggleCollapse">
+                    <strong>Advanced Settings</strong>
                     <span
                         class="chevron"
                         :class="{ rotated: !collapsed }"
@@ -85,20 +85,29 @@ export default {
 
 <style scoped>
 
+.nested-group {
+    margin-bottom: 2.0rem;
+}
+
+.nested-group.no-header {
+    background-color: var(--background-color);
+    padding: 1rem;
+    border-radius: var(--bs-border-radius);
+}
+
 .group-header {
     user-select: none;
     display: flex;
     align-items: center;
 }
 
-.header-right {
+.header {
     cursor: pointer;
     display: flex;
-    margin-left: auto;
     gap: 0.5rem;
 }
 
-.header-right:hover {
+.header:hover {
     color: var(--primary-color);
 }
 
