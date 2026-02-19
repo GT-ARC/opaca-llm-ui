@@ -6,7 +6,7 @@
 
     <InputDialogue ref="input"/>
 
-    <div v-if="platformActions"
+    <div v-if="platformContainers"
          class="my-2">
         <input
             type="text"
@@ -20,7 +20,7 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebar_agents_loading') }}
     </div>
-    <div v-else-if="!platformActions">
+    <div v-else-if="!platformContainers">
         {{ Localizer.get('sidebar_agents_missing') }}
     </div>
     <div v-else class="flex-row" >
@@ -141,7 +141,7 @@ export default {
     },
     data() {
         return {
-            platformActions: null,
+            platformContainers: null,
             isLoading: false,
             searchQuery: '',
         };
@@ -149,8 +149,8 @@ export default {
     methods: {
         async updatePlatformInfo() {
             this.isLoading = true;
-            this.platformActions = this.isPlatformConnected
-                ? await backendClient.getActions()
+            this.platformContainers = this.isPlatformConnected
+                ? await backendClient.getContainers()
                 : null;
             this.isLoading = false;
         },
@@ -164,10 +164,10 @@ export default {
                 if (!this.searchQuery) return true;
                 return s?.toLowerCase().includes(this.searchQuery.toLowerCase());
             }
-            if (!this.platformActions) return [];
+            if (!this.platformContainers) return [];
 
             // Create local deep-copy of the container data
-            let containers = JSON.parse(JSON.stringify(this.platformActions));
+            let containers = JSON.parse(JSON.stringify(this.platformContainers));
 
             // sort containers/agents/actions alphabetically
             containers.sort((a, b) => a.image.imageName.toLowerCase().localeCompare(b.image.imageName.toLowerCase()));

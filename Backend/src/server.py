@@ -188,13 +188,13 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
     return await session.opaca_client.get_extra_ports()
 
 
-@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
-async def get_actions(request: Request, response: Response) -> list:
+@app.get("/containers", description="Get available containers on connected OPACA Runtime Platform, including agents and their actions, using the same format as the OPACA platform itself.", tags=["opaca"])
+async def get_containers(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
     return await session.opaca_client.get_containers()
 
 
-@app.post("/actions/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
+@app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
 async def invoke_action(request: Request, response: Response, invoke: InvokeRequest) -> InvokeResponse:
     session = await handle_session_id(request, response)
     try:
