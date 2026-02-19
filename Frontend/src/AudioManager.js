@@ -324,43 +324,47 @@ class AudioManager {
     }
 
     async generateAudio(text) {
+        if (!text) return null;
         return await this.isVoiceServerConnected && this.useWhisperTts
-            ? this.generateWhisperAudio(text)
-            : this.generateWebSpeechAudio(text);
-    }
-
-    async generateWhisperAudio(text) {
-        if (!text) return null;
-        return new WhisperAudio(text);
-    }
-
-    async generateWebSpeechAudio(text) {
-        if (!text) return null;
-        return new WebSpeechAudio(text);
+            ? new WhisperAudio(text)
+            : new WebSpeechAudio(text);
     }
 
     /**
      * Start speech recognition with web speech API.
      * @param onResult Callback that should expect the successfully recognized text as an argument.
+     * @param onError Callback that should expect any error messages.
      */
-    async startWebSpeechRecognition(onResult) {
+    async startRecognition(onResult, onError) {
         if (!this.isRecognitionSupported()) return;
-        await this.stopWebSpeechRecognition();
+        if (this.isVoiceServerConnected && this.useWhisperStt) {
+            this.startWhisperRecognition(onResult, onError)
+        } else {
+            this.startWebSpeechRecognition(onResult, onError)
+        }
+    }
+
+    async startWhisperRecognition(onResult, onError) {
+
+
+
+    }
+
+    async startWebSpeechRecognition(onResult, onError) {
+        if (this._recognition) {
+            this._recognition.abort();
+            this._recognition = null;
+        }
         try {
             this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
         } catch (error) {
-            console.error('Failed to start web speech recognition.');
-            console.error(error);
+            console.error(`Failed to start web speech recognition: ${error}`);
+            return;
         }
         this._recognition.lang = Localizer.getLanguageForTTS();
         this._recognition.onresult = async (event) => {
-            if (!event.results || event.results.length <= 0) return;
-            const recognizedText = event.results[0][0].transcript;
-            try {
-                onResult(recognizedText);
-            } catch (error) {
-                console.error(error);
-            }
+            const recognizedText = Array.from(event.results).map(r => r[0].transcript).join('\n\n');
+            onResult(recognizedText);
         };
 
         this._recognition.onspeechend = () => {
@@ -369,11 +373,11 @@ class AudioManager {
         };
 
         this._recognition.onnomatch = () => {
-            console.error('Failed to recognize speech.');
+            onError('Failed to recognize speech.');
         };
 
         this._recognition.onerror = (error) => {
-            console.error('Failed to recognize speech: ', error);
+            onError(`Failed to recognize speech: ${error}`);
         };
 
         this._recognition.onend = () => {
@@ -383,13 +387,6 @@ class AudioManager {
 
         this.isLoading = true;
         this._recognition.start();
-    }
-
-    async stopWebSpeechRecognition() {
-        if (this._recognition) {
-            this._recognition.abort();
-            this._recognition = null;
-        }
     }
 
     isRecognitionSupported() {
@@ -419,6 +416,143 @@ class AudioManager {
         return location.protocol === 'https'
             || location.hostname === 'localhost'
             || location.hostname === '127.0.0.1';
+    }
+
+
+    async setupRecording() {
+        try {
+            this.audioContext = new AudioContext();
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 44100,
+                    sampleSize: 16,
+                }
+            });
+
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    this.audioChunks.push(event.data);
+                }
+            };
+
+            this.mediaRecorder.start(100);
+        } catch (error) {
+            console.error('Error setting up recording:', error);
+        }
+    }
+
+    detectSilence() {
+        // from Chat-GPT...
+        let speaking = false;
+        let silenceStart = null;
+        const SILENCE_MS = 800; // treat as end‑of‑speech after 0.8 s silence
+
+        audioContext.createScriptProcessor(4096, 1, 1).onaudioprocess = e => {
+            const data = e.inputBuffer.getChannelData(0);
+            const rms = Math.sqrt(data.reduce((s, x) => s + x*x, 0) / data.length);
+            const isSpeech = rms > 0.02; // threshold – tune per environment
+
+            if (isSpeech) {
+                speaking = true;
+                silenceStart = null;
+                // push chunk to Whisper
+            } else if (speaking) {
+                if (!silenceStart) silenceStart = Date.now();
+                else if (Date.now() - silenceStart > SILENCE_MS) {
+                    speaking = false;
+                    // signal end‑of‑speech → stop recording, send final chunk
+                }
+            }
+        };
+    }
+
+    async stopRecording() {
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+            const result = await this.processAudioChunks();
+        }
+    }
+
+    async processAudioChunks() {
+        if (this.audioChunks.length === 0) return '';
+
+        const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        const audioContext = new AudioContext();
+        const audioData = await blob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(audioData);
+        const wavBlob = await this.convertToWav(audioBuffer);
+        
+        const formData = new FormData();
+        formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
+
+        try {
+            const response = await fetch(`${this.getConfig().VoiceServerUrl}/transcribe?is_final=true&language=${this.language}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.text || '';
+        } catch (error) {
+            console.error('Error processing audio:', error);
+            throw error;
+        } finally {
+            audioContext.close();
+        }
+    }
+
+    convertToWav(audioBuffer) {
+        const numOfChannels = audioBuffer.numberOfChannels;
+        const length = audioBuffer.length * numOfChannels * 2;
+        const buffer = new ArrayBuffer(44 + length);
+        const view = new DataView(buffer);
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // Write WAV header
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + length, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numOfChannels, true);
+        view.setUint32(24, audioBuffer.sampleRate, true);
+        view.setUint32(28, audioBuffer.sampleRate * numOfChannels * 2, true);
+        view.setUint16(32, numOfChannels * 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, length, true);
+
+        // Write audio data
+        const data = new Float32Array(audioBuffer.length * numOfChannels);
+        let offset = 44;
+
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+            data.set(audioBuffer.getChannelData(i), i * audioBuffer.length);
+        }
+
+        for (let i = 0; i < data.length; i++) {
+            const sample = Math.max(-1, Math.min(1, data[i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
     }
 
 }

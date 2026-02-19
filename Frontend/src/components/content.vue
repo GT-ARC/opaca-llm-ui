@@ -565,15 +565,11 @@ export default {
         },
 
         startRecognition() {
-            if (AudioManager.isVoiceServerConnected && AudioManager.useWhisperStt) {
-                this.showRecordingPopup = true;
-            } else {
-                AudioManager.startWebSpeechRecognition(text => {
-                    this.handleTranscriptionComplete(text);
-                    this.autoSpeakNextMessage = true;
-                    this.submitText();
-                });
-            }
+            AudioManager.startRecognition(text => {
+                this.handleTranscriptionComplete(text);
+                this.autoSpeakNextMessage = true;
+                this.submitText();
+            }, error => this.showInfo(error));
         },
 
         /**
