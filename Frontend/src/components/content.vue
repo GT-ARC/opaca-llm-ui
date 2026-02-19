@@ -22,16 +22,6 @@
             @close="viewerFile = null"
         />
 
-        <!-- Move the RecordingPopup outside the main content flow -->
-        <RecordingPopup
-            v-model:show="showRecordingPopup"
-            :language="Localizer.getLanguageForTTS()"
-            @transcription-complete="handleTranscriptionComplete"
-            @send-message="handleSendMessage"
-            @error="handleRecordingError"
-            ref="RecordingPopup"
-        />
-
         <InputDialogue ref="input" />
 
         <Sidebar
@@ -208,7 +198,6 @@
 import {nextTick} from "vue";
 import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
-import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import backendClient from "../utils.js";
@@ -228,7 +217,6 @@ export default {
         FileViewer,
         OptionsSelect,
         Sidebar,
-        RecordingPopup,
         InputDialogue,
         Chatbubble
     },
@@ -254,7 +242,6 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
@@ -526,20 +513,6 @@ export default {
             }
         },
 
-        handleTranscriptionComplete(text) {
-            if (text) {
-                this.textInput = text;
-            }
-        },
-
-        handleSendMessage(text) {
-            if (text) {
-                this.textInput = "";
-                this.autoSpeakNextMessage = true;
-                this.askChatGpt(text);
-            }
-        },
-
         submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
             const containerLoginDetails = JSON.stringify({
                 username: containerLoginUser,
@@ -558,17 +531,13 @@ export default {
             this.socket.send(apiKeyResponse);
         },
 
-
-        handleRecordingError(error) {
-            console.error('Recording error:', error);
-            this.showInfo('Error recording audio: ' + error.message);
-        },
-
         startRecognition() {
             AudioManager.startRecognition(text => {
-                this.handleTranscriptionComplete(text);
-                this.autoSpeakNextMessage = true;
-                this.submitText();
+                if (text) {
+                    this.textInput = text;
+                    this.autoSpeakNextMessage = true;
+                    this.submitText();
+                }
             }, error => this.showInfo(error));
         },
 
