@@ -6,16 +6,6 @@
 
     <InputDialogue ref="input"/>
 
-    <div v-if="platformContainers && platformContainers.length > 0"
-         class="my-2">
-        <input
-            type="text"
-            class="form-control"
-            :placeholder="Localizer.get('searchAgentsPlaceholder')"
-            v-model="this.searchQuery"
-        />
-    </div>
-
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebar_agents_loading') }}
@@ -24,6 +14,12 @@
         {{ Localizer.get('sidebar_agents_missing') }}
     </div>
     <div v-else class="flex-row" >
+        <input
+            type="text"
+            class="form-control my-2"
+            :placeholder="Localizer.get('searchAgentsPlaceholder')"
+            v-model="this.searchQuery"
+        />
         <div class="accordion text-start" id="agents-accordion">
 
             <div v-for="{containerId, agents, image} in this.getContainers()" :key="containerId"
