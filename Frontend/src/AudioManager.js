@@ -476,31 +476,18 @@ class AudioManager {
         }
     }
 
-    }
-
     async processAudioChunks() {
         if (this.audioChunks.length === 0) return '';
 
-        const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        /*
-        console.log("BLOB TYPE " + this.audioChunks[0].type);
-        const audioData = await blob.arrayBuffer();
-        const audioBuffer = await this.audioContext.decodeAudioData(audioData);
-        const wavBlob = await this.convertToWav(audioBuffer);
-        */
-        const type = this.audioChunks[0].type;
-        console.log(type);
-        
-        //this.makeFromBlob(blob).play();
-        //return "";
+        const ext = this.audioChunks[0].type.split("/")[1].split(";")[0].trim();
+        const lang = Localizer.getLanguageForTTS();
 
         const formData = new FormData();
-        formData.append('file', new File([blob], 'audio.ogg', { type: 'audio/ogg' }));
-
-        console.log(this.language);
+        const blob = new Blob(this.audioChunks);
+        formData.append('file', new File([blob], `audio.${ext}`, { type: `audio/${ext}` }));
 
         try {
-            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=ogg&language=en`, {
+            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=${ext}&language=${lang}`, {
                 method: 'POST',
                 body: formData
             });
@@ -510,58 +497,12 @@ class AudioManager {
             }
 
             const result = await response.json();
-            console.log(result);
             return result.text || '';
         } catch (error) {
             console.error('Error processing audio:', error);
             throw error;
         }
     }
-
-    convertToWav(audioBuffer) {
-        const numOfChannels = audioBuffer.numberOfChannels;
-        const length = audioBuffer.length * numOfChannels * 2;
-        const buffer = new ArrayBuffer(44 + length);
-        const view = new DataView(buffer);
-        
-        function writeString(view, offset, string) {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
-        }
-
-        // Write WAV header
-        writeString(view, 0, 'RIFF');
-        view.setUint32(4, 36 + length, true);
-        writeString(view, 8, 'WAVE');
-        writeString(view, 12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, numOfChannels, true);
-        view.setUint32(24, audioBuffer.sampleRate, true);
-        view.setUint32(28, audioBuffer.sampleRate * numOfChannels * 2, true);
-        view.setUint16(32, numOfChannels * 2, true);
-        view.setUint16(34, 16, true);
-        writeString(view, 36, 'data');
-        view.setUint32(40, length, true);
-
-        // Write audio data
-        const data = new Float32Array(audioBuffer.length * numOfChannels);
-        let offset = 44;
-
-        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-            data.set(audioBuffer.getChannelData(i), i * audioBuffer.length);
-        }
-
-        for (let i = 0; i < data.length; i++) {
-            const sample = Math.max(-1, Math.min(1, data[i]));
-            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-            offset += 2;
-        }
-
-        return new Blob([buffer], { type: 'audio/wav' });
-    }
-
 }
 
 

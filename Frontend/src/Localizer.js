@@ -297,8 +297,8 @@ export const loadingMessages = {
 
 
 export const voiceGenLocalesWhisper = {
-    GB: 'english',
-    DE: 'german'
+    GB: 'en',
+    DE: 'de'
 };
 
 export const voiceGenLocalesWebSpeech = {
