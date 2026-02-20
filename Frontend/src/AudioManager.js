@@ -218,11 +218,17 @@ class AudioManager {
         this._isVoiceServerConnected = ref(false);
         this._isLoading = ref(false);
         this._deviceInfo = ref('');
-        this._recognition = null;
 
         this._whisperVoice = ref('alloy');
         this._useWhisperTts = ref(true);
         this._useWhisperStt = ref(true);
+
+        // webkit
+        this._recognition = null;
+
+        // manual recording for whisper
+        this.audioContext = null;
+        this.audioChunks = null;
     }
 
     get isVoiceServerConnected() {
@@ -344,12 +350,6 @@ class AudioManager {
         }
     }
 
-    async startWhisperRecognition(onResult, onError) {
-
-
-
-    }
-
     async startWebSpeechRecognition(onResult, onError) {
         if (this._recognition) {
             this._recognition.abort();
@@ -418,10 +418,11 @@ class AudioManager {
             || location.hostname === '127.0.0.1';
     }
 
-
-    async setupRecording() {
+    async startWhisperRecognition(onResult, onError) {
         try {
+            this.isLoading = true;
             this.audioContext = new AudioContext();
+            this.audioChunks = [];
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -434,49 +435,47 @@ class AudioManager {
                 }
             });
 
-            this.mediaRecorder = new MediaRecorder(stream);
-            this.mediaRecorder.ondataavailable = (event) => {
+            // set up analyser on the stream for silence detection
+            const analyser = this.audioContext.createAnalyser();
+            const dataArray = new Float32Array(analyser.fftSize);
+            this.audioContext.createMediaStreamSource(stream).connect(analyser);
+            let silenceStart = null;
+
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = async (event) => {
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
                 }
+                if (this.audioChunks.length > 50) {
+                    mediaRecorder.stop();
+                }
+
+                // detect duration of silence
+                analyser.getFloatTimeDomainData(dataArray);
+                const rms = Math.sqrt(dataArray.reduce((s, x) => s + x*x, 0) / dataArray.length);
+                if (rms > 0.02) {
+                    silenceStart = null;
+                } else if (!silenceStart) {
+                    silenceStart = Date.now();
+                } else if (Date.now() - silenceStart > 800) {
+                    // signal end‑of‑speech → stop recording, send final chunk
+                    mediaRecorder.stop();
+                }
             };
 
-            this.mediaRecorder.start(100);
+            mediaRecorder.onstop = () => {
+                this.isLoading = false;
+                const result = this.processAudioChunks();
+                //onResult(result);
+            };
+
+            mediaRecorder.start(100);
         } catch (error) {
-            console.error('Error setting up recording:', error);
+            this.isLoading = false;
+            onError(`Error recording audio: ${error}`);
         }
     }
 
-    detectSilence() {
-        // from Chat-GPT...
-        let speaking = false;
-        let silenceStart = null;
-        const SILENCE_MS = 800; // treat as end‑of‑speech after 0.8 s silence
-
-        audioContext.createScriptProcessor(4096, 1, 1).onaudioprocess = e => {
-            const data = e.inputBuffer.getChannelData(0);
-            const rms = Math.sqrt(data.reduce((s, x) => s + x*x, 0) / data.length);
-            const isSpeech = rms > 0.02; // threshold – tune per environment
-
-            if (isSpeech) {
-                speaking = true;
-                silenceStart = null;
-                // push chunk to Whisper
-            } else if (speaking) {
-                if (!silenceStart) silenceStart = Date.now();
-                else if (Date.now() - silenceStart > SILENCE_MS) {
-                    speaking = false;
-                    // signal end‑of‑speech → stop recording, send final chunk
-                }
-            }
-        };
-    }
-
-    async stopRecording() {
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-            this.mediaRecorder.stop();
-            const result = await this.processAudioChunks();
-        }
     }
 
     async processAudioChunks() {
