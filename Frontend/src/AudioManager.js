@@ -482,16 +482,25 @@ class AudioManager {
         if (this.audioChunks.length === 0) return '';
 
         const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        const audioContext = new AudioContext();
+        /*
+        console.log("BLOB TYPE " + this.audioChunks[0].type);
         const audioData = await blob.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(audioData);
+        const audioBuffer = await this.audioContext.decodeAudioData(audioData);
         const wavBlob = await this.convertToWav(audioBuffer);
+        */
+        const type = this.audioChunks[0].type;
+        console.log(type);
         
+        //this.makeFromBlob(blob).play();
+        //return "";
+
         const formData = new FormData();
-        formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
+        formData.append('file', new File([blob], 'audio.ogg', { type: 'audio/ogg' }));
+
+        console.log(this.language);
 
         try {
-            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?is_final=true&language=${this.language}`, {
+            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=ogg&language=en`, {
                 method: 'POST',
                 body: formData
             });
@@ -501,12 +510,11 @@ class AudioManager {
             }
 
             const result = await response.json();
+            console.log(result);
             return result.text || '';
         } catch (error) {
             console.error('Error processing audio:', error);
             throw error;
-        } finally {
-            audioContext.close();
         }
     }
 

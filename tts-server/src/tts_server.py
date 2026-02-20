@@ -210,14 +210,18 @@ class TTSServer:
     async def transcribe_audio_whisper(
         self,
         file: UploadFile = File(...),
-        is_final: bool = Query(False),
-        language: str = Query("german", enum=["german", "english"])
+        filetype: str = Query("mp3"),
+        language: str = Query("en", enum=["de", "en"])
     ):
         contents = await file.read()
         audio_data = io.BytesIO(contents)
-        audio_data.name = "audio.wav"
+        audio_data.name = f"audio.{filetype}"
+        print(audio_data.name)
         response = self.openai_client.audio.transcriptions.create(model="gpt-4o-transcribe", file=audio_data, language=language)
-        return response.text.strip()
+        res = response.text.strip()
+        print(res)
+        return {"text": res}
+
 
 
     # SPEECH GENERATION WITH WHISPER
