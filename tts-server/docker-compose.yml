@@ -1,0 +1,9 @@
+services:
+
+  tts:
+    build: .
+    image: opaca-tts-server
+    ports:
+      - "7431:7431"
+    environment:
+      OPENAI_API_KEY:

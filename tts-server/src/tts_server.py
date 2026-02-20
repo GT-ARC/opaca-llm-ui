@@ -5,11 +5,11 @@ Uses Whisper model for transcription with optimizations for different hardware.
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-import torch
-from torch.nn.attention import SDPBackend, sdpa_kernel
-import torchaudio
-import torchaudio.transforms as T
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+#import torch
+#from torch.nn.attention import SDPBackend, sdpa_kernel
+#import torchaudio
+#import torchaudio.transforms as T
+#from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 import io
 import logging
 import os
@@ -37,14 +37,15 @@ def is_flash_attention_2_installed() -> bool:
 async def lifespan(app: FastAPI):
     # Startup
     server = app.state.server
-    await server.startup_event()
+    # skip torch setup
+    #await server.startup_event()
     yield
     # Shutdown (if needed)
 
 class TTSServer:
     def __init__(self):
         # Set high precision for float32 matmul
-        torch.set_float32_matmul_precision("high")
+        #torch.set_float32_matmul_precision("high")
 
         self.app = FastAPI(lifespan=lifespan)
         self.app.state.server = self  # Store server instance in app state
@@ -84,7 +85,8 @@ class TTSServer:
 
     def setup_routes(self):
         self.app.get("/device")(self.get_device)
-        self.app.post("/transcribe")(self.transcribe_audio)
+        self.app.post("/transcribe/local")(self.transcribe_audio_local)
+        self.app.post("/transcribe/whisper")(self.transcribe_audio_whisper)
         self.app.post("/reset")(self.reset_transcription)
         self.app.get("/info")(self.get_info)
         self.app.post("/generate_audio")(self.generate_audio)
@@ -148,7 +150,7 @@ class TTSServer:
     async def get_device(self):
         return {"device": self.device_info}
 
-    async def transcribe_audio(
+    async def transcribe_audio_local(
         self,
         file: UploadFile = File(...),
         is_final: bool = Query(False),
@@ -202,6 +204,23 @@ class TTSServer:
             "model": "Whisper Large v3 Turbo",
             "backend": "FastAPI + Transformers"
         }
+
+    # TRANSCRIPTION WITH WHISPER
+
+    async def transcribe_audio_whisper(
+        self,
+        file: UploadFile = File(...),
+        is_final: bool = Query(False),
+        language: str = Query("german", enum=["german", "english"])
+    ):
+        contents = await file.read()
+        audio_data = io.BytesIO(contents)
+        audio_data.name = "audio.wav"
+        response = self.openai_client.audio.transcriptions.create(model="gpt-4o-transcribe", file=audio_data, language=language)
+        return response.text.strip()
+
+
+    # SPEECH GENERATION WITH WHISPER
 
     def chunk_text(self, text: str, target_words: int = 60) -> list[tuple[int, str]]:
         """Split text into chunks intelligently, handling both sentences and structured content."""
@@ -304,6 +323,7 @@ class TTSServer:
         voice: str = Query("alloy", description="Voice to use for TTS"),
     ):
         try:
+            # XXX is this chunking really necessary? does that make it considerably faster?
             chunks = self.chunk_text(text)
             total_chunks = len(chunks)
             

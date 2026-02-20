@@ -463,10 +463,10 @@ class AudioManager {
                 }
             };
 
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 this.isLoading = false;
-                const result = this.processAudioChunks();
-                //onResult(result);
+                const result = await this.processAudioChunks();
+                onResult(result);
             };
 
             mediaRecorder.start(100);
@@ -491,7 +491,7 @@ class AudioManager {
         formData.append('file', new File([wavBlob], 'audio.wav', { type: 'audio/wav' }));
 
         try {
-            const response = await fetch(`${this.getConfig().VoiceServerUrl}/transcribe?is_final=true&language=${this.language}`, {
+            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?is_final=true&language=${this.language}`, {
                 method: 'POST',
                 body: formData
             });
