@@ -97,7 +97,7 @@
                         <div v-if="this.getToolCalls().length > 3">
                             ...
                         </div>
-                        <div v-for="text in this.getToolCalls().slice(-3)">
+                        <div v-for="text in this.getToolCalls().slice(-3)" class="text-wrap text-break">
                             <i class="fa fa-wrench" /> {{ text }}
                         </div>
                     </div>
@@ -181,7 +181,7 @@
                 <div v-show="this.isToolsExpanded">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
-                        <div v-for="text in this.getToolCalls()">
+                        <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
                             {{ text }}
                         </div>
                     </div>
