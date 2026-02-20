@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class SimpleToolConfig(MethodConfig):
-    model: SingleLLMConfig = MethodConfig.llm_role(title='Model', description='The model to use')
+    model: SingleLLMConfig = MethodConfig.llm_role(title='Simple Tools Agent', description='The model to use')
     max_rounds: int = MethodConfig.max_rounds_field()
 
 

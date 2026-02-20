@@ -17,14 +17,14 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('sidebarConfigLoading', this.method) }}
     </div>
-    <div v-else-if="!this.methodConfig || Object.keys(this.methodConfig).length === 0">
+    <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0">
         {{ Localizer.get('sidebarConfigMissing', this.method) }}
     </div>
     <div v-else class="flex-row text-start">
         <template v-for="(schema, name) in methodConfigSchema" :key="name">
             <ConfigGroup
                 v-if="schema.type === 'object'"
-                :name="schema?.title || name"
+                :name="schema?.title ?? name"
                 :schema="schema"
                 :showTitle="true"
                 v-model="methodConfig[name]"

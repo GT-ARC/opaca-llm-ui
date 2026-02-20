@@ -49,7 +49,7 @@ ask_policies = {
 
 
 class SimpleConfig(MethodConfig):
-    model: SingleLLMConfig = MethodConfig.llm_role(title='Model', description='The model to use')
+    model: SingleLLMConfig = MethodConfig.llm_role(title='Simple Agent', description='The model to use')
     max_rounds: int = MethodConfig.max_rounds_field()
     ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
 
