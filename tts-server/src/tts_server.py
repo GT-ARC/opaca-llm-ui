@@ -216,12 +216,8 @@ class TTSServer:
         contents = await file.read()
         audio_data = io.BytesIO(contents)
         audio_data.name = f"audio.{filetype}"
-        print(audio_data.name)
         response = self.openai_client.audio.transcriptions.create(model="gpt-4o-transcribe", file=audio_data, language=language)
-        res = response.text.strip()
-        print(res)
-        return {"text": res}
-
+        return {"text": response.text.strip()}
 
 
     # SPEECH GENERATION WITH WHISPER
@@ -325,10 +321,11 @@ class TTSServer:
         self,
         text: str = Query(..., description="Text to convert to speech"),
         voice: str = Query("alloy", description="Voice to use for TTS"),
+        chunking: bool = Query(False)
     ):
         try:
             # XXX is this chunking really necessary? does that make it considerably faster?
-            chunks = self.chunk_text(text)
+            chunks = self.chunk_text(text) if chunking else [(0, text)]
             total_chunks = len(chunks)
             
             self.logger.info(f"Processing {total_chunks} chunks in parallel...")
