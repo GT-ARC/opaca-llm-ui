@@ -612,10 +612,10 @@ class MethodConfig(BaseModel):
 
     @staticmethod
     def llm_role(title: str, description: str) -> Any:
-        return Field(default_factory=SingleLLMConfig, title=title, description=description)
+        return Field(default_factory=LLMConfig, title=title, description=description)
 
 
-class LLMConfig(BaseModel):
+class LLMParameters(BaseModel):
     """
     List of possible parameters for the LLM. Available parameters depend on the model.
     """
@@ -626,12 +626,12 @@ class LLMConfig(BaseModel):
     presence_penalty: Annotated[float, MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Presence Penalty", description="Penalty applied to repeated tokens based on their presence in the prompt")]
 
 
-class SingleLLMConfig(BaseModel):
+class LLMConfig(BaseModel):
     """
-    Saves a single model and its configuration. Checks during serialization what parameters are supported by the LLM.
+    Saves a single model and its parameter configuration. Checks during serialization what parameters are supported by the LLM.
     """
     model: Annotated[str, MethodConfig.llm_field("model", "LLM to use for this agent")]
-    config: LLMConfig = MethodConfig.nested(LLMConfig, title="LLM Parameters", description="Parameters for the LLM")
+    parameters: LLMParameters = MethodConfig.nested(LLMParameters, title="LLM Parameters", description="Parameters for the LLM")
 
     @model_serializer(mode="wrap")
     def filter_unsupported_params_for_serialization(self, serializer):
@@ -640,15 +640,15 @@ class SingleLLMConfig(BaseModel):
 
         supported = get_supported_openai_params(self.model)
 
-        data["config"] = {
+        data["parameters"] = {
             k: v
-            for k, v in data["config"].items()
+            for k, v in data["parameters"].items()
             if k in supported
         }
 
         # Special handling for reasoning models not supporting temperature settings
-        if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]) and "temperature" in data["config"]:
-            del data["config"]["temperature"]
+        if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]) and "temperature" in data["parameters"]:
+            del data["parameters"]["temperature"]
 
         return data
 
@@ -660,7 +660,7 @@ class SingleLLMConfig(BaseModel):
 
         filtered = {
             k: v
-            for k, v in self.config.model_dump().items()
+            for k, v in self.parameters.model_dump().items()
             if k in supported
         }
 
@@ -669,7 +669,7 @@ class SingleLLMConfig(BaseModel):
             filtered.pop("temperature", None)
 
         # Rebuild LLMConfig with only supported fields
-        self.config = LLMConfig(**filtered)
+        self.parameters = LLMParameters(**filtered)
 
         return self
 

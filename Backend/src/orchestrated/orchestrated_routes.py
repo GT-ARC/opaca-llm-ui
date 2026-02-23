@@ -10,7 +10,7 @@ from .prompts import (
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig, \
-    SingleLLMConfig
+    LLMConfig
 from .agents import (
     OrchestratorAgent,
     WorkerAgent,
@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 class OrchestrationConfig(MethodConfig):
-    orchestrator_model: SingleLLMConfig = MethodConfig.llm_role(title='Orchestrator', description='For delegating tasks')
-    worker_model: SingleLLMConfig = MethodConfig.llm_role(title='Workers', description='For selecting tools')
-    evaluator_model: SingleLLMConfig = MethodConfig.llm_role(title='Evaluators', description='For evaluating tool results')
-    generator_model: SingleLLMConfig = MethodConfig.llm_role(title='Output', description='For generating the final response')
+    orchestrator_model: LLMConfig = MethodConfig.llm_role(title='Orchestrator', description='For delegating tasks')
+    worker_model: LLMConfig = MethodConfig.llm_role(title='Workers', description='For selecting tools')
+    evaluator_model: LLMConfig = MethodConfig.llm_role(title='Evaluators', description='For evaluating tool results')
+    generator_model: LLMConfig = MethodConfig.llm_role(title='Output', description='For generating the final response')
     max_rounds: int = MethodConfig.max_rounds_field()
     max_iterations: int = MethodConfig.integer(default=3, min=1, max=10, step=1, title='Max Iterations', description='Maximum number of re-iterations (retries after failed attempts)')
     use_agent_planner: bool = MethodConfig.boolean(default=True, title='Use Agent Planner?')

@@ -2,7 +2,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig, SingleLLMConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig, LLMConfig
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class SimpleToolConfig(MethodConfig):
-    model: SingleLLMConfig = MethodConfig.llm_role(title='Simple Tools Agent', description='The model to use')
+    model: LLMConfig = MethodConfig.llm_role(title='Simple Tools Agent', description='The model to use')
     max_rounds: int = MethodConfig.max_rounds_field()
 
 

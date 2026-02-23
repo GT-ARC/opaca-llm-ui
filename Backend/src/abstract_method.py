@@ -20,7 +20,7 @@ from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, Opac
                      ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
                      ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, ConfirmActionNotification, ConfirmActionResponse,
-                     SingleLLMConfig)
+                     LLMConfig)
 from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
@@ -57,7 +57,7 @@ class AbstractMethod(ABC):
 
     async def call_llm(
             self,
-            model_config: SingleLLMConfig,
+            model_config: LLMConfig,
             agent: str,
             system_prompt: str,
             messages: List[ChatMessage],
@@ -91,7 +91,6 @@ class AbstractMethod(ABC):
 
         # Extract model name and config
         model = model_config.model
-        config = model_config.config
 
         # Check if an additional API key is required for this model
         if not self.session.get_api_key(model) and not litellm.validate_environment(model).get("keys_in_environment"):
@@ -130,7 +129,7 @@ class AbstractMethod(ABC):
         }
 
         # Add individual model configs and exclude unsupported/unset values
-        kwargs |= config.model_dump(mode='json', exclude_unset=True)
+        kwargs |= model_config.parameters.model_dump(mode='json', exclude_unset=True)
 
         # If tool_choice is set to "only", use "auto" for external API call
         if tool_choice == "only":

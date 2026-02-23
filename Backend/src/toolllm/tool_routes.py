@@ -8,13 +8,13 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, SingleLLMConfig
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, LLMConfig
 
 
 class ToolLlmConfig(MethodConfig):
-    tool_gen_model: SingleLLMConfig = MethodConfig.llm_role(title='Generator', description='Generating tool calls')
-    tool_eval_model: SingleLLMConfig = MethodConfig.llm_role(title='Evaluator', description='Evaluating tool call results')
-    output_model: SingleLLMConfig = MethodConfig.llm_role(title='Output', description='Generating the final output')
+    tool_gen_model: LLMConfig = MethodConfig.llm_role(title='Generator', description='Generating tool calls')
+    tool_eval_model: LLMConfig = MethodConfig.llm_role(title='Evaluator', description='Evaluating tool call results')
+    output_model: LLMConfig = MethodConfig.llm_role(title='Output', description='Generating the final output')
     max_rounds: int = MethodConfig.max_rounds_field()
 
 
