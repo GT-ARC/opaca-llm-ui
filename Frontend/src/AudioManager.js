@@ -216,7 +216,8 @@ class AudioManager {
 
     constructor() {
         this._isVoiceServerConnected = ref(false);
-        this._isLoading = ref(false);
+        this._isRecording = ref(false);
+        this._isTranscribing = ref(false);
         this._deviceInfo = ref('');
 
         this._whisperVoice = ref('alloy');
@@ -245,17 +246,31 @@ class AudioManager {
         }
     }
 
-    get isLoading() {
-        return this._isLoading.value !== undefined
-            ? this._isLoading.value
-            : this._isLoading;
+    get isRecording() {
+        return this._isRecording.value !== undefined
+            ? this._isRecording.value
+            : this._isRecording;
     }
 
-    set isLoading(value) {
-        if (this._isLoading.value !== undefined) {
-            this._isLoading.value = value;
+    set isRecording(value) {
+        if (this._isRecording.value !== undefined) {
+            this._isRecording.value = value;
         } else {
-            this._isLoading = value;
+            this._isRecording = value;
+        }
+    }
+
+    get isTranscribing() {
+        return this._isTranscribing.value !== undefined
+            ? this._isTranscribing.value
+            : this._isTranscribing;
+    }
+
+    set isTranscribing(value) {
+        if (this._isTranscribing.value !== undefined) {
+            this._isTranscribing.value = value;
+        } else {
+            this._isTranscribing = value;
         }
     }
 
@@ -373,11 +388,6 @@ class AudioManager {
             onResult(recognizedText);
         };
 
-        this._recognition.onspeechend = () => {
-            console.log('Recognition: Speech ended.');
-            this.isLoading = false;
-        };
-
         this._recognition.onnomatch = () => {
             onError('Failed to recognize speech.');
         };
@@ -388,10 +398,10 @@ class AudioManager {
 
         this._recognition.onend = () => {
             console.log('Recognition ended.');
-            this.isLoading = false;
+            this.isRecording = false;
         };
 
-        this.isLoading = true;
+        this.isRecording = true;
         this._recognition.start();
     }
 
@@ -433,7 +443,7 @@ class AudioManager {
 
     async startWhisperRecognition(onResult, onError) {
         try {
-            this.isLoading = true;
+            this.isRecording = true;
             this.audioContext = new AudioContext();
             
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -471,19 +481,20 @@ class AudioManager {
             };
 
             this.mediaRecorder.onstop = async () => {
-                this.isLoading = false;
+                this.isRecording = false;
+                this.isTranscribing = true;
                 try {
                     const result = await this.processAudioChunks(audioChunks);
                     onResult(result);
                 } catch (error) {
-                    this.isLoading = false;
                     onError(`Error processing audio: ${error}`);
                 }
+                this.isTranscribing = false;
             };
 
             this.mediaRecorder.start(100);
         } catch (error) {
-            this.isLoading = false;
+            this.isRecording = false;
             onError(`Error recording audio: ${error}`);
         }
     }

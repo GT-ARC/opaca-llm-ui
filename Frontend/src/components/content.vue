@@ -156,15 +156,16 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isLoading"
+                                    v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
                                     :title="Localizer.get('tooltipButtonRecord')">
-                                <i class="fa fa-microphone" />
+                                <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
+                                <i v-else class="fa fa-microphone" />
                             </button>
                             <button type="button"
-                                    v-if="AudioManager.isRecognitionSupported() && AudioManager.isLoading"
+                                    v-if="AudioManager.isRecognitionSupported() && AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="AudioManager.stopRecognition()"
                                     :disabled="!isFinished"
