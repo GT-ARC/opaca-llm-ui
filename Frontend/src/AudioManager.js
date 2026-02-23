@@ -228,7 +228,7 @@ class AudioManager {
 
         // manual recording for whisper
         this.audioContext = null;
-        this.audioChunks = null;
+        this.mediaRecorder = null;
     }
 
     get isVoiceServerConnected() {
@@ -422,8 +422,7 @@ class AudioManager {
         try {
             this.isLoading = true;
             this.audioContext = new AudioContext();
-            this.audioChunks = [];
-
+            
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
@@ -439,69 +438,63 @@ class AudioManager {
             const analyser = this.audioContext.createAnalyser();
             const dataArray = new Float32Array(analyser.fftSize);
             this.audioContext.createMediaStreamSource(stream).connect(analyser);
-            let silenceStart = null;
+            const audioChunks = [];
+            let lastSound = Date.now()
 
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = async (event) => {
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.mediaRecorder.ondataavailable = async (event) => {
                 if (event.data.size > 0) {
-                    this.audioChunks.push(event.data);
-                }
-                if (this.audioChunks.length > 50) {
-                    mediaRecorder.stop();
+                    audioChunks.push(event.data);
                 }
 
                 // detect duration of silence
                 analyser.getFloatTimeDomainData(dataArray);
                 const rms = Math.sqrt(dataArray.reduce((s, x) => s + x*x, 0) / dataArray.length);
                 if (rms > 0.02) {
-                    silenceStart = null;
-                } else if (!silenceStart) {
-                    silenceStart = Date.now();
-                } else if (Date.now() - silenceStart > 800) {
-                    // signal end‑of‑speech → stop recording, send final chunk
-                    mediaRecorder.stop();
+                    lastSound = Date.now();
+                } else if (Date.now() - lastSound > 800) {
+                    this.mediaRecorder.stop();
                 }
             };
 
-            mediaRecorder.onstop = async () => {
+            this.mediaRecorder.onstop = async () => {
                 this.isLoading = false;
-                const result = await this.processAudioChunks();
-                onResult(result);
+                try {
+                    const result = await this.processAudioChunks(audioChunks);
+                    onResult(result);
+                } catch (error) {
+                    this.isLoading = false;
+                    onError(`Error processing audio: ${error}`);
+                }
             };
 
-            mediaRecorder.start(100);
+            this.mediaRecorder.start(100);
         } catch (error) {
             this.isLoading = false;
             onError(`Error recording audio: ${error}`);
         }
     }
 
-    async processAudioChunks() {
-        if (this.audioChunks.length === 0) return '';
+    async processAudioChunks(audioChunks) {
+        if (audioChunks.length === 0) return '';
 
-        const ext = this.audioChunks[0].type.split("/")[1].split(";")[0].trim();
+        const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();
         const lang = Localizer.getLanguageForTTS();
 
         const formData = new FormData();
-        const blob = new Blob(this.audioChunks);
-        formData.append('file', new File([blob], `audio.${ext}`, { type: `audio/${ext}` }));
+        formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
 
-        try {
-            const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=${ext}&language=${lang}`, {
-                method: 'POST',
-                body: formData
-            });
+        const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=${ext}&language=${lang}`, {
+            method: 'POST',
+            body: formData
+        });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            return result.text || '';
-        } catch (error) {
-            console.error('Error processing audio:', error);
-            throw error;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const result = await response.json();
+        return result.text || '';
     }
 }
 
