@@ -71,7 +71,6 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            model (str): LLM host/provider AND model name (e.g., "openai/gpt-4o-mini"), from config.
             model_config (Dict[str, Any]): Individual model configuration settings.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt for model instructions.
