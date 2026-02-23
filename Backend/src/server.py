@@ -479,6 +479,11 @@ async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Dep
     prompts.save_default_prompts(data)
 
 
+@app.delete("/prompts/default", description="Reset default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
+async def reset_default_prompts(auth = Depends(require_password)) -> None:
+    prompts.reset_default_prompts()
+
+
 # WEBSOCKET CONNECTION (permanently opened)
 
 @app.websocket("/ws")
