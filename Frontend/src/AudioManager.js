@@ -218,7 +218,6 @@ class AudioManager {
         this._isVoiceServerConnected = ref(false);
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
-        this._deviceInfo = ref('');
 
         this._whisperVoice = ref('alloy');
         this._useWhisperTts = ref(true);
@@ -274,20 +273,6 @@ class AudioManager {
         }
     }
 
-    get deviceInfo() {
-        return this._deviceInfo.value !== undefined
-            ? this._deviceInfo.value
-            : this._deviceInfo;
-    }
-
-    set deviceInfo(value) {
-        if (this._deviceInfo.value !== undefined) {
-            this._deviceInfo.value = value;
-        } else {
-            this._deviceInfo = value;
-        }
-    }
-
     get useWhisperTts() {
         return this._useWhisperTts.value !== undefined
             ? this._useWhisperTts.value
@@ -333,7 +318,6 @@ class AudioManager {
         try {
             const response = await fetch(`${conf.VoiceServerUrl}/info`);
             if (response.ok) {
-                this.deviceInfo = await response.json();
                 this.isVoiceServerConnected = true;
             } else {
                 this.isVoiceServerConnected = false;
