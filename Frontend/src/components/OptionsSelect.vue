@@ -44,7 +44,7 @@
         </div>
 
         <!-- Audio -->
-        <div v-if="AudioManager.isBackendConfigured()"
+        <div v-if="AudioManager.isRecognitionSupported()"
              class="accordion-item m-0">
 
             <!-- Header -->
@@ -53,13 +53,10 @@
                      data-bs-toggle="collapse"
                      data-bs-target="#selector-audio">
                     <div class="d-flex me-1 p-1 text-start" style="height: 100%">
-                        <i class="fa fs-4" :class="[AudioManager.isVoiceServerConnected ? 'fa-microphone' : 'fa-microphone-slash']" style="width: 30px" />
+                        <i class="fa fs-4 fa-microphone" style="width: 30px" />
                     </div>
                     <div class="d-flex flex-column">
                         <div>
-                            {{Localizer.get(AudioManager.isVoiceServerConnected ? 'settings_audio_connected' : 'settings_audio_disconnected') }}
-                        </div>
-                        <div class="text-muted">
                             {{ Localizer.get('settings_audio') }}
                         </div>
                     </div>
@@ -71,21 +68,6 @@
                  class="accordion-collapse collapse"
                  data-bs-parent="#options-selector">
                 <div class="accordion-body">
-
-                    <!-- Whisper Server Address -->
-                    <div class="text-muted options-item options-item-disabled">
-                        {{ String(conf.VoiceServerUrl) }}
-                    </div>
-
-                    <!-- Retry Connection Button -->
-                    <div v-if="! AudioManager.isVoiceServerConnected"
-                         class="options-item text-center">
-                        <button type="button" class="btn btn-outline-danger w-100"
-                                @click="() => this.connectToAudioServer()">
-                            <i class="fa fa-refresh" :class="{'fa-spin': this.isAudioConnecting}" />
-                            {{ Localizer.get('settings_audio_retry') }}
-                        </button>
-                    </div>
 
                     <!-- Toggle TTS/STT -->
                     <div class="options-item d-flex flex-row align-items-center"
@@ -205,12 +187,6 @@ export default {
 
         isSelectedItem(key, value) {
             return this.selectedItems[key] === value;
-        },
-
-        async connectToAudioServer() {
-            this.isAudioConnecting = true;
-            await AudioManager.initVoiceServerConnection();
-            this.isAudioConnecting = false;
         },
 
         toggleWhisperTts() {

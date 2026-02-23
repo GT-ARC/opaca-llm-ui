@@ -3,6 +3,25 @@ import conf from "../config.js";
 import Localizer from "./Localizer.js";
 
 
+const voiceGenLocalesWhisper = {
+    GB: 'en',
+    DE: 'de'
+};
+
+const voiceGenLocalesWebSpeech = {
+    GB: 'en-US',
+    DE: 'de-DE'
+};
+
+function getLanguageForWhisper() {
+    return voiceGenLocalesWhisper[Localizer.language];
+}
+
+function getLanguageForWebSpeech() {
+    return voiceGenLocalesWebSpeech[Localizer.language];
+}
+
+
 /**
  * Provide unified API for TTS/STT using either the browser built-in
  * Web Speech API or a custom Whisper server running locally.
@@ -78,11 +97,11 @@ class WhisperAudio extends TtsAudio {
     async setup() {
         this.isLoading = true;
         try {
-            const url = `${conf.VoiceServerUrl}/generate_audio`;
+            const url = `${conf.BackendAddress}/whisper/generate`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
-                voice: audioManager._whisperVoice.value,
+                voice: 'alloy',
             });
 
             const response = await fetch(`${url}?${params}`, payload);
@@ -163,7 +182,7 @@ class WebSpeechAudio extends TtsAudio {
 
     async setup() {
         const utterance = new SpeechSynthesisUtterance(this._text);
-        utterance.lang = Localizer.getLanguageForTTS();
+        utterance.lang = getLanguageForWebSpeech();
 
         utterance.onstart = () => {
             this.isLoading = false;
@@ -215,11 +234,9 @@ class WebSpeechAudio extends TtsAudio {
 class AudioManager {
 
     constructor() {
-        this._isVoiceServerConnected = ref(false);
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
 
-        this._whisperVoice = ref('alloy');
         this._useWhisperTts = ref(true);
         this._useWhisperStt = ref(true);
 
@@ -229,20 +246,6 @@ class AudioManager {
         // manual recording for whisper
         this.audioContext = null;
         this.mediaRecorder = null;
-    }
-
-    get isVoiceServerConnected() {
-        return this._isVoiceServerConnected.value !== undefined
-            ? this._isVoiceServerConnected.value
-            : this._isVoiceServerConnected;
-    }
-
-    set isVoiceServerConnected(value) {
-        if (this._isVoiceServerConnected.value !== undefined) {
-            this._isVoiceServerConnected.value = value;
-        } else {
-            this._isVoiceServerConnected = value;
-        }
     }
 
     get isRecording() {
@@ -301,36 +304,9 @@ class AudioManager {
         }
     }
 
-    isBackendConfigured() {
-        return !! conf.VoiceServerUrl
-    }
-
-    /**
-     * Init connection to local Whisper server.
-     * @returns {Promise<void>}
-     */
-    async initVoiceServerConnection() {
-        if (!this.isBackendConfigured()) {
-            console.warn('No voice server configured!');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${conf.VoiceServerUrl}/info`);
-            if (response.ok) {
-                this.isVoiceServerConnected = true;
-            } else {
-                this.isVoiceServerConnected = false;
-            }
-        } catch (error) {
-            console.error('Failed to connect to whisper server.');
-            this.isVoiceServerConnected = false;
-        }
-    }
-
     async generateAudio(text) {
         if (!text) return null;
-        return await this.isVoiceServerConnected && this.useWhisperTts
+        return this.useWhisperTts
             ? new WhisperAudio(text)
             : new WebSpeechAudio(text);
     }
@@ -342,7 +318,7 @@ class AudioManager {
      */
     async startRecognition(onResult, onError) {
         if (!this.isRecognitionSupported()) return;
-        if (this.isVoiceServerConnected && this.useWhisperStt) {
+        if (this.useWhisperStt) {
             this.startWhisperRecognition(onResult, onError)
         } else {
             this.startWebSpeechRecognition(onResult, onError)
@@ -351,7 +327,7 @@ class AudioManager {
 
     async stopRecognition() {
         if (!this.isRecognitionSupported()) return;
-        if (this.isVoiceServerConnected && this.useWhisperStt) {
+        if (this.useWhisperStt) {
             this.stopWhisperRecognition()
         } else {
             this.stopWebSpeechRecognition()
@@ -366,7 +342,7 @@ class AudioManager {
             console.error(`Failed to start web speech recognition: ${error}`);
             return;
         }
-        this._recognition.lang = Localizer.getLanguageForTTS();
+        this._recognition.lang = getLanguageForWebSpeech();
         this._recognition.onresult = async (event) => {
             const recognizedText = Array.from(event.results).map(r => r[0].transcript).join('\n\n');
             onResult(recognizedText);
@@ -397,10 +373,14 @@ class AudioManager {
     }
 
     isRecognitionSupported() {
+        // the old expression would now always be true... but that can't be right
+        return true;
+        /*
         return this.isVoiceServerConnected
             || (this.isWebSpeechSupported()
             && this._isGoogleChrome()
             && this._isSecureConnection());
+        */
     }
 
     isWebSpeechSupported() {
@@ -493,12 +473,12 @@ class AudioManager {
         if (audioChunks.length === 0) return '';
 
         const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();
-        const lang = Localizer.getLanguageForTTS();
+        const lang = getLanguageForWhisper();
 
         const formData = new FormData();
         formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
 
-        const response = await fetch(`${conf.VoiceServerUrl}/transcribe/whisper?filetype=${ext}&language=${lang}`, {
+        const response = await fetch(`${conf.BackendAddress}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
             method: 'POST',
             body: formData
         });

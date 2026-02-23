@@ -381,10 +381,6 @@ export default {
             this.setTheme(conf.ColorScheme);
         }
 
-        if (AudioManager.isBackendConfigured()) {
-            AudioManager.initVoiceServerConnection();
-        }
-
         if (this.isMobile) {
             SidebarManager.close()
         } else {
