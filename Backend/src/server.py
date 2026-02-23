@@ -4,6 +4,7 @@ Provides a list of available LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
+import io
 import json
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
@@ -12,11 +13,12 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
+from openai import OpenAI
 
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
@@ -477,6 +479,29 @@ async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
 @app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
 async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
     prompts.save_default_prompts(data)
+
+
+# WHISPER TTS/STT
+
+@app.post("/whisper/transcribe", tags=["whisper"])
+async def whisper_transcribe(file: UploadFile, filetype: str = Query("mp3"), language: str = Query("en")):
+    contents = await file.read()
+    audio_data = io.BytesIO(contents)
+    audio_data.name = f"audio.{filetype}"
+    openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    response = openai_client.audio.transcriptions.create(model="gpt-4o-transcribe", file=audio_data, language=language)
+    return {"text": response.text.strip()}
+
+
+@app.post("/whisper/generate", tags=["whisper"])
+async def whisper_generate(text: str = Query(""), voice: str = Query("alloy")) -> Response:
+    openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    response = openai_client.audio.speech.create(model="tts-1", voice=voice, input=text)
+    return Response(
+            content=response.content,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "attachment; filename=generated_audio.mp3"}
+        )
 
 
 # WEBSOCKET CONNECTION (permanently opened)
