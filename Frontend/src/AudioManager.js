@@ -203,7 +203,6 @@ class AudioManager {
     constructor() {
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
-
         this.method = "WHISPER";
 
         // webkit
@@ -215,31 +214,19 @@ class AudioManager {
     }
     
     get isRecording() {
-        return this._isRecording.value !== undefined
-            ? this._isRecording.value
-            : this._isRecording;
+        return this._isRecording.value;
     }
 
     set isRecording(value) {
-        if (this._isRecording.value !== undefined) {
-            this._isRecording.value = value;
-        } else {
-            this._isRecording = value;
-        }
+        this._isRecording.value = value;
     }
 
     get isTranscribing() {
-        return this._isTranscribing.value !== undefined
-            ? this._isTranscribing.value
-            : this._isTranscribing;
+        return this._isTranscribing.value;
     }
 
     set isTranscribing(value) {
-        if (this._isTranscribing.value !== undefined) {
-            this._isTranscribing.value = value;
-        } else {
-            this._isTranscribing = value;
-        }
+        this._isTranscribing.value = value;
     }
 
     getAudioMethods() {
