@@ -29,36 +29,8 @@ function getLanguageForWebSpeech() {
 class TtsAudio {
 
     constructor() {
-        this._isPlaying = ref(false);
-        this._isLoading = ref(false);
-    }
-
-    get isLoading() {
-        return this._isLoading.value !== undefined
-            ? this._isLoading.value
-            : this._isLoading;
-    }
-
-    set isLoading(value) {
-        if (this._isLoading.value !== undefined) {
-            this._isLoading.value = value;
-        } else {
-            this._isLoading = value;
-        }
-    }
-
-    get isPlaying() {
-        return this._isPlaying.value !== undefined
-            ? this._isPlaying.value
-            : this._isPlaying;
-    }
-
-    set isPlaying(value) {
-        if (this._isPlaying.value !== undefined) {
-            this._isPlaying.value = value;
-        } else {
-            this._isPlaying = value;
-        }
+        this.isPlaying = false;
+        this.isLoading = false;
     }
 
     async setup() {
@@ -244,10 +216,10 @@ class AudioManager {
         this._recognition = null;
 
         // manual recording for whisper
-        this.audioContext = null;
-        this.mediaRecorder = null;
+        this._audioContext = null;
+        this._mediaRecorder = null;
     }
-
+    
     get isRecording() {
         return this._isRecording.value !== undefined
             ? this._isRecording.value
@@ -404,7 +376,7 @@ class AudioManager {
     async startWhisperRecognition(onResult, onError) {
         try {
             this.isRecording = true;
-            this.audioContext = new AudioContext();
+            this._audioContext = new AudioContext();
             
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -418,14 +390,14 @@ class AudioManager {
             });
 
             // set up analyser on the stream for silence detection
-            const analyser = this.audioContext.createAnalyser();
+            const analyser = this._audioContext.createAnalyser();
             const dataArray = new Float32Array(analyser.fftSize);
-            this.audioContext.createMediaStreamSource(stream).connect(analyser);
+            this._audioContext.createMediaStreamSource(stream).connect(analyser);
             const audioChunks = [];
             let lastSound = Date.now()
 
-            this.mediaRecorder = new MediaRecorder(stream);
-            this.mediaRecorder.ondataavailable = async (event) => {
+            this._mediaRecorder = new MediaRecorder(stream);
+            this._mediaRecorder.ondataavailable = async (event) => {
                 if (event.data.size > 0) {
                     audioChunks.push(event.data);
                 }
@@ -440,7 +412,7 @@ class AudioManager {
                 }
             };
 
-            this.mediaRecorder.onstop = async () => {
+            this._mediaRecorder.onstop = async () => {
                 this.isRecording = false;
                 this.isTranscribing = true;
                 try {
@@ -452,7 +424,7 @@ class AudioManager {
                 this.isTranscribing = false;
             };
 
-            this.mediaRecorder.start(100);
+            this._mediaRecorder.start(100);
         } catch (error) {
             this.isRecording = false;
             onError(`Error recording audio: ${error}`);
@@ -460,8 +432,9 @@ class AudioManager {
     }
 
     stopWhisperRecognition() {
-        if (this.mediaRecorder) {
-            this.mediaRecorder.stop();
+        if (this._mediaRecorder) {
+            this._mediaRecorder.stop();
+            this._mediaRecorder = null;
         }
     }
 
