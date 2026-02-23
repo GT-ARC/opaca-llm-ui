@@ -156,13 +156,20 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    v-if="AudioManager.isRecognitionSupported()"
+                                    v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isLoading"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
                                     :title="Localizer.get('tooltipButtonRecord')">
-                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                                <i v-else class="fa fa-spin fa-spinner" />
+                                <i class="fa fa-microphone" />
+                            </button>
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported() && AudioManager.isLoading"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="AudioManager.stopRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i class="fa fa-stop"/>
                             </button>
 
                             <button type="button"
@@ -170,7 +177,7 @@
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
                                     :title="Localizer.get('tooltipButtonStop')">
-                                <i class="fa fa-stop"/>
+                                <i class="fa fa-xmark"/>
                             </button>
 
                             <button type="button"
