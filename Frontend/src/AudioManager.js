@@ -335,6 +335,9 @@ class AudioManager {
     }
 
     async startWebSpeechRecognition(onResult, onError) {
+        if (! this.isWebSpeechSupported()) {
+            onError("WebSpeech is not supported in your Browser");
+        }
         this.stopWebSpeechRecognition();
         try {
             this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
@@ -373,18 +376,11 @@ class AudioManager {
     }
 
     isRecognitionSupported() {
-        // the old expression would now always be true... but that can't be right
-        return true;
-        /*
-        return this.isVoiceServerConnected
-            || (this.isWebSpeechSupported()
-            && this._isGoogleChrome()
-            && this._isSecureConnection());
-        */
+        return this._isSecureConnection();
     }
 
     isWebSpeechSupported() {
-        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+        return this._isGoogleChrome() && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
     }
 
     /**
