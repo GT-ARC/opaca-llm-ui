@@ -353,7 +353,7 @@ class AudioManager {
         };
 
         this._recognition.onerror = (error) => {
-            onError(`Failed to recognize speech: ${error}`);
+            onError(`Failed to recognize speech: ${JSON.stringify(error)}`);
         };
 
         this._recognition.onend = () => {

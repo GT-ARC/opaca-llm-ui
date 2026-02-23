@@ -98,7 +98,7 @@ Also be aware that tokens are bound to an **OPACA user**, not to a session. This
 
 ### Speech I/O
 
-The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin functions of the Google Chrome browser, or the Whisper model. A server with accordant API routes is included in this project under tts-server, and can be included in the setup, or started elsewhere. The STT server is optional; if it is not running (or the URL is not provided), the Whisper STT and TTS features will not be available. As a fallback, the builtin functions of Google Chrome can be used, but those will only work in that browser (also not in e.g. other Chromium based browsers). Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
+The chatbot-UI supports speech-to-text (STT) and text-to-speech (TTS) using either the builtin WebSpeech functions of e.g. the Google Chrome browser, or OpenAI's Whisper model. Accordant proxy-routes are included in the backend. Also, in any case TTS and STT will only work if the frontend is using HTTPS or running on the same host (i.e. localhost).
 
 ### Sample Prompts
 
