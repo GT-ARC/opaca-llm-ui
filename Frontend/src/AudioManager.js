@@ -350,11 +350,17 @@ class AudioManager {
         }
     }
 
-    async startWebSpeechRecognition(onResult, onError) {
-        if (this._recognition) {
-            this._recognition.abort();
-            this._recognition = null;
+    async stopRecognition() {
+        if (!this.isRecognitionSupported()) return;
+        if (this.isVoiceServerConnected && this.useWhisperStt) {
+            this.stopWhisperRecognition()
+        } else {
+            this.stopWebSpeechRecognition()
         }
+    }
+
+    async startWebSpeechRecognition(onResult, onError) {
+        this.stopWebSpeechRecognition();
         try {
             this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
         } catch (error) {
@@ -387,6 +393,13 @@ class AudioManager {
 
         this.isLoading = true;
         this._recognition.start();
+    }
+
+    stopWebSpeechRecognition() {
+        if (this._recognition) {
+            this._recognition.abort();
+            this._recognition = null;
+        }
     }
 
     isRecognitionSupported() {
@@ -453,7 +466,7 @@ class AudioManager {
                 if (rms > 0.02) {
                     lastSound = Date.now();
                 } else if (Date.now() - lastSound > 800) {
-                    this.mediaRecorder.stop();
+                    this.stopWhisperRecognition();
                 }
             };
 
@@ -472,6 +485,12 @@ class AudioManager {
         } catch (error) {
             this.isLoading = false;
             onError(`Error recording audio: ${error}`);
+        }
+    }
+
+    stopWhisperRecognition() {
+        if (this.mediaRecorder) {
+            this.mediaRecorder.stop();
         }
     }
 
