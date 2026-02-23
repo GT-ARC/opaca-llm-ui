@@ -124,7 +124,7 @@ export default {
                 const res = await backendClient.resetConfig(this.method);
                 console.log('Reset method config.');
                 this.methodConfig = res.config_values;
-                this.methodConfigSchema = this.dereferenceSchema(res.config_schema);
+                this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
                 this.configChangeSuccess = true
                 this.configMessage = Localizer.get('configReset')
             } catch (error) {
