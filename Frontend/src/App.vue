@@ -261,6 +261,7 @@ export default {
                 case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': this.setTheme(value); break;
+                case 'audio': AudioManager.method = value; break;
                 default: break;
             }
         },

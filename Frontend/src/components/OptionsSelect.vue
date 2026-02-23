@@ -42,61 +42,6 @@
             </div>
 
         </div>
-
-        <!-- Audio -->
-        <div v-if="AudioManager.isRecognitionSupported()"
-             class="accordion-item m-0">
-
-            <!-- Header -->
-            <div class="accordion-header options-header">
-                <div class="accordion-button collapsed d-flex p-2 rounded-0"
-                     data-bs-toggle="collapse"
-                     data-bs-target="#selector-audio">
-                    <div class="d-flex me-1 p-1 text-start" style="height: 100%">
-                        <i class="fa fs-4 fa-microphone" style="width: 30px" />
-                    </div>
-                    <div class="d-flex flex-column">
-                        <div>
-                            {{ Localizer.get('settings_audio') }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Body -->
-            <div id="selector-audio"
-                 class="accordion-collapse collapse"
-                 data-bs-parent="#options-selector">
-                <div class="accordion-body">
-
-                    <!-- Toggle TTS/STT -->
-                    <div class="options-item d-flex flex-row align-items-center"
-                         @click="AudioManager.useWhisperTts = !AudioManager.useWhisperTts;">
-                        <span>
-                            {{ Localizer.get('settings_audio_whisperTts') }}
-                        </span>
-                        <span class="ms-auto fs-5">
-                            <i v-if="AudioManager.useWhisperTts" class="fa fa-toggle-on" />
-                            <i v-else class="fa fa-toggle-off" />
-                        </span>
-                    </div>
-                    <div v-if="AudioManager.isWebSpeechSupported()"
-                         class="options-item d-flex flex-row align-items-center"
-                         @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
-                        <span>
-                            {{ Localizer.get('settings_audio_whisperStt') }}
-                        </span>
-                        <span class="ms-auto fs-5">
-                            <i v-if="AudioManager.useWhisperStt" class="fa fa-toggle-on" />
-                            <i v-else class="fa fa-toggle-off" />
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-
     </div>
 </div>
 </template>
@@ -128,11 +73,15 @@ export default {
 
     methods: {
         getCombinedSettingsData() {
-            return [
+            const res = [
                 this.getMethodsData(),
                 this.getLanguageData(),
                 this.getColorModeData(),
             ]
+            if (AudioManager.isRecognitionSupported()) {
+                res.push(this.getAudioData());
+            }
+            return res;
         },
 
         getMethodsData() {
@@ -167,6 +116,15 @@ export default {
             }
         },
 
+        getAudioData() {
+            return {
+                data: AudioManager.getAudioMethods(),
+                name: Localizer.get('settings_audio'),
+                elementId: 'audio',
+                icon: 'fa-microphone',
+            }
+        },
+
         getInitialColorMode() {
             if (conf.ColorScheme === 'system') {
                 return window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -188,20 +146,13 @@ export default {
         isSelectedItem(key, value) {
             return this.selectedItems[key] === value;
         },
-
-        toggleWhisperTts() {
-            AudioManager.useWhisperTts = !AudioManager.useWhisperTts;
-        },
-
-        toggleWhisperStt() {
-            AudioManager.useWhisperStt = !AudioManager.useWhisperStt;
-        },
     },
 
     mounted() {
         this.select('method', Cookie.get("method") ?? conf.DefaultMethod);
         this.select('language', Cookie.get("language") ?? Localizer.language);
         this.select('colorMode', this.getInitialColorMode());
+        this.select('audio', Cookie.get("audio") ?? AudioManager.method);
     }
 }
 </script>

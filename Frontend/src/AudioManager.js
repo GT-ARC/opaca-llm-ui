@@ -3,22 +3,17 @@ import conf from "../config.js";
 import Localizer from "./Localizer.js";
 
 
-const voiceGenLocalesWhisper = {
-    GB: 'en',
-    DE: 'de'
-};
-
-const voiceGenLocalesWebSpeech = {
-    GB: 'en-US',
-    DE: 'de-DE'
+const voiceGenLocales = {
+    WHISPER: {GB: 'en', DE: 'de'},
+    WEBSPEECH: {GB: 'en-US', DE: 'de-DE'},
 };
 
 function getLanguageForWhisper() {
-    return voiceGenLocalesWhisper[Localizer.language];
+    return voiceGenLocales["WHISPER"][Localizer.language];
 }
 
 function getLanguageForWebSpeech() {
-    return voiceGenLocalesWebSpeech[Localizer.language];
+    return voiceGenLocales["WEBSPEECH"][Localizer.language];
 }
 
 
@@ -209,8 +204,7 @@ class AudioManager {
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
 
-        this._useWhisperTts = ref(true);
-        this._useWhisperStt = ref(true);
+        this.method = "WHISPER";
 
         // webkit
         this._recognition = null;
@@ -248,39 +242,20 @@ class AudioManager {
         }
     }
 
-    get useWhisperTts() {
-        return this._useWhisperTts.value !== undefined
-            ? this._useWhisperTts.value
-            : this._useWhisperTts;
-    }
-
-    set useWhisperTts(value) {
-        if (this._useWhisperTts.value !== undefined) {
-            this._useWhisperTts.value = value;
+    getAudioMethods() {
+        if (this.isWebSpeechSupported()) {
+            return { WHISPER: "Whisper", WEBSPEECH: "WebSpeech" };
         } else {
-            this._useWhisperTts = value;
-        }
-    }
-
-    get useWhisperStt() {
-        return this._useWhisperStt.value !== undefined
-            ? this._useWhisperStt.value
-            : this._useWhisperStt;
-    }
-
-    set useWhisperStt(value) {
-        if (this._useWhisperStt.value !== undefined) {
-            this._useWhisperStt.value = value;
-        } else {
-            this._useWhisperStt = value;
+            return { WHISPER: "Whisper" };
         }
     }
 
     async generateAudio(text) {
         if (!text) return null;
-        return this.useWhisperTts
-            ? new WhisperAudio(text)
-            : new WebSpeechAudio(text);
+        switch (this.method) {
+            case "WHISPER": return new WhisperAudio(text);
+            case "WEBSPEECH": return new WebSpeechAudio(text);
+        };
     }
 
     /**
@@ -290,20 +265,18 @@ class AudioManager {
      */
     async startRecognition(onResult, onError) {
         if (!this.isRecognitionSupported()) return;
-        if (this.useWhisperStt) {
-            this.startWhisperRecognition(onResult, onError)
-        } else {
-            this.startWebSpeechRecognition(onResult, onError)
-        }
+        switch (this.method) {
+            case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
+            case "WEBSPEECH": this.startWebSpeechRecognition(onResult, onError); break;
+        };
     }
 
     async stopRecognition() {
         if (!this.isRecognitionSupported()) return;
-        if (this.useWhisperStt) {
-            this.stopWhisperRecognition()
-        } else {
-            this.stopWebSpeechRecognition()
-        }
+        switch (this.method) {
+            case "WHISPER": this.stopWhisperRecognition(); break;
+            case "WEBSPEECH": this.stopWebSpeechRecognition(); break;
+        };
     }
 
     async startWebSpeechRecognition(onResult, onError) {
