@@ -4,7 +4,7 @@
          @scroll="this.handleDebugScroll">
 
         <div v-if="!isMobile" class="sidebar-title">
-            {{ Localizer.get('tooltipSidebarLogs') }}
+            {{ Localizer.get('sidebar_logs') }}
         </div>
 
         <div id="debug-console"

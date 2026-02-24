@@ -1,17 +1,17 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarInfo') }}
+        {{ Localizer.get('sidebar_info') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('platformInfoLoading') }}
+        {{ Localizer.get('sidebar_info_loading') }}
     </div>
     <div v-else-if="!isPlatformConnected" class="placeholder-container">
         <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
         <h5 class="p-4">
-            {{ Localizer.get('platformInfoMissing') }}
+            {{ Localizer.get('sidebar_info_missing') }}
         </h5>
     </div>
     <div v-else
@@ -53,7 +53,7 @@ export default {
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);
-                this.howAssistContent = Localizer.get('platformInfoFailed', error);
+                this.howAssistContent = Localizer.get('sidebar_info_failed', error);
             } finally {
                 this.isLoading = false;
             }

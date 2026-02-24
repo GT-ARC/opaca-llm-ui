@@ -6,7 +6,7 @@
 
             <i @click="SidebarManager.toggleView('info')"
                class="fa fa-circle-info sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarInfo')"
+               :title="Localizer.get('sidebar_info')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
             <i @click="SidebarManager.toggleView('chats')"
@@ -46,7 +46,7 @@
 
             <i @click="SidebarManager.toggleView('debug')"
                class="fa fa-bug sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarLogs')"
+               :title="Localizer.get('sidebar_logs')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
 
             <!-- spacer -->
@@ -54,7 +54,7 @@
 
             <i @click="SidebarManager.toggleView('faq')"
                class="fa fa-question-circle sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFaq')"
+               :title="Localizer.get('sidebar_faq')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
