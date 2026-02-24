@@ -80,7 +80,7 @@
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
-                        {{ Localizer.get("welcome") }}
+                        {{ Localizer.get("chatarea_welcome") }}
                     </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
@@ -94,7 +94,7 @@
                         <button type="button" class="btn btn-outline-primary p-2"
                                 @click="Localizer.reloadSampleQuestions(null)">
                             <i class="fa fa-arrow-right"/>
-                            {{ Localizer.get('rerollQuestions') }}
+                            {{ Localizer.get('chatarea_rerollSamples') }}
                         </button>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
                             v-model="textInput"
                             class="text-input form-control"
                             :class="{ 'small-scrollbar': isSmallScrollbar }"
-                            :placeholder="Localizer.get('inputPlaceholder')"
+                            :placeholder="Localizer.get('chatarea_input')"
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
@@ -170,7 +170,7 @@
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
+                                    :title="Localizer.get('chatarea_speak')">
                                 <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
                                 <i v-else class="fa fa-spin fa-spinner" />
                             </button>
@@ -179,7 +179,7 @@
                                     v-if="!isFinished"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
-                                    :title="Localizer.get('tooltipButtonStop')">
+                                    :title="Localizer.get('chatarea_abort')">
                                 <i class="fa fa-stop"/>
                             </button>
 
@@ -188,7 +188,7 @@
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
-                                    :title="Localizer.get('tooltipButtonSend')">
+                                    :title="Localizer.get('chatarea_submit')">
                                 <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
