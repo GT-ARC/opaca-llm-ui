@@ -139,7 +139,6 @@ export default {
          */
         async updateDialogue() {
             if (this.loading) return;
-            if (this.show) return;
             if (this.queue.length === 0) {
                 this.show = false;
                 return;
@@ -177,11 +176,8 @@ export default {
             try {
                 const callback = okay ? this.onOkay : this.onCancel;
                 await callback(this.values);
-                this.show = false;
             } catch (error) {
-                console.warn(error);
                 this.errorMsg = error.message;
-                this.show = true;
             } finally {
                 this.loading = false;
                 await this.updateDialogue();
