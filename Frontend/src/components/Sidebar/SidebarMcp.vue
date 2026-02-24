@@ -1,15 +1,15 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarMcp') }}
+        {{ Localizer.get('sidebar_mcp') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarMcpLoading') }}
+        {{ Localizer.get('sidebar_mcp_loading') }}
     </div>
     <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0">
-        {{ Localizer.get('sidebarMcpMissing') }}
+        {{ Localizer.get('sidebar_mcp_missing') }}
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="mcp-accordion">
@@ -67,7 +67,7 @@
     <button class="accordion-button align-items-center mb-2"
          @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get('addMcp')}}</span>
+        <span>{{ Localizer.get('sidebar_mcp_add')}}</span>
     </button>
 
     <InputDialogue ref="input" />
@@ -112,7 +112,7 @@ export default {
 
         async addMcp() {
             await this.$refs.input.showDialogue(
-                Localizer.get('addMcp'), null, null,
+                Localizer.get('sidebar_mcp_add'), null, null,
                 {
                     mcpServerUrl: {type: "text", label: "Server URL"},
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
