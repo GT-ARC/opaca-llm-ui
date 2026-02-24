@@ -1,4 +1,5 @@
 import {ref} from "vue";
+import Cookie from "js-cookie";
 
 /**
  * This class handles manages the state of the sidebar in a responsive manner.
@@ -19,15 +20,6 @@ class SidebarManager {
         'faq',
     ]
 
-    static minLevelByView = {
-        files: 1,
-        agents: 1,
-        extensions: 1,
-        mcp: 1,
-        config: 1,
-        debug: 1,
-    };
-
     /**
      * @param selectedView {string} The initially selected view.
      */
@@ -44,11 +36,13 @@ class SidebarManager {
     }
 
     /** select view, keep as-is if already open */
-    selectView(key, level= 1) {
+    selectView(key, collapsed = false) {
         if (this.isValidView(key)) {
-            if (this.isViewAllowedAtLevel(key, level)){
-                this._selectedView.value = key;
+            if (this.viewNotInCollapsed(key) && collapsed){
+                return;
             }
+            this._selectedView.value = key;
+            Cookie.set('selected_view', key);
         } else {
             console.warn(`${key} is not a valid sidebar view`);
             this._selectedView.value = 'none';
@@ -76,9 +70,8 @@ class SidebarManager {
         this.selectView('none');
     }
 
-    isViewAllowedAtLevel(view, level) {
-        const min = SidebarManager.minLevelByView[view];
-        return min == null ? true : level >= min;
+    viewNotInCollapsed(key) {
+        return ['files', 'agents', 'extensions', 'mcp', 'config', 'debug'].includes(key);
     }
 }
 

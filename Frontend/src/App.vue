@@ -389,8 +389,9 @@ export default {
         if (this.isMobile) {
             SidebarManager.close()
         } else {
-            const sidebarLevel = Cookie.get('sidebarLevel') ?? 0;
-            SidebarManager.selectView(conf.DefaultSidebarView, sidebarLevel);
+            const sidebarCollapsed = Cookie.get('sidebar_collapsed') !== 'false';
+            const selectedView = Cookie.get('selected_view') ?? conf.DefaultSidebarView;
+            SidebarManager.selectView(selectedView, sidebarCollapsed);
         }
 
         // prevent options dropdown menu from closing once anything in it is clicked

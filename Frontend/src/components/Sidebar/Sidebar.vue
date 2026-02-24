@@ -23,7 +23,7 @@
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <!-- Collapse/Extend Button -->
-            <i @click="toggleSidebarLevel()"
+            <i @click="toggleSidebar()"
                @mouseenter="sidebarToggleHovered = true"
                @mouseleave="sidebarToggleHovered = false"
                class="fa sidebar-menu-toggle"
@@ -31,7 +31,7 @@
                :title="getSidebarToggleTooltip()" />
 
             <!-- Expanded-only tools -->
-            <div v-if="sidebarLevel >= 1"
+            <div v-if="!sidebarCollapsed"
                  class="d-flex flex-column align-items-center gap-2"
                  style="min-height: 0; overflow: hidden;">
                 <i @click="SidebarManager.toggleView('files')"
@@ -225,34 +225,30 @@ export default {
     },
     data() {
         return {
-            sidebarLevel: 0,
+            sidebarCollapsed: true,
             sidebarToggleHovered: false,
         };
     },
     methods: {
-        normalizeSidebarLevel(level) {
-            return Number(level) >= 1 ? 1 : 0;
-        },
-
-        toggleSidebarLevel() {
-            this.sidebarLevel = this.sidebarLevel === 0 ? 1 : 0;
-            Cookie.set('sidebarLevel', this.sidebarLevel);
+        toggleSidebar() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            Cookie.set('sidebar_collapsed', this.sidebarCollapsed);
 
             // Close view if it is now hidden
             const view = this.SidebarManager.getSelectedView();
-            if (!this.SidebarManager.isViewAllowedAtLevel(view, this.sidebarLevel)) {
+            if (this.SidebarManager.viewNotInCollapsed(view)) {
                 this.SidebarManager.close();
             }
         },
 
         getSidebarToggleIcon() {
-            if (this.sidebarLevel === 0) return 'fa-angle-down';
+            if (this.sidebarCollapsed) return 'fa-angle-down';
             if (this.sidebarToggleHovered) return 'fa-angle-up';
             return 'fa-minus';
         },
 
         getSidebarToggleTooltip() {
-            if (this.sidebarLevel === 0) return Localizer.get('sidebar_showAdvancedTools');
+            if (this.sidebarCollapsed) return Localizer.get('sidebar_showAdvancedTools');
             return Localizer.get('sidebar_showStandardTools');
         },
 
@@ -287,9 +283,7 @@ export default {
     mounted() {
         this.setupResizer();
 
-        this.sidebarLevel = this.normalizeSidebarLevel(
-            Cookie.get('sidebarLevel') ?? 0
-        );
+        this.sidebarCollapsed = Cookie.get('sidebar_collapsed') !== 'false';
     },
 }
 </script>
