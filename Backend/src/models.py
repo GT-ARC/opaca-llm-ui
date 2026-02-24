@@ -637,41 +637,25 @@ class LLMConfig(BaseModel):
     def filter_unsupported_params_for_serialization(self, serializer):
         """Filter out unsupported parameters from the serialized config."""
         data = serializer(self)
-
-        supported = get_supported_openai_params(self.model)
-
-        data["parameters"] = {
-            k: v
-            for k, v in data["parameters"].items()
-            if k in supported
-        }
-
-        # Special handling for reasoning models not supporting temperature settings
-        if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]) and "temperature" in data["parameters"]:
-            del data["parameters"]["temperature"]
-
+        data["parameters"] = self._filter_supported(data["parameters"])
         return data
 
     @model_validator(mode="after")
     def filter_unsupported_params_for_validation(self):
         """Filter out unsupported parameters when validated."""
-
-        supported = get_supported_openai_params(self.model)
-
-        filtered = {
-            k: v
-            for k, v in self.parameters.model_dump().items()
-            if k in supported
-        }
-
+        # Rebuild LLMConfig with only supported fields
+        filtered = self._filter_supported(self.parameters.model_dump())
+        self.parameters = LLMParameters(**filtered)
+        return self
+    
+    def _filter_supported(self, params: dict) -> dict:
         # Special handling for reasoning models not supporting temperature settings
+        supported = get_supported_openai_params(self.model)
+        filtered = {k: v for k, v in params.items() if k in supported}
         if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]):
             filtered.pop("temperature", None)
+        return filtered
 
-        # Rebuild LLMConfig with only supported fields
-        self.parameters = LLMParameters(**filtered)
-
-        return self
 
 
 class ConfigPayload(BaseModel):
