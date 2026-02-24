@@ -124,6 +124,19 @@ export default {
             await this.updateDialogue();
         },
 
+        /**
+         * Update dialogue from Queue. This is to ensure that a follow-up dialogue can be shown in the onOkay callback of
+         * another dialogue. The problem here is that all those are actually the SAME dialogue and only the content is updated.
+         * 
+         * - If the last dialogue is still showing (executing its callback), this does nothing.
+         * - If the queue is empty, it hides itself.
+         * - Otherwise, it updates the content from the queue and sets itself to being visible again.
+         *
+         * Without the queue, the first dialogue could set itself to hidden and then update the content in the callback, but that
+         * would result in a short time of no dialogue being shown. If it sets itself to hidden after the callback is finished, it
+         * would update the content and then immediately hide itself. With this queue, the process is: exec callback, queue new
+         * content, set self to hidden, update content from queue and set to visible again.
+         */
         async updateDialogue() {
             if (this.loading) return;
             if (this.show) return;
