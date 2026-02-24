@@ -19,6 +19,7 @@
                 :name="name"
                 :config-param="schema"
                 v-model="localValue[name]"
+                @update:modelValue="schema?.title === 'model' ? $emit('update:modelValue', localValue) : null"
             />
 
             <div v-if="showTitle && schema.type !== 'object'" class="group-header mt-3>">

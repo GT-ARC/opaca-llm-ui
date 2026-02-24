@@ -28,6 +28,7 @@
                 :schema="schema"
                 :showTitle="true"
                 v-model="methodConfig[name]"
+                @update:modelValue="saveMethodConfig(); fetchMethodConfig()"
             />
 
             <ConfigParameter
@@ -89,6 +90,9 @@ export default {
     },
     methods: {
         async fetchMethodConfig() {
+            // Fetches the config schema and the config values
+            // The schema includes parameter details, such as type, options, max and min
+            // The values hold the current values the parameters are set to
             const method = this.method;
             this.methodConfig = this.methodConfigSchema = null;
             try {
@@ -138,6 +142,8 @@ export default {
         },
 
         dereferenceSchema(schema) {
+            // Replace the references ($ref) in an OpenAPI schema with a fully dereferenced definition
+            // Required to render nested classes in full and parameters as their correct type
             if (!schema.$defs) return schema;
 
             const defs = schema.$defs;
