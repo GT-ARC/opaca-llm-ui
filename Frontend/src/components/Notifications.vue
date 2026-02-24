@@ -1,7 +1,7 @@
 <template>
     <div class="notifications-container overflow-auto" @click.stop>
         <div v-if="! this.messages || this.messages.length <= 0" class="p-3 fs-5 text-center text-secondary w-100">
-            {{Localizer.get('noNotifsAvailable')}}
+            {{Localizer.get('notification_missing')}}
         </div>
 
         <div v-for="{ elementId, fullResponse, loading, content, time } in this.messages">
@@ -15,11 +15,11 @@
                     />
                     <i v-if="! loading" class="fa fa-comment-medical notification-button"
                        @click.stop="this.appendToChat(fullResponse)"
-                       :title="Localizer.get('tooltipAppendNotification')"
+                       :title="Localizer.get('notification_append')"
                     />
                     <i v-if="! loading" class="fa fa-remove notification-button"
                         @click.stop="this.dismissNotification(elementId)"
-                        :title="Localizer.get('tooltipDismissNotification')"
+                        :title="Localizer.get('notification_dismiss')"
                     />
                 </div>
             </div>

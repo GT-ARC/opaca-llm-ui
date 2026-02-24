@@ -333,7 +333,7 @@ export default {
         async handleApiKey(apiKeyMessage) {
             await this.$refs.input.showDialogue(
                 "API Key Required",
-                (apiKeyMessage?.is_invalid ? Localizer.get("apiKeyInvalid") : Localizer.get("apiKeyMissing")) + apiKeyMessage?.model,
+                (apiKeyMessage?.is_invalid ? Localizer.get("apiKey_invalid") : Localizer.get("apiKey_missing")) + apiKeyMessage?.model,
                 null,
                 {
                     apiKey: { type: "password" },
@@ -358,11 +358,11 @@ export default {
 
         async handleAppendToChat(pushMessage) {
             await this.$refs.input.showDialogue(
-                Localizer.get('tooltipAppendNotification'),
+                Localizer.get('notification_append'),
                 null,
                 null,
                 {
-                    autoAppend: {type: "checkbox", label: Localizer.get('autoAppendNotification'), default: false}
+                    autoAppend: {type: "checkbox", label: Localizer.get('notification_autoAppend'), default: false}
                 },
                 async (values) => {
                     // append to current chat

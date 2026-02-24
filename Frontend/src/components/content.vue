@@ -307,7 +307,7 @@ export default {
             if (placeholders !== null) {
                 // substitute placeholders
                 await this.$refs.input.showDialogue(
-                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Localizer.get("sidebar_questions_placeholders"), questionText, null, 
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
