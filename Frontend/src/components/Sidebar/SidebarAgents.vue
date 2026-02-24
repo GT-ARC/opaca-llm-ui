@@ -17,7 +17,7 @@
         <input
             type="text"
             class="form-control my-2"
-            :placeholder="Localizer.get('searchAgentsPlaceholder')"
+            :placeholder="Localizer.get('sidebar_agents_search')"
             v-model="this.searchQuery"
         />
         <div class="accordion text-start" id="agents-accordion">
