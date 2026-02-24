@@ -284,6 +284,13 @@ export default {
         this.setupResizer();
 
         this.sidebarCollapsed = Cookie.get('sidebar_collapsed') !== 'false';
+
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            const selectedView = Cookie.get('selected_view') ?? conf.DefaultSidebarView;
+            SidebarManager.selectView(selectedView, this.sidebarCollapsed);
+        }
     },
 }
 </script>
