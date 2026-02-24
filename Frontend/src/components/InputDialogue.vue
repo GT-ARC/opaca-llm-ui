@@ -39,11 +39,12 @@
                 </div>
 
                 <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
-                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
+                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)" v-if="!loading">
                         {{ Localizer.get('general_cancel') }}
                     </button>
                     <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        {{ Localizer.get('general_okay') }}
+                        <span v-if="loading"><i class="fa fa-spin fa-spinner" /></span>
+                        <span v-else>{{ Localizer.get('general_okay') }}</span>
                     </button>
                     
                 </div>
@@ -69,6 +70,7 @@ export default {
     },
     data() {
         return {
+            queue: [],
             show: false,
             title: null,
             message: null,
@@ -77,6 +79,7 @@ export default {
             values: null,
             onOkay: null,
             onCancel: null,
+            loading: false,
         }
     },
     methods: {
@@ -107,15 +110,47 @@ export default {
          * @param onCancel async callback function, should accept no parameters (optional); can raise error
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
+            this.queue.push({
+                title: title,
+                message: marked.parse(message ?? ""),
+                errorMsg: errorMsg,
+                schema: schema,
+                onOkay: onOkay,
+                onCancel: onCancel ?? (async () => {}),
+                values: Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
+                ),
+            });
+            await this.updateDialogue();
+        },
+
+        /**
+         * Update dialogue from Queue. This is to ensure that a follow-up dialogue can be shown in the onOkay callback of
+         * another dialogue. The problem here is that all those are actually the SAME dialogue and only the content is updated.
+         * 
+         * - If the last dialogue is still showing (executing its callback), this does nothing.
+         * - If the queue is empty, it hides itself.
+         * - Otherwise, it updates the content from the queue and sets itself to being visible again.
+         *
+         * Without the queue, the first dialogue could set itself to hidden and then update the content in the callback, but that
+         * would result in a short time of no dialogue being shown. If it sets itself to hidden after the callback is finished, it
+         * would update the content and then immediately hide itself. With this queue, the process is: exec callback, queue new
+         * content, set self to hidden, update content from queue and set to visible again.
+         */
+        async updateDialogue() {
+            if (this.loading) return;
+            if (this.queue.length === 0) {
+                this.show = false;
+                return;
+            }
+            const {title, message, errorMsg, schema, onOkay, onCancel, values} = this.queue.shift();
             this.title = title;
-            this.message = marked.parse(message ?? "");
+            this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.onOkay = onOkay;
             this.onCancel = onCancel;
-            this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
-            );
+            this.values = values;
             this.show = true;
             await nextTick();
         },
@@ -131,23 +166,21 @@ export default {
         },
 
         canSubmit() {
+            if (this.loading) return false;
             return Object.values(this.values).indexOf(null) === -1;
         },
 
         async handleSubmit(okay) {
             await nextTick();
-            // hide dialogue, to allow for opening another dialogue in the callback...
-            this.show = false;
+            this.loading = true;
             try {
-                if (okay) {
-                    await this.onOkay(this.values);
-                } else if (this.onCancel !== null) {
-                    await this.onCancel();
-                }
-            } catch (e) {
-                // ... or re-open directly in case of error
-                this.errorMsg = e.message;
-                this.show = true;
+                const callback = okay ? this.onOkay : this.onCancel;
+                await callback(this.values);
+            } catch (error) {
+                this.errorMsg = error.message;
+            } finally {
+                this.loading = false;
+                await this.updateDialogue();
             }
         },
 
