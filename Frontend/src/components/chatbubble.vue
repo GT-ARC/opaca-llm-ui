@@ -23,7 +23,7 @@
                 <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
                      @click="this.copyContentToClipboard()"
-                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                     :title="Localizer.get('chatbubble_copy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
                 </div>
@@ -34,20 +34,20 @@
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                       :title="Localizer.get('chatbubble_audioLoad')" />
                     <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                       :title="Localizer.get('chatbubble_audioStop')" />
                     <i v-else class="fa fa-volume-up"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                       :title="Localizer.get('chatbubble_audioPlay')" />
                 </div>
 
                 <!-- attached files -->
                 <div v-show="this.files?.length > 0"
                      class="footer-item w-auto me-2"
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
-                     :title="Localizer.get('tooltipChatbubbleFiles')">
+                     :title="Localizer.get('chatbubble_files')">
                     <i class="fa" :class="getFilesIconClass()" />
                 </div>
 
@@ -118,7 +118,7 @@
                     <div v-show="this.isCopyAvailable()"
                          class="footer-item w-auto me-2"
                          @click.stop="this.copyContentToClipboard()"
-                         :title="Localizer.get('tooltipChatbubbleCopy')">
+                         :title="Localizer.get('chatbubble_copy')">
                         <i v-if="this.copySuccess" class="fa fa-check" />
                         <i v-else class="fa fa-copy" />
                     </div>
@@ -129,20 +129,20 @@
                          @click.stop="this.startAudioPlayback()">
                         <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                           :title="Localizer.get('chatbubble_audioLoad')" />
                         <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                           :title="Localizer.get('chatbubble_audioStop')" />
                         <i v-else class="fa fa-volume-up"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                           :title="Localizer.get('chatbubble_audioPlay')" />
                     </div>
 
                     <!-- debug messages -->
                     <div v-show="this.debugMessages.length > 0"
                          class="footer-item w-auto me-2"
                          @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
-                         :title="Localizer.get('tooltipChatbubbleDebug')">
+                         :title="Localizer.get('chatbubble_debug')">
                         <i class="fa fa-bug" />
                     </div>
 
@@ -151,7 +151,7 @@
                          class="footer-item w-auto me-2"
                          style="cursor: pointer;"
                          @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
-                         :title="Localizer.get('tooltipChatbubbleTools')">
+                         :title="Localizer.get('chatbubble_tools')">
                         <i class="fa fa-wrench" />
                     </div>
 
@@ -159,7 +159,7 @@
                     <div v-show="this.error !== null"
                          class="footer-item w-auto me-2"
                          @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
-                         :title="Localizer.get('tooltipChatbubbleError')">
+                         :title="Localizer.get('chatbubble_error')">
                         <i class="fa fa-exclamation-circle text-danger me-1" />
                     </div>
 
