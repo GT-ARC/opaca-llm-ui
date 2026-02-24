@@ -197,6 +197,7 @@ input[type="checkbox"] {
     transition: all 0.2s ease;
     background-color: var(--background-color);
     color: var(--text-primary-color);
+    border: 1px solid var(--border-color);
 }
 
 .accordion-button i {
@@ -204,12 +205,13 @@ input[type="checkbox"] {
 }
 
 .accordion-button:not(.collapsed) {
+    color: var(--button-primary-color);
     background-color: var(--primary-color);
-    color: var(--text-primary-color);
     box-shadow: none;
 }
 
 .accordion-button:hover {
+    color: var(--button-primary-color);
     background-color: var(--secondary-color)
 }
 

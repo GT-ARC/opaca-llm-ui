@@ -36,6 +36,11 @@ def save_default_prompts(prompts: Dict[str, List[PromptCategory]]) -> None:
     save_json(DEFAULT_PROMPTS_FILE, data)
 
 
+def reset_default_prompts() -> None:
+    from_repo = load_json(DEFAULT_PROMPTS_BASE)
+    save_json(DEFAULT_PROMPTS_FILE, from_repo)
+
+
 def load_json(filename: str | Path) -> Any:
     try:
         with open(filename, encoding='utf-8') as f:

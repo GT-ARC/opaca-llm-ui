@@ -65,6 +65,15 @@ class InvokeRequest(BaseModel):
 
 
 class InvokeResponse(BaseModel):
+    """
+    Response for invoke route, wrapping actual result or error, primarily to make
+    the latter easier accessible from the UI.
+
+    Attributes
+        success: whether the execution was successful
+        result: the actual action result; only if success=true
+        error: the error-message from the container; only if success=false
+    """
     success: bool
     result: Any | None
     error: str | None

@@ -34,7 +34,7 @@ export default {
 
         acceptCookies() {
             const max_age = 60 * 60 * 24 * 365 * 10; // 10 years...
-            Cookies.set("cookieConsent", true, "expires=" + max_age);
+            Cookie.set("cookieConsent", true, "expires=" + max_age);
             this.isCookieAccepted = true;
         },
     },
