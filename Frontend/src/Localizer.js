@@ -42,6 +42,7 @@ export const localizationData = {
         tooltipSidebarConfig: "Configuration",
         tooltipSidebarLogs: "Logging",
         tooltipSidebarMcp: "MCP Servers",
+        chatbubble_preparing: "Initializing the OPACA AI Agents",
         tooltipChatbubbleDebug: "Debug",
         tooltipChatbubbleTools: "Tool Calls",
         tooltipChatbubbleError: "Error",
@@ -162,6 +163,7 @@ export const localizationData = {
         tooltipSidebarConfig: "Konfiguration",
         tooltipSidebarLogs: "Logging",
         tooltipSidebarMcp: "MCP Servers",
+        chatbubble_preparing: "OPACA KI-Agenten werden initialisiert",
         tooltipChatbubbleDebug: "Debug",
         tooltipChatbubbleTools: "Tool Calls",
         tooltipChatbubbleError: "Fehler",
@@ -245,55 +247,6 @@ export const localizationData = {
         sidebar_questions_deleteCategory_confirm: "Kategorie \"%1\" löschen?",
     },
 };
-
-
-// Placeholder messages for streaming in different languages
-export const loadingMessages = {
-    GB: {
-        // System
-        "preparing": "Initializing the OPACA AI Agents",
-        // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Creating detailed orchestration plan",
-        // Multi-Agent System - Agent Level
-        "AgentPlanner": "Planning function calls for task",
-        "WorkerAgent": "Executing function calls",
-        "AgentEvaluator": "Evaluating task completion",
-        // Multi-Agent System - Overall Level
-        "OverallEvaluator": "Assessing overall request completion",
-        "IterationAdvisor": "Analyzing results and planning next steps",
-        // Multi-Agent System - Output Level
-        "OutputGenerator": "Generating final response",
-        // Tools
-        "Tool Generator": "Calling the required tools",
-        "Tool Evaluator": "Validating tool calls",
-        // Simple
-        "user": " ",
-        "assistant": "Working on it",
-        "system": "Calling tool",
-    },
-    DE: {
-        // System
-        "preparing": "OPACA KI-Agenten werden initialisiert",
-        // Multi-Agent System - Orchestration Level
-        "Orchestrator": "Erstelle Plan zur Aufgabenverteilung",
-        // Multi-Agent System - Agent Level
-        "AgentPlanner": "Plane Funktionsaufrufe für die Aufgabe",
-        "WorkerAgent": "Führe Funktionsaufrufe aus",
-        "AgentEvaluator": "Bewerte Aufgabenabschluss",
-        // Multi-Agent System - Overall Level
-        "OverallEvaluator": "Bewerte Gesamtanfrage",
-        "IterationAdvisor": "Analysiere Ergebnisse und plane nächste Schritte",
-        // Multi-Agent System - Output Level
-        "OutputGenerator": "Generiere finale Antwort",
-        // Tools
-        "Tool Generator": "Aufrufen der benötigten Tools",
-        "Tool Evaluator": "Überprüfen der Tool-Ergebnisse",
-        // Simple
-        "user": " ",
-        "assistant": "Bearbeiten",
-        "system": "Tool-Aufruf",
-    }
-}
 
 
 export const voiceGenLocalesWhisper = {
@@ -397,14 +350,6 @@ class Localizer {
             `[UNKNOWN: ${key}]`,
             `Key "${key}" does not exist for locale "${this.language}", consider adding it."`,
             `Key "${key}" could not be localized!`
-        );
-    }
-
-    getLoadingMessage(key, ...args) {
-        return this._getFrom(loadingMessages, key, args,
-            `Loading`,
-            `Loading message "${key}" does not exist for locale "${this.language}", consider adding it."`,
-            `Loading message "${key}" could not be localized!`
         );
     }
 

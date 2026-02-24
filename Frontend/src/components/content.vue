@@ -358,7 +358,7 @@ export default {
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             const aiBubble = this.getLastBubble();
-            aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
+            aiBubble.addStatusMessage('preparing', Localizer.get('chatbubble_preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
             try {
