@@ -147,7 +147,6 @@ import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
 import backendClient from "./utils.js";
-import SidebarManager from "./SidebarManager.js";
 import AudioManager from "./AudioManager.js";
 import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
@@ -383,12 +382,6 @@ export default {
 
         if (AudioManager.isBackendConfigured()) {
             AudioManager.initVoiceServerConnection();
-        }
-
-        if (this.isMobile) {
-            SidebarManager.close()
-        } else {
-            SidebarManager.selectView(conf.DefaultSidebarView);
         }
 
         // prevent options dropdown menu from closing once anything in it is clicked
