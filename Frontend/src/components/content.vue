@@ -8,7 +8,7 @@
              @dragleave.prevent="() => toggleFileDropOverlay(false)"
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
-                <p>{{ Localizer.get("dropFiles") }}</p>
+                <p>{{ Localizer.get("sidebar_files_droparea") }}</p>
                 <span class="fa fa-file" />
             </div>
         </div>
@@ -120,7 +120,7 @@
 
                 <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
                      class="d-flex p-2 align-items-center">
-                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                    {{ Localizer.get('sidebar_files_overflow', selectedFiles.length - this.maxDisplayedFiles()) }}
                 </div>
             </div>
 
@@ -150,7 +150,7 @@
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
                                :class="[this.isMobile ? 'me-1': 'ms-1']"
-                               :title="Localizer.get('tooltipUploadFile')" >
+                               :title="Localizer.get('sidebar_files_upload')" >
                             <i class="fa fa-upload" />
                             <input
                                 type="file"

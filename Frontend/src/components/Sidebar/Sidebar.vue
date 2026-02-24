@@ -16,7 +16,7 @@
 
             <i @click="SidebarManager.toggleView('files')"
                class="fa fa-file sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFiles')"
+               :title="Localizer.get('sidebar_files')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
 
             <i @click="SidebarManager.toggleView('questions')"
