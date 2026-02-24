@@ -11,7 +11,7 @@
 
             <i @click="SidebarManager.toggleView('chats')"
                class="fa fa-message sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarChats')"
+               :title="Localizer.get('sidebar_chats')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
             <i @click="SidebarManager.toggleView('files')"
