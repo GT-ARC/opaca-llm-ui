@@ -7,6 +7,7 @@ import os
 import json
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
+from httpx import HTTPStatusError
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -20,7 +21,7 @@ from starlette.datastructures import Headers
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
-    PromptCategory
+    PromptCategory, InvokeRequest, InvokeResponse
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -173,7 +174,7 @@ async def get_platform_info(request: Request, response: Response, lang: str) -> 
         lang = 'GB'
     query = info_queries[lang]
     session = await handle_session_id(request, response)
-    actions = await session.opaca_client.get_actions()
+    actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
         result = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
@@ -187,10 +188,22 @@ async def get_extra_ports(request: Request, response: Response) -> list[dict[str
     return await session.opaca_client.get_extra_ports()
 
 
-@app.get("/actions", description="Get available actions on connected OPACA Runtime Platform, grouped by Agent, using the same format as the OPACA platform itself.", tags=["opaca"])
-async def get_actions(request: Request, response: Response) -> dict[str, List[Dict[str, Any]]]:
+@app.get("/containers", description="Get available containers on connected OPACA Runtime Platform, including agents and their actions, using the same format as the OPACA platform itself.", tags=["opaca"])
+async def get_containers(request: Request, response: Response) -> list:
     session = await handle_session_id(request, response)
-    return await session.opaca_client.get_actions_simple()
+    return await session.opaca_client.get_containers()
+
+
+@app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
+async def invoke_action(request: Request, response: Response, invoke: InvokeRequest) -> InvokeResponse:
+    session = await handle_session_id(request, response)
+    try:
+        res = await session.opaca_client.invoke_opaca_action(invoke.action, invoke.agent, invoke.parameters)
+        return InvokeResponse(success=True, result=res, error=None)
+    except HTTPStatusError as e:
+        return InvokeResponse(success=False, result=None, error=unpack_error(e.response.json()))
+    except Exception as e:
+        return InvokeResponse(success=False, result=None, error=str(e))
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
@@ -466,6 +479,11 @@ async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Dep
     prompts.save_default_prompts(data)
 
 
+@app.delete("/prompts/default", description="Reset default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
+async def reset_default_prompts(auth = Depends(require_password)) -> None:
+    prompts.reset_default_prompts()
+
+
 # WEBSOCKET CONNECTION (permanently opened)
 
 @app.websocket("/ws")
@@ -521,6 +539,12 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
 
     # Return the session data for the session ID
     return session
+
+
+def unpack_error(error: dict) -> str:
+    """get "inner-most" (error) message in a nested JSON"""
+    if error is None: return None
+    return unpack_error(error.get("cause")) or error.get("message")
 
 
 # run as `python3 -m Backend.server`

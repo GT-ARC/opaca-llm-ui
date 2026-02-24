@@ -483,7 +483,8 @@ Please address these specific improvements:
                 "description": agent["description"],
                 "functions": [action["name"] for action in agent["actions"]]
             }
-            for agent in await self.session.opaca_client.get_actions()
+            for container in await self.session.opaca_client.get_containers()
+            for agent in container["agents"]
         }
         agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
         return agent_details

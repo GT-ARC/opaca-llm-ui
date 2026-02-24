@@ -20,8 +20,13 @@ class BackendClient {
         await this.sendRequest("POST", "disconnect");
     }
 
-    async getActions() {
-        return await this.sendRequest("GET", "actions");
+    async getContainers() {
+        return await this.sendRequest("GET", "containers");
+    }
+
+    async invokeAction(agent, action, parameters) {
+        const body = {agent: agent, action: action, parameters: parameters};
+        return await this.sendRequest("POST", "invoke", body);
     }
 
     async getExtraPorts() {
