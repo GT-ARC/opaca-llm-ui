@@ -382,6 +382,7 @@ class AudioManager {
                     onError(`Error processing audio: ${error}`);
                 }
                 this.isTranscribing = false;
+                stream.getTracks().forEach(track => track.stop());
             };
 
             this._mediaRecorder.start(100);
