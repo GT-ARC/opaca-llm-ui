@@ -18,7 +18,7 @@ def test_get_config(method):
     assert res.status_code == 200
     data = res.json()
 
-    assert set(data["config_values"].keys() == set(data["config_schema"].keys()))
+    assert set(data["config_values"].keys()) == set(data["config_schema"].keys())
 
 @pytest.mark.parametrize("method", methods)
 def test_set_config(method):
