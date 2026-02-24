@@ -21,7 +21,7 @@
 
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarPrompts')"
+               :title="Localizer.get('sidebar_questions')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <i @click="SidebarManager.toggleView('agents')"
