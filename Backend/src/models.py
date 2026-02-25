@@ -649,11 +649,14 @@ class LLMConfig(BaseModel):
         return self
     
     def _filter_supported(self, params: dict) -> dict:
-        # Special handling for reasoning models not supporting temperature settings
+        """Remove unsupported parameters from config schema."""
         supported = get_supported_openai_params(self.model)
         filtered = {k: v for k, v in params.items() if k in supported}
+
+        # Special handling for reasoning models not supporting temperature settings
         if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]):
             filtered.pop("temperature", None)
+
         return filtered
 
 
