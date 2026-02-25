@@ -100,7 +100,7 @@ class InternalTools:
             ),
             InternalTool(
                 name="ExecuteCode",
-                description="Runs python code in a sandbox with pre-installed packages only. Timeout parameter is optional.",
+                description="Runs python code in a sandbox environment. Bare expressions are printed like in a Jupyter notebook. Returns stdout, stderr, exit_code (0 = success), and validation results. Timeout parameter is optional (default 10s).",
                 params={"code": "string", "timeout_s": "integer"},
                 required_params=["language", "code"],
                 result="object",
