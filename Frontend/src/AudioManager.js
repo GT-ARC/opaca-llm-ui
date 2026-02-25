@@ -284,6 +284,7 @@ class AudioManager {
         };
 
         this._recognition.onnomatch = () => {
+            // this does not seem to be called at all, instead no-match triggers onerror...
             onError('Failed to recognize speech.');
         };
 
@@ -302,7 +303,7 @@ class AudioManager {
 
     stopWebSpeechRecognition() {
         if (this._recognition) {
-            this._recognition.abort();
+            this._recognition.stop();
             this._recognition = null;
         }
     }
