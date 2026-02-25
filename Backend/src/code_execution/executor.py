@@ -36,6 +36,35 @@ class CodeExecutor:
     the sandbox actually executed the code.
     """
 
+    def __init__(self):
+        self._paths = None
+        self._sandbox_cls = None
+        self._sandbox_import_error = None
+
+    def _get_paths(self) -> dict:
+        if self._paths is None:
+            self._paths = self._setup_sandbox_paths()
+        return self._paths
+
+    def _get_sandbox_cls(self):
+        """Cache the PyodideSandbox class import.
+
+        Returns the class on success, None on failure.
+        Import error is stored, so we don't retry every call.
+        """
+        if self._sandbox_cls is not None:
+            return self._sandbox_cls
+        if self._sandbox_import_error is not None:
+            return None
+        try:
+            from langchain_sandbox import PyodideSandbox
+            self._sandbox_cls = PyodideSandbox
+            return PyodideSandbox
+        except Exception as e:
+            logger.error("PyodideSandbox import failed", exc_info=True)
+            self._sandbox_import_error = e
+            return None
+
     async def execute_code(self, code: str, timeout_s: int = 10) -> dict:
         run_id = uuid.uuid4().hex[:12]
         proof = ProofToken.generate(run_id)
@@ -48,7 +77,7 @@ class CodeExecutor:
         )
 
         # --- Validation ---
-        validation = run_all_validators(code or "", timeout_s, run_id)
+        validation = await run_all_validators(code or "", timeout_s, run_id)
 
         if validation["bandit"]:
             logger.warning("[ExecuteCode:%s] blocked by bandit findings", run_id)
@@ -62,22 +91,20 @@ class CodeExecutor:
             )
 
         # --- Sandbox import ---
-        try:
-            from langchain_sandbox import PyodideSandbox
-        except Exception as e:
-            logger.exception("[ExecuteCode:%s] failed importing PyodideSandbox", run_id)
+        sandbox_cls = self._get_sandbox_cls()
+        if sandbox_cls is None:
             return self._build_result(
                 run_id=run_id,
                 validation=validation,
                 stdout="",
-                stderr=f"Pyodide import failed: {e}",
+                stderr=f"Pyodide import failed: {self._sandbox_import_error}",
                 exit_code=EXIT_SANDBOX_IMPORT_FAILED,
                 timed_out=False,
             )
 
         # --- Sandbox init ---
-        paths = self._setup_sandbox_paths()
-        sandbox = self._init_sandbox(PyodideSandbox, run_id, paths)
+        paths = self._get_paths()
+        sandbox = self._init_sandbox(sandbox_cls, run_id, paths)
         if sandbox is None:
             return self._build_result(
                 run_id=run_id,
@@ -513,10 +540,9 @@ class CodeExecutor:
             timeout_s: int,
             paths: dict[str, str],
     ) -> None:
-        """Log detailed diagnostics when proof verification fails.
-
-        This information is for debugging only and does not appear in
-        the result returned to the caller.
+        """
+        Log diagnostics when proof verification fails (Debugging only).
+        Deno smoke test runs in background to avoid blocking the response.
         """
         logger.warning(
             "[ExecuteCode:%s] proof verification failed "
@@ -542,13 +568,15 @@ class CodeExecutor:
                 "[ExecuteCode:%s] status='error' but stderr is empty", run_id,
             )
 
-        deno_report = self._run_deno_smoke_test(
-            run_id=run_id,
-            prepared_code=prepared_code,
-            timeout_s=timeout_s,
-            paths=paths,
-        )
-        logger.warning("[ExecuteCode:%s] deno probe=%s", run_id, deno_report)
+        # Run Deno probe in background
+        try:
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(
+                None,
+                self._run_deno_smoke_test, run_id, prepared_code, timeout_s, paths,
+            )
+        except Exception:
+            logger.debug("[ExecuteCode:%s] could not schedule background deno probe", run_id)
 
     def _run_deno_smoke_test(
             self,
@@ -614,7 +642,7 @@ class CodeExecutor:
             timeout=code_timeout,
         )
 
-        return " | ".join(reports)
+        logger.debug("[ExecuteCode:%s] deno probe=%s", run_id, " | ".join(reports))
 
     # ------------------------------------------------------------------
     # Helpers

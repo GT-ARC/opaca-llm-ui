@@ -1,5 +1,6 @@
 """Static analysis validation via pylint, bandit, and mypy."""
 
+import asyncio
 import json
 import logging
 import subprocess
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Callable
 
 logger = logging.getLogger(__name__)
+
+Parser = Callable[[subprocess.CompletedProcess, str], list[str]]
 
 PYLINT_CMD = [
     "pylint",
@@ -58,9 +61,6 @@ def parse_mypy(proc: subprocess.CompletedProcess, temp_path: str) -> list[str]:
     return issues
 
 
-Parser = Callable[[subprocess.CompletedProcess, str], list[str]]
-
-
 def run_validator(
         command: list[str],
         parser: Parser,
@@ -68,11 +68,7 @@ def run_validator(
         timeout_s: int,
         run_id: str,
 ) -> list[str]:
-    """Run a single validation tool against the given code.
-
-    Writes code to a temp file, runs the command, parses output.
-    Returns a list of issue strings (empty = clean).
-    """
+    """Run a single validation tool against the given code."""
     tool_name = command[0]
     logger.debug("[ExecuteCode:%s] validator=%s start", run_id, tool_name)
 
@@ -112,17 +108,16 @@ def run_validator(
     return issues
 
 
-def run_all_validators(
-        code: str, timeout_s: int, run_id: str
-) -> dict[str, list[str]]:
-    """Run pylint, bandit, and mypy. Returns dict mapping tool name to issues."""
-    result = {
-        "pylint": run_validator(PYLINT_CMD, parse_pylint, code, timeout_s, run_id),
-        "bandit": run_validator(BANDIT_CMD, parse_bandit, code, timeout_s, run_id),
-        "mypy": run_validator(MYPY_CMD, parse_mypy, code, timeout_s, run_id),
-    }
+async def run_all_validators(code: str, timeout_s: int, run_id: str) -> dict[str, list[str]]:
+    """Run pylint, bandit, and mypy concurrently. Returns dict mapping tool name to issues."""
+    pylint, bandit, mypy = await asyncio.gather(
+        asyncio.to_thread(run_validator, PYLINT_CMD, parse_pylint, code, timeout_s, run_id),
+        asyncio.to_thread(run_validator, BANDIT_CMD, parse_bandit, code, timeout_s, run_id),
+        asyncio.to_thread(run_validator, MYPY_CMD, parse_mypy, code, timeout_s, run_id),
+    )
+    result = {"pylint": pylint, "bandit": bandit, "mypy": mypy}
     logger.info(
-        "[ExecuteCode:%s] validation summary pylint=%d bandit=%d mypy=%d",
+        "[ExecuteCode:%s] validation pylint=%d bandit=%d mypy=%d",
         run_id, len(result["pylint"]), len(result["bandit"]), len(result["mypy"]),
     )
     return result
