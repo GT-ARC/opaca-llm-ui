@@ -1,6 +1,7 @@
 import {ref} from "vue";
 import conf from "../config.js";
 import Localizer from "./Localizer.js";
+import * as utils from "./utils.js"
 
 
 /**
@@ -396,7 +397,7 @@ class AudioManager {
         return this.isVoiceServerConnected
             || (this.isWebSpeechSupported()
             && this._isGoogleChrome()
-            && this._isSecureConnection());
+            && utils.isSecureConnection());
     }
 
     isWebSpeechSupported() {
@@ -413,12 +414,6 @@ class AudioManager {
             && window.navigator.userAgentData !== undefined
             && Array.from(window.navigator.userAgentData?.brands)?.some(b => b?.brand === 'Google Chrome')
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
-    }
-
-    _isSecureConnection() {
-        return location.protocol === 'https'
-            || location.hostname === 'localhost'
-            || location.hostname === '127.0.0.1';
     }
 
 }

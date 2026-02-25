@@ -2,7 +2,7 @@
 <div class="config-section">
 
     <!-- header: name and tooltip description -->
-    <div class="config-section-header">
+    <div class="config-section-header" v-if="(configParam?.title ?? this.name) !== 'model'">
         <strong>{{ configParam?.title ?? this.name }}</strong>
 
         <!-- param description -->
@@ -157,7 +157,7 @@ input[type="number"] {
 }
 
 .config-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .config-section-header {
