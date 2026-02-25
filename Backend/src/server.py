@@ -503,10 +503,10 @@ async def whisper_generate(text: str = Query(""), voice: str = Query("alloy")) -
     openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     response = openai_client.audio.speech.create(model="tts-1", voice=voice, input=text)
     return Response(
-            content=response.content,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": "attachment; filename=generated_audio.mp3"}
-        )
+        content=response.content,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": "attachment; filename=generated_audio.mp3"}
+    )
 
 
 # WEBSOCKET CONNECTION (permanently opened)

@@ -9,11 +9,11 @@ const voiceGenLocales = {
 };
 
 function getLanguageForWhisper() {
-    return voiceGenLocales["WHISPER"][Localizer.language];
+    return voiceGenLocales.WHISPER[Localizer.language];
 }
 
 function getLanguageForWebSpeech() {
-    return voiceGenLocales["WEBSPEECH"][Localizer.language];
+    return voiceGenLocales.WEBSPEECH[Localizer.language];
 }
 
 
