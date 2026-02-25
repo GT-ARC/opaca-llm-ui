@@ -1,6 +1,7 @@
 import {ref} from "vue";
 import conf from "../config.js";
 import Localizer from "./Localizer.js";
+import * as utils from "./utils.js"
 
 
 const voiceGenLocales = {
@@ -309,7 +310,7 @@ class AudioManager {
     }
 
     isRecognitionSupported() {
-        return this._isSecureConnection();
+        return utils.isSecureConnection();
     }
 
     isWebSpeechSupported() {
@@ -326,12 +327,6 @@ class AudioManager {
             && window.navigator.userAgentData !== undefined
             && Array.from(window.navigator.userAgentData?.brands)?.some(b => b?.brand === 'Google Chrome')
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
-    }
-
-    _isSecureConnection() {
-        return location.protocol === 'https'
-            || location.hostname === 'localhost'
-            || location.hostname === '127.0.0.1';
     }
 
     async startWhisperRecognition(onResult, onError) {
