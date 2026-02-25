@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Set, Literal
+from typing import Iterable, Set, Literal, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -12,9 +12,10 @@ import time
 import traceback
 import asyncio
 
+from litellm import get_supported_openai_params
 from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
-from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError
+from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
 from .opaca_client import OpacaClient
 
@@ -633,6 +634,60 @@ class MethodConfig(BaseModel):
     @staticmethod
     def max_rounds_field(default: int = 5, min: int = 1, max: int = 10, step: int = 1) -> Any:
         return MethodConfig.integer(default=default, min=min, max=max, step=step, title='Max Rounds', description='Maximum number of retries')
+
+    @staticmethod
+    def nested(model_cls: type[BaseModel], title: str = None, description: str = None) -> Any:
+        return Field(default_factory=model_cls, title=title, description=description)
+
+    @staticmethod
+    def llm_role(title: str, description: str) -> Any:
+        return Field(default_factory=LLMConfig, title=title, description=description)
+
+
+class LLMParameters(BaseModel):
+    """
+    List of possible parameters for the LLM. Available parameters depend on the model.
+    """
+    temperature: float = MethodConfig.number(default=0, min=0, max=2, step=0.1, title="Temperature", description="Randomness of model response. Higher values will make the output more random while lower values are more deterministic")
+    reasoning_effort: str = MethodConfig.string(default="low", options=["low", "medium", "high"], title="Reasoning Effort", description="How much reasoning should be applied to the model's output")
+    top_p: float = MethodConfig.number(default=1, min=0, max=1, step=0.01, title="Top P", description="Alternative to temperature. Uses nucleus sampling where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the top 10% of tokens are considered")
+    frequency_penalty: float = MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Frequency Penalty", description="Penalty applied to repeated tokens based on their frequency in the prompt")
+    presence_penalty: float = MethodConfig.number(default=0, min=-2, max=2, step=0.1, title="Presence Penalty", description="Penalty applied to repeated tokens based on their presence in the prompt")
+
+
+class LLMConfig(BaseModel):
+    """
+    Saves a single model and its parameter configuration. Checks during serialization what parameters are supported by the LLM.
+    """
+    model: Annotated[str, MethodConfig.llm_field("model", "LLM to use for this agent")]
+    parameters: LLMParameters = MethodConfig.nested(LLMParameters, title="LLM Parameters", description="Parameters for the LLM")
+
+    @model_serializer(mode="wrap")
+    def filter_unsupported_params_for_serialization(self, serializer):
+        """Filter out unsupported parameters from the serialized config."""
+        data = serializer(self)
+        data["parameters"] = self._filter_supported(data["parameters"])
+        return data
+
+    @model_validator(mode="after")
+    def filter_unsupported_params_for_validation(self):
+        """Filter out unsupported parameters when validated."""
+        # Rebuild LLMConfig with only supported fields
+        filtered = self._filter_supported(self.parameters.model_dump())
+        self.parameters = LLMParameters(**filtered)
+        return self
+    
+    def _filter_supported(self, params: dict) -> dict:
+        """Remove unsupported parameters from config schema."""
+        supported = get_supported_openai_params(self.model)
+        filtered = {k: v for k, v in params.items() if k in supported}
+
+        # Special handling for reasoning models not supporting temperature settings
+        if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]):
+            filtered.pop("temperature", None)
+
+        return filtered
+
 
 
 class ConfigPayload(BaseModel):
