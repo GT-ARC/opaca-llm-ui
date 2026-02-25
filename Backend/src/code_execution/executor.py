@@ -17,6 +17,16 @@ from .validation import run_all_validators
 
 logger = logging.getLogger(__name__)
 
+# Exit codes
+EXIT_SUCCESS = 0
+EXIT_RUNTIME_ERROR = 1
+EXIT_BLOCKED_BY_VALIDATION = 3
+EXIT_PROOF_FAILED = 6
+EXIT_TIMEOUT = 124
+EXIT_INTERNAL_ERROR = 125
+EXIT_SANDBOX_INIT_FAILED = 126
+EXIT_SANDBOX_IMPORT_FAILED = 127
+
 
 class CodeExecutor:
     """Executes Python code in a sandboxed Pyodide environment.
@@ -47,7 +57,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout="",
                 stderr="Execution blocked by validation (Bandit findings present).",
-                exit_code=3,
+                exit_code=EXIT_BLOCKED_BY_VALIDATION,
                 timed_out=False,
             )
 
@@ -61,7 +71,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout="",
                 stderr=f"Pyodide import failed: {e}",
-                exit_code=127,
+                exit_code=EXIT_SANDBOX_IMPORT_FAILED,
                 timed_out=False,
             )
 
@@ -74,7 +84,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout="",
                 stderr="Pyodide sandbox initialization failed.",
-                exit_code=126,
+                exit_code=EXIT_SANDBOX_INIT_FAILED,
                 timed_out=False,
             )
 
@@ -133,7 +143,7 @@ class CodeExecutor:
                 )
             )
             first_stderr = stderr
-            exit_code = 0 if not stderr else 1
+            exit_code = EXIT_RUNTIME_ERROR if pyodide_status == "error" else EXIT_SUCCESS
 
             proof_observed = proof.extract_from_result_or_stdout(resp_result, stdout)
             proof_valid = proof.matches(proof_observed)
@@ -169,7 +179,7 @@ class CodeExecutor:
                         pyodide_attempts=pyodide_attempts,
                     )
                 )
-                exit_code = 0 if not stderr else 1
+                exit_code =EXIT_RUNTIME_ERROR if pyodide_status == "error" else EXIT_SUCCESS
                 proof_observed = proof.extract_from_result_or_stdout(resp_result, stdout)
                 proof_valid = proof.matches(proof_observed)
                 if not stderr and first_stderr:
@@ -219,7 +229,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout=proof.strip_from_stdout(stdout),
                 stderr=stderr_text,
-                exit_code=6,
+                exit_code=EXIT_PROOF_FAILED,
                 timed_out=False,
                 execution_backend="pyodide",
             )
@@ -233,7 +243,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout="",
                 stderr="[timeout]",
-                exit_code=124,
+                exit_code=EXIT_TIMEOUT,
                 timed_out=True,
             )
         except Exception as e:
@@ -243,7 +253,7 @@ class CodeExecutor:
                 validation=validation,
                 stdout="",
                 stderr=f"Pyodide execution failed: {e}",
-                exit_code=125,
+                exit_code=EXIT_INTERNAL_ERROR,
                 timed_out=False,
             )
         finally:
