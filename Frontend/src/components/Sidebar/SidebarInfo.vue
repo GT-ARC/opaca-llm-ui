@@ -6,12 +6,12 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebar_info_loading') }}
+        {{ Localizer.get('info_loading') }}
     </div>
     <div v-else-if="!isPlatformConnected" class="placeholder-container">
         <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
         <h5 class="p-4">
-            {{ Localizer.get('sidebar_info_missing') }}
+            {{ Localizer.get('info_missing') }}
         </h5>
     </div>
     <div v-else
@@ -53,7 +53,7 @@ export default {
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);
-                this.howAssistContent = Localizer.get('sidebar_info_failed', error);
+                this.howAssistContent = Localizer.get('info_failed', error);
             } finally {
                 this.isLoading = false;
             }

@@ -9,7 +9,7 @@
          class="d-flex flex-column text-start faq-content">
     </div>
     <div v-else>
-        {{ Localizer.get('sidebar_faq_missing') }}
+        {{ Localizer.get('faq_missing') }}
     </div>
 </div>
 </template>

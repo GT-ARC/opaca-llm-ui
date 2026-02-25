@@ -19,7 +19,7 @@
                 @click="this.$emit('new-chat')"
                 :disabled="!this.isFinished" >
             <i class="fa fa-pen-to-square" />
-            {{ Localizer.get('sidebar_chats_new') }}
+            {{ Localizer.get('chats_new') }}
         </button>
 
         <!-- "Search" button -->
@@ -28,7 +28,7 @@
                 @click="this.isSearching = true"
                 :disabled="!this.isFinished" >
             <i class="fa fa-magnifying-glass" />
-            {{ Localizer.get('sidebar_chats_search') }}
+            {{ Localizer.get('chats_search') }}
         </button>
 
         <!-- "Delete All Chats" button -->
@@ -37,7 +37,7 @@
                 @click="onDeleteAllChats"
                 :disabled="!this.isFinished || this.chats.length === 0">
             <i class="fa fa-trash" />
-            {{ Localizer.get('sidebar_chats_deleteAll') }}
+            {{ Localizer.get('chats_deleteAll') }}
         </button>
     </div>
 
@@ -106,7 +106,7 @@ export default {
         },
 
         onDeleteAllChats() {
-            if (confirm(Localizer.get('sidebar_chats_deleteAll_confirm'))) {
+            if (confirm(Localizer.get('chats_deleteAll_confirm'))) {
                 this.$emit('delete-all-chats');
             }
         },

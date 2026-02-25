@@ -20,14 +20,14 @@
             'file-menu-button'
             ]"
            @click.stop="this.suspendFile()"
-           :title="Localizer.get('sidebar_files_include')"
+           :title="Localizer.get('files_include')"
         />
         <i class="fa fa-pen-to-square file-menu-button"
            @click.stop="this.renameFile()"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
-           :title="Localizer.get('sidebar_files_delete')"
+           :title="Localizer.get('files_delete')"
         />
     </div>
 </template>
@@ -62,7 +62,7 @@ export default {
     },
     methods: {
         deleteFile() {
-            if (confirm(Localizer.get("sidebar_files_delete_confirm", this.file.file_name))) {
+            if (confirm(Localizer.get("files_delete_confirm", this.file.file_name))) {
                 this.$emit('delete-file', this.fileId);
             }
         },

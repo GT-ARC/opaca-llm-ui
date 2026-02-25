@@ -6,7 +6,7 @@
 
         <!-- Show info if no files -->
         <div v-if="Object.keys(files).length === 0" class="empty-files text-secondary text-sm p-4">
-            {{ Localizer.get('sidebar_files_missing') }}
+            {{ Localizer.get('files_missing') }}
         </div>
 
         <!-- List all the files -->

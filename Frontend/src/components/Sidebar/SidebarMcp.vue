@@ -6,10 +6,10 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebar_mcp_loading') }}
+        {{ Localizer.get('mcp_loading') }}
     </div>
     <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0">
-        {{ Localizer.get('sidebar_mcp_missing') }}
+        {{ Localizer.get('mcp_missing') }}
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="mcp-accordion">
@@ -54,7 +54,7 @@
                             <div :id="'mcp-body-' + mcpServerIndex + '-' + mcpIndex" class="accordion-collapse collapse mcp-body"
                                  :aria-labelledby="'mcp-header-' + mcpServerIndex + '-' + mcpIndex" :data-bs-parent="'#mcp-accordion-' + mcpServerIndex">
                                 <p v-if="mcp.description">
-                                    <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
+                                    <strong>{{ Localizer.get('agents_description') }}:</strong>
                                     {{ mcp.description }}
                                 </p>
                             </div>
@@ -67,7 +67,7 @@
     <button class="accordion-button align-items-center mb-2"
          @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get('sidebar_mcp_add')}}</span>
+        <span>{{ Localizer.get('mcp_add')}}</span>
     </button>
 
     <InputDialogue ref="input" />
@@ -112,7 +112,7 @@ export default {
 
         async addMcp() {
             await this.$refs.input.showDialogue(
-                Localizer.get('sidebar_mcp_add'), null, null,
+                Localizer.get('mcp_add'), null, null,
                 {
                     mcpServerUrl: {type: "text", label: "Server URL"},
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},

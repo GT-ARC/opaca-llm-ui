@@ -104,7 +104,7 @@
                                id="options-dropdown"
                                role="button" data-bs-toggle="dropdown">
                                 <i class="fa fa-gear me-1"/>
-                                <span v-show="!isMobile">{{ Localizer.get('settings') }}</span>
+                                <span v-show="!isMobile">{{ Localizer.get('settings_menu') }}</span>
                             </a>
                             <div class="dropdown-menu dropdown-menu-end"
                                  id="options-menu"

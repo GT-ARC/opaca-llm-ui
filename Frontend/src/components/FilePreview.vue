@@ -15,7 +15,7 @@
 
         <!-- Upload status text -->
         <span v-if="this.isUploading">
-            {{ Localizer.get('sidebar_files_uploading') }}
+            {{ Localizer.get('files_uploading') }}
         </span>
     </div>
 
@@ -25,7 +25,7 @@
         class="btn btn-sm btn-outline-danger file-delete-button"
         @click="this.removeFile()"
         :disabled="this.isUploading"
-        :title="Localizer.get('sidebar_files_delete')" >
+        :title="Localizer.get('files_delete')" >
         <i class="fa fa-remove" />
     </button>
 </div>

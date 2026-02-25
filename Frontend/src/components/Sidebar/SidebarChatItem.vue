@@ -16,12 +16,12 @@
     <i class="fa fa-edit ms-auto chat-menu-button"
        :class="{'chat-disabled': !this.isFinished}"
        @click.stop="this.rename()"
-       :title="Localizer.get('sidebar_chats_edit')"
+       :title="Localizer.get('chats_edit')"
     />
     <i class="fa fa-remove chat-menu-button"
        :class="{'chat-disabled': !this.isFinished}"
        @click.stop="this.delete()"
-       :title="Localizer.get('sidebar_chats_delete')"
+       :title="Localizer.get('chats_delete')"
     />
 </div>
 </template>
@@ -68,7 +68,7 @@ export default {
 
         delete() {
             if (!this.isFinished) return;
-            if (confirm(Localizer.get("sidebar_chats_delete_confirm"))) {
+            if (confirm(Localizer.get("chats_delete_confirm"))) {
                 this.$emit('delete-chat', this.chatId);
             }
         },
