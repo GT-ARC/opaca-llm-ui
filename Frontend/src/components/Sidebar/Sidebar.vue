@@ -56,7 +56,7 @@
 
                 <i @click="SidebarManager.toggleView('config')"
                    class="fa fa-cog sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarConfig')"
+                   :title="Localizer.get('sidebar_config')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
 
                 <i @click="SidebarManager.toggleView('debug')"

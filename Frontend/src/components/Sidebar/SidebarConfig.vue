@@ -2,7 +2,7 @@
 <div id="config-display"
      class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarConfig') }}
+        {{ Localizer.get('sidebar_config') }}
     </div>
 
     <div class="py-2">
@@ -15,10 +15,10 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarConfigLoading', this.method) }}
+        {{ Localizer.get('config_loading', this.method) }}
     </div>
     <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0">
-        {{ Localizer.get('sidebarConfigMissing', this.method) }}
+        {{ Localizer.get('config_missing', this.method) }}
     </div>
     <div v-else class="flex-row text-start">
         <template v-for="(schema, name) in methodConfigSchema" :key="name">
@@ -41,12 +41,12 @@
 
         <div class="py-2 text-center">
             <button class="btn btn-primary py-2 w-100" type="button" @click="saveMethodConfig">
-                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonConfigSave') }}
+                <i class="fa fa-save me-2"/>{{ Localizer.get('config_save') }}
             </button>
         </div>
         <div class="py-2 text-center">
             <button class="btn btn-danger py-2 w-100" type="button" @click="resetMethodConfig">
-                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonConfigReset') }}
+                <i class="fa fa-undo me-2"/>{{ Localizer.get('config_reset') }}
             </button>
         </div>
         <div v-if="!this.shouldFadeOut"
@@ -108,17 +108,17 @@ export default {
             try {
                 await backendClient.updateConfig(this.method, this.methodConfig);
                 this.configChangeSuccess = true
-                this.configMessage = Localizer.get('configSaveSuccess');
+                this.configMessage = Localizer.get('config_save_done');
                 this.startFadeOut()
             } catch (error) {
                 if (error.response.status === 422) {
                     console.log("Invalid Configuration Values: ", error.response.data.detail)
                     this.configChangeSuccess = false
-                    this.configMessage = Localizer.get('configSaveInvalid', error.response.data.detail);
+                    this.configMessage = Localizer.get('config_save_invalid', error.response.data.detail);
                 } else {
                     console.error('Error saving method config.');
                     this.configChangeSuccess = false
-                    this.configMessage = Localizer.get('configSaveError');
+                    this.configMessage = Localizer.get('config_save_error');
                 }
             }
         },
@@ -130,13 +130,13 @@ export default {
                 this.methodConfig = res.config_values;
                 this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
                 this.configChangeSuccess = true
-                this.configMessage = Localizer.get('configReset')
+                this.configMessage = Localizer.get('config_reset_done')
             } catch (error) {
                 console.error('Error resetting method config.');
                 this.methodConfig = null;
                 this.methodConfigSchema = null;
                 this.configChangeSuccess = false
-                this.configMessage = Localizer.get('configSaveError');
+                this.configMessage = Localizer.get('config_save_error');
             }
             this.startFadeOut()
         },
