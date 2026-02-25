@@ -432,8 +432,8 @@ export default {
         },
 
         isCopyAvailable() {
-            return this.content.length > 0 && (!this.isMobile
-                || window.location.protocol === 'https'
+            return this.content.length > 0 && !this.isMobile
+                &&(window.location.protocol === 'https'
                 || window.location.hostname === 'localhost');
         },
 
