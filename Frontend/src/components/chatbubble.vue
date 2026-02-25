@@ -432,9 +432,7 @@ export default {
         },
 
         isCopyAvailable() {
-            return this.content.length > 0 && !this.isMobile
-                &&(window.location.protocol === 'https'
-                || window.location.hostname === 'localhost');
+            return this.content.length > 0 && utils.isSecureConnection();
         },
 
         toggleCollapsed(value = null) {

@@ -199,6 +199,12 @@ export function shuffleArray(array) {
     }
 }
 
+export function isSecureConnection() {
+    return window.location.protocol === 'https'
+        || window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1';
+}
+
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
