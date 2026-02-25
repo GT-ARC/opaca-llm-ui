@@ -356,6 +356,7 @@ class AudioManager {
             this._audioContext.createMediaStreamSource(stream).connect(analyser);
             const audioChunks = [];
             let lastSound = Date.now()
+            let recordingStart = Date.now()
 
             this._mediaRecorder = new MediaRecorder(stream);
             this._mediaRecorder.ondataavailable = async (event) => {
@@ -368,7 +369,7 @@ class AudioManager {
                 const rms = Math.sqrt(dataArray.reduce((s, x) => s + x*x, 0) / dataArray.length);
                 if (rms > 0.02) {
                     lastSound = Date.now();
-                } else if (Date.now() - lastSound > 800) {
+                } else if (Date.now() - lastSound > 800 && Date.now() - recordingStart > 3000) {
                     this.stopWhisperRecognition();
                 }
             };
