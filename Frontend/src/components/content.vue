@@ -160,7 +160,7 @@
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
+                                    :title="Localizer.get('chatarea_speak')">
                                 <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
                                 <i v-else class="fa fa-microphone" />
                             </button>
@@ -169,7 +169,7 @@
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="AudioManager.stopRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
+                                    :title="Localizer.get('chatarea_speak_stop')">
                                 <i class="fa fa-stop"/>
                             </button>
 

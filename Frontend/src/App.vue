@@ -200,7 +200,7 @@ export default {
                 if (rpStatus === 200) {
                     this.connected = true;
                 } else if ([401, 403].includes(rpStatus)) {
-                    await this.showConnectDialog(Localizer.get('main_authError'));
+                    await this.showConnectDialog(Localizer.get('general_authError'));
                 } else {
                     await this.showConnectDialog(Localizer.get('main_opacaUnreachable'));
                 }
@@ -309,8 +309,8 @@ export default {
         async handleContainerLogin(containerLoginDetails) {
             await this.$refs.input.showDialogue(
                 "Container Login",
-                `${Localizer.get('containerLoginMessage')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
-                containerLoginDetails.retry ? Localizer.get('main_authError') : null,
+                `${Localizer.get('containerLogin_message')}\n${containerLoginDetails.container_name}--${containerLoginDetails.tool_name}`,
+                containerLoginDetails.retry ? Localizer.get('general_authError') : null,
                 {
                     username: { type: "text", label: Localizer.get("general_username") },
                     password: { type: "password", label: Localizer.get("general_password") },
