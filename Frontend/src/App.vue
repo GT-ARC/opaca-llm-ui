@@ -257,6 +257,7 @@ export default {
                 case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': this.setTheme(value); break;
+                case 'audio': AudioManager.method = value; break;
                 default: break;
             }
         },
@@ -375,10 +376,6 @@ export default {
     async mounted() {
         if (conf.ColorScheme !== "system") {
             this.setTheme(conf.ColorScheme);
-        }
-
-        if (AudioManager.isBackendConfigured()) {
-            AudioManager.initVoiceServerConnection();
         }
 
         // prevent options dropdown menu from closing once anything in it is clicked

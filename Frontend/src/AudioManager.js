@@ -4,6 +4,20 @@ import Localizer from "./Localizer.js";
 import * as utils from "./utils.js"
 
 
+const voiceGenLocales = {
+    WHISPER: {GB: 'en', DE: 'de'},
+    WEBSPEECH: {GB: 'en-US', DE: 'de-DE'},
+};
+
+function getLanguageForWhisper() {
+    return voiceGenLocales.WHISPER[Localizer.language];
+}
+
+function getLanguageForWebSpeech() {
+    return voiceGenLocales.WEBSPEECH[Localizer.language];
+}
+
+
 /**
  * Provide unified API for TTS/STT using either the browser built-in
  * Web Speech API or a custom Whisper server running locally.
@@ -11,36 +25,8 @@ import * as utils from "./utils.js"
 class TtsAudio {
 
     constructor() {
-        this._isPlaying = ref(false);
-        this._isLoading = ref(false);
-    }
-
-    get isLoading() {
-        return this._isLoading.value !== undefined
-            ? this._isLoading.value
-            : this._isLoading;
-    }
-
-    set isLoading(value) {
-        if (this._isLoading.value !== undefined) {
-            this._isLoading.value = value;
-        } else {
-            this._isLoading = value;
-        }
-    }
-
-    get isPlaying() {
-        return this._isPlaying.value !== undefined
-            ? this._isPlaying.value
-            : this._isPlaying;
-    }
-
-    set isPlaying(value) {
-        if (this._isPlaying.value !== undefined) {
-            this._isPlaying.value = value;
-        } else {
-            this._isPlaying = value;
-        }
+        this.isPlaying = false;
+        this.isLoading = false;
     }
 
     async setup() {
@@ -79,11 +65,11 @@ class WhisperAudio extends TtsAudio {
     async setup() {
         this.isLoading = true;
         try {
-            const url = `${conf.VoiceServerUrl}/generate_audio`;
+            const url = `${conf.BackendAddress}/whisper/generate`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
-                voice: audioManager._whisperVoice.value,
+                voice: 'alloy',
             });
 
             const response = await fetch(`${url}?${params}`, payload);
@@ -164,7 +150,7 @@ class WebSpeechAudio extends TtsAudio {
 
     async setup() {
         const utterance = new SpeechSynthesisUtterance(this._text);
-        utterance.lang = Localizer.getLanguageForTTS();
+        utterance.lang = getLanguageForWebSpeech();
 
         utterance.onstart = () => {
             this.isLoading = false;
@@ -216,192 +202,119 @@ class WebSpeechAudio extends TtsAudio {
 class AudioManager {
 
     constructor() {
-        this._isVoiceServerConnected = ref(false);
-        this._isLoading = ref(false);
-        this._deviceInfo = ref('');
+        this._isRecording = ref(false);
+        this._isTranscribing = ref(false);
+        this.method = "WHISPER";
+
+        // webkit
         this._recognition = null;
 
-        this._whisperVoice = ref('alloy');
-        this._useWhisperTts = ref(true);
-        this._useWhisperStt = ref(true);
+        // manual recording for whisper
+        this._audioContext = null;
+        this._mediaRecorder = null;
+    }
+    
+    get isRecording() {
+        return this._isRecording.value;
     }
 
-    get isVoiceServerConnected() {
-        return this._isVoiceServerConnected.value !== undefined
-            ? this._isVoiceServerConnected.value
-            : this._isVoiceServerConnected;
+    set isRecording(value) {
+        this._isRecording.value = value;
     }
 
-    set isVoiceServerConnected(value) {
-        if (this._isVoiceServerConnected.value !== undefined) {
-            this._isVoiceServerConnected.value = value;
+    get isTranscribing() {
+        return this._isTranscribing.value;
+    }
+
+    set isTranscribing(value) {
+        this._isTranscribing.value = value;
+    }
+
+    getAudioMethods() {
+        if (this.isWebSpeechSupported()) {
+            return { WHISPER: "Whisper", WEBSPEECH: "WebSpeech" };
         } else {
-            this._isVoiceServerConnected = value;
-        }
-    }
-
-    get isLoading() {
-        return this._isLoading.value !== undefined
-            ? this._isLoading.value
-            : this._isLoading;
-    }
-
-    set isLoading(value) {
-        if (this._isLoading.value !== undefined) {
-            this._isLoading.value = value;
-        } else {
-            this._isLoading = value;
-        }
-    }
-
-    get deviceInfo() {
-        return this._deviceInfo.value !== undefined
-            ? this._deviceInfo.value
-            : this._deviceInfo;
-    }
-
-    set deviceInfo(value) {
-        if (this._deviceInfo.value !== undefined) {
-            this._deviceInfo.value = value;
-        } else {
-            this._deviceInfo = value;
-        }
-    }
-
-    get useWhisperTts() {
-        return this._useWhisperTts.value !== undefined
-            ? this._useWhisperTts.value
-            : this._useWhisperTts;
-    }
-
-    set useWhisperTts(value) {
-        if (this._useWhisperTts.value !== undefined) {
-            this._useWhisperTts.value = value;
-        } else {
-            this._useWhisperTts = value;
-        }
-    }
-
-    get useWhisperStt() {
-        return this._useWhisperStt.value !== undefined
-            ? this._useWhisperStt.value
-            : this._useWhisperStt;
-    }
-
-    set useWhisperStt(value) {
-        if (this._useWhisperStt.value !== undefined) {
-            this._useWhisperStt.value = value;
-        } else {
-            this._useWhisperStt = value;
-        }
-    }
-
-    isBackendConfigured() {
-        return !! conf.VoiceServerUrl
-    }
-
-    /**
-     * Init connection to local Whisper server.
-     * @returns {Promise<void>}
-     */
-    async initVoiceServerConnection() {
-        if (!this.isBackendConfigured()) {
-            console.warn('No voice server configured!');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${conf.VoiceServerUrl}/info`);
-            if (response.ok) {
-                this.deviceInfo = await response.json();
-                this.isVoiceServerConnected = true;
-            } else {
-                this.isVoiceServerConnected = false;
-            }
-        } catch (error) {
-            console.error('Failed to connect to whisper server.');
-            this.isVoiceServerConnected = false;
+            return { WHISPER: "Whisper" };
         }
     }
 
     async generateAudio(text) {
-        return await this.isVoiceServerConnected && this.useWhisperTts
-            ? this.generateWhisperAudio(text)
-            : this.generateWebSpeechAudio(text);
-    }
-
-    async generateWhisperAudio(text) {
         if (!text) return null;
-        return new WhisperAudio(text);
-    }
-
-    async generateWebSpeechAudio(text) {
-        if (!text) return null;
-        return new WebSpeechAudio(text);
+        switch (this.method) {
+            case "WHISPER": return new WhisperAudio(text);
+            case "WEBSPEECH": return new WebSpeechAudio(text);
+        };
     }
 
     /**
      * Start speech recognition with web speech API.
      * @param onResult Callback that should expect the successfully recognized text as an argument.
+     * @param onError Callback that should expect any error messages.
      */
-    async startWebSpeechRecognition(onResult) {
+    async startRecognition(onResult, onError) {
         if (!this.isRecognitionSupported()) return;
-        await this.stopWebSpeechRecognition();
+        switch (this.method) {
+            case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
+            case "WEBSPEECH": this.startWebSpeechRecognition(onResult, onError); break;
+        };
+    }
+
+    async stopRecognition() {
+        if (!this.isRecognitionSupported()) return;
+        switch (this.method) {
+            case "WHISPER": this.stopWhisperRecognition(); break;
+            case "WEBSPEECH": this.stopWebSpeechRecognition(); break;
+        };
+    }
+
+    async startWebSpeechRecognition(onResult, onError) {
+        if (! this.isWebSpeechSupported()) {
+            onError("WebSpeech is not supported in your Browser");
+        }
+        this.stopWebSpeechRecognition();
         try {
             this._recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
         } catch (error) {
-            console.error('Failed to start web speech recognition.');
-            console.error(error);
+            console.error(`Failed to start web speech recognition: ${error}`);
+            return;
         }
-        this._recognition.lang = Localizer.getLanguageForTTS();
+        this._recognition.lang = getLanguageForWebSpeech();
         this._recognition.onresult = async (event) => {
-            if (!event.results || event.results.length <= 0) return;
-            const recognizedText = event.results[0][0].transcript;
-            try {
-                onResult(recognizedText);
-            } catch (error) {
-                console.error(error);
-            }
-        };
-
-        this._recognition.onspeechend = () => {
-            console.log('Recognition: Speech ended.');
-            this.isLoading = false;
+            const recognizedText = Array.from(event.results).map(r => r[0].transcript).join('\n\n');
+            onResult(recognizedText);
         };
 
         this._recognition.onnomatch = () => {
-            console.error('Failed to recognize speech.');
+            // this does not seem to be called at all, instead no-match triggers onerror...
+            onError('Failed to recognize speech.');
         };
 
         this._recognition.onerror = (error) => {
-            console.error('Failed to recognize speech: ', error);
+            onError(`Failed to recognize speech: ${JSON.stringify(error)}`);
         };
 
         this._recognition.onend = () => {
             console.log('Recognition ended.');
-            this.isLoading = false;
+            this.isRecording = false;
         };
 
-        this.isLoading = true;
+        this.isRecording = true;
         this._recognition.start();
     }
 
-    async stopWebSpeechRecognition() {
+    stopWebSpeechRecognition() {
         if (this._recognition) {
-            this._recognition.abort();
+            this._recognition.stop();
             this._recognition = null;
         }
     }
 
     isRecognitionSupported() {
-        return this.isVoiceServerConnected
-            || (this.isWebSpeechSupported()
-            && this._isGoogleChrome()
-            && utils.isSecureConnection());
+        return utils.isSecureConnection();
     }
 
     isWebSpeechSupported() {
-        return ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+        return this._isGoogleChrome() && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
     }
 
     /**
@@ -416,6 +329,94 @@ class AudioManager {
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
     }
 
+    async startWhisperRecognition(onResult, onError) {
+        try {
+            this.isRecording = true;
+            this._audioContext = new AudioContext();
+            
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 44100,
+                    sampleSize: 16,
+                }
+            });
+
+            // set up analyser on the stream for silence detection
+            const analyser = this._audioContext.createAnalyser();
+            const dataArray = new Float32Array(analyser.fftSize);
+            this._audioContext.createMediaStreamSource(stream).connect(analyser);
+            const audioChunks = [];
+            let lastSound = Date.now()
+            let recordingStart = Date.now()
+
+            this._mediaRecorder = new MediaRecorder(stream);
+            this._mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+
+                // detect duration of silence
+                analyser.getFloatTimeDomainData(dataArray);
+                const rms = Math.sqrt(dataArray.reduce((s, x) => s + x*x, 0) / dataArray.length);
+                if (rms > 0.02) {
+                    lastSound = Date.now();
+                } else if (Date.now() - lastSound > 800 && Date.now() - recordingStart > 3000) {
+                    this.stopWhisperRecognition();
+                }
+            };
+
+            this._mediaRecorder.onstop = async () => {
+                this.isRecording = false;
+                this.isTranscribing = true;
+                try {
+                    const result = await this.processAudioChunks(audioChunks);
+                    onResult(result);
+                } catch (error) {
+                    onError(`Error processing audio: ${error}`);
+                }
+                this.isTranscribing = false;
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            this._mediaRecorder.start(100);
+        } catch (error) {
+            this.isRecording = false;
+            onError(`Error recording audio: ${error}`);
+        }
+    }
+
+    stopWhisperRecognition() {
+        if (this._mediaRecorder) {
+            this._mediaRecorder.stop();
+            this._mediaRecorder = null;
+        }
+    }
+
+    async processAudioChunks(audioChunks) {
+        if (audioChunks.length === 0) return '';
+
+        const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();
+        const lang = getLanguageForWhisper();
+
+        const formData = new FormData();
+        formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
+
+        const response = await fetch(`${conf.BackendAddress}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        return result.text || '';
+    }
 }
 
 

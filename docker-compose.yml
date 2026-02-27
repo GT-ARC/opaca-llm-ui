@@ -54,17 +54,6 @@ services:
       - mongodata:/data/db
       - mongoconfig:/data/configdb
 
-  # TTS Server for voice synthesis
-  tts:
-    build: ./tts-server
-    image: opaca-tts-server
-    ports:
-      - "7431:7431"
-    environment:
-      OPENAI_API_KEY:
-    profiles:
-      - whisper
-
   # Optional OPACA platform service
   platform:
     image: ghcr.io/gt-arc/opaca/opaca-platform:main

@@ -25,11 +25,6 @@ export const localizationData = {
         settings_method: "Method",
         settings_colorMode: "Color Scheme",
         settings_audio: "Audio",
-        settings_audio_connected: 'Connected',
-        settings_audio_disconnected: 'Disconnected',
-        settings_audio_retry: 'Retry Connection',
-        settings_audio_whisperTts: "Whisper TTS",
-        settings_audio_whisperStt: "Whisper STT",
         welcome: 'What can I do for you today? Try one of the sample queries or ask me anything you like!',
         inputPlaceholder: 'Send a message ...',
         socketClosed: 'It seems there was a problem in the response generation.',
@@ -146,11 +141,6 @@ export const localizationData = {
         settings_method: "Methode",
         settings_colorMode: "Farbschema",
         settings_audio: "Audio",
-        settings_audio_connected: 'Verbunden',
-        settings_audio_disconnected: 'Nicht verbunden',
-        settings_audio_retry: 'Erneut verbinden',
-        settings_audio_whisperTts: "Whisper TTS",
-        settings_audio_whisperStt: "Whisper STT",
         welcome: 'Was kann ich heute für Dich tun? Versuch einen der Beispiel-Queries, oder frag mich alles was Du willst!',
         inputPlaceholder: 'Nachricht senden ...',
         socketClosed: 'Es scheint ein Problem bei der Erstellung der Antwort aufgetreten zu sein.',
@@ -298,17 +288,6 @@ export const loadingMessages = {
 }
 
 
-export const voiceGenLocalesWhisper = {
-    GB: 'english',
-    DE: 'german'
-};
-
-export const voiceGenLocalesWebSpeech = {
-    GB: 'en-US',
-    DE: 'de-DE'
-};
-
-
 class Localizer {
 
     constructor(selectedLanguage, fallbackLanguage) {
@@ -443,12 +422,6 @@ class Localizer {
     getAvailableLocales() {
         return Array.from(Object.keys(localizationData))
             .map(locale => { return {key: locale, name: localizationData[locale].name}; });
-    }
-
-    getLanguageForTTS() {
-        return AudioManager.isVoiceServerConnected
-            ? voiceGenLocalesWhisper[this.language]
-            : voiceGenLocalesWebSpeech[this.language];
     }
 
     isAvailableLanguage(langName) {
