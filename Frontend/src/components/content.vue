@@ -22,16 +22,6 @@
             @close="viewerFile = null"
         />
 
-        <!-- Move the RecordingPopup outside the main content flow -->
-        <RecordingPopup
-            v-model:show="showRecordingPopup"
-            :language="Localizer.getLanguageForTTS()"
-            @transcription-complete="handleTranscriptionComplete"
-            @send-message="handleSendMessage"
-            @error="handleRecordingError"
-            ref="RecordingPopup"
-        />
-
         <InputDialogue ref="input" />
 
         <Sidebar
@@ -166,13 +156,21 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    v-if="AudioManager.isRecognitionSupported()"
+                                    v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('chatarea_speak')">
-                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                                <i v-else class="fa fa-spin fa-spinner" />
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
+                                <i v-else class="fa fa-microphone" />
+                            </button>
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported() && AudioManager.isRecording"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="AudioManager.stopRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('tooltipButtonRecord')">
+                                <i class="fa fa-stop"/>
                             </button>
 
                             <button type="button"
@@ -180,7 +178,7 @@
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
                                     :title="Localizer.get('chatarea_abort')">
-                                <i class="fa fa-stop"/>
+                                <i class="fa fa-xmark"/>
                             </button>
 
                             <button type="button"
@@ -208,7 +206,6 @@
 import {nextTick} from "vue";
 import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
-import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import backendClient from "../utils.js";
@@ -228,7 +225,6 @@ export default {
         FileViewer,
         OptionsSelect,
         Sidebar,
-        RecordingPopup,
         InputDialogue,
         Chatbubble
     },
@@ -254,7 +250,6 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
@@ -526,20 +521,6 @@ export default {
             }
         },
 
-        handleTranscriptionComplete(text) {
-            if (text) {
-                this.textInput = text;
-            }
-        },
-
-        handleSendMessage(text) {
-            if (text) {
-                this.textInput = "";
-                this.autoSpeakNextMessage = true;
-                this.askChatGpt(text);
-            }
-        },
-
         submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
             const containerLoginDetails = JSON.stringify({
                 username: containerLoginUser,
@@ -558,22 +539,14 @@ export default {
             this.socket.send(apiKeyResponse);
         },
 
-
-        handleRecordingError(error) {
-            console.error('Recording error:', error);
-            this.showInfo('Error recording audio: ' + error.message);
-        },
-
         startRecognition() {
-            if (AudioManager.isVoiceServerConnected && AudioManager.useWhisperStt) {
-                this.showRecordingPopup = true;
-            } else {
-                AudioManager.startWebSpeechRecognition(text => {
-                    this.handleTranscriptionComplete(text);
+            AudioManager.startRecognition(text => {
+                if (text) {
+                    this.textInput = text;
                     this.autoSpeakNextMessage = true;
                     this.submitText();
-                });
-            }
+                }
+            }, error => this.showInfo(error));
         },
 
         /**

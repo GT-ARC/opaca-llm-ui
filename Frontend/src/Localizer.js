@@ -29,11 +29,11 @@ export const localizationData = {
         settings_audio_retry: 'Retry Connection',
         settings_audio_whisperTts: "Whisper TTS",
         settings_audio_whisperStt: "Whisper STT",
-        opacaUnreachable: 'Could not connect to OPACA platform.',
-        backendUnreachable: 'SAGE Backend is unreachable. Please check if the backend is running and reload the page.',
-        unauthenticated: 'Authentication Required',
-        authError: 'Invalid username or password.',
-        opacaLocation: 'OPACA URL',
+        main_backendUnreachable: 'SAGE Backend is unreachable. Please check if the backend is running and reload the page.',
+        main_opacaUrl: 'OPACA URL',
+        main_connectHint: "Connect to OPACA Runtime Platform to access Agents and Actions. Authentication may be required.",
+        main_opacaUnreachable: 'Could not connect to OPACA platform.',
+        main_authError: 'Invalid username or password.',
         sidebar_info: "General Information",
         sidebar_chats: "Chats",
         sidebar_questions: "Prompt Library",
@@ -148,11 +148,11 @@ export const localizationData = {
         settings_audio_retry: 'Erneut verbinden',
         settings_audio_whisperTts: "Whisper TTS",
         settings_audio_whisperStt: "Whisper STT",
-        opacaUnreachable: 'Verbindung mit OPACA Plattform fehlgeschlagen.',
-        backendUnreachable: 'SAGE Backend nicht erreichbar. Bitte überprüfen Sie ob das Backend läuft und laden Sie die Seite neu.',
-        unauthenticated: 'Authentifizierung erforderlich',
-        authError: 'Benutzer oder Passwort falsch.',
-        opacaLocation: 'OPACA URL',
+        main_backendUnreachable: 'SAGE Backend nicht erreichbar. Bitte überprüfen Sie ob das Backend läuft und laden Sie die Seite neu.',
+        main_opacaUrl: 'OPACA URL',
+        main_connectHint: "Mit OPACA Runtime Platform verbinden, um auf Agenten und Actions zuzugreifen. Authentisierung kann erforderlich sein.",
+        main_opacaUnreachable: 'Verbindung mit OPACA Plattform fehlgeschlagen.',
+        main_authError: 'Benutzer oder Passwort falsch.',
         sidebar_info: "Generelle Informationen",
         sidebar_chats: "Chats",
         sidebar_questions: "Prompt-Bibliothek",
@@ -246,17 +246,6 @@ export const localizationData = {
         questions_regenerate: "Weitere Beispiele",
         questions_placeholders: "Werte für Platzhalter",
     },
-};
-
-
-export const voiceGenLocalesWhisper = {
-    GB: 'english',
-    DE: 'german'
-};
-
-export const voiceGenLocalesWebSpeech = {
-    GB: 'en-US',
-    DE: 'de-DE'
 };
 
 
@@ -386,12 +375,6 @@ class Localizer {
     getAvailableLocales() {
         return Array.from(Object.keys(localizationData))
             .map(locale => { return {key: locale, name: localizationData[locale].name}; });
-    }
-
-    getLanguageForTTS() {
-        return AudioManager.isVoiceServerConnected
-            ? voiceGenLocalesWhisper[this.language]
-            : voiceGenLocalesWebSpeech[this.language];
     }
 
     isAvailableLanguage(langName) {

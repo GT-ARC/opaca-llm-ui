@@ -29,9 +29,6 @@ let config = {
     // URL to the OPACA Runtime platform
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    // URL to the audio server
-    VoiceServerUrl: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
-
     // If true, attempt to connect to the configured platform on-load
     // the boolean value is parsed later, together with the one passed as query param, if any
     AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
