@@ -7,19 +7,19 @@
             <!-- Always Visible: Info -->
             <i @click="SidebarManager.toggleView('info')"
                class="fa fa-circle-info sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarInfo')"
+               :title="Localizer.get('sidebar_info')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
             <!-- Always Visible: Chats -->
             <i @click="SidebarManager.toggleView('chats')"
                class="fa fa-message sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarChats')"
+               :title="Localizer.get('sidebar_chats')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
             <!-- Always Visible: Prompts -->
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarPrompts')"
+               :title="Localizer.get('sidebar_questions')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
 
             <!-- Collapse/Extend Button -->
@@ -36,7 +36,7 @@
                  style="min-height: 0; overflow: hidden;">
                 <i @click="SidebarManager.toggleView('files')"
                    class="fa fa-file sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarFiles')"
+                   :title="Localizer.get('sidebar_files')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
 
                 <i @click="SidebarManager.toggleView('agents')"
@@ -51,17 +51,17 @@
 
                 <i @click="SidebarManager.toggleView('mcp')"
                    class="fa fa-server sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarMcp')"
+                   :title="Localizer.get('sidebar_mcp')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
 
                 <i @click="SidebarManager.toggleView('config')"
                    class="fa fa-cog sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarConfig')"
+                   :title="Localizer.get('sidebar_config')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
 
                 <i @click="SidebarManager.toggleView('debug')"
                    class="fa fa-bug sidebar-menu-item"
-                   :title="Localizer.get('tooltipSidebarLogs')"
+                   :title="Localizer.get('sidebar_logs')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
             </div>
 
@@ -71,7 +71,7 @@
             <!-- Always Visible: FAQ -->
             <i @click="SidebarManager.toggleView('faq')"
                class="fa fa-question-circle sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFaq')"
+               :title="Localizer.get('sidebar_faq')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 

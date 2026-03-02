@@ -8,16 +8,16 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebar_agents_loading') }}
+        {{ Localizer.get('agents_loading') }}
     </div>
     <div v-else-if="!platformContainers || platformContainers.length === 0">
-        {{ Localizer.get('sidebar_agents_missing') }}
+        {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
         <input
             type="text"
             class="form-control my-2"
-            :placeholder="Localizer.get('searchAgentsPlaceholder')"
+            :placeholder="Localizer.get('agents_search')"
             v-model="this.searchQuery"
         />
         <div class="accordion text-start" id="agents-accordion">
@@ -90,16 +90,16 @@
                                              :aria-labelledby="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                              :data-bs-parent="`#actions-accordion-${containerId}-${agentIndex}`">
                                             <p class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
-                                                <strong>{{ Localizer.get('sidebar_agents_invoke') }}</strong>
+                                                <strong>{{ Localizer.get('agents_invoke') }}</strong>
                                                 <i class="fa fa-circle-play mx-2"/>
                                             </p>
                                             <p v-if="action.description">
-                                                <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
+                                                <strong>{{ Localizer.get('agents_description') }}:</strong>
                                                 {{ action.description }}
                                             </p>
-                                            <strong>{{ Localizer.get('sidebar_agents_parameters') }}:</strong>
+                                            <strong>{{ Localizer.get('agents_parameters') }}:</strong>
                                             <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
-                                            <strong>{{ Localizer.get('sidebar_agents_result') }}:</strong>
+                                            <strong>{{ Localizer.get('agents_result') }}:</strong>
                                             <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                         </div>
 
@@ -193,7 +193,7 @@ export default {
         async invokeAction(agent, action, schema) {
             const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
             await this.$refs.input.showDialogue(
-                Localizer.get('sidebar_agents_invoke'),
+                Localizer.get('agents_invoke'),
                 `**Agent:** ${agent}\n\n**Action:** ${action}`,
                 null,
                 Object.fromEntries(
@@ -207,7 +207,7 @@ export default {
                     // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
                     var res = await backendClient.invokeAction(agent, action, parameters);
                     if (res.success) {
-                        await this.$refs.input.showInfo(Localizer.get('sidebar_agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
+                        await this.$refs.input.showInfo(Localizer.get('agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
                     } else {
                         throw new Error(res.error);
                     }

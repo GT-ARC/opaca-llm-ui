@@ -20,14 +20,15 @@
             'file-menu-button'
             ]"
            @click.stop="this.suspendFile()"
-           :title="Localizer.get('tooltipSuspendUploadedFile')"
+           :title="Localizer.get('files_include')"
         />
         <i class="fa fa-pen-to-square file-menu-button"
            @click.stop="this.renameFile()"
+           :title="Localizer.get('files_rename')"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
-           :title="Localizer.get('tooltipDeleteUploadedFile')"
+           :title="Localizer.get('files_delete')"
         />
     </div>
 </template>
@@ -62,7 +63,7 @@ export default {
     },
     methods: {
         deleteFile() {
-            if (confirm(Localizer.get("confirmDeleteFile", this.file.file_name))) {
+            if (confirm(Localizer.get("files_delete_confirm", this.file.file_name))) {
                 this.$emit('delete-file', this.fileId);
             }
         },

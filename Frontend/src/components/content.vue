@@ -8,7 +8,7 @@
              @dragleave.prevent="() => toggleFileDropOverlay(false)"
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
-                <p>{{ Localizer.get("dropFiles") }}</p>
+                <p>{{ Localizer.get("files_droparea") }}</p>
                 <span class="fa fa-file" />
             </div>
         </div>
@@ -70,7 +70,7 @@
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
-                        {{ Localizer.get("welcome") }}
+                        {{ Localizer.get("chatarea_welcome") }}
                     </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
@@ -84,7 +84,7 @@
                         <button type="button" class="btn btn-outline-primary p-2"
                                 @click="Localizer.reloadSampleQuestions(null)">
                             <i class="fa fa-arrow-right"/>
-                            {{ Localizer.get('rerollQuestions') }}
+                            {{ Localizer.get('chatarea_rerollSamples') }}
                         </button>
                     </div>
                 </div>
@@ -110,7 +110,7 @@
 
                 <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
                      class="d-flex p-2 align-items-center">
-                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                    {{ Localizer.get('files_overflow', selectedFiles.length - this.maxDisplayedFiles()) }}
                 </div>
             </div>
 
@@ -125,7 +125,7 @@
                             v-model="textInput"
                             class="text-input form-control"
                             :class="{ 'small-scrollbar': isSmallScrollbar }"
-                            :placeholder="Localizer.get('inputPlaceholder')"
+                            :placeholder="Localizer.get('chatarea_input')"
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
@@ -140,7 +140,7 @@
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
                                :class="[this.isMobile ? 'me-1': 'ms-1']"
-                               :title="Localizer.get('tooltipUploadFile')" >
+                               :title="Localizer.get('files_upload')" >
                             <i class="fa fa-upload" />
                             <input
                                 type="file"
@@ -160,7 +160,7 @@
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
+                                    :title="Localizer.get('chatarea_speak')">
                                 <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
                                 <i v-else class="fa fa-microphone" />
                             </button>
@@ -169,7 +169,7 @@
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="AudioManager.stopRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
+                                    :title="Localizer.get('chatarea_speak_stop')">
                                 <i class="fa fa-stop"/>
                             </button>
 
@@ -177,7 +177,7 @@
                                     v-if="!isFinished"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
-                                    :title="Localizer.get('tooltipButtonStop')">
+                                    :title="Localizer.get('chatarea_abort')">
                                 <i class="fa fa-xmark"/>
                             </button>
 
@@ -186,7 +186,7 @@
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
-                                    :title="Localizer.get('tooltipButtonSend')">
+                                    :title="Localizer.get('chatarea_submit')">
                                 <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
@@ -302,7 +302,7 @@ export default {
             if (placeholders !== null) {
                 // substitute placeholders
                 await this.$refs.input.showDialogue(
-                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Localizer.get("questions_placeholders"), questionText, null, 
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
@@ -353,7 +353,7 @@ export default {
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             const aiBubble = this.getLastBubble();
-            aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
+            aiBubble.addStatusMessage('preparing', Localizer.get('chatbubble_preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
             try {
