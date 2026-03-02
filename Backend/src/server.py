@@ -433,29 +433,31 @@ async def view_file(file_id: str, session: SessionData = Depends(handle_session_
 # sample prompts
 
 @app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
-async def get_prompts(session: SessionData = Depends(handle_session_http)) -> Dict[str, List[PromptCategory]]:
+async def get_prompts(session: SessionData = Depends(handle_session_http)) -> Dict[str, Dict[str, PromptCategory]]:
     if session.prompts is None:
         session.prompts = prompts.load_default_prompts()
     return session.prompts
 
 
 @app.post("/prompts", description="Save the modified Prompt library for the current session.", tags=["sample prompts"])
-async def post_prompts(data: Dict[str, List[PromptCategory]], session: SessionData = Depends(handle_session_http)) -> None:
+async def post_prompts(data: Dict[str, Dict[str, PromptCategory]], session: SessionData = Depends(handle_session_http)) -> None:
     session.prompts = data
 
 
-@app.delete("/prompts", description="Reset the session's prompt library to the default values.", tags=["sample prompts"])
+@app.delete("/prompts", description="Reset default prompt categories to their initial values.", tags=["sample prompts"])
 async def delete_prompts(session: SessionData = Depends(handle_session_http)) -> None:
-    session.prompts = prompts.load_default_prompts()
+    default_prompts = prompts.load_default_prompts()
+    for lang, session_prompts in session.prompts.items():
+        session_prompts.update(default_prompts[lang])
 
 
 @app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
-async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+async def get_default_prompts() -> Dict[str, Dict[str, PromptCategory]]:
     return prompts.load_default_prompts()
 
 
 @app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
-async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
+async def post_default_prompts(data: Dict[str, Dict[str, PromptCategory]], auth = Depends(require_password)) -> None:
     prompts.save_default_prompts(data)
 
 

@@ -234,6 +234,7 @@ class PromptCategory(BaseModel):
     header: str
     icon: str | None = None
     visible: bool = True
+    editable: bool = True
     questions: List[Prompt] = []
 
 
@@ -315,7 +316,7 @@ class SessionData(BaseModel):
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
-    prompts: Dict[str, List[PromptCategory]] = None
+    prompts: Dict[str, dict[str, PromptCategory]] = None
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

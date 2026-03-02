@@ -15,23 +15,24 @@ DEFAULT_PROMPTS_BASE = Path('./default_prompts.json')
 DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
 
 
-def load_default_prompts() -> Dict[str, List[PromptCategory]]:
+def load_default_prompts() -> Dict[str, Dict[str, PromptCategory]]:
     if DEFAULT_PROMPTS_FILE.is_file():
         data = load_json(DEFAULT_PROMPTS_FILE)
     elif DEFAULT_PROMPTS_BASE.is_file():
         data = load_json(DEFAULT_PROMPTS_BASE)
     else:
         raise FileNotFoundError('Default prompts file not found')
+
     return {
-        key: [PromptCategory.model_validate(cat) for cat in cats]
-        for key, cats in data.items()
+        lang: {cat_id: cats for cat_id, cats in cats.items()}
+        for lang, cats in data.items()
     }
 
 
-def save_default_prompts(prompts: Dict[str, List[PromptCategory]]) -> None:
+def save_default_prompts(prompts: Dict[str, Dict[str, PromptCategory]]) -> None:
     data = {
-        key: [cat.model_dump() for cat in cats]
-        for key, cats in prompts.items()
+        lang: {cat_id: cat.model_dump(mode='json') for cat_id, cat in cats.items()}
+        for lang, cats in prompts.items()
     }
     save_json(DEFAULT_PROMPTS_FILE, data)
 
