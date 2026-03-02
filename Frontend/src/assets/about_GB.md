@@ -1,9 +1,9 @@
-## About
+## About SAGE
 
-SAGE, (or OPACA LLM UI), is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE does not include any specific actions but takes all its functionality from the connected OPACA platform.
+SAGE, (or OPACA LLM UI), is a powerful chatbot that can fulfill user requests by calling actions from a connected OPACA platform. It consists of two parts: The actual UI / frontend, implemented in Javascript and Vue, and a backend connecting to an LLM API. SAGE includes some specific actions but takes most of its functionality from the connected OPACA platform.
 
 
-## How do I use it?
+## How do I use SAGE?
 
 1. Connect to an OPACA Runtime Platform.
 2. Check the provided agents & actions or have a look at the sample queries.
@@ -12,7 +12,7 @@ SAGE, (or OPACA LLM UI), is a powerful chatbot that can fulfill user requests by
 5. Wait a few seconds for the LLM's response, inspect the debug-output for "behind the scenes" info, and ask follow-up questions.
 
 
-## How does this work?
+## How does SAGE work?
 
 The architecture consists of a frontend (this UI) and a backend, providing an API to be called by the frontend. The backend provides several different prompting methods or interaction modes (see further below), each with their own strengths and weaknesses. Each of those have access to all the actions provided by the agents running on the connected OPACA platform.
 
@@ -23,7 +23,7 @@ For more detailed information, please visit the project's GitHub page (link at t
 
 ## What happens with my data?
 
-Your chat history is stored in-memory in the Backend and associated with you via a UUID in a browser cookie. Other users of the system can not access your chat history unless they acquire your session cookie. The cookie has a life-time of 30 days, which is renewed each time you make a request. Once the cookie expires, the chat histories will be removed from the backend. You can also at any time use the "Reset" function to clear your chat history. Note: If you delete the cookie from your browser, a new cookie will be issued and you lose the ability to Reset the old history (it will then be deleted when the old cookie expires or the backend is restarted).
+Your chat history is stored in-memory in the Backend and associated with you via a UUID in a browser cookie. Other users of the system can not access your chat history unless they acquire your session cookie. The cookie has a life-time of 30 days, which is renewed each time you make a request. Once the cookie expires, the chat histories will be removed from the backend. You can also at any time use the delete individual chats to clear your chat history. Note: If you delete the cookie from your browser, a new cookie will be issued and you lose the ability to Reset the old history (it will then be deleted when the old cookie expires).
 
 Your chat prompts are forwarded to the configured LLM (e.g. GPT, or some locally installed LLM), and may be in some way evaluated by the companies running those LLM. SAGE itself (the Frontend and Backend) does in no way inspect or evaluate your chat prompts or the results other than what's necessary for e.g. invoking the respective tools and formatting the response, neither are the prompts or results persistently stored or archived or distributed to third parties.
 
@@ -51,6 +51,6 @@ Yes. If you have the backend URL and credentials, you can deploy and register ne
 
 ## Further Reading
 
-* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE on Github</a>
-* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA on Github</a>
+* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE on GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA on GitHub</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Project</a>
