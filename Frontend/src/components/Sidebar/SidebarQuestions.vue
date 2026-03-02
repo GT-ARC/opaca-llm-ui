@@ -280,7 +280,7 @@ export default {
                 question: { type: 'textarea', label: 'Prompt', default: "" },
                 icon: { type: 'text', label: 'Icon', default: "⭐" },
             };
-            this.$refs.editDialog.showDialogue('Add New Prompt', null, null, schema,
+            this.$refs.editDialog.showDialogue(Localizer.get('questions_addPrompt'), null, null, schema,
                 values => this.handleAddPromptOk(values, category));
         },
 
@@ -290,7 +290,7 @@ export default {
                 question: { type: 'textarea', label: 'Prompt', default: question.question, },
                 icon: { type: 'text', label: 'Icon', default: question.icon },
             };
-            this.$refs.editDialog.showDialogue('Edit Prompt', null, null, schema,
+            this.$refs.editDialog.showDialogue(Localizer.get('questions_editPrompt'), null, null, schema,
                 values => this.handleEditPromptOk(values, category, question));
         },
 
@@ -308,7 +308,7 @@ export default {
                 header: { type: 'text', label: 'Header' },
                 icon: { type: 'text', label: 'Icon', default: "⭐" },
             };
-            this.$refs.editDialog.showDialogue('Add New Category', null, null, schema,
+            this.$refs.editDialog.showDialogue(Localizer.get('questions_addCategory'), null, null, schema,
                 values => this.handleAddCategoryOk(values));
         },
 
@@ -318,7 +318,7 @@ export default {
                 header: { type: 'text', label: 'Header', default: category.header },
                 icon: { type: 'text', label: 'Icon', default: category.icon },
             };
-            this.$refs.editDialog.showDialogue('Edit Category', null, null, schema,
+            this.$refs.editDialog.showDialogue(Localizer.get('questions_editCategory'), null, null, schema,
                 values => this.handleEditCategoryOk(values, category));
         },
 
