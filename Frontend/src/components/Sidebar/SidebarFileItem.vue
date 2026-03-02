@@ -24,6 +24,7 @@
         />
         <i class="fa fa-pen-to-square file-menu-button"
            @click.stop="this.renameFile()"
+           :title="Localizer.get('files_rename')"
         />
         <i class="fa fa-remove file-menu-button"
            @click.stop="this.deleteFile()"
