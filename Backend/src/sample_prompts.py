@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any
 
-from .models import PromptCategory
+from .models import PromptCategory, SessionPrompts
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ DEFAULT_PROMPTS_BASE = Path('./default_prompts.json')
 DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
 
 
-def load_default_prompts() -> Dict[str, Dict[str, PromptCategory]]:
+def load_default_prompts() -> SessionPrompts:
     if DEFAULT_PROMPTS_FILE.is_file():
         data = load_json(DEFAULT_PROMPTS_FILE)
     elif DEFAULT_PROMPTS_BASE.is_file():
@@ -29,7 +29,7 @@ def load_default_prompts() -> Dict[str, Dict[str, PromptCategory]]:
     }
 
 
-def save_default_prompts(prompts: Dict[str, Dict[str, PromptCategory]]) -> None:
+def save_default_prompts(prompts: SessionPrompts) -> None:
     data = {
         lang: {cat_id: cat.model_dump(mode='json') for cat_id, cat in cats.items()}
         for lang, cats in prompts.items()
