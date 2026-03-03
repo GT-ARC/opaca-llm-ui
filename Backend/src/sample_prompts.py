@@ -24,7 +24,7 @@ def load_default_prompts() -> Dict[str, Dict[str, PromptCategory]]:
         raise FileNotFoundError('Default prompts file not found')
 
     return {
-        lang: {cat_id: cats for cat_id, cats in cats.items()}
+        lang: {cat_id: PromptCategory.model_validate(cat) for cat_id, cat in cats.items()}
         for lang, cats in data.items()
     }
 
