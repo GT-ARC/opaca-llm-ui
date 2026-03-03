@@ -1,7 +1,7 @@
 import logging
 import json
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 from .models import PromptCategory, SessionPrompts
 
@@ -51,10 +51,10 @@ def load_json(filename: str | Path) -> Any:
         raise e
 
 
-def save_json(filename: str | Path, data: Any, indent: int = 4) -> None:
+def save_json(filename: str | Path, data: Any, indent: int = 2) -> None:
     try:
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=indent)
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=indent)
     except Exception as e:
         log.error(f'Failed to save JSON to "{filename}"')
         raise e

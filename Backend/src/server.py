@@ -23,7 +23,7 @@ from openai import OpenAI
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
-    PromptCategory, InvokeRequest, InvokeResponse, SessionPrompts
+    InvokeRequest, InvokeResponse, SessionPrompts
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod

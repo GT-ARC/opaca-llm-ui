@@ -155,7 +155,7 @@ export default {
                 header: Localizer.get('questions_generated'),
                 icon: "🪄",
                 visible: true,
-                editable: true,
+                editable: false,
                 questions: (new Array(numQuestions)).map(() => ({
                     question: "__loading__",
                     icon: "",
