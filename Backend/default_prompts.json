@@ -3,149 +3,144 @@
     "taskAutomation": {
       "id": "taskAutomation",
       "header": "Task Automation",
-      "icon": "\ud83e\udd16",
+      "icon": "🤖",
       "visible": true,
-      "editable": false,
       "questions": [
         {
           "question": "Please fetch and summarize my last 10 e-mails. List any important tasks.",
-          "icon": "\ud83d\udce7"
+          "icon": "📧"
         },
         {
           "question": "Prepare me for my next meeting by giving me background information about the topic and the attendees.",
-          "icon": "\ud83d\udcd1"
+          "icon": "📑"
         },
         {
           "question": "Prepare me for all my next meetings for the next week by giving me background information about each topic and the attendees.",
-          "icon": "\ud83d\udcd1"
+          "icon": "📑"
         },
         {
           "question": "Find a free time slot that works for myself and [participant] tomorrow and search for an available meeting room in the office at that time.",
-          "icon": "\ud83d\udcde"
+          "icon": "📞"
         },
         {
           "question": "Create a todo list to review the agenda plan, find a restaurant in Berlin Charlottenburg, and to prepare my keynote speech.",
-          "icon": "\u2705"
+          "icon": "✅"
         },
         {
           "question": "Each morning at 8am, suggest online courses about [topic] from well-known sources including links.",
-          "icon": "\ud83d\udcdc"
+          "icon": "📜"
         },
         {
           "question": "Create a caller list with all the participants of my next meeting.",
-          "icon": "\ud83d\udcde"
+          "icon": "📞"
         },
         {
           "question": "How to get from Ernst-Reuter-Platz to Berlin Hauptbahnhof using public transport?",
-          "icon": "\ud83e\udded"
+          "icon": "🧭"
         }
       ]
     },
     "informationUpskilling": {
       "id": "informationUpskilling",
       "header": "Information & Upskilling",
-      "icon": "\ud83d\udcda",
+      "icon": "📚",
       "visible": true,
-      "editable": false,
       "questions": [
         {
           "question": "Summarize the README and recent activity for the GitLab project \"opaca-core\" and explain how to run it locally.",
-          "icon": "\ud83e\udd16"
+          "icon": "🤖"
         },
         {
           "question": "What are the most exciting tech trends and key technologies for 2026 in the domain \"[domain]\"?",
-          "icon": "\ud83d\ude80"
+          "icon": "🚀"
         },
         {
           "question": "Search for recent news about [topic].",
-          "icon": "\u267b\ufe0f"
+          "icon": "♻️"
         },
         {
           "question": "I want to start my master at TU Berlin and focus on [focus]. What program and courses are available?",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         },
         {
           "question": "Explain [topic] to me.",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         },
         {
           "question": "What tools exist to enable agile software development?",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         },
         {
           "question": "Suggest online courses to me so I can train [topic].",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         }
       ]
     },
     "dataAnalysis": {
       "id": "dataAnalysis",
       "header": "Data Analysis",
-      "icon": "\ud83d\udcca",
+      "icon": "📊",
       "visible": true,
-      "editable": false,
       "questions": [
         {
           "question": "What are the most exciting future tech trends that will shape the IT landscape in the next 10 years?",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         },
         {
           "question": "Get my gitlab user id and then plot my user statistics for the last 30 days as a bar plot",
-          "icon": "\ud83d\udc64"
+          "icon": "👤"
         },
         {
           "question": "Create a plot of the stock market change for [company] for the last 30 days.",
-          "icon": "\ud83d\udcca"
+          "icon": "📊"
         },
         {
           "question": "What meeting room is available today from [from] to [to] and in which one will the predicted co2 value for that timeslot be the lowest?",
-          "icon": "\ud83c\udf24\ufe0f"
+          "icon": "🌤️"
         },
         {
           "question": "Analyze the attached CSV of temperature in the conference room by week, detect trends, and plot a line chart with a 7-day rolling average.",
-          "icon": "\ud83d\udcc8\ufe0f"
+          "icon": "📈️"
         }
       ]
     },
     "smartOffice": {
       "id": "smartOffice",
       "header": "Smart Office",
-      "icon": "\ud83c\udfe2",
+      "icon": "🏢",
       "visible": true,
-      "editable": false,
       "questions": [
         {
           "question": "What is the temperature and CO2 level in the conference room?",
-          "icon": "\ud83c\udf21\ufe0f"
+          "icon": "🌡️"
         },
         {
           "question": "Where can I find the espresso cups in the kitchen?",
-          "icon": "\u2615"
+          "icon": "☕"
         },
         {
           "question": "Set the light in the Experience Hub to half brightness.",
-          "icon": "\ud83d\udca1"
+          "icon": "💡"
         },
         {
           "question": "Guide me to the conference room, please.",
-          "icon": "\ud83e\udded"
+          "icon": "🧭"
         },
         {
           "question": "Remind me to do 10 pushups every 2 minutes for the next 10 minutes.",
-          "icon": "\ud83d\udcaa"
+          "icon": "💪"
         }
       ]
     },
     "mobility": {
       "id": "mobility",
       "header": "Mobility",
-      "icon": "\ud83d\ude97",
+      "icon": "🚗",
       "visible": false,
-      "editable": false,
       "questions": [
         {
           "question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.",
-          "icon": "\ud83e\udded"
+          "icon": "🧭"
         }
       ]
     }
@@ -154,145 +149,140 @@
     "taskAutomation": {
       "id": "taskAutomation",
       "header": "Task Automation",
-      "icon": "\ud83e\udd16",
+      "icon": "🤖",
       "visible": true,
-      "editable": false,
       "questions": [
         {
           "question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen. Zeig mit alle wichtigen Aufgaben.",
-          "icon": "\ud83d\udce7"
+          "icon": "📧"
         },
         {
-          "question": "Bereite mich auf mein n\u00e4chstes Meeting vor indem du mir Informationen zum Thema und den Teilnehmern gibst.",
-          "icon": "\ud83d\udcc5"
+          "question": "Bereite mich auf mein nächstes Meeting vor indem du mir Informationen zum Thema und den Teilnehmern gibst.",
+          "icon": "📅"
         },
         {
-          "question": "Finde einen freien Zeitslot morgen f\u00fcr mich und [participant] und such nach einem freien Besprechungsraum f\u00fcr die Zeit.",
-          "icon": "\ud83d\udcde"
+          "question": "Finde einen freien Zeitslot morgen für mich und [participant] und such nach einem freien Besprechungsraum für die Zeit.",
+          "icon": "📞"
         },
         {
-          "question": "Erstelle eine To-Do Liste um die Agenda zu \u00fcberarbeiten, ein Restaurant in Berlin Charlottenburg zu buchen, und meine Rede vorzubereiten",
-          "icon": "\u2705"
+          "question": "Erstelle eine To-Do Liste um die Agenda zu überarbeiten, ein Restaurant in Berlin Charlottenburg zu buchen, und meine Rede vorzubereiten",
+          "icon": "✅"
         },
         {
-          "question": "Jeden Morgen um 8 Uhr, schlag mir Online-Kurse zum Thema [Thema] vor, einschlie\u00dflich Links.",
-          "icon": "\ud83d\udcdc"
+          "question": "Jeden Morgen um 8 Uhr, schlag mir Online-Kurse zum Thema [Thema] vor, einschließlich Links.",
+          "icon": "📜"
         },
         {
-          "question": "Erstelle eine Anrufliste mit allen Teilnehmern meines n\u00e4chstes Meetings.",
-          "icon": "\ud83d\udcde"
+          "question": "Erstelle eine Anrufliste mit allen Teilnehmern meines nächstes Meetings.",
+          "icon": "📞"
         },
         {
-          "question": "Wie komme ich mit dem \u00d6PNV vom Ernst-Reuter-Platz nach Berlin Hauptbahnhof?",
-          "icon": "\ud83e\udded"
+          "question": "Wie komme ich mit dem ÖPNV vom Ernst-Reuter-Platz nach Berlin Hauptbahnhof?",
+          "icon": "🧭"
         }
       ]
     },
     "informationUpskilling": {
       "id": "informationUpskilling",
       "header": "Information & Upskilling",
-      "icon": "\ud83d\udcda",
+      "icon": "📚",
       "visible": true,
-      "editable": false,
       "questions": [
         {
-          "question": "Fasse das README und die letzten Aktivit\u00e4ten des GitLab-Projekts \"opaca-core\" zusammen und erkl\u00e4re, wie man es lokal ausf\u00fchrt.",
-          "icon": "\ud83e\udd16"
+          "question": "Fasse das README und die letzten Aktivitäten des GitLab-Projekts \"opaca-core\" zusammen und erkläre, wie man es lokal ausführt.",
+          "icon": "🤖"
         },
         {
-          "question": "Was sind die spannendsten Technologietrends und Schl\u00fcsseltechnologien f\u00fcr 2026 im Bereich \"[Bereich]\"?",
-          "icon": "\ud83d\ude80"
+          "question": "Was sind die spannendsten Technologietrends und Schlüsseltechnologien für 2026 im Bereich \"[Bereich]\"?",
+          "icon": "🚀"
         },
         {
           "question": "Suche nach aktuellen Nachrichten zu [Thema].",
-          "icon": "\u267b\ufe0f"
+          "icon": "♻️"
         },
         {
-          "question": "Ich m\u00f6chte mein Masterstudium an der TU Berlin beginnen und mich auf [Schwerpunkt] konzentrieren. Welche Programme und Kurse gibt es?",
-          "icon": "\ud83c\udf93"
+          "question": "Ich möchte mein Masterstudium an der TU Berlin beginnen und mich auf [Schwerpunkt] konzentrieren. Welche Programme und Kurse gibt es?",
+          "icon": "🎓"
         },
         {
-          "question": "Erkl\u00e4re mir [Thema].",
-          "icon": "\ud83c\udf93"
+          "question": "Erkläre mir [Thema].",
+          "icon": "🎓"
         },
         {
-          "question": "Welche Werkzeuge gibt es, um agile Softwareentwicklung zu erm\u00f6glichen?",
-          "icon": "\ud83c\udf93"
+          "question": "Welche Werkzeuge gibt es, um agile Softwareentwicklung zu ermöglichen?",
+          "icon": "🎓"
         },
         {
           "question": "Schlage mir Online-Kurse vor, damit ich [topic] lernen kann.",
-          "icon": "\ud83c\udf93"
+          "icon": "🎓"
         }
       ]
     },
     "dataAnalysis": {
       "id": "dataAnalysis",
       "header": "Data Analysis",
-      "icon": "\ud83d\udcca",
+      "icon": "📊",
       "visible": true,
-      "editable": false,
       "questions": [
         {
-          "question": "Was sind die spannendsten zuk\u00fcnftigen Technologietrends, die in den n\u00e4chsten 10 Jahren die IT-Landschaft pr\u00e4gen werden?",
-          "icon": "\ud83c\udf93"
+          "question": "Was sind die spannendsten zukünftigen Technologietrends, die in den nächsten 10 Jahren die IT-Landschaft prägen werden?",
+          "icon": "🎓"
         },
         {
-          "question": "Hole meine GitLab-Benutzer-ID und erstelle anschlie\u00dfend ein Balkendiagramm meiner Nutzer-Statistiken der letzten 30 Tage.",
-          "icon": "\ud83d\udc64"
+          "question": "Hole meine GitLab-Benutzer-ID und erstelle anschließend ein Balkendiagramm meiner Nutzer-Statistiken der letzten 30 Tage.",
+          "icon": "👤"
         },
         {
           "question": "Erstelle ein Diagramm der Kursentwicklung von [Unternehmen] der letzten 30 Tage.",
-          "icon": "\ud83d\udcca"
+          "icon": "📊"
         },
         {
-          "question": "Welcher Besprechungsraum ist heute von [von] bis [bis] verf\u00fcgbar und in welchem ist der vorhergesagte CO\u2082-Wert f\u00fcr diesen Zeitraum am niedrigsten?",
-          "icon": "\ud83c\udf24\ufe0f"
+          "question": "Welcher Besprechungsraum ist heute von [von] bis [bis] verfügbar und in welchem ist der vorhergesagte CO₂-Wert für diesen Zeitraum am niedrigsten?",
+          "icon": "🌤️"
         },
         {
-          "question": "Analysiere die beigef\u00fcgte CSV-Datei mit den Temperaturdaten des Konferenzraums nach Woche, erkenne Trends und erstelle ein Liniendiagramm mit einem 7-Tage Rolling Average.",
-          "icon": "\ud83d\udcc8\ufe0f"
+          "question": "Analysiere die beigefügte CSV-Datei mit den Temperaturdaten des Konferenzraums nach Woche, erkenne Trends und erstelle ein Liniendiagramm mit einem 7-Tage Rolling Average.",
+          "icon": "📈️"
         }
       ]
     },
     "smartOffice": {
       "id": "smartOffice",
       "header": "Smart Office",
-      "icon": "\ud83c\udfe2",
+      "icon": "🏢",
       "visible": true,
-      "editable": false,
       "questions": [
         {
-          "question": "Wie ist die Temperatur und der CO\u2082-Wert im Konferenzraum?",
-          "icon": "\ud83c\udf21\ufe0f"
+          "question": "Wie ist die Temperatur und der CO₂-Wert im Konferenzraum?",
+          "icon": "🌡️"
         },
         {
-          "question": "Wo finde ich die Espressotassen in der K\u00fcche?",
-          "icon": "\u2615"
+          "question": "Wo finde ich die Espressotassen in der Küche?",
+          "icon": "☕"
         },
         {
           "question": "Stelle das Licht im Experience Hub auf halbe Helligkeit.",
-          "icon": "\ud83d\udca1"
+          "icon": "💡"
         },
         {
-          "question": "F\u00fchre mich bitte zum Konferenzraum.",
-          "icon": "\ud83e\udded"
+          "question": "Führe mich bitte zum Konferenzraum.",
+          "icon": "🧭"
         },
         {
-          "question": "Erinnere mich, alle 2 Minuten 10 Liegest\u00fctze zu machen, f\u00fcr die n\u00e4chsten 10 Minuten.",
-          "icon": "\ud83d\udcaa"
+          "question": "Erinnere mich, alle 2 Minuten 10 Liegestütze zu machen, für die nächsten 10 Minuten.",
+          "icon": "💪"
         }
       ]
     },
     "mobility": {
       "id": "mobility",
       "header": "Mobility",
-      "icon": "\ud83d\ude97",
+      "icon": "🚗",
       "visible": false,
-      "editable": false,
       "questions": [
         {
           "question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.",
-          "icon": "\ud83e\udded"
+          "icon": "🧭"
         }
       ]
     }
