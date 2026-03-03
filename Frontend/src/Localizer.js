@@ -354,7 +354,7 @@ class Localizer {
             return [];
         }
         // assemble questions from all or selected category into a single array
-        let filteredQuestions = this.getPrompts()
+        let filteredQuestions = Object.values(this.getPrompts())
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
             .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
             .filter(question => textInput === null || matches(question.question, textInput));
