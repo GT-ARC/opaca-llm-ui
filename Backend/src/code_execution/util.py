@@ -69,3 +69,12 @@ def transform_notebook_style(code: str) -> str:
     )
 
     return prefix + wrapped
+
+
+def extract_code_block(text: str) -> str:
+    """Extract Python code from an LLM response, stripping markdown fences if present."""
+    import re
+    match = re.search(r"```(?:python)?\s*\n(.*?)```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()

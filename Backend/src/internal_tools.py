@@ -23,6 +23,8 @@ from textwrap import dedent
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 from .code_execution import CodeExecutor
+from .code_execution.util import extract_code_block
+from .code_execution.prompts import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, MAX_CODE_RETRIES
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -100,12 +102,20 @@ class InternalTools:
             ),
             InternalTool(
                 name="ExecuteCode",
-                description="Runs python code in a sandbox environment. Bare expressions are printed like in a Jupyter notebook. Returns stdout, stderr, exit_code (0 = success), and validation results. Timeout parameter is optional (default 10s).",
+                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer 'SolveWithCode' unless you already have a specific snippet. Libraries may not to be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, and exit_code (0 = success).",
                 params={"code": "string", "timeout_s": "integer"},
-                required_params=["language", "code"],
+                required_params=["code"],
                 result="object",
                 function=self.code_executor.execute_code,
-            )
+            ),
+            InternalTool(
+                name="SolveWithCode",
+                description="Solve a computational task by generating and executing Python code in a Pyodide sandbox. Describe the task in plain language — code is generated, executed, and retried automatically on failure. Returns stdout, stderr, generated code, and exit_code (0 = success).",
+                params={"task": "string", "timeout_s": "integer"},
+                required_params=["task"],
+                result="object",
+                function=self.tool_solve_with_code,
+            ),
         ]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
@@ -319,3 +329,61 @@ class InternalTools:
                 "ok": False,
                 "error": str(e),
             }
+
+    async def tool_solve_with_code(self, task: str, timeout_s: int = 10) -> dict:
+        """
+        Generate Python code for *task* via an internal LLM call, execute it
+        in the Pyodide sandbox, and — if execution fails — retry up to
+        MAX_CODE_RETRIES times with the error fed back to the LLM.
+        """
+        prompt = PYODIDE_CODE_PROMPT.format(task=task)
+        code = ""
+        result = {}
+
+        for attempt in range(1 + MAX_CODE_RETRIES):
+            # 1. Ask the LLM to write code
+            llm_response = await self.query_method(prompt)
+            code = extract_code_block(llm_response.content)
+
+            if not code:
+                return {
+                    "stdout": "",
+                    "stderr": "LLM did not produce any code.",
+                    "exit_code": 1,
+                    "generated_code": "",
+                    "attempts": attempt + 1,
+                }
+
+            # 2. Execute in sandbox
+            result = await self.code_executor.execute_code(code=code, timeout_s=timeout_s)
+            if isinstance(result, dict):
+                result_dict = result
+            else:
+                result_dict = result.to_dict()
+
+            # 3. Success → return immediately
+            if result_dict.get("exit_code") == 0 and not result_dict.get("timed_out"):
+                result_dict["generated_code"] = code
+                result_dict["attempts"] = attempt + 1
+                return result_dict
+
+            # 4. Failure → build retry prompt
+            logger.warning(
+                "SolveWithCode attempt %d/%d failed:\n%s",
+                attempt + 1,
+                1 + MAX_CODE_RETRIES,
+                result_dict.get("stderr", ""),
+                )
+            prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
+                code=code,
+                stdout=result_dict.get("stdout", ""),
+                stderr=result_dict.get("stderr", ""),
+            )
+
+        # All attempts exhausted
+        result_dict["generated_code"] = code
+        result_dict["attempts"] = 1 + MAX_CODE_RETRIES
+        result_dict["note"] = (
+            f"Code execution failed after {1 + MAX_CODE_RETRIES} attempts."
+        )
+        return result_dict
