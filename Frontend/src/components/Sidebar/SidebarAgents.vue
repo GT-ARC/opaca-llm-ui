@@ -39,13 +39,11 @@
                         <i class="fa fa-box me-3"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
 
-                        <span class="float-end">
-                            <i v-if="conf.ContainerManagement"
-                               class="fa fa-remove click-icon"
-                               @click.stop.prevent="this.stopContainer(containerId)"
-                               :title="Localizer.get('agents_undeploy')"
-                            />
-                        </span>
+                        <i v-if="conf.ContainerManagement"
+                            class="fa fa-remove delete-icon"
+                            @click.stop.prevent="this.stopContainer(containerId)"
+                            :title="Localizer.get('agents_undeploy')"
+                        />
                     </button>
                 </h2>
 
@@ -322,5 +320,24 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
+}
+
+.delete-icon {
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    right: 2rem;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: var(--bs-border-radius-lg);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+    color: var(--text-danger-color);
 }
 </style>
