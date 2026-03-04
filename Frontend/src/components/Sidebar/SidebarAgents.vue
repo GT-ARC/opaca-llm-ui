@@ -35,6 +35,14 @@
                             aria-expanded="false">
                         <i class="fa fa-box me-3"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
+
+                        <span class="float-end">
+                            <i
+                            class="fa fa-remove click-icon"
+                            @click.stop.prevent="this.stopContainer(containerId)"
+                            :title="Localizer.get('agents_undeploy')"
+                            />
+                        </span>
                     </button>
                 </h2>
 
@@ -210,8 +218,16 @@ export default {
                         postContainer = {image: {imageName: values.image}};
                     }
                     await backendClient.deployContainer(postContainer);
+                    await this.updatePlatformInfo();
                 }
             );
+        },
+
+        async stopContainer(containerId) {
+            if (confirm(Localizer.get('agents_undeploy_confirm'))) {
+                await backendClient.undeployContainer(containerId);
+                await this.updatePlatformInfo();
+            }
         },
 
         async invokeAction(agent, action, schema) {
