@@ -103,6 +103,18 @@ class OpacaClient:
         except Exception as e:
             logger.error(f"Could not get Actions: {e}")
             raise e
+    
+    async def deploy_container(self, post_container: dict) -> None:
+        if self.url:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(f"{self.url}/containers", json=post_container, headers=self._headers())
+            res.raise_for_status()
+    
+    async def stop_container(self, container_id: str) -> None:
+        if self.url:
+            async with httpx.AsyncClient() as client:
+                res = await client.delete(f"{self.url}/containers/{container_id}", headers=self._headers())
+            res.raise_for_status()
 
     async def get_actions_simple(self) -> dict[str, List[Dict[str, Any]]]:
         """Get actions of OPACA agents, grouped by agent, but a bit simplified: just agent-ids and actions"""
