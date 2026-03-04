@@ -24,14 +24,14 @@ def load_default_prompts() -> SessionPrompts:
         raise FileNotFoundError('Default prompts file not found')
 
     return {
-        lang: {cat_id: PromptCategory.model_validate(cat) for cat_id, cat in cats.items()}
+        lang: [PromptCategory.model_validate(cat) for cat in cats]
         for lang, cats in data.items()
     }
 
 
 def save_default_prompts(prompts: SessionPrompts) -> None:
     data = {
-        lang: {cat_id: cat.model_dump(mode='json') for cat_id, cat in cats.items()}
+        lang: [cat.model_dump(mode='json') for cat in cats]
         for lang, cats in prompts.items()
     }
     save_json(DEFAULT_PROMPTS_FILE, data)

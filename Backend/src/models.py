@@ -234,7 +234,7 @@ class PromptCategory(BaseModel):
     header: str
     icon: str | None = None
     visible: bool = True
-    editable: bool = True
+    is_default: bool = True
     questions: List[Prompt] = []
 
 
@@ -277,7 +277,7 @@ class Chat(BaseModel):
             self.name = (f'{message[:32]}…' if len(message) > 32 else message)
 
 
-SessionPrompts = Dict[str, Dict[str, PromptCategory]]
+SessionPrompts = Dict[str, List[PromptCategory]]
 
 
 class SessionData(BaseModel):

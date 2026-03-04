@@ -445,10 +445,15 @@ async def post_prompts(data: SessionPrompts, session: SessionData = Depends(hand
 
 
 @app.delete("/prompts", description="Reset default prompt categories to their initial values.", tags=["sample prompts"])
-async def delete_prompts(session: SessionData = Depends(handle_session_http)) -> None:
+async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> None:
     default_prompts = prompts.load_default_prompts()
-    for lang, session_prompts in session.prompts.items():
-        session_prompts.update(default_prompts[lang])
+    session_prompts = {
+        lang: [cat for cat in cats if not cat.is_default]
+        for lang, cats in session.prompts.items()
+    }
+    for lang, cats in session_prompts.items():
+        cats.extend(default_prompts[lang])
+    session.prompts = session_prompts
 
 
 @app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
