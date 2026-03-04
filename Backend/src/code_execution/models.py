@@ -12,7 +12,6 @@ class ExecutionResult:
             timed_out: bool,
             run_id: str = "",
             validation: dict[str, list[str]] | None = None,
-            execution_backend: str = "pyodide",
             proof_verified: bool = False,
     ):
         self.stdout = stdout
@@ -21,7 +20,6 @@ class ExecutionResult:
         self.timed_out = timed_out
         self.run_id = run_id
         self.validation = validation or {}
-        self.execution_backend = execution_backend  # TODO remove
         self.proof_verified = proof_verified
 
     def to_dict(self) -> dict:
@@ -32,6 +30,5 @@ class ExecutionResult:
             "timed_out": self.timed_out,
             "run_id": self.run_id,
             "validation": self.validation,
-            "execution_backend": self.execution_backend,
             "proof_verified": self.proof_verified,
         }

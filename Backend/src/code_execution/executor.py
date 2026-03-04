@@ -9,7 +9,6 @@ import inspect
 import logging
 import subprocess
 import uuid
-from textwrap import dedent
 
 from .models import ExecutionResult
 from .execution_proof import ProofToken
@@ -228,7 +227,6 @@ class CodeExecutor:
                     stderr=stderr,
                     exit_code=exit_code,
                     timed_out=False,
-                    execution_backend="pyodide",
                     proof_verified=True,
                 )
 
@@ -259,7 +257,6 @@ class CodeExecutor:
                 stderr=stderr_text,
                 exit_code=EXIT_PROOF_FAILED,
                 timed_out=False,
-                execution_backend="pyodide",
             )
 
         except asyncio.TimeoutError:
@@ -705,7 +702,6 @@ class CodeExecutor:
             stderr: str,
             exit_code: int,
             timed_out: bool,
-            execution_backend: str = "pyodide",
             proof_verified: bool = False,
     ) -> dict:
         return ExecutionResult(
@@ -715,6 +711,5 @@ class CodeExecutor:
             timed_out=timed_out,
             run_id=run_id,
             validation=validation,
-            execution_backend=execution_backend,
             proof_verified=proof_verified,
         ).to_dict()
