@@ -205,7 +205,8 @@ async def post_container(post_container: dict, session: SessionData = Depends(ha
         await session.opaca_client.deploy_container(post_container)
         return {"success": True}
     except HTTPStatusError as e:
-        return {"success": False, "error": unpack_error(e.response.json())}
+        message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())
+        return {"success": False, "error": f"{e.response.status_code}: {message}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
