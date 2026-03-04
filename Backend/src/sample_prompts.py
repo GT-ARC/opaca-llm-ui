@@ -34,6 +34,7 @@ def save_default_prompts(prompts: SessionPrompts) -> None:
         lang: [cat.model_dump(mode='json') for cat in cats]
         for lang, cats in prompts.items()
     }
+    DEFAULT_PROMPTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     save_json(DEFAULT_PROMPTS_FILE, data)
 
 

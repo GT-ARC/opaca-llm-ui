@@ -451,9 +451,9 @@ async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> 
         lang: [cat for cat in cats if not cat.is_default]
         for lang, cats in session.prompts.items()
     }
-    for lang, cats in session_prompts.items():
-        cats.extend(default_prompts[lang])
-    session.prompts = session_prompts
+    for lang, cats in default_prompts.items():
+        cats.extend(session_prompts[lang])
+    session.prompts = default_prompts
 
 
 @app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
