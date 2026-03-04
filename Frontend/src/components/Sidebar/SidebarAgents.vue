@@ -10,7 +10,10 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('agents_loading') }}
     </div>
-    <div v-else-if="!platformContainers || platformContainers.length === 0">
+    <div v-else-if="platformContainers === null">
+        {{ Localizer.get('general_disconnected') }}
+    </div>
+    <div v-else-if="platformContainers.length === 0">
         {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
@@ -37,10 +40,10 @@
                         <strong>{{ image?.imageName ?? containerId }}</strong>
 
                         <span class="float-end">
-                            <i
-                            class="fa fa-remove click-icon"
-                            @click.stop.prevent="this.stopContainer(containerId)"
-                            :title="Localizer.get('agents_undeploy')"
+                            <i v-if="conf.ContainerManagement"
+                               class="fa fa-remove click-icon"
+                               @click.stop.prevent="this.stopContainer(containerId)"
+                               :title="Localizer.get('agents_undeploy')"
                             />
                         </span>
                     </button>
@@ -120,8 +123,9 @@
             </div>
         </div>
     </div>
-    <button class="accordion-button align-items-center mb-2"
-         @click.stop="addContainer()">
+    <button v-if="conf.ContainerManagement && this.platformContainers !== null /* null -> not-connected */"
+            class="accordion-button align-items-center mb-2"
+            @click.stop="addContainer()">
         <i class="fa fa-plus me-2"></i>
         <span>{{ Localizer.get("agents_deploy") }}</span>
     </button>

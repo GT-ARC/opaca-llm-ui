@@ -33,6 +33,9 @@ let config = {
     // the boolean value is parsed later, together with the one passed as query param, if any
     AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
 
+    // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
+    ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
+
     // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
 
