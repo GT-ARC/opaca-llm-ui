@@ -105,10 +105,9 @@ class OpacaClient:
             raise e
     
     async def deploy_container(self, post_container: dict) -> None:
-        if self.url:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(f"{self.url}/containers", json=post_container, headers=self._headers())
-            res.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            res = await client.post(f"{self.url}/containers", json=post_container, headers=self._headers())
+        res.raise_for_status()
     
     async def stop_container(self, container_id: str) -> None:
         if self.url:

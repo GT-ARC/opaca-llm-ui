@@ -25,7 +25,6 @@ class BackendClient {
     }
 
     async deployContainer(postContainer) {
-        console.log(JSON.stringify(postContainer));
         return await this.sendRequest("POST", "containers", postContainer);
     }
 

@@ -200,13 +200,19 @@ async def get_containers(session: SessionData = Depends(handle_session_http)) ->
 
 
 @app.post("/containers", description="Deploy container to connected OPACA Runtime Platform.", tags=["opaca"])
-async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> None:
-    return await session.opaca_client.deploy_container(post_container)
+async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
+    try:
+        await session.opaca_client.deploy_container(post_container)
+        return {"success": True}
+    except HTTPStatusError as e:
+        return {"success": False, "error": unpack_error(e.response.json())}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.delete("/containers/{container_id}", description="Undeploy container from connected OPACA Runtime Platform.", tags=["opaca"])
 async def delete_container(container_id: str, session: SessionData = Depends(handle_session_http)) -> None:
-    return await session.opaca_client.stop_container(container_id)
+    await session.opaca_client.stop_container(container_id)
 
 
 @app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])

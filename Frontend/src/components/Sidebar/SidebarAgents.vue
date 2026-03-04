@@ -221,8 +221,12 @@ export default {
                     if (! postContainer || postContainer === "") {
                         postContainer = {image: {imageName: values.image}};
                     }
-                    await backendClient.deployContainer(postContainer);
-                    await this.updatePlatformInfo();
+                    const res = await backendClient.deployContainer(postContainer);
+                    if (res.success) {
+                        await this.updatePlatformInfo();
+                    } else {
+                        throw new Error(res.error);
+                    }
                 }
             );
         },
