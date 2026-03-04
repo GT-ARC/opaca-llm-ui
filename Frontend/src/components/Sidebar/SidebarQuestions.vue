@@ -33,7 +33,7 @@
                         />
                         <i v-if="isEditModeActive"
                            class="fa fa-remove click-icon"
-                           :class="{'disabled': !this.isEditingAllowed}"
+                           :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
                            @click.stop.prevent="this.deleteCategory(section, index)"
                            :title="Localizer.get('questions_deleteCategory')"
                         />
