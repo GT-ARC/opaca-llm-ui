@@ -112,6 +112,11 @@
             </div>
         </div>
     </div>
+    <button class="accordion-button align-items-center mb-2"
+         @click.stop="addContainer()">
+        <i class="fa fa-plus me-2"></i>
+        <span>{{ Localizer.get("agents_deploy") }}</span>
+    </button>
 </div>
 
 </template>
@@ -188,6 +193,25 @@ export default {
             });
 
             return containers;
+        },
+
+        async addContainer() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_hint"),
+                null,
+                {
+                    image: { type: "text", label: "Image Name" },
+                    json: { type: "textarea", label: "Post Container JSON", default: "" },
+                },
+                async values => {
+                    var postContainer = values.json;
+                    if (! postContainer || postContainer === "") {
+                        postContainer = {image: {imageName: values.image}};
+                    }
+                    await backendClient.deployContainer(postContainer);
+                }
+            );
         },
 
         async invokeAction(agent, action, schema) {
