@@ -64,10 +64,11 @@
             </div>
         </div>
     </div>
-    <button class="accordion-button align-items-center mb-2"
-         @click.stop="addMcp()">
+    <button type="button"
+            class="btn btn-primary py-2 w-100"
+            @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get('mcp_add')}}</span>
+        {{ Localizer.get("mcp_add") }}
     </button>
 
     <InputDialogue ref="input" />

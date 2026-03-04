@@ -64,16 +64,13 @@
             </div>
         </div>
     </div>
-
-    <div class="d-grid gap-2">
-        <button type="button"
-                class="btn btn-secondary py-2 w-100"
-                @click.stop="updatePlatformInfo()"
-                :disabled="this.isLoading" >
-            <i class="fa fa-refresh" />
-            {{ Localizer.get('extensions_refresh') }}
-        </button>
-    </div>
+    <button type="button"
+            class="btn btn-secondary py-2 w-100"
+            @click.stop="updatePlatformInfo()"
+            :disabled="this.isLoading" >
+        <i class="fa fa-refresh" />
+        {{ Localizer.get('extensions_refresh') }}
+    </button>
 </div>
 
 </template>

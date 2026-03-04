@@ -124,10 +124,11 @@
         </div>
     </div>
     <button v-if="conf.ContainerManagement && this.platformContainers !== null /* null -> not-connected */"
-            class="accordion-button align-items-center mb-2"
+            type="button"
+            class="btn btn-primary py-2 w-100"
             @click.stop="addContainer()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get("agents_deploy") }}</span>
+        {{ Localizer.get("agents_deploy") }}
     </button>
 </div>
 
