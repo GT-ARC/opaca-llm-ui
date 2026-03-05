@@ -234,6 +234,7 @@ class PromptCategory(BaseModel):
     header: str
     icon: str | None = None
     visible: bool = True
+    is_default: bool = True
     questions: List[Prompt] = []
 
 
@@ -276,6 +277,9 @@ class Chat(BaseModel):
             self.name = (f'{message[:32]}…' if len(message) > 32 else message)
 
 
+SessionPrompts = Dict[str, List[PromptCategory]]
+
+
 class SessionData(BaseModel):
     """
     Stores relevant information regarding the session, including messages, configuration,
@@ -315,7 +319,7 @@ class SessionData(BaseModel):
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
-    prompts: Dict[str, List[PromptCategory]] = None
+    prompts: SessionPrompts | None = None
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

@@ -23,7 +23,7 @@ from openai import OpenAI
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
-    PromptCategory, InvokeRequest, InvokeResponse
+    InvokeRequest, InvokeResponse, SessionPrompts
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -433,29 +433,36 @@ async def view_file(file_id: str, session: SessionData = Depends(handle_session_
 # sample prompts
 
 @app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
-async def get_prompts(session: SessionData = Depends(handle_session_http)) -> Dict[str, List[PromptCategory]]:
+async def get_prompts(session: SessionData = Depends(handle_session_http)) -> SessionPrompts:
     if session.prompts is None:
         session.prompts = prompts.load_default_prompts()
     return session.prompts
 
 
 @app.post("/prompts", description="Save the modified Prompt library for the current session.", tags=["sample prompts"])
-async def post_prompts(data: Dict[str, List[PromptCategory]], session: SessionData = Depends(handle_session_http)) -> None:
+async def post_prompts(data: SessionPrompts, session: SessionData = Depends(handle_session_http)) -> None:
     session.prompts = data
 
 
-@app.delete("/prompts", description="Reset the session's prompt library to the default values.", tags=["sample prompts"])
-async def delete_prompts(session: SessionData = Depends(handle_session_http)) -> None:
-    session.prompts = prompts.load_default_prompts()
+@app.delete("/prompts", description="Reset default prompt categories to their initial values.", tags=["sample prompts"])
+async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> None:
+    default_prompts = prompts.load_default_prompts()
+    session_prompts = {
+        lang: [cat for cat in cats if not cat.is_default]
+        for lang, cats in session.prompts.items()
+    }
+    for lang, cats in default_prompts.items():
+        cats.extend(session_prompts[lang])
+    session.prompts = default_prompts
 
 
 @app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
-async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+async def get_default_prompts() -> SessionPrompts:
     return prompts.load_default_prompts()
 
 
 @app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
-async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
+async def post_default_prompts(data: SessionPrompts, auth = Depends(require_password)) -> None:
     prompts.save_default_prompts(data)
 
 

@@ -1,9 +1,9 @@
 import logging
 import json
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
-from .models import PromptCategory
+from .models import PromptCategory, SessionPrompts
 
 log = logging.getLogger(__name__)
 
@@ -15,24 +15,26 @@ DEFAULT_PROMPTS_BASE = Path('./default_prompts.json')
 DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
 
 
-def load_default_prompts() -> Dict[str, List[PromptCategory]]:
+def load_default_prompts() -> SessionPrompts:
     if DEFAULT_PROMPTS_FILE.is_file():
         data = load_json(DEFAULT_PROMPTS_FILE)
     elif DEFAULT_PROMPTS_BASE.is_file():
         data = load_json(DEFAULT_PROMPTS_BASE)
     else:
         raise FileNotFoundError('Default prompts file not found')
+
     return {
-        key: [PromptCategory.model_validate(cat) for cat in cats]
-        for key, cats in data.items()
+        lang: [PromptCategory.model_validate(cat) for cat in cats]
+        for lang, cats in data.items()
     }
 
 
-def save_default_prompts(prompts: Dict[str, List[PromptCategory]]) -> None:
+def save_default_prompts(prompts: SessionPrompts) -> None:
     data = {
-        key: [cat.model_dump() for cat in cats]
-        for key, cats in prompts.items()
+        lang: [cat.model_dump(mode='json') for cat in cats]
+        for lang, cats in prompts.items()
     }
+    DEFAULT_PROMPTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     save_json(DEFAULT_PROMPTS_FILE, data)
 
 
@@ -50,10 +52,10 @@ def load_json(filename: str | Path) -> Any:
         raise e
 
 
-def save_json(filename: str | Path, data: Any, indent: int = 4) -> None:
+def save_json(filename: str | Path, data: Any, indent: int = 2) -> None:
     try:
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=indent)
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=indent)
     except Exception as e:
         log.error(f'Failed to save JSON to "{filename}"')
         raise e
