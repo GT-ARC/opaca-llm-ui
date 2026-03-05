@@ -134,6 +134,7 @@
 
 
 <script>
+import { nextTick } from 'vue';
 import conf from '../../../config.js';
 import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
@@ -165,6 +166,7 @@ export default {
                 ? await backendClient.getContainers()
                 : null;
             this.isLoading = false;
+            await nextTick();
         },
 
         formatJSON(obj) {
