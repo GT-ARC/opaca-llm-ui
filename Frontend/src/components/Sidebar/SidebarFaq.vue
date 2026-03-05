@@ -33,7 +33,7 @@ export default {
     },
     methods: {
         async buildFaqContent() {
-            const readmeUrl = '/src/assets/about.md';
+            const readmeUrl = `/src/assets/about_${Localizer.language}.md`;
             try {
                 const response = await fetch(readmeUrl);
                 if (response.ok) {
@@ -46,6 +46,11 @@ export default {
                 console.error('Failed to fetch FAQ content:', error);
             }
         },
+    },
+    watch: {
+        'Localizer.language'() {
+            this.buildFaqContent();
+        }
     },
     mounted() {
         this.buildFaqContent();
