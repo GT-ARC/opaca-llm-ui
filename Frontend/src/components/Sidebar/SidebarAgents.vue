@@ -214,10 +214,13 @@ export default {
                 Localizer.get("agents_deploy_hint"),
                 null,
                 {
-                    image: { type: "text", label: "Image Name" },
+                    image: { type: "text", label: "Image Name", default: "" },
                     json: { type: "textarea", label: "Post Container JSON", default: "" },
                 },
                 async values => {
+                    if (values.image === "" && values.json === "") {
+                        throw new Error(Localizer.get("agents_deploy_hint"));
+                    }
                     var postContainer = values.json;
                     if (! postContainer || postContainer === "") {
                         postContainer = {image: {imageName: values.image}};
