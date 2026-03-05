@@ -55,9 +55,9 @@ If you need to provide environment variables to your container, you must define 
 
 ## SAGE-UI
 
-If SAGE is connected to an OPACA Runtime Platform, then the Agents view in the sidebar can be used to start OPACA Agent Containers on that connected platform, provided the user currently logged into SAGE has sufficient privileges. (Starting containers requires a role of "contributor" or higher, whereas other functions can be used with a "user" role, as well.) Users can either specify only the name of the OPACA Container Image, or provide a full JSON specification as with the Swagger UI above. The latter is useful is the container can be parameterized or provides extra-ports, both of which have to be included in the JSON in order to be configured properly when the container is started.
+If SAGE is connected to an OPACA Runtime Platform, then the Agents view in the sidebar can be used to start OPACA Agent Containers on that connected platform, provided the user currently logged into SAGE (and thus OPACA) has sufficient privileges. (Starting containers requires a role of "contributor" or higher, whereas other functions can be used with a "user" role, as well.) Users can either specify only the name of the OPACA Container Image, or provide a full JSON specification as with the Swagger UI above. The latter is useful if the container can be parameterized or provides extra-ports, both of which have to be included in the JSON in order to be configured properly when the container is started.
 
-Conversely, running agent containers can also be stopped from the Agents view by clicking the small "x" symbol.
+Conversely, running agent containers can also be stopped and removed from the Agents view and OPACA Runtime Platform by clicking the small "x" symbol.
 
 Both starting and stopping containers from within SAGE can be deactivated via the `VITE_CONTAINER_MANAGEMENT` environment variable, which can be useful to prevent container deployment in a public no-auth deployment.
 
