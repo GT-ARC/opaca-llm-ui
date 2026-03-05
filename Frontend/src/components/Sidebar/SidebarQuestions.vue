@@ -27,7 +27,7 @@
                     <span class="float-end">
                         <i v-if="isEditModeActive && !section.is_default"
                            class="fa fa-edit click-icon"
-                           :class="{'disabled': !this.isEditingAllowed}"
+                           :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
                            @click.stop.prevent="this.editCategory(section)"
                            :title="Localizer.get('questions_editCategory')"
                         />
