@@ -39,18 +39,19 @@ Jedes dem LLM verfügbare Werkzeug entspricht einer Aktion, die von einem der Ag
 **Was ist der Unterschied zwischen den Interaktionsmodi?**  
 - Simple: Ein einfacher Prompt, der die verfügbaren Aktionen aufführt und das LLM in einer Schleife abfragt; die zu ausführenden Aktionen werden aus der LLM‑Ausgabe extrahiert.  
 - Simple‑Tools: Ein einzelner Agent wie bei 'Simple', jedoch unter Verwendung des 'tools'-Parameters.
-- Tool‑LLM: Drei Agenten nutzen den integrierten 'tools'-Parameter neuerer Modelle und bieten ein gutes Gleichgewicht zwischen Geschwindigkeit, Einfachheit und Funktionalität.  
+- Tool‑LLM: Drei Agenten nutzen den integrierten 'tools'-Parameter und bieten ein gutes Gleichgewicht zwischen Geschwindigkeit, Einfachheit und Funktionalität.  
 - Self‑Orchestration: Ein zweistufiger Ansatz, bei dem ein Orchestrator mehrere Gruppen von Worker‑Agenten delegiert, die jeweils für unterschiedliche OPACA‑Agenten zuständig sind.  
 
 **Welche Prompts kann ich verwenden und wo kann ich mehr erfahren?**  
 Verwende natürliche Sprache, um zu beschreiben, was du möchtest. Sieh dir die Prompt‑Bibliothek für Beispiele und Vorlagen an. Das LLM kann dir helfen, die verschiedenen Werkzeuge der Agenten auf der OPACA‑Plattform zu nutzen oder allgemeine Fragen zu beantworten.
 
 **Kann ich eigene Werkzeuge/Dienste einsetzen?**  
-Ja. Wenn du die Backend‑URL und Zugangsdaten hast, kannst du neue AgentContainers bei OPACA bereitstellen und deren Aktionen als zusätzliche Werkzeuge verwenden.
+Ja. Wenn du die Backend‑URL und Zugangsdaten hast, kannst du neue AgentContainers bei OPACA bereitstellen und deren Aktionen als zusätzliche Werkzeuge verwenden. Schaue dir dazu das verlinkte Python SDK am Ende dieser Seite an, um zu erfahren, wie du deine eigenen AgentContainers entwickeln und bereitstellen kannst.
 
 
 ## Weiterführende Literatur
 
 * <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE auf GitHub</a>
 * <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA auf GitHub</a>
+<a href="https://github.com/GT-ARC/opaca-python-sdk" target="_blank">OPACA Python SDK auf GitHub</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Projekt</a>

@@ -47,6 +47,11 @@ export default {
             }
         },
     },
+    watch: {
+        'Localizer.language'() {
+            this.buildFaqContent();
+        }
+    },
     mounted() {
         this.buildFaqContent();
     },
