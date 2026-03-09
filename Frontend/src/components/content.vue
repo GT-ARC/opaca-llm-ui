@@ -510,6 +510,9 @@ export default {
                 // metrics: dict
                 // execution_time: float
                 // TODO do something with metrics messages
+                console.log(JSON.stringify(result));
+                const aiBubble = this.getLastBubble();
+                aiBubble.addMetric(result);
             }
         },
 
