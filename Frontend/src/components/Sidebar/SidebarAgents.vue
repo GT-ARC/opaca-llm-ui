@@ -10,7 +10,10 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('agents_loading') }}
     </div>
-    <div v-else-if="!platformContainers || platformContainers.length === 0">
+    <div v-else-if="platformContainers === null">
+        {{ Localizer.get('general_disconnected') }}
+    </div>
+    <div v-else-if="platformContainers.length === 0">
         {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
@@ -35,6 +38,12 @@
                             aria-expanded="false">
                         <i class="fa fa-box me-3"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
+
+                        <i v-if="conf.ContainerManagement"
+                            class="fa fa-remove delete-icon"
+                            @click.stop.prevent="this.stopContainer(containerId)"
+                            :title="Localizer.get('agents_undeploy')"
+                        />
                     </button>
                 </h2>
 
@@ -112,12 +121,20 @@
             </div>
         </div>
     </div>
+    <button v-if="conf.ContainerManagement && this.platformContainers !== null /* null -> not-connected */"
+            type="button"
+            class="btn btn-primary py-2 w-100"
+            @click.stop="addContainer()">
+        <i class="fa fa-plus me-2"></i>
+        {{ Localizer.get("agents_deploy") }}
+    </button>
 </div>
 
 </template>
 
 
 <script>
+import { nextTick } from 'vue';
 import conf from '../../../config.js';
 import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
@@ -149,6 +166,7 @@ export default {
                 ? await backendClient.getContainers()
                 : null;
             this.isLoading = false;
+            await nextTick();
         },
 
         formatJSON(obj) {
@@ -188,6 +206,40 @@ export default {
             });
 
             return containers;
+        },
+
+        async addContainer() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_hint"),
+                null,
+                {
+                    image: { type: "text", label: "Image Name", default: "" },
+                    json: { type: "textarea", label: "Post Container JSON", default: "" },
+                },
+                async values => {
+                    if (values.image === "" && values.json === "") {
+                        throw new Error(Localizer.get("agents_deploy_hint"));
+                    }
+                    var postContainer = values.json;
+                    if (! postContainer || postContainer === "") {
+                        postContainer = {image: {imageName: values.image}};
+                    }
+                    const res = await backendClient.deployContainer(postContainer);
+                    if (res.success) {
+                        await this.updatePlatformInfo();
+                    } else {
+                        throw new Error(res.error);
+                    }
+                }
+            );
+        },
+
+        async stopContainer(containerId) {
+            if (confirm(Localizer.get('agents_undeploy_confirm'))) {
+                await backendClient.undeployContainer(containerId);
+                await this.updatePlatformInfo();
+            }
         },
 
         async invokeAction(agent, action, schema) {
@@ -273,5 +325,24 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
+}
+
+.delete-icon {
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    right: 2rem;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: var(--bs-border-radius-lg);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+    color: var(--text-danger-color);
 }
 </style>

@@ -139,6 +139,7 @@ export default {
          */
         async updateDialogue() {
             if (this.loading) return;
+            if (this.errorMsg) return;
             if (this.queue.length === 0) {
                 this.show = false;
                 return;
@@ -173,6 +174,7 @@ export default {
         async handleSubmit(okay) {
             await nextTick();
             this.loading = true;
+            this.errorMsg = null;
             try {
                 const callback = okay ? this.onOkay : this.onCancel;
                 await callback(this.values);

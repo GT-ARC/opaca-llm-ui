@@ -22,14 +22,14 @@
                             :data-bs-target="'#mcp-body-' + mcpServerIndex"
                             aria-expanded="false"
                             :aria-controls="'mcp-body-' + mcpServerIndex">
-                        <i class="fa fa-user me-3"/>
+                        <i class="fa fa-server me-3"/>
                         <strong>{{ mcpName }}</strong>
 
                         <!-- Delete Button -->
                         <i
-                            class="fa fa-trash delete-icon"
+                            class="fa fa-remove delete-icon"
                             @click.stop="this.deleteMcp(mcpName)"
-                            title="Delete MCP Server"
+                            :title="Localizer.get('mcp_remove')"
                         />
                     </button>
                 </h2>
@@ -64,10 +64,11 @@
             </div>
         </div>
     </div>
-    <button class="accordion-button align-items-center mb-2"
-         @click.stop="addMcp()">
+    <button type="button"
+            class="btn btn-primary py-2 w-100"
+            @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get('mcp_add')}}</span>
+        {{ Localizer.get("mcp_add") }}
     </button>
 
     <InputDialogue ref="input" />
@@ -145,7 +146,7 @@ export default {
 
         async deleteMcp(mcpName) {
             await this.$refs.input.showDialogue(
-                "Delete MCP server?", null, null, {}, 
+                Localizer.get('mcp_remove') + "?", null, null, {}, 
                 async (values) => {
                     await backendClient.deleteMcp(mcpName);
                     await this.updateMcp(true);
@@ -242,14 +243,12 @@ export default {
     justify-content: center;
     transform: translateY(-50%);
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-danger-color);
     cursor: pointer;
     transition: color 0.2s ease;
 }
 
 .delete-icon:hover {
-    color: var(--primary-color);
-    background-color: var(--background-color);
+    color: var(--text-danger-color);
 }
 
 </style>

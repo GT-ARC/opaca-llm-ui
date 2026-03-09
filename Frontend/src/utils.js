@@ -24,6 +24,14 @@ class BackendClient {
         return await this.sendRequest("GET", "containers");
     }
 
+    async deployContainer(postContainer) {
+        return await this.sendRequest("POST", "containers", postContainer);
+    }
+
+    async undeployContainer(containerId) {
+        return await this.sendRequest("DELETE", `containers/${containerId}`);
+    }
+
     async invokeAction(agent, action, parameters) {
         const body = {agent: agent, action: action, parameters: parameters};
         return await this.sendRequest("POST", "invoke", body);
