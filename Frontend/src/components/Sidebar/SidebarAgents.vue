@@ -208,7 +208,7 @@ export default {
             return containers;
         },
 
-        async addContainer() {
+        async addContainer_old() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
                 Localizer.get("agents_deploy_hint"),
@@ -233,6 +233,125 @@ export default {
                     }
                 }
             );
+        },
+
+        async addContainer() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                "How do you want to deploy?",
+                null,
+                {
+                    howto: { type: "select", default: 1, values: {
+                        "0": "Select Container Image from Registry",
+                        "1": "Enter OPACA Container Image name",
+                        "2": "Enter full JSON of OPACA Container Image",
+                    }},
+                },
+                async values => {
+                    console.log("CALLBACK CALLED!!!")
+                    console.log(values.howto);
+                    if (values.howto == 0) {
+                        await this.addContainerFromRegistry();
+                    }
+                    if (values.howto == 1) {
+                        await this.addContainerFromImageName();
+                    }
+                    if (values.howto == 2) {
+                        await this.addContainerFromJson();
+                    }
+                }
+            );
+        },
+
+        async addContainerFromRegistry() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                "T.b.d. This would first show a textfield for the OPACA Registry URL+Port, then in another dialogue a dropdown with available Images. Then, in a third dialogue, it would possibly ask for container parameters, like for JSON when entering the JSON of an Image with parameters...",
+                null,
+                {
+                    image: { type: "select", default: 1, values: {
+                        "0": "Some OPACA Image",
+                        "1": "Some other image",
+                        "2": "Whatever",
+                    }},
+                },
+                async values => {
+                    console.log("CALLBACK CALLED!!!")
+                    throw new Error("Not yet implemented");
+                }
+            );
+        },
+
+        async addContainerFromImageName() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                "Enter name of the OPACA Image to deploy",
+                null,
+                {
+                    image: { type: "text", label: "Image Name"},
+                },
+                async values => {
+                    console.log("CALLBACK CALLED!!!")
+                    await this.doPostContainer({image: {imageName: values.image}});
+                }
+            );
+        },
+
+        async addContainerFromJson() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                "Enter or paste full JSON of either OPACA Container Image description or Post-Container specification.",
+                null,
+                {
+                    json: { type: "textarea", label: "Image/Container JSON" },
+                },
+                async values => {
+                    var json = JSON.parse(values.json);
+                    if (json.image) {
+                        return this.doPostContainer(json);
+                    }
+                    if (json.imageName) {
+                        return this.doPostContainerImage(json);
+                    }
+                    throw new Error("Unrecognized JSON format");
+                }
+            );
+
+        },
+
+        async doPostContainerImage(image) {
+            if (image.parameters && image.parameters.length > 0) {
+                // XXX adapted from invoke-action, maybe this can be generalized?
+                // XXX here, we REALLY need to differentiate into values that HAVE to be provided and those that can be null...
+                const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
+                await this.$refs.input.showDialogue(
+                    Localizer.get("agents_deploy"),
+                    "Specify Container Parameters",
+                    null,
+                    Object.fromEntries(
+                        image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue}]))
+                    ),
+                    async values => {
+                        // JSON-parse non-primitive inputs --> parse errors are shown in error label
+                        var parameters = Object.fromEntries(
+                            Object.entries(values).map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
+                        );
+                        console.log(JSON.stringify(parameters));
+                    }
+                );
+
+            } else {
+                await this.doPostContainer({image: image});
+            }
+        },
+
+        async doPostContainer(postContainer) {
+            const res = await backendClient.deployContainer(postContainer);
+            if (res.success) {
+                await this.updatePlatformInfo();
+            } else {
+                throw new Error(res.error);
+            }
         },
 
         async stopContainer(containerId) {
