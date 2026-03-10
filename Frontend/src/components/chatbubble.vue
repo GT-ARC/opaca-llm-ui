@@ -317,7 +317,7 @@ export default {
             return this.metrics.map( m => {
                 const tokens_in = m.metrics.input_tokens;
                 const tokens_out = m.metrics.total_tokens - m.metrics.input_tokens;
-                return `${m.agent} (${m.model}): ↑ ${tokens_in}, ↓ ${tokens_out}, ${m.execution_time.toFixed(2)}s`
+                return `${m.agent}: ↑ ${tokens_in}, ↓ ${tokens_out}, ${m.execution_time.toFixed(2)}s`
             });
         },
 

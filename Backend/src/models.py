@@ -526,7 +526,6 @@ class StatusMessage(BaseModel):
 
 class MetricsMessage(BaseModel):
     agent: str
-    model: str
     metrics: dict
     execution_time: float
 

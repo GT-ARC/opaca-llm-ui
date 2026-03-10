@@ -507,10 +507,6 @@ export default {
             }
 
             if (result.type === "MetricsMessage") {
-                // metrics: dict
-                // execution_time: float
-                // TODO do something with metrics messages
-                console.log(JSON.stringify(result));
                 const aiBubble = this.getLastBubble();
                 aiBubble.addMetric(result);
             }
@@ -653,21 +649,28 @@ export default {
                     }
                     // response
                     await this.addChatBubble(msg.content, false);
+                    const aiBubble = this.getLastBubble();
                     for (const agent_message of msg.agent_messages) {
                         const chunk = {
                             id: agent_message.id,
                             agent: agent_message.agent,
                             chunk: agent_message.content,
                             is_output: false,
-                        }
+                        };
                         this.addDebugToken(chunk);
                         for (const tool of agent_message.tools) {
                             this.addDebugTool(agent_message.agent, tool);
                             this.addDebugResult({id: tool.id, result: tool.result});
                         }
+                        const metric = {
+                            agent: agent_message.agent,
+                            execution_time: agent_message.execution_time,
+                            metrics: agent_message.response_metadata
+                        };
+                        aiBubble.addMetric(metric)
                     }
                     if (msg.error) {
-                        this.getLastBubble().setError(msg.error);
+                        aiBubble.setError(msg.error);
                     }
                 }
 
