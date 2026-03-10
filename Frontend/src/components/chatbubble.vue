@@ -267,7 +267,7 @@ export default {
             isToolsExpanded: false,
             isMetricsExpanded: false,
             isCollapsed: false,
-            metrics: [],
+            metrics: {},
         }
     },
 
@@ -314,15 +314,18 @@ export default {
         },
 
         getMetrics() {
-            return this.metrics.map( m => {
-                const tokens_in = m.metrics.input_tokens;
-                const tokens_out = m.metrics.total_tokens - m.metrics.input_tokens;
-                return `${m.agent}: ↑ ${tokens_in}, ↓ ${tokens_out}, ${m.execution_time.toFixed(2)}s`
+            return Object.entries(this.metrics).map( ([a, m]) => {
+                return `${a} (${m.count}): ↑ ${m.tokens_in}, ↓ ${m.tokens_out}, ${m.execution_time.toFixed(2)}s`
             });
         },
 
-        addMetric(metric) {
-            this.metrics.push(metric);
+        addMetric(m) {
+            const metric = this.metrics[m.agent] ?? { count: 0, tokens_in: 0, tokens_out: 0, execution_time: 0 };
+            metric.count += 1;
+            metric.tokens_in += m.metrics.input_tokens;
+            metric.tokens_out += m.metrics.total_tokens - m.metrics.input_tokens;
+            metric.execution_time += m.execution_time;
+            this.metrics[m.agent] = metric;
         },
 
         addDebugMessage(text, type, id=null) {
