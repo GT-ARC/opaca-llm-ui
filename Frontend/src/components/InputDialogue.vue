@@ -91,7 +91,7 @@ export default {
          * The format for "schema" is as follows
          * 
          * {
-         *      key1: {type: str, label: str, default: any, values: dict?},
+         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool},
          *      ...
          * }
          * 
@@ -101,6 +101,8 @@ export default {
          * - label: display label/placeholder, optional (if not present, key is used)
          * - default: default value, optional (default-default is just null)
          * - values: dict (value -> label) for options, only for type 'select'
+         * - optional: whether the parameter can be omitted even without a default (default: false)
+         *             (if the parameter has a default, it is automatically optional)
          * 
          * @param title the title (bold)
          * @param message message below the title, optional; can contain Markdown
@@ -168,7 +170,7 @@ export default {
 
         canSubmit() {
             if (this.loading) return false;
-            return Object.values(this.values).indexOf(null) === -1;
+            return Object.entries(this.values).every(([k, v]) => v != null || this.schema[k].optional);
         },
 
         async handleSubmit(okay) {
