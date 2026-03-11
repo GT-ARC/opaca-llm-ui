@@ -44,7 +44,7 @@ import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
 import Localizer from "../Localizer.js";
 import { useDevice } from "../useIsMobile.js";
-import backendClient from "../utils.js";
+import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 
 export default {
     name: 'notifications-area',
@@ -100,13 +100,13 @@ export default {
             // add debug stuff to chat bubble
             const chatBubble = this.$refs[elementId][0];
             for (const msg of response.agent_messages) {
-                chatBubble.addDebugMessage(msg.content, msg.agent, msg.id);
+                chatBubble.addDebugMessage(formatAgentDebugText(msg), msg.agent, msg.id);
                 for (const tool of msg.tools) {
                     // adapted from content.vue#addDebugTool
                     const id = tool.id.split("/")[1];
                     const [agent, action] = tool.name.split("--");
                     const args = Object.entries(tool.args).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join("\n");
-                    const toolOutput = `Tool: ${id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\nResult: ${JSON.stringify(tool.result)}`;
+                    const toolOutput = `Tool: ${id}\nAgent: ${agent}\nAction: ${action}\nArguments:\n${args}\nResult: ${formatToolDebugResult(tool.result)}`;
                     chatBubble.addDebugMessage(toolOutput, msg.agent, tool.id);
                 }
             }

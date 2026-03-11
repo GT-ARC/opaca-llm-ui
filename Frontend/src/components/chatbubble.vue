@@ -287,6 +287,7 @@ export default {
                     const action = match[3];
                     const params = match[4].replace("\n- ", " ");
                     var results = match[5];
+                    if (results != null) results = results.replace(/\s+/g, " ").trim();
                     if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
                     return `${id}. ${agent}: ${action}(${params}) → ${results}`;
                 });
@@ -295,6 +296,11 @@ export default {
         addDebugMessage(text, type, id=null) {
             const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
             utils.addDebugMessage(this.debugMessages, message);
+        },
+
+        setDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.replaceDebugMessage(this.debugMessages, message);
         },
 
         scrollDownDebugMsg() {
