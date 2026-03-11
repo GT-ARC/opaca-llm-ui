@@ -262,18 +262,34 @@ export default {
         async addContainerFromRegistry() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                "T.b.d. This would first show a textfield for the OPACA Registry URL+Port, then in another dialogue a dropdown with available Images. Then, in a third dialogue, it would possibly ask for container parameters, like for JSON when entering the JSON of an Image with parameters...",
+                "Enter the Location of the OPACA Registry backend service.",
                 null,
                 {
-                    image: { type: "select", values: {
-                        "0": "Some OPACA Image",
-                        "1": "Some other image",
-                        "2": "Whatever",
-                    }},
+                    registry: { type: "text", label: "Registry URL (incl Port)"},
                 },
                 async values => {
-                    console.log("fromregistry CALLBACK CALLED!!!")
-                    throw new Error("Not yet implemented");
+                    
+                    // TODO get images from the registry (names and JSON)
+                    const images = {
+                        foo: {imageName: "foo"},
+                        bar: {imageName: "bar", parameters: [{name: "test", type: "string", required: false, confidential: false, defaultValue: ""}]},
+                    }
+
+                    await this.$refs.input.showDialogue(
+                        Localizer.get("agents_deploy"),
+                        "Select Image from Registry to deploy.",
+                        null,
+                        {
+                            image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, k]))},
+                        },
+                        async values => {
+                            console.log("fromregistry CALLBACK CALLED!!!")
+                            const json = images[values.image];
+                            console.log(json);
+                            await this.doPostContainerImage(json);
+                        }
+                    );
+
                 }
             );
         },
