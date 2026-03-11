@@ -241,23 +241,19 @@ export default {
                 "How do you want to deploy?",
                 null,
                 {
-                    howto: { type: "select", default: 1, values: {
+                    howto: { type: "select", default: "1", values: {
                         "0": "Select Container Image from Registry",
                         "1": "Enter OPACA Container Image name",
                         "2": "Enter full JSON of OPACA Container Image",
                     }},
                 },
                 async values => {
-                    console.log("CALLBACK CALLED!!!")
+                    console.log("addcontainer CALLBACK CALLED!!!")
                     console.log(values.howto);
-                    if (values.howto == 0) {
-                        await this.addContainerFromRegistry();
-                    }
-                    if (values.howto == 1) {
-                        await this.addContainerFromImageName();
-                    }
-                    if (values.howto == 2) {
-                        await this.addContainerFromJson();
+                    switch (values.howto) {
+                        case "0": return await this.addContainerFromRegistry();
+                        case "1": return await this.addContainerFromImageName();
+                        case "2": return await this.addContainerFromJson();
                     }
                 }
             );
@@ -269,14 +265,14 @@ export default {
                 "T.b.d. This would first show a textfield for the OPACA Registry URL+Port, then in another dialogue a dropdown with available Images. Then, in a third dialogue, it would possibly ask for container parameters, like for JSON when entering the JSON of an Image with parameters...",
                 null,
                 {
-                    image: { type: "select", default: 1, values: {
+                    image: { type: "select", values: {
                         "0": "Some OPACA Image",
                         "1": "Some other image",
                         "2": "Whatever",
                     }},
                 },
                 async values => {
-                    console.log("CALLBACK CALLED!!!")
+                    console.log("fromregistry CALLBACK CALLED!!!")
                     throw new Error("Not yet implemented");
                 }
             );
@@ -316,7 +312,6 @@ export default {
                     throw new Error("Unrecognized JSON format");
                 }
             );
-
         },
 
         async doPostContainerImage(image) {
@@ -332,14 +327,10 @@ export default {
                         image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue}]))
                     ),
                     async values => {
-                        // JSON-parse non-primitive inputs --> parse errors are shown in error label
-                        var parameters = Object.fromEntries(
-                            Object.entries(values).map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
-                        );
-                        console.log(JSON.stringify(parameters));
+                        console.log(JSON.stringify(values));
+                        await this.doPostContainer({image: image, arguments: values});
                     }
                 );
-
             } else {
                 await this.doPostContainer({image: image});
             }
