@@ -1,7 +1,7 @@
 <template>
     <div v-if="show" class="input-dialog">
         <div class="p-4 input-container rounded shadow">
-            <form @submit.prevent="handleSubmit">
+            <form>
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="scroll-container">
                     <div class="mb-3" v-html="message" />
@@ -42,7 +42,7 @@
                     <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)" v-if="!loading">
                         {{ Localizer.get('general_cancel') }}
                     </button>
-                    <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
+                    <button type="button" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
                         <span v-if="loading"><i class="fa fa-spin fa-spinner" /></span>
                         <span v-else>{{ Localizer.get('general_okay') }}</span>
                     </button>
