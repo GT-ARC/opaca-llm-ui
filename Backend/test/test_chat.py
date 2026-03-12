@@ -8,13 +8,12 @@ from fastapi.testclient import TestClient
 
 from src.models import SessionData
 from src.server import app, handle_session_id
+from util import handle_user_session_id
 
 # Use mock completion from litellm
 litellm.mock_completion = True
 
-config_session = SessionData(_id="1234-test")
-
-app.dependency_overrides[handle_session_id] = config_session
+app.dependency_overrides[handle_session_id] = handle_user_session_id
 
 client = TestClient(app)
 

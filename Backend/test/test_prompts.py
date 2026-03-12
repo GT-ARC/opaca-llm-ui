@@ -2,10 +2,9 @@ from fastapi.testclient import TestClient
 
 from src.models import SessionData
 from src.server import app, handle_session_id
+from util import example_prompt, handle_user_session_id
 
-prompt_session = SessionData(_id="1234-test")
-
-app.dependency_overrides[handle_session_id] = prompt_session
+app.dependency_overrides[handle_session_id] = handle_user_session_id
 
 client = TestClient(app)
 
@@ -16,22 +15,7 @@ def test_get_prompts():
 def test_set_prompts():
     res = client.post(
         "/prompts",
-        json={
-            "GB": [
-                {
-                    "id": "testSection",
-                    "header": "TestSection",
-                    "icon": "🤖",
-                    "visible": False,
-                    "questions": [
-                        {
-                            "question": "This is a test question",
-                            "icon": "🔧"
-                        }
-                    ]
-                }
-            ]
-        })
+        json=example_prompt())
     assert res.status_code == 200
 
     res = client.get("/prompts")
