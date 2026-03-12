@@ -268,13 +268,15 @@ export default {
                     registry: { type: "text", label: "Registry URL (incl Port)"},
                 },
                 async values => {
-                    
-                    // TODO get images from the registry (names and JSON)
-                    const images = {
-                        foo: {imageName: "foo"},
-                        bar: {imageName: "bar", parameters: [{name: "test", type: "string", required: false, confidential: false, defaultValue: ""}]},
-                    }
-
+                    // get images from the registry (names and JSON)
+                    const res = await fetch(`${values.registry}/images`);
+                    const json = await res.text();
+                    const images = Object.fromEntries(
+                        JSON.parse(json)
+                            .map(img => Object.fromEntries(Object.entries(img).filter(([k]) => !k.startsWith('_'))))
+                            .map(img => [img.imageName, img])
+                    );
+                    // select which image to deploy
                     await this.$refs.input.showDialogue(
                         Localizer.get("agents_deploy"),
                         "Select Image from Registry to deploy.",
