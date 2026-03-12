@@ -208,23 +208,25 @@ export default {
             return containers;
         },
 
+        // MULTI-PAGE "WIZARD" FOR STARTING CONTAINERS IN DIFFERENT WAYS, INCLUDING PARAMETERS
+
         async addContainer() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                "How do you want to deploy?",
+                Localizer.get("agents_deploy_how"),
                 null,
                 {
-                    howto: { type: "select", default: "1", values: {
-                        "0": "Select Container Image from Registry",
-                        "1": "Enter OPACA Container Image name",
-                        "2": "Enter full JSON of OPACA Container Image",
+                    howto: { type: "select", default: "name", values: {
+                        "name": "Image Name",
+                        "json": "JSON",
+                        "reg": "Registry",
                     }},
                 },
                 async values => {
                     switch (values.howto) {
-                        case "0": return await this.addContainerFromRegistry();
-                        case "1": return await this.addContainerFromImageName();
-                        case "2": return await this.addContainerFromJson();
+                        case "name": return await this.addContainerFromImageName();
+                        case "json": return await this.addContainerFromJson();
+                        case "reg": return await this.addContainerFromRegistry();
                     }
                 }
             );
@@ -233,7 +235,7 @@ export default {
         async addContainerFromRegistry() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                "Enter the Location of the OPACA Registry backend service.",
+                Localizer.get("agents_deploy_registry"),
                 null,
                 {
                     registry: { type: "text", label: "Registry URL (incl Port)"},
@@ -250,7 +252,7 @@ export default {
                     // select which image to deploy
                     await this.$refs.input.showDialogue(
                         Localizer.get("agents_deploy"),
-                        "Select Image from Registry to deploy.",
+                        Localizer.get("agents_deploy_select"),
                         null,
                         {
                             image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, k]))},
@@ -267,7 +269,7 @@ export default {
         async addContainerFromImageName() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                "Enter name of the OPACA Image to deploy",
+                Localizer.get("agents_deploy_name"),
                 null,
                 {
                     image: { type: "text", label: "Image Name"},
@@ -281,7 +283,7 @@ export default {
         async addContainerFromJson() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                "Enter or paste full JSON of either OPACA Container Image description or Post-Container specification.",
+                Localizer.get("agents_deploy_json"),
                 null,
                 {
                     json: { type: "textarea", label: "Image/Container JSON" },
@@ -294,7 +296,7 @@ export default {
                     if (json.imageName) {
                         return this.doPostContainerImage(json);
                     }
-                    throw new Error("Unrecognized JSON format");
+                    throw new Error("Invalid JSON format.");
                 }
             );
         },
@@ -304,7 +306,7 @@ export default {
                 const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
                 await this.$refs.input.showDialogue(
                     Localizer.get("agents_deploy"),
-                    "Specify Container Parameters",
+                    Localizer.get("agents_deploy_params"),
                     null,
                     Object.fromEntries(
                         image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue, optional: !p.required}]))
@@ -333,6 +335,8 @@ export default {
                 await this.updatePlatformInfo();
             }
         },
+
+        // ACTION INVOCATION
 
         async invokeAction(agent, action, schema) {
             const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
