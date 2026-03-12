@@ -1,7 +1,7 @@
 <template>
     <div v-if="show" class="input-dialog">
         <div class="p-4 input-container rounded shadow">
-            <form @submit.prevent="handleSubmit">
+            <form>
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="scroll-container">
                     <div class="mb-3" v-html="message" />
@@ -42,7 +42,7 @@
                     <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)" v-if="!loading">
                         {{ Localizer.get('general_cancel') }}
                     </button>
-                    <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
+                    <button type="button" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
                         <span v-if="loading"><i class="fa fa-spin fa-spinner" /></span>
                         <span v-else>{{ Localizer.get('general_okay') }}</span>
                     </button>
@@ -91,7 +91,7 @@ export default {
          * The format for "schema" is as follows
          * 
          * {
-         *      key1: {type: str, label: str, default: any, values: dict?},
+         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool},
          *      ...
          * }
          * 
@@ -101,6 +101,8 @@ export default {
          * - label: display label/placeholder, optional (if not present, key is used)
          * - default: default value, optional (default-default is just null)
          * - values: dict (value -> label) for options, only for type 'select'
+         * - optional: whether the parameter can be omitted even without a default (default: false)
+         *             (if the parameter has a default, it is automatically optional)
          * 
          * @param title the title (bold)
          * @param message message below the title, optional; can contain Markdown
@@ -168,7 +170,7 @@ export default {
 
         canSubmit() {
             if (this.loading) return false;
-            return Object.values(this.values).indexOf(null) === -1;
+            return Object.entries(this.values).every(([k, v]) => v != null || this.schema[k].optional);
         },
 
         async handleSubmit(okay) {
