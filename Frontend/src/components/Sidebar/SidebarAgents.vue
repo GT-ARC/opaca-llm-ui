@@ -141,6 +141,7 @@ import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import InputDialogue from '../InputDialogue.vue';
+import Cookie from "js-cookie";
 
 export default {
     name: 'SidebarAgents',
@@ -157,7 +158,6 @@ export default {
             platformContainers: null,
             isLoading: false,
             searchQuery: '',
-            registryUrl: null,
         };
     },
     methods: {
@@ -239,15 +239,14 @@ export default {
                 Localizer.get("agents_deploy_registry"),
                 null,
                 {
-                    registry: { type: "text", label: "Registry URL (incl Port)", default: this.registryUrl},
+                    registry: { type: "text", label: "Registry URL (incl Port)", default: Cookie.get("registryUrl")},
                 },
                 async values => {
                     // get images from the registry (names and JSON)
-                    this.registryUrl = values.registry;
-                    const res = await fetch(`${this.registryUrl}/images`);
-                    const json = await res.text();
+                    Cookie.set("registryUrl", values.registry);
+                    const res = await fetch(`${values.registry}/images`);
                     const images = Object.fromEntries(
-                        JSON.parse(json)
+                        JSON.parse(await res.text())
                             .map(img => Object.fromEntries(Object.entries(img).filter(([k]) => !k.startsWith('_'))))
                             .map(img => [img.imageName, img])
                     );
