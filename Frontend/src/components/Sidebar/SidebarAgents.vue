@@ -157,6 +157,7 @@ export default {
             platformContainers: null,
             isLoading: false,
             searchQuery: '',
+            registryUrl: null,
         };
     },
     methods: {
@@ -238,11 +239,12 @@ export default {
                 Localizer.get("agents_deploy_registry"),
                 null,
                 {
-                    registry: { type: "text", label: "Registry URL (incl Port)"},
+                    registry: { type: "text", label: "Registry URL (incl Port)", default: this.registryUrl},
                 },
                 async values => {
                     // get images from the registry (names and JSON)
-                    const res = await fetch(`${values.registry}/images`);
+                    this.registryUrl = values.registry;
+                    const res = await fetch(`${this.registryUrl}/images`);
                     const json = await res.text();
                     const images = Object.fromEntries(
                         JSON.parse(json)
