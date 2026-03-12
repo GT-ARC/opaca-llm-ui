@@ -161,7 +161,7 @@
                          style="cursor: pointer;"
                          @click.stop="this.isMetricsExpanded = !this.isMetricsExpanded"
                          :title="Localizer.get('chatbubble_metrics')">
-                        <i class="fa fa-clock" />
+                        <i class="fa fa-chart-simple" />
                     </div>
 
                     <!-- error handling -->
@@ -322,8 +322,8 @@ export default {
         addMetric(m) {
             const metric = this.metrics[m.agent] ?? { count: 0, tokens_in: 0, tokens_out: 0, execution_time: 0 };
             metric.count += 1;
-            metric.tokens_in += m.metrics.input_tokens;
-            metric.tokens_out += m.metrics.total_tokens - m.metrics.input_tokens;
+            metric.tokens_in += m.metrics.input_tokens ?? 0;
+            metric.tokens_out += (m.metrics.total_tokens ?? 0) - (m.metrics.input_tokens ?? 0);
             metric.execution_time += m.execution_time;
             this.metrics[m.agent] = metric;
         },
