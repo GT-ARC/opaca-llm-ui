@@ -256,7 +256,7 @@ export default {
                         Localizer.get("agents_deploy_select"),
                         null,
                         {
-                            image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, k]))},
+                            image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, `${v.name} (${v.version}), ${v.provider}`]))},
                         },
                         async values => {
                             const json = images[values.image];
