@@ -208,33 +208,6 @@ export default {
             return containers;
         },
 
-        async addContainer_old() {
-            await this.$refs.input.showDialogue(
-                Localizer.get("agents_deploy"),
-                Localizer.get("agents_deploy_hint"),
-                null,
-                {
-                    image: { type: "text", label: "Image Name", default: "" },
-                    json: { type: "textarea", label: "Post Container JSON", default: "" },
-                },
-                async values => {
-                    if (values.image === "" && values.json === "") {
-                        throw new Error(Localizer.get("agents_deploy_hint"));
-                    }
-                    var postContainer = values.json;
-                    if (! postContainer || postContainer === "") {
-                        postContainer = {image: {imageName: values.image}};
-                    }
-                    const res = await backendClient.deployContainer(postContainer);
-                    if (res.success) {
-                        await this.updatePlatformInfo();
-                    } else {
-                        throw new Error(res.error);
-                    }
-                }
-            );
-        },
-
         async addContainer() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
@@ -248,8 +221,6 @@ export default {
                     }},
                 },
                 async values => {
-                    console.log("addcontainer CALLBACK CALLED!!!")
-                    console.log(values.howto);
                     switch (values.howto) {
                         case "0": return await this.addContainerFromRegistry();
                         case "1": return await this.addContainerFromImageName();
@@ -285,13 +256,10 @@ export default {
                             image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, k]))},
                         },
                         async values => {
-                            console.log("fromregistry CALLBACK CALLED!!!")
                             const json = images[values.image];
-                            console.log(json);
                             await this.doPostContainerImage(json);
                         }
                     );
-
                 }
             );
         },
@@ -305,7 +273,6 @@ export default {
                     image: { type: "text", label: "Image Name"},
                 },
                 async values => {
-                    console.log("CALLBACK CALLED!!!")
                     await this.doPostContainer({image: {imageName: values.image}});
                 }
             );
@@ -334,7 +301,6 @@ export default {
 
         async doPostContainerImage(image) {
             if (image.parameters && image.parameters.length > 0) {
-                // XXX adapted from invoke-action, maybe this can be generalized?
                 const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
                 await this.$refs.input.showDialogue(
                     Localizer.get("agents_deploy"),
@@ -344,7 +310,6 @@ export default {
                         image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue, optional: !p.required}]))
                     ),
                     async values => {
-                        console.log(JSON.stringify(values));
                         await this.doPostContainer({image: image, arguments: values});
                     }
                 );
