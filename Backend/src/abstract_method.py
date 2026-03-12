@@ -206,6 +206,7 @@ class AbstractMethod(ABC):
 
         # Final stream to transmit execution time and response metadata
         await self.send_to_websocket(MetricsMessage(
+            agent=agent,
             execution_time=agent_message.execution_time,
             metrics=agent_message.response_metadata,
         ))

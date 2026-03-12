@@ -155,6 +155,15 @@
                         <i class="fa fa-wrench" />
                     </div>
 
+                    <!-- metrics -->
+                    <div v-show="this.getMetrics().length > 0"
+                         class="footer-item w-auto me-2"
+                         style="cursor: pointer;"
+                         @click.stop="this.isMetricsExpanded = !this.isMetricsExpanded"
+                         :title="Localizer.get('chatbubble_metrics')">
+                        <i class="fa fa-chart-simple" />
+                    </div>
+
                     <!-- error handling -->
                     <div v-show="this.error !== null"
                          class="footer-item w-auto me-2"
@@ -182,6 +191,16 @@
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
                         <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
+                            {{ text }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- footer: metrics -->
+                <div v-show="this.isMetricsExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div v-for="text in this.getMetrics()" class="text-wrap text-break">
                             {{ text }}
                         </div>
                     </div>
@@ -246,7 +265,9 @@ export default {
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
+            isMetricsExpanded: false,
             isCollapsed: false,
+            metrics: {},
         }
     },
 
@@ -290,6 +311,21 @@ export default {
                     if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
                     return `${id}. ${agent}: ${action}(${params}) → ${results}`;
                 });
+        },
+
+        getMetrics() {
+            return Object.entries(this.metrics).map( ([a, m]) => {
+                return `${a} (${m.count}): ↑ ${m.tokens_in}, ↓ ${m.tokens_out}, ${m.execution_time.toFixed(2)}s`
+            });
+        },
+
+        addMetric(m) {
+            const metric = this.metrics[m.agent] ?? { count: 0, tokens_in: 0, tokens_out: 0, execution_time: 0 };
+            metric.count += 1;
+            metric.tokens_in += m.metrics.input_tokens ?? 0;
+            metric.tokens_out += (m.metrics.total_tokens ?? 0) - (m.metrics.input_tokens ?? 0);
+            metric.execution_time += m.execution_time;
+            this.metrics[m.agent] = metric;
         },
 
         addDebugMessage(text, type, id=null) {
