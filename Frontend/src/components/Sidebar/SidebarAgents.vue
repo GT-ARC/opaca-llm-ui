@@ -333,14 +333,13 @@ export default {
         async doPostContainerImage(image) {
             if (image.parameters && image.parameters.length > 0) {
                 // XXX adapted from invoke-action, maybe this can be generalized?
-                // XXX here, we REALLY need to differentiate into values that HAVE to be provided and those that can be null...
                 const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
                 await this.$refs.input.showDialogue(
                     Localizer.get("agents_deploy"),
                     "Specify Container Parameters",
                     null,
                     Object.fromEntries(
-                        image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue}]))
+                        image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue, optional: !p.required}]))
                     ),
                     async values => {
                         console.log(JSON.stringify(values));
