@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
-from src.models import SessionData
-from src.server import app, handle_session_id
+from Backend.src.server import app, handle_session_id
 from util import example_prompt, handle_user_session_id
 
 app.dependency_overrides[handle_session_id] = handle_user_session_id

@@ -6,8 +6,7 @@ import litellm
 import pytest
 from fastapi.testclient import TestClient
 
-from src.models import SessionData
-from src.server import app, handle_session_id
+from Backend.src.server import app, handle_session_id
 from util import handle_user_session_id
 
 # Use mock completion from litellm
