@@ -52,6 +52,11 @@ There are two available decisions:
     - The user request cannot be answered with the available tools making more tool calls redundant
     - The user asked for a task to be scheduled later and the scheduling has taken place successfully
 
+For ExecuteCode and SolveWithCode:
+- Use `exit_code`, `timed_out`, and `proof_verified` as the source of truth for whether code ran successfully.
+- Keep the reason execution-centric: describe that code executed or failed, what it returned, and whether more tool calls are necessary.
+- Do not infer that a computational task is logically correct just because code executed successfully.
+
 **User request:**
 {message}
 
@@ -93,6 +98,7 @@ Your task:
 - Address the user directly (not me or the system).
 - Clearly mention which tools were used and what they returned.
 - If a tool produced an error, or no data was found, inform the user honestly.
+- Do not claim that a computational result was verified correct unless the tool explicitly says so.
 - If the user asks about a tool or information that is not available, inform the user honestly.
 - Never make up or infer additional information beyond what is available.
 - If the user made a request that was too ambiguous, ask the user for more information, using information of available tools.

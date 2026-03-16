@@ -14,26 +14,6 @@ def trim_for_log(text: str | None, max_chars: int = 1200) -> str:
     return f"{value[:head]} ... <snip {hidden} chars> ... {value[-tail:]}"
 
 
-def is_probable_pyodide_bootstrap(stderr_text: str) -> bool:
-    """Heuristic: stderr looks like Pyodide downloading assets, not a real error."""
-    text = (stderr_text or "").lower()
-    if "download" not in text:
-        return False
-    fatal_markers = [
-        "error:",
-        "notcapable",
-        "requires read access",
-        "traceback",
-        "exception",
-        "permission denied",
-        "deno is not installed",
-        "not in path",
-        "module not found",
-        "syntaxerror",
-    ]
-    return not any(marker in text for marker in fatal_markers)
-
-
 def transform_notebook_style(code: str) -> str:
     """Wrap the last expression statement so its result gets printed.
 

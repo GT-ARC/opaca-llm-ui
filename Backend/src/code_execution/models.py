@@ -11,7 +11,6 @@ class ExecutionResult:
             exit_code: int,
             timed_out: bool,
             run_id: str = "",
-            validation: dict[str, list[str]] | None = None,
             proof_verified: bool = False,
     ):
         self.stdout = stdout
@@ -19,7 +18,6 @@ class ExecutionResult:
         self.exit_code = exit_code
         self.timed_out = timed_out
         self.run_id = run_id
-        self.validation = validation or {}
         self.proof_verified = proof_verified
 
     def to_dict(self) -> dict:
@@ -29,6 +27,5 @@ class ExecutionResult:
             "exit_code": self.exit_code,
             "timed_out": self.timed_out,
             "run_id": self.run_id,
-            "validation": self.validation,
             "proof_verified": self.proof_verified,
         }

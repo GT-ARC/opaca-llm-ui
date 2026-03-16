@@ -24,6 +24,14 @@ PYODIDE_CODE_PROMPT = dedent("""\
         import micropip
         await micropip.install("package-name")
     Only pure-Python wheels are supported; C-extension packages may fail.
+    
+    ## Exit Codes
+    - EXIT_SUCCESS = 0 
+    - EXIT_RUNTIME_ERROR = 1
+    - EXIT_PROOF_FAILED = 6
+    - EXIT_TIMEOUT = 124
+    - EXIT_INTERNAL_ERROR = 125
+    - EXIT_SANDBOX_UNAVAILABLE = 126
 
     ## Output Guidelines
     - Always print clear, labelled results:  print(f"Area: {{area:.2f}} m²")
@@ -39,12 +47,17 @@ PYODIDE_CODE_PROMPT = dedent("""\
 """)
 
 PYODIDE_CODE_RETRY_PROMPT = dedent("""\
-    Your previous code failed. Fix it and try again.
+    Your previous code failed to execute cleanly in the Pyodide sandbox. Fix it and try again.
 
     ## Previous Code
     ```python
     {code}
     ```
+
+    ## Previous Execution
+    exit_code: {exit_code}
+    timed_out: {timed_out}
+    proof_verified: {proof_verified}
 
     ## Error Output
     stdout:
