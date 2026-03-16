@@ -101,10 +101,10 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
             logger.info(f"Deleted file {host_file_id} from host {host}")
 
         except Exception as e:
-            logger.warning(
-                f"Failed to delete file {host_file_id} from host {host}: {e}"
-            )
-            return False
+            logger.warning(f"Failed to delete file {host_file_id} from host {host}: {e}")
+            # do not consider "not found" an error here
+            if "404" not in str(e):
+                return False
 
     # Remove from session after deletion attempts
     session.uploaded_files.pop(file_id, None)
