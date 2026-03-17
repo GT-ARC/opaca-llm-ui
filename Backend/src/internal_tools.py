@@ -22,9 +22,7 @@ from textwrap import dedent
 
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
-from .code_execution import CodeExecutor
-from .code_execution.util import extract_code_block
-from .code_execution.prompts import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, MAX_CODE_RETRIES
+from .code_execution import CodeExecutor, extract_code_block, PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -111,7 +109,7 @@ class InternalTools:
             InternalTool(
                 name="SolveWithCode",
                 description="Solve a computational task by generating and executing Python code in a Pyodide sandbox. Describe the task in plain language. Code is generated, executed, and retried automatically when execution fails. Returns runtime execution artifacts, generated_code, attempts, and attempt_history.",
-                params={"task": "string", "timeout_s": "integer"},
+                params={"task": "string", "timeout_s": "integer", "max_code_retries": "integer"},
                 required_params=["task"],
                 result="object",
                 function=self.tool_solve_with_code,
@@ -366,18 +364,18 @@ class InternalTools:
             "proof_verified": False,
         }
 
-    async def tool_solve_with_code(self, task: str, timeout_s: int = 10) -> dict:
+    async def tool_solve_with_code(self, task: str, timeout_s: int = 10, max_code_retries: int = 2) -> dict:
         """
         Generate Python code for *task* via an internal LLM call, execute it
         in the Pyodide sandbox, and — if execution fails — retry up to
-        MAX_CODE_RETRIES times with the error fed back to the LLM.
+        max_code_retries times with the error fed back to the LLM.
         """
         prompt = PYODIDE_CODE_PROMPT.format(task=task)
         code = ""
         result_dict: dict = {}
         attempt_history: list[dict] = []
 
-        for attempt in range(1, MAX_CODE_RETRIES + 2):
+        for attempt in range(1, max_code_retries + 2):
             # 1. Ask the LLM to write code
             llm_response = await self.query_method(prompt)
             code = extract_code_block(llm_response.content)
@@ -397,7 +395,7 @@ class InternalTools:
                 logger.warning(
                     "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s proof_verified=%s stderr=%s",
                     attempt,
-                    1 + MAX_CODE_RETRIES,
+                    1 + max_code_retries,
                     result_dict.get("exit_code"),
                     result_dict.get("timed_out"),
                     result_dict.get("proof_verified"),
@@ -431,7 +429,7 @@ class InternalTools:
             logger.warning(
                 "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s proof_verified=%s stderr=%s",
                 attempt,
-                1 + MAX_CODE_RETRIES,
+                1 + max_code_retries,
                 result_dict.get("exit_code"),
                 result_dict.get("timed_out"),
                 result_dict.get("proof_verified"),
@@ -447,6 +445,6 @@ class InternalTools:
             )
 
         result_dict["generated_code"] = code
-        result_dict["attempts"] = 1 + MAX_CODE_RETRIES
+        result_dict["attempts"] = 1 + max_code_retries
         result_dict["attempt_history"] = attempt_history
         return result_dict

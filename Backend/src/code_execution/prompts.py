@@ -2,7 +2,6 @@
 
 from textwrap import dedent
 
-MAX_CODE_RETRIES = 2
 
 PYODIDE_CODE_PROMPT = dedent("""\
     You are a Python code generator. Write code to solve the task below.

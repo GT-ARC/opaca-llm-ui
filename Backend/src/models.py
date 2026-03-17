@@ -413,6 +413,26 @@ class SearchResult(BaseModel):
     excerpt: str
 
 
+class ExecutionResult(BaseModel):
+    """
+    Result of Code Execution.
+
+    Attributes:
+        stdout:
+        stderr:
+        exit_code:
+        timed_out:
+        run_id:
+        proof_verified:
+    """
+    stdout: str
+    stderr: str
+    exit_code: int
+    timed_out: bool
+    run_id: str = ""
+    proof_verified: bool = False
+
+
 # CUSTOM EXCEPTIONS
 
 class OpacaException(Exception):

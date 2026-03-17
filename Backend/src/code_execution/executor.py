@@ -6,7 +6,7 @@ import logging
 import uuid
 
 from .execution_proof import ProofToken
-from .models import ExecutionResult
+from ..models import ExecutionResult
 from .util import trim_for_log, transform_notebook_style
 
 logger = logging.getLogger(__name__)
@@ -284,4 +284,4 @@ class CodeExecutor:
             timed_out=timed_out,
             run_id=run_id,
             proof_verified=proof_verified,
-        ).to_dict()
+        ).model_dump()
