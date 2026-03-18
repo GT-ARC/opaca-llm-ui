@@ -40,7 +40,7 @@ def test_append_files_allowed(filename, content_type):
 
     res = client.post("/files", files=data)
     assert res.status_code == 200
-    # Make sure the file is in the database
+    # Make sure the file is in the backend
     res = client.get("/files")
     assert any(f["file_name"] == filename for f in res.json().values())
 
