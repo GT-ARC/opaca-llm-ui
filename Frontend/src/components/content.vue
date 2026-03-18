@@ -306,7 +306,7 @@ export default {
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
-                        await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
+                        this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
                     }
                 );
             } else {
