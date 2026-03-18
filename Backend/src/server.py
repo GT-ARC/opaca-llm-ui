@@ -235,9 +235,9 @@ async def add_mcp_server(mcp: MCPCreateMessage, session: SessionData = Depends(h
     return Response(status_code=201)
 
 
-@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
-async def delete_mcp_server(mcp_server: MCPDeleteMessage, session: SessionData = Depends(handle_session_http)) -> Response:
-    if session.delete_mcp_server(mcp_server.name):
+@app.delete("/mcp/{server_label}", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
+async def delete_mcp_server(server_label: str, session: SessionData = Depends(handle_session_http)) -> Response:
+    if session.delete_mcp_server(server_label):
         return Response(status_code=204)
     else:
         return Response(status_code=404, content="No matching mcp server found!")
