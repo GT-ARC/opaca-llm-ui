@@ -609,8 +609,9 @@ export default {
 
         syncStructuredAgentDebugMessages(agentMessages) {
             for (const agentMessage of agentMessages) {
-                if (agentMessage?.agent !== "Tool Evaluator" || agentMessage?.formatted_output == null) continue;
-                this.setDebug(formatAgentDebugText(agentMessage), agentMessage.agent, agentMessage.id);
+                const formattedText = formatAgentDebugText(agentMessage);
+                if (!formattedText || formattedText === (agentMessage?.content ?? "")) continue;
+                this.setDebug(formattedText, agentMessage.agent, agentMessage.id);
             }
         },
 

@@ -255,29 +255,35 @@ export function replaceDebugMessage(debugMessages, message) {
  */
 export function formatToolDebugResult(result) {
     if (result === undefined) return "undefined";
-    if (result !== null && typeof result === "object") {
-        try {
-            return JSON.stringify(result, null, 2);
-        } catch {
-            return String(result);
-        }
+    if (typeof result === "object") {
+        return JSON.stringify(result, null, 2);
     }
-    try {
-        return JSON.stringify(result) ?? String(result);
-    } catch {
-        return String(result);
-    }
+    return JSON.stringify(result);
 }
 
 /**
- * Prefer structured evaluator output for debug rendering when available.
+ * Prefer structured agent output for debug rendering when available.
  * @param {object} agentMessage
  * @returns {string}
  */
 export function formatAgentDebugText(agentMessage) {
     if (!agentMessage) return "";
-    if (agentMessage.agent === "Tool Evaluator" && agentMessage.formatted_output != null) {
+    if (agentMessage.formatted_output != null) {
         return formatToolDebugResult(agentMessage.formatted_output);
     }
-    return agentMessage.content ?? "";
+    if (typeof agentMessage.content !== "string") {
+        return agentMessage.content == null ? "" : formatToolDebugResult(agentMessage.content);
+    }
+
+    const trimmed = agentMessage.content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+        || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+            return formatToolDebugResult(JSON.parse(trimmed));
+        } catch {
+            // Keep the original text when it only looks like JSON.
+        }
+    }
+
+    return agentMessage.content;
 }
