@@ -332,7 +332,10 @@ export default {
 
         getLastBubble() {
             if (this.messages.length === 0) {
-                throw Error('Tried to get the last chat bubble when none exist. This should not happen.');
+                console.warn('Tried to get the last chat bubble when none exist.');
+                this.newChat = false;
+                this.showExampleQuestions = false;
+                this.addChatBubble("...");
             }
             const refId = this.messages[this.messages.length - 1].elementId;
             return this.$refs[refId][0];
