@@ -52,7 +52,7 @@ def test_get_sessions():
     assert res.status_code == 200
     assert len(res.json()) > 0
 
-def test_set_default_prompts():
+def test_set_and_reset_default_prompts():
     # Get the current default prompts
     res = client.get("/prompts/default")
     assert res.status_code == 200
@@ -67,12 +67,6 @@ def test_set_default_prompts():
     assert res.status_code == 200
     assert res.json() != default_prompts
 
-def test_reset_default_prompts():
-    # Get the just changed default prompts
-    res = client.get("/prompts/default")
-    assert res.status_code == 200
-    default_prompts = res.json()
-
     # Reset the default prompts
     res = client.delete("/prompts/default", headers={"x-api-password": ADMIN_PWD})
     assert res.status_code == 200
@@ -80,7 +74,7 @@ def test_reset_default_prompts():
     # Validate that the prompts have been reset
     res = client.get("/prompts/default")
     assert res.status_code == 200
-    assert res.json() != default_prompts
+    assert res.json() == default_prompts
 
 def test_restrict_tool():
     res = client.put("/admin/restrict", json={"forbidden": ["tool_FBD"], "need_confirmation": ["tool_NC"]}, headers={"x-api-password": ADMIN_PWD})
@@ -151,7 +145,8 @@ async def test_logout_session(mock_post):
     res = client.put(f"/admin/sessions/{user_session.session_id}/LOGOUT", headers={"x-api-password": ADMIN_PWD})
     assert res.status_code == 200
 
-    # Make sure the container login is no longer present
+    # Make sure the container login is no longer present in the session data
+    # (This does NOT test whether the logout happened on the OPACA platform)
     res = client.get("/admin/sessions", headers={"x-api-password": ADMIN_PWD})
     assert res.status_code == 200
     assert len(res.json()[user_session.session_id]["container-logins"]) == 0
