@@ -20,7 +20,7 @@ EXIT_SANDBOX_UNAVAILABLE = 126
 class CodeExecutor:
     """Executes Python code in a sandboxed Pyodide environment."""
 
-    async def execute_code(self, code: str, timeout_s: int = 10) -> dict:
+    async def execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
         run_id = uuid.uuid4().hex[:12]
         prepared_code = transform_notebook_style(code)
 
@@ -83,11 +83,11 @@ class CodeExecutor:
             )
 
     @staticmethod
-    def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> dict:
+    def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> ExecutionResult:
         return ExecutionResult(
             run_id=run_id,
             stdout=stdout,
             stderr=stderr,
             exit_code=exit_code,
             timed_out=timed_out,
-        ).model_dump()
+        )

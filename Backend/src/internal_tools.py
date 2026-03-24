@@ -328,38 +328,6 @@ class InternalTools:
                 "error": str(e),
             }
 
-    @staticmethod
-    def _execution_succeeded(result_dict: dict) -> bool:
-        return (
-            result_dict.get("exit_code") == 0
-            and not result_dict.get("timed_out", False)
-        )
-
-    def _build_attempt_history_entry(
-            self,
-            attempt: int,
-            generated_code: str,
-            result_dict: dict,
-    ) -> dict:
-        return {
-            "attempt": attempt,
-            "generated_code": generated_code,
-            "stdout": result_dict.get("stdout", ""),
-            "stderr": result_dict.get("stderr", ""),
-            "exit_code": result_dict.get("exit_code", 1),
-            "timed_out": result_dict.get("timed_out", False),
-            "run_id": result_dict.get("run_id", ""),
-        }
-
-    @staticmethod
-    def _build_generation_failure_result() -> dict:
-        return {
-            "stdout": "",
-            "stderr": "LLM did not produce any code.",
-            "exit_code": 1,
-            "timed_out": False,
-            "run_id": "",
-        }
 
     async def tool_solve_with_code(self, task: str, timeout_s: int = 10, max_code_retries: int = 2) -> dict:
         """
@@ -368,8 +336,6 @@ class InternalTools:
         max_code_retries times with the error fed back to the LLM.
         """
         prompt = PYODIDE_CODE_PROMPT.format(task=task)
-        code = ""
-        result_dict: dict = {}
         attempt_history: list[dict] = []
 
         for attempt in range(1, max_code_retries + 2):
@@ -378,24 +344,12 @@ class InternalTools:
             code = extract_code_block(llm_response.content)
 
             if not code:
-                result_dict = self._build_generation_failure_result()
                 attempt_history.append(
-                    self._build_attempt_history_entry(
-                        attempt=attempt,
-                        generated_code="",
-                        result_dict=result_dict,
-                    )
+                    {"attempt": attempt, "error": "LLM did not produce any code."}
                 )
-                result_dict["generated_code"] = ""
-                result_dict["attempts"] = attempt,
-                result_dict["attempt_history"] = attempt_history
                 logger.warning(
-                    "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s stderr=%s",
-                    attempt,
-                    1 + max_code_retries,
-                    result_dict.get("exit_code"),
-                    result_dict.get("timed_out"),
-                    result_dict.get("stderr", ""),
+                    "SolveWithCode attempt %d/%d failed: No code generated",
+                    attempt, 1 + max_code_retries,
                 )
                 prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + (
                     "Your previous reply did not contain executable Python code. "
@@ -403,42 +357,28 @@ class InternalTools:
                 )
                 continue
 
-            # 2. Execute in sandbox
-            result_dict = await self.code_executor.execute_code(code=code, timeout_s=timeout_s)
-
-            # 3. Success → return immediately
+            # 2. Execute in sandbox, add to history
+            exec_result = await self.code_executor.execute_code(code=code, timeout_s=timeout_s)
             attempt_history.append(
-                self._build_attempt_history_entry(
-                    attempt=attempt,
-                    generated_code=code,
-                    result_dict=result_dict,
-                )
+                {"attempt": attempt, "generated_code": code, **exec_result.model_dump()}
             )
 
-            result_dict["generated_code"] = code
-            result_dict["attempts"] = attempt
-            result_dict["attempt_history"] = attempt_history
-            if self._execution_succeeded(result_dict):
-                return result_dict
+            # 3. Success → return immediately
+            if exec_result.exit_code == 0 and not exec_result.timed_out:
+                return { **attempt_history[-1], "attempt_history": attempt_history }
 
             # 4. Failure → build retry prompt
             logger.warning(
                 "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s stderr=%s",
-                attempt,
-                1 + max_code_retries,
-                result_dict.get("exit_code"),
-                result_dict.get("timed_out"),
-                result_dict.get("stderr", ""),
-                )
+                attempt, 1 + max_code_retries,
+                exec_result.exit_code, exec_result.timed_out, exec_result.stderr,
+            )
             prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
                 code=code,
-                exit_code=result_dict.get("exit_code"),
-                timed_out=result_dict.get("timed_out"),
-                stdout=result_dict.get("stdout", ""),
-                stderr=result_dict.get("stderr", ""),
+                exit_code=exec_result.exit_code,
+                timed_out=exec_result.timed_out,
+                stdout=exec_result.stdout,
+                stderr=exec_result.stderr,
             )
 
-        result_dict["generated_code"] = code
-        result_dict["attempts"] = 1 + max_code_retries
-        result_dict["attempt_history"] = attempt_history
-        return result_dict
+        return { **attempt_history[-1], "attempt_history": attempt_history }
