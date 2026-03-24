@@ -365,7 +365,7 @@ class InternalTools:
 
             # 3. Success → return immediately
             if exec_result.exit_code == 0 and not exec_result.timed_out:
-                return { **attempt_history[-1], "attempt_history": attempt_history }
+                return { **attempt_history.pop(), "previous_attempts": attempt_history }
 
             # 4. Failure → build retry prompt
             logger.warning(
@@ -381,4 +381,4 @@ class InternalTools:
                 stderr=exec_result.stderr,
             )
 
-        return { **attempt_history[-1], "attempt_history": attempt_history }
+        return { **attempt_history.pop(), "previous_attempts": attempt_history }
