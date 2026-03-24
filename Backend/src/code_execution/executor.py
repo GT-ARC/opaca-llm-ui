@@ -26,6 +26,7 @@ class CodeExecutor:
 
         logger.info("[ExecuteCode:%s] called timeout_s=%r code_len=%d", run_id, timeout_s, len(code))
 
+        # set up Pyodide. This can fail if Pyodide is not installed
         try:
             from langchain_sandbox import PyodideSandbox
             sandbox = PyodideSandbox(
@@ -44,21 +45,16 @@ class CodeExecutor:
                 run_id=run_id,
             )
 
-        return await self._run_with_pyodide(
-            sandbox=sandbox,
-            run_id=run_id,
-            prepared_code=prepared_code,
-            timeout_s=timeout_s,
-        )
-
-    async def _run_with_pyodide(self, sandbox, run_id: str, prepared_code: str, timeout_s: int) -> dict:
+        # once set up, try to run the actual code...
         try:
-            stdout, stderr, status = await self._run_once(
-                sandbox=sandbox,
-                prepared_code=prepared_code,
-                timeout_s=timeout_s,
-                run_id=run_id,
+            invocation = sandbox.execute(
+                code=prepared_code,
+                timeout_seconds=float(timeout_s),
+                memory_limit_mb=1024,
             )
+            response = await asyncio.wait_for(invocation, timeout=timeout_s)
+            stdout, stderr, status = response.stdout, response.stderr, response.status
+
             return self._build_result(
                 stdout=stdout,
                 stderr=stderr,
@@ -85,27 +81,6 @@ class CodeExecutor:
                 timed_out=False,
                 run_id=run_id,
             )
-
-    async def _run_once(self, sandbox, prepared_code: str, timeout_s: int, run_id: str) -> tuple[str, str, str]:
-        logger.debug("[ExecuteCode:%s] sandbox execute timeout_seconds=%d", run_id, timeout_s)
-        invocation = sandbox.execute(
-            code=prepared_code,
-            timeout_seconds=float(timeout_s),
-            memory_limit_mb=1024,
-        )
-        response = await asyncio.wait_for(invocation, timeout=timeout_s)
-
-        stdout, stderr, status = self._normalize_response(response)
-        if stderr:
-            logger.debug("[ExecuteCode:%s] pyodide stderr(attempt=%d)=%s", run_id, trim_for_log(stderr))
-        return stdout, stderr, status
-
-    @staticmethod
-    def _normalize_response(response: object) -> tuple[str, str, str]:
-        status = response.status
-        stdout = response.stdout
-        stderr = response.stderr
-        return stdout, stderr, status
 
     @staticmethod
     def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> dict:
