@@ -18,40 +18,8 @@ EXIT_INTERNAL_ERROR = 125
 EXIT_SANDBOX_UNAVAILABLE = 126
 
 
-def _init_sandbox(sandbox_cls, run_id: str):
-    kwargs = {
-        "allow_read": True,
-        "allow_write": True,
-        "allow_net": True,
-        "node_modules_dir": "auto",
-        "stateful": True,
-    }
-    logger.warning("[ExecuteCode:%s] sandbox init kwargs=%s", run_id, kwargs)
-    return sandbox_cls(**kwargs)
-
-
 class CodeExecutor:
     """Executes Python code in a sandboxed Pyodide environment."""
-
-    def __init__(self):
-        self._sandbox_cls = None
-        self._sandbox_import_error = None
-
-    def _get_sandbox_cls(self):
-        if self._sandbox_cls is not None:
-            return self._sandbox_cls
-        if self._sandbox_import_error is not None:
-            return None
-
-        try:
-            from langchain_sandbox import PyodideSandbox
-        except Exception as e:
-            logger.error("PyodideSandbox import failed", exc_info=True)
-            self._sandbox_import_error = e
-            return None
-
-        self._sandbox_cls = PyodideSandbox
-        return PyodideSandbox
 
     async def execute_code(self, code: str, timeout_s: int = 10) -> dict:
         run_id = uuid.uuid4().hex[:12]
@@ -59,23 +27,19 @@ class CodeExecutor:
 
         logger.info("[ExecuteCode:%s] called timeout_s=%r code_len=%d", run_id, timeout_s, len(code))
 
-        sandbox_cls = self._get_sandbox_cls()
-        if sandbox_cls is None:
-            return self._build_result(
-                stdout="",
-                stderr=f"Pyodide import failed: {self._sandbox_import_error}",
-                exit_code=EXIT_SANDBOX_UNAVAILABLE,
-                timed_out=False,
-                run_id=run_id,
-            )
-
         try:
-            sandbox = _init_sandbox(sandbox_cls, run_id)
-        except Exception as exc:
-            logger.exception("[ExecuteCode:%s] sandbox init failed", run_id)
+            from langchain_sandbox import PyodideSandbox
+            sandbox = PyodideSandbox(
+                allow_read=True,
+                allow_write=True,
+                allow_net=True,
+                node_modules_dir="auto",
+                stateful=True,
+            )
+        except Exception as e:
             return self._build_result(
                 stdout="",
-                stderr=f"Pyodide sandbox initialization failed: {exc}",
+                stderr=f"Initializing Pyodide sandbox failed: {e}",
                 exit_code=EXIT_SANDBOX_UNAVAILABLE,
                 timed_out=False,
                 run_id=run_id,
@@ -91,14 +55,7 @@ class CodeExecutor:
         finally:
             await self._close_sandbox(sandbox, run_id)
 
-    async def _run_with_pyodide(
-            self,
-            sandbox,
-            run_id: str,
-            prepared_code: str,
-            timeout_s: int,
-    ) -> dict:
-
+    async def _run_with_pyodide(self, sandbox, run_id: str, prepared_code: str, timeout_s: int) -> dict:
         try:
             stdout, stderr, result_obj, status, normalization = await self._run_once(
                 sandbox=sandbox,
@@ -134,14 +91,7 @@ class CodeExecutor:
                 run_id=run_id,
             )
 
-    async def _run_once(
-            self,
-            sandbox,
-            prepared_code: str,
-            timeout_s: int,
-            run_id: str,
-            attempt: int,
-    ) -> tuple[str, str, object, str | None, str]:
+    async def _run_once(self, sandbox, prepared_code: str, timeout_s: int, run_id: str, attempt: int) -> tuple[str, str, object, str | None, str]:
         logger.debug(
             "[ExecuteCode:%s] sandbox execute attempt=%d timeout_seconds=%s memory_limit_mb=%d",
             run_id,
@@ -220,13 +170,7 @@ class CodeExecutor:
             logger.exception("[ExecuteCode:%s] sandbox close failed", run_id)
 
     @staticmethod
-    def _build_result(
-            stdout: str,
-            stderr: str,
-            exit_code: int,
-            timed_out: bool,
-            run_id: str,
-    ) -> dict:
+    def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> dict:
         return ExecutionResult(
             stdout=stdout,
             stderr=stderr,
