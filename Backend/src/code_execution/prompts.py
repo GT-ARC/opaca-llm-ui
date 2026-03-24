@@ -27,7 +27,6 @@ PYODIDE_CODE_PROMPT = dedent("""\
     ## Exit Codes
     - EXIT_SUCCESS = 0 
     - EXIT_RUNTIME_ERROR = 1
-    - EXIT_PROOF_FAILED = 6
     - EXIT_TIMEOUT = 124
     - EXIT_INTERNAL_ERROR = 125
     - EXIT_SANDBOX_UNAVAILABLE = 126
@@ -56,7 +55,6 @@ PYODIDE_CODE_RETRY_PROMPT = dedent("""\
     ## Previous Execution
     exit_code: {exit_code}
     timed_out: {timed_out}
-    proof_verified: {proof_verified}
 
     ## Error Output
     stdout:

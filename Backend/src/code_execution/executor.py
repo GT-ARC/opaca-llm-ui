@@ -5,7 +5,6 @@ import inspect
 import logging
 import uuid
 
-from .execution_proof import ProofToken
 from ..models import ExecutionResult
 from .util import trim_for_log, transform_notebook_style
 
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 # Exit codes
 EXIT_SUCCESS = 0
 EXIT_RUNTIME_ERROR = 1
-EXIT_PROOF_FAILED = 6
 EXIT_TIMEOUT = 124
 EXIT_INTERNAL_ERROR = 125
 EXIT_SANDBOX_UNAVAILABLE = 126
@@ -57,8 +55,7 @@ class CodeExecutor:
 
     async def execute_code(self, code: str, timeout_s: int = 10) -> dict:
         run_id = uuid.uuid4().hex[:12]
-        proof = ProofToken.generate(run_id)
-        prepared_code = proof.build_prelude() + "\n" + transform_notebook_style(code) + "\n"
+        prepared_code = transform_notebook_style(code)
 
         logger.info("[ExecuteCode:%s] called timeout_s=%r code_len=%d", run_id, timeout_s, len(code))
 
@@ -89,7 +86,6 @@ class CodeExecutor:
                 sandbox=sandbox,
                 run_id=run_id,
                 prepared_code=prepared_code,
-                proof=proof,
                 timeout_s=timeout_s,
             )
         finally:
@@ -100,7 +96,6 @@ class CodeExecutor:
             sandbox,
             run_id: str,
             prepared_code: str,
-            proof: ProofToken,
             timeout_s: int,
     ) -> dict:
 
@@ -112,58 +107,14 @@ class CodeExecutor:
                 run_id=run_id,
                 attempt=1,
             )
-            proof_observed = proof.extract_from_result_or_stdout(result_obj, stdout)
-            proof_verified = proof.matches(proof_observed)
-
-            if not proof_verified:
-                logger.warning("[ExecuteCode:%s] retrying once because proof is missing", run_id)
-                await asyncio.sleep(0.2)
-                retry_stdout, retry_stderr, retry_result_obj, retry_status, retry_normalization = await self._run_once(
-                    sandbox=sandbox,
-                    prepared_code=prepared_code,
-                    timeout_s=timeout_s,
-                    run_id=run_id,
-                    attempt=2,
-                )
-                if not retry_stderr and stderr:
-                    retry_stderr = stderr
-                stdout, stderr, result_obj, status, normalization = (
-                    retry_stdout,
-                    retry_stderr,
-                    retry_result_obj,
-                    retry_status,
-                    retry_normalization,
-                )
-                proof_observed = proof.extract_from_result_or_stdout(result_obj, stdout)
-                proof_verified = proof.matches(proof_observed)
-
-            stdout = proof.strip_from_stdout(stdout)
-            if proof_verified:
-                return self._build_result(
-                    stdout=stdout,
-                    stderr=stderr,
-                    exit_code=EXIT_RUNTIME_ERROR if status == "error" else EXIT_SUCCESS,
-                    timed_out=False,
-                    run_id=run_id,
-                    proof_verified=True,
-                )
-
-            logger.warning(
-                "[ExecuteCode:%s] proof verification failed status=%r normalization=%s observed=%s stderr=%s",
-                run_id,
-                status,
-                normalization,
-                proof_observed,
-                trim_for_log(stderr),
-            )
-            detail = "Execution proof could not be verified."
             return self._build_result(
                 stdout=stdout,
-                stderr=f"{stderr}\n{detail}" if stderr else detail,
-                exit_code=EXIT_PROOF_FAILED,
+                stderr=stderr,
+                exit_code=EXIT_RUNTIME_ERROR if status == "error" else EXIT_SUCCESS,
                 timed_out=False,
                 run_id=run_id,
             )
+
         except asyncio.TimeoutError:
             logger.warning("[ExecuteCode:%s] sandbox timeout after %ds", run_id, timeout_s)
             return self._build_result(
@@ -275,7 +226,6 @@ class CodeExecutor:
             exit_code: int,
             timed_out: bool,
             run_id: str,
-            proof_verified: bool = False,
     ) -> dict:
         return ExecutionResult(
             stdout=stdout,
@@ -283,5 +233,4 @@ class CodeExecutor:
             exit_code=exit_code,
             timed_out=timed_out,
             run_id=run_id,
-            proof_verified=proof_verified,
         ).model_dump()

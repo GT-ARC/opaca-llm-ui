@@ -100,7 +100,7 @@ class InternalTools:
             ),
             InternalTool(
                 name="ExecuteCode",
-                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, exit_code, timed_out, run_id, and proof_verified. Exit codes: EXIT_SUCCESS = 0, EXIT_RUNTIME_ERROR = 1, EXIT_PROOF_FAILED = 6.",
+                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, exit_code, timed_out, and run_id. Exit codes: EXIT_SUCCESS = 0, EXIT_RUNTIME_ERROR = 1.",
                 params={"code": "string", "timeout_s": "integer"},
                 required_params=["code"],
                 result="object",
@@ -333,7 +333,6 @@ class InternalTools:
         return (
             result_dict.get("exit_code") == 0
             and not result_dict.get("timed_out", False)
-            and result_dict.get("proof_verified", False)
         )
 
     def _build_attempt_history_entry(
@@ -350,7 +349,6 @@ class InternalTools:
             "exit_code": result_dict.get("exit_code", 1),
             "timed_out": result_dict.get("timed_out", False),
             "run_id": result_dict.get("run_id", ""),
-            "proof_verified": result_dict.get("proof_verified", False),
         }
 
     @staticmethod
@@ -361,7 +359,6 @@ class InternalTools:
             "exit_code": 1,
             "timed_out": False,
             "run_id": "",
-            "proof_verified": False,
         }
 
     async def tool_solve_with_code(self, task: str, timeout_s: int = 10, max_code_retries: int = 2) -> dict:
@@ -393,12 +390,11 @@ class InternalTools:
                 result_dict["attempts"] = attempt,
                 result_dict["attempt_history"] = attempt_history
                 logger.warning(
-                    "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s proof_verified=%s stderr=%s",
+                    "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s stderr=%s",
                     attempt,
                     1 + max_code_retries,
                     result_dict.get("exit_code"),
                     result_dict.get("timed_out"),
-                    result_dict.get("proof_verified"),
                     result_dict.get("stderr", ""),
                 )
                 prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + (
@@ -427,19 +423,17 @@ class InternalTools:
 
             # 4. Failure → build retry prompt
             logger.warning(
-                "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s proof_verified=%s stderr=%s",
+                "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s stderr=%s",
                 attempt,
                 1 + max_code_retries,
                 result_dict.get("exit_code"),
                 result_dict.get("timed_out"),
-                result_dict.get("proof_verified"),
                 result_dict.get("stderr", ""),
                 )
             prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
                 code=code,
                 exit_code=result_dict.get("exit_code"),
                 timed_out=result_dict.get("timed_out"),
-                proof_verified=result_dict.get("proof_verified", False),
                 stdout=result_dict.get("stdout", ""),
                 stderr=result_dict.get("stderr", ""),
             )

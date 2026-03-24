@@ -423,14 +423,12 @@ class ExecutionResult(BaseModel):
         exit_code: Normalized executor exit code describing the outcome.
         timed_out: Whether execution exceeded the configured timeout.
         run_id: Short identifier used to correlate logs for one execution.
-        proof_verified: Whether the injected proof token was observed in the output.
     """
     stdout: str
     stderr: str
     exit_code: int
     timed_out: bool
     run_id: str = ""
-    proof_verified: bool = False
 
 
 # CUSTOM EXCEPTIONS
