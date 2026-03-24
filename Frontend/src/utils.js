@@ -231,3 +231,59 @@ export function addDebugMessage(debugMessages, message) {
         debugMessages.push(structuredClone(message));
     }
 }
+
+/**
+ * Replace an existing debug message with the same ID, or add it if missing.
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {object} message new message object with fields {id, type, text, chatId}
+ */
+export function replaceDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    const matchingIndex = debugMessages.findIndex( (m) => m.id === message.id);
+    if (message.id != null && matchingIndex >= 0) {
+        debugMessages.splice(matchingIndex, 1, structuredClone(message));
+    } else {
+        debugMessages.push(structuredClone(message));
+    }
+}
+
+/**
+ * Format tool results for debug output.
+ * Objects and arrays are pretty-printed, primitives stay compact.
+ * @param {*} result
+ * @returns {string}
+ */
+export function formatToolDebugResult(result) {
+    if (result === undefined) return "undefined";
+    if (typeof result === "object") {
+        return JSON.stringify(result, null, 2);
+    }
+    return JSON.stringify(result);
+}
+
+/**
+ * Prefer structured agent output for debug rendering when available.
+ * @param {object} agentMessage
+ * @returns {string}
+ */
+export function formatAgentDebugText(agentMessage) {
+    if (!agentMessage) return "";
+    if (agentMessage.formatted_output != null) {
+        return formatToolDebugResult(agentMessage.formatted_output);
+    }
+    if (typeof agentMessage.content !== "string") {
+        return agentMessage.content == null ? "" : formatToolDebugResult(agentMessage.content);
+    }
+
+    const trimmed = agentMessage.content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+        || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+            return formatToolDebugResult(JSON.parse(trimmed));
+        } catch {
+            // Keep the original text when it only looks like JSON.
+        }
+    }
+
+    return agentMessage.content;
+}

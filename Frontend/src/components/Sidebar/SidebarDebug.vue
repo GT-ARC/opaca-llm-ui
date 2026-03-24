@@ -68,6 +68,11 @@ export default {
             utils.addDebugMessage(this.debugMessages, message);
         },
 
+        setDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.replaceDebugMessage(this.debugMessages, message);
+        },
+
         clearDebugMessages() {
             this.debugMessages = [];
         },

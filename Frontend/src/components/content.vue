@@ -208,7 +208,7 @@ import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import backendClient from "../utils.js";
+import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { useDevice } from "../useIsMobile.js";
@@ -368,6 +368,7 @@ export default {
                     this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
+                this.syncStructuredAgentDebugMessages(result.agent_messages || []);
             } finally {
                 // always set to completed, even in case of error, e.g. timeout
                 aiBubble.toggleLoading(false);
@@ -604,8 +605,16 @@ export default {
 
         async addDebugResult(result) {
             const id = result.id.split("/")[1];
-            const toolOutput = `Result: ${JSON.stringify(result.result)}`
+            const toolOutput = `Result: ${formatToolDebugResult(result.result)}`
             this.addDebug(toolOutput, `Result ${id}`, result.id);
+        },
+
+        syncStructuredAgentDebugMessages(agentMessages) {
+            for (const agentMessage of agentMessages) {
+                const formattedText = formatAgentDebugText(agentMessage);
+                if (!formattedText || formattedText === (agentMessage?.content ?? "")) continue;
+                this.setDebug(formattedText, agentMessage.agent, agentMessage.id);
+            }
         },
 
         addDebug(text, type, id=null) {
@@ -613,6 +622,13 @@ export default {
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
             aiBubble.addDebugMessage(text, type, id);
+        },
+
+        setDebug(text, type, id=null) {
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.setDebugMessage(text, type, id);
+            const aiBubble = this.getLastBubble();
+            aiBubble.setDebugMessage(text, type, id);
         },
 
         isMainContentVisible() {
@@ -657,7 +673,7 @@ export default {
                         const chunk = {
                             id: agent_message.id,
                             agent: agent_message.agent,
-                            chunk: agent_message.content,
+                            chunk: formatAgentDebugText(agent_message),
                             is_output: false,
                         };
                         this.addDebugToken(chunk);
