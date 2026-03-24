@@ -1,7 +1,6 @@
 """Main code execution orchestrator for the Pyodide sandbox."""
 
 import asyncio
-import inspect
 import logging
 import uuid
 
@@ -45,24 +44,20 @@ class CodeExecutor:
                 run_id=run_id,
             )
 
-        try:
-            return await self._run_with_pyodide(
-                sandbox=sandbox,
-                run_id=run_id,
-                prepared_code=prepared_code,
-                timeout_s=timeout_s,
-            )
-        finally:
-            await self._close_sandbox(sandbox, run_id)
+        return await self._run_with_pyodide(
+            sandbox=sandbox,
+            run_id=run_id,
+            prepared_code=prepared_code,
+            timeout_s=timeout_s,
+        )
 
     async def _run_with_pyodide(self, sandbox, run_id: str, prepared_code: str, timeout_s: int) -> dict:
         try:
-            stdout, stderr, result_obj, status, normalization = await self._run_once(
+            stdout, stderr, status = await self._run_once(
                 sandbox=sandbox,
                 prepared_code=prepared_code,
                 timeout_s=timeout_s,
                 run_id=run_id,
-                attempt=1,
             )
             return self._build_result(
                 stdout=stdout,
@@ -91,90 +86,33 @@ class CodeExecutor:
                 run_id=run_id,
             )
 
-    async def _run_once(self, sandbox, prepared_code: str, timeout_s: int, run_id: str, attempt: int) -> tuple[str, str, object, str | None, str]:
-        logger.debug(
-            "[ExecuteCode:%s] sandbox execute attempt=%d timeout_seconds=%s memory_limit_mb=%d",
-            run_id,
-            attempt,
-            float(timeout_s),
-            1024,
-        )
+    async def _run_once(self, sandbox, prepared_code: str, timeout_s: int, run_id: str) -> tuple[str, str, str]:
+        logger.debug("[ExecuteCode:%s] sandbox execute timeout_seconds=%d", run_id, timeout_s)
         invocation = sandbox.execute(
             code=prepared_code,
             timeout_seconds=float(timeout_s),
             memory_limit_mb=1024,
         )
+        response = await asyncio.wait_for(invocation, timeout=timeout_s)
 
-        if inspect.isawaitable(invocation):
-            response = await asyncio.wait_for(invocation, timeout=timeout_s)
-        else:
-            response = invocation
-
-        stdout, stderr, result_obj, status, normalization = self._normalize_response(response)
+        stdout, stderr, status = self._normalize_response(response)
         if stderr:
-            logger.debug(
-                "[ExecuteCode:%s] pyodide stderr(attempt=%d)=%s",
-                run_id,
-                attempt,
-                trim_for_log(stderr),
-            )
-        return stdout, stderr, result_obj, status, normalization
+            logger.debug("[ExecuteCode:%s] pyodide stderr(attempt=%d)=%s", run_id, trim_for_log(stderr))
+        return stdout, stderr, status
 
     @staticmethod
-    def _normalize_response(response: object) -> tuple[str, str, object, str | None, str]:
-        if isinstance(response, str):
-            return response, "", None, None, "str"
-
-        status = getattr(response, "status", None)
-        stdout = getattr(response, "stdout", "") or getattr(response, "output", "") or ""
-        stderr = getattr(response, "stderr", "") or ""
-        result_obj = getattr(response, "result", None)
-        attrs = [
-            attr for attr in ("stdout", "output", "stderr", "status", "result", "error", "message", "detail")
-            if getattr(response, attr, None) not in (None, "")
-        ]
-        normalization = f"attrs({','.join(attrs)})" if attrs else type(response).__name__
-
-        if not stderr and isinstance(result_obj, dict):
-            for key in ("stderr", "error", "message", "detail", "traceback"):
-                value = result_obj.get(key)
-                if isinstance(value, str) and value.strip():
-                    stderr = value
-                    normalization += f"+result.{key}"
-                    break
-
-        if not stderr:
-            for attr in ("error", "message", "detail"):
-                value = getattr(response, attr, None)
-                if isinstance(value, str) and value.strip():
-                    stderr = value
-                    normalization += f"+attr.{attr}"
-                    break
-
-        if not stdout and result_obj is not None:
-            stdout = str(result_obj)
-            normalization += "+result_to_stdout"
-
-        return stdout, stderr, result_obj, status, normalization
-
-    @staticmethod
-    async def _close_sandbox(sandbox, run_id: str) -> None:
-        close_async = getattr(sandbox, "aclose", None)
-        close_sync = getattr(sandbox, "close", None)
-        try:
-            if callable(close_async):
-                await close_async()
-            elif callable(close_sync):
-                close_sync()
-        except Exception:
-            logger.exception("[ExecuteCode:%s] sandbox close failed", run_id)
+    def _normalize_response(response: object) -> tuple[str, str, str]:
+        status = response.status
+        stdout = response.stdout
+        stderr = response.stderr
+        return stdout, stderr, status
 
     @staticmethod
     def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> dict:
         return ExecutionResult(
+            run_id=run_id,
             stdout=stdout,
             stderr=stderr,
             exit_code=exit_code,
             timed_out=timed_out,
-            run_id=run_id,
         ).model_dump()
