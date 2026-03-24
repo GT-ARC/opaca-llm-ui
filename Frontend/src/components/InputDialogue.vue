@@ -1,52 +1,55 @@
 <template>
-    <div v-if="show" class="auth-overlay">
-        <div class="p-4 login-container rounded shadow">
-            <form @submit.prevent="handleSubmit">
+    <div v-if="show" class="input-dialog">
+        <div class="p-4 input-container rounded shadow">
+            <form>
                 <h5 class="mb-3">{{ title }}</h5>
-                <div class="mb-3">{{ message }}</div>
+                <div class="scroll-container">
+                    <div class="mb-3" v-html="message" />
 
-                <div v-for="(val, key, idx) in schema" :key="key">
-                    <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
-                        v-model="values[key]"
-                        class="form-control mb-2"
-                        :type="val.type"
-                        :placeholder="val.label ?? key"
-                        v-bind:autofocus="idx === 0"
-                    />
-                    <textarea v-if="val.type === 'textarea'"
-                        v-model="values[key]"
-                        class="form-control mb-2"
-                        rows="4" 
-                        :placeholder="val.label ?? key"
-                        v-bind:autofocus="idx === 0"
-                    />
-                    <div v-if="val.type === 'checkbox'">
-                        <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" v-bind:autofocus="idx === 0"/>
-                        <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
+                    <div v-for="(val, key, idx) in schema" :key="key">
+                        <input v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'"
+                            v-model="values[key]"
+                            class="form-control mb-2"
+                            :type="val.type"
+                            :placeholder="val.label ?? key"
+                            v-bind:autofocus="idx === 0"
+                        />
+                        <textarea v-if="val.type === 'textarea'"
+                            v-model="values[key]"
+                            class="form-control mb-2"
+                            rows="4" 
+                            :placeholder="val.label ?? key"
+                            v-bind:autofocus="idx === 0"
+                        />
+                        <div v-if="val.type === 'checkbox'">
+                            <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" v-bind:autofocus="idx === 0"/>
+                            <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
+                        </div>
+                        <select v-if="val.type === 'select'"
+                            v-model="values[key]"
+                            v-bind:autofocus="idx === 0"
+                            class="form-select mb-2">
+                            <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
+                        </select>
                     </div>
-                     <select v-if="val.type === 'select'"
-                        v-model="values[key]"
-                        v-bind:autofocus="idx === 0"
-                        class="form-select mb-2">
-                        <option v-for="(v, k) in val.values" :key="k" :value="k">{{ v }}</option>
-                    </select>
-                </div>
 
-                <div v-if="errorMsg !== null" class="text-danger border border-danger rounded p-2 mb-3">
-                    {{ errorMsg }}
+                    <div v-if="errorMsg !== null" class="text-danger border border-danger rounded p-2 mb-3">
+                        {{ errorMsg }}
+                    </div>
                 </div>
 
                 <div v-if="onOkay !== null" class="d-flex justify-content-end gap-2 mt-2">
-                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)">
-                        {{ Localizer.get('dialogCancel') }}
+                    <button type="button" class="btn btn-secondary w-25" @click="handleSubmit(false)" v-if="!loading">
+                        {{ Localizer.get('general_cancel') }}
                     </button>
-                    <button type="submit" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
-                        {{ Localizer.get('dialogOkay') }}
+                    <button type="button" class="btn btn-primary w-50" @click="handleSubmit(true)" :disabled="!canSubmit()">
+                        <span v-if="loading"><i class="fa fa-spin fa-spinner" /></span>
+                        <span v-else>{{ Localizer.get('general_okay') }}</span>
                     </button>
                     
                 </div>
                 <button v-else type="button" class="btn btn-primary w-100 mt-2" @click="show = false">
-                    {{ Localizer.get('dialogOkay') }}
+                    {{ Localizer.get('general_okay') }}
                 </button>
             </form>
         </div>
@@ -57,6 +60,7 @@
 import {nextTick} from "vue";
 import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js"
+import {marked} from "marked";
 
 export default {
     name: 'InputDialogue',
@@ -66,6 +70,7 @@ export default {
     },
     data() {
         return {
+            queue: [],
             show: false,
             title: null,
             message: null,
@@ -74,6 +79,7 @@ export default {
             values: null,
             onOkay: null,
             onCancel: null,
+            loading: false,
         }
     },
     methods: {
@@ -85,7 +91,7 @@ export default {
          * The format for "schema" is as follows
          * 
          * {
-         *      key1: {type: str, label: str, default: any, values: dict?},
+         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool},
          *      ...
          * }
          * 
@@ -95,24 +101,59 @@ export default {
          * - label: display label/placeholder, optional (if not present, key is used)
          * - default: default value, optional (default-default is just null)
          * - values: dict (value -> label) for options, only for type 'select'
+         * - optional: whether the parameter can be omitted even without a default (default: false)
+         *             (if the parameter has a default, it is automatically optional)
          * 
          * @param title the title (bold)
-         * @param message message below the title, optional
-         * @param errorMsg error message (e.g. if previous attempt failed), optional
+         * @param message message below the title, optional; can contain Markdown
+         * @param errorMsg error message (e.g. if previous attempt failed), optional)
          * @param schema defines the different values that should be entered in the dialogue (see above)
-         * @param onOkay callback function, should accept dict of values
-         * @param onCancel callback function, should accept no parameters (optional)
+         * @param onOkay async callback function, should accept dict of values; can raise error
+         * @param onCancel async callback function, should accept no parameters (optional); can raise error
          */
         async showDialogue(title, message, errorMsg, schema, onOkay, onCancel=null) {
+            this.queue.push({
+                title: title,
+                message: marked.parse(message ?? ""),
+                errorMsg: errorMsg,
+                schema: schema,
+                onOkay: onOkay,
+                onCancel: onCancel ?? (async () => {}),
+                values: Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
+                ),
+            });
+            await this.updateDialogue();
+        },
+
+        /**
+         * Update dialogue from Queue. This is to ensure that a follow-up dialogue can be shown in the onOkay callback of
+         * another dialogue. The problem here is that all those are actually the SAME dialogue and only the content is updated.
+         * 
+         * - If the last dialogue is still showing (executing its callback), this does nothing.
+         * - If the queue is empty, it hides itself.
+         * - Otherwise, it updates the content from the queue and sets itself to being visible again.
+         *
+         * Without the queue, the first dialogue could set itself to hidden and then update the content in the callback, but that
+         * would result in a short time of no dialogue being shown. If it sets itself to hidden after the callback is finished, it
+         * would update the content and then immediately hide itself. With this queue, the process is: exec callback, queue new
+         * content, set self to hidden, update content from queue and set to visible again.
+         */
+        async updateDialogue() {
+            if (this.loading) return;
+            if (this.errorMsg) return;
+            if (this.queue.length === 0) {
+                this.show = false;
+                return;
+            }
+            const {title, message, errorMsg, schema, onOkay, onCancel, values} = this.queue.shift();
             this.title = title;
             this.message = message;
             this.errorMsg = errorMsg;
             this.schema = schema;
             this.onOkay = onOkay;
             this.onCancel = onCancel;
-            this.values = Object.fromEntries(
-                Object.entries(schema).map(([k, v]) => [k, v.default ?? null]) // yes, '?? null' makes a difference...
-            );
+            this.values = values;
             this.show = true;
             await nextTick();
         },
@@ -128,17 +169,22 @@ export default {
         },
 
         canSubmit() {
-            return Object.values(this.values).indexOf(null) === -1;
+            if (this.loading) return false;
+            return Object.entries(this.values).every(([k, v]) => v != null || this.schema[k].optional);
         },
 
         async handleSubmit(okay) {
-            this.show = false;
             await nextTick();
-            // callback is called last, so that it can show another dialogue
-            if (okay) {
-                this.onOkay(this.values);
-            } else if (this.onCancel !== null) {
-                this.onCancel();
+            this.loading = true;
+            this.errorMsg = null;
+            try {
+                const callback = okay ? this.onOkay : this.onCancel;
+                await callback(this.values);
+            } catch (error) {
+                this.errorMsg = error.message;
+            } finally {
+                this.loading = false;
+                await this.updateDialogue();
             }
         },
 
@@ -158,16 +204,21 @@ export default {
 
 <style scoped>
 
-/* login stuff */
-.login-container {
+.input-container {
     max-width: 400px;
     width: 100%;
     margin: auto;
     background-color: var(--surface-color);
-    color: var(--text-primary-color)
+    color: var(--text-primary-color);
 }
 
-.auth-overlay {
+.scroll-container {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.input-dialog {
     position: fixed;
     top: 0;
     left: 0;

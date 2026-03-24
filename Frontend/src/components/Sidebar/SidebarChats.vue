@@ -9,7 +9,7 @@
     />
 
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarChats') }}
+        {{ Localizer.get('sidebar_chats') }}
     </div>
 
     <div class="d-grid gap-2">
@@ -19,7 +19,7 @@
                 @click="this.$emit('new-chat')"
                 :disabled="!this.isFinished" >
             <i class="fa fa-pen-to-square" />
-            {{ Localizer.get('buttonNewChat') }}
+            {{ Localizer.get('chats_new') }}
         </button>
 
         <!-- "Search" button -->
@@ -28,7 +28,7 @@
                 @click="this.isSearching = true"
                 :disabled="!this.isFinished" >
             <i class="fa fa-magnifying-glass" />
-            {{ Localizer.get('buttonSearchChats') }}
+            {{ Localizer.get('chats_search') }}
         </button>
 
         <!-- "Delete All Chats" button -->
@@ -37,7 +37,7 @@
                 @click="onDeleteAllChats"
                 :disabled="!this.isFinished || this.chats.length === 0">
             <i class="fa fa-trash" />
-            {{ Localizer.get('buttonDeleteAllChats') }}
+            {{ Localizer.get('chats_deleteAll') }}
         </button>
     </div>
 
@@ -106,7 +106,7 @@ export default {
         },
 
         onDeleteAllChats() {
-            if (confirm(Localizer.get('confirmDeleteAllChats'))) {
+            if (confirm(Localizer.get('chats_deleteAll_confirm'))) {
                 this.$emit('delete-all-chats');
             }
         },

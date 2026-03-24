@@ -1,7 +1,7 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarFaq') }}
+        {{ Localizer.get('sidebar_faq') }}
     </div>
 
     <div v-if="this.faqContent"
@@ -9,7 +9,7 @@
          class="d-flex flex-column text-start faq-content">
     </div>
     <div v-else>
-        {{ Localizer.get('sidebarFaqMissing') }}
+        {{ Localizer.get('faq_missing') }}
     </div>
 </div>
 </template>
@@ -33,7 +33,7 @@ export default {
     },
     methods: {
         async buildFaqContent() {
-            const readmeUrl = '/src/assets/about.md';
+            const readmeUrl = `/src/assets/about_${Localizer.language}.md`;
             try {
                 const response = await fetch(readmeUrl);
                 if (response.ok) {
@@ -46,6 +46,11 @@ export default {
                 console.error('Failed to fetch FAQ content:', error);
             }
         },
+    },
+    watch: {
+        'Localizer.language'() {
+            this.buildFaqContent();
+        }
     },
     mounted() {
         this.buildFaqContent();

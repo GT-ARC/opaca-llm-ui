@@ -4,7 +4,7 @@
          @scroll="this.handleDebugScroll">
 
         <div v-if="!isMobile" class="sidebar-title">
-            {{ Localizer.get('tooltipSidebarLogs') }}
+            {{ Localizer.get('sidebar_logs') }}
         </div>
 
         <div id="debug-console"
@@ -66,6 +66,11 @@ export default {
         addDebugMessage(text, type, id=null) {
             const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
             utils.addDebugMessage(this.debugMessages, message);
+        },
+
+        setDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.replaceDebugMessage(this.debugMessages, message);
         },
 
         clearDebugMessages() {
