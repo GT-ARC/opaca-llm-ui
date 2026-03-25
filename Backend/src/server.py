@@ -54,8 +54,8 @@ logger = logging.getLogger("uvicorn")
 # mapping language -> (hash -> info)
 platform_infos: dict[int, str] = {}
 info_queries = {
-    'DE': 'Wie kannst du mir helfen?',
-    'GB': 'How can you assist me?',
+    'en': 'How can you assist me?',
+    'de': 'Wie kannst du mir helfen?',
 }
 
 
@@ -179,7 +179,7 @@ async def disconnect(session: SessionData = Depends(handle_session_http)) -> Res
 @app.post("/platform-info", description="Get info about the connected platform", tags=["opaca"])
 async def get_platform_info(lang: str, session: SessionData = Depends(handle_session_http)) -> str:
     if lang not in info_queries:
-        lang = 'GB'
+        lang = 'en'
     query = info_queries[lang]
     actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))

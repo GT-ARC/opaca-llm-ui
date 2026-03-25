@@ -192,7 +192,7 @@ export default {
                 "   '3': ..." +
                 "}";
 
-            if (Localizer.language === 'DE') {
+            if (Localizer.language === 'de') {
                 user_query += "\n\nGenerate all questions in German!";
             }
 

@@ -4,20 +4,6 @@ import Localizer from "./Localizer.js";
 import * as utils from "./utils.js"
 
 
-const voiceGenLocales = {
-    WHISPER: {GB: 'en', DE: 'de'},
-    WEBSPEECH: {GB: 'en-US', DE: 'de-DE'},
-};
-
-function getLanguageForWhisper() {
-    return voiceGenLocales.WHISPER[Localizer.language];
-}
-
-function getLanguageForWebSpeech() {
-    return voiceGenLocales.WEBSPEECH[Localizer.language];
-}
-
-
 /**
  * Provide unified API for TTS/STT using either the browser built-in
  * Web Speech API or a custom Whisper server running locally.
@@ -150,7 +136,7 @@ class WebSpeechAudio extends TtsAudio {
 
     async setup() {
         const utterance = new SpeechSynthesisUtterance(this._text);
-        utterance.lang = getLanguageForWebSpeech();
+        utterance.lang = Localizer.language;
 
         utterance.onstart = () => {
             this.isLoading = false;
@@ -278,7 +264,7 @@ class AudioManager {
             console.error(`Failed to start web speech recognition: ${error}`);
             return;
         }
-        this._recognition.lang = getLanguageForWebSpeech();
+        this._recognition.lang = Localizer.language;
         this._recognition.onresult = async (event) => {
             const recognizedText = Array.from(event.results).map(r => r[0].transcript).join('\n\n');
             onResult(recognizedText);
@@ -400,7 +386,7 @@ class AudioManager {
         if (audioChunks.length === 0) return '';
 
         const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();
-        const lang = getLanguageForWhisper();
+        const lang = Localizer.language;
 
         const formData = new FormData();
         formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));

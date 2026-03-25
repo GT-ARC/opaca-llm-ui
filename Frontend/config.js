@@ -48,7 +48,7 @@ let config = {
     DefaultSidebarView: 'questions',
 
     // Default UI language
-    DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
+    DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'en',
 }
 
 /**
