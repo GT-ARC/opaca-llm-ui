@@ -39,7 +39,7 @@ class CodeExecutor:
                 timeout_seconds=float(timeout_s),
                 memory_limit_mb=1024,
             )
-            response = await asyncio.wait_for(invocation, timeout=timeout_s)
+            response = await asyncio.wait_for(invocation, timeout=timeout_s+5)
             return ExecutionResult(
                 run_id=run_id,
                 stdout=response.stdout,
@@ -47,9 +47,6 @@ class CodeExecutor:
                 status=response.status,
             )
 
-        except asyncio.TimeoutError:
-            logger.warning("[ExecuteCode:%s] sandbox timeout after %ds", run_id, timeout_s)
-            return ExecutionResult(run_id=run_id, status="timeout")
         except Exception as exc:
             logger.exception("[ExecuteCode:%s] sandbox execution failed", run_id)
             return ExecutionResult(run_id=run_id, status=f"Pyodide execution failed: {exc}")
