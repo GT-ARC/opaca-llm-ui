@@ -20,7 +20,7 @@ from starlette.datastructures import Headers
 
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateMessage, PushMessage, \
     PromptCategory, InvokeRequest, InvokeResponse
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod

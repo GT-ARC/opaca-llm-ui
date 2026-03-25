@@ -3,8 +3,11 @@ from fastapi.testclient import TestClient
 from Backend.src.server import app, handle_session_http
 from util import handle_user_session_id
 
+
+# Initialize the client with a mock session
 app.dependency_overrides[handle_session_http] = handle_user_session_id
 client = TestClient(app)
+
 
 def test_add_mcp():
     mcp_content = {

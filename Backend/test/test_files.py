@@ -6,7 +6,7 @@ from Backend.src.server import app, handle_session_http
 from util import handle_user_session_id
 
 
-# Initialize test client
+# Initialize the client with a mock session
 app.dependency_overrides[handle_session_http] = handle_user_session_id
 client = TestClient(app)
 
@@ -31,6 +31,7 @@ def files_response():
     res = client.get("/files")
     assert res.status_code == 200
     return res.json()
+
 
 @pytest.mark.parametrize("filename, content_type", allowed_files.items())
 def test_append_files_allowed(filename, content_type):

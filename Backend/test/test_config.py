@@ -5,8 +5,9 @@ from Backend.src.server import app, handle_session_id
 
 from util import handle_user_session_id
 
-app.dependency_overrides[handle_session_id] = handle_user_session_id
 
+# Initialize the client with a mock session
+app.dependency_overrides[handle_session_id] = handle_user_session_id
 client = TestClient(app)
 
 methods = ["simple", "simple-tools", "tool-llm", "self-orchestrated"]

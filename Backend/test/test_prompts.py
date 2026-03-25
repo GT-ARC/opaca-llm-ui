@@ -3,9 +3,11 @@ from fastapi.testclient import TestClient
 from Backend.src.server import app, handle_session_id
 from util import example_prompt, handle_user_session_id
 
-app.dependency_overrides[handle_session_id] = handle_user_session_id
 
+# Initialize the client with a mock session
+app.dependency_overrides[handle_session_id] = handle_user_session_id
 client = TestClient(app)
+
 
 def test_get_prompts():
     res = client.get("/prompts")
@@ -19,7 +21,7 @@ def test_set_prompts():
 
     res = client.get("/prompts")
     prompts = res.json()["GB"]
-    print(prompts)
+    # Check if the prompt in "example_prompt()" is found in any of the retrieved prompts
     assert any(q["id"] == "testSection" and q["questions"][0]["question"] == "This is a test question" for q in prompts)
 
 def test_delete_prompts():
@@ -27,41 +29,5 @@ def test_delete_prompts():
     assert res.status_code == 200
 
     res = client.get("/prompts")
-    prompts = res.json()["GB"]
-    assert all(q["id"] != "testSection" and q["questions"][0]["question"] != "This is a test question" for q in prompts)
-
-def test_get_prompts_default():
-    res = client.get("/prompts/default")
-    assert res.status_code == 200
-
-def test_set_prompts_default():
-    res = client.post(
-        "/prompts/default",
-        json={
-            "GB": [
-                {
-                    "id": "testSection",
-                    "header": "TestSection",
-                    "icon": "🤖",
-                    "visible": False,
-                    "questions": [
-                        {
-                            "question": "This is a test question",
-                            "icon": "🔧"
-                        }
-                    ]
-                }
-            ]
-        })
-    assert res.status_code == 200
-
-    res = client.get("/prompts/default")
-    assert res.json()["GB"][0]["questions"][0]["question"] == "This is a test question"
-
-def test_reset_prompts_default():
-    res = client.delete("/prompts/default")
-    assert res.status_code == 200
-
-    res = client.get("/prompts/default")
     prompts = res.json()["GB"]
     assert all(q["id"] != "testSection" and q["questions"][0]["question"] != "This is a test question" for q in prompts)

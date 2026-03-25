@@ -1,7 +1,3 @@
-"""
-To test the admin actions, we define two clients.
-One for the user, and another one for the admin.
-"""
 from unittest.mock import patch, AsyncMock
 import os
 
@@ -14,15 +10,15 @@ from Backend.src.server import app, handle_session_http
 
 from util import example_prompt, handle_admin_session_id, handle_user_session_id
 
+
 # Set the admin password
 ADMIN_PWD = "test-admin"
 os.environ["SESSION_ADMIN_PWD"] = ADMIN_PWD
 
-
 # Initialize two clients, one for the user, and another one for the admin
+# Used to test the effects of admin functions on a different client
 app.dependency_overrides[handle_session_http] = handle_admin_session_id
 client = TestClient(app)
-
 app.dependency_overrides[handle_session_http] = handle_user_session_id
 user_client = TestClient(app)
 
