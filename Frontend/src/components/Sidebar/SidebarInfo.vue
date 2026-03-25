@@ -1,17 +1,17 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarInfo') }}
+        {{ Localizer.get('sidebar_info') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('platformInfoLoading') }}
+        {{ Localizer.get('info_loading') }}
     </div>
     <div v-else-if="!isPlatformConnected" class="placeholder-container">
         <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
         <h5 class="p-4">
-            {{ Localizer.get('platformInfoMissing') }}
+            {{ Localizer.get('info_missing') }}
         </h5>
     </div>
     <div v-else
@@ -32,8 +32,9 @@ export default {
     name: "SidebarInfo",
     props: {
         isPlatformConnected: Boolean,
+        sidebarView: String,
     },
-    emits: ['update-platform-info'],
+    emits: [],
     setup() {
         const { isMobile } = useDevice();
         return { conf, Localizer, isMobile };
@@ -48,12 +49,11 @@ export default {
         async showHowCanYouHelpInSidebar() {
             try {
                 this.isLoading = true;
-                const response = await backendClient.queryNoChat("simple-tools", Localizer.get('platformInfoRequest'), false);
-                const answer = response.agent_messages[0].content;
+                const answer = await backendClient.getPlatformInfo(Localizer.language);
                 this.howAssistContent = marked.parse(answer);
             } catch (error) {
                 console.error("ERROR " + error);
-                this.howAssistContent = Localizer.get('platformInfoFailed', error);
+                this.howAssistContent = Localizer.get('info_failed', error);
             } finally {
                 this.isLoading = false;
             }
@@ -63,10 +63,18 @@ export default {
     mounted() {},
     watch: {
         isPlatformConnected(newVal) {
-            if (newVal) {
+            if (newVal && this.sidebarView === 'info') {
+                this.showHowCanYouHelpInSidebar();
+            } else if (!newVal) {
+                this.howAssistContent = '';
+            }
+        },
+        sidebarView(newView) {
+            if (newView === 'info'
+                && this.isPlatformConnected
+                && !this.howAssistContent) {
                 this.showHowCanYouHelpInSidebar();
             }
-            this.$emit('update-platform-info', newVal);
         }
     }
 }

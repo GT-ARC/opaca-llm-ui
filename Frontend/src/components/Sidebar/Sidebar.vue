@@ -4,47 +4,74 @@
         <div id="sidebar-menu"
              class="d-flex flex-column justify-content-start align-items-center gap-2">
 
+            <!-- Always Visible: Info -->
             <i @click="SidebarManager.toggleView('info')"
                class="fa fa-circle-info sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarInfo')"
+               :title="Localizer.get('sidebar_info')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('info')}" />
 
+            <!-- Always Visible: Chats -->
             <i @click="SidebarManager.toggleView('chats')"
                class="fa fa-message sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarChats')"
+               :title="Localizer.get('sidebar_chats')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('chats')}" />
 
-            <i @click="SidebarManager.toggleView('files')"
-               class="fa fa-file sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFiles')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
-
+            <!-- Always Visible: Prompts -->
             <i @click="SidebarManager.toggleView('questions')"
                class="fa fa-book sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarPrompts')"
+               :title="Localizer.get('sidebar_questions')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('questions')}" />
 
-            <i @click="SidebarManager.toggleView('agents')"
-               class="fa fa-users sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarAgents')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
+            <!-- Collapse/Extend Button -->
+            <i @click="toggleSidebar()"
+               @mouseenter="sidebarToggleHovered = true"
+               @mouseleave="sidebarToggleHovered = false"
+               class="fa sidebar-menu-toggle"
+               :class="getSidebarToggleIcon()"
+               :title="getSidebarToggleTooltip()" />
 
-            <i @click="SidebarManager.toggleView('config')"
-               class="fa fa-cog sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarConfig')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
+            <!-- Expanded-only tools -->
+            <div v-if="!sidebarCollapsed"
+                 class="d-flex flex-column align-items-center gap-2"
+                 style="min-height: 0; overflow: hidden;">
+                <i @click="SidebarManager.toggleView('files')"
+                   class="fa fa-file sidebar-menu-item"
+                   :title="Localizer.get('sidebar_files')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('files')}" />
 
-            <i @click="SidebarManager.toggleView('debug')"
-               class="fa fa-bug sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarLogs')"
-               v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
+                <i @click="SidebarManager.toggleView('agents')"
+                   class="fa fa-users sidebar-menu-item"
+                   :title="Localizer.get('sidebar_agents')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
+
+                <i @click="SidebarManager.toggleView('extensions')"
+                   class="fa fa-puzzle-piece sidebar-menu-item"
+                   :title="Localizer.get('sidebar_extensions')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('extensions')}"/>
+
+                <i @click="SidebarManager.toggleView('mcp')"
+                   class="fa fa-server sidebar-menu-item"
+                   :title="Localizer.get('sidebar_mcp')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('mcp')}"/>
+
+                <i @click="SidebarManager.toggleView('config')"
+                   class="fa fa-cog sidebar-menu-item"
+                   :title="Localizer.get('sidebar_config')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('config')}"/>
+
+                <i @click="SidebarManager.toggleView('debug')"
+                   class="fa fa-bug sidebar-menu-item"
+                   :title="Localizer.get('sidebar_logs')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('debug')}"/>
+            </div>
 
             <!-- spacer -->
             <div class="flex-grow-1" />
 
+            <!-- Always Visible: FAQ -->
             <i @click="SidebarManager.toggleView('faq')"
                class="fa fa-question-circle sidebar-menu-item"
-               :title="Localizer.get('tooltipSidebarFaq')"
+               :title="Localizer.get('sidebar_faq')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('faq')}"/>
         </div>
 
@@ -57,7 +84,7 @@
                 <SidebarInfo
                     v-show="SidebarManager.isViewSelected('info')"
                     :is-platform-connected="connected"
-                    @update-platform-info="this.handleUpdatePlatformInfo"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="info"
                 />
 
@@ -71,6 +98,7 @@
                     @rename-chat="(chatId, newName) => this.$emit('rename-chat', chatId, newName)"
                     @new-chat="() => this.$emit('new-chat')"
                     @goto-search-result="(chatId, messageId) => this.$emit('goto-search-result', chatId, messageId)"
+                    @delete-all-chats="() => this.$emit('delete-all-chats')"
                     ref="chats"
                 />
 
@@ -79,6 +107,8 @@
                     v-show="SidebarManager.isViewSelected('files')"
                     @delete-file="fileId => this.$emit('delete-file', fileId)"
                     @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                    @view-file="$emit('view-file', $event)"
+                    @rename-file="(fileId, newName) => this.$emit('rename-file', fileId, newName)"
                     ref="files"
                 />
 
@@ -93,7 +123,22 @@
                 <!-- agents/actions overview -->
                 <SidebarAgents
                     v-show="SidebarManager.isViewSelected('agents')"
+                    :is-platform-connected="connected"
                     ref="agents"
+                />
+
+                <!-- UI extensions -->
+                <SidebarExtensions
+                    v-show="SidebarManager.isViewSelected('extensions')"
+                    :is-platform-connected="connected"
+                    ref="extensions"
+                />
+
+                <!-- MCP servers -->
+                <SidebarMcp
+                    v-show="SidebarManager.isViewSelected('mcp')"
+                    :is-platform-connected="connected"
+                    ref="mcp"
                 />
 
                 <!-- method config -->
@@ -126,19 +171,23 @@
 import conf, {Methods, MethodDescriptions} from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
+import Cookie from "js-cookie";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
+import SidebarExtensions from './SidebarExtensions.vue';
 import SidebarConfig from "./SidebarConfig.vue";
 import SidebarInfo from "./SidebarInfo.vue";
 import SidebarDebug from "./SidebarDebug.vue";
 import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
+import SidebarMcp from "./SidebarMcp.vue";
 
 export default {
     name: 'Sidebar',
     components: {
+        SidebarMcp,
         SidebarFiles,
         SidebarChats,
         SidebarFaq,
@@ -146,6 +195,7 @@ export default {
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
+        SidebarExtensions,
         SidebarQuestions,
     },
     props: {
@@ -164,19 +214,42 @@ export default {
         'new-chat',
         'delete-file',
         'suspend-file',
+        'view-file',
+        'rename-file',
         'goto-search-result',
+        'delete-all-chats',
     ],
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
     },
     data() {
-        return {};
+        return {
+            sidebarCollapsed: true,
+            sidebarToggleHovered: false,
+        };
     },
     methods: {
-        handleUpdatePlatformInfo(isPlatformConnected) {
-            if (!this.$refs.agents) return;
-            this.$refs.agents.updatePlatformInfo(isPlatformConnected);
+        toggleSidebar() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            Cookie.set('sidebar_collapsed', this.sidebarCollapsed);
+
+            // Close view if it is now hidden
+            const view = this.SidebarManager.getSelectedView();
+            if (this.SidebarManager.viewNotInCollapsed(view)) {
+                this.SidebarManager.close();
+            }
+        },
+
+        getSidebarToggleIcon() {
+            if (this.sidebarCollapsed) return 'fa-angle-down';
+            if (this.sidebarToggleHovered) return 'fa-angle-up';
+            return 'fa-minus';
+        },
+
+        getSidebarToggleTooltip() {
+            if (this.sidebarCollapsed) return Localizer.get('sidebar_showAdvancedTools');
+            return Localizer.get('sidebar_showStandardTools');
         },
 
         setupResizer() {
@@ -209,6 +282,15 @@ export default {
     },
     mounted() {
         this.setupResizer();
+
+        this.sidebarCollapsed = Cookie.get('sidebar_collapsed') !== 'false';
+
+        if (this.isMobile) {
+            SidebarManager.close()
+        } else {
+            const selectedView = Cookie.get('selected_view') ?? conf.DefaultSidebarView;
+            SidebarManager.selectView(selectedView, this.sidebarCollapsed);
+        }
     },
 }
 </script>
@@ -216,6 +298,8 @@ export default {
 <style>
 /* used in the sub-components! */
 .sidebar-title {
+    display: flex;
+    align-items: center;
     font-size: 150%;
     border-left: 5px solid var(--primary-color);
     padding-left: .5em;
@@ -281,6 +365,22 @@ export default {
     color: white !important;
 }
 
+.sidebar-menu-toggle {
+    font-size: 1.25rem;
+    cursor: pointer;
+    width: 3rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary-color);
+    transition: all 0.2s ease;
+}
+
+.sidebar-menu-toggle:hover {
+    color: var(--primary-color);
+}
+
 .resizer {
     width: 4px;
     cursor: ew-resize;
@@ -313,6 +413,12 @@ export default {
         font-size: 1rem;
         width: 2.5rem;
         height: 2.5rem;
+    }
+
+    .sidebar-menu-toggle {
+        width: 2.5rem;
+        height: 1rem;
+        font-size: 1rem;
     }
 
     #sidebar-content {

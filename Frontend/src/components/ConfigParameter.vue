@@ -2,8 +2,8 @@
 <div class="config-section">
 
     <!-- header: name and tooltip description -->
-    <div class="config-section-header">
-        <strong>{{ configParam?.name ?? name }}</strong>
+    <div class="config-section-header" v-if="(configParam?.title ?? this.name) !== 'model'">
+        <strong>{{ configParam?.title ?? this.name }}</strong>
 
         <!-- param description -->
         <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
@@ -35,11 +35,11 @@
     </div>
 
     <!-- enums -->
-    <div v-else-if="Array.isArray(configParam?.enum)">
+    <div v-else-if="Array.isArray(configParam?.options)">
         <ComboBox
             v-model="localValue"
-            :items="configParam?.enum"
-            :default-disabled="!configParam?.free_input"
+            :items="configParam?.options"
+            :default-input-disabled="!configParam?.allow_free_input"
         />
     </div>
 
@@ -50,7 +50,7 @@
                type="range"
                :min="configParam.minimum"
                :max="configParam.maximum"
-               :step="configParam.step"
+               :step="configParam.multipleOf"
                :aria-describedby="`slider-value-${this.name}`"
         />
     </div>
@@ -80,7 +80,7 @@ export default {
         configParam: Object,
 
         // is set by v-model in parent component
-        modelValue: Object, // <- "Any" type
+        modelValue: [Number, String, Object, Boolean],
     },
     setup() {
         const {isMobile} = useDevice();
@@ -157,7 +157,7 @@ input[type="number"] {
 }
 
 .config-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .config-section-header {

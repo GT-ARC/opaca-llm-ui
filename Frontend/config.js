@@ -17,7 +17,7 @@ export const MethodDescriptions = {
 
 let config = {
 
-    // URL to the OPACA LLM UI backend
+    // URL to the SAGE backend
     BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
     // The initially selected prompting method
@@ -29,12 +29,12 @@ let config = {
     // URL to the OPACA Runtime platform
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
-    // URL to the audio server
-    VoiceServerUrl: import.meta.env.VITE_VOICE_SERVER_URL ?? null,
-
     // If true, attempt to connect to the configured platform on-load
     // the boolean value is parsed later, together with the one passed as query param, if any
     AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
+
+    // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
+    ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
 
     // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
@@ -60,7 +60,7 @@ let config = {
  */
 function parseEnvBool(name, defaultValue = false) {
     const value = import.meta.env[name];
-    return (value?.toLowerCase() === 'true') ?? defaultValue;
+    return value ? value.toLowerCase() === 'true' : defaultValue;
 }
 
 /**

@@ -1,12 +1,12 @@
 <template>
     <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
         <div v-if="!isMobile" class="sidebar-title">
-            {{ Localizer.get('tooltipSidebarFiles') }}
+            {{ Localizer.get('sidebar_files') }}
         </div>
 
         <!-- Show info if no files -->
-        <div v-if="Object.keys(files).length === 0" class="empty-files text-gray-500 text-sm p-4">
-            {{ Localizer.get('sidebarFilesEmpty') }}
+        <div v-if="Object.keys(files).length === 0" class="empty-files text-secondary text-sm p-4">
+            {{ Localizer.get('files_missing') }}
         </div>
 
         <!-- List all the files -->
@@ -16,6 +16,8 @@
                 :file="file"
                 @delete-file="fileId => this.$emit('delete-file', fileId)"
                 @suspend-file="(fileId, suspend) => this.$emit('suspend-file', fileId, suspend)"
+                @view-file="$emit('view-file', $event)"
+                @rename-file="(fileId, newName) => this.$emit('rename-file', fileId, newName)"
             />
         </div>
     </div>
@@ -39,6 +41,8 @@ export default {
     emits: [
         'delete-file',
         'suspend-file',
+        'view-file',
+        'rename-file',
     ],
     data() {
         return {
@@ -57,7 +61,7 @@ export default {
         },
     },
     mounted() {
-        this.updateFiles();
+        //this.updateFiles(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
 }
 </script>

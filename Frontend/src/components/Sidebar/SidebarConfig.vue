@@ -2,7 +2,7 @@
 <div id="config-display"
      class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarConfig') }}
+        {{ Localizer.get('sidebar_config') }}
     </div>
 
     <div class="py-2">
@@ -15,27 +15,38 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarConfigLoading', this.method) }}
+        {{ Localizer.get('config_loading', this.method) }}
     </div>
-    <div v-else-if="!this.methodConfig || Object.keys(this.methodConfig).length === 0">
-        {{ Localizer.get('sidebarConfigMissing', this.method) }}
+    <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0">
+        {{ Localizer.get('config_missing', this.method) }}
     </div>
     <div v-else class="flex-row text-start">
-        <ConfigParameter
-            v-for="(value, name) in methodConfigSchema" :key="name"
-            :name="name"
-            :config-param="value"
-            v-model="methodConfig[name]"
-        />
+        <template v-for="(schema, name) in methodConfigSchema" :key="name">
+            <ConfigGroup
+                v-if="schema.type === 'object'"
+                :name="schema?.title ?? name"
+                :schema="schema"
+                :showTitle="true"
+                v-model="methodConfig[name]"
+                @update:modelValue="saveMethodConfig(); fetchMethodConfig()"
+            />
+
+            <ConfigParameter
+                v-else
+                :name="name"
+                :config-param="schema"
+                v-model="methodConfig[name]"
+            />
+        </template>
 
         <div class="py-2 text-center">
             <button class="btn btn-primary py-2 w-100" type="button" @click="saveMethodConfig">
-                <i class="fa fa-save me-2"/>{{ Localizer.get('buttonConfigSave') }}
+                <i class="fa fa-save me-2"/>{{ Localizer.get('config_save') }}
             </button>
         </div>
         <div class="py-2 text-center">
             <button class="btn btn-danger py-2 w-100" type="button" @click="resetMethodConfig">
-                <i class="fa fa-undo me-2"/>{{ Localizer.get('buttonConfigReset') }}
+                <i class="fa fa-undo me-2"/>{{ Localizer.get('config_reset') }}
             </button>
         </div>
         <div v-if="!this.shouldFadeOut"
@@ -54,10 +65,11 @@ import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import ConfigParameter from "../ConfigParameter.vue";
 import backendClient from "../../utils.js";
+import ConfigGroup from "../ConfigGroup.vue";
 
 export default {
     name: 'SidebarConfig',
-    components: {ConfigParameter},
+    components: {ConfigGroup, ConfigParameter},
     props: {
         method: String,
     },
@@ -72,17 +84,21 @@ export default {
             configMessage: '',
             methodConfig: {},
             methodConfigSchema: null,
+            fullSchema: null,
             isLoading: false,
         };
     },
     methods: {
         async fetchMethodConfig() {
+            // Fetches the config schema and the config values
+            // The schema includes parameter details, such as type, options, max and min
+            // The values hold the current values the parameters are set to
             const method = this.method;
             this.methodConfig = this.methodConfigSchema = null;
             try {
                 const res = await backendClient.getConfig(method);
                 this.methodConfig = res.config_values;
-                this.methodConfigSchema = res.config_schema;
+                this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
             } catch (error) {
                 console.error('Error fetching method config:', error);
             }
@@ -92,19 +108,19 @@ export default {
             try {
                 await backendClient.updateConfig(this.method, this.methodConfig);
                 this.configChangeSuccess = true
-                this.configMessage = Localizer.get('configSaveSuccess');
+                this.configMessage = Localizer.get('config_save_done');
+                this.startFadeOut()
             } catch (error) {
-                if (error.response.status === 400) {
+                if (error.response.status === 422) {
                     console.log("Invalid Configuration Values: ", error.response.data.detail)
                     this.configChangeSuccess = false
-                    this.configMessage = Localizer.get('configSaveInvalid', error.response.data.detail);
+                    this.configMessage = Localizer.get('config_save_invalid', error.response.data.detail);
                 } else {
                     console.error('Error saving method config.');
                     this.configChangeSuccess = false
-                    this.configMessage = Localizer.get('configSaveError');
+                    this.configMessage = Localizer.get('config_save_error');
                 }
             }
-            this.startFadeOut()
         },
 
         async resetMethodConfig() {
@@ -112,17 +128,62 @@ export default {
                 const res = await backendClient.resetConfig(this.method);
                 console.log('Reset method config.');
                 this.methodConfig = res.config_values;
-                this.methodConfigSchema = res.config_schema;
+                this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
                 this.configChangeSuccess = true
-                this.configMessage = Localizer.get('configReset')
+                this.configMessage = Localizer.get('config_reset_done')
             } catch (error) {
                 console.error('Error resetting method config.');
                 this.methodConfig = null;
                 this.methodConfigSchema = null;
                 this.configChangeSuccess = false
-                this.configMessage = Localizer.get('configSaveError');
+                this.configMessage = Localizer.get('config_save_error');
             }
             this.startFadeOut()
+        },
+
+        dereferenceSchema(schema) {
+            // Replace the references ($ref) in an OpenAPI schema with a fully dereferenced definition
+            // Required to render nested classes in full and parameters as their correct type
+            if (!schema.$defs) return schema;
+
+            const defs = schema.$defs;
+
+            function resolve(obj) {
+                if (!obj) return obj;
+
+                // Resolve $ref
+                if (obj.$ref) {
+                    const key = obj.$ref.replace("#/$defs/", "");
+                    const resolvedRef = resolve(defs[key]);
+
+                    // Merge referenced schema with local overrides
+                    const { $ref, ...localOverrides } = obj;
+
+                    return {
+                        ...resolvedRef,
+                        ...localOverrides
+                    };
+                }
+
+                // Recursively resolve object properties
+                if (obj.type === "object" && obj.properties) {
+                    const resolvedProps = {};
+                    for (const key in obj.properties) {
+                        resolvedProps[key] = resolve(obj.properties[key]);
+                    }
+
+                    return {
+                        ...obj,
+                        properties: resolvedProps
+                    };
+                }
+
+                return obj;
+            }
+
+            const resolved = resolve(schema);
+            delete resolved.$defs; // cleanup
+            return resolved;
         },
 
         startFadeOut() {
@@ -139,8 +200,8 @@ export default {
         },
 
     },
-    async mounted() {
-        await this.fetchMethodConfig();
+    mounted() {
+        //this.fetchMethodConfig(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
     watch: {
         method() {

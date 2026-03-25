@@ -1,0 +1,300 @@
+{
+  "GB": [
+    {
+      "id": "taskAutomation",
+      "header": "Task Automation",
+      "icon": "🤖",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Please fetch and summarize my last 10 e-mails. List any important tasks.",
+          "icon": "📧"
+        },
+        {
+          "question": "Prepare me for my next meeting by giving me background information about the topic and the attendees.",
+          "icon": "📑"
+        },
+        {
+          "question": "Prepare me for all my next meetings for the next week by giving me background information about each topic and the attendees.",
+          "icon": "📑"
+        },
+        {
+          "question": "Find a free time slot that works for myself and [participant] tomorrow and search for an available meeting room in the office at that time.",
+          "icon": "📞"
+        },
+        {
+          "question": "Create a todo list to review the agenda plan, find a restaurant in Berlin Charlottenburg, and to prepare my keynote speech.",
+          "icon": "✅"
+        },
+        {
+          "question": "Each morning at 8am, suggest online courses about [topic] from well-known sources including links.",
+          "icon": "📜"
+        },
+        {
+          "question": "Create a caller list with all the participants of my next meeting.",
+          "icon": "📞"
+        },
+        {
+          "question": "How to get from Ernst-Reuter-Platz to Berlin Hauptbahnhof using public transport?",
+          "icon": "🧭"
+        }
+      ]
+    },
+    {
+      "id": "informationUpskilling",
+      "header": "Information & Upskilling",
+      "icon": "📚",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Summarize the README and recent activity for the GitLab project \"opaca-core\" and explain how to run it locally.",
+          "icon": "🤖"
+        },
+        {
+          "question": "What are the most exciting tech trends and key technologies for 2026 in the domain \"[domain]\"?",
+          "icon": "🚀"
+        },
+        {
+          "question": "Search for recent news about [topic].",
+          "icon": "♻️"
+        },
+        {
+          "question": "I want to start my master at TU Berlin and focus on [focus]. What program and courses are available?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Explain [topic] to me.",
+          "icon": "🎓"
+        },
+        {
+          "question": "What tools exist to enable agile software development?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Suggest online courses to me so I can train [topic].",
+          "icon": "🎓"
+        }
+      ]
+    },
+    {
+      "id": "dataAnalysis",
+      "header": "Data Analysis",
+      "icon": "📊",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "What are the most exciting future tech trends that will shape the IT landscape in the next 10 years?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Get my gitlab user id and then plot my user statistics for the last 30 days as a bar plot",
+          "icon": "👤"
+        },
+        {
+          "question": "Create a plot of the stock market change for [company] for the last 30 days.",
+          "icon": "📊"
+        },
+        {
+          "question": "What meeting room is available today from [from] to [to] and in which one will the predicted co2 value for that timeslot be the lowest?",
+          "icon": "🌤️"
+        },
+        {
+          "question": "Analyze the attached CSV of temperature in the conference room by week, detect trends, and plot a line chart with a 7-day rolling average.",
+          "icon": "📈️"
+        }
+      ]
+    },
+    {
+      "id": "smartOffice",
+      "header": "Smart Office",
+      "icon": "🏢",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "What is the temperature and CO2 level in the conference room?",
+          "icon": "🌡️"
+        },
+        {
+          "question": "Where can I find the espresso cups in the kitchen?",
+          "icon": "☕"
+        },
+        {
+          "question": "Set the light in the Experience Hub to half brightness.",
+          "icon": "💡"
+        },
+        {
+          "question": "Guide me to the conference room, please.",
+          "icon": "🧭"
+        },
+        {
+          "question": "Remind me to do 10 pushups every 2 minutes for the next 10 minutes.",
+          "icon": "💪"
+        }
+      ]
+    },
+    {
+      "id": "mobility",
+      "header": "Mobility",
+      "icon": "🚗",
+      "visible": false,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.",
+          "icon": "🧭"
+        }
+      ]
+    }
+  ],
+  "DE": [
+    {
+      "id": "taskAutomation",
+      "header": "Task Automation",
+      "icon": "🤖",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen. Zeig mit alle wichtigen Aufgaben.",
+          "icon": "📧"
+        },
+        {
+          "question": "Bereite mich auf mein nächstes Meeting vor indem du mir Informationen zum Thema und den Teilnehmern gibst.",
+          "icon": "📅"
+        },
+        {
+          "question": "Finde einen freien Zeitslot morgen für mich und [participant] und such nach einem freien Besprechungsraum für die Zeit.",
+          "icon": "📞"
+        },
+        {
+          "question": "Erstelle eine To-Do Liste um die Agenda zu überarbeiten, ein Restaurant in Berlin Charlottenburg zu buchen, und meine Rede vorzubereiten",
+          "icon": "✅"
+        },
+        {
+          "question": "Jeden Morgen um 8 Uhr, schlag mir Online-Kurse zum Thema [Thema] vor, einschließlich Links.",
+          "icon": "📜"
+        },
+        {
+          "question": "Erstelle eine Anrufliste mit allen Teilnehmern meines nächstes Meetings.",
+          "icon": "📞"
+        },
+        {
+          "question": "Wie komme ich mit dem ÖPNV vom Ernst-Reuter-Platz nach Berlin Hauptbahnhof?",
+          "icon": "🧭"
+        }
+      ]
+    },
+    {
+      "id": "informationUpskilling",
+      "header": "Information & Upskilling",
+      "icon": "📚",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Fasse das README und die letzten Aktivitäten des GitLab-Projekts \"opaca-core\" zusammen und erkläre, wie man es lokal ausführt.",
+          "icon": "🤖"
+        },
+        {
+          "question": "Was sind die spannendsten Technologietrends und Schlüsseltechnologien für 2026 im Bereich \"[Bereich]\"?",
+          "icon": "🚀"
+        },
+        {
+          "question": "Suche nach aktuellen Nachrichten zu [Thema].",
+          "icon": "♻️"
+        },
+        {
+          "question": "Ich möchte mein Masterstudium an der TU Berlin beginnen und mich auf [Schwerpunkt] konzentrieren. Welche Programme und Kurse gibt es?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Erkläre mir [Thema].",
+          "icon": "🎓"
+        },
+        {
+          "question": "Welche Werkzeuge gibt es, um agile Softwareentwicklung zu ermöglichen?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Schlage mir Online-Kurse vor, damit ich [topic] lernen kann.",
+          "icon": "🎓"
+        }
+      ]
+    },
+    {
+      "id": "dataAnalysis",
+      "header": "Data Analysis",
+      "icon": "📊",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Was sind die spannendsten zukünftigen Technologietrends, die in den nächsten 10 Jahren die IT-Landschaft prägen werden?",
+          "icon": "🎓"
+        },
+        {
+          "question": "Hole meine GitLab-Benutzer-ID und erstelle anschließend ein Balkendiagramm meiner Nutzer-Statistiken der letzten 30 Tage.",
+          "icon": "👤"
+        },
+        {
+          "question": "Erstelle ein Diagramm der Kursentwicklung von [Unternehmen] der letzten 30 Tage.",
+          "icon": "📊"
+        },
+        {
+          "question": "Welcher Besprechungsraum ist heute von [von] bis [bis] verfügbar und in welchem ist der vorhergesagte CO₂-Wert für diesen Zeitraum am niedrigsten?",
+          "icon": "🌤️"
+        },
+        {
+          "question": "Analysiere die beigefügte CSV-Datei mit den Temperaturdaten des Konferenzraums nach Woche, erkenne Trends und erstelle ein Liniendiagramm mit einem 7-Tage Rolling Average.",
+          "icon": "📈️"
+        }
+      ]
+    },
+    {
+      "id": "smartOffice",
+      "header": "Smart Office",
+      "icon": "🏢",
+      "visible": true,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Wie ist die Temperatur und der CO₂-Wert im Konferenzraum?",
+          "icon": "🌡️"
+        },
+        {
+          "question": "Wo finde ich die Espressotassen in der Küche?",
+          "icon": "☕"
+        },
+        {
+          "question": "Stelle das Licht im Experience Hub auf halbe Helligkeit.",
+          "icon": "💡"
+        },
+        {
+          "question": "Führe mich bitte zum Konferenzraum.",
+          "icon": "🧭"
+        },
+        {
+          "question": "Erinnere mich, alle 2 Minuten 10 Liegestütze zu machen, für die nächsten 10 Minuten.",
+          "icon": "💪"
+        }
+      ]
+    },
+    {
+      "id": "mobility",
+      "header": "Mobility",
+      "icon": "🚗",
+      "visible": false,
+      "is_default": true,
+      "questions": [
+        {
+          "question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.",
+          "icon": "🧭"
+        }
+      ]
+    }
+  ]
+}

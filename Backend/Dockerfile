@@ -7,8 +7,10 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY src Backend
+COPY src src
+
+COPY default_prompts.json .
 
 EXPOSE 3001
 
-ENTRYPOINT [ "python3", "-m", "Backend.server" ]
+ENTRYPOINT [ "python3", "-m", "src.server" ]

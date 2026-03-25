@@ -3,16 +3,15 @@ import time
 
 import json
 
-from starlette.websockets import WebSocket
-
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, SessionData, ConfigParameter, ChatMessage, Chat, ToolCall
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage, \
+    LLMConfig
 
 SYSTEM_PROMPT = """
-You are an assistant, called the 'OPACA-LLM'.
+You are an assistant, called 'SAGE'.
 
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
-You are given the list of actions at the end of this prompt. If you see this list, it means you indeed have access.
+You are given the list of actions at the end of this prompt.
 Do not assume any other services.
 If those services are not sufficient to solve the problem, just say so.
 
@@ -26,10 +25,10 @@ In order to invoke an action with parameters, output the following JSON format a
     }}
 }}
 
-It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
+It is VERY important to follow this format, as we will try to parse it, and call the respective action, if successful.
 So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..., now calling ..."!
 
-The result of the action invocation is then fed back into the prompt as a system message.
+The result of the action invocation is then fed back into the prompt as another message.
 If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
 
 Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
@@ -41,14 +40,8 @@ Following is the list of available agents and actions described in JSON:
 {actions}
 """
 
-ask_policies = {
-    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
-    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
-    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
-}
-
 FALLBACK_PROMPT = """
-You are an assistant, called the 'OPACA-LLM'.
+You are an assistant, called 'SAGE'.
 
 Users expect you to have access to some 'agents', providing different 'actions' to fulfill a given purpose.
 
@@ -58,47 +51,54 @@ If possible, help them directly. Otherwise explain that you do not have access t
 and that they need to connect to a running OPACA platform.
 """
 
+ask_policies = {
+    "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
+    "relaxed": "Directly execute the action if the selection is clear and only contains a single action, otherwise present your plan to the user and ask for confirmation once.",
+    "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
+}
+
 logger = logging.getLogger(__name__)
+
+class SimpleConfig(MethodConfig):
+    model: LLMConfig = MethodConfig.llm_role(title='Simple Agent', description='The model to use')
+    max_rounds: int = MethodConfig.max_rounds_field()
+    ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
+
 
 class SimpleMethod(AbstractMethod):
     NAME = "simple"
+    CONFIG = SimpleConfig
 
-    def __init__(self, session, websocket=None):
-        super().__init__(session, websocket)
+    def __init__(self, session, streaming=False, internal_tools=None):
+        super().__init__(session, streaming, internal_tools)
 
-    async def query_stream(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str, chat: Chat) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
 
         # Get session config
-        config = self.session.config.get(self.NAME, self.default_config())
-        max_iters = config["max_rounds"]
+        config: SimpleConfig = self.get_config()
+        max_iters = config.max_rounds
 
-        actions = await self.get_actions(session)
-
-        if actions:
-            prompt = SYSTEM_PROMPT.format(
-                policy=ask_policies[config["ask_policy"]],
-                actions=actions,
-            )
-        else:
-            prompt = FALLBACK_PROMPT
-            logger.info("USING FALLBACK PROMPT")
+        actions = await self.get_actions()
+        prompt = SYSTEM_PROMPT.format(
+            policy=ask_policies[config.ask_policy],
+            actions=actions,
+        ) if actions else FALLBACK_PROMPT
 
         while response.iterations < max_iters:
             response.iterations += 1
 
             result = await self.call_llm(
-                model=config["model"],
+                model_config=config.model,
                 agent="assistant",
-                system_prompt=prompt,
+                system_prompt=self.build_full_prompt(prompt),
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],
-                temperature=config["temperature"],
                 tool_choice="none",
             )
             response.agent_messages.append(result)
@@ -107,14 +107,14 @@ class SimpleMethod(AbstractMethod):
                 if not (tool := await self.find_tool(result.content)):
                     break
 
-                tool_call = await self.invoke_tool(tool.name, tool.args, response.iterations-1)
+                tool.id = self.next_tool_id(result)
+                await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant"))
+                tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
                 response.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
                 ))
-                if self.websocket:
-                    await self.websocket.send_json(response.agent_messages[-1].model_dump_json())
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
@@ -127,43 +127,12 @@ class SimpleMethod(AbstractMethod):
         response.execution_time = time.time() - exec_time
         return response
 
-    @classmethod
-    def config_schema(cls) -> dict:
-        return {
-            "model": cls.make_llm_config_param(name="Model", description="The model to use."),
-            "temperature": ConfigParameter(
-                name="Temperature",
-                description="Temperature for the models",
-                type="number",
-                required=True,
-                default=1.0,
-                minimum=0.0,
-                maximum=2.0,
-                step=0.1,
-            ),
-            "max_rounds": ConfigParameter(
-                name="Max Rounds",
-                description="Maximum number of retries",
-                type="integer",
-                required=True,
-                default=5,
-                minimum=1,
-                maximum=10,
-                step=1,
-            ),
-            "ask_policy": ConfigParameter(
-                name="Ask Policy",
-                description="Determine how much confirmation the LLM will require",
-                type="string",
-                required=True,
-                default="never",
-                enum=list(ask_policies.keys()),
-            ),
-        }
-
     async def get_actions(self):
         try:
-            return await self.session.opaca_client.get_actions_simple()
+            actions = await self.session.opaca_client.get_actions_simple()
+            if self.internal_tools:
+                actions.update(self.internal_tools.get_internal_tools_simple())
+            return actions
         except:
             return "(No services, not connected yet.)"
 
@@ -171,7 +140,7 @@ class SimpleMethod(AbstractMethod):
         try:
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
-                return ToolCall(id=0, name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
+                return ToolCall(id="0", type="opaca", name=f'{d["agentId"]}--{d["action"]}', args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass
         return None

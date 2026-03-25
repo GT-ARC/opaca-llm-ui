@@ -1,5 +1,4 @@
 import conf from '../config.js';
-
 import axios from "axios";
 
 
@@ -21,20 +20,41 @@ class BackendClient {
         await this.sendRequest("POST", "disconnect");
     }
 
-    async getActions() {
-        return await this.sendRequest("GET", "actions");
+    async getContainers() {
+        return await this.sendRequest("GET", "containers");
+    }
+
+    async deployContainer(postContainer) {
+        return await this.sendRequest("POST", "containers", postContainer);
+    }
+
+    async undeployContainer(containerId) {
+        return await this.sendRequest("DELETE", `containers/${containerId}`);
+    }
+
+    async invokeAction(agent, action, parameters) {
+        const body = {agent: agent, action: action, parameters: parameters};
+        return await this.sendRequest("POST", "invoke", body);
+    }
+
+    async getExtraPorts() {
+        return await this.sendRequest("GET", "extra-ports");
+    }
+
+    async getPlatformInfo(lang) {
+        return await this.sendRequest("POST", `platform-info?lang=${lang}`);
     }
 
     // chat
 
-    async query(chatId, method, user_query) {
-        const body = {user_query: user_query};
-        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body);
+    async query(chatId, method, user_query, streaming=False, timeout=10000) {
+        const body = {user_query: user_query, streaming: streaming};
+        return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
-    async queryNoChat(method, user_query) {
+    async queryNoChat(method, user_query, timeout = 10000) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${method}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body, timeout);
     }
 
     // TODO query stream
@@ -59,6 +79,19 @@ class BackendClient {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
+    async deleteAllChats() {
+        await this.sendRequest("DELETE", `chats`);
+    }
+
+    async search(query) {
+        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    }
+
+    async append(chatId, pushMessage, autoAppend) {
+        // Reset query
+        pushMessage.query = "";
+        return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, pushMessage);
+    }
 
     // files
 
@@ -72,6 +105,10 @@ class BackendClient {
 
     async suspendFile(file_id, suspend) {
         await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
+    }
+
+    async renameFile(file_id, name) {
+        await this.sendRequest("PATCH", `files/${file_id}?name=${name}`);
     }
 
     async uploadFiles(files) {
@@ -108,8 +145,32 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
-    async search(query) {
-        return await this.sendRequest("POST", `chats/search?query=${query}`);
+    // prompts
+
+    async getPrompts() {
+        return await this.sendRequest("GET", "prompts");
+    }
+
+    async savePrompts(prompts) {
+        return await this.sendRequest("POST", "prompts", prompts);
+    }
+
+    async resetPrompts() {
+        return await this.sendRequest("DELETE", "prompts");
+    }
+
+    // mcp
+
+    async getMCPs() {
+        return await this.sendRequest("GET", "mcp");
+    }
+
+    async addMcp(mcp) {
+        return await this.sendRequest("POST", "mcp", mcp);
+    }
+
+    async deleteMcp(mcp_name) {
+        return await this.sendRequest("DELETE", `mcp/`, {"name": mcp_name});
     }
 
     // internal helper
@@ -146,6 +207,12 @@ export function shuffleArray(array) {
     }
 }
 
+export function isSecureConnection() {
+    return window.location.protocol === 'https'
+        || window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1';
+}
+
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
@@ -154,22 +221,69 @@ export function shuffleArray(array) {
  */
 export function addDebugMessage(debugMessages, message) {
     if (! message || ! message.text) return;
-    message = structuredClone(message); // since it may be modified later
-
-    // if there are no messages yet, just push the new one
-    if (debugMessages.length === 0) {
-        debugMessages.push(message);
+    // find debug message with the same ID, if any
+    const matchingMessage = debugMessages.find( (m) => m.id === message.id);
+    if (message.id != null && matchingMessage != null) {
+        // append to existing message
+        matchingMessage.text += message.text;
     } else {
-        const lastMessage = debugMessages[debugMessages.length - 1];
-        if (message.id != null && lastMessage.id === message.id) {
-            if (/^Tool \d+/.test(message.text)) {
-                lastMessage.text = message.text;  // replace
-            } else {
-                lastMessage.text += message.text; // append
-            }
-        } else {
-            // new message type
-            debugMessages.push(message);
+        // add copy of new message
+        debugMessages.push(structuredClone(message));
+    }
+}
+
+/**
+ * Replace an existing debug message with the same ID, or add it if missing.
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {object} message new message object with fields {id, type, text, chatId}
+ */
+export function replaceDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    const matchingIndex = debugMessages.findIndex( (m) => m.id === message.id);
+    if (message.id != null && matchingIndex >= 0) {
+        debugMessages.splice(matchingIndex, 1, structuredClone(message));
+    } else {
+        debugMessages.push(structuredClone(message));
+    }
+}
+
+/**
+ * Format tool results for debug output.
+ * Objects and arrays are pretty-printed, primitives stay compact.
+ * @param {*} result
+ * @returns {string}
+ */
+export function formatToolDebugResult(result) {
+    if (result === undefined) return "undefined";
+    if (typeof result === "object") {
+        return JSON.stringify(result, null, 2);
+    }
+    return JSON.stringify(result);
+}
+
+/**
+ * Prefer structured agent output for debug rendering when available.
+ * @param {object} agentMessage
+ * @returns {string}
+ */
+export function formatAgentDebugText(agentMessage) {
+    if (!agentMessage) return "";
+    if (agentMessage.formatted_output != null) {
+        return formatToolDebugResult(agentMessage.formatted_output);
+    }
+    if (typeof agentMessage.content !== "string") {
+        return agentMessage.content == null ? "" : formatToolDebugResult(agentMessage.content);
+    }
+
+    const trimmed = agentMessage.content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+        || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+            return formatToolDebugResult(JSON.parse(trimmed));
+        } catch {
+            // Keep the original text when it only looks like JSON.
         }
     }
+
+    return agentMessage.content;
 }

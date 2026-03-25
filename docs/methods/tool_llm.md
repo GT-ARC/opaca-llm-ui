@@ -8,7 +8,7 @@ In this method, the tool section of newer models will be used to let the models 
 
 Once a message has been received, the Tool Generator is tasked to output the next required tool call in its tool section. Generally, if the Tool Generator has not generated any tool calls, it is assumed no tool calls were necessary and the generated content will be redundant and can be ignored. The final output generation then takes place immediately after by the Output Generator.
 
-The Tool Generator receives a formatted list of all available OPACA action, transformed into the function definition, [defined by OpenAI](https://platform.openai.com/docs/guides/function-calling). Due to limitations, it is only possible to provide up to 128 tools per call. If an OPACA environment with more than 128 actions is used in combination with the OPACA LLM, a warning is printed in the backend and the excessive tools will simply be ignored.
+The Tool Generator receives a formatted list of all available OPACA action, transformed into the function definition, [defined by OpenAI](https://platform.openai.com/docs/guides/function-calling). Due to limitations, it is only possible to provide up to 128 tools per call. If an OPACA environment with more than 128 actions is used in combination with SAGE, a warning is printed in the backend and the excessive tools will simply be ignored.
 
 Models outputting tools are also able to formulate multiple tool calls at the same time, if those calls can be independently executed in parallel.
 
@@ -34,9 +34,9 @@ The following values are **defaults**.
 
 ```
 {
-    "tool_gen_model": "openai::gpt-4o-mini",
-    "tool_eval_model": "openai::gpt-4o-mini",
-    "output_model": "openai::gpt-4o-mini",
+    "tool_gen_model": "openai/gpt-4o-mini",
+    "tool_eval_model": "openai/gpt-4o-mini",
+    "output_model": "openai/gpt-4o-mini",
     "temperature": 0,
 }
 ```
@@ -46,4 +46,4 @@ The following values are **defaults**.
 - `output_model`: The model name that will be used for output generation. Also supports Llama models.
 - `temperature`: The temperature used for the given model.
 
-All models in the format `"<host>::<model>"`
+All models in the format `"<host>/<model>"`

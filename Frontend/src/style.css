@@ -76,6 +76,11 @@ body {
     color: var(--text-primary-color);
 }
 
+input[type="checkbox"] {
+    background-color: var(--input-color);
+    border-color: var(--border-color);
+}
+
 /* override bootstrap button styles */
 .btn {
     /*border-radius: var(--bs-border-radius-pill);*/
@@ -159,6 +164,23 @@ body {
     color: var(--text-secondary-color);
 }
 
+.form-select {
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: var(--bs-border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--input-color);
+    color: var(--text-primary-color);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+    color: var(--text-primary-color);
+}
+
 /* override bootstrap accordion styling */
 .accordion-item {
     border-radius: var(--bs-border-radius);
@@ -175,6 +197,7 @@ body {
     transition: all 0.2s ease;
     background-color: var(--background-color);
     color: var(--text-primary-color);
+    border: 1px solid var(--border-color);
 }
 
 .accordion-button i {
@@ -182,12 +205,13 @@ body {
 }
 
 .accordion-button:not(.collapsed) {
+    color: var(--button-primary-color);
     background-color: var(--primary-color);
-    color: var(--text-primary-color);
     box-shadow: none;
 }
 
 .accordion-button:hover {
+    color: var(--button-primary-color);
     background-color: var(--secondary-color)
 }
 
