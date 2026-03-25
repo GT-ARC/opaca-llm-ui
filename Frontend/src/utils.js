@@ -99,8 +99,8 @@ class BackendClient {
         return await this.sendRequest("GET", "files");
     }
 
-    async deleteFile(file_id) {
-        await this.sendRequest("DELETE", `files/${file_id}`);
+    async deleteFile(file_id, ignore_error) {
+        return await this.sendRequest("DELETE", `files/${file_id}?ignore_error=${ignore_error}`);
     }
 
     async suspendFile(file_id, suspend) {

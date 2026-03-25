@@ -399,12 +399,12 @@ async def upload_files(files: List[UploadFile], session: SessionData = Depends(h
 
 
 @app.delete("/files/{file_id}", description="Delete an uploaded file.", tags=["files"])
-async def delete_file(file_id: str, session: SessionData = Depends(handle_session_http)) -> bool:
+async def delete_file(file_id: str, ignore_error: bool = False, session: SessionData = Depends(handle_session_http)) -> bool:
     files = session.uploaded_files
 
     if file_id in files:
         delete_file_from_disk(session.session_id, file_id)
-        result = await delete_file_from_all_clients(session, file_id)
+        result = await delete_file_from_all_clients(session, file_id, ignore_error)
         return result
 
     return False
