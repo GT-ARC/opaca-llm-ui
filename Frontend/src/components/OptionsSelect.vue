@@ -42,79 +42,6 @@
             </div>
 
         </div>
-
-        <!-- Audio -->
-        <div v-if="AudioManager.isBackendConfigured()"
-             class="accordion-item m-0">
-
-            <!-- Header -->
-            <div class="accordion-header options-header">
-                <div class="accordion-button collapsed d-flex p-2 rounded-0"
-                     data-bs-toggle="collapse"
-                     data-bs-target="#selector-audio">
-                    <div class="d-flex me-1 p-1 text-start" style="height: 100%">
-                        <i class="fa fs-4" :class="[AudioManager.isVoiceServerConnected ? 'fa-microphone' : 'fa-microphone-slash']" style="width: 30px" />
-                    </div>
-                    <div class="d-flex flex-column">
-                        <div>
-                            {{Localizer.get(AudioManager.isVoiceServerConnected ? 'ttsConnected' : 'ttsDisconnected') }}
-                        </div>
-                        <div class="text-muted">
-                            {{ Localizer.get('audioServerSettings') }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Body -->
-            <div id="selector-audio"
-                 class="accordion-collapse collapse"
-                 data-bs-parent="#options-selector">
-                <div class="accordion-body">
-
-                    <!-- Whisper Server Address -->
-                    <div class="text-muted options-item options-item-disabled">
-                        {{ String(conf.VoiceServerUrl) }}
-                    </div>
-
-                    <!-- Retry Connection Button -->
-                    <div v-if="! AudioManager.isVoiceServerConnected"
-                         class="options-item text-center">
-                        <button type="button" class="btn btn-outline-danger w-100"
-                                @click="() => this.connectToAudioServer()">
-                            <i class="fa fa-refresh" :class="{'fa-spin': this.isAudioConnecting}" />
-                            {{ Localizer.get('ttsRetry') }}
-                        </button>
-                    </div>
-
-                    <!-- Toggle TTS/STT -->
-                    <div class="options-item d-flex flex-row align-items-center"
-                         @click="AudioManager.useWhisperTts = !AudioManager.useWhisperTts;">
-                        <span>
-                            {{ Localizer.get('useWhisperTts') }}
-                        </span>
-                        <span class="ms-auto fs-5">
-                            <i v-if="AudioManager.useWhisperTts" class="fa fa-toggle-on" />
-                            <i v-else class="fa fa-toggle-off" />
-                        </span>
-                    </div>
-                    <div v-if="AudioManager.isWebSpeechSupported()"
-                         class="options-item d-flex flex-row align-items-center"
-                         @click="AudioManager.useWhisperStt = !AudioManager.useWhisperStt;">
-                        <span>
-                            {{ Localizer.get('useWhisperStt') }}
-                        </span>
-                        <span class="ms-auto fs-5">
-                            <i v-if="AudioManager.useWhisperStt" class="fa fa-toggle-on" />
-                            <i v-else class="fa fa-toggle-off" />
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-
     </div>
 </div>
 </template>
@@ -125,6 +52,7 @@ import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { getColorThemes } from '../ColorThemes.js';
 import ComboBox from "./ComboBox.vue";
+import Cookie from "js-cookie";
 
 export default {
     name: "OptionsSelect",
@@ -145,17 +73,21 @@ export default {
 
     methods: {
         getCombinedSettingsData() {
-            return [
+            const res = [
                 this.getMethodsData(),
                 this.getLanguageData(),
                 this.getColorModeData(),
             ]
+            if (AudioManager.isRecognitionSupported()) {
+                res.push(this.getAudioData());
+            }
+            return res;
         },
 
         getMethodsData() {
             return {
                 data: Methods,
-                name: Localizer.get('method'),
+                name: Localizer.get('settings_method'),
                 elementId: 'method',
                 icon: 'fa-server',
             }
@@ -169,7 +101,7 @@ export default {
             }
             return {
                 data: langData,
-                name: Localizer.get('language'),
+                name: Localizer.get('settings_language'),
                 elementId: 'language',
                 icon: 'fa-globe',
             }
@@ -178,9 +110,18 @@ export default {
         getColorModeData() {
             return {
                 data: getColorThemes(),
-                name: Localizer.get('colorMode'),
+                name: Localizer.get('settings_colorMode'),
                 elementId: 'colorMode',
                 icon: 'fa-adjust',
+            }
+        },
+
+        getAudioData() {
+            return {
+                data: AudioManager.getAudioMethods(),
+                name: Localizer.get('settings_audio'),
+                elementId: 'audio',
+                icon: 'fa-microphone',
             }
         },
 
@@ -193,6 +134,7 @@ export default {
         },
 
         select(key, value) {
+            Cookie.set(key, value);
             this.selectedItems[key] = value;
             this.$emit('select', key, value);
         },
@@ -204,26 +146,13 @@ export default {
         isSelectedItem(key, value) {
             return this.selectedItems[key] === value;
         },
-
-        async connectToAudioServer() {
-            this.isAudioConnecting = true;
-            await AudioManager.initVoiceServerConnection();
-            this.isAudioConnecting = false;
-        },
-
-        toggleWhisperTts() {
-            AudioManager.useWhisperTts = !AudioManager.useWhisperTts;
-        },
-
-        toggleWhisperStt() {
-            AudioManager.useWhisperStt = !AudioManager.useWhisperStt;
-        },
     },
 
     mounted() {
-        this.select('method', conf.DefaultMethod);
-        this.select('language', Localizer.language);
+        this.select('method', Cookie.get("method") ?? conf.DefaultMethod);
+        this.select('language', Cookie.get("language") ?? Localizer.language);
         this.select('colorMode', this.getInitialColorMode());
+        this.select('audio', Cookie.get("audio") ?? AudioManager.method);
     }
 }
 </script>

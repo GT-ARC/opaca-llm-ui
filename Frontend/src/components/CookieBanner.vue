@@ -1,14 +1,15 @@
 <template>
     <div v-if="!isCookieAccepted" class="cookie-banner">
         <p>
-            {{ Localizer.get('cookiesText') }}
+            {{ Localizer.get('cookies_text') }}
         </p>         
-        <button class="btn btn-primary" @click="acceptCookies()">{{ Localizer.get('cookiesAccept') }}</button>
+        <button class="btn btn-primary" @click="acceptCookies()">{{ Localizer.get('cookies_accept') }}</button>
     </div>
 </template>
 
 <script>
 import Localizer from "./../Localizer.js"
+import Cookie from "js-cookie";
 
 export default {
     setup() {
@@ -28,12 +29,12 @@ export default {
     methods: {
 
         checkCookieConsent() {
-            this.isCookieAccepted = document.cookie.split(';').some((item) => item.trim().startsWith('cookieConsent='));
+            this.isCookieAccepted = Cookie.get("cookieConsent") === "true";
         },
 
         acceptCookies() {
             const max_age = 60 * 60 * 24 * 365 * 10; // 10 years...
-            document.cookie = "cookieConsent=true; max-age=" + max_age;
+            Cookie.set("cookieConsent", true, "expires=" + max_age);
             this.isCookieAccepted = true;
         },
     },

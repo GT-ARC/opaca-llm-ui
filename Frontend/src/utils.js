@@ -1,5 +1,4 @@
 import conf from '../config.js';
-
 import axios from "axios";
 
 
@@ -21,8 +20,21 @@ class BackendClient {
         await this.sendRequest("POST", "disconnect");
     }
 
-    async getActions() {
-        return await this.sendRequest("GET", "actions");
+    async getContainers() {
+        return await this.sendRequest("GET", "containers");
+    }
+
+    async deployContainer(postContainer) {
+        return await this.sendRequest("POST", "containers", postContainer);
+    }
+
+    async undeployContainer(containerId) {
+        return await this.sendRequest("DELETE", `containers/${containerId}`);
+    }
+
+    async invokeAction(agent, action, parameters) {
+        const body = {agent: agent, action: action, parameters: parameters};
+        return await this.sendRequest("POST", "invoke", body);
     }
 
     async getExtraPorts() {
@@ -40,9 +52,9 @@ class BackendClient {
         return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
-    async queryNoChat(method, user_query) {
+    async queryNoChat(method, user_query, timeout = 10000) {
         const body = {user_query: user_query};
-        return await this.sendRequest("POST", `query/${method}`, body);
+        return await this.sendRequest("POST", `query/${method}`, body, timeout);
     }
 
     // TODO query stream
@@ -133,14 +145,18 @@ class BackendClient {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
-    // bookmarks
+    // prompts
 
-    async getBookmarks() {
-        return await this.sendRequest("GET", "bookmarks");
+    async getPrompts() {
+        return await this.sendRequest("GET", "prompts");
     }
 
-    async saveBookmarks(bookmarks) {
-        return await this.sendRequest("POST", "bookmarks", bookmarks);
+    async savePrompts(prompts) {
+        return await this.sendRequest("POST", "prompts", prompts);
+    }
+
+    async resetPrompts() {
+        return await this.sendRequest("DELETE", "prompts");
     }
 
     // mcp
@@ -191,6 +207,12 @@ export function shuffleArray(array) {
     }
 }
 
+export function isSecureConnection() {
+    return window.location.protocol === 'https'
+        || window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1';
+}
+
 /**
  * Add debug message to list of debug-messages. Depending on the type and content, the
  * message may be added as a new message, or extend or replace the last received message.
@@ -208,4 +230,60 @@ export function addDebugMessage(debugMessages, message) {
         // add copy of new message
         debugMessages.push(structuredClone(message));
     }
+}
+
+/**
+ * Replace an existing debug message with the same ID, or add it if missing.
+ * @param {Array} debugMessages list of existing debug messages (modified)
+ * @param {object} message new message object with fields {id, type, text, chatId}
+ */
+export function replaceDebugMessage(debugMessages, message) {
+    if (! message || ! message.text) return;
+    const matchingIndex = debugMessages.findIndex( (m) => m.id === message.id);
+    if (message.id != null && matchingIndex >= 0) {
+        debugMessages.splice(matchingIndex, 1, structuredClone(message));
+    } else {
+        debugMessages.push(structuredClone(message));
+    }
+}
+
+/**
+ * Format tool results for debug output.
+ * Objects and arrays are pretty-printed, primitives stay compact.
+ * @param {*} result
+ * @returns {string}
+ */
+export function formatToolDebugResult(result) {
+    if (result === undefined) return "undefined";
+    if (typeof result === "object") {
+        return JSON.stringify(result, null, 2);
+    }
+    return JSON.stringify(result);
+}
+
+/**
+ * Prefer structured agent output for debug rendering when available.
+ * @param {object} agentMessage
+ * @returns {string}
+ */
+export function formatAgentDebugText(agentMessage) {
+    if (!agentMessage) return "";
+    if (agentMessage.formatted_output != null) {
+        return formatToolDebugResult(agentMessage.formatted_output);
+    }
+    if (typeof agentMessage.content !== "string") {
+        return agentMessage.content == null ? "" : formatToolDebugResult(agentMessage.content);
+    }
+
+    const trimmed = agentMessage.content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+        || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+            return formatToolDebugResult(JSON.parse(trimmed));
+        } catch {
+            // Keep the original text when it only looks like JSON.
+        }
+    }
+
+    return agentMessage.content;
 }

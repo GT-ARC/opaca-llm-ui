@@ -8,7 +8,7 @@
              @dragleave.prevent="() => toggleFileDropOverlay(false)"
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
-                <p>{{ Localizer.get("dropFiles") }}</p>
+                <p>{{ Localizer.get("files_droparea") }}</p>
                 <span class="fa fa-file" />
             </div>
         </div>
@@ -20,16 +20,6 @@
             :src="viewerFile?.src"
             :mime-type="viewerFile?.mimeType"
             @close="viewerFile = null"
-        />
-
-        <!-- Move the RecordingPopup outside the main content flow -->
-        <RecordingPopup
-            v-model:show="showRecordingPopup"
-            :language="Localizer.getLanguageForTTS()"
-            @transcription-complete="handleTranscriptionComplete"
-            @send-message="handleSendMessage"
-            @error="handleRecordingError"
-            ref="RecordingPopup"
         />
 
         <InputDialogue ref="input" />
@@ -65,24 +55,22 @@
                 @scroll="this.handleChatScroll">
                 <div class="chatbubble-container d-flex flex-column justify-content-between mx-auto">
                     <Chatbubble
-                        v-for="{ elementId, isUser, content, isLoading, files, bookmarked } in this.messages"
+                        v-for="{ elementId, isUser, content, isLoading, files } in this.messages"
                         :key="content"
                         :element-id="elementId"
                         :is-user="isUser"
                         :initial-content="content"
                         :initial-loading="isLoading"
-                        :is-bookmarked="bookmarked"
                         :files="files"
                         :chat-id="this.selectedChatId"
                         :ref="elementId"
-                        @add-to-library="addPromptToSidebar"
                     />
                 </div>
 
                 <!-- sample questions -->
                 <div v-show="showExampleQuestions" class="sample-questions">
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
-                        {{ Localizer.get("welcome") }}
+                        {{ Localizer.get("chatarea_welcome") }}
                     </div>
                     <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
                          :key="index"
@@ -96,7 +84,7 @@
                         <button type="button" class="btn btn-outline-primary p-2"
                                 @click="Localizer.reloadSampleQuestions(null)">
                             <i class="fa fa-arrow-right"/>
-                            {{ Localizer.get('rerollQuestions') }}
+                            {{ Localizer.get('chatarea_rerollSamples') }}
                         </button>
                     </div>
                 </div>
@@ -122,7 +110,7 @@
 
                 <div v-if="selectedFiles?.length > this.maxDisplayedFiles()"
                      class="d-flex p-2 align-items-center">
-                    {{ Localizer.get('fileOverflow', selectedFiles.length - this.maxDisplayedFiles()) }}
+                    {{ Localizer.get('files_overflow', selectedFiles.length - this.maxDisplayedFiles()) }}
                 </div>
             </div>
 
@@ -137,7 +125,7 @@
                             v-model="textInput"
                             class="text-input form-control"
                             :class="{ 'small-scrollbar': isSmallScrollbar }"
-                            :placeholder="Localizer.get('inputPlaceholder')"
+                            :placeholder="Localizer.get('chatarea_input')"
                             rows="1"
                             @keydown="textInputCallback"
                             @input="resizeTextInput"
@@ -152,7 +140,7 @@
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
                                :class="[this.isMobile ? 'me-1': 'ms-1']"
-                               :title="Localizer.get('tooltipUploadFile')" >
+                               :title="Localizer.get('files_upload')" >
                             <i class="fa fa-upload" />
                             <input
                                 type="file"
@@ -168,21 +156,29 @@
                         <!-- reset, audio, send (right-bound) -->
                         <div :class="{'ms-auto': this.isMobile}">
                             <button type="button"
-                                    v-if="AudioManager.isRecognitionSupported()"
+                                    v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
                                     :disabled="!isFinished"
-                                    :title="Localizer.get('tooltipButtonRecord')">
-                                <i v-if="!AudioManager.isLoading" class="fa fa-microphone" />
-                                <i v-else class="fa fa-spin fa-spinner" />
+                                    :title="Localizer.get('chatarea_speak')">
+                                <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
+                                <i v-else class="fa fa-microphone" />
+                            </button>
+                            <button type="button"
+                                    v-if="AudioManager.isRecognitionSupported() && AudioManager.isRecording"
+                                    class="btn btn-outline-primary input-area-button ms-1"
+                                    @click="AudioManager.stopRecognition()"
+                                    :disabled="!isFinished"
+                                    :title="Localizer.get('chatarea_speak_stop')">
+                                <i class="fa fa-stop"/>
                             </button>
 
                             <button type="button"
                                     v-if="!isFinished"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
-                                    :title="Localizer.get('tooltipButtonStop')">
-                                <i class="fa fa-stop"/>
+                                    :title="Localizer.get('chatarea_abort')">
+                                <i class="fa fa-xmark"/>
                             </button>
 
                             <button type="button"
@@ -190,7 +186,7 @@
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
-                                    :title="Localizer.get('tooltipButtonSend')">
+                                    :title="Localizer.get('chatarea_submit')">
                                 <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
                         </div>
@@ -210,10 +206,9 @@
 import {nextTick} from "vue";
 import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
-import RecordingPopup from './RecordingPopup.vue';
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
-import backendClient from "../utils.js";
+import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { useDevice } from "../useIsMobile.js";
@@ -230,7 +225,6 @@ export default {
         FileViewer,
         OptionsSelect,
         Sidebar,
-        RecordingPopup,
         InputDialogue,
         Chatbubble
     },
@@ -256,7 +250,6 @@ export default {
             isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            showRecordingPopup: false,
             selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
@@ -309,11 +302,11 @@ export default {
             if (placeholders !== null) {
                 // substitute placeholders
                 await this.$refs.input.showDialogue(
-                    Localizer.get("specifyPlaceholders"), questionText, null, 
+                    Localizer.get("questions_placeholders"), questionText, null, 
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
-                        await this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
+                        this.setTextAndSubmit(placeholders.reduce((t, k) => t.replace(k, values[k]), questionText));
                     }
                 );
             } else {
@@ -339,7 +332,10 @@ export default {
 
         getLastBubble() {
             if (this.messages.length === 0) {
-                throw Error('Tried to get the last chat bubble when none exist. This should not happen.');
+                console.warn('Tried to get the last chat bubble when none exist.');
+                this.newChat = false;
+                this.showExampleQuestions = false;
+                this.addChatBubble("...");
             }
             const refId = this.messages[this.messages.length - 1].elementId;
             return this.$refs[refId][0];
@@ -360,7 +356,7 @@ export default {
             // add AI chat bubble in loading state, add prepare message
             await this.addChatBubble('', false, true);
             const aiBubble = this.getLastBubble();
-            aiBubble.addStatusMessage('preparing', Localizer.getLoadingMessage('preparing'), false);
+            aiBubble.addStatusMessage('preparing', Localizer.get('chatbubble_preparing'), false);
 
             // get chat response (intermediate results are streamed via websocket)
             try {
@@ -372,6 +368,7 @@ export default {
                     this.$refs.sidebar.$refs.debug.addDebugMessage(`\n${result.content}\n\nCause: ${result.error}\n`, "ERROR");
                 }
                 aiBubble.setContent(result.content);
+                this.syncStructuredAgentDebugMessages(result.agent_messages || []);
             } finally {
                 // always set to completed, even in case of error, e.g. timeout
                 aiBubble.toggleLoading(false);
@@ -463,6 +460,10 @@ export default {
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
 
+            if (result.type === "ConfirmActionNotification") {
+                this.$emit('action-confirmation-required', result);
+            }
+
             if (result.type === "ContainerLoginNotification") {
                 this.$emit('container-login-required', result);
             }
@@ -510,9 +511,8 @@ export default {
             }
 
             if (result.type === "MetricsMessage") {
-                // metrics: dict
-                // execution_time: float
-                // TODO do something with metrics messages
+                const aiBubble = this.getLastBubble();
+                aiBubble.addMetric(result);
             }
         },
 
@@ -521,20 +521,6 @@ export default {
                 const aiBubble = this.getLastBubble();
                 aiBubble.startAudioPlayback();
                 this.autoSpeakNextMessage = false;
-            }
-        },
-
-        handleTranscriptionComplete(text) {
-            if (text) {
-                this.textInput = text;
-            }
-        },
-
-        handleSendMessage(text) {
-            if (text) {
-                this.textInput = "";
-                this.autoSpeakNextMessage = true;
-                this.askChatGpt(text);
             }
         },
 
@@ -547,27 +533,23 @@ export default {
             this.socket.send(containerLoginDetails);
         },
 
+        submitConfirmAction(allowed) {
+            this.socket.send(JSON.stringify({allowed: allowed}));
+        },
+
         submitApiKey(apiKey) {
             const apiKeyResponse = JSON.stringify({api_key: apiKey});
             this.socket.send(apiKeyResponse);
         },
 
-
-        handleRecordingError(error) {
-            console.error('Recording error:', error);
-            this.showInfo('Error recording audio: ' + error.message);
-        },
-
         startRecognition() {
-            if (AudioManager.isVoiceServerConnected && AudioManager.useWhisperStt) {
-                this.showRecordingPopup = true;
-            } else {
-                AudioManager.startWebSpeechRecognition(text => {
-                    this.handleTranscriptionComplete(text);
+            AudioManager.startRecognition(text => {
+                if (text) {
+                    this.textInput = text;
                     this.autoSpeakNextMessage = true;
                     this.submitText();
-                });
-            }
+                }
+            }, error => this.showInfo(error));
         },
 
         /**
@@ -580,34 +562,18 @@ export default {
         async addChatBubble(content, isUser = false, isLoading = false, files = null) {
             const elementId = `chatbubble-${this.messages.length}`;
 
-            const bookmarked = this.compareToBookmarks(content);
-
             const message = {
                 elementId: elementId,
                 isUser: isUser,
                 content: content,
                 isLoading: isLoading,
                 files: files,
-                bookmarked: bookmarked,
             };
             this.messages.push(message);
 
             // wait for the next rendering tick so that the component is mounted
             await nextTick();
             this.scrollDownChat();
-        },
-
-        compareToBookmarks(content) {
-            const bookmarks = this.$refs.sidebar.$refs.questions.personalPrompts;
-            return bookmarks.some(b => b.question.trim() === content.trim());
-        },
-
-        handleUnexpectedConnectionClosed(message) {
-            console.error('Connection closed unexpectedly', message);
-            const aiBubble = this.getLastBubble();
-            aiBubble.setContent(message);
-            aiBubble.toggleLoading(false);
-            aiBubble.setError("Connection closed unexpectedly");
         },
 
         handleChatScroll() {
@@ -639,8 +605,16 @@ export default {
 
         async addDebugResult(result) {
             const id = result.id.split("/")[1];
-            const toolOutput = `Result: ${JSON.stringify(result.result)}`
+            const toolOutput = `Result: ${formatToolDebugResult(result.result)}`
             this.addDebug(toolOutput, `Result ${id}`, result.id);
+        },
+
+        syncStructuredAgentDebugMessages(agentMessages) {
+            for (const agentMessage of agentMessages) {
+                const formattedText = formatAgentDebugText(agentMessage);
+                if (!formattedText || formattedText === (agentMessage?.content ?? "")) continue;
+                this.setDebug(formattedText, agentMessage.agent, agentMessage.id);
+            }
         },
 
         addDebug(text, type, id=null) {
@@ -648,6 +622,13 @@ export default {
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
             aiBubble.addDebugMessage(text, type, id);
+        },
+
+        setDebug(text, type, id=null) {
+            const debug = this.$refs.sidebar.$refs.debug;
+            debug.setDebugMessage(text, type, id);
+            const aiBubble = this.getLastBubble();
+            aiBubble.setDebugMessage(text, type, id);
         },
 
         isMainContentVisible() {
@@ -687,21 +668,28 @@ export default {
                     }
                     // response
                     await this.addChatBubble(msg.content, false);
+                    const aiBubble = this.getLastBubble();
                     for (const agent_message of msg.agent_messages) {
                         const chunk = {
                             id: agent_message.id,
                             agent: agent_message.agent,
-                            chunk: agent_message.content,
+                            chunk: formatAgentDebugText(agent_message),
                             is_output: false,
-                        }
+                        };
                         this.addDebugToken(chunk);
                         for (const tool of agent_message.tools) {
                             this.addDebugTool(agent_message.agent, tool);
                             this.addDebugResult({id: tool.id, result: tool.result});
                         }
+                        const metric = {
+                            agent: agent_message.agent,
+                            execution_time: agent_message.execution_time,
+                            metrics: agent_message.response_metadata
+                        };
+                        aiBubble.addMetric(metric)
                     }
                     if (msg.error) {
-                        this.getLastBubble().setError(msg.error);
+                        aiBubble.setError(msg.error);
                     }
                 }
 
@@ -771,7 +759,7 @@ export default {
                 Localizer.reloadSampleQuestions(null);
             }
             await nextTick();
-            this.$refs.textInputRef.focus();
+            this.$refs.textInputRef?.focus();
         },
 
         async scrollToMessage(messageId) {
@@ -821,11 +809,6 @@ export default {
 
         openViewer(file) {
             this.viewerFile = file;
-        },
-
-        addPromptToSidebar(prompt) {
-            // call SidebarQuestions method
-            this.$refs.sidebar.$refs.questions.addPersonalPrompt(prompt);
         },
     },
 
