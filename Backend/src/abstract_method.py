@@ -19,7 +19,8 @@ from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
                      ToolResultMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
-                     MissingApiKeyNotification, MissingApiKeyResponse, ConfirmActionNotification, ConfirmActionResponse)
+                     MissingApiKeyNotification, MissingApiKeyResponse, ConfirmActionNotification, ConfirmActionResponse,
+                     LLMConfig)
 from .file_utils import upload_files
 from .internal_tools import InternalTools, INTERNAL_TOOLS_AGENT_NAME
 
@@ -42,7 +43,7 @@ class AbstractMethod(ABC):
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
-        return cls.CONFIG.model_json_schema(mode='serialization')['properties']
+        return cls.CONFIG.model_json_schema(mode='serialization')
 
     def get_config(self) -> MethodConfig:
         return self.session.get_config(self)
@@ -56,11 +57,10 @@ class AbstractMethod(ABC):
 
     async def call_llm(
             self,
-            model: str,
+            model_config: LLMConfig,
             agent: str,
             system_prompt: str,
             messages: List[ChatMessage],
-            temperature: Optional[float] = .0,
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[Literal["auto", "none", "only", "required"]] = "auto",
             response_format: Optional[Type[BaseModel]] = None,
@@ -71,11 +71,10 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            model (str): LLM host/provider AND model name (e.g., "openai/gpt-4o-mini"), from config.
+            model_config (Dict[str, Any]): Individual model configuration settings.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt for model instructions.
             messages (List[ChatMessage]): The list of chat messages.
-            temperature (float): The model temperature to use.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
@@ -88,6 +87,9 @@ class AbstractMethod(ABC):
 
         if status_message:
             await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+
+        # Extract model name and config
+        model = model_config.model
 
         # Check if an additional API key is required for this model
         if not self.session.get_api_key(model) and not litellm.validate_environment(model).get("keys_in_environment"):
@@ -121,10 +123,12 @@ class AbstractMethod(ABC):
             'input': [m.model_dump() for m in messages],
             'tools': tools or [],
             'tool_choice': tool_choice if tools else 'none',
-            'temperature': temperature,
             'text_format': response_format,
             'stream': True
         }
+
+        # Add individual model configs and exclude unsupported/unset values
+        kwargs |= model_config.parameters.model_dump(mode='json', exclude_unset=True)
 
         # If tool_choice is set to "only", use "auto" for external API call
         if tool_choice == "only":
@@ -202,6 +206,7 @@ class AbstractMethod(ABC):
 
         # Final stream to transmit execution time and response metadata
         await self.send_to_websocket(MetricsMessage(
+            agent=agent,
             execution_time=agent_message.execution_time,
             metrics=agent_message.response_metadata,
         ))

@@ -1,15 +1,15 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div v-if="!isMobile" class="sidebar-title">
-        {{ Localizer.get('tooltipSidebarMcp') }}
+        {{ Localizer.get('sidebar_mcp') }}
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebarMcpLoading') }}
+        {{ Localizer.get('mcp_loading') }}
     </div>
     <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0">
-        {{ Localizer.get('sidebarMcpMissing') }}
+        {{ Localizer.get('mcp_missing') }}
     </div>
     <div v-else class="flex-row" >
         <div class="accordion text-start" id="mcp-accordion">
@@ -22,14 +22,14 @@
                             :data-bs-target="'#mcp-body-' + mcpServerIndex"
                             aria-expanded="false"
                             :aria-controls="'mcp-body-' + mcpServerIndex">
-                        <i class="fa fa-user me-3"/>
+                        <i class="fa fa-server me-3"/>
                         <strong>{{ mcpName }}</strong>
 
                         <!-- Delete Button -->
                         <i
-                            class="fa fa-trash delete-icon"
+                            class="fa fa-remove delete-icon"
                             @click.stop="this.deleteMcp(mcpName)"
-                            title="Delete MCP Server"
+                            :title="Localizer.get('mcp_remove')"
                         />
                     </button>
                 </h2>
@@ -54,7 +54,7 @@
                             <div :id="'mcp-body-' + mcpServerIndex + '-' + mcpIndex" class="accordion-collapse collapse mcp-body"
                                  :aria-labelledby="'mcp-header-' + mcpServerIndex + '-' + mcpIndex" :data-bs-parent="'#mcp-accordion-' + mcpServerIndex">
                                 <p v-if="mcp.description">
-                                    <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
+                                    <strong>{{ Localizer.get('agents_description') }}:</strong>
                                     {{ mcp.description }}
                                 </p>
                             </div>
@@ -64,10 +64,11 @@
             </div>
         </div>
     </div>
-    <button class="accordion-button align-items-center mb-2"
-         @click.stop="addMcp()">
+    <button type="button"
+            class="btn btn-primary py-2 w-100"
+            @click.stop="addMcp()">
         <i class="fa fa-plus me-2"></i>
-        <span>{{ Localizer.get('addMcp')}}</span>
+        {{ Localizer.get("mcp_add") }}
     </button>
 
     <InputDialogue ref="input" />
@@ -112,7 +113,7 @@ export default {
 
         async addMcp() {
             await this.$refs.input.showDialogue(
-                Localizer.get('addMcp'), null, null,
+                Localizer.get('mcp_add'), null, null,
                 {
                     mcpServerUrl: {type: "text", label: "Server URL"},
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", default: ""},
@@ -145,7 +146,7 @@ export default {
 
         async deleteMcp(mcpName) {
             await this.$refs.input.showDialogue(
-                "Delete MCP server?", null, null, {}, 
+                Localizer.get('mcp_remove') + "?", null, null, {}, 
                 async (values) => {
                     await backendClient.deleteMcp(mcpName);
                     await this.updateMcp(true);
@@ -242,14 +243,12 @@ export default {
     justify-content: center;
     transform: translateY(-50%);
     border-radius: var(--bs-border-radius-lg);
-    color: var(--text-danger-color);
     cursor: pointer;
     transition: color 0.2s ease;
 }
 
 .delete-icon:hover {
-    color: var(--primary-color);
-    background-color: var(--background-color);
+    color: var(--text-danger-color);
 }
 
 </style>

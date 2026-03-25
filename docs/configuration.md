@@ -10,8 +10,8 @@ Frontend env-vars correspond to settings in `config.js`; check there for context
 * `VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
 * `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.js`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
-* `VITE_VOICE_SERVER_URL`: Where to find the TTS-server; this is optional, but if missing, speech-input is not available.
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
+* `VITE_CONTAINER_MANAGEMENT`: Whether to enable the buttons for starting and stopping OPACA containers from within SAGE, provided the user has sufficient privileges.
 * `VITE_COLOR_SCHEME`: The starting color scheme, can be "light", "dark", or "system"; can be overwritten by `colorscheme` query param.
 * `VITE_DEFAULT_LANGUAGE`: The language to use by default in the UI. Possible options: "GB" (english), "DE" (german).
 

@@ -4,6 +4,7 @@ Provides a list of available LLM prompting methods that can be used,
 and different routes for posting questions, updating the configuration, etc.
 """
 import os
+import io
 import json
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
@@ -12,16 +13,17 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
+from openai import OpenAI
 
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateMessage, PushMessage, \
-    PromptCategory, InvokeRequest, InvokeResponse
+    InvokeRequest, InvokeResponse, SessionPrompts
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -195,6 +197,23 @@ async def get_extra_ports(session: SessionData = Depends(handle_session_http)) -
 @app.get("/containers", description="Get available containers on connected OPACA Runtime Platform, including agents and their actions, using the same format as the OPACA platform itself.", tags=["opaca"])
 async def get_containers(session: SessionData = Depends(handle_session_http)) -> list:
     return await session.opaca_client.get_containers()
+
+
+@app.post("/containers", description="Deploy container to connected OPACA Runtime Platform.", tags=["opaca"])
+async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
+    try:
+        await session.opaca_client.deploy_container(post_container)
+        return {"success": True}
+    except HTTPStatusError as e:
+        message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())
+        return {"success": False, "error": f"{e.response.status_code}: {message}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.delete("/containers/{container_id}", description="Undeploy container from connected OPACA Runtime Platform.", tags=["opaca"])
+async def delete_container(container_id: str, session: SessionData = Depends(handle_session_http)) -> None:
+    await session.opaca_client.stop_container(container_id)
 
 
 @app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
@@ -431,35 +450,65 @@ async def view_file(file_id: str, session: SessionData = Depends(handle_session_
 # sample prompts
 
 @app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
-async def get_prompts(session: SessionData = Depends(handle_session_http)) -> Dict[str, List[PromptCategory]]:
+async def get_prompts(session: SessionData = Depends(handle_session_http)) -> SessionPrompts:
     if session.prompts is None:
         session.prompts = prompts.load_default_prompts()
     return session.prompts
 
 
 @app.post("/prompts", description="Save the modified Prompt library for the current session.", tags=["sample prompts"])
-async def post_prompts(data: Dict[str, List[PromptCategory]], session: SessionData = Depends(handle_session_http)) -> None:
+async def post_prompts(data: SessionPrompts, session: SessionData = Depends(handle_session_http)) -> None:
     session.prompts = data
 
 
-@app.delete("/prompts", description="Reset the session's prompt library to the default values.", tags=["sample prompts"])
-async def delete_prompts(session: SessionData = Depends(handle_session_http)) -> None:
-    session.prompts = prompts.load_default_prompts()
+@app.delete("/prompts", description="Reset default prompt categories to their initial values.", tags=["sample prompts"])
+async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> None:
+    default_prompts = prompts.load_default_prompts()
+    session_prompts = {
+        lang: [cat for cat in cats if not cat.is_default]
+        for lang, cats in session.prompts.items()
+    }
+    for lang, cats in default_prompts.items():
+        cats.extend(session_prompts[lang])
+    session.prompts = default_prompts
 
 
 @app.get("/prompts/default", description="Get default Sample Prompts for new sessions", tags=["sample prompts"])
-async def get_default_prompts() -> Dict[str, List[PromptCategory]]:
+async def get_default_prompts() -> SessionPrompts:
     return prompts.load_default_prompts()
 
 
 @app.post("/prompts/default", description="Update default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
-async def post_default_prompts(data: Dict[str, List[PromptCategory]], auth = Depends(require_password)) -> None:
+async def post_default_prompts(data: SessionPrompts, auth = Depends(require_password)) -> None:
     prompts.save_default_prompts(data)
 
 
 @app.delete("/prompts/default", description="Reset default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
 async def reset_default_prompts(auth = Depends(require_password)) -> None:
     prompts.reset_default_prompts()
+
+
+# WHISPER TTS/STT
+
+@app.post("/whisper/transcribe", tags=["whisper"])
+async def whisper_transcribe(file: UploadFile, filetype: str = Query("mp3"), language: str = Query("en")):
+    contents = await file.read()
+    audio_data = io.BytesIO(contents)
+    audio_data.name = f"audio.{filetype}"
+    openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    response = openai_client.audio.transcriptions.create(model="gpt-4o-transcribe", file=audio_data, language=language)
+    return {"text": response.text.strip()}
+
+
+@app.post("/whisper/generate", tags=["whisper"])
+async def whisper_generate(text: str = Query(""), voice: str = Query("alloy")) -> Response:
+    openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    response = openai_client.audio.speech.create(model="tts-1", voice=voice, input=text)
+    return Response(
+        content=response.content,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": "attachment; filename=generated_audio.mp3"}
+    )
 
 
 # WEBSOCKET CONNECTION (permanently opened)

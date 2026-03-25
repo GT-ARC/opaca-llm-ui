@@ -1,4 +1,5 @@
 import {ref} from "vue";
+import Cookie from "js-cookie";
 
 /**
  * This class handles manages the state of the sidebar in a responsive manner.
@@ -35,9 +36,13 @@ class SidebarManager {
     }
 
     /** select view, keep as-is if already open */
-    selectView(key) {
+    selectView(key, collapsed = false) {
         if (this.isValidView(key)) {
+            if (this.viewNotInCollapsed(key) && collapsed){
+                return;
+            }
             this._selectedView.value = key;
+            Cookie.set('selected_view', key);
         } else {
             console.warn(`${key} is not a valid sidebar view`);
             this._selectedView.value = 'none';
@@ -65,6 +70,9 @@ class SidebarManager {
         this.selectView('none');
     }
 
+    viewNotInCollapsed(key) {
+        return ['files', 'agents', 'extensions', 'mcp', 'config', 'debug'].includes(key);
+    }
 }
 
 const sidebarManager = new SidebarManager();

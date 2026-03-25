@@ -8,16 +8,19 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebar_agents_loading') }}
+        {{ Localizer.get('agents_loading') }}
     </div>
-    <div v-else-if="!platformContainers || platformContainers.length === 0">
-        {{ Localizer.get('sidebar_agents_missing') }}
+    <div v-else-if="platformContainers === null">
+        {{ Localizer.get('general_disconnected') }}
+    </div>
+    <div v-else-if="platformContainers.length === 0">
+        {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
         <input
             type="text"
             class="form-control my-2"
-            :placeholder="Localizer.get('searchAgentsPlaceholder')"
+            :placeholder="Localizer.get('agents_search')"
             v-model="this.searchQuery"
         />
         <div class="accordion text-start" id="agents-accordion">
@@ -35,6 +38,12 @@
                             aria-expanded="false">
                         <i class="fa fa-box me-3"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
+
+                        <i v-if="conf.ContainerManagement"
+                            class="fa fa-remove delete-icon"
+                            @click.stop.prevent="this.stopContainer(containerId)"
+                            :title="Localizer.get('agents_undeploy')"
+                        />
                     </button>
                 </h2>
 
@@ -90,16 +99,16 @@
                                              :aria-labelledby="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                              :data-bs-parent="`#actions-accordion-${containerId}-${agentIndex}`">
                                             <p class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
-                                                <strong>{{ Localizer.get('sidebar_agents_invoke') }}</strong>
+                                                <strong>{{ Localizer.get('agents_invoke') }}</strong>
                                                 <i class="fa fa-circle-play mx-2"/>
                                             </p>
                                             <p v-if="action.description">
-                                                <strong>{{ Localizer.get('sidebar_agents_description') }}:</strong>
+                                                <strong>{{ Localizer.get('agents_description') }}:</strong>
                                                 {{ action.description }}
                                             </p>
-                                            <strong>{{ Localizer.get('sidebar_agents_parameters') }}:</strong>
+                                            <strong>{{ Localizer.get('agents_parameters') }}:</strong>
                                             <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
-                                            <strong>{{ Localizer.get('sidebar_agents_result') }}:</strong>
+                                            <strong>{{ Localizer.get('agents_result') }}:</strong>
                                             <pre class="json-box">{{ formatJSON(action.result) }} </pre>
                                         </div>
 
@@ -112,12 +121,20 @@
             </div>
         </div>
     </div>
+    <button v-if="conf.ContainerManagement && this.platformContainers !== null /* null -> not-connected */"
+            type="button"
+            class="btn btn-primary py-2 w-100"
+            @click.stop="addContainer()">
+        <i class="fa fa-plus me-2"></i>
+        {{ Localizer.get("agents_deploy") }}
+    </button>
 </div>
 
 </template>
 
 
 <script>
+import { nextTick } from 'vue';
 import conf from '../../../config.js';
 import Localizer from "../../Localizer.js";
 import SidebarManager from "../../SidebarManager.js";
@@ -149,6 +166,7 @@ export default {
                 ? await backendClient.getContainers()
                 : null;
             this.isLoading = false;
+            await nextTick();
         },
 
         formatJSON(obj) {
@@ -190,10 +208,44 @@ export default {
             return containers;
         },
 
+        async addContainer() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_hint"),
+                null,
+                {
+                    image: { type: "text", label: "Image Name", default: "" },
+                    json: { type: "textarea", label: "Post Container JSON", default: "" },
+                },
+                async values => {
+                    if (values.image === "" && values.json === "") {
+                        throw new Error(Localizer.get("agents_deploy_hint"));
+                    }
+                    var postContainer = values.json;
+                    if (! postContainer || postContainer === "") {
+                        postContainer = {image: {imageName: values.image}};
+                    }
+                    const res = await backendClient.deployContainer(postContainer);
+                    if (res.success) {
+                        await this.updatePlatformInfo();
+                    } else {
+                        throw new Error(res.error);
+                    }
+                }
+            );
+        },
+
+        async stopContainer(containerId) {
+            if (confirm(Localizer.get('agents_undeploy_confirm'))) {
+                await backendClient.undeployContainer(containerId);
+                await this.updatePlatformInfo();
+            }
+        },
+
         async invokeAction(agent, action, schema) {
             const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
             await this.$refs.input.showDialogue(
-                Localizer.get('sidebar_agents_invoke'),
+                Localizer.get('agents_invoke'),
                 `**Agent:** ${agent}\n\n**Action:** ${action}`,
                 null,
                 Object.fromEntries(
@@ -207,7 +259,7 @@ export default {
                     // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
                     var res = await backendClient.invokeAction(agent, action, parameters);
                     if (res.success) {
-                        await this.$refs.input.showInfo(Localizer.get('sidebar_agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
+                        await this.$refs.input.showInfo(Localizer.get('agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
                     } else {
                         throw new Error(res.error);
                     }
@@ -273,5 +325,24 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
+}
+
+.delete-icon {
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    right: 2rem;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: var(--bs-border-radius-lg);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+    color: var(--text-danger-color);
 }
 </style>

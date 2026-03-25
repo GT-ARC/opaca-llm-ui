@@ -23,7 +23,7 @@
                 <div v-show="this.isCopyAvailable()"
                      class="footer-item w-auto me-2"
                      @click="this.copyContentToClipboard()"
-                     :title="Localizer.get('tooltipChatbubbleCopy')">
+                     :title="Localizer.get('chatbubble_copy')">
                     <i v-if="this.copySuccess" class="fa fa-check" />
                     <i v-else class="fa fa-copy" />
                 </div>
@@ -34,20 +34,20 @@
                      @click="this.startAudioPlayback()">
                     <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                       :title="Localizer.get('chatbubble_audioLoad')" />
                     <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                       :title="Localizer.get('chatbubble_audioStop')" />
                     <i v-else class="fa fa-volume-up"
                        data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                       :title="Localizer.get('chatbubble_audioPlay')" />
                 </div>
 
                 <!-- attached files -->
                 <div v-show="this.files?.length > 0"
                      class="footer-item w-auto me-2"
                      @click="this.isFilesExpanded = !this.isFilesExpanded"
-                     :title="Localizer.get('tooltipChatbubbleFiles')">
+                     :title="Localizer.get('chatbubble_files')">
                     <i class="fa" :class="getFilesIconClass()" />
                 </div>
 
@@ -118,7 +118,7 @@
                     <div v-show="this.isCopyAvailable()"
                          class="footer-item w-auto me-2"
                          @click.stop="this.copyContentToClipboard()"
-                         :title="Localizer.get('tooltipChatbubbleCopy')">
+                         :title="Localizer.get('chatbubble_copy')">
                         <i v-if="this.copySuccess" class="fa fa-check" />
                         <i v-else class="fa fa-copy" />
                     </div>
@@ -129,20 +129,20 @@
                          @click.stop="this.startAudioPlayback()">
                         <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioLoad')" />
+                           :title="Localizer.get('chatbubble_audioLoad')" />
                         <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioStop')" />
+                           :title="Localizer.get('chatbubble_audioStop')" />
                         <i v-else class="fa fa-volume-up"
                            data-toggle="tooltip" data-placement="down"
-                           :title="Localizer.get('tooltipChatbubbleAudioPlay')" />
+                           :title="Localizer.get('chatbubble_audioPlay')" />
                     </div>
 
                     <!-- debug messages -->
                     <div v-show="this.debugMessages.length > 0"
                          class="footer-item w-auto me-2"
                          @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
-                         :title="Localizer.get('tooltipChatbubbleDebug')">
+                         :title="Localizer.get('chatbubble_debug')">
                         <i class="fa fa-bug" />
                     </div>
 
@@ -151,15 +151,24 @@
                          class="footer-item w-auto me-2"
                          style="cursor: pointer;"
                          @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
-                         :title="Localizer.get('tooltipChatbubbleTools')">
+                         :title="Localizer.get('chatbubble_tools')">
                         <i class="fa fa-wrench" />
+                    </div>
+
+                    <!-- metrics -->
+                    <div v-show="this.getMetrics().length > 0"
+                         class="footer-item w-auto me-2"
+                         style="cursor: pointer;"
+                         @click.stop="this.isMetricsExpanded = !this.isMetricsExpanded"
+                         :title="Localizer.get('chatbubble_metrics')">
+                        <i class="fa fa-chart-simple" />
                     </div>
 
                     <!-- error handling -->
                     <div v-show="this.error !== null"
                          class="footer-item w-auto me-2"
                          @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
-                         :title="Localizer.get('tooltipChatbubbleError')">
+                         :title="Localizer.get('chatbubble_error')">
                         <i class="fa fa-exclamation-circle text-danger me-1" />
                     </div>
 
@@ -182,6 +191,16 @@
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
                         <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
+                            {{ text }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- footer: metrics -->
+                <div v-show="this.isMetricsExpanded">
+                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                         style="max-height: 200px">
+                        <div v-for="text in this.getMetrics()" class="text-wrap text-break">
                             {{ text }}
                         </div>
                     </div>
@@ -246,7 +265,9 @@ export default {
             autoScrollDebugMessage: true,
             isFilesExpanded: false,
             isToolsExpanded: false,
+            isMetricsExpanded: false,
             isCollapsed: false,
+            metrics: {},
         }
     },
 
@@ -287,14 +308,35 @@ export default {
                     const action = match[3];
                     const params = match[4].replace("\n- ", " ");
                     var results = match[5];
+                    if (results != null) results = results.replace(/\s+/g, " ").trim();
                     if (results != null && results.length > 30) results = results.substring(0, 30) + " [...]";
                     return `${id}. ${agent}: ${action}(${params}) → ${results}`;
                 });
         },
 
+        getMetrics() {
+            return Object.entries(this.metrics).map( ([a, m]) => {
+                return `${a} (${m.count}): ↑ ${m.tokens_in}, ↓ ${m.tokens_out}, ${m.execution_time.toFixed(2)}s`
+            });
+        },
+
+        addMetric(m) {
+            const metric = this.metrics[m.agent] ?? { count: 0, tokens_in: 0, tokens_out: 0, execution_time: 0 };
+            metric.count += 1;
+            metric.tokens_in += m.metrics.input_tokens ?? 0;
+            metric.tokens_out += (m.metrics.total_tokens ?? 0) - (m.metrics.input_tokens ?? 0);
+            metric.execution_time += m.execution_time;
+            this.metrics[m.agent] = metric;
+        },
+
         addDebugMessage(text, type, id=null) {
             const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
             utils.addDebugMessage(this.debugMessages, message);
+        },
+
+        setDebugMessage(text, type, id=null) {
+            const message = {id: id, text: text, type: type, chatId: this.selectedChatId};
+            utils.replaceDebugMessage(this.debugMessages, message);
         },
 
         scrollDownDebugMsg() {
@@ -432,9 +474,7 @@ export default {
         },
 
         isCopyAvailable() {
-            return this.content.length > 0 && (!this.isMobile
-                || window.location.protocol === 'https'
-                || window.location.hostname === 'localhost');
+            return this.content.length > 0 && utils.isSecureConnection();
         },
 
         toggleCollapsed(value = null) {

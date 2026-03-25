@@ -6,10 +6,10 @@
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('sidebar_extensions_loading') }}
+        {{ Localizer.get('extensions_loading') }}
     </div>
     <div v-else-if="!this.extraPorts || Object.keys(this.extraPorts).length === 0">
-        {{ Localizer.get('sidebar_extensions_missing') }}
+        {{ Localizer.get('extensions_missing') }}
     </div>
     <div v-else class="flex-row" >
 
@@ -49,7 +49,7 @@
                                 {{ extension.description }}
                                 <i class="fa fa-expand extension-expand-button"
                                     @click.stop="this.maximized = extension.fullUrl"
-                                    :title="Localizer.get('sidebar_extensions_expand')"
+                                    :title="Localizer.get('extensions_expand')"
                                 />
                             </button>
 
@@ -64,16 +64,13 @@
             </div>
         </div>
     </div>
-
-    <div class="d-grid gap-2">
-        <button type="button"
-                class="btn btn-secondary py-2 w-100"
-                @click.stop="updatePlatformInfo()"
-                :disabled="this.isLoading" >
-            <i class="fa fa-refresh" />
-            {{ Localizer.get('sidebar_extensions_refresh') }}
-        </button>
-    </div>
+    <button type="button"
+            class="btn btn-secondary py-2 w-100"
+            @click.stop="updatePlatformInfo()"
+            :disabled="this.isLoading" >
+        <i class="fa fa-refresh" />
+        {{ Localizer.get('extensions_refresh') }}
+    </button>
 </div>
 
 </template>

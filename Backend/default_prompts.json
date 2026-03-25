@@ -5,6 +5,7 @@
       "header": "Task Automation",
       "icon": "🤖",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Please fetch and summarize my last 10 e-mails. List any important tasks.",
@@ -45,6 +46,7 @@
       "header": "Information & Upskilling",
       "icon": "📚",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Summarize the README and recent activity for the GitLab project \"opaca-core\" and explain how to run it locally.",
@@ -81,6 +83,7 @@
       "header": "Data Analysis",
       "icon": "📊",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "What are the most exciting future tech trends that will shape the IT landscape in the next 10 years?",
@@ -109,6 +112,7 @@
       "header": "Smart Office",
       "icon": "🏢",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "What is the temperature and CO2 level in the conference room?",
@@ -137,6 +141,7 @@
       "header": "Mobility",
       "icon": "🚗",
       "visible": false,
+      "is_default": true,
       "questions": [
         {
           "question": "Find a route from Ernst-Reuter-Platz, Berlin to Europaplatz, Berlin.",
@@ -151,6 +156,7 @@
       "header": "Task Automation",
       "icon": "🤖",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Bitte ruf meine letzten E-Mails ab und fasse sie zusammen. Zeig mit alle wichtigen Aufgaben.",
@@ -187,6 +193,7 @@
       "header": "Information & Upskilling",
       "icon": "📚",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Fasse das README und die letzten Aktivitäten des GitLab-Projekts \"opaca-core\" zusammen und erkläre, wie man es lokal ausführt.",
@@ -223,6 +230,7 @@
       "header": "Data Analysis",
       "icon": "📊",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Was sind die spannendsten zukünftigen Technologietrends, die in den nächsten 10 Jahren die IT-Landschaft prägen werden?",
@@ -251,6 +259,7 @@
       "header": "Smart Office",
       "icon": "🏢",
       "visible": true,
+      "is_default": true,
       "questions": [
         {
           "question": "Wie ist die Temperatur und der CO₂-Wert im Konferenzraum?",
@@ -279,6 +288,7 @@
       "header": "Mobility",
       "icon": "🚗",
       "visible": false,
+      "is_default": true,
       "questions": [
         {
           "question": "Finde eine Route vom Ernst-Reuter-Platz, Berlin zum Europaplatz, Berlin.",

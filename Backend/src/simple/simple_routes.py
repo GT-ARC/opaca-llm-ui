@@ -4,7 +4,8 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage, \
+    LLMConfig
 
 SYSTEM_PROMPT = """
 You are an assistant, called the 'SAGE'.
@@ -48,8 +49,7 @@ ask_policies = {
 
 
 class SimpleConfig(MethodConfig):
-    model: str = MethodConfig.llm_field(title='Model', description='The model to use')
-    temperature: float = MethodConfig.temperature_field()
+    model: LLMConfig = MethodConfig.llm_role(title='Simple Agent', description='The model to use')
     max_rounds: int = MethodConfig.max_rounds_field()
     ask_policy: str = MethodConfig.string(default='never', options=ask_policies.keys(), allow_free_input=False, title='Ask Policy', description='Determine how much confirmation the LLM will require')
 
@@ -79,7 +79,7 @@ class SimpleMethod(AbstractMethod):
             response.iterations += 1
             
             result = await self.call_llm(
-                model=config.model,
+                model_config=config.model,
                 agent="assistant",
                 system_prompt=self.build_full_prompt(prompt),
                 messages=[
@@ -87,7 +87,6 @@ class SimpleMethod(AbstractMethod):
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],
-                temperature=config.temperature,
                 tool_choice="none",
             )
             response.agent_messages.append(result)
