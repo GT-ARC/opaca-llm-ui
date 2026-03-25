@@ -419,8 +419,18 @@ export default {
             this.selectedFiles = this.selectedFiles.filter(f => f.fileId !== fileId);
 
             // From backend
-            await backendClient.deleteFile(fileId);
-            await this.$refs.sidebar.$refs.files.updateFiles();
+            const res = await backendClient.deleteFile(fileId, false);
+            if (res === false) {
+                await this.$refs.input.showDialogue(
+                    Localizer.get("files_delete"), Localizer.get("files_delete_failed"), null, {},
+                    async (values) => {
+                        await backendClient.deleteFile(fileId, true);
+                        await this.$refs.sidebar.$refs.files.updateFiles();
+                    }
+                );
+            } else {
+                await this.$refs.sidebar.$refs.files.updateFiles();
+            }
         },
 
         async handleSuspendFile(fileId, suspend) {
