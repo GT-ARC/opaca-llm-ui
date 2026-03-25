@@ -98,9 +98,10 @@ class InternalTools:
                 result="object",
                 function=self.tool_read_file_from_url,
             ),
+            # CODE EXECUTION
             InternalTool(
                 name="ExecuteCode",
-                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, exit_code, timed_out, and run_id. Exit codes: EXIT_SUCCESS = 0, EXIT_RUNTIME_ERROR = 1.",
+                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, status (e.g. success, error,  timeout), and run_id.",
                 params={"code": "string", "timeout_s": "integer"},
                 required_params=["code"],
                 result="object",
@@ -364,19 +365,18 @@ class InternalTools:
             )
 
             # 3. Success → return immediately
-            if exec_result.exit_code == 0 and not exec_result.timed_out:
+            if exec_result.status == "success":
                 return { **attempt_history.pop(), "previous_attempts": attempt_history }
 
             # 4. Failure → build retry prompt
             logger.warning(
-                "SolveWithCode attempt %d/%d failed. exit_code=%s timed_out=%s stderr=%s",
+                "SolveWithCode attempt %d/%d failed. status=%s stderr=%s",
                 attempt, 1 + max_code_retries,
-                exec_result.exit_code, exec_result.timed_out, exec_result.stderr,
+                exec_result.status, exec_result.stderr,
             )
             prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
                 code=code,
-                exit_code=exec_result.exit_code,
-                timed_out=exec_result.timed_out,
+                status=exec_result.status,
                 stdout=exec_result.stdout,
                 stderr=exec_result.stderr,
             )

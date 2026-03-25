@@ -5,16 +5,9 @@ import logging
 import uuid
 
 from ..models import ExecutionResult
-from .util import trim_for_log, transform_notebook_style
+from .util import transform_notebook_style
 
 logger = logging.getLogger(__name__)
-
-# Exit codes
-EXIT_SUCCESS = 0
-EXIT_RUNTIME_ERROR = 1
-EXIT_TIMEOUT = 124
-EXIT_INTERNAL_ERROR = 125
-EXIT_SANDBOX_UNAVAILABLE = 126
 
 
 class CodeExecutor:
@@ -37,13 +30,7 @@ class CodeExecutor:
                 stateful=True,
             )
         except Exception as e:
-            return self._build_result(
-                stdout="",
-                stderr=f"Initializing Pyodide sandbox failed: {e}",
-                exit_code=EXIT_SANDBOX_UNAVAILABLE,
-                timed_out=False,
-                run_id=run_id,
-            )
+            return ExecutionResult(run_id=run_id, status=f"Initializing Pyodide sandbox failed: {e}")
 
         # once set up, try to run the actual code...
         try:
@@ -53,41 +40,16 @@ class CodeExecutor:
                 memory_limit_mb=1024,
             )
             response = await asyncio.wait_for(invocation, timeout=timeout_s)
-            stdout, stderr, status = response.stdout, response.stderr, response.status
-
-            return self._build_result(
-                stdout=stdout,
-                stderr=stderr,
-                exit_code=EXIT_RUNTIME_ERROR if status == "error" else EXIT_SUCCESS,
-                timed_out=False,
+            return ExecutionResult(
                 run_id=run_id,
+                stdout=response.stdout,
+                stderr=response.stderr,
+                status=response.status,
             )
 
         except asyncio.TimeoutError:
             logger.warning("[ExecuteCode:%s] sandbox timeout after %ds", run_id, timeout_s)
-            return self._build_result(
-                stdout="",
-                stderr="[timeout]",
-                exit_code=EXIT_TIMEOUT,
-                timed_out=True,
-                run_id=run_id,
-            )
+            return ExecutionResult(run_id=run_id, status="timeout")
         except Exception as exc:
             logger.exception("[ExecuteCode:%s] sandbox execution failed", run_id)
-            return self._build_result(
-                stdout="",
-                stderr=f"Pyodide execution failed: {exc}",
-                exit_code=EXIT_INTERNAL_ERROR,
-                timed_out=False,
-                run_id=run_id,
-            )
-
-    @staticmethod
-    def _build_result(stdout: str, stderr: str, exit_code: int, timed_out: bool, run_id: str) -> ExecutionResult:
-        return ExecutionResult(
-            run_id=run_id,
-            stdout=stdout,
-            stderr=stderr,
-            exit_code=exit_code,
-            timed_out=timed_out,
-        )
+            return ExecutionResult(run_id=run_id, status=f"Pyodide execution failed: {exc}")

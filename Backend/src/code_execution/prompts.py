@@ -24,13 +24,6 @@ PYODIDE_CODE_PROMPT = dedent("""\
         await micropip.install("package-name")
     Only pure-Python wheels are supported; C-extension packages may fail.
     
-    ## Exit Codes
-    - EXIT_SUCCESS = 0 
-    - EXIT_RUNTIME_ERROR = 1
-    - EXIT_TIMEOUT = 124
-    - EXIT_INTERNAL_ERROR = 125
-    - EXIT_SANDBOX_UNAVAILABLE = 126
-
     ## Output Guidelines
     - Always print clear, labelled results:  print(f"Area: {{area:.2f}} m²")
     - Round floats to reasonable precision.
@@ -53,10 +46,8 @@ PYODIDE_CODE_RETRY_PROMPT = dedent("""\
     ```
 
     ## Previous Execution
-    exit_code: {exit_code}
-    timed_out: {timed_out}
+    status: {status}
 
-    ## Error Output
     stdout:
     {stdout}
 

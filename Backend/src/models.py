@@ -479,16 +479,14 @@ class ExecutionResult(BaseModel):
 
     Attributes:
         run_id: Short identifier used to correlate logs for one execution.
+        status: One of "success" or "error" (from Pyodide), or a handful of others like "timeout"
         stdout: Captured standard output produced by the executed code.
         stderr: Captured standard error or execution diagnostics.
-        exit_code: Normalized executor exit code describing the outcome.
-        timed_out: Whether execution exceeded the configured timeout.
     """
     run_id: str
-    stdout: str | None
-    stderr: str | None
-    exit_code: int
-    timed_out: bool
+    status: str
+    stdout: str | None = None
+    stderr: str | None = None
 
 
 # CUSTOM EXCEPTIONS
