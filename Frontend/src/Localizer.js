@@ -9,8 +9,9 @@ import conf from '../config.js';
 // - use at least one underscore to make it easier to search for occurrences in code
 // - put new keys into their respective "group"
 export const localizationData = {
-    en: {
+    GB: {
         name: "English",
+        code: "en",
         general_connected: "Connected",
         general_disconnected: "Disconnected",
         general_connect: "Connect",
@@ -131,8 +132,9 @@ export const localizationData = {
         questions_placeholders: "Values for Placeholders",
     },
 
-    de: {
+    DE: {
         name: "Deutsch",
+        code: "de",
         general_connected: "Verbunden",
         general_disconnected: "Nicht verbunden",
         general_connect: "Verbinden",
@@ -276,6 +278,10 @@ class Localizer {
         return this._selectedLanguage.value;
     }
 
+    get languageCode() {
+        return this.get("code")
+    }
+
     set fallbackLanguage(newLang) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
@@ -414,7 +420,7 @@ function matches(question, textInput) {
 }
 
 // hard-code the most complete language as fallback language
-const fallbackLanguage = 'en';
+const fallbackLanguage = 'GB';
 
 const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;

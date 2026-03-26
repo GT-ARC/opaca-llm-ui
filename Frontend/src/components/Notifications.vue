@@ -6,7 +6,7 @@
 
         <div v-for="{ elementId, fullResponse, loading, content, time } in this.messages">
             <div class="d-flex align-items-center justify-content-between px-1">
-                <span>{{ time.toLocaleString(Localizer.language) }}</span>
+                <span>{{ time.toLocaleString(Localizer.languageCode) }}</span>
                 <!-- grouped buttons -->
                 <div class="d-flex gap-1 align-items-center">
                     <i v-if="loading" class="fa fa-stop notification-button"

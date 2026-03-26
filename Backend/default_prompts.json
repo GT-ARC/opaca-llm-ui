@@ -1,5 +1,5 @@
 {
-  "en": [
+  "GB": [
     {
       "id": "taskAutomation",
       "header": "Task Automation",
@@ -150,7 +150,7 @@
       ]
     }
   ],
-  "de": [
+  "DE": [
     {
       "id": "taskAutomation",
       "header": "Task Automation",

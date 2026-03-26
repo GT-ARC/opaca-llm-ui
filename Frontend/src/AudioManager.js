@@ -136,7 +136,7 @@ class WebSpeechAudio extends TtsAudio {
 
     async setup() {
         const utterance = new SpeechSynthesisUtterance(this._text);
-        utterance.lang = Localizer.language;
+        utterance.lang = Localizer.languageCode;
 
         utterance.onstart = () => {
             this.isLoading = false;
@@ -264,7 +264,7 @@ class AudioManager {
             console.error(`Failed to start web speech recognition: ${error}`);
             return;
         }
-        this._recognition.lang = Localizer.language;
+        this._recognition.lang = Localizer.languageCode;
         this._recognition.onresult = async (event) => {
             const recognizedText = Array.from(event.results).map(r => r[0].transcript).join('\n\n');
             onResult(recognizedText);
@@ -386,7 +386,7 @@ class AudioManager {
         if (audioChunks.length === 0) return '';
 
         const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();
-        const lang = Localizer.language;
+        const lang = Localizer.languageCode;
 
         const formData = new FormData();
         formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
