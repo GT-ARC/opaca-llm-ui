@@ -192,6 +192,7 @@ export default {
                    '3': ...
                 }
 
+                Some of the queries may also contain placeholders, like so: "Get the weather in [city]".
                 DO NOT CALL ANY TOOLS for creating those suggestions!
                 `;
 
