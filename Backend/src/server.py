@@ -54,8 +54,8 @@ logger = logging.getLogger("uvicorn")
 # mapping language -> (hash -> info)
 platform_infos: dict[int, str] = {}
 info_queries = {
-    'DE': 'Wie kannst du mir helfen?',
-    'GB': 'How can you assist me?',
+    'DE': 'Wie kannst du mir helfen? Zeig eine Übersicht aller Tools/Funktionen. RUFE KEINE TOOLS AUF!',
+    'GB': 'How can you assist me? Show a summary of all available tools/function. DO NOT CALL ANY TOOLS!',
 }
 
 

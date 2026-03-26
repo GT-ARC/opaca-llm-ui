@@ -181,16 +181,19 @@ export default {
             Localizer.reloadSampleQuestions(newQuestions.header);
 
             // Construct LLM request
-            let user_query = "Based on your available tools, I want you to " +
-                `generate me exactly ${numQuestions} requests or questions a user could give you. These ${numQuestions} requests or ` +
-                "questions should directly reference one or more of your available tools. I want you to " +
-                "provide me your answer as a JSON file and NOTHING ELSE. Your response should look like this:" +
-                "" +
-                "{" +
-                "   '1': {'question': 'Example request...', 'icon': '🪄'}," +
-                "   '2': {'question': 'Example request...', 'icon': '🤖'}," +
-                "   '3': ..." +
-                "}";
+            let user_query = `Based on your available tools, I want you to
+                generate me exactly ${numQuestions} requests or questions a user could give you. These ${numQuestions} requests or
+                questions should directly reference one or more of your available tools. I want you to
+                provide me your answer as a JSON file and NOTHING ELSE. Your response should look like this
+                
+                {
+                   '1': {'question': 'Example request...', 'icon': '🪄'},
+                   '2': {'question': 'Example request...', 'icon': '🤖'},
+                   '3': ...
+                }
+
+                DO NOT CALL ANY TOOLS for creating those suggestions!
+                `;
 
             if (Localizer.language === 'DE') {
                 user_query += "\n\nGenerate all questions in German!";
