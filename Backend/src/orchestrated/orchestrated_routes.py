@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 import asyncio
 
 from .prompts import (
-    OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC
+    OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC, INTERNAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig, \
@@ -301,6 +301,8 @@ Now, using the tools available to you and the previous results, continue with yo
             worker_agents = {
                 "GeneralAgent": WorkerAgent("GeneralAgent", "", []),
             }
+            if self.internal_tools:
+                worker_agents["InternalToolsAgent"] = WorkerAgent("InternalToolsAgent", "", self.internal_tools.get_internal_tools_openai())
             
             all_results = []
             rounds = 0
@@ -478,6 +480,8 @@ Please address these specific improvements:
             for agent in container["agents"]
         }
         agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
+        if self.internal_tools:
+            agent_details["InternalToolsAgent"] = {"description": INTERNAL_AGENT_DESC, "functions": ["InternalToolsAgent--getInternalCapabilities"]}
         return agent_details
 
     @staticmethod
