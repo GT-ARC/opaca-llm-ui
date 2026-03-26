@@ -11,6 +11,7 @@ import conf from '../config.js';
 export const localizationData = {
     GB: {
         name: "English",
+        code: "en",
         general_connected: "Connected",
         general_disconnected: "Disconnected",
         general_connect: "Connect",
@@ -134,6 +135,7 @@ export const localizationData = {
 
     DE: {
         name: "Deutsch",
+        code: "de",
         general_connected: "Verbunden",
         general_disconnected: "Nicht verbunden",
         general_connect: "Verbinden",
@@ -278,6 +280,10 @@ class Localizer {
         return this._selectedLanguage.value;
     }
 
+    get languageCode() {
+        return this.get("code")
+    }
+
     set fallbackLanguage(newLang) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
@@ -388,10 +394,6 @@ class Localizer {
     isAvailableLanguage(langName) {
         if (!langName) return false;
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
-    }
-
-    getLanguageForDate() {
-        return voiceGenLocalesWebSpeech[this.language];
     }
 
     /**
