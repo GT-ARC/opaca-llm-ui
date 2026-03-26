@@ -8,7 +8,7 @@ from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, M
     LLMConfig
 
 SYSTEM_PROMPT = """
-You are an assistant, called the 'SAGE'.
+You are an assistant, called 'SAGE'.
 
 You have access to some 'agents', providing different 'actions' to fulfill a given purpose.
 You are given the list of actions at the end of this prompt.
@@ -25,13 +25,14 @@ In order to invoke an action with parameters, output the following JSON format a
     }}
 }}
 
-The result of the action invocation is then fed back into the prompt as a system message.
-If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
-Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
-
-It is VERY important to follow this format, as we will try to parse it, and call the respective action if successful.
+It is VERY important to follow this format, as we will try to parse it, and call the respective action, if successful.
 So print ONLY the above JSON, do NOT add a chatty message like "executing service ... now" or "the result of the last step was ..., now calling ..."!
-Again, in order to call a service, your response must ONLY contain the JSON and nothing else.
+
+The result of the action invocation is then fed back into the prompt as another message.
+If a follow-up action is needed to fulfill the user's request, output that action call in the same format until the user's request is fulfilled.
+
+Once the user's request is fulfilled, respond normally, presenting the final result to the user and telling them (briefly) which actions you called to get there.
+So only after you got the answer to the user's request, provide it in plain text.
 
 {policy}
 
@@ -39,7 +40,16 @@ Following is the list of available agents and actions described in JSON:
 {actions}
 """
 
-logger = logging.getLogger(__name__)
+FALLBACK_PROMPT = """
+You are an assistant, called 'SAGE'.
+
+Users expect you to have access to some 'agents', providing different 'actions' to fulfill a given purpose.
+
+But if you see this message, it means they are not connected to the OPACA platform providing these services.
+Your task now is to assess whether the user request can be fulfilled without any external services or not.
+If possible, help them directly. Otherwise explain that you do not have access to the needed actions, 
+and that they need to connect to a running OPACA platform.
+"""
 
 ask_policies = {
     "never": "Directly execute the action you find best fitting without asking the user for confirmation.",
@@ -47,6 +57,7 @@ ask_policies = {
     "always": "Before executing the action (or actions), always show the user what you are planning to do and ask for confirmation.",
 }
 
+logger = logging.getLogger(__name__)
 
 class SimpleConfig(MethodConfig):
     model: LLMConfig = MethodConfig.llm_role(title='Simple Agent', description='The model to use')
@@ -70,14 +81,15 @@ class SimpleMethod(AbstractMethod):
         config: SimpleConfig = self.get_config()
         max_iters = config.max_rounds
 
+        actions = await self.get_actions()
         prompt = SYSTEM_PROMPT.format(
             policy=ask_policies[config.ask_policy],
-            actions=await self.get_actions(),
-        )
-        
+            actions=actions,
+        ) if actions else FALLBACK_PROMPT
+
         while response.iterations < max_iters:
             response.iterations += 1
-            
+
             result = await self.call_llm(
                 model_config=config.model,
                 agent="assistant",
