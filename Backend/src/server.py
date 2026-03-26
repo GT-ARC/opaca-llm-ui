@@ -377,12 +377,12 @@ async def reset_config(method: str, session: SessionData = Depends(handle_sessio
 
 ## FILE ROUTES
 
-@app.get("/files", description="Get a list of all uploaded files.", tags=["other"])
+@app.get("/files", description="Get a list of all uploaded files.", tags=["files"])
 async def get_files(session: SessionData = Depends(handle_session_http)) -> dict:
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["other"])
+@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["files"])
 async def upload_files(files: List[UploadFile], session: SessionData = Depends(handle_session_http)):
     uploaded = []
     for file in files:
@@ -398,19 +398,19 @@ async def upload_files(files: List[UploadFile], session: SessionData = Depends(h
     return {"uploaded_files": uploaded}
 
 
-@app.delete("/files/{file_id}", description="Delete an uploaded file.", tags=["other"])
-async def delete_file(file_id: str, session: SessionData = Depends(handle_session_http)) -> bool:
+@app.delete("/files/{file_id}", description="Delete an uploaded file.", tags=["files"])
+async def delete_file(file_id: str, ignore_error: bool = False, session: SessionData = Depends(handle_session_http)) -> bool:
     files = session.uploaded_files
 
     if file_id in files:
         delete_file_from_disk(session.session_id, file_id)
-        result = await delete_file_from_all_clients(session, file_id)
+        result = await delete_file_from_all_clients(session, file_id, ignore_error)
         return result
 
     return False
 
 
-@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["other"])
+@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["files"])
 async def update_file(file_id: str, suspend: bool = None, name: str = None, session: SessionData = Depends(handle_session_http)) -> bool:
     files = session.uploaded_files
 
@@ -425,7 +425,7 @@ async def update_file(file_id: str, suspend: bool = None, name: str = None, sess
     return False
 
 
-@app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.", tags=["other"])
+@app.get("/files/{file_id}/view", description="Serve a previously uploaded file for preview.", tags=["files"])
 async def view_file(file_id: str, session: SessionData = Depends(handle_session_http)):
     files = session.uploaded_files
 

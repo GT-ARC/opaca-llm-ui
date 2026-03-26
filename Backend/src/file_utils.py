@@ -77,7 +77,7 @@ async def upload_files(session: SessionData, model: str):
     return parts
 
 
-async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bool:
+async def delete_file_from_all_clients(session: SessionData, file_id: str, ignore_error: bool) -> bool:
     """
     Delete a file (identified by file_id) from all LLM hosts
     it was uploaded to. Also removes it from session.uploaded_files.
@@ -85,10 +85,11 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
     Args:
         session (SessionData): Current session containing uploaded_files and clients.
         file_id (str): The file identifier.
+        ignore_error: Ignore all errors, always returns True
     """
     filedata = session.uploaded_files.get(file_id, None)
     if not filedata:
-        return False
+        return ignore_error
 
     for host, host_file_id in filedata.host_ids.items():
         # Check if the selected host supports file deletion
@@ -101,10 +102,10 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str) -> bo
             logger.info(f"Deleted file {host_file_id} from host {host}")
 
         except Exception as e:
-            logger.warning(
-                f"Failed to delete file {host_file_id} from host {host}: {e}"
-            )
-            return False
+            logger.warning(f"Failed to delete file {host_file_id} from host {host}: {e}")
+            # do not consider "not found" an error here
+            if "404" not in str(e) and not ignore_error:
+                return False
 
     # Remove from session after deletion attempts
     session.uploaded_files.pop(file_id, None)
