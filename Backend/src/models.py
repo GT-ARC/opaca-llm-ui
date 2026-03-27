@@ -507,6 +507,10 @@ class TextChunkMessage(BaseModel):
     is_output: bool
 
 
+class ResetTextMessage(BaseModel):
+    pass
+
+
 class ToolCallMessage(BaseModel):
     agent: str
     id: str
