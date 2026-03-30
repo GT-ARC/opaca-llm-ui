@@ -54,8 +54,8 @@ logger = logging.getLogger("uvicorn")
 # mapping language -> (hash -> info)
 platform_infos: dict[int, str] = {}
 info_queries = {
-    'DE': 'Wie kannst du mir helfen?',
-    'GB': 'How can you assist me?',
+    'DE': 'Wie kannst du mir helfen? Zeig eine Übersicht aller Tools/Funktionen. RUFE KEINE TOOLS AUF!',
+    'GB': 'How can you assist me? Show a summary of all available tools/function. DO NOT CALL ANY TOOLS!',
 }
 
 
@@ -184,7 +184,8 @@ async def get_platform_info(lang: str, session: SessionData = Depends(handle_ses
     actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
-        result = await METHODS['simple-tools'](session, False).query(query, Chat(chat_id=''))
+        internal_tools = InternalTools(session, METHODS['simple-tools'])
+        result = await METHODS['simple-tools'](session, False, internal_tools).query(query, Chat(chat_id=''))
         platform_infos[key] = result.content
     return platform_infos[key]
 
@@ -231,7 +232,8 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     try:
         session.abort_sent = False
-        return await METHODS[method](session, message.streaming).query(message.user_query, Chat(chat_id=''))
+        internal_tools = InternalTools(session, METHODS[method])
+        return await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, Chat(chat_id=''))
     except Exception as e:
         return QueryResponse.from_exception(message.user_query, e)
 
