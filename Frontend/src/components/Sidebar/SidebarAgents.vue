@@ -249,7 +249,11 @@ export default {
                 `**Agent:** ${agent}\n\n**Action:** ${action}`,
                 null,
                 Object.fromEntries(
-                    Object.entries(schema).map(([k, v]) => [k, {type: types[v.type] ?? "textarea", label: `${k} (${this.typeHint(v)})`}])
+                    Object.entries(schema).map(([k, v]) => [k, {
+                        type: types[v.type] ?? "textarea",
+                        label: `${k} (${this.typeHint(v)}${v.required ? "" : ", opt."})`,
+                        optional: !v.required}]
+                    )
                 ),
                 async values => {
                     // JSON-parse non-primitive inputs --> parse errors are shown in error label
