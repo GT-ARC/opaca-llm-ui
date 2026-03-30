@@ -481,7 +481,7 @@ Please address these specific improvements:
         }
         agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
         if self.internal_tools:
-            agent_details["InternalToolsAgent"] = {"description": INTERNAL_AGENT_DESC, "functions": ["InternalToolsAgent--getInternalCapabilities"]}
+            agent_details["InternalToolsAgent"] = {"description": INTERNAL_AGENT_DESC, "functions": [tool["name"] for tool in self.internal_tools.get_internal_tools_openai()]}
         return agent_details
 
     @staticmethod
