@@ -4,6 +4,7 @@ import asyncio
 import logging
 import uuid
 import ast
+import re
 from textwrap import dedent
 
 from .models import ExecutionResult
@@ -83,7 +84,6 @@ class CodeExecutor:
                 allow_write=True,
                 allow_net=True,
                 node_modules_dir="auto",
-                stateful=True,
             )
         except Exception as e:
             return ExecutionResult(run_id=run_id, status=f"Initializing Pyodide sandbox failed: {e}")
@@ -98,7 +98,7 @@ class CodeExecutor:
             response = await asyncio.wait_for(invocation, timeout=timeout_s+5)
             return ExecutionResult(
                 run_id=run_id,
-                stdout=response.stdout,
+                stdout=clean_output(response.stdout),
                 stderr=response.stderr,
                 status=response.status,
             )
@@ -107,6 +107,15 @@ class CodeExecutor:
             logger.exception("[ExecuteCode:%s] sandbox execution failed", run_id)
             return ExecutionResult(run_id=run_id, status=f"Pyodide execution failed: {exc}")
 
+
+def clean_output(stdout: str) -> str:
+    """Remove Pyodide noise from std-out. Unfortunately, there are no line breaks, making this a bit tricky..."""
+    patterns = [
+        r"Didn't find package .+? locally, attempting to load from .+?/full/",
+        r"Package .+? loaded from .+?, caching the wheel in node_modules for future use.",
+    ]
+    return re.sub("|".join(patterns), "", stdout)
+    
 
 def transform_notebook_style(code: str) -> str:
     """Wrap the last expression statement so its result gets printed.
