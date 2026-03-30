@@ -258,7 +258,9 @@ export default {
                 async values => {
                     // JSON-parse non-primitive inputs --> parse errors are shown in error label
                     var parameters = Object.fromEntries(
-                        Object.entries(values).map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
+                        Object.entries(values)
+                                .filter(([k, v]) => v !== null || schema[k].required)
+                                .map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
                     );
                     // TODO container login? SHOULD work out-of-the-box if we move the container-login in the backend to opaca-client instead of abstract agent?
                     var res = await backendClient.invokeAction(agent, action, parameters);
