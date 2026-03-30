@@ -1,7 +1,7 @@
 <template>
     <div v-if="show" class="input-dialog">
         <div class="p-4 input-container rounded shadow">
-            <form>
+            <form @submit.prevent="canSubmit() && handleSubmit(true)">
                 <h5 class="mb-3">{{ title }}</h5>
                 <div class="scroll-container">
                     <div class="mb-3" v-html="message" />
