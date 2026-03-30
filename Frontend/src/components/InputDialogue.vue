@@ -191,11 +191,13 @@ export default {
     },
     mounted() {
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.show) {
-                this.handleSubmit(false);
-            }
-            if (e.key === 'Enter' && e.ctrlKey && this.show) {
-                this.handleSubmit(true);
+            if (this.show) {
+                if (e.key === 'Escape') {
+                    this.handleSubmit(false);
+                }
+                if (e.key === 'Enter' && e.ctrlKey && this.canSubmit()) {
+                    this.handleSubmit(true);
+                }
             }
         });
     },
