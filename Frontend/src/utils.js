@@ -169,8 +169,8 @@ class BackendClient {
         return await this.sendRequest("POST", "mcp", mcp);
     }
 
-    async deleteMcp(mcp_name) {
-        return await this.sendRequest("DELETE", `mcp/`, {"name": mcp_name});
+    async deleteMcp(serverLabel) {
+        return await this.sendRequest("DELETE", `mcp/${serverLabel}`);
     }
 
     // internal helper
