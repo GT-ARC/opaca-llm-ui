@@ -473,7 +473,7 @@ async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> 
             for lang, cats in session.prompts.items()
         }
         for lang, cats in default_prompts.items():
-            cats.extend(session_prompts[lang])
+            cats.extend(session_prompts.get(lang, []))
 
     session.prompts = default_prompts
 
