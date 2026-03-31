@@ -338,10 +338,11 @@ class SessionData(BaseModel):
         config = self.config.get(method.NAME, method.CONFIG())
         if isinstance(config, dict):  # config is deserialized from DB as dict since the exact type is not known then
             try:
-                self.config[method.NAME] = method.CONFIG.model_validate(config)
+                config = method.CONFIG.model_validate(config, extra='forbid')
             except ValidationError as e:
                 logger.warning(f"Config does not comply with schema; resetting to default.")
-                self.config[method.NAME] = method.CONFIG()
+                config = method.CONFIG()
+        self.config[method.NAME] = config
         return self.config[method.NAME]
 
     def get_or_create_chat(self, chat_id: str, create_if_missing: bool = False) -> Chat:
