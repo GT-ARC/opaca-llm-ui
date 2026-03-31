@@ -214,8 +214,8 @@ export default {
                 Localizer.get("agents_deploy_hint"),
                 null,
                 {
-                    image: { type: "text", label: "Image Name", default: "" },
-                    json: { type: "textarea", label: "Post Container JSON", default: "" },
+                    image: { type: "text", label: "Image Name", default: "", optional: true },
+                    json: { type: "textarea", label: "Post Container JSON", default: "", optional: true },
                 },
                 async values => {
                     if (values.image === "" && values.json === "") {

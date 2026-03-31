@@ -170,7 +170,7 @@ export default {
 
         canSubmit() {
             if (this.loading) return false;
-            return Object.entries(this.values).every(([k, v]) => v != null || this.schema[k].optional);
+            return Object.entries(this.values).every(([k, v]) => (v != null && v !== "") || this.schema[k].optional);
         },
 
         async handleSubmit(okay) {
