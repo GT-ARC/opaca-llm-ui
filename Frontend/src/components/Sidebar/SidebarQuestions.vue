@@ -208,7 +208,7 @@ export default {
 
             try {
                 // Let backend generate user questions
-                const res = await backendClient.queryNoChat("simple-tools", user_query, 30000);
+                const res = await backendClient.queryNoChat("simple-tools", user_query, 60000);
                 const questions = res.content;
                 const parsedQuestions = JSON.parse(questions.slice(questions.indexOf('{'), questions.lastIndexOf('}') + 1));
                 newQuestions.questions = Object.values(parsedQuestions);

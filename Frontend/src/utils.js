@@ -42,7 +42,7 @@ class BackendClient {
     }
 
     async getPlatformInfo(lang) {
-        return await this.sendRequest("POST", `platform-info?lang=${lang}`);
+        return await this.sendRequest("POST", `platform-info?lang=${lang}`, null, 60000);
     }
 
     // chat
