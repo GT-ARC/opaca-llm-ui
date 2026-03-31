@@ -366,7 +366,7 @@ async def get_config(method: str, session: SessionData = Depends(handle_session_
 @app.put("/config/{method}", description="Update configuration of the given prompting method.", tags=["methods"])
 async def set_config(method: str, config: dict, session: SessionData = Depends(handle_session_http)) -> ConfigPayload:
     try:
-        session.config[method] = METHODS[method].CONFIG.model_validate(config)
+        session.config[method] = METHODS[method].CONFIG.model_validate(config, extra='forbid')
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
