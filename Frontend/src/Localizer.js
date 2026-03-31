@@ -11,6 +11,7 @@ import conf from '../config.js';
 export const localizationData = {
     GB: {
         name: "English",
+        code: "en",
         general_connected: "Connected",
         general_disconnected: "Disconnected",
         general_connect: "Connect",
@@ -76,6 +77,7 @@ export const localizationData = {
         files_rename: "Rename File",
         files_delete: "Remove File",
         files_delete_confirm: "Are you sure that you want to remove and forget the File '%1'?",
+        files_delete_failed: "There was an error when removing the file from one of the LLM hosts. Still remove from list?",
         files_overflow: "+%1 more…",
         files_droparea: "Drop files here to upload",
         mcp_loading: "Loading MCP servers...",
@@ -133,6 +135,7 @@ export const localizationData = {
 
     DE: {
         name: "Deutsch",
+        code: "de",
         general_connected: "Verbunden",
         general_disconnected: "Nicht verbunden",
         general_connect: "Verbinden",
@@ -198,6 +201,7 @@ export const localizationData = {
         files_rename: "Datei umbenennen",
         files_delete: "Datei entfernen",
         files_delete_confirm: "Sind Sie sicher, dass Sie die Datei '%1' entfernen und vergessen wollen?",
+        files_delete_failed: "Fehler beim Entfernen der Datei von einem der LLM-Hosts. Trotzdem aus der Liste entfernen?",
         files_overflow: "+%1 weitere…",
         files_droparea: "Dateien hier ablegen um sie hochzuladen",
         mcp_loading: "Lade verfügbare MCP-Server...",
@@ -274,6 +278,10 @@ class Localizer {
 
     get language() {
         return this._selectedLanguage.value;
+    }
+
+    get languageCode() {
+        return this.get("code")
     }
 
     set fallbackLanguage(newLang) {
@@ -386,10 +394,6 @@ class Localizer {
     isAvailableLanguage(langName) {
         if (!langName) return false;
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
-    }
-
-    getLanguageForDate() {
-        return voiceGenLocalesWebSpeech[this.language];
     }
 
     /**

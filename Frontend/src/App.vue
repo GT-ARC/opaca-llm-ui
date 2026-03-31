@@ -162,7 +162,7 @@ export default {
     },
     data() {
         return {
-            language: 'GB',
+            language: conf.DefaultLanguage,
             method: conf.DefaultMethod,
             opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: "",
