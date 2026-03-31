@@ -5,8 +5,8 @@ import requests
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
-from Backend.src.models import SessionData, OpacaException
-from Backend.src.session_manager import create_or_refresh_session
+from src.models import SessionData, OpacaException
+from src.session_manager import create_or_refresh_session
 
 
 class BackendTestClient:

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from Backend.src.server import app, handle_session_id
+from src.server import app, handle_session_id
 from util import example_prompt, handle_user_session_id
 
 

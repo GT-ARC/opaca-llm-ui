@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from Backend.src.server import app, handle_session_id
+from src.server import app, handle_session_id
 
 from util import handle_user_session_id
 
@@ -18,7 +18,8 @@ def test_get_config(method):
     assert res.status_code == 200
     data = res.json()
 
-    assert set(data["config_values"].keys()) == set(data["config_schema"].keys())
+    # Check if the config value keys match the schema properties keys
+    assert set(data["config_values"].keys()) == set(data["config_schema"]["properties"].keys())
 
 @pytest.mark.parametrize("method", methods)
 def test_set_config(method):
