@@ -24,6 +24,7 @@ user_client = TestClient(app)
 
 
 def test_initialize_session_with_chat():
+    # This test is necessary to initialize the "user" session in the backend
     res = user_client.post(
         "/chats/example-chat-id/append",
         params={"auto_append": False},

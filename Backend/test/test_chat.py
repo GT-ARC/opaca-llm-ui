@@ -22,7 +22,7 @@ chats = {}
 @pytest.mark.skip()
 def test_query(method):
     """Test the /query endpoint"""
-    res = client.post(f"/query/{method}", json={"user_query": "Hello"})
+    res = client.post(f"/query/{method}", json={"user_query": "This is just a test query. Please respond with a short answer."})
 
     assert res.status_code == 200
 
@@ -31,7 +31,7 @@ def test_query(method):
 def test_chat_query(method):
     """Test the /chats endpoint with a mock LLM response."""
     chats[method] = uuid.uuid4()
-    res = client.post(f"/chats/{chats[method]}/query/{method}", json={"user_query": "Hello"})
+    res = client.post(f"/chats/{chats[method]}/query/{method}", json={"user_query": "This is just a test query. Please respond with a short answer."})
 
     assert res.status_code == 200
 

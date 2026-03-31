@@ -45,8 +45,7 @@ def test_append_files_allowed(filename, content_type):
     res = client.get("/files")
     assert any(f["file_name"] == filename for f in res.json().values())
 
-# TODO The following test does not work. Unsupported files are still accepted.
-"""
+@pytest.mark.skip(reason="Disallowed file types are not yet checked in the backend")
 @pytest.mark.parametrize("filename, content_type", disallowed_files.items())
 def test_append_files_disallowed(filename, content_type):
     data = [
@@ -55,7 +54,6 @@ def test_append_files_disallowed(filename, content_type):
 
     res = client.post("/files", files=data)
     assert res.status_code == 400
-"""
 
 def test_get_files(files_response):
     assert len(files_response) > 0
