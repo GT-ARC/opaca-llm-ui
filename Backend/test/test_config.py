@@ -36,9 +36,8 @@ def test_set_config_invalid(method):
     res = client.put(f"/config/{method}", json={"max_rounds": 100000})
     assert res.status_code == 422
 
-    # TODO fix this error, returns 200 right now
-    # res = client.put(f"/config/{method}", json={"not_existing_key": 100000})
-    # assert res.status_code == 422
+    res = client.put(f"/config/{method}", json={"not_existing_key": 100000})
+    assert res.status_code == 422
 
     res = client.put(f"/config/{method}", json={"max_rounds": "not_a_number"})
     assert res.status_code == 422
