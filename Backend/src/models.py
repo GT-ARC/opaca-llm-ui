@@ -495,10 +495,6 @@ class MCPCreateMessage(BaseModel):
     content: Dict[str, Any]
 
 
-class MCPDeleteMessage(BaseModel):
-    name: str
-
-
 # MESSAGES SENT OR RECEIVED VIA WEBSOCKET
 
 class TextChunkMessage(BaseModel):

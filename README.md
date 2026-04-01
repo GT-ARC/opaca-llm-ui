@@ -140,6 +140,7 @@ Files can be added to a conversation by either adding them via the "Upload File"
 * [How to deploy containers](docs/container_deployment.md) - Deploy agent containers to your OPACA platform.
 * [Configuration](docs/configuration.md) - Overview of SAGE configuration options.
 * [Benchmarks](docs/benchmarks.md) - Performance benchmarks of SAGE.
+* [Unit-Tests](docs/tests.md) - Tests used for the SAGE CI.
 
 ### Help
 
