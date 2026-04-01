@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, LLMConfig
+from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
 
 
 class ToolLlmConfig(MethodConfig):
@@ -107,6 +107,8 @@ class ToolLLMMethod(AbstractMethod):
             correction_limit = 0
             full_err = '\n'
             while (err_msg := await self.check_valid_action(result.tools)) and correction_limit < 3:
+                for tool in result.tools:
+                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result="[invalid]"))
                 full_err += err_msg
                 result = await self.call_llm(
                     model_config=config.tool_gen_model,

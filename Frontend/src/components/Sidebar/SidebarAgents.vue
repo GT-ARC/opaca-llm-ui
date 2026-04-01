@@ -141,6 +141,7 @@ import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import InputDialogue from '../InputDialogue.vue';
+import Cookie from "js-cookie";
 
 export default {
     name: 'SidebarAgents',
@@ -208,31 +209,125 @@ export default {
             return containers;
         },
 
+        // MULTI-PAGE "WIZARD" FOR STARTING CONTAINERS IN DIFFERENT WAYS, INCLUDING PARAMETERS
+
         async addContainer() {
             await this.$refs.input.showDialogue(
                 Localizer.get("agents_deploy"),
-                Localizer.get("agents_deploy_hint"),
+                Localizer.get("agents_deploy_how"),
                 null,
                 {
-                    image: { type: "text", label: "Image Name", default: "", optional: true },
-                    json: { type: "textarea", label: "Post Container JSON", default: "", optional: true },
+                    howto: { type: "select", default: "name", values: {
+                        "name": "Image Name",
+                        "json": "JSON",
+                        "reg": "Registry",
+                    }},
                 },
                 async values => {
-                    if (values.image === "" && values.json === "") {
-                        throw new Error(Localizer.get("agents_deploy_hint"));
-                    }
-                    var postContainer = values.json;
-                    if (! postContainer || postContainer === "") {
-                        postContainer = {image: {imageName: values.image}};
-                    }
-                    const res = await backendClient.deployContainer(postContainer);
-                    if (res.success) {
-                        await this.updatePlatformInfo();
-                    } else {
-                        throw new Error(res.error);
+                    switch (values.howto) {
+                        case "name": return await this.addContainerFromImageName();
+                        case "json": return await this.addContainerFromJson();
+                        case "reg": return await this.addContainerFromRegistry();
                     }
                 }
             );
+        },
+
+        async addContainerFromRegistry() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_registry"),
+                null,
+                {
+                    registry: { type: "text", label: "Registry URL (incl Port)", default: Cookie.get("registryUrl")},
+                },
+                async values => {
+                    // get images from the registry (names and JSON)
+                    Cookie.set("registryUrl", values.registry);
+                    const res = await fetch(`${values.registry}/images`);
+                    const images = Object.fromEntries(
+                        JSON.parse(await res.text())
+                            .map(img => Object.fromEntries(Object.entries(img).filter(([k]) => !k.startsWith('_'))))
+                            .map(img => [img.imageName, img])
+                    );
+                    // select which image to deploy
+                    await this.$refs.input.showDialogue(
+                        Localizer.get("agents_deploy"),
+                        Localizer.get("agents_deploy_select"),
+                        null,
+                        {
+                            image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, `${v.name} (${v.version}), ${v.provider}`]))},
+                        },
+                        async values => {
+                            const json = images[values.image];
+                            await this.doPostContainerImage(json);
+                        }
+                    );
+                }
+            );
+        },
+
+        async addContainerFromImageName() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_name"),
+                null,
+                {
+                    image: { type: "text", label: "Image Name"},
+                },
+                async values => {
+                    await this.doPostContainer({image: {imageName: values.image}});
+                }
+            );
+        },
+
+        async addContainerFromJson() {
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_json"),
+                null,
+                {
+                    json: { type: "textarea", label: "Image/Container JSON" },
+                },
+                async values => {
+                    var json = JSON.parse(values.json);
+                    if (json.image) {
+                        return this.doPostContainer(json);
+                    }
+                    if (json.imageName) {
+                        return this.doPostContainerImage(json);
+                    }
+                    throw new Error("Invalid JSON format.");
+                }
+            );
+        },
+
+        async doPostContainerImage(image) {
+            if (image.parameters && image.parameters.length > 0) {
+                const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
+                await this.$refs.input.showDialogue(
+                    Localizer.get("agents_deploy"),
+                    Localizer.get("agents_deploy_params"),
+                    null,
+                    Object.fromEntries(
+                        image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue, optional: !p.required}]))
+                    ),
+                    async values => {
+                        await this.doPostContainer({image: image, arguments: values});
+                    }
+                );
+            } else {
+                await this.doPostContainer({image: image});
+            }
+        },
+
+        async doPostContainer(postContainer) {
+            const res = await backendClient.deployContainer(postContainer);
+            if (res.success) {
+                await this.updatePlatformInfo();
+            } else {
+                throw new Error(res.error);
+            }
         },
 
         async stopContainer(containerId) {
@@ -241,6 +336,8 @@ export default {
                 await this.updatePlatformInfo();
             }
         },
+
+        // ACTION INVOCATION
 
         async invokeAction(agent, action, schema) {
             const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};

@@ -2,7 +2,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig, LLMConfig
+from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig, LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -49,6 +49,7 @@ class SimpleToolsMethod(AbstractMethod):
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:
+            await self.send_to_websocket(ResetTextMessage())
             response.iterations += 1
 
             # call the LLM with function-calling enabled
@@ -58,6 +59,7 @@ class SimpleToolsMethod(AbstractMethod):
                 system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
                 messages=messages,
                 tools=tools,
+                is_output=True,
             )
             response.agent_messages.append(result)
 

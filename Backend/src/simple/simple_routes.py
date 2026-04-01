@@ -5,7 +5,7 @@ import json
 
 from ..abstract_method import AbstractMethod
 from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage, \
-    LLMConfig
+    LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """
 You are an assistant, called 'SAGE'.
@@ -88,6 +88,7 @@ class SimpleMethod(AbstractMethod):
         ) if actions else FALLBACK_PROMPT
 
         while response.iterations < max_iters:
+            await self.send_to_websocket(ResetTextMessage())
             response.iterations += 1
 
             result = await self.call_llm(
@@ -100,6 +101,7 @@ class SimpleMethod(AbstractMethod):
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],
                 tool_choice="none",
+                is_output=True,
             )
             response.agent_messages.append(result)
 

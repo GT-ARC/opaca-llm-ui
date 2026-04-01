@@ -22,7 +22,7 @@ from openai import OpenAI
 
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
-    SearchResult, get_supported_models, SessionData, OpacaException, MCPDeleteMessage, MCPCreateMessage, PushMessage, \
+    SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateMessage, PushMessage, \
     InvokeRequest, InvokeResponse, SessionPrompts
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
@@ -256,9 +256,9 @@ async def add_mcp_server(mcp: MCPCreateMessage, session: SessionData = Depends(h
     return Response(status_code=201)
 
 
-@app.delete("/mcp", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
-async def delete_mcp_server(mcp_server: MCPDeleteMessage, session: SessionData = Depends(handle_session_http)) -> Response:
-    if session.delete_mcp_server(mcp_server.name):
+@app.delete("/mcp/{server_label}", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
+async def delete_mcp_server(server_label: str, session: SessionData = Depends(handle_session_http)) -> Response:
+    if session.delete_mcp_server(server_label):
         return Response(status_code=204)
     else:
         return Response(status_code=404, content="No matching mcp server found!")
@@ -366,7 +366,7 @@ async def get_config(method: str, session: SessionData = Depends(handle_session_
 @app.put("/config/{method}", description="Update configuration of the given prompting method.", tags=["methods"])
 async def set_config(method: str, config: dict, session: SessionData = Depends(handle_session_http)) -> ConfigPayload:
     try:
-        session.config[method] = METHODS[method].CONFIG.model_validate(config)
+        session.config[method] = METHODS[method].CONFIG.model_validate(config, extra='forbid')
     except Exception as e:
         raise e  # converted to HTTP Exception by FastAPI
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
@@ -466,12 +466,15 @@ async def post_prompts(data: SessionPrompts, session: SessionData = Depends(hand
 @app.delete("/prompts", description="Reset default prompt categories to their initial values.", tags=["sample prompts"])
 async def reset_prompts(session: SessionData = Depends(handle_session_http)) -> None:
     default_prompts = prompts.load_default_prompts()
-    session_prompts = {
-        lang: [cat for cat in cats if not cat.is_default]
-        for lang, cats in session.prompts.items()
-    }
-    for lang, cats in default_prompts.items():
-        cats.extend(session_prompts[lang])
+
+    if session.prompts is not None:
+        session_prompts = {
+            lang: [cat for cat in cats if not cat.is_default]
+            for lang, cats in session.prompts.items()
+        }
+        for lang, cats in default_prompts.items():
+            cats.extend(session_prompts.get(lang, []))
+
     session.prompts = default_prompts
 
 

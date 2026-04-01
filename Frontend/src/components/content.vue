@@ -495,6 +495,11 @@ export default {
                 this.scrollDownDebug();
             }
 
+            if (result.type === "ResetTextMessage") {
+                const aiBubble = this.getLastBubble();
+                aiBubble.setContent("");
+            }
+
             if (result.type === "ToolCallMessage") {
                 await this.addDebugTool(result.agent, result);
                 this.scrollDownDebug();

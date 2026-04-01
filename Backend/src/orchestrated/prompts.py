@@ -248,3 +248,11 @@ GENERAL_AGENT_DESC = """**Purpose:** The GeneralAgent is designed to handle gene
 6. Retrieve the current location
 
 **IMPORTANT:** This agent only has one function to call. Therefore, you MUST be extremely short with your task for this agent to reduce latency!"""
+
+INTERNAL_AGENT_DESC = """**Purpose:** The InternalToolsAgent provides different builtin functionalities, allowing the LLM:
+
+* accessing information from past chats and interactions,
+* managing reminders to the user and scheduled tasks for later or regular execution,
+* loading files from a URI,
+* running code to perform complex calculations.
+"""

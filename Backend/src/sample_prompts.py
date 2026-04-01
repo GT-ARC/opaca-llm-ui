@@ -7,12 +7,14 @@ from .models import PromptCategory, SessionPrompts
 
 log = logging.getLogger(__name__)
 
+# Get the base directory
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # default-default file
-DEFAULT_PROMPTS_BASE = Path('./default_prompts.json')
+DEFAULT_PROMPTS_BASE = BASE_DIR / 'default_prompts.json'
 
 # live changes via the `POST /prompts/default` route are saved here
-DEFAULT_PROMPTS_FILE = Path('./data/default_prompts.json')
+DEFAULT_PROMPTS_FILE = BASE_DIR / 'data' / 'default_prompts.json'
 
 
 def load_default_prompts() -> SessionPrompts:
