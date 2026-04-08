@@ -53,7 +53,7 @@ There are two available decisions:
     - The user asked for a task to be scheduled later and the scheduling has taken place successfully
 
 For ExecuteCode and SolveWithCode:
-- Use `exit_code`, `timed_out`, and `proof_verified` as the source of truth for whether code ran successfully.
+- Use `status` as the source of truth for whether code ran successfully.
 - Keep the reason execution-centric: describe that code executed or failed, what it returned, and whether more tool calls are necessary.
 - Do not infer that a computational task is logically correct just because code executed successfully.
 
