@@ -227,10 +227,8 @@
 import * as utils from "../utils.js"
 import {marked} from "marked";
 import DOMPurify from "dompurify";
-import conf from "../../config.js";
 import {getDebugColor} from "../config/debug-colors.js";
 import DebugMessage from "./DebugMessage.vue";
-import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import {isDarkTheme} from "../ColorThemes.js";
@@ -248,8 +246,7 @@ export default {
         isCollapsible: {type: Boolean, default: false},
     },
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, AudioManager, isMobile, screenWidth };
+        return { Localizer, AudioManager };
     },
     data() {
         return {

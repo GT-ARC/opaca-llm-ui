@@ -22,7 +22,6 @@
 </template>
 
 <script>
-import conf from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
@@ -37,7 +36,7 @@ export default {
     emits: [],
     setup() {
         const { isMobile } = useDevice();
-        return { conf, Localizer, isMobile };
+        return { Localizer, isMobile };
     },
     data() {
         return {

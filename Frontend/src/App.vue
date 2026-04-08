@@ -141,7 +141,7 @@
 </template>
 
 <script>
-import conf, {Methods} from '../config.js';
+import conf from '../config.js';
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
@@ -149,7 +149,7 @@ import backendClient from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
-import {getCurrentTheme, setColorTheme} from './ColorThemes.js';
+import {setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 import InputDialogue from './components/InputDialogue.vue';
 
@@ -157,8 +157,8 @@ export default {
     name: 'App',
     components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { conf, Methods, Localizer, AudioManager, isMobile, screenWidth };
+        const { isMobile } = useDevice();
+        return { conf, Localizer, isMobile };
     },
     data() {
         return {

@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import conf, {Methods, MethodDescriptions} from "../../../config.js";
+import {Methods, MethodDescriptions} from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import ConfigParameter from "../ConfigParameter.vue";
@@ -75,7 +75,7 @@ export default {
     },
     setup() {
         const {isMobile} = useDevice();
-        return {conf, Localizer, Methods, MethodDescriptions, isMobile};
+        return {Localizer, Methods, MethodDescriptions, isMobile};
     },
     data() {
         return {
