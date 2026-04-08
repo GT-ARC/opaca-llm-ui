@@ -170,7 +170,10 @@ export default {
 
         canSubmit() {
             if (this.loading) return false;
-            return Object.entries(this.values).every(([k, v]) => (v != null && v !== "") || this.schema[k].optional);
+            return Object.entries(this.values).every(([k, v]) => {
+                const isOptional = typeof this.schema[k].optional === 'function' ? this.schema[k].optional(this.values) : this.schema[k].optional;
+                return (v != null && v !== "") || isOptional;
+            });
         },
 
         async handleSubmit(okay) {
