@@ -93,7 +93,7 @@ export default {
          * The format for "schema" is as follows
          * 
          * {
-         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool},
+         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool, rows: int?, monospace: bool?},
          *      ...
          * }
          * 
@@ -105,6 +105,8 @@ export default {
          * - values: dict (value -> label) for options, only for type 'select'
          * - optional: whether the parameter can be omitted even without a default (default: false)
          *             (if the parameter has a default, it is automatically optional)
+         * - rows: number of rows to display, only for type 'textarea' (default: 4)
+         * - monospace: whether to use a monospace font and disable spellcheck, only for type 'textarea' (default: false)
          * 
          * @param title the title (bold)
          * @param message message below the title, optional; can contain Markdown

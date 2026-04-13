@@ -314,7 +314,7 @@ export default {
             );
 
             await this.$refs.input.showDialogue(
-                Localizer.get("agents_deploy_update_title"),
+                Localizer.get("agents_deploy"),
                 Localizer.get("agents_deploy_update_select"),
                 null,
                 {
@@ -322,24 +322,22 @@ export default {
                 },
                 async values => {
                     const existing = this.platformContainers.find(c => c.image.imageName === values.container);
-                    if (existing) {
-                        const baseContainer = {
-                            image: existing.image,
-                            arguments: existing.arguments || {}
-                        };
-                        await this.$refs.input.showDialogue(
-                            Localizer.get("agents_deploy_update_title"),
-                            Localizer.get("agents_deploy_update_edit"),
-                            null,
-                            {
-                                json: { type: "textarea", label: Localizer.get("agents_deploy_update_json"), default: JSON.stringify(baseContainer, null, 2), monospace: true, rows: 15 }
-                            },
-                            async configValues => {
-                                const updatedContainer = JSON.parse(configValues.json);
-                                await this.doSubmitContainer(updatedContainer, true);
-                            }
-                        );
-                    }
+                    const baseContainer = {
+                        image: existing.image,
+                        arguments: existing.arguments || {}
+                    };
+                    await this.$refs.input.showDialogue(
+                        Localizer.get("agents_deploy"),
+                        Localizer.get("agents_deploy_update_edit"),
+                        null,
+                        {
+                            json: { type: "textarea", label: "Container JSON", default: JSON.stringify(baseContainer, null, 2), monospace: true, rows: 15 }
+                        },
+                        async configValues => {
+                            const updatedContainer = JSON.parse(configValues.json);
+                            await this.doSubmitContainer(updatedContainer, true);
+                        }
+                    );
                 }
             );
         },
