@@ -17,6 +17,8 @@
                         <textarea v-if="val.type === 'textarea'"
                             v-model="values[key]"
                             class="form-control mb-2"
+                            :style="val.monospace ? 'font-family: monospace;font-size:0.875rem;' : ''"
+                            :spellcheck="!val.monospace"
                             rows="4" 
                             :placeholder="val.label ?? key"
                             v-bind:autofocus="idx === 0"

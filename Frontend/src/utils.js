@@ -28,6 +28,10 @@ class BackendClient {
         return await this.sendRequest("POST", "containers", postContainer);
     }
 
+    async updateContainer(putContainer) {
+        return await this.sendRequest("PUT", "containers", putContainer);
+    }
+
     async undeployContainer(containerId) {
         return await this.sendRequest("DELETE", `containers/${containerId}`);
     }
