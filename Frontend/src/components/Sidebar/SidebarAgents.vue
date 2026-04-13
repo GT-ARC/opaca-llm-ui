@@ -289,7 +289,7 @@ export default {
                 Localizer.get("agents_deploy_json"),
                 null,
                 {
-                    json: { type: "textarea", label: "Image/Container JSON", monospace: true },
+                    json: { type: "textarea", label: "Image/Container JSON", monospace: true, rows: 15 },
                 },
                 async values => {
                     var json = JSON.parse(values.json);
@@ -332,7 +332,7 @@ export default {
                             Localizer.get("agents_deploy_update_edit"),
                             null,
                             {
-                                json: { type: "textarea", label: Localizer.get("agents_deploy_update_json"), default: JSON.stringify(baseContainer, null, 2), monospace: true }
+                                json: { type: "textarea", label: Localizer.get("agents_deploy_update_json"), default: JSON.stringify(baseContainer, null, 2), monospace: true, rows: 15 }
                             },
                             async configValues => {
                                 const updatedContainer = JSON.parse(configValues.json);
