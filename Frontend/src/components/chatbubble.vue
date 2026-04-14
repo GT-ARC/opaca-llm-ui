@@ -7,12 +7,36 @@
          class="d-flex flex-row justify-content-end" >
 
         <div class="chatbubble chatbubble-user ms-auto w-auto">
-            <img
-                v-if="getFirstImage()"
-                :src="getFirstImage()"
-                alt="Image preview"
-                class="bubble-image-preview"
-            />
+            <Galleria
+                v-if="imageFiles.length > 0"
+                :value="imageFiles"
+                :active-index="galleryIndex"
+                :num-visible="Math.min(3, imageFiles.length || 1)"
+                :show-item-navigators="imageFiles.length > 1"
+                :show-thumbnail-navigators="imageFiles.length > 1"
+                :show-thumbnails="imageFiles.length > 1"
+                :circular="imageFiles.length > 1"
+                class="bubble-image-gallery"
+                @update:activeIndex="galleryIndex = $event">
+                <template #item="{ item }">
+                    <button
+                        type="button"
+                        class="bubble-gallery-item"
+                        @click.stop="openImageGallery()">
+                        <img
+                            :src="item.src"
+                            :alt="item.fileName || 'Image preview'"
+                            class="bubble-gallery-image"/>
+                    </button>
+                </template>
+
+                <template #thumbnail="{ item }">
+                    <img
+                        :src="item.src"
+                        :alt="item.fileName || 'Image preview thumbnail'"
+                        class="bubble-gallery-thumbnail"/>
+                </template>
+            </Galleria>
 
             <div v-html="this.getFormattedContent()" />
 
@@ -234,10 +258,11 @@ import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import {isDarkTheme} from "../ColorThemes.js";
+import Galleria from "primevue/galleria";
 
 export default {
     name: 'chatbubble',
-    components: {DebugMessage},
+    components: {DebugMessage, Galleria},
     props: {
         elementId: String,
         isUser: Boolean,
@@ -247,6 +272,7 @@ export default {
         selectedChatId: String,
         isCollapsible: {type: Boolean, default: false},
     },
+    emits: ['view-file'],
     setup() {
         const { isMobile, screenWidth } = useDevice();
         return { conf, Localizer, AudioManager, isMobile, screenWidth };
@@ -268,7 +294,19 @@ export default {
             isMetricsExpanded: false,
             isCollapsed: false,
             metrics: {},
+            galleryIndex: 0,
         }
+    },
+    computed: {
+        imageFiles() {
+            return (this.files || [])
+                .filter(file => this.isImageFileName(file.name))
+                .map(file => ({
+                    fileName: file.name,
+                    src: file.url,
+                    mimeType: file.type,
+                }));
+        },
     },
 
     methods: {
@@ -495,7 +533,7 @@ export default {
         getFilesIconClass() {
             if (!this.files || this.files.length === 0) return;
 
-            const names = this.files.map(file => file.name)
+            const names = this.files.map(file => file.name);
 
             const hasImage = names.some(n => this.isImageFileName(n));
             const hasPdf = names.some(n => this.isPdfFileName(n));
@@ -505,15 +543,9 @@ export default {
             if (hasPdf) return "fa-file-pdf";
         },
 
-        getImages() {
-            return (this.files || [])
-                .filter(file => this.isImageFileName(file.name))
-                .map(file => file.url || URL.createObjectURL(file));
-        },
-
-        getFirstImage() {
-            // TODO for now show only first image
-            return this.getImages()[0] || "";
+        openImageGallery(activeIndex = this.galleryIndex) {
+            if (this.imageFiles.length === 0) return;
+            this.$emit('view-file', this.imageFiles[activeIndex]);
         },
     },
 
@@ -532,7 +564,10 @@ export default {
             if (!newVal && !this.isCollapsible) {
                 this.toggleCollapsed(true);
             }
-        }
+        },
+        files() {
+            this.galleryIndex = 0;
+        },
     },
 
 }
@@ -642,11 +677,49 @@ export default {
     box-shadow: 0 -5px 10px rgba(128, 128, 128, 0.4);
 }
 
-.bubble-image-preview {
-    max-width: 100%;
+.bubble-image-gallery {
+    margin-bottom: 0.75rem;
+    width: min(100%, 34rem);
+}
+
+.bubble-gallery-item {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.bubble-gallery-image {
+    display: block;
+    width: 100%;
     max-height: 320px;
-    margin-top: 8px;
-    border-radius: 6px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+}
+
+.bubble-gallery-thumbnail {
+    display: block;
+    width: 100%;
+    height: 4rem;
+    object-fit: cover;
+    border-radius: 0.5rem;
+}
+
+:deep(.bubble-image-gallery .p-galleria-content),
+:deep(.bubble-image-gallery .p-galleria-thumbnails) {
+    background: transparent;
+}
+
+:deep(.bubble-image-gallery .p-galleria-item-nav),
+:deep(.bubble-image-gallery .p-galleria-thumbnail-nav) {
+    color: var(--text-primary-color);
+    background: color-mix(in srgb, var(--surface-color) 78%, transparent);
+    border: 1px solid var(--border-color);
+}
+
+:deep(.bubble-image-gallery .p-galleria-thumbnail-item-content) {
+    padding: 0.25rem;
 }
 
 @keyframes glow {
