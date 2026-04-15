@@ -70,7 +70,38 @@ PYODIDE_CODE_RETRY_PROMPT = dedent("""\
 class CodeExecutor:
     """Executes Python code in a sandboxed Pyodide environment."""
 
+    _warmup_task: asyncio.Task | None = None
+
+    def start_warmup(self) -> None:
+        """Start Pyodide warm-up once, without making tool registration async."""
+        if self._warmup_task is not None:
+            return
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            logger.debug("Skipping Pyodide warm-up; no running event loop")
+            return
+
+        self.__class__._warmup_task = loop.create_task(self._warmup())
+
+    async def wait_for_warmup(self) -> None:
+        """Wait for the startup warm-up if it is still running."""
+        if self._warmup_task is not None:
+            await asyncio.shield(self._warmup_task)
+
+    async def _warmup(self) -> None:
+        result = await self._execute_code("print('pyodide-ready')", timeout_s=60)
+        if result.status == "success":
+            logger.info("Pyodide sandbox warm-up completed")
+        else:
+            logger.warning("Pyodide sandbox warm-up failed: %s", result.status)
+
     async def execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
+        await self.wait_for_warmup()
+        return await self._execute_code(code, timeout_s)
+
+    async def _execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
         run_id = uuid.uuid4().hex[:12]
         prepared_code = transform_notebook_style(code)
 
@@ -108,8 +139,11 @@ class CodeExecutor:
             return ExecutionResult(run_id=run_id, status=f"Pyodide execution failed: {exc}")
 
 
-def clean_output(stdout: str) -> str:
+def clean_output(stdout: str | None) -> str | None:
     """Remove Pyodide noise from std-out. Unfortunately, there are no line breaks, making this a bit tricky..."""
+    if stdout is None:
+        return None
+
     patterns = [
         r"Didn't find package .+? locally, attempting to load from .+?/full/",
         r"Package .+? loaded from .+?, caching the wheel in node_modules for future use.",

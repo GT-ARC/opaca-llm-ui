@@ -29,6 +29,7 @@ from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
+from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
@@ -63,6 +64,7 @@ info_queries = {
 async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task(60))
+    CodeExecutor().start_warmup()
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
