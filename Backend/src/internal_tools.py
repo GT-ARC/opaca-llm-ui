@@ -38,6 +38,7 @@ class InternalTool(BaseModel):
     required_params: list[str] | None = None
     result: str
     function: Callable
+    requires_code_execution: bool = False
 
 
 class InternalTools:
@@ -106,6 +107,7 @@ class InternalTools:
                 required_params=["code"],
                 result="object",
                 function=self.code_executor.execute_code,
+                requires_code_execution=True,
             ),
             InternalTool(
                 name="SolveWithCode",
@@ -114,8 +116,14 @@ class InternalTools:
                 required_params=["task"],
                 result="object",
                 function=self.tool_solve_with_code,
+                requires_code_execution=True,
             ),
         ]
+
+    def available_tools(self) -> list[InternalTool]:
+        if CodeExecutor.available is True:
+            return self.tools
+        return [tool for tool in self.tools if not tool.requires_code_execution]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
@@ -133,7 +141,7 @@ class InternalTools:
                     },
                     "result": {"type": tool.result, "required": True}
                 }
-                for tool in self.tools
+                for tool in self.available_tools()
             ]
         }
 
@@ -154,13 +162,15 @@ class InternalTools:
                     "required": tool.required_params if tool.required_params is not None else list(tool.params),
                 }
             }
-            for tool in self.tools
+            for tool in self.available_tools()
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
         """get callback method for internal tool matching the name and call with given parameters"""
-        callback = next(t.function for t in self.tools if t.name == tool)
-        return await callback(**parameters)
+        tool_def = next((t for t in self.available_tools() if t.name == tool), None)
+        if tool_def is None:
+            raise ValueError(f"Internal tool '{tool}' is not available")
+        return await tool_def.function(**parameters)
 
     async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
         """

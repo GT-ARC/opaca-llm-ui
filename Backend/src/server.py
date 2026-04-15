@@ -64,7 +64,7 @@ info_queries = {
 async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task(60))
-    CodeExecutor().start_warmup()
+    CodeExecutor.warmup_task = asyncio.create_task(CodeExecutor().warmup())
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 

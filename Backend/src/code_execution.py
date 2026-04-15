@@ -70,35 +70,30 @@ PYODIDE_CODE_RETRY_PROMPT = dedent("""\
 class CodeExecutor:
     """Executes Python code in a sandboxed Pyodide environment."""
 
-    _warmup_task: asyncio.Task | None = None
+    warmup_task: asyncio.Task | None = None
+    available: bool | None = None
 
-    def start_warmup(self) -> None:
-        """Start Pyodide warm-up once, without making tool registration async."""
-        if self._warmup_task is not None:
-            return
-
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            logger.debug("Skipping Pyodide warm-up; no running event loop")
-            return
-
-        self.__class__._warmup_task = loop.create_task(self._warmup())
-
-    async def wait_for_warmup(self) -> None:
-        """Wait for the startup warm-up if it is still running."""
-        if self._warmup_task is not None:
-            await asyncio.shield(self._warmup_task)
-
-    async def _warmup(self) -> None:
+    async def warmup(self) -> None:
         result = await self._execute_code("print('pyodide-ready')", timeout_s=60)
         if result.status == "success":
+            CodeExecutor.available = True
             logger.info("Pyodide sandbox warm-up completed")
+        elif result.status.startswith("Initializing Pyodide sandbox failed"):
+            CodeExecutor.available = False
+            logger.warning("Pyodide sandbox unavailable: %s", result.status)
         else:
+            CodeExecutor.available = True
             logger.warning("Pyodide sandbox warm-up failed: %s", result.status)
 
     async def execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
-        await self.wait_for_warmup()
+        if CodeExecutor.warmup_task is not None:
+            await asyncio.shield(CodeExecutor.warmup_task)
+
+        if CodeExecutor.available is False:
+            return ExecutionResult(
+                run_id=uuid.uuid4().hex[:12],
+                status="Pyodide sandbox unavailable",
+            )
         return await self._execute_code(code, timeout_s)
 
     async def _execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
@@ -149,7 +144,7 @@ def clean_output(stdout: str | None) -> str | None:
         r"Package .+? loaded from .+?, caching the wheel in node_modules for future use.",
     ]
     return re.sub("|".join(patterns), "", stdout)
-    
+
 
 def transform_notebook_style(code: str) -> str:
     """Wrap the last expression statement so its result gets printed.
