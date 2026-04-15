@@ -12,6 +12,3 @@ litellm>=1.81.0
 mcp>=1.23.3
 rich>=14.0.0
 langchain-sandbox>=0.0.6
-pylint>=3.3.0
-bandit>=1.8.0
-mypy>=1.15.0
