@@ -32,8 +32,6 @@
 </template>
 
 <script>
-import conf from "../../config.js";
-import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js";
 
 export default {
@@ -44,8 +42,7 @@ export default {
         isUploading: Boolean,
     },
     setup() {
-        const {isMobile} = useDevice();
-        return {conf, Localizer, isMobile};
+        return { Localizer };
     },
     data() {
         return {};

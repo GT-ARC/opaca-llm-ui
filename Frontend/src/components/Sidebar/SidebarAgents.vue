@@ -137,7 +137,6 @@
 import { nextTick } from 'vue';
 import conf from '../../../config.js';
 import Localizer from "../../Localizer.js";
-import SidebarManager from "../../SidebarManager.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import InputDialogue from '../InputDialogue.vue';
@@ -150,8 +149,8 @@ export default {
         isPlatformConnected: Boolean,
     },
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { conf, Localizer, SidebarManager, isMobile, screenWidth };
+        const { isMobile } = useDevice();
+        return { conf, Localizer, isMobile };
     },
     data() {
         return {

@@ -15,7 +15,6 @@
 </template>
 
 <script>
-import conf from '../../../config.js'
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import {marked} from "marked";
@@ -24,7 +23,7 @@ export default {
     name: "SidebarFaq",
     setup() {
         const {isMobile} = useDevice();
-        return { conf, Localizer, isMobile };
+        return { Localizer, isMobile };
     },
     data() {
         return {

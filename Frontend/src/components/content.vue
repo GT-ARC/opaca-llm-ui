@@ -240,8 +240,8 @@ export default {
         'new-notification',
     ],
     setup() {
-        const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
+        const { isMobile } = useDevice()
+        return { Localizer, AudioManager, isMobile };
     },
     data() {
         return {

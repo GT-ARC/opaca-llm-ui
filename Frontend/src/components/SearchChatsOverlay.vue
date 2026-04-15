@@ -26,9 +26,7 @@
 </template>
 
 <script>
-import conf from "../../config.js";
 import backendClient from "../utils.js";
-import Localizer from "../Localizer.js";
 
 export default {
     name: "SearchChatsOverlay",
@@ -44,7 +42,7 @@ export default {
         };
     },
     setup() {
-        return { conf, Localizer };
+        return { };
     },
     emits: [
         'stop-search',

@@ -144,7 +144,7 @@ export default {
     setup() {
         const {isMobile} = useDevice();
         const bsCollapseEvent = 'show.bs.collapse';
-        return { conf, Localizer, isMobile, bsCollapseEvent };
+        return { Localizer, isMobile, bsCollapseEvent };
     },
     methods: {
         async autogenerateSampleQuestions(numQuestions = 5) {

@@ -43,7 +43,6 @@
 
 <script>
 import ConfigParameter from "./ConfigParameter.vue";
-import {useDevice} from "../useIsMobile.js";
 
 export default {
     name: "ConfigGroup",
@@ -55,8 +54,7 @@ export default {
         showTitle: false,
     },
     setup() {
-        const {isMobile} = useDevice();
-        return { isMobile };
+        return {};
     },
     data() {
         return {
