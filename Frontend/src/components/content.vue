@@ -470,8 +470,8 @@ export default {
 
         createMessageFile(file) {
             return {
-                name: file.name || file.file_name,
-                type: file.type || file.content_type,
+                name: file.name,
+                type: file.type,
                 url: file.url || file.previewUrl || null,
             };
         },

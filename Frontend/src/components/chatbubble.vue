@@ -11,7 +11,7 @@
                 v-if="imageFiles.length > 0"
                 :value="imageFiles"
                 :active-index="galleryIndex"
-                :num-visible="Math.min(3, imageFiles.length || 1)"
+                :num-visible="Math.min(3, imageFiles.length)"
                 :show-item-navigators="imageFiles.length > 1"
                 :show-thumbnail-navigators="imageFiles.length > 1"
                 :show-thumbnails="imageFiles.length > 1"
