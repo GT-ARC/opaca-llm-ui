@@ -318,6 +318,7 @@ class SessionData(BaseModel):
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
     mcp_servers: List[Dict] = Field(default_factory=list)
+    mcp_tool_permissions: Dict[str, Dict[str, Literal["ask", "deny", "allow"]]] = Field(default_factory=dict)
     blocked: bool = False
     prompts: SessionPrompts | None = None
 
@@ -390,13 +391,30 @@ class SessionData(BaseModel):
         else:
             raise Exception("Websocket not connected")
 
-    async def get_mcp_tools(self) -> Dict:
+    async def get_mcp_tools(self) -> Dict[str, Any]:
         """Returns a list of all available mcp server tools"""
         tools = {}
         for mcp_server in self.mcp_servers:
             client = MCPClient(server_url=mcp_server["server_url"])
-            tools[mcp_server["server_label"]] = await client.list_tools()
+            server_tools = await client.list_tools()
+            label = mcp_server["server_label"]
+            
+            tool_list = []
+            for tool in server_tools:
+                # Convert the Tool object into a dictionary so we can append custom data
+                tool_dict = tool.model_dump()                
+                tool_dict["server_label"] = label
+                tool_dict["approval"] = self.mcp_tool_permissions.get(label, {}).get(tool.name, "ask")
+                tool_list.append(tool_dict)
+
+            tools[label] = tool_list
         return tools
+
+    async def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: Literal["ask", "deny", "allow"]):
+        """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
+        if server_label not in self.mcp_tool_permissions:
+            self.mcp_tool_permissions[server_label] = {}
+        self.mcp_tool_permissions[server_label][tool_name] = approval
 
     async def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
@@ -493,6 +511,11 @@ class OpacaException(Exception):
 
 class MCPCreateMessage(BaseModel):
     content: Dict[str, Any]
+
+
+class MCPToolApproval(BaseModel):
+    tool_name: str
+    approval: Literal["ask", "deny", "allow"]
 
 
 # MESSAGES SENT OR RECEIVED VIA WEBSOCKET

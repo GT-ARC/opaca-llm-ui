@@ -53,10 +53,29 @@
                             <!-- mcp body -->
                             <div :id="'mcp-body-' + mcpServerIndex + '-' + mcpIndex" class="accordion-collapse collapse mcp-body"
                                  :aria-labelledby="'mcp-header-' + mcpServerIndex + '-' + mcpIndex" :data-bs-parent="'#mcp-accordion-' + mcpServerIndex">
-                                <p v-if="mcp.description">
+                                <p v-if="mcp.description" class="mb-2">
                                     <strong>{{ Localizer.get('agents_description') }}:</strong>
                                     {{ mcp.description }}
                                 </p>
+                                <div class="d-flex align-items-center">
+                                    <strong class="me-2">Approval:</strong>
+                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-ask-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                            @change="e => setApproval(mcp.server_label, mcp.name, 'ask')"
+                                            :checked="mcp.approval === 'ask'">
+                                        <label class="btn btn-outline-secondary mcp-approval-ask" :for="'btn-ask-' + mcpServerIndex + '-' + mcpIndex">Ask</label>
+
+                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-deny-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                            @change="e => setApproval(mcp.server_label, mcp.name, 'deny')"
+                                            :checked="mcp.approval === 'deny'">
+                                        <label class="btn btn-outline-secondary mcp-approval-deny" :for="'btn-deny-' + mcpServerIndex + '-' + mcpIndex">Deny</label>
+
+                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-allow-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                            @change="e => setApproval(mcp.server_label, mcp.name, 'allow')"
+                                            :checked="mcp.approval === 'allow'">
+                                        <label class="btn btn-outline-secondary mcp-approval-allow" :for="'btn-allow-' + mcpServerIndex + '-' + mcpIndex">Allow</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -167,6 +186,10 @@ export default {
                 }, {});
         },
 
+        async setApproval(serverLabel, toolName, approval) {
+            await backendClient.setMcpToolApproval(serverLabel, toolName, approval);
+        },
+
         isValidInput(s_url, s_label) {
             // Return a detailed error msg if the mcp server url or label is malformed. Return an empty string if the url is valid.
 
@@ -247,6 +270,24 @@ export default {
 
 .delete-icon:hover {
     color: var(--text-danger-color);
+}
+
+.btn-check:checked + .btn.btn-outline-secondary.mcp-approval-ask {
+    background-color: var(--primary-color, #0d6efd);
+    border-color: var(--primary-color, #0d6efd);
+    color: #fff;
+}
+
+.btn-check:checked + .btn.btn-outline-secondary.mcp-approval-deny {
+    background-color: var(--text-danger-color, #dc3545);
+    border-color: var(--text-danger-color, #dc3545);
+    color: #fff;
+}
+
+.btn-check:checked + .btn.btn-outline-secondary.mcp-approval-allow {
+    background-color: #198754;
+    border-color: #198754;
+    color: #fff;
 }
 
 </style>
