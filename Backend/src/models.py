@@ -441,12 +441,21 @@ class SessionData(BaseModel):
 
         # Check if the given server-url is actually an mcp server
         client = MCPClient(server_url=mcp_server["server_url"])
-        if not await client.list_tools():
+        mcp_tools = await client.list_tools()
+        if not mcp_tools:
             raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
         # Disable auto-execution of MCP tools by LiteLLM: Force it to always require approval
         # Our backend manages the permission flow itself with UI integration
         mcp_server["require_approval"] = "always"
+
+        # Set default tool approval permissions
+        label = mcp_server["server_label"]
+        default_approval = mcp_server.get("default_approval", "ask")
+        if label not in self.mcp_tool_permissions:
+            self.mcp_tool_permissions[label] = {}
+        for tool in mcp_tools:
+            self.mcp_tool_permissions[label][tool.name] = default_approval
 
         self.mcp_servers.append(mcp_server)
         return True

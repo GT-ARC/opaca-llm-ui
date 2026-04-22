@@ -134,14 +134,15 @@ export default {
                 {
                     mcpServerUrl: {type: "text", label: "Server URL"},
                     mcpServerLabel: {type: "text", label: "Server Label (Optional)", optional: true},
-                    mcpRequireApproval: {type: "select", label: "Require Approval", default: "never", values: {
-                        never: "Require Approval - never",
-                        always: "Require Approval - always (not implemented yet)"
+                    mcpDefaultApproval: {type: "select", label: "Default Approval", default: "ask", values: {
+                        ask: "Always ask",
+                        allow: "Auto allow",
+                        deny: "Auto deny"
                     }},
                 },
                 async (values) => {
                     // Get values from submission dialogue
-                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, require_approval: values.mcpRequireApproval}
+                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, default_approval: values.mcpDefaultApproval}
 
                     // Validate input
                     var mcpError = this.isValidInput(data.server_url, data.server_label);
