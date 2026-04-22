@@ -458,7 +458,7 @@ export default {
         async handleOverlayDrop(event) {
             const dataTransfer = event.dataTransfer;
             if (!dataTransfer) {
-              return;
+                return;
             }
             const draggedContentType = this.getDraggedContentType(dataTransfer);
             await this.toggleFileDropOverlay(false);
@@ -497,27 +497,27 @@ export default {
         },
 
         async insertDroppedText(text) {
-          const textarea = this.$refs.textInputRef;
-          const normalizedText = text.replace(/\r\n/g, "\n");
+            const textarea = this.$refs.textInputRef;
+            const normalizedText = text.replace(/\r\n/g, "\n");
 
-          if (!textarea || typeof textarea.selectionStart !== "number") {
-            this.textInput = `${this.textInput}${normalizedText}`;
+            if (!textarea || typeof textarea.selectionStart !== "number") {
+                this.textInput = `${this.textInput}${normalizedText}`;
+                await nextTick();
+                this.resizeTextInput();
+                this.$refs.textInputRef?.focus();
+                return;
+            }
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentInput = this.textInput ?? "";
+            this.textInput = `${currentInput.slice(0, start)}${normalizedText}${currentInput.slice(end)}`;
+
             await nextTick();
             this.resizeTextInput();
-            this.$refs.textInputRef?.focus();
-            return;
-          }
-
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          const currentInput = this.textInput ?? "";
-          this.textInput = `${currentInput.slice(0, start)}${normalizedText}${currentInput.slice(end)}`;
-
-          await nextTick();
-          this.resizeTextInput();
-          textarea.focus();
-          const caretPosition = start + normalizedText.length;
-          textarea.setSelectionRange(caretPosition, caretPosition);
+            textarea.focus();
+            const caretPosition = start + normalizedText.length;
+            textarea.setSelectionRange(caretPosition, caretPosition);
         },
 
         async uploadFiles(fileList) {
