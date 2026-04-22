@@ -444,6 +444,10 @@ class SessionData(BaseModel):
         if not await client.list_tools():
             raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
+        # Disable auto-execution of MCP tools by LiteLLM: Force it to always require approval
+        # Our backend manages the permission flow itself with UI integration
+        mcp_server["require_approval"] = "always"
+
         self.mcp_servers.append(mcp_server)
         return True
 
