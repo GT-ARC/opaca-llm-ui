@@ -411,9 +411,22 @@ export default {
         },
 
         isTextFile(file) {
-            const textExtensions = new Set([".txt", ".md", ".markdown", ".log", ".json", ".csv"]);
+            const textExtensions = new Set([".txt", ".md", ".markdown", ".log", ".json", ".csv", ".xml", ".bpmn", ".py", ".js"]);
 
-            const textMimeTypes = new Set(["text/plain", "text/markdown", "application/json", "text/json", "text/csv"]);
+            const textMimeTypes = new Set([
+                "text/plain",
+                "text/markdown",
+                "application/json",
+                "text/json",
+                "text/csv",
+                "application/xml",
+                "text/xml",
+                "text/javascript",
+                "application/javascript",
+                "application/x-javascript",
+                "text/x-python",
+                "application/x-python-code",
+            ]);
 
             const ext = this.getFileExtension(file);
             const hasTextExtension = textExtensions.has(ext);
@@ -421,9 +434,7 @@ export default {
             const type = file.type?.toLowerCase();
             const hasTextMime = textMimeTypes.has(type);
 
-            // Prefer MIME when available, fallback to extension
-            if (type) return hasTextMime;
-            return hasTextExtension;
+            return hasTextMime || hasTextExtension;
         },
 
         wrapDroppedTextInCodeFence(text, language = "") {
@@ -435,21 +446,22 @@ export default {
         formatDroppedFileText(file, text) {
             const normalizedText = text.replace(/\r\n/g, "\n");
             const extension = this.getFileExtension(file);
+            const codeFenceLanguages = {
+                ".json": "json",
+                ".csv": "csv",
+                ".xml": "xml",
+                ".bpmn": "xml",
+                ".py": "python",
+                ".js": "javascript",
+                ".log": "text",
+            };
 
             if (extension === ".md" || extension === ".markdown") {
                 return normalizedText;
             }
 
-            if (extension === ".json" || file.type === "application/json" || file.type === "text/json") {
-                return this.wrapDroppedTextInCodeFence(normalizedText, "json");
-            }
-
-            if (extension === ".csv" || file.type === "text/csv") {
-                return this.wrapDroppedTextInCodeFence(normalizedText, "csv");
-            }
-
-            if (extension === ".log") {
-                return this.wrapDroppedTextInCodeFence(normalizedText, "text");
+            if (codeFenceLanguages[extension]) {
+                return this.wrapDroppedTextInCodeFence(normalizedText, codeFenceLanguages[extension]);
             }
 
             return normalizedText;
