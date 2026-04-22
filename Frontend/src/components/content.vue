@@ -383,7 +383,7 @@ export default {
         },
 
         async toggleFileDropOverlay(show) {
-            this.showFileDropOverlay = show;
+            this.showFileDropOverlay = show && !SidebarManager.isResizing();
         },
 
         getDraggedContentType(dataTransfer) {
