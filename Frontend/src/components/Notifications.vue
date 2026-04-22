@@ -41,9 +41,7 @@
 
 <script>
 import Chatbubble from "./chatbubble.vue";
-import conf from '../../config'
 import Localizer from "../Localizer.js";
-import { useDevice } from "../useIsMobile.js";
 import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 
 export default {
@@ -57,8 +55,7 @@ export default {
         "append-to-chat"
     ],
     setup() {
-        const { isMobile, screenWidth } = useDevice()
-        return { conf, Localizer, isMobile, screenWidth };
+        return { Localizer };
     },
     data() {
         return {

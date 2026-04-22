@@ -65,7 +65,7 @@ export default {
         };
     },
     setup() {
-        return { conf, Methods, Localizer, AudioManager };
+        return { };
     },
     emits: [
         'select'

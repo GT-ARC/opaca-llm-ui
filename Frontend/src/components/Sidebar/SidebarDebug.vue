@@ -25,7 +25,6 @@
 </template>
 
 <script>
-import conf from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import DebugMessage from "../DebugMessage.vue";
@@ -45,7 +44,7 @@ export default {
     },
     setup() {
         const { isMobile } = useDevice();
-        return { conf, Localizer, isMobile };
+        return { Localizer, isMobile };
     },
     methods: {
         scrollDownDebugView() {

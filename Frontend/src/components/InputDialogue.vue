@@ -58,15 +58,13 @@
 
 <script>
 import {nextTick} from "vue";
-import {useDevice} from "../useIsMobile.js";
 import Localizer from "../Localizer.js"
 import {marked} from "marked";
 
 export default {
     name: 'InputDialogue',
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { Localizer, isMobile, screenWidth };
+        return { Localizer };
     },
     data() {
         return {

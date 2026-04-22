@@ -240,8 +240,8 @@ export default {
         'new-notification',
     ],
     setup() {
-        const { isMobile, screenWidth } = useDevice()
-        return { conf, SidebarManager, Localizer, AudioManager, isMobile, screenWidth };
+        const { isMobile } = useDevice()
+        return { Localizer, AudioManager, isMobile };
     },
     data() {
         return {
@@ -485,7 +485,7 @@ export default {
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
-                if (result.is_output) {
+                if (result.is_output && ! this.isFinished) {
                     const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);

@@ -168,7 +168,7 @@
 </template>
 
 <script>
-import conf, {Methods, MethodDescriptions} from '../../../config.js'
+import conf from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Cookie from "js-cookie";
@@ -220,8 +220,8 @@ export default {
         'delete-all-chats',
     ],
     setup() {
-        const { isMobile, screenWidth } = useDevice();
-        return { conf, Methods, MethodDescriptions, SidebarManager, Localizer, isMobile, screenWidth};
+        const { isMobile } = useDevice();
+        return { SidebarManager, Localizer, isMobile };
     },
     data() {
         return {
