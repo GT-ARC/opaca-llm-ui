@@ -6,10 +6,10 @@
         <!-- File Drop Overlay -->
         <div v-if="showFileDropOverlay" id="fileDropOverlay"
              @dragleave.prevent="() => toggleFileDropOverlay(false)"
-             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
+             @drop.prevent="handleOverlayDrop">
             <div id="overlayContent">
                 <p>{{ Localizer.get("files_droparea") }}</p>
-                <span class="fa fa-file" />
+                <span class="fa fa-upload" />
             </div>
         </div>
 
@@ -302,7 +302,7 @@ export default {
             if (placeholders !== null) {
                 // substitute placeholders
                 await this.$refs.input.showDialogue(
-                    Localizer.get("questions_placeholders"), questionText, null, 
+                    Localizer.get("questions_placeholders"), questionText, null,
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
@@ -384,6 +384,140 @@ export default {
 
         async toggleFileDropOverlay(show) {
             this.showFileDropOverlay = show;
+        },
+
+        getDraggedContentType(dataTransfer) {
+            const items = Array.from(dataTransfer.items ?? []);
+
+            const types = Array.from(dataTransfer.types ?? []);
+
+            // Prioritize files
+            if (items.some(item => item.kind === "file") || types.includes("Files")) {
+                return "files";
+            }
+
+            if (items.some(item => item.kind === "string" && item.type === "text/plain") ||
+                types.includes("text/plain")) {
+                return "text";
+            }
+
+            return null;
+        },
+
+        getFileExtension(file) {
+            const fileName = file.name?.toLowerCase() ?? "";
+            const dotIndex = fileName.lastIndexOf(".");
+            return dotIndex >= 0 ? fileName.slice(dotIndex) : "";
+        },
+
+        isTextFile(file) {
+            const textExtensions = new Set([".txt", ".md", ".markdown", ".log", ".json", ".csv"]);
+
+            const textMimeTypes = new Set(["text/plain", "text/markdown", "application/json", "text/json", "text/csv"]);
+
+            const ext = this.getFileExtension(file);
+            const hasTextExtension = textExtensions.has(ext);
+
+            const type = file.type?.toLowerCase();
+            const hasTextMime = textMimeTypes.has(type);
+
+            // Prefer MIME when available, fallback to extension
+            if (type) return hasTextMime;
+            return hasTextExtension;
+        },
+
+        wrapDroppedTextInCodeFence(text, language = "") {
+            const longestBacktickRun = Math.max(0, ...(text.match(/`+/g) ?? []).map(run => run.length));
+            const fence = "`".repeat(Math.max(3, longestBacktickRun + 1));
+            return `${fence}${language}\n${text}\n${fence}`;
+        },
+
+        formatDroppedFileText(file, text) {
+            const normalizedText = text.replace(/\r\n/g, "\n");
+            const extension = this.getFileExtension(file);
+
+            if (extension === ".md" || extension === ".markdown") {
+                return normalizedText;
+            }
+
+            if (extension === ".json" || file.type === "application/json" || file.type === "text/json") {
+                return this.wrapDroppedTextInCodeFence(normalizedText, "json");
+            }
+
+            if (extension === ".csv" || file.type === "text/csv") {
+                return this.wrapDroppedTextInCodeFence(normalizedText, "csv");
+            }
+
+            if (extension === ".log") {
+                return this.wrapDroppedTextInCodeFence(normalizedText, "text");
+            }
+
+            return normalizedText;
+        },
+
+        async handleOverlayDrop(event) {
+            const dataTransfer = event.dataTransfer;
+            if (!dataTransfer) {
+              return;
+            }
+            const draggedContentType = this.getDraggedContentType(dataTransfer);
+            await this.toggleFileDropOverlay(false);
+
+
+            if (draggedContentType === "files") {
+                const files = Array.from(dataTransfer.files ?? []);
+                const textFiles = files.filter(file => this.isTextFile(file));
+                const uploadableFiles = files.filter(file => !this.isTextFile(file));
+
+            if (textFiles.length > 0) {
+                const droppedText = (await Promise.all(
+                    textFiles.map(file => file.text()
+                        .then(text => this.formatDroppedFileText(file, text))
+                        .catch(async error => {
+                            await this.showInfo(`Failed to read dropped file: ${file.name}\nError: ${error}`);
+                            return null;
+                        }))
+                )).filter(text => text != null);
+
+                if (droppedText.length > 0) {
+                    await this.insertDroppedText(droppedText.join("\n\n"));
+                }
+            }
+
+            if (uploadableFiles.length > 0) {
+                await this.uploadFiles(uploadableFiles);
+            }
+            return;
+            }
+
+            const text = dataTransfer.getData("text/plain");
+            if (text) {
+                await this.insertDroppedText(text);
+            }
+        },
+
+        async insertDroppedText(text) {
+          const textarea = this.$refs.textInputRef;
+          const normalizedText = text.replace(/\r\n/g, "\n");
+
+          if (!textarea || typeof textarea.selectionStart !== "number") {
+            this.textInput = `${this.textInput}${normalizedText}`;
+            await nextTick();
+            this.resizeTextInput();
+            this.$refs.textInputRef?.focus();
+            return;
+          }
+
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const currentInput = this.textInput ?? "";
+          this.textInput = `${currentInput.slice(0, start)}${normalizedText}${currentInput.slice(end)}`;
+
+          await nextTick();
+          this.resizeTextInput();
+          textarea.focus();
+          const caretPosition = start + normalizedText.length;
+          textarea.setSelectionRange(caretPosition, caretPosition);
         },
 
         async uploadFiles(fileList) {
