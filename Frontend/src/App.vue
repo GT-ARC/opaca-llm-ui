@@ -180,8 +180,8 @@ export default {
                 Localizer.get("general_connect"), Localizer.get("main_connectHint"), error,
                 {
                     url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: this.opacaRuntimePlatform },
-                    username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser, optional: true },
-                    password: { type: "password", label: Localizer.get("general_password"), default: "", optional: true },
+                    username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser, optional: (values) => !values.password },
+                    password: { type: "password", label: Localizer.get("general_password"), default: "", optional: (values) => !values.username },
                 },
                 async (values) => {
                     this.opacaRuntimePlatform = values.url;
