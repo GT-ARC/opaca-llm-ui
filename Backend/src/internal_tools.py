@@ -51,21 +51,14 @@ class InternalTools:
                 description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the interval in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The delay should be a time in seconds for the first execution from now, and interval between executions, if applicable. Returns task ID",
                 params={"query": "string", "delay_seconds": "integer", "repetitions": "integer"},
                 result="integer",
-                function=self.tool_schedule_task,
+                function=self.tool_schedule_interval_task,
             ),
             InternalTool(
-                name="ScheduleDailyTask",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed once per day at the specified time, in format 'HH:MM'. Returns task ID",
-                params={"query": "string", "time_of_day": "string", "repetitions": "integer"},
+                name="ScheduleCalendarTask",
+                description="Schedule some action to be executed forever on a calendar schedule. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time or weekdays in the query itself. The task repeats forever. 'weekdays' must be a comma-separated list like 'Mon,Fri'; Pass an empty string for 'weekdays' to make it a daily task. For 'time_of_day' pass the local time in format 'HH:MM', or an empty string to use the current local time. Returns task ID",
+                params={"query": "string", "time_of_day": "string", "weekdays": "string"},
                 result="integer",
-                function=self.tool_schedule_daily_task,
-            ),
-            InternalTool(
-                name="ScheduleWeeklyTask",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time or weekdays in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed at the specified time, in format 'HH:MM', on the specified weekdays. 'weekdays' must be a comma-separated list like 'Mon,Fri'. Matching is case-insensitive and only the first 3 letters are used. Returns task ID",
-                params={"query": "string", "time_of_day": "string", "weekdays": "string", "repetitions": "integer"},
-                result="integer",
-                function=self.tool_schedule_weekly_task,
+                function=self.tool_schedule_calendar_task,
             ),
             InternalTool(
                 name="GetScheduledTasks",
@@ -295,30 +288,21 @@ class InternalTools:
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
 
-    async def tool_schedule_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
+    async def tool_schedule_interval_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
         return await self.deferred_execution_helper(query, delay_seconds, delay_seconds, repetitions)
 
-    async def tool_schedule_daily_task(self, query: str, time_of_day: str, repetitions: int) -> int:
-        delay = self._get_next_delay(datetime.now(), 24 * 60 * 60, time_of_day, list(range(7)))
+    async def tool_schedule_calendar_task(self, query: str, time_of_day: str, weekdays: str) -> int:
+        if not time_of_day:
+            time_of_day = datetime.now().strftime("%H:%M")
+        weekday_list = self._parse_weekdays(weekdays) if weekdays else list(range(7))
+        delay = self._get_next_delay(datetime.now(), 24 * 60 * 60, time_of_day, weekday_list)
         return await self.deferred_execution_helper(
             query,
             delay,
             24 * 60 * 60,
-            repetitions,
+            -1,
             time_of_day=time_of_day,
-            weekdays=list(range(7)),
-        )
-
-    async def tool_schedule_weekly_task(self, query: str, time_of_day: str, weekdays: str, repetitions: int) -> int:
-        weekdays = self._parse_weekdays(weekdays)
-        delay = self._get_next_delay(datetime.now(), 7 * 24 * 60 * 60, time_of_day, weekdays)
-        return await self.deferred_execution_helper(
-            query,
-            delay,
-            7 * 24 * 60 * 60,
-            repetitions,
-            time_of_day=time_of_day,
-            weekdays=weekdays,
+            weekdays=weekday_list,
         )
 
     async def tool_get_scheduled_tasks(self) -> dict:
