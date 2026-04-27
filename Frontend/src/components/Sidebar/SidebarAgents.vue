@@ -220,6 +220,7 @@ export default {
                         "name": "Image Name",
                         "json": "JSON",
                         "reg": "Registry",
+                        "update": Localizer.get("agents_deploy_update_existing"),
                     }},
                 },
                 async values => {
@@ -227,6 +228,7 @@ export default {
                         case "name": return await this.addContainerFromImageName();
                         case "json": return await this.addContainerFromJson();
                         case "reg": return await this.addContainerFromRegistry();
+                        case "update": return await this.updateContainerDialogue();
                     }
                 }
             );
@@ -275,7 +277,7 @@ export default {
                     image: { type: "text", label: "Image Name"},
                 },
                 async values => {
-                    await this.doPostContainer({image: {imageName: values.image}});
+                    await this.doSubmitContainer({image: {imageName: values.image}});
                 }
             );
         },
@@ -286,17 +288,55 @@ export default {
                 Localizer.get("agents_deploy_json"),
                 null,
                 {
-                    json: { type: "textarea", label: "Image/Container JSON" },
+                    json: { type: "textarea", label: "Image/Container JSON", monospace: true, rows: 15 },
                 },
                 async values => {
                     var json = JSON.parse(values.json);
                     if (json.image) {
-                        return this.doPostContainer(json);
+                        return this.doSubmitContainer(json);
                     }
                     if (json.imageName) {
                         return this.doPostContainerImage(json);
                     }
                     throw new Error("Invalid JSON format.");
+                }
+            );
+        },
+
+        async updateContainerDialogue() {
+            if (!this.platformContainers || this.platformContainers.length === 0) {
+                throw new Error(Localizer.get("agents_deploy_update_missing"));
+            }
+
+            const containerOptions = Object.fromEntries(
+                this.platformContainers.map(c => [c.image.imageName, c.image.imageName])
+            );
+
+            await this.$refs.input.showDialogue(
+                Localizer.get("agents_deploy"),
+                Localizer.get("agents_deploy_update_select"),
+                null,
+                {
+                    container: { type: "select", values: containerOptions }
+                },
+                async values => {
+                    const existing = this.platformContainers.find(c => c.image.imageName === values.container);
+                    const baseContainer = {
+                        image: existing.image,
+                        arguments: existing.arguments || {}
+                    };
+                    await this.$refs.input.showDialogue(
+                        Localizer.get("agents_deploy"),
+                        Localizer.get("agents_deploy_update_edit"),
+                        null,
+                        {
+                            json: { type: "textarea", label: "Container JSON", default: JSON.stringify(baseContainer, null, 2), monospace: true, rows: 15 }
+                        },
+                        async configValues => {
+                            const updatedContainer = JSON.parse(configValues.json);
+                            await this.doSubmitContainer(updatedContainer, true);
+                        }
+                    );
                 }
             );
         },
@@ -312,16 +352,16 @@ export default {
                         image.parameters.map((p => [p.name, {type: types[p.type] ?? "textarea", label: `${p.name} (${this.typeHint(p)})`, default: p.defaultValue, optional: !p.required}]))
                     ),
                     async values => {
-                        await this.doPostContainer({image: image, arguments: values});
+                        await this.doSubmitContainer({image: image, arguments: values});
                     }
                 );
             } else {
-                await this.doPostContainer({image: image});
+                await this.doSubmitContainer({image: image});
             }
         },
 
-        async doPostContainer(postContainer) {
-            const res = await backendClient.deployContainer(postContainer);
+        async doSubmitContainer(container, isUpdate = false) {
+            const res = await backendClient.deployContainer(container, isUpdate);
             if (res.success) {
                 await this.updatePlatformInfo();
             } else {
