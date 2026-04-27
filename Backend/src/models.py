@@ -280,6 +280,20 @@ class Chat(BaseModel):
 SessionPrompts = Dict[str, List[PromptCategory]]
 
 
+class MCPServerParams(BaseModel):
+    server_url: str
+    server_label: str
+    type: str | None = None
+    require_approval: str | None = None
+    model_config = {"extra": "allow"} # In case the MCP server provides additional fields, we still want to store them without causing validation errors
+
+
+class MCPServer(BaseModel):
+    params: MCPServerParams
+    default_approval: Literal["ask", "deny", "allow"] = "ask"
+    tool_permissions: Dict[str, Literal["ask", "deny", "allow"]] = Field(default_factory=dict)
+
+
 class SessionData(BaseModel):
     """
     Stores relevant information regarding the session, including messages, configuration,
@@ -317,8 +331,7 @@ class SessionData(BaseModel):
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
-    mcp_servers: List[Dict] = Field(default_factory=list)
-    mcp_tool_permissions: Dict[str, Dict[str, Literal["ask", "deny", "allow"]]] = Field(default_factory=dict)
+    mcp_servers: Dict[str, MCPServer] = Field(default_factory=dict)
     blocked: bool = False
     prompts: SessionPrompts | None = None
 
@@ -394,78 +407,79 @@ class SessionData(BaseModel):
     async def get_mcp_tools(self) -> Dict[str, Any]:
         """Returns a list of all available mcp server tools"""
         tools = {}
-        for mcp_server in self.mcp_servers:
-            client = MCPClient(server_url=mcp_server["server_url"])
+        for server_label, server in self.mcp_servers.items():
+            client = MCPClient(server_url=server.params.server_url)
             server_tools = await client.list_tools()
-            label = mcp_server["server_label"]
             
             tool_list = []
             for tool in server_tools:
                 # Convert the Tool object into a dictionary so we can append custom data
                 tool_dict = tool.model_dump()                
-                tool_dict["server_label"] = label
-                tool_dict["approval"] = self.mcp_tool_permissions.get(label, {}).get(tool.name, "ask")
+                tool_dict["server_label"] = server_label
+                tool_dict["approval"] = server.tool_permissions.get(tool.name, server.default_approval)
                 tool_list.append(tool_dict)
 
-            tools[label] = tool_list
+            tools[server_label] = tool_list
         return tools
 
     async def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: Literal["ask", "deny", "allow"]):
         """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
-        if server_label not in self.mcp_tool_permissions:
-            self.mcp_tool_permissions[server_label] = {}
-        self.mcp_tool_permissions[server_label][tool_name] = approval
+        if server_label in self.mcp_servers:
+            self.mcp_servers[server_label].tool_permissions[tool_name] = approval
 
-    async def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
+    async def add_mcp_server(self, params: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
 
         # Check if the server_url field is existing
-        if "server_url" not in mcp_server:
+        if "server_url" not in params:
             raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!", 400)
 
         # Check if the server url is in a valid format:
-        if not re.match(r'^https?://', mcp_server["server_url"]):
+        if not re.match(r'^https?://', params["server_url"]):
             raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!", 400)
 
         # Check if a previous mcp server with the same url already exists
-        if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
-            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
+        if any(m.params.server_url == params["server_url"] for m in self.mcp_servers.values()):
+            raise OpacaException(f"An MCP server with the given server_url '{params['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
 
         # If no server label was given, transform the server_url into the label
-        if not mcp_server["server_label"]:
-            mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
+        if not params.get("server_label"):
+            params["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', params["server_url"]).replace('.', '-')
+            
+        label = params["server_label"]
 
         # Check if a previous mcp server with the same label already exists (UI saves mcp servers based on label)
-        if any(m["server_label"] == mcp_server["server_label"] for m in self.mcp_servers):
-            raise OpacaException(f"An MCP server with the given server_label '{mcp_server['server_label']} already exists!", "Duplicate 'server_label'!", 400)
+        if label in self.mcp_servers:
+            raise OpacaException(f"An MCP server with the given server_label '{label}' already exists!", "Duplicate 'server_label'!", 400)
 
         # Check if the given server-url is actually an mcp server
-        client = MCPClient(server_url=mcp_server["server_url"])
+        client = MCPClient(server_url=params["server_url"])
         mcp_tools = await client.list_tools()
         if not mcp_tools:
-            raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
+            raise OpacaException(f"The given server_url '{params['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
         # Disable auto-execution of MCP tools by LiteLLM: Force it to always require approval
         # Our backend manages the permission flow itself with UI integration
-        mcp_server["require_approval"] = "always"
+        params["require_approval"] = "always"
+
+        # Extract and remove default_approval from the mcp_server dict (prevent litellm unknown parameter exception)
+        default_approval = params.pop("default_approval", "ask")
 
         # Set default tool approval permissions
-        label = mcp_server["server_label"]
-        default_approval = mcp_server.get("default_approval", "ask")
-        if label not in self.mcp_tool_permissions:
-            self.mcp_tool_permissions[label] = {}
-        for tool in mcp_tools:
-            self.mcp_tool_permissions[label][tool.name] = default_approval
+        server = MCPServer(
+            params=MCPServerParams.model_validate(params),
+            default_approval=default_approval,
+            tool_permissions={tool.name: default_approval for tool in mcp_tools}
+        )
 
-        self.mcp_servers.append(mcp_server)
+        self.mcp_servers[label] = server
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
         """Deletes an mcp server based on its name. The UI only stores the server_label."""
-        for mcp in self.mcp_servers:
-            if (mcp["server_label"]) == mcp_name:
-                self.mcp_servers.remove(mcp)
-                return True
+        if mcp_name in self.mcp_servers:
+            del self.mcp_servers[mcp_name]
+            return True
         return False
 
     def prune_notifications_chats_map(self):

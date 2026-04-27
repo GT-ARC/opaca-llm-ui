@@ -268,7 +268,14 @@ class AbstractMethod(ABC):
 
     async def invoke_mcp_tool(self, full_tool_name: str, tool_args: dict, tool_id: str) -> ToolCall:
         server_label, tool_name = full_tool_name.split('--', maxsplit=1)
-        approval = self.session.mcp_tool_permissions.get(server_label, {}).get(tool_name, 'ask')
+        
+        server = self.session.mcp_servers.get(server_label)
+        if not server:
+            t_result = f"MCP Server '{server_label}' not found."
+            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+        
+        approval = server.tool_permissions.get(tool_name, server.default_approval)
 
         if approval == 'deny':
             t_result = "Execution denied by user settings, do not attempt again."
@@ -281,14 +288,8 @@ class AbstractMethod(ABC):
                 await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
                 return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
 
-        target_mcp = next((m for m in self.session.mcp_servers if m["server_label"] == server_label), None)
-        if not target_mcp:
-            t_result = f"MCP Server '{server_label}' not found."
-            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
-
         try:
-            client = MCPClient(server_url=target_mcp["server_url"])
+            client = MCPClient(server_url=server.params.server_url)
             res = await client.call_tool(CallToolRequestParams(name=tool_name, arguments=tool_args))
             
             if res.isError:
@@ -309,7 +310,7 @@ class AbstractMethod(ABC):
         """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         if self.session.mcp_servers and include_mcp:
-            tools.extend(self.session.mcp_servers)
+            tools.extend([server.params.model_dump() for server in self.session.mcp_servers.values()])
         if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
