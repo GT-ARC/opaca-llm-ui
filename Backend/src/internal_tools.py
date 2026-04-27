@@ -22,6 +22,7 @@ from textwrap import dedent
 
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
+from .code_execution import CodeExecutor, extract_code_block, PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -34,8 +35,10 @@ class InternalTool(BaseModel):
     name: str
     description: str
     params: dict[str, str]
+    required_params: list[str] | None = None
     result: str
     function: Callable
+    requires_code_execution: bool = False
 
 
 class InternalTools:
@@ -43,6 +46,7 @@ class InternalTools:
     def __init__(self, session: SessionData, agent_method: type['AbstractMethod']):
         self.session = session
         self.agent_method = agent_method
+        self.code_executor = CodeExecutor()
         self.tools = [
             # TASK SCHEDULING
             InternalTool(
@@ -94,8 +98,32 @@ class InternalTools:
                 params={"url": "string"},
                 result="object",
                 function=self.tool_read_file_from_url,
-            )
+            ),
+            # CODE EXECUTION
+            InternalTool(
+                name="ExecuteCode",
+                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, status (e.g. success, error,  timeout), and run_id.",
+                params={"code": "string", "timeout_s": "integer"},
+                required_params=["code"],
+                result="object",
+                function=self.code_executor.execute_code,
+                requires_code_execution=True,
+            ),
+            InternalTool(
+                name="SolveWithCode",
+                description="Solve a computational task by generating and executing Python code in a Pyodide sandbox. Describe the task in plain language. Code is generated, executed, and retried automatically when execution fails. Returns runtime execution artifacts, generated_code, attempts, and attempt_history.",
+                params={"task": "string", "timeout_s": "integer", "max_code_retries": "integer"},
+                required_params=["task"],
+                result="object",
+                function=self.tool_solve_with_code,
+                requires_code_execution=True,
+            ),
         ]
+
+    def available_tools(self) -> list[InternalTool]:
+        if CodeExecutor.available is True:
+            return self.tools
+        return [tool for tool in self.tools if not tool.requires_code_execution]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
@@ -105,12 +133,15 @@ class InternalTools:
                     "name": tool.name,
                     "description": tool.description,
                     "parameters": {
-                        key: {"type": val, "required": True}
+                        key: {
+                            "type": val,
+                            "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys())
+                        }
                         for key, val in tool.params.items()
                     },
                     "result": {"type": tool.result, "required": True}
                 }
-                for tool in self.tools
+                for tool in self.available_tools()
             ]
         }
 
@@ -128,16 +159,18 @@ class InternalTools:
                         for key, val in tool.params.items()
                     },
                     "additionalProperties": False,
-                    "required": list(tool.params),
+                    "required": tool.required_params if tool.required_params is not None else list(tool.params),
                 }
             }
-            for tool in self.tools
+            for tool in self.available_tools()
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
         """get callback method for internal tool matching the name and call with given parameters"""
-        callback = next(t.function for t in self.tools if t.name == tool)
-        return await callback(**parameters)
+        tool_def = next((t for t in self.available_tools() if t.name == tool), None)
+        if tool_def is None:
+            raise ValueError(f"Internal tool '{tool}' is not available")
+        return await tool_def.function(**parameters)
 
     async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
         """
@@ -305,3 +338,57 @@ class InternalTools:
                 "ok": False,
                 "error": str(e),
             }
+
+
+    async def tool_solve_with_code(self, task: str, timeout_s: int = 10, max_code_retries: int = 2) -> dict:
+        """
+        Generate Python code for *task* via an internal LLM call, execute it
+        in the Pyodide sandbox, and — if execution fails — retry up to
+        max_code_retries times with the error fed back to the LLM.
+        """
+        prompt = PYODIDE_CODE_PROMPT.format(task=task)
+        attempt_history: list[dict] = []
+
+        for attempt in range(1, max_code_retries + 2):
+            # 1. Ask the LLM to write code
+            llm_response = await self.query_method(prompt)
+            code = extract_code_block(llm_response.content)
+
+            if not code:
+                attempt_history.append(
+                    {"attempt": attempt, "error": "LLM did not produce any code."}
+                )
+                logger.warning(
+                    "SolveWithCode attempt %d/%d failed: No code generated",
+                    attempt, 1 + max_code_retries,
+                )
+                prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + (
+                    "Your previous reply did not contain executable Python code. "
+                    "Respond with ONLY valid Python code."
+                )
+                continue
+
+            # 2. Execute in sandbox, add to history
+            exec_result = await self.code_executor.execute_code(code=code, timeout_s=timeout_s)
+            attempt_history.append(
+                {"attempt": attempt, "generated_code": code, **exec_result.model_dump()}
+            )
+
+            # 3. Success → return immediately
+            if exec_result.status == "success":
+                return { **attempt_history.pop(), "previous_attempts": attempt_history }
+
+            # 4. Failure → build retry prompt
+            logger.warning(
+                "SolveWithCode attempt %d/%d failed. status=%s stderr=%s",
+                attempt, 1 + max_code_retries,
+                exec_result.status, exec_result.stderr,
+            )
+            prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
+                code=code,
+                status=exec_result.status,
+                stdout=exec_result.stdout,
+                stderr=exec_result.stderr,
+            )
+
+        return { **attempt_history.pop(), "previous_attempts": attempt_history }
