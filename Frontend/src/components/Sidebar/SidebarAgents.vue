@@ -388,7 +388,8 @@ export default {
                     Object.entries(schema).map(([k, v]) => [k, {
                         type: types[v.type] ?? "textarea",
                         label: `${k} (${this.typeHint(v)}${v.required ? "" : ", opt."})`,
-                        optional: !v.required}]
+                        optional: !v.required,
+                        default: v.defaultValue }]
                     )
                 ),
                 async values => {
