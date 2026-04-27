@@ -104,14 +104,12 @@ class OpacaClient:
             logger.error(f"Could not get Actions: {e}")
             raise e
     
-    async def deploy_container(self, post_container: dict) -> None:
+    async def deploy_container(self, post_container: dict, update: bool = False) -> None:
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{self.url}/containers", json=post_container, headers=self._headers())
-        res.raise_for_status()
-
-    async def update_container(self, put_container: dict) -> None:
-        async with httpx.AsyncClient() as client:
-            res = await client.put(f"{self.url}/containers", json=put_container, headers=self._headers())
+            if update:
+                res = await client.put(f"{self.url}/containers", json=post_container, headers=self._headers())
+            else:
+                res = await client.post(f"{self.url}/containers", json=post_container, headers=self._headers())
         res.raise_for_status()
     
     async def stop_container(self, container_id: str) -> None:

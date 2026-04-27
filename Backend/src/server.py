@@ -200,22 +200,10 @@ async def get_containers(session: SessionData = Depends(handle_session_http)) ->
     return await session.opaca_client.get_containers()
 
 
-@app.post("/containers", description="Deploy container to connected OPACA Runtime Platform.", tags=["opaca"])
-async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
+@app.post("/containers", description="Deploy or update container to connected OPACA Runtime Platform.", tags=["opaca"])
+async def post_container(post_container: dict, update: bool = False, session: SessionData = Depends(handle_session_http)) -> dict:
     try:
-        await session.opaca_client.deploy_container(post_container)
-        return {"success": True}
-    except HTTPStatusError as e:
-        message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())
-        return {"success": False, "error": f"{e.response.status_code}: {message}"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-@app.put("/containers", description="Update deployed container on connected OPACA Runtime Platform.", tags=["opaca"])
-async def put_container(put_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
-    try:
-        await session.opaca_client.update_container(put_container)
+        await session.opaca_client.deploy_container(post_container, update)
         return {"success": True}
     except HTTPStatusError as e:
         message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())

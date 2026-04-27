@@ -362,9 +362,7 @@ export default {
         },
 
         async doSubmitContainer(container, isUpdate = false) {
-            const res = isUpdate 
-                ? await backendClient.updateContainer(container)
-                : await backendClient.deployContainer(container);
+            const res = await backendClient.deployContainer(container, isUpdate);
             if (res.success) {
                 await this.updatePlatformInfo();
             } else {
