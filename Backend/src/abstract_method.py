@@ -322,6 +322,10 @@ class AbstractMethod(ABC):
                 mcp_tools_dict = await self.session.get_mcp_tools()
                 for server_label, server_tools in mcp_tools_dict.items():
                     for tool in server_tools:
+                        server = self.session.mcp_servers.get(server_label)
+                        if server.tool_permissions.get(tool['name'], server.default_approval) == 'deny':
+                            continue
+
                         tools.append({
                             "type": "function",
                             "name": f"{server_label}--{tool['name']}",
