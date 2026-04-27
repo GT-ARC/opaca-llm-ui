@@ -195,11 +195,19 @@ class AbstractMethod(ABC):
                 # Alternative tool output
                 for t in event.response.output:
                     if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                        tool_type = "mcp" if (
+                            t.name and 
+                            '--' in t.name and 
+                            (parts := t.name.split('--', 1)) and
+                            (server := self.session.mcp_servers.get(parts[0])) and
+                            parts[1] in server.tool_permissions
+                        ) else "opaca"
+
                         try:
-                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse tool arguments: {t.arguments}")
-                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args={})
+                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args={})
                         agent_message.tools.append(tool)
                         await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
                     elif isinstance(t, McpApprovalRequest):
@@ -310,7 +318,18 @@ class AbstractMethod(ABC):
         """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
         if self.session.mcp_servers and include_mcp:
-            tools.extend([server.params.model_dump() for server in self.session.mcp_servers.values()])
+            try:
+                mcp_tools_dict = await self.session.get_mcp_tools()
+                for server_label, server_tools in mcp_tools_dict.items():
+                    for tool in server_tools:
+                        tools.append({
+                            "type": "function",
+                            "name": f"{server_label}--{tool['name']}",
+                            "description": tool.get("description", ""),
+                            "parameters": tool.get("inputSchema", {"type": "object", "properties": {}})
+                        })
+            except Exception as e:
+                error += f"WARNING: Failed to retrieve MCP tools. Cause: {e}\n"
         if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
