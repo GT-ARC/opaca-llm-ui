@@ -4,7 +4,6 @@ import asyncio
 import logging
 import uuid
 import ast
-import re
 from textwrap import dedent
 
 from .models import ExecutionResult
@@ -88,12 +87,8 @@ class CodeExecutor:
     async def execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
         if CodeExecutor.warmup_task is not None:
             await asyncio.shield(CodeExecutor.warmup_task)
-
-        if CodeExecutor.available is False:
-            return ExecutionResult(
-                run_id=uuid.uuid4().hex[:12],
-                status="Pyodide sandbox unavailable",
-            )
+        if not CodeExecutor.available:
+            return ExecutionResult(run_id="-1", status="Pyodide sandbox unavailable",)
         return await self._execute_code(code, timeout_s)
 
     async def _execute_code(self, code: str, timeout_s: int = 10) -> ExecutionResult:
@@ -124,7 +119,7 @@ class CodeExecutor:
             response = await asyncio.wait_for(invocation, timeout=timeout_s+5)
             return ExecutionResult(
                 run_id=run_id,
-                stdout=clean_output(response.stdout),
+                stdout=response.stdout,
                 stderr=response.stderr,
                 status=response.status,
             )
@@ -132,18 +127,6 @@ class CodeExecutor:
         except Exception as exc:
             logger.exception("[ExecuteCode:%s] sandbox execution failed", run_id)
             return ExecutionResult(run_id=run_id, status=f"Pyodide execution failed: {exc}")
-
-
-def clean_output(stdout: str | None) -> str | None:
-    """Remove Pyodide noise from std-out. Unfortunately, there are no line breaks, making this a bit tricky..."""
-    if stdout is None:
-        return None
-
-    patterns = [
-        r"Didn't find package .+? locally, attempting to load from .+?/full/",
-        r"Package .+? loaded from .+?, caching the wheel in node_modules for future use.",
-    ]
-    return re.sub("|".join(patterns), "", stdout)
 
 
 def transform_notebook_style(code: str) -> str:
