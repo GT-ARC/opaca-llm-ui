@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from math import ceil
 
 from pydantic import BaseModel
-from typing import Any, Callable
+from typing import Callable
 from textwrap import dedent
 
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
@@ -26,11 +26,7 @@ from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, Q
 
 TIME_FORMAT = "%b %d %Y %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
-WEEKDAYS_SCHEMA = {
-    "type": "array",
-    "items": {"type": "integer"},
-    "description": "Weekdays using 0=Monday, 1=Tuesday, ..., 6=Sunday.",
-}
+DAYS_OF_WEEK = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +34,7 @@ logger = logging.getLogger(__name__)
 class InternalTool(BaseModel):
     name: str
     description: str
-    params: dict[str, str | dict[str, Any]]
+    params: dict[str, str]
     result: str
     function: Callable
 
@@ -66,17 +62,10 @@ class InternalTools:
             ),
             InternalTool(
                 name="ScheduleWeeklyTask",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time or weekdays in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed at the specified time, in format 'HH:MM', on the specified weekdays. 'weekdays' uses 0=Monday, 1=Tuesday, ..., 6=Sunday. Returns task ID",
-                params={"query": "string", "time_of_day": "string", "weekdays": WEEKDAYS_SCHEMA, "repetitions": "integer"},
+                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time or weekdays in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed at the specified time, in format 'HH:MM', on the specified weekdays. 'weekdays' must be a comma-separated list like 'Mon,Fri'. Matching is case-insensitive and only the first 3 letters are used. Returns task ID",
+                params={"query": "string", "time_of_day": "string", "weekdays": "string", "repetitions": "integer"},
                 result="integer",
                 function=self.tool_schedule_weekly_task,
-            ),
-            InternalTool(
-                name="ScheduleWindowedIntervalTask",
-                description="Schedule a recurring bounded time window in which the query should run repeatedly. At the specified start time on the specified weekdays, a finite interval schedule will be started internally. Use this only when the request gives a clear start time and window duration/end time. Use 'start_time' in format 'HH:MM'. 'weekdays' uses 0=Monday, 1=Tuesday, ..., 6=Sunday. Use 'interval_seconds' for the repeat interval inside the window, and 'duration_seconds' for the total window length starting at 'start_time'. 'repetitions' counts how many such windows should be started; a negative value means forever. Returns task ID",
-                params={"query": "string", "start_time": "string", "weekdays": WEEKDAYS_SCHEMA, "interval_seconds": "integer", "duration_seconds": "integer", "repetitions": "integer"},
-                result="integer",
-                function=self.tool_schedule_windowed_interval_task,
             ),
             InternalTool(
                 name="GetScheduledTasks",
@@ -116,9 +105,6 @@ class InternalTools:
             )
         ]
 
-    def _param_schema(self, schema: str | dict[str, Any]) -> dict:
-        return {"type": schema} if isinstance(schema, str) else schema
-
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
         return {
@@ -127,7 +113,7 @@ class InternalTools:
                     "name": tool.name,
                     "description": tool.description,
                     "parameters": {
-                        key: {**self._param_schema(val), "required": True}
+                        key: {"type": val, "required": True}
                         for key, val in tool.params.items()
                     },
                     "result": {"type": tool.result, "required": True}
@@ -146,7 +132,7 @@ class InternalTools:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        key: self._param_schema(val)
+                        key: {"type": val}
                         for key, val in tool.params.items()
                     },
                     "additionalProperties": False,
@@ -160,6 +146,9 @@ class InternalTools:
         """get callback method for internal tool matching the name and call with given parameters"""
         callback = next(t.function for t in self.tools if t.name == tool)
         return await callback(**parameters)
+
+    def _parse_weekdays(self, weekdays: str) -> list[int]:
+        return [DAYS_OF_WEEK.index(day.strip().lower()[:3]) for day in weekdays.split(",")]
 
     def _get_next_calendar_time(self, current: datetime, time_of_day: str, weekdays: list[int]) -> datetime:
         hh, mm = map(int, time_of_day.split(":"))
@@ -185,9 +174,6 @@ class InternalTools:
         task_id=None,
         time_of_day: str | None = None,
         weekdays: list[int] | None = None,
-        parent_task_id: int | None = None,
-        spawn_interval_seconds: int | None = None,
-        spawn_repetitions: int | None = None,
     ):
         """
         helper method used for creating different sorts of scheduled tasks (interval and daily/weekly)
@@ -199,7 +185,6 @@ class InternalTools:
             if task_id not in self.session.scheduled_tasks:
                 logger.info(f"Scheduled task {task_id} has been cancelled")
                 return
-            task = self.session.scheduled_tasks[task_id]
 
             # schedule next execution or remove task from list of tasks
             new_remaining = remaining - 1 if remaining > 0 else remaining
@@ -209,16 +194,6 @@ class InternalTools:
                 self.session.scheduled_tasks[task_id] = make_task(next_delay, new_remaining)
             else:
                 del self.session.scheduled_tasks[task_id]
-
-            if task.spawn_interval_seconds is not None and task.spawn_repetitions is not None:
-                await self.deferred_execution_helper(
-                    query=task.query,
-                    delay=0,
-                    interval=task.spawn_interval_seconds,
-                    repetitions=task.spawn_repetitions,
-                    parent_task_id=task.task_id,
-                )
-                return
 
             logger.info(f"Calling LLM for scheduled task {task_id}: {query}")
 
@@ -264,9 +239,6 @@ class InternalTools:
                 interval=stored_interval,
                 time_of_day=time_of_day,
                 weekdays=weekdays,
-                parent_task_id=parent_task_id,
-                spawn_interval_seconds=spawn_interval_seconds,
-                spawn_repetitions=spawn_repetitions,
                 repetitions=remaining,
             )
 
@@ -307,9 +279,6 @@ class InternalTools:
                 task.task_id,
                 task.time_of_day,
                 task.weekdays,
-                task.parent_task_id,
-                task.spawn_interval_seconds,
-                task.spawn_repetitions,
             )
         else:
             logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
@@ -340,7 +309,8 @@ class InternalTools:
             weekdays=list(range(7)),
         )
 
-    async def tool_schedule_weekly_task(self, query: str, time_of_day: str, weekdays: list[int], repetitions: int) -> int:
+    async def tool_schedule_weekly_task(self, query: str, time_of_day: str, weekdays: str, repetitions: int) -> int:
+        weekdays = self._parse_weekdays(weekdays)
         delay = self._get_next_delay(datetime.now(), 7 * 24 * 60 * 60, time_of_day, weekdays)
         return await self.deferred_execution_helper(
             query,
@@ -351,44 +321,14 @@ class InternalTools:
             weekdays=weekdays,
         )
 
-    async def tool_schedule_windowed_interval_task(
-        self,
-        query: str,
-        start_time: str,
-        weekdays: list[int],
-        interval_seconds: int,
-        duration_seconds: int,
-        repetitions: int,
-    ) -> int:
-
-        delay = self._get_next_delay(datetime.now(), 7 * 24 * 60 * 60, start_time, weekdays)
-        return await self.deferred_execution_helper(
-            query=query,
-            delay=delay,
-            interval=7 * 24 * 60 * 60,
-            repetitions=repetitions,
-            time_of_day=start_time,
-            weekdays=weekdays,
-            spawn_interval_seconds=interval_seconds,
-            spawn_repetitions=duration_seconds // interval_seconds + 1,
-        )
-
     async def tool_get_scheduled_tasks(self) -> dict:
         return self.session.scheduled_tasks
 
     async def tool_cancel_scheduled_task(self, task_id: int) -> bool:
-        task_ids = {task_id}
-        changed = True
-        while changed:
-            changed = False
-            for current_id, task in list(self.session.scheduled_tasks.items()):
-                if task.parent_task_id in task_ids and current_id not in task_ids:
-                    task_ids.add(current_id)
-                    changed = True
-        existed = any(current_id in self.session.scheduled_tasks for current_id in task_ids)
-        for current_id in task_ids:
-            self.session.scheduled_tasks.pop(current_id, None)
-        return existed
+        if task_id in self.session.scheduled_tasks:
+            del self.session.scheduled_tasks[task_id]
+            return True
+        return False
 
     async def tool_search_chats(self, search_query: str) -> str:
         messages = [[f"{m.role}: {m.content}" for m in chat.messages] for chat in self.session.chats.values()]

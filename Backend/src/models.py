@@ -216,9 +216,6 @@ class ScheduledTask(BaseModel):
         interval: interval between executions (or just until the first execution if no repetitions)
         time_of_day: execution time for weekly schedules, formatted as HH:MM
         weekdays: weekdays for weekly schedules, using 0=Monday ... 6=Sunday
-        parent_task_id: parent task for internally composed schedules
-        spawn_interval_seconds: interval of child tasks spawned by this task, if any
-        spawn_repetitions: repetitions of child tasks spawned by this task, if any
         repetitions: how many more times this task should be executed; -1 for infinite (should never be zero)
     """
     method: str
@@ -228,9 +225,6 @@ class ScheduledTask(BaseModel):
     interval: int
     time_of_day: str | None = None
     weekdays: List[int] | None = None
-    parent_task_id: int | None = None
-    spawn_interval_seconds: int | None = None
-    spawn_repetitions: int | None = None
     repetitions: int
 
 
