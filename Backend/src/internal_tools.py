@@ -256,12 +256,9 @@ class InternalTools:
                 if task.repetitions >= 0:
                     task.repetitions = max(0, task.repetitions - skipped)
         else:
-            while task.repetitions != 0 and now >= then:
+            while now >= then:
                 skipped += 1
-                if task.repetitions > 0:
-                    task.repetitions -= 1
-                if task.repetitions != 0:
-                    then = self._get_next_calendar_time(then, task.time_of_day, task.weekdays)
+                then = self._get_next_calendar_time(then, task.time_of_day, task.weekdays)
         if task.repetitions != 0:
             logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
             await self.deferred_execution_helper(
@@ -299,7 +296,7 @@ class InternalTools:
         return await self.deferred_execution_helper(
             query,
             delay,
-            24 * 60 * 60,
+            -1,  # Not used
             -1,
             time_of_day=time_of_day,
             weekdays=weekday_list,
