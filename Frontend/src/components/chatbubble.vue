@@ -13,9 +13,13 @@
                 :active-index="galleryIndex"
                 :num-visible="Math.min(3, imageFiles.length)"
                 :show-item-navigators="imageFiles.length > 1"
-                :show-thumbnail-navigators="imageFiles.length > 1"
+                :show-thumbnail-navigators="false"
                 :show-thumbnails="imageFiles.length > 1"
                 :circular="imageFiles.length > 1"
+                :pt="{
+                    prevButton: { class: 'bubble-gallery-nav' },
+                    nextButton: { class: 'bubble-gallery-nav' },
+                }"
                 class="bubble-image-gallery"
                 @update:activeIndex="galleryIndex = $event">
                 <template #item="{ item }">
@@ -694,8 +698,8 @@ export default {
     display: block;
     width: 100%;
     max-height: 320px;
-    object-fit: cover;
-    border-radius: 0.75rem;
+    object-fit: contain;
+    background-color: color-mix(in srgb, var(--surface-color) 92%, black 8%);
 }
 
 .bubble-gallery-thumbnail {
@@ -711,15 +715,12 @@ export default {
     background: transparent;
 }
 
-:deep(.bubble-image-gallery .p-galleria-item-nav),
-:deep(.bubble-image-gallery .p-galleria-thumbnail-nav) {
-    color: var(--text-primary-color);
-    background: color-mix(in srgb, var(--surface-color) 78%, transparent);
-    border: 1px solid var(--border-color);
-}
-
 :deep(.bubble-image-gallery .p-galleria-thumbnail-item-content) {
     padding: 0.25rem;
+}
+
+:deep(.bubble-gallery-nav) {
+    background: color-mix(in srgb, var(--background-color) 30%, transparent);
 }
 
 @keyframes glow {
