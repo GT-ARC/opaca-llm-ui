@@ -105,8 +105,9 @@ export default {
          * Where
          * - key: the internal name of the property, reused in the dict of results
          * - type: one of "text", "textarea", "password", "checkbox", "number", or "select"
-         * - label: display label/placeholder, optional (if not present, key is used)
+         * - label: display label above the input field, optional (if not present, key is used)
          * - default: default value, optional (default-default is just null)
+         * - placeholder: placeholder text for input field, optional
          * - values: dict (value -> label) for options, only for type 'select'
          * - optional: whether the parameter can be omitted even without a default (default: false)
          *             (if the parameter has a default, it is automatically optional)
