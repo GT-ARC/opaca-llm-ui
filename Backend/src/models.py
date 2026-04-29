@@ -280,19 +280,38 @@ class Chat(BaseModel):
 SessionPrompts = Dict[str, List[PromptCategory]]
 
 
+class MCPTool(BaseModel):
+    name: str
+    description: str
+    inputSchema: Dict[str, Any]
+    server_label: str
+    approval: Literal["ask", "deny", "allow"]
+
+    def get_full_name(self) -> str:
+        """Get the full tool name as expected by the LLM, including the server label."""
+        return f"{self.server_label}--{self.name}"
+
+    def cast_to_openai_tool(self) -> Dict[str, Any]:
+        """Cast the MCPTool into the format expected by LiteLLM's OpenAPI tool schema."""
+        return {
+            "type": "function",
+            "name": self.get_full_name(),
+            "description": self.description,
+            "parameters": self.inputSchema
+        }
+
+
 class MCPServerParams(BaseModel):
     server_url: str
     server_label: str
     type: str | None = None
-    require_approval: str | None = None
-    model_config = {"extra": "allow"} # In case the MCP server provides additional fields, we still want to store them without causing validation errors
+    require_approval: str
 
 
 class MCPServer(BaseModel):
     params: MCPServerParams
-    default_approval: Literal["ask", "deny", "allow"] = "ask"
-    tool_permissions: Dict[str, Literal["ask", "deny", "allow"]] = Field(default_factory=dict)
-
+    tools: Dict[str, MCPTool] = Field(default_factory=dict)
+    
 
 class SessionData(BaseModel):
     """
@@ -404,28 +423,24 @@ class SessionData(BaseModel):
         else:
             raise Exception("Websocket not connected")
 
-    async def get_mcp_tools(self) -> Dict[str, Any]:
-        """Returns a list of all available mcp server tools"""
+    async def get_mcp_tools(self) -> Dict[str, MCPTool]:
+        """Returns a list of all available mcp server tools."""
         tools = {}
-        for server_label, server in self.mcp_servers.items():
-            client = MCPClient(server_url=server.params.server_url)
-            server_tools = await client.list_tools()
-            
-            tool_list = []
-            for tool in server_tools:
-                # Convert the Tool object into a dictionary so we can append custom data
-                tool_dict = tool.model_dump()                
-                tool_dict["server_label"] = server_label
-                tool_dict["approval"] = server.tool_permissions.get(tool.name, server.default_approval)
-                tool_list.append(tool_dict)
-
-            tools[server_label] = tool_list
+        for server in self.mcp_servers.values():
+            tools[server.params.server_label] = list(server.tools.values())
         return tools
 
     async def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: Literal["ask", "deny", "allow"]):
         """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
-        if server_label in self.mcp_servers:
-            self.mcp_servers[server_label].tool_permissions[tool_name] = approval
+        server = self.mcp_servers.get(server_label)
+        if not server:
+            raise KeyError(f"MCP server with label '{server_label}' not found.")
+        
+        tool = server.tools.get(tool_name)
+        if not tool:
+            raise KeyError(f"Tool '{tool_name}' not found in MCP server '{server_label}'.")
+        
+        tool.approval = approval
 
     async def add_mcp_server(self, params: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
@@ -454,8 +469,8 @@ class SessionData(BaseModel):
 
         # Check if the given server-url is actually an mcp server
         client = MCPClient(server_url=params["server_url"])
-        mcp_tools = await client.list_tools()
-        if not mcp_tools:
+        client_tools = await client.list_tools()
+        if not client_tools:
             raise OpacaException(f"The given server_url '{params['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
         # Disable auto-execution of MCP tools by LiteLLM: Force it to always require approval
@@ -465,14 +480,20 @@ class SessionData(BaseModel):
         # Extract and remove default_approval from the mcp_server dict (prevent litellm unknown parameter exception)
         default_approval = params.pop("default_approval", "ask")
 
-        # Set default tool approval permissions
-        server = MCPServer(
-            params=MCPServerParams.model_validate(params),
-            default_approval=default_approval,
-            tool_permissions={tool.name: default_approval for tool in mcp_tools}
-        )
+        mcp_tools = {}
+        for tool in client_tools:
+            mcp_tools[tool.name] = MCPTool(
+                name=tool.name,
+                description=tool.description if tool.description else '',
+                inputSchema=tool.inputSchema,
+                server_label=label,
+                approval=default_approval
+            )
 
-        self.mcp_servers[label] = server
+        self.mcp_servers[label] = MCPServer(
+            params=MCPServerParams.model_validate(params),
+            tools=mcp_tools
+        )
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
