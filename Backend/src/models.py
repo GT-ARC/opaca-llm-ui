@@ -436,9 +436,10 @@ class SessionData(BaseModel):
         if not server:
             raise KeyError(f"MCP server with label '{server_label}' not found.")
         
-        tool = server.tools.get(tool_name)
+        full_name = f"{server_label}--{tool_name}"
+        tool = server.tools.get(full_name)
         if not tool:
-            raise KeyError(f"Tool '{tool_name}' not found in MCP server '{server_label}'.")
+            raise KeyError(f"Tool '{full_name}' not found in MCP server '{server_label}'.")
         
         tool.approval = approval
 
@@ -482,7 +483,8 @@ class SessionData(BaseModel):
 
         mcp_tools = {}
         for tool in client_tools:
-            mcp_tools[tool.name] = MCPTool(
+            full_name = f"{label}--{tool.name}"
+            mcp_tools[full_name] = MCPTool(
                 name=tool.name,
                 description=tool.description if tool.description else '',
                 inputSchema=tool.inputSchema,

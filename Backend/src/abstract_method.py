@@ -200,12 +200,7 @@ class AbstractMethod(ABC):
                             continue
 
                         # Determine tool type and name based on presence of server label and matching MCP server/tools
-                        tool_type = "mcp" if (
-                            '--' in t.name and 
-                            (parts := t.name.split('--', 1)) and
-                            (server := self.session.mcp_servers.get(parts[0])) and
-                            parts[1] in server.tools
-                        ) else "opaca"
+                        tool_type = "mcp" if any(t.name in mcp_server.tools for mcp_server in self.session.mcp_servers.values()) else "opaca"
 
                         try:
                             tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
@@ -275,9 +270,9 @@ class AbstractMethod(ABC):
             await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
             return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
         
-        tool = server.tools.get(tool_name)
+        tool = server.tools.get(full_tool_name)
         if not tool:
-            t_result = f"Tool '{tool_name}' not found on MCP Server '{server_label}'."
+            t_result = f"Tool '{full_tool_name}' not found on MCP Server '{server_label}'."
             await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
             return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
 
