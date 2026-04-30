@@ -388,13 +388,15 @@ export default {
                     Object.entries(schema).map(([k, v]) => [k, {
                         type: types[v.type] ?? "textarea",
                         label: `${k} (${this.typeHint(v)}${v.required ? "" : ", opt."})`,
-                        optional: !v.required}]
+                        optional: !v.required,
+                        default: v.defaultValue }]
                     )
                 ),
                 async values => {
                     // JSON-parse non-primitive inputs --> parse errors are shown in error label
                     var parameters = Object.fromEntries(
                         Object.entries(values)
+                                .map(([k, v]) => [k, schema[k].type !== "string" && v === "" ? null : v])
                                 .filter(([k, v]) => v !== null || schema[k].required)
                                 .map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
                     );
