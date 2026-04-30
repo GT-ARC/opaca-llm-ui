@@ -24,8 +24,8 @@ class BackendClient {
         return await this.sendRequest("GET", "containers");
     }
 
-    async deployContainer(postContainer) {
-        return await this.sendRequest("POST", "containers", postContainer);
+    async deployContainer(postContainer, update = false) {
+        return await this.sendRequest("POST", `containers?update=${update}`, postContainer);
     }
 
     async undeployContainer(containerId) {

@@ -29,6 +29,7 @@ from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
+from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
@@ -63,6 +64,7 @@ info_queries = {
 async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task(60))
+    CodeExecutor.warmup_task = asyncio.create_task(CodeExecutor().warmup())
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
@@ -200,10 +202,10 @@ async def get_containers(session: SessionData = Depends(handle_session_http)) ->
     return await session.opaca_client.get_containers()
 
 
-@app.post("/containers", description="Deploy container to connected OPACA Runtime Platform.", tags=["opaca"])
-async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
+@app.post("/containers", description="Deploy or update container to connected OPACA Runtime Platform.", tags=["opaca"])
+async def post_container(post_container: dict, update: bool = False, session: SessionData = Depends(handle_session_http)) -> dict:
     try:
-        await session.opaca_client.deploy_container(post_container)
+        await session.opaca_client.deploy_container(post_container, update)
         return {"success": True}
     except HTTPStatusError as e:
         message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())

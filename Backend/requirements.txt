@@ -11,3 +11,4 @@ pymongo>=4.15.1
 litellm>=1.81.0
 mcp>=1.23.3
 rich>=14.0.0
+langchain-sandbox>=0.0.6

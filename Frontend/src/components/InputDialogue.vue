@@ -22,7 +22,9 @@
                             <textarea 
                                 v-model="values[key]"
                                 class="form-control mb-2"
-                                rows="4" 
+                                :style="val.monospace ? 'font-family: monospace;font-size:0.875rem;' : ''"
+                                :spellcheck="!val.monospace"
+                                :rows="val.rows || 4" 
                                 :placeholder="val.placeholder ?? ''"
                                 v-bind:autofocus="idx === 0"
                             />
@@ -98,7 +100,7 @@ export default {
          * The format for "schema" is as follows
          * 
          * {
-         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool},
+         *      key1: {type: str, label: str, default: any, values: dict?, optional: bool, rows: int?, monospace: bool?},
          *      ...
          * }
          * 
@@ -111,6 +113,8 @@ export default {
          * - values: dict (value -> label) for options, only for type 'select'
          * - optional: whether the parameter can be omitted even without a default (default: false)
          *             (if the parameter has a default, it is automatically optional)
+         * - rows: number of rows to display, only for type 'textarea' (default: 4)
+         * - monospace: whether to use a monospace font and disable spellcheck, only for type 'textarea' (default: false)
          * 
          * @param title the title (bold)
          * @param message message below the title, optional; can contain Markdown
@@ -178,7 +182,10 @@ export default {
 
         canSubmit() {
             if (this.loading) return false;
-            return Object.entries(this.values).every(([k, v]) => (v != null && v !== "") || this.schema[k].optional);
+            return Object.entries(this.values).every(([k, v]) => {
+                const isOptional = typeof this.schema[k].optional === 'function' ? this.schema[k].optional(this.values) : this.schema[k].optional;
+                return (v != null && v !== "") || isOptional;
+            });
         },
 
         async handleSubmit(okay) {
