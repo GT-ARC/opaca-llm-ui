@@ -57,6 +57,7 @@ class SimpleToolsMethod(AbstractMethod):
                 model_config=config.model,
                 agent="assistant",
                 system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
+                chat_id=chat.chat_id,
                 messages=messages,
                 tools=tools,
                 is_output=True,

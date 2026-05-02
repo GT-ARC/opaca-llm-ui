@@ -95,6 +95,7 @@ class SimpleMethod(AbstractMethod):
                 model_config=config.model,
                 agent="assistant",
                 system_prompt=self.build_full_prompt(prompt),
+                chat_id=chat.chat_id,
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),

@@ -60,6 +60,7 @@ class AbstractMethod(ABC):
             model_config: LLMConfig,
             agent: str,
             system_prompt: str,
+            chat_id: str,
             messages: List[ChatMessage],
             tools: Optional[List[Dict[str, Any]]] = None,
             tool_choice: Optional[Literal["auto", "none", "only", "required"]] = "auto",

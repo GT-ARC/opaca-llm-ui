@@ -59,6 +59,7 @@ class ToolLLMMethod(AbstractMethod):
                 model_config=config.tool_eval_model,
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
+                chat_id=chat.chat_id,
                 messages=[
                     ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
                         message=message,
@@ -87,6 +88,7 @@ class ToolLLMMethod(AbstractMethod):
                 model_config=config.tool_gen_model,
                 agent='Tool Generator',
                 system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
+                chat_id=chat.chat_id,
                 messages=[
                     *chat.messages,
                     ChatMessage(role="user", content=message),
@@ -114,6 +116,7 @@ class ToolLLMMethod(AbstractMethod):
                     model_config=config.tool_gen_model,
                     agent='Tool Generator',
                     system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
+                    chat_id=chat.chat_id,
                     messages=[
                         *chat.messages,
                         ChatMessage(role="user", content=message),
@@ -149,6 +152,7 @@ class ToolLLMMethod(AbstractMethod):
                     model_config=config.tool_eval_model,
                     agent='Tool Evaluator',
                     system_prompt='',
+                    chat_id=chat.chat_id,
                     messages=[
                         *chat.messages,
                         ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
@@ -185,6 +189,7 @@ class ToolLLMMethod(AbstractMethod):
             model_config=config.output_model,
             agent='Output Generator',
             system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
+            chat_id=chat.chat_id,
             messages=[
                 *chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
