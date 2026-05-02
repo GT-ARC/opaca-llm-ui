@@ -75,6 +75,7 @@ class AbstractMethod(ABC):
             model_config (Dict[str, Any]): Individual model configuration settings.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt for model instructions.
+            chat_id (str): The ID of the chat corresponding to the messages.
             messages (List[ChatMessage]): The list of chat messages.
             tools (Optional[List[Dict]]): List of tool definitions (functions).
             tool_choice (Optional[str]): Whether to force tool use ("auto", "none", "only", or "required").
@@ -87,7 +88,7 @@ class AbstractMethod(ABC):
         """
 
         if status_message:
-            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message, chat_id=chat_id))
 
         # Extract model name and config
         model = model_config.model
@@ -167,15 +168,15 @@ class AbstractMethod(ABC):
                         tool = ToolCall(name=event.item.name, type="mcp", id=self.next_tool_id(agent_message), args={}, result=event.item.output)
                     agent_message.tools.append(tool)
                     # Stream the tool call and the result
-                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
-                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result))
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent, chat_id=chat_id))
+                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result, chat_id=chat_id))
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
                     break
                 agent_message.content += event.delta
-                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output, chat_id=chat_id))
 
             # Final message received
             elif event.type == event_type.RESPONSE_COMPLETED:
@@ -210,6 +211,7 @@ class AbstractMethod(ABC):
             agent=agent,
             execution_time=agent_message.execution_time,
             metrics=agent_message.response_metadata,
+            chat_id=chat_id,
         ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})

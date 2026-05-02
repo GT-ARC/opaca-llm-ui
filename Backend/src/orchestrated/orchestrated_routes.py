@@ -2,7 +2,7 @@ import json
 import logging
 import time
 import traceback
-from typing import Dict, Any, List
+from typing import Dict, List
 import asyncio
 
 from .prompts import (
@@ -154,7 +154,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         tool_calls=[],
                     )
             
-                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n", chat_id)
 
                 # Initialize results storage
                 ex_results: List[AgentResult] = []
@@ -197,7 +197,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                     tool_calls=[tc for res in ex_results for tc in res.tool_calls],
                 )
             else: # no planner
-                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n", chat_id)
 
                 # Generate a concrete tool call by the worker agent with its tools
                 worker_message = await self.call_llm(
@@ -340,7 +340,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     return response
                 
                 # Then send the tasks
-                await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}")
+                await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}", chat_id=chat.chat_id)
                 
                 # Iterate through every generated plan and add needed agents as worker agents
                 for task in plan.tasks:
@@ -377,7 +377,7 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Execute each round
                 for round_num in sorted(tasks_by_round.keys()):
-                    await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}")
+                    await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}", chat.chat_id)
                     
                     round_results = await self._execute_round(
                         tasks_by_round[round_num],
@@ -420,7 +420,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # If no advice context was successfully generated, assume that the final response can be generated
                     if not advice:
-                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.")
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.", chat.chat_id)
                         break
 
                     # Handle follow-up questions from iteration advisor
@@ -431,7 +431,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
-                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary)
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary, chat.chat_id)
                         break
                     
                     # Add the advice to the message for the next iteration
@@ -445,7 +445,7 @@ Issues identified:
 Please address these specific improvements:
 {chr(10).join(f'- {step}' for step in advice.improvement_steps)}"""
                     
-                    await self.send_status_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓")
+                    await self.send_status_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓", chat.chat_id)
                 else:
                     break
                 
@@ -523,8 +523,8 @@ Please address these specific improvements:
             for name, content in agent_details.items()
         ]
 
-    async def send_status_to_websocket(self, agent, message):
-        await self.send_to_websocket(StatusMessage(agent=agent, status=message))
+    async def send_status_to_websocket(self, agent, message, chat_id):
+        await self.send_to_websocket(StatusMessage(agent=agent, status=message, chat_id=chat_id))
 
     async def invoke_tools(self, agent: WorkerAgent, task_str: str, message: AgentMessage) -> AgentResult:
         tool_results = await asyncio.gather(*[

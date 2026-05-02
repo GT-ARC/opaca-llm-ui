@@ -518,6 +518,7 @@ class TextChunkMessage(BaseModel):
     agent: str
     chunk: str
     is_output: bool
+    chat_id: str = ''
 
 
 class ResetTextMessage(BaseModel):
@@ -529,22 +530,26 @@ class ToolCallMessage(BaseModel):
     id: str
     name: str
     args: Dict[str, Any] = {}
+    chat_id: str = ''
 
 
 class ToolResultMessage(BaseModel):
     id: str
     result: Any | None
+    chat_id: str = ''
 
 
 class StatusMessage(BaseModel):
     agent: str
     status: str
+    chat_id: str = ''
 
 
 class MetricsMessage(BaseModel):
     agent: str
     metrics: dict
     execution_time: float
+    chat_id: str = ''
 
 
 class PushAdvert(BaseModel):
