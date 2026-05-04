@@ -3,6 +3,8 @@
 </template>
 
 <script>
+import Localizer from "../Localizer.js";
+
 const TEXT_SAMPLE_BYTES = 4096;
 const ALLOWED_TEXT_CONTROL_CODES = new Set([9, 10, 12, 13]);
 const CODE_FENCE_LANGUAGES = {
@@ -38,6 +40,57 @@ export default {
             const fileName = file.name?.toLowerCase() ?? "";
             const dotIndex = fileName.lastIndexOf(".");
             return dotIndex >= 0 ? fileName.slice(dotIndex) : "";
+        },
+
+        async prepareFiles(fileList, inputDialogue, onReadError) {
+            const files = Array.from(fileList ?? []);
+            if (files.length === 0) {
+                return { cancelled: false, formattedText: [], uploadableFiles: [] };
+            }
+
+            const textFiles = [];
+            const uploadableFiles = [];
+
+            for (const file of files) {
+                if (await this.isTextFileSafely(file)) {
+                    textFiles.push(file);
+                } else {
+                    uploadableFiles.push(file);
+                }
+            }
+
+            if (textFiles.length === 0) {
+                return { cancelled: false, formattedText: [], uploadableFiles };
+            }
+
+            // Ask once per batch
+            const textFileHandling = await this.askTextFileHandling(inputDialogue);
+            if (!textFileHandling) {
+                return { cancelled: true, formattedText: [], uploadableFiles: [] };
+            }
+
+            if (textFileHandling === "upload") {
+                return {
+                    cancelled: false,
+                    formattedText: [],
+                    uploadableFiles: [...uploadableFiles, ...textFiles],
+                };
+            }
+
+            return {
+                cancelled: false,
+                formattedText: await this.readTextFiles(textFiles, onReadError),
+                uploadableFiles,
+            };
+        },
+
+        async isTextFileSafely(file) {
+            try {
+                return await this.isTextFile(file);
+            } catch (error) {
+                console.warn("Failed to inspect file locally, uploading instead:", file.name, error);
+                return false;
+            }
         },
 
         async isTextFile(file) {
@@ -111,6 +164,29 @@ export default {
                         return null;
                     }))
             )).filter(text => text != null);
+        },
+
+        async askTextFileHandling(inputDialogue) {
+            return await new Promise(resolve => {
+                inputDialogue.showDialogue(
+                    Localizer.get("files_textHandling_title"),
+                    Localizer.get("files_textHandling_message"),
+                    null,
+                    {
+                        handling: {
+                            type: "select",
+                            label: "files_textHandling_mode",
+                            default: "insert",
+                            values: {
+                                insert: Localizer.get("files_textHandling_insert"),
+                                upload: Localizer.get("files_textHandling_upload"),
+                            }
+                        }
+                    },
+                    async values => resolve(values.handling),
+                    async () => resolve(null)
+                );
+            });
         },
     },
 }

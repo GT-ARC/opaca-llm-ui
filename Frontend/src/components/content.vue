@@ -415,24 +415,17 @@ export default {
                 return;
             }
 
-            const textFileHandler = this.$refs.textFileHandler;
-            const textFiles = [];
-            const uploadableFiles = [];
-
-            for (const file of files) {
-                if (await textFileHandler.isTextFile(file)) {
-                    textFiles.push(file);
-                } else {
-                    uploadableFiles.push(file);
-                }
+            const { cancelled, formattedText, uploadableFiles } = await this.$refs.textFileHandler.prepareFiles(
+                files,
+                this.$refs.input,
+                message => this.showInfo(message)
+            );
+            if (cancelled) {
+                return;
             }
 
-            if (textFiles.length > 0) {
-                const formattedText = await textFileHandler.readTextFiles(textFiles, this.showInfo);
-
-                if (formattedText.length > 0) {
-                    await this.insertDroppedText(formattedText.join("\n\n"));
-                }
+            if (formattedText.length > 0) {
+                await this.insertDroppedText(formattedText.join("\n\n"));
             }
 
             if (uploadableFiles.length > 0) {
