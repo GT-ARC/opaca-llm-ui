@@ -64,7 +64,7 @@ export default {
         viewFile() {
             this.$emit('view-file', {
                 fileName: this.file.name,
-                src: this.file.url || URL.createObjectURL(this.file),
+                src: this.file.url || this.file.previewUrl || URL.createObjectURL(this.file),
                 mimeType: this.file.content_type || this.file.type
             });
         }
