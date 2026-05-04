@@ -23,6 +23,7 @@
         />
 
         <InputDialogue ref="input" />
+        <TextFileDropHandler ref="textFileDropHandler" />
 
         <Sidebar
             :method="method"
@@ -217,6 +218,7 @@ import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
+import TextFileDropHandler from "./TextFileDropHandler.vue";
 
 export default {
     name: 'main-content',
@@ -226,7 +228,8 @@ export default {
         OptionsSelect,
         Sidebar,
         InputDialogue,
-        Chatbubble
+        Chatbubble,
+        TextFileDropHandler,
     },
     props: {
         method: String,
@@ -386,120 +389,33 @@ export default {
             this.showFileDropOverlay = show && !SidebarManager.isResizing();
         },
 
-        getDraggedContentType(dataTransfer) {
-            const items = Array.from(dataTransfer.items ?? []);
-
-            const types = Array.from(dataTransfer.types ?? []);
-
-            // Prioritize files
-            if (items.some(item => item.kind === "file") || types.includes("Files")) {
-                return "files";
-            }
-
-            if (items.some(item => item.kind === "string" && item.type === "text/plain") ||
-                types.includes("text/plain")) {
-                return "text";
-            }
-
-            return null;
-        },
-
-        getFileExtension(file) {
-            const fileName = file.name?.toLowerCase() ?? "";
-            const dotIndex = fileName.lastIndexOf(".");
-            return dotIndex >= 0 ? fileName.slice(dotIndex) : "";
-        },
-
-        isTextFile(file) {
-            const textExtensions = new Set([".txt", ".md", ".markdown", ".log", ".json", ".csv", ".xml", ".bpmn", ".py", ".js"]);
-
-            const textMimeTypes = new Set([
-                "text/plain",
-                "text/markdown",
-                "application/json",
-                "text/json",
-                "text/csv",
-                "application/xml",
-                "text/xml",
-                "text/javascript",
-                "application/javascript",
-                "application/x-javascript",
-                "text/x-python",
-                "application/x-python-code",
-            ]);
-
-            const ext = this.getFileExtension(file);
-            const hasTextExtension = textExtensions.has(ext);
-
-            const type = file.type?.toLowerCase();
-            const hasTextMime = textMimeTypes.has(type);
-
-            return hasTextMime || hasTextExtension;
-        },
-
-        wrapDroppedTextInCodeFence(text, language = "") {
-            const longestBacktickRun = Math.max(0, ...(text.match(/`+/g) ?? []).map(run => run.length));
-            const fence = "`".repeat(Math.max(3, longestBacktickRun + 1));
-            return `${fence}${language}\n${text}\n${fence}`;
-        },
-
-        formatDroppedFileText(file, text) {
-            const normalizedText = text.replace(/\r\n/g, "\n");
-            const extension = this.getFileExtension(file);
-            const codeFenceLanguages = {
-                ".json": "json",
-                ".csv": "csv",
-                ".xml": "xml",
-                ".bpmn": "xml",
-                ".py": "python",
-                ".js": "javascript",
-                ".log": "text",
-            };
-
-            if (extension === ".md" || extension === ".markdown") {
-                return normalizedText;
-            }
-
-            if (codeFenceLanguages[extension]) {
-                return this.wrapDroppedTextInCodeFence(normalizedText, codeFenceLanguages[extension]);
-            }
-
-            return normalizedText;
-        },
-
         async handleOverlayDrop(event) {
             const dataTransfer = event.dataTransfer;
             if (!dataTransfer) {
                 return;
             }
-            const draggedContentType = this.getDraggedContentType(dataTransfer);
-            await this.toggleFileDropOverlay(false);
 
+            const textFileDropHandler = this.$refs.textFileDropHandler;
+            const draggedContentType = textFileDropHandler.getDraggedContentType(dataTransfer);
+            await this.toggleFileDropOverlay(false);
 
             if (draggedContentType === "files") {
                 const files = Array.from(dataTransfer.files ?? []);
-                const textFiles = files.filter(file => this.isTextFile(file));
-                const uploadableFiles = files.filter(file => !this.isTextFile(file));
+                const textFiles = files.filter(file => textFileDropHandler.isTextFile(file));
+                const uploadableFiles = files.filter(file => !textFileDropHandler.isTextFile(file));
 
-            if (textFiles.length > 0) {
-                const droppedText = (await Promise.all(
-                    textFiles.map(file => file.text()
-                        .then(text => this.formatDroppedFileText(file, text))
-                        .catch(async error => {
-                            await this.showInfo(`Failed to read dropped file: ${file.name}\nError: ${error}`);
-                            return null;
-                        }))
-                )).filter(text => text != null);
+                if (textFiles.length > 0) {
+                    const droppedText = await textFileDropHandler.readTextFiles(textFiles, this.showInfo);
 
-                if (droppedText.length > 0) {
-                    await this.insertDroppedText(droppedText.join("\n\n"));
+                    if (droppedText.length > 0) {
+                        await this.insertDroppedText(droppedText.join("\n\n"));
+                    }
                 }
-            }
 
-            if (uploadableFiles.length > 0) {
-                await this.uploadFiles(uploadableFiles);
-            }
-            return;
+                if (uploadableFiles.length > 0) {
+                    await this.uploadFiles(uploadableFiles);
+                }
+                return;
             }
 
             const text = dataTransfer.getData("text/plain");
