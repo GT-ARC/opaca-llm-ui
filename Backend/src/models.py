@@ -14,6 +14,7 @@ import asyncio
 
 from litellm import get_supported_openai_params
 from litellm.experimental_mcp_client.client import MCPClient
+from openai.types.beta.threads import message
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
@@ -249,6 +250,7 @@ class Chat(BaseModel):
         time_created: when the chat was created
         time_modified: when the chat was last used
         messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
+        _waiting_for_confirmation: True while the chat is waiting for any sort of confirmation before continuing generation, e.g. for container logins or certain actions.
     """
     chat_id: str
     name: str = ''
@@ -256,11 +258,21 @@ class Chat(BaseModel):
     time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
+    _waiting_for_confirmation: bool = PrivateAttr(False)
+
     @property
     def messages(self) -> Iterator[ChatMessage]:
         for r in self.responses:
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
+
+    @property
+    def waiting(self):
+        return self._waiting_for_confirmation
+
+    @waiting.setter
+    def waiting(self, value: bool) -> None:
+        self._waiting_for_confirmation = value
 
     def store_interaction(self, result: QueryResponse):
         self.responses.append(result)
@@ -522,7 +534,7 @@ class TextChunkMessage(BaseModel):
 
 
 class ResetTextMessage(BaseModel):
-    pass
+    chat_id: str = ''
 
 
 class ToolCallMessage(BaseModel):
@@ -572,10 +584,12 @@ class PushMessage(QueryResponse):
 class ConfirmActionNotification(BaseModel):
     tool: str
     params: dict
+    chat_id: str = ''
 
 
 class ConfirmActionResponse(BaseModel):
     allowed: bool
+    chat_id: str = ''
 
 
 class ContainerLoginNotification(BaseModel):
@@ -587,9 +601,10 @@ class ContainerLoginNotification(BaseModel):
         tool_name: The name of the tool that requires further credentials
         retry: Whether the login attempt has already been tried
     """
-    container_name: str = ""
-    tool_name: str = ""
+    container_name: str = ''
+    tool_name: str = ''
     retry: bool = False
+    chat_id: str = ''
 
 
 class ContainerLoginResponse(BaseModel):
@@ -604,6 +619,7 @@ class ContainerLoginResponse(BaseModel):
     username: str
     password: str
     timeout: int
+    chat_id: str = ''
 
 
 class MissingApiKeyNotification(BaseModel):

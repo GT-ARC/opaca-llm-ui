@@ -470,6 +470,15 @@ export default {
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
 
+            if (result.chat_id !== undefined && result.chat_id !== this.selectedChatId) {
+                console.log('Received websocket message for another chat: ',
+                    result.type, result.chat_id, this.selectedChatId);
+                return;
+            } else if (result.chat_id !== undefined && !this.messages || this.messages.length === 0) {
+                console.log('No chat bubbles for streaming found.');
+                return;
+            }
+
             if (result.type === "ConfirmActionNotification") {
                 this.$emit('action-confirmation-required', result);
             }
@@ -664,7 +673,7 @@ export default {
         },
 
         async loadHistory(chatId, switchChat = true) {
-            if (!chatId || !switchChat && this.selectedChatId !== chatId) return;
+            if (!chatId || (!switchChat && this.selectedChatId !== chatId)) return;
             try {
                 const res = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
@@ -708,11 +717,9 @@ export default {
                     }
                 }
 
-                if (this.messages.length !== 0) {
-                    this.showExampleQuestions = false;
-                    this.selectedChatId = chatId;
-                    this.newChat = false;
-                }
+                this.showExampleQuestions = false;
+                this.selectedChatId = chatId;
+                this.newChat = false;
             } catch (err) {
                 console.error("Failed to load chat history:", err);
             }
@@ -736,6 +743,7 @@ export default {
         },
 
         async handleSelectChat(chatId) {
+            console.log('Select chat: ', chatId)
             await this.loadHistory(chatId);
             this.$refs.textInputRef.focus();
         },

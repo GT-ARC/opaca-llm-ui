@@ -49,7 +49,7 @@ class SimpleToolsMethod(AbstractMethod):
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:
-            await self.send_to_websocket(ResetTextMessage())
+            await self.send_to_websocket(ResetTextMessage(chat_id=chat.chat_id))
             response.iterations += 1
 
             # call the LLM with function-calling enabled

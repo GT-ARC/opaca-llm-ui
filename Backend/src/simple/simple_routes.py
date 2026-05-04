@@ -88,7 +88,7 @@ class SimpleMethod(AbstractMethod):
         ) if actions else FALLBACK_PROMPT
 
         while response.iterations < max_iters:
-            await self.send_to_websocket(ResetTextMessage())
+            await self.send_to_websocket(ResetTextMessage(chat_id=chat.chat_id))
             response.iterations += 1
 
             result = await self.call_llm(
