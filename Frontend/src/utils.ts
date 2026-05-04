@@ -1,93 +1,106 @@
+// @ts-ignore
 import conf from '../config.js';
-import axios from "axios";
-
+import axios, { type  Method } from "axios";
+import type { 
+    Container, 
+    PostContainerRequest, 
+    PostContainerResponse,
+    ContainerExtraPorts, 
+    InvokeResponse, 
+    QueryResponse, 
+    Chat, 
+    SearchResult, 
+    OpacaFile, 
+    ConfigPayload, 
+    SessionPrompts,
+    PushMessage
+} from "./models";
 
 class BackendClient {
-
     // OPACA connection
 
-    async connect(url, user, pwd) {
+    async connect(url: string, user: string, pwd: string): Promise<number> {
         const body = {url: url, user: user, pwd: pwd};
         const res = await this.sendRequest("POST", "connect", body);
         return parseInt(res);
     }
 
-    async getConnection() {
-        return await this.sendRequest("GET", "connection");
+    async getConnection(): Promise<string | null> {
+        return this.sendRequest("GET", "connection");
     }
 
-    async disconnect() {
+    async disconnect(): Promise<void> {
         await this.sendRequest("POST", "disconnect");
     }
 
-    async getContainers() {
-        return await this.sendRequest("GET", "containers");
+    async getContainers(): Promise<Container[]> {
+        return this.sendRequest("GET", "containers");
     }
 
-    async deployContainer(postContainer, update = false) {
-        return await this.sendRequest("POST", `containers?update=${update}`, postContainer);
+    async deployContainer(postContainer: PostContainerRequest, update: boolean = false): Promise<PostContainerResponse> {
+        return this.sendRequest("POST", `containers?update=${update}`, postContainer);
     }
 
-    async undeployContainer(containerId) {
-        return await this.sendRequest("DELETE", `containers/${containerId}`);
+    async undeployContainer(containerId: string): Promise<void> {
+        return this.sendRequest("DELETE", `containers/${containerId}`);
     }
 
-    async invokeAction(agent, action, parameters) {
-        const body = {agent: agent, action: action, parameters: parameters};
-        return await this.sendRequest("POST", "invoke", body);
+    async invokeAction(agent: string, action: string, parameters: any): Promise<InvokeResponse> {
+        const body = { agent, action, parameters };
+        return this.sendRequest("POST", "invoke", body);
     }
 
-    async getExtraPorts() {
-        return await this.sendRequest("GET", "extra-ports");
+    async getExtraPorts(): Promise<ContainerExtraPorts[]> {
+        return this.sendRequest("GET", "extra-ports");
     }
 
-    async getPlatformInfo(lang) {
-        return await this.sendRequest("POST", `platform-info?lang=${lang}`, null, 60000);
+    async getPlatformInfo(lang: string): Promise<string> {
+        return this.sendRequest("POST", `platform-info?lang=${lang}`, null, 60000);
     }
 
     // chat
 
-    async query(chatId, method, user_query, streaming=False, timeout=10000) {
-        const body = {user_query: user_query, streaming: streaming};
+    async query(chatId: string, method: string, userQuery: string, streaming: boolean = false, timeout: number = 10000): Promise<QueryResponse> {
+        const body = { user_query: userQuery, streaming };
         return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
-    async queryNoChat(method, user_query, timeout = 10000) {
-        const body = {user_query: user_query};
+    async queryNoChat(method: string, userQuery: string, timeout: number = 10000): Promise<QueryResponse> {
+        const body = { user_query: userQuery };
         return await this.sendRequest("POST", `query/${method}`, body, timeout);
     }
 
     // TODO query stream
 
-    async stop() {
+    async stop(): Promise<void> {
         await this.sendRequest("POST", `stop`);
     }
 
-    async chats() {
+    async chats(): Promise<Chat[]> {
         return await this.sendRequest("GET", "chats");
     }
 
-    async history(chatId) {
+    async history(chatId: string): Promise<Chat> {
         return await this.sendRequest("GET", `chats/${chatId}`);
     }
 
-    async delete(chatId) {
+    async delete(chatId: string): Promise<void> {
         await this.sendRequest("DELETE", `chats/${chatId}`);
     }
 
-    async updateName(chatId, newName) {
+    async updateName(chatId: string, newName: string): Promise<void> {
         await this.sendRequest("PUT", `chats/${chatId}?new_name=${newName}`);
     }
 
-    async deleteAllChats() {
+    async deleteAllChats(): Promise<void> {
         await this.sendRequest("DELETE", `chats`);
     }
 
-    async search(query) {
+    async search(query: string): Promise<Record<string, SearchResult[]>> {
         return await this.sendRequest("POST", `chats/search?query=${query}`);
     }
 
-    async append(chatId, pushMessage, autoAppend) {
+    async append(chatId: string, pushMessage: PushMessage, autoAppend: boolean): Promise<any> {
         // Reset query
         pushMessage.query = "";
         return await this.sendRequest("POST", `chats/${chatId}/append?auto_append=${autoAppend}`, pushMessage);
@@ -95,23 +108,23 @@ class BackendClient {
 
     // files
 
-    async files() {
+    async files(): Promise<Record<string, OpacaFile>> {
         return await this.sendRequest("GET", "files");
     }
 
-    async deleteFile(file_id, ignore_error) {
-        return await this.sendRequest("DELETE", `files/${file_id}?ignore_error=${ignore_error}`);
+    async deleteFile(fileId: string, ignoreError: boolean): Promise<boolean> {
+        return await this.sendRequest("DELETE", `files/${fileId}?ignore_error=${ignoreError}`);
     }
 
-    async suspendFile(file_id, suspend) {
-        await this.sendRequest("PATCH", `files/${file_id}?suspend=${suspend}`);
+    async suspendFile(fileId: string, suspend: boolean): Promise<void> {
+        await this.sendRequest("PATCH", `files/${fileId}?suspend=${suspend}`);
     }
 
-    async renameFile(file_id, name) {
-        await this.sendRequest("PATCH", `files/${file_id}?name=${name}`);
+    async renameFile(fileId: string, name: string): Promise<void> {
+        await this.sendRequest("PATCH", `files/${fileId}?name=${name}`);
     }
 
-    async uploadFiles(files) {
+    async uploadFiles(files: File[]): Promise<{ uploadedFiles: OpacaFile[] }> {
         const formData = new FormData();
         for (const file of files) {
             formData.append("files", file);
@@ -124,7 +137,7 @@ class BackendClient {
                 'Content-Type': 'multipart/form-data',
                 'Access-Control-Allow-Origin': '*'
             }
-        }).catch(error => {
+        }).catch((error: any) => {
             console.error('Upload failed:', error);
             throw new Error(error.toJSON());
         });
@@ -133,51 +146,51 @@ class BackendClient {
 
     // config
 
-    async getConfig(method) {
+    async getConfig(method: string): Promise<ConfigPayload> {
         return await this.sendRequest('GET', `config/${method}`);
     }
 
-    async updateConfig(method, config) {
+    async updateConfig(method: string, config: any): Promise<ConfigPayload> {
         return await this.sendRequest('PUT', `config/${method}`, config);
     }
 
-    async resetConfig(method) {
+    async resetConfig(method: string): Promise<ConfigPayload> {
         return await this.sendRequest('DELETE', `config/${method}`);
     }
 
     // prompts
 
-    async getPrompts() {
+    async getPrompts(): Promise<SessionPrompts> {
         return await this.sendRequest("GET", "prompts");
     }
 
-    async savePrompts(prompts) {
+    async savePrompts(prompts: SessionPrompts): Promise<void> {
         return await this.sendRequest("POST", "prompts", prompts);
     }
 
-    async resetPrompts() {
+    async resetPrompts(): Promise<void> {
         return await this.sendRequest("DELETE", "prompts");
     }
 
     // mcp
 
-    async getMCPs() {
+    async getMCPs(): Promise<Record<string, any>> {
         return await this.sendRequest("GET", "mcp");
     }
 
-    async addMcp(mcp) {
+    async addMcp(mcp: any): Promise<void> {
         return await this.sendRequest("POST", "mcp", mcp);
     }
 
-    async deleteMcp(serverLabel) {
+    async deleteMcp(serverLabel: string): Promise<void> {
         return await this.sendRequest("DELETE", `mcp/${serverLabel}`);
     }
 
     // internal helper
 
-    async sendRequest(method, path, body = null, timeout = 10000) {
+    async sendRequest(method: Method | string, path: string, body: any = null, timeout: number = 10000): Promise<any> {
         const response = await axios.request({
-            method: method,
+            method: method as Method,
             url: `${conf.BackendAddress}/${path}`,
             data: body,
             timeout: timeout,
@@ -197,7 +210,7 @@ export default backendClient;
 
 
 // randomly shuffle array in-place
-export function shuffleArray(array) {
+export function shuffleArray<T>(array: T[]): void {
     let currentIndex = array.length;
     while (currentIndex !== 0) {
         let randomIndex = Math.floor(Math.random() * currentIndex);
@@ -207,10 +220,18 @@ export function shuffleArray(array) {
     }
 }
 
-export function isSecureConnection() {
+export function isSecureConnection(): boolean {
     return window.location.protocol === 'https'
         || window.location.hostname === 'localhost'
         || window.location.hostname === '127.0.0.1';
+}
+
+export interface DebugMessage {
+    id: string;
+    type?: string;
+    text?: string;
+    chatId?: string;
+    [key: string]: any;
 }
 
 /**
@@ -219,7 +240,7 @@ export function isSecureConnection() {
  * @param {Array} debugMessages list of existing debug messages (modified)
  * @param {object} message new message object with fields {id, type, text, chatId}
  */
-export function addDebugMessage(debugMessages, message) {
+export function addDebugMessage(debugMessages: DebugMessage[], message: DebugMessage): void {
     if (! message || ! message.text) return;
     // find debug message with the same ID, if any
     const matchingMessage = debugMessages.find( (m) => m.id === message.id);
@@ -237,7 +258,7 @@ export function addDebugMessage(debugMessages, message) {
  * @param {Array} debugMessages list of existing debug messages (modified)
  * @param {object} message new message object with fields {id, type, text, chatId}
  */
-export function replaceDebugMessage(debugMessages, message) {
+export function replaceDebugMessage(debugMessages: DebugMessage[], message: DebugMessage): void {
     if (! message || ! message.text) return;
     const matchingIndex = debugMessages.findIndex( (m) => m.id === message.id);
     if (message.id != null && matchingIndex >= 0) {
@@ -253,7 +274,7 @@ export function replaceDebugMessage(debugMessages, message) {
  * @param {*} result
  * @returns {string}
  */
-export function formatToolDebugResult(result) {
+export function formatToolDebugResult(result: any): string {
     if (result === undefined) return "undefined";
     if (typeof result === "object") {
         return JSON.stringify(result, null, 2);
@@ -266,7 +287,7 @@ export function formatToolDebugResult(result) {
  * @param {object} agentMessage
  * @returns {string}
  */
-export function formatAgentDebugText(agentMessage) {
+export function formatAgentDebugText(agentMessage: any): string {
     if (!agentMessage) return "";
     if (agentMessage.formatted_output != null) {
         return formatToolDebugResult(agentMessage.formatted_output);

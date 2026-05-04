@@ -1,13 +1,43 @@
-import {reactive, ref} from 'vue';
-import {shuffleArray} from "./utils.js";
-import conf from '../config.js';
+import { ref, type Ref } from 'vue';
+import { shuffleArray } from "./utils";
+import conf from '../config';
+
+/** 
+ * Interface for the translation object structure 
+ * Using an index signature [key: string] allows for the many dynamic keys
+ */
+interface TranslationSchema {
+    name: string;
+    code: string;
+    [key: string]: string | any;
+}
+
+interface LocalizationData {
+    [locale: string]: TranslationSchema;
+}
+
+interface Question {
+    question: string;
+    icon?: string;
+}
+
+interface Category {
+    header: string;
+    icon: string;
+    questions: Question[];
+}
+
+interface LocaleInfo {
+    key: string;
+    name: string;
+}
 
 // Some general guidelines on creating Localizer keys
 // - use the format "topic_action" or similar
 // - use underscore to separate terms and camelcase for words, e.g. "files_createNew"
 // - use at least one underscore to make it easier to search for occurrences in code
 // - put new keys into their respective "group"
-export const localizationData = {
+export const localizationData: LocalizationData = {
     GB: {
         name: "English",
         code: "en",
@@ -276,9 +306,13 @@ export const localizationData = {
 };
 
 
-class Localizer {
+export class Localizer {
+    private _fallbackLanguage: Ref<string>;
+    private _selectedLanguage: Ref<string>;
+    private _randomSampleQuestions: Ref<Question[] | null>;
+    private _samplePrompts: Ref<Record<string, Category> | null>;
 
-    constructor(selectedLanguage, fallbackLanguage) {
+    constructor(selectedLanguage: string, fallbackLanguage: string) {
         this._fallbackLanguage = ref(fallbackLanguage)
         this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
             ? ref(selectedLanguage)
@@ -288,29 +322,29 @@ class Localizer {
         this._samplePrompts = ref(null);
     }
 
-    set language(newLang) {
+    set language(newLang: string) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
     }
 
-    get language() {
+    get language(): string {
         return this._selectedLanguage.value;
     }
 
-    get languageCode() {
+    get languageCode(): string {
         return this.get("code")
     }
 
-    set fallbackLanguage(newLang) {
+    set fallbackLanguage(newLang: string) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
     }
 
-    get fallbackLanguage() {
+    get fallbackLanguage(): string {
         return this._fallbackLanguage.value;
     }
 
-    set randomSampleQuestions(value) {
+    set randomSampleQuestions(value: Question[] | null) {
         this._randomSampleQuestions.value = value;
     }
 
@@ -318,7 +352,7 @@ class Localizer {
         return this._randomSampleQuestions.value;
     }
 
-    set samplePrompts(value) {
+    set samplePrompts(value: Record<string, Category> | null) {
         this._samplePrompts.value = value;
     }
 
@@ -326,23 +360,19 @@ class Localizer {
         return this._samplePrompts.value;
     }
 
-    _verifySettings() {
+    _verifySettings(): void {
         if (!localizationData[this.language] || !localizationData[this.fallbackLanguage]) {
             throw Error(`Invalid languages configured in Localizer: ${this.language}, ${this.fallbackLanguage}`);
         }
     }
 
-    /**
-     * Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments.
-     * @param text
-     * @param args
-     * @returns {string|null}
-     */
-    formatText(text, ...args) {
+    /** Allows text formatting as "%1, %2, ..." -> replace % placeholders with arguments. */
+    formatText(text: string | null, ...args: any[]): string | null {
         if (!text) return null;
         try {
             text = text.replace(/%(\d+)/g, (match, number) => {
-                return typeof args[number - 1] !== 'undefined' ? args[number - 1] : match;
+                const index = parseInt(number) - 1;
+                return typeof args[index] !== 'undefined' ? String(args[index]) : match;
             });
             return text;
         } catch (error) {
@@ -351,7 +381,7 @@ class Localizer {
         }
     }
 
-    _getFrom(data, key, args, defaultValue, warningText, errorText) {
+    _getFrom(data: LocalizationData, key: string, args: any[], defaultValue: string, warningText: string, errorText: string): string {
         const fallbackText = this.formatText(data?.[this.fallbackLanguage]?.[key], ...args);
         const text = this.formatText(data?.[this.language]?.[key], ...args);
         if (text) {
@@ -365,7 +395,7 @@ class Localizer {
         }
     }
 
-    get(key, ...args) {
+    get(key: string, ...args: any[]): string {
         return this._getFrom(localizationData, key, args,
             `[UNKNOWN: ${key}]`,
             `Key "${key}" does not exist for locale "${this.language}", consider adding it."`,
@@ -373,27 +403,28 @@ class Localizer {
         );
     }
 
-    getSampleQuestions(textInput, categoryHeader) {
+    getSampleQuestions(textInput: string | null, categoryHeader: string | null): Question[] | null {
         if (textInput) {
             this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textInput, 3);
-        } else if (! this.randomSampleQuestions) {
+        } else if (!this.randomSampleQuestions) {
             this.reloadSampleQuestions(categoryHeader);
         }
         return this.randomSampleQuestions;
     }
 
-    reloadSampleQuestions(categoryHeader = null, numQuestions = 3) {
+    reloadSampleQuestions(categoryHeader: string | null = null, numQuestions: number = 3) {
         this.randomSampleQuestions = this.getFilteredSampleQuestions(categoryHeader, null, numQuestions);
     }
 
-    getFilteredSampleQuestions(categoryHeader = null, textInput = null, numQuestions = 3) {
-        if (!this.getPrompts()) {
+    getFilteredSampleQuestions(categoryHeader: string | null = null, textInput: string | null = null, numQuestions: number = 3) {
+        const prompts = this.getPrompts();
+        if (!prompts) {
             return [];
         }
         // assemble questions from all or selected category into a single array
-        let filteredQuestions = Object.values(this.getPrompts())
+        let filteredQuestions = Object.values(prompts)
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
-            .flatMap(category => category.questions.map(question => _mapCategoryIcons(question, category)))
+            .flatMap(category => category.questions.map((question: Question) => _mapCategoryIcons(question, category)))
             .filter(question => textInput === null || matches(question.question, textInput));
 
         // if no text input was given -> shuffle and get first k questions
@@ -403,20 +434,17 @@ class Localizer {
         return filteredQuestions.slice(0, numQuestions);
     }
 
-    getAvailableLocales() {
+    getAvailableLocales(): LocaleInfo[] {
         return Array.from(Object.keys(localizationData))
             .map(locale => { return {key: locale, name: localizationData[locale].name}; });
     }
 
-    isAvailableLanguage(langName) {
+    isAvailableLanguage(langName: string | null): boolean {
         if (!langName) return false;
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
     }
 
-    /**
-     * @returns {Array}
-     */
-    getPrompts() {
+    getPrompts(): Category | undefined {
         return this.samplePrompts?.[this.language];
     }
 }
@@ -426,20 +454,20 @@ class Localizer {
  * map the category's icon into the (copied) question object,
  * if not icon is defined for the question
  */
-function _mapCategoryIcons(question, category) {
+function _mapCategoryIcons(question: Question, category: Category): Question {
     return {
         question: question.question,
         icon: question.icon ?? category.icon
     };
 }
 
-function matches(question, textInput) {
+function matches(question: string, textInput: string): boolean {
     return textInput.toLowerCase().split(/\s+/)
         .every(word => question.toLowerCase().includes(word));
 }
 
 // hard-code the most complete language as fallback language
-const fallbackLanguage = 'GB';
+const fallbackLanguage: string = 'GB';
 
 const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
 export default localizer;
