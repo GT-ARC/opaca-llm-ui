@@ -149,7 +149,7 @@
                                 accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
                                 :disabled="!this.isFinished"
-                                @change="e => uploadFiles(e.target.files)"
+                                @change="handleFileSelection"
                                 multiple
                             />
                         </label>
@@ -400,27 +400,54 @@ export default {
             await this.toggleFileDropOverlay(false);
 
             if (draggedContentType === "files") {
-                const files = Array.from(dataTransfer.files ?? []);
-                const textFiles = files.filter(file => textFileDropHandler.isTextFile(file));
-                const uploadableFiles = files.filter(file => !textFileDropHandler.isTextFile(file));
-
-                if (textFiles.length > 0) {
-                    const droppedText = await textFileDropHandler.readTextFiles(textFiles, this.showInfo);
-
-                    if (droppedText.length > 0) {
-                        await this.insertDroppedText(droppedText.join("\n\n"));
-                    }
-                }
-
-                if (uploadableFiles.length > 0) {
-                    await this.uploadFiles(uploadableFiles);
-                }
+                await this.handleFiles(dataTransfer.files);
                 return;
             }
 
             const text = dataTransfer.getData("text/plain");
             if (text) {
                 await this.insertDroppedText(text);
+            }
+        },
+
+        async handleFiles(fileList) {
+            const files = Array.from(fileList ?? []);
+            if (files.length === 0) {
+                return;
+            }
+
+            const textFileDropHandler = this.$refs.textFileDropHandler;
+            const textFiles = [];
+            const uploadableFiles = [];
+
+            for (const file of files) {
+                if (textFileDropHandler.isTextFile(file)) {
+                    textFiles.push(file);
+                } else {
+                    uploadableFiles.push(file);
+                }
+            }
+
+            if (textFiles.length > 0) {
+                const droppedText = await textFileDropHandler.readTextFiles(textFiles, this.showInfo);
+
+                if (droppedText.length > 0) {
+                    await this.insertDroppedText(droppedText.join("\n\n"));
+                }
+            }
+
+            if (uploadableFiles.length > 0) {
+                await this.uploadFiles(uploadableFiles);
+            }
+        },
+
+        async handleFileSelection(event) {
+            try {
+                await this.handleFiles(event.target.files);
+            } finally {
+                if (this.$refs.fileInput) {
+                    this.$refs.fileInput.value = "";
+                }
             }
         },
 
@@ -879,7 +906,7 @@ export default {
                 // Prevent from being inserted into the input
                 event.preventDefault();
 
-                await this.uploadFiles(files);
+                await this.handleFiles(files);
             }
             // If no file found, let normal paste happen
         },
