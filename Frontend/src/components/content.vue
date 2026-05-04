@@ -23,7 +23,7 @@
         />
 
         <InputDialogue ref="input" />
-        <TextFileDropHandler ref="textFileDropHandler" />
+        <TextFileHandler ref="textFileHandler" />
 
         <Sidebar
             :method="method"
@@ -217,7 +217,7 @@ import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
-import TextFileDropHandler from "./TextFileDropHandler.vue";
+import TextFileHandler from "./TextFileHandler.vue";
 
 export default {
     name: 'main-content',
@@ -228,7 +228,7 @@ export default {
         Sidebar,
         InputDialogue,
         Chatbubble,
-        TextFileDropHandler,
+        TextFileHandler,
     },
     props: {
         method: String,
@@ -394,8 +394,8 @@ export default {
                 return;
             }
 
-            const textFileDropHandler = this.$refs.textFileDropHandler;
-            const draggedContentType = textFileDropHandler.getDraggedContentType(dataTransfer);
+            const textFileHandler = this.$refs.textFileHandler;
+            const draggedContentType = textFileHandler.getDraggedContentType(dataTransfer);
             await this.toggleFileDropOverlay(false);
 
             if (draggedContentType === "files") {
@@ -415,12 +415,12 @@ export default {
                 return;
             }
 
-            const textFileDropHandler = this.$refs.textFileDropHandler;
+            const textFileHandler = this.$refs.textFileHandler;
             const textFiles = [];
             const uploadableFiles = [];
 
             for (const file of files) {
-                if (textFileDropHandler.isTextFile(file)) {
+                if (await textFileHandler.isTextFile(file)) {
                     textFiles.push(file);
                 } else {
                     uploadableFiles.push(file);
@@ -428,10 +428,10 @@ export default {
             }
 
             if (textFiles.length > 0) {
-                const droppedText = await textFileDropHandler.readTextFiles(textFiles, this.showInfo);
+                const formattedText = await textFileHandler.readTextFiles(textFiles, this.showInfo);
 
-                if (droppedText.length > 0) {
-                    await this.insertDroppedText(droppedText.join("\n\n"));
+                if (formattedText.length > 0) {
+                    await this.insertDroppedText(formattedText.join("\n\n"));
                 }
             }
 
