@@ -39,11 +39,13 @@ class AbstractMethod(ABC):
             self,
             session: SessionData,
             chat: Chat,
+            response: QueryResponse,
             streaming: bool = False,
             internal_tools: InternalTools = None
     ) -> None:
         self.session = session
         self.chat = chat
+        self.response = response
         self.streaming = streaming
         self.tool_counter = count(0)
         self.internal_tools = internal_tools
@@ -56,7 +58,7 @@ class AbstractMethod(ABC):
         return self.session.get_config(self)
 
     @abstractmethod
-    async def query(self, message: str) -> QueryResponse:
+    async def query(self) -> QueryResponse:
         pass
 
     def next_tool_id(self, agent_message: AgentMessage):
@@ -146,7 +148,7 @@ class AbstractMethod(ABC):
         async for event in stream:
 
             # Check if an "abort" message has been sent by the user
-            if self.session.abort_sent:
+            if self.chat.abort_sent:
                 raise OpacaException(
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."

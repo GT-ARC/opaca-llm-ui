@@ -233,16 +233,14 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     try:
-        session.abort_sent = False
         internal_tools = InternalTools(session, METHODS[method])
-        return await METHODS[method](session, Chat(chat_id=''), message.streaming, internal_tools).query(message.user_query)
+        response = QueryResponse(query=message.user_query)
+        method_impl = METHODS[method](session, Chat(chat_id=''), response, message.streaming, internal_tools)
+        return await method_impl.query()
     except Exception as e:
-        return QueryResponse.from_exception(message.user_query, e)
-
-
-@app.post("/stop", description="Abort generation for every query of the current session.", tags=["chat"])
-async def stop_query(session: SessionData = Depends(handle_session_http)) -> None:
-    session.abort_sent = True
+        response = QueryResponse(query=message.user_query)
+        response.make_error_response(e)
+        return response
 
 
 # MCP Routes
@@ -286,18 +284,18 @@ async def get_chat_history(chat_id: str, session: SessionData = Depends(handle_s
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(method: str, chat_id: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
-    chat = None
+    chat = session.get_or_create_chat(chat_id, True)
+    response = QueryResponse(query=message.user_query)
+    chat.store_interaction(response)
+    chat.abort_sent = False
     try:
-        session.abort_sent = False
-        chat = session.get_or_create_chat(chat_id, True)
         internal_tools = InternalTools(session, METHODS[method])
-        result = await METHODS[method](session, chat, message.streaming, internal_tools).query(message.user_query)
+        method_impl = METHODS[method](session, chat, response, message.streaming, internal_tools)
+        await method_impl.query()
     except Exception as e:
-        result = QueryResponse.from_exception(message.user_query, e)
+        response.make_error_response(e)
     finally:
-        if chat is not None:
-            chat.store_interaction(result)
-        return result
+        return response
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.", tags=["chat"])
@@ -356,6 +354,12 @@ async def append(chat_id: str, auto_append: bool, push_message: PushMessage, ses
     # Update mapping for auto-append
     if auto_append:
         session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
+
+
+@app.post("/chats/{chat_id}/stop", description="Abort generation for every query of the current session.", tags=["chat"])
+async def stop_query(chat_id: str, session: SessionData = Depends(handle_session_http)) -> None:
+    chat = session.get_or_create_chat(chat_id, create_if_missing=False)
+    chat.abort_sent = True
 
 
 ## CONFIG ROUTES

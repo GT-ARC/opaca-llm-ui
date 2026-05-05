@@ -291,7 +291,7 @@ export default {
         },
 
         async stopGeneration() {
-            await backendClient.stop();
+            await backendClient.stop(this.selectedChatId);
         },
 
         async askSampleQuestion(questionText) {

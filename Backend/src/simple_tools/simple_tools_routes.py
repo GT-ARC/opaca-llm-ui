@@ -33,10 +33,9 @@ class SimpleToolsMethod(AbstractMethod):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    async def query(self, message: str) -> QueryResponse:
+    async def query(self) -> QueryResponse:
         exec_time = time.time()
-        logger.info(message, extra={"agent_name": "user"})
-        response = QueryResponse(query=message)
+        logger.info(self.response.query, extra={"agent_name": "user"})
 
         config: SimpleToolConfig = self.get_config()
         max_iters = config.max_rounds
@@ -46,11 +45,11 @@ class SimpleToolsMethod(AbstractMethod):
 
         # initialize message history
         messages = list(self.chat.messages)
-        messages.append(ChatMessage(role="user", content=message))
+        messages.append(ChatMessage(role="user", content=self.response.query))
 
-        while response.iterations < max_iters:
+        while self.response.iterations < max_iters:
             await self.send_to_websocket(ResetTextMessage(chat_id=self.chat.chat_id))
-            response.iterations += 1
+            self.response.iterations += 1
 
             # call the LLM with function-calling enabled
             result = await self.call_llm(
@@ -61,7 +60,7 @@ class SimpleToolsMethod(AbstractMethod):
                 tools=tools,
                 is_output=True,
             )
-            response.agent_messages.append(result)
+            self.response.agent_messages.append(result)
 
             try:
                 if not result.tools:
@@ -77,19 +76,19 @@ class SimpleToolsMethod(AbstractMethod):
                 )
                 messages.append(ChatMessage(
                     role="user",
-                    content=f"A user had the following request: {message}\n"
+                    content=f"A user had the following request: {self.response.query}\n"
                             f"You have used the following tools: \n{tool_contents}")
                 )
-                response.agent_messages[-1].tools = tool_entries
+                self.response.agent_messages[-1].tools = tool_entries
 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"
                 messages.append(ChatMessage(role="system", content=error))
-                response.agent_messages.append(AgentMessage(agent="system", content=error))
-                response.error += f"{e}\n"
+                self.response.agent_messages.append(AgentMessage(agent="system", content=error))
+                self.response.error += f"{e}\n"
         else:
-            response.error += "Maximum number of iterations reached.\n"
+            self.response.error += "Maximum number of iterations reached.\n"
 
-        response.content = result.content
-        response.execution_time = time.time() - exec_time
-        return response
+        self.response.content = result.content
+        self.response.execution_time = time.time() - exec_time
+        return self.response

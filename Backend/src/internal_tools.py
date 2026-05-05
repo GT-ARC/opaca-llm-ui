@@ -2,7 +2,7 @@
 Wrapper for different internal tools, to be provided to the OPACA LLM as "actions" like OPACA,
 but implemented directly in the backend.
 
-Those tools are then added to the OPACA Proxy's actions in the AbstracMethod's get_tools method.
+Those tools are then added to the OPACA Proxy's actions in the AbstractMethod's get_tools method.
 The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
 
 Some of the tools (like execute-later or maybe summarize-file) may again issue LLM calls.
@@ -17,12 +17,15 @@ from datetime import datetime, timedelta
 from math import ceil
 
 from pydantic import BaseModel
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from textwrap import dedent
 
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
 from .code_execution import CodeExecutor, extract_code_block, PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT
+
+if TYPE_CHECKING:
+    from .abstract_method import AbstractMethod
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
@@ -121,7 +124,7 @@ class InternalTools:
         ]
 
     def available_tools(self) -> list[InternalTool]:
-        if CodeExecutor.available is True:
+        if CodeExecutor.available:
             return self.tools
         return [tool for tool in self.tools if not tool.requires_code_execution]
 
@@ -209,7 +212,8 @@ class InternalTools:
                 result = await self.query_method(query_ext)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
-                result = QueryResponse.from_exception(query, e)
+                result = QueryResponse(query=query)
+                result.make_error_response(e)
 
             # Clean mapping
             self.session.prune_notifications_chats_map()
@@ -256,9 +260,10 @@ class InternalTools:
             del self.session.scheduled_tasks[task.task_id]
 
     async def query_method(self, query: str) -> QueryResponse:
-        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
-        self.session.abort_sent = False
-        return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
+        """shorthand for calling AgentMethod.query, without streaming, chat, or internal tools"""
+        response = QueryResponse(query=query)
+        method_impl = self.agent_method(self.session, Chat(chat_id=''), response, streaming=False)
+        return await method_impl.query()
 
     def create_task_id(self) -> int:
         return max(self.session.scheduled_tasks, default=-1) + 1

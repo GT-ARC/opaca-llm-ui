@@ -72,10 +72,9 @@ class SimpleMethod(AbstractMethod):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    async def query(self, message: str) -> QueryResponse:
+    async def query(self) -> QueryResponse:
         exec_time = time.time()
-        logger.info(message, extra={"agent_name": "user"})
-        response = QueryResponse(query=message)
+        logger.info(self.response.query, extra={"agent_name": "user"})
 
         # Get session config
         config: SimpleConfig = self.get_config()
@@ -87,9 +86,9 @@ class SimpleMethod(AbstractMethod):
             actions=actions,
         ) if actions else FALLBACK_PROMPT
 
-        while response.iterations < max_iters:
+        while self.response.iterations < max_iters:
             await self.send_to_websocket(ResetTextMessage(chat_id=self.chat.chat_id))
-            response.iterations += 1
+            self.response.iterations += 1
 
             result = await self.call_llm(
                 model_config=config.model,
@@ -97,13 +96,13 @@ class SimpleMethod(AbstractMethod):
                 system_prompt=self.build_full_prompt(prompt),
                 messages=[
                     *self.chat.messages,
-                    ChatMessage(role="user", content=message),
-                    *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
+                    ChatMessage(role="user", content=self.response.query),
+                    *(ChatMessage(role=am.agent, content=am.content) for am in self.response.agent_messages),
                 ],
                 tool_choice="none",
                 is_output=True,
             )
-            response.agent_messages.append(result)
+            self.response.agent_messages.append(result)
 
             try:
                 if not (tool := await self.find_tool(result.content)):
@@ -112,7 +111,7 @@ class SimpleMethod(AbstractMethod):
                 tool.id = self.next_tool_id(result)
                 await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant"))
                 tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
-                response.agent_messages.append(AgentMessage(
+                self.response.agent_messages.append(AgentMessage(
                     agent="assistant",
                     content=f"\nThe result of this step was: {tool_call.result}",
                     tools=[tool_call], # so that tool calls are properly shown in UI
@@ -120,14 +119,14 @@ class SimpleMethod(AbstractMethod):
                 
             except Exception as e:
                 logger.info(f"ERROR: {type(e)}, {e}")
-                response.agent_messages.append(AgentMessage(agent="assistant", content=f"There was an error: {e}"))
-                response.error += f"{e}\n"
+                self.response.agent_messages.append(AgentMessage(agent="assistant", content=f"There was an error: {e}"))
+                self.response.error += f"{e}\n"
         else:
-            response.error += "Maximum number of iterations reached.\n"
+            self.response.error += "Maximum number of iterations reached.\n"
 
-        response.content = result.content
-        response.execution_time = time.time() - exec_time
-        return response
+        self.response.content = result.content
+        self.response.execution_time = time.time() - exec_time
+        return self.response
 
     async def get_actions(self):
         try:

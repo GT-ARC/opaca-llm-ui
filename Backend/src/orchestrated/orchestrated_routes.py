@@ -266,7 +266,7 @@ Now, using the tools available to you and the previous results, continue with yo
         # Execute all tasks in parallel using asyncio.gather
         return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
-    async def query(self, message: str) -> QueryResponse:
+    async def query(self) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results
         The overall process is as follows:
         - after some initialization stuff, the Orchestrator is asked to create a plan
@@ -279,8 +279,6 @@ Now, using the tools available to you and the previous results, continue with yo
         - finally, ask OutputGenerator to create a response
         """
 
-        # Initialize response
-        response = QueryResponse(query=message)
         # Track overall execution time
         overall_start_time = time.time()
 
@@ -322,15 +320,15 @@ Now, using the tools available to you and the previous results, continue with yo
 
                 # Extract pre-formatted Orchestrator Plan
                 plan = orchestrator_message.formatted_output
-                response.agent_messages.append(orchestrator_message)
+                self.response.agent_messages.append(orchestrator_message)
 
                 # If the plan was not formatted properly, let the user know and ask for a retry
                 if not plan:
-                    response.content = ("I am sorry, but I was unable to generate a plan for your problem. Please "
+                    self.response.content = ("I am sorry, but I was unable to generate a plan for your problem. Please "
                                         "try to reformulate your request!")
-                    response.error = "Orchestrator was unable to generate a well-formatted plan!"
-                    response.execution_time = time.time() - overall_start_time
-                    return response
+                    self.response.error = "Orchestrator was unable to generate a well-formatted plan!"
+                    self.response.execution_time = time.time() - overall_start_time
+                    return self.response
                 
                 # Then send the tasks
                 await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}")
@@ -377,7 +375,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         worker_agents,
                         config,
                         all_results,
-                        response.agent_messages,
+                        self.response.agent_messages,
                     )
                     
                     all_results.extend(round_results)
@@ -393,7 +391,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         status_message="Overall evaluation"
                     )
                     should_retry = evaluation_message.formatted_output.reiterate
-                    response.agent_messages.append(evaluation_message)
+                    self.response.agent_messages.append(evaluation_message)
                             
                 if should_retry:
                     # Get iteration advice before continuing
@@ -406,7 +404,7 @@ Now, using the tools available to you and the previous results, continue with yo
                         status_message="Analyzing results and preparing advice for next iteration"
                     )
                     advice = advisor_message.formatted_output
-                    response.agent_messages.append(advisor_message)
+                    self.response.agent_messages.append(advisor_message)
 
                     # If no advice context was successfully generated, assume that the final response can be generated
                     if not advice:
@@ -415,9 +413,9 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # Handle follow-up questions from iteration advisor
                     if advice.needs_follow_up and advice.follow_up_question:
-                        response.content = advice.follow_up_question
-                        response.execution_time = time.time() - overall_start_time
-                        return response
+                        self.response.content = advice.follow_up_question
+                        self.response.execution_time = time.time() - overall_start_time
+                        return self.response
 
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
@@ -450,24 +448,24 @@ Please address these specific improvements:
                 status_message="Generating final response",
                 is_output=True,
             )
-            response.agent_messages.append(final_output)
+            self.response.agent_messages.append(final_output)
 
             # Set the complete response content after streaming
-            response.content = final_output.content
+            self.response.content = final_output.content
 
             # Calculate and set total execution time
-            response.execution_time = time.time() - overall_start_time
+            self.response.execution_time = time.time() - overall_start_time
             
-            logger.info(f"TOTAL EXECUTION TIME: {response.execution_time:.2f} seconds")
+            logger.info(f"TOTAL EXECUTION TIME: {self.response.execution_time:.2f} seconds")
 
-            return response
+            return self.response
 
         # If any errors were encountered, capture error desc and send to debug view
         except Exception as e:
             logger.error(f"Error in query_stream: {str(e)}\n{traceback.format_exc()}", exc_info=True)
-            response.error = str(e)
-            response.execution_time = time.time() - overall_start_time
-            return response
+            self.response.error = str(e)
+            self.response.execution_time = time.time() - overall_start_time
+            return self.response
 
     async def get_agent_details(self) -> Dict[str, Dict]:
         """Get simplified agent summaries for the orchestrator"""
