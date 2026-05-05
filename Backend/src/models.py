@@ -14,7 +14,6 @@ import asyncio
 
 from litellm import get_supported_openai_params
 from litellm.experimental_mcp_client.client import MCPClient
-from openai.types.beta.threads import message
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
@@ -265,14 +264,6 @@ class Chat(BaseModel):
         for r in self.responses:
             yield ChatMessage(role="user", content=r.query)
             yield ChatMessage(role="assistant", content=r.content)
-
-    @property
-    def waiting(self):
-        return self._waiting_for_confirmation
-
-    @waiting.setter
-    def waiting(self, value: bool) -> None:
-        self._waiting_for_confirmation = value
 
     def store_interaction(self, result: QueryResponse):
         self.responses.append(result)

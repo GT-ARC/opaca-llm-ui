@@ -715,6 +715,9 @@ export default {
                     if (msg.error) {
                         aiBubble.setError(msg.error);
                     }
+                    this.messages.forEach((msg, index) => {
+                        console.log(`MSG ${index}`, msg);
+                    });
                 }
 
                 this.showExampleQuestions = false;

@@ -184,6 +184,8 @@ class AbstractMethod(ABC):
                     break
                 agent_message.content += event.delta
                 await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output, chat_id=self.chat.chat_id))
+                if event.delta and is_output:
+                    self.response.content += event.delta
 
             # Final message received
             elif event.type == event_type.RESPONSE_COMPLETED:
