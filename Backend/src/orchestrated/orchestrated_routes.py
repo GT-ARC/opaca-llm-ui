@@ -9,7 +9,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC, INTERNAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, StatusMessage, MethodConfig, \
+from ..models import QueryResponse, AgentMessage, ChatMessage, ToolCall, StatusMessage, MethodConfig, \
     LLMConfig
 from .agents import (
     OrchestratorAgent,
@@ -40,14 +40,13 @@ class SelfOrchestratedMethod(AbstractMethod):
     NAME = "self-orchestrated"
     CONFIG = OrchestrationConfig
 
-    def __init__(self, session, streaming=False, internal_tools=None):
-        super().__init__(session, streaming, internal_tools)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     async def _execute_round(
             self,
             round_tasks: List[AgentTask],
             worker_agents: Dict[str, WorkerAgent],
-            chat_id: str,
             config: OrchestrationConfig,
             all_results: List[AgentResult],
             agent_messages: List[AgentMessage],
@@ -87,7 +86,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                 model_config=config.worker_model,
                 agent="WorkerAgent",
                 system_prompt=worker_agent.system_prompt(),
-                chat_id=chat_id,
                 messages=worker_agent.messages(subtask),
                 tool_choice="required",
                 tools=worker_agent.tools
@@ -135,7 +133,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                     model_config=config.orchestrator_model,
                     agent="AgentPlanner",
                     system_prompt=planner.system_prompt(),
-                    chat_id=chat_id,
                     messages=planner.messages(task, previous_results=all_results),
                     tools=planner.tools,
                     tool_choice="none",
@@ -154,7 +151,7 @@ class SelfOrchestratedMethod(AbstractMethod):
                         tool_calls=[],
                     )
             
-                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n", chat_id)
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Initialize results storage
                 ex_results: List[AgentResult] = []
@@ -197,14 +194,13 @@ class SelfOrchestratedMethod(AbstractMethod):
                     tool_calls=[tc for res in ex_results for tc in res.tool_calls],
                 )
             else: # no planner
-                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n", chat_id)
+                await self.send_status_to_websocket("WorkerAgent", f"Executing function calls.\n\n")
 
                 # Generate a concrete tool call by the worker agent with its tools
                 worker_message = await self.call_llm(
                     model_config=config.worker_model,
                     agent="WorkerAgent",
                     system_prompt=agent.system_prompt(),
-                    chat_id=chat_id,
                     messages=agent.messages(task),
                     tool_choice="required",
                     tools=agent.tools,
@@ -221,7 +217,6 @@ class SelfOrchestratedMethod(AbstractMethod):
                         model_config=config.evaluator_model,
                         agent="AgentEvaluator",
                         system_prompt=agent_evaluator.system_prompt(),
-                        chat_id=chat_id,
                         messages=agent_evaluator.messages(task_str, result),
                         response_format=agent_evaluator.schema,
                         status_message=f"Evaluating {task.agent_name}'s task completion"
@@ -257,7 +252,6 @@ Now, using the tools available to you and the previous results, continue with yo
                         model_config=config.worker_model,
                         agent="WorkerAgent",
                         system_prompt=agent.system_prompt(),
-                        chat_id=chat_id,
                         messages=agent.messages(retry_task),
                         tool_choice="required",
                         tools=agent.tools,
@@ -272,7 +266,7 @@ Now, using the tools available to you and the previous results, continue with yo
         # Execute all tasks in parallel using asyncio.gather
         return await asyncio.gather(*[execute_single_task(task) for task in round_tasks])
     
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str) -> QueryResponse:
         """Process a user message using multiple agents and stream intermediate results
         The overall process is as follows:
         - after some initialization stuff, the Orchestrator is asked to create a plan
@@ -297,7 +291,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
             # Initialize Orchestrator, evaluator and iteration advisor
             orchestrator = OrchestratorAgent(
-                chat_history=chat.messages,
+                chat_history=self.chat.messages,
                 tools=self.get_agents_as_tools(agent_details),
             )
             overall_evaluator = OverallEvaluator()
@@ -319,7 +313,6 @@ Now, using the tools available to you and the previous results, continue with yo
                     model_config=config.orchestrator_model,
                     agent="Orchestrator",
                     system_prompt=orchestrator.system_prompt(),
-                    chat_id=chat.chat_id,
                     messages=orchestrator.messages(message),
                     tools=orchestrator.tools,
                     tool_choice='none',
@@ -340,7 +333,7 @@ Now, using the tools available to you and the previous results, continue with yo
                     return response
                 
                 # Then send the tasks
-                await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}", chat_id=chat.chat_id)
+                await self.send_status_to_websocket("Orchestrator", f"Created execution plan with {len(plan.tasks)} tasks:\n{json.dumps([task.model_dump() for task in plan.tasks], indent=2)}")
                 
                 # Iterate through every generated plan and add needed agents as worker agents
                 for task in plan.tasks:
@@ -377,12 +370,11 @@ Now, using the tools available to you and the previous results, continue with yo
                 
                 # Execute each round
                 for round_num in sorted(tasks_by_round.keys()):
-                    await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}", chat.chat_id)
+                    await self.send_status_to_websocket("Orchestrator", f"Starting execution round {round_num}")
                     
                     round_results = await self._execute_round(
                         tasks_by_round[round_num],
                         worker_agents,
-                        chat.chat_id,
                         config,
                         all_results,
                         response.agent_messages,
@@ -396,7 +388,6 @@ Now, using the tools available to you and the previous results, continue with yo
                         model_config=config.evaluator_model,
                         agent="OverallEvaluator",
                         system_prompt=overall_evaluator.system_prompt(),
-                        chat_id=chat.chat_id,
                         messages=overall_evaluator.messages(message, all_results),
                         response_format=overall_evaluator.schema,
                         status_message="Overall evaluation"
@@ -410,7 +401,6 @@ Now, using the tools available to you and the previous results, continue with yo
                         model_config=config.orchestrator_model,
                         agent="IterationAdvisor",
                         system_prompt=iteration_advisor.system_prompt(),
-                        chat_id=chat.chat_id,
                         messages=iteration_advisor.messages(message, all_results),
                         response_format=iteration_advisor.schema,
                         status_message="Analyzing results and preparing advice for next iteration"
@@ -420,7 +410,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # If no advice context was successfully generated, assume that the final response can be generated
                     if not advice:
-                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.", chat.chat_id)
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output.")
                         break
 
                     # Handle follow-up questions from iteration advisor
@@ -431,7 +421,7 @@ Now, using the tools available to you and the previous results, continue with yo
 
                     # If advisor suggests not to retry, proceed to output generation
                     if not advice.should_retry:
-                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary, chat.chat_id)
+                        await self.send_status_to_websocket("IterationAdvisor", "Tasks completed successfully. Proceeding to final output with the following summary:\n\n" + advice.context_summary)
                         break
                     
                     # Add the advice to the message for the next iteration
@@ -445,7 +435,7 @@ Issues identified:
 Please address these specific improvements:
 {chr(10).join(f'- {step}' for step in advice.improvement_steps)}"""
                     
-                    await self.send_status_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓", chat.chat_id)
+                    await self.send_status_to_websocket("IterationAdvisor", "Proceeding with next iteration using provided advice ✓")
                 else:
                     break
                 
@@ -456,7 +446,6 @@ Please address these specific improvements:
                 model_config=config.generator_model,
                 agent="Output Generator",
                 system_prompt=OUTPUT_GENERATOR_PROMPT,
-                chat_id=chat.chat_id,
                 messages=[ChatMessage(role="user", content=f"Based on the following execution results, please provide a clear response to this user request: {message}\n\nExecution results:\n{json.dumps([r.model_dump() for r in all_results], indent=2)}")],
                 status_message="Generating final response",
                 is_output=True,
@@ -523,8 +512,8 @@ Please address these specific improvements:
             for name, content in agent_details.items()
         ]
 
-    async def send_status_to_websocket(self, agent, message, chat_id):
-        await self.send_to_websocket(StatusMessage(agent=agent, status=message, chat_id=chat_id))
+    async def send_status_to_websocket(self, agent, message):
+        await self.send_to_websocket(StatusMessage(agent=agent, status=message, chat_id=self.chat.chat_id))
 
     async def invoke_tools(self, agent: WorkerAgent, task_str: str, message: AgentMessage) -> AgentResult:
         tool_results = await asyncio.gather(*[

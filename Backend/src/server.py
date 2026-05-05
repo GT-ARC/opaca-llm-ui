@@ -235,7 +235,7 @@ async def query_no_history(method: str, message: QueryRequest, session: SessionD
     try:
         session.abort_sent = False
         internal_tools = InternalTools(session, METHODS[method])
-        return await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, Chat(chat_id=''))
+        return await METHODS[method](session, Chat(chat_id=''), message.streaming, internal_tools).query(message.user_query)
     except Exception as e:
         return QueryResponse.from_exception(message.user_query, e)
 
@@ -291,7 +291,7 @@ async def query_chat(method: str, chat_id: str, message: QueryRequest, session: 
         session.abort_sent = False
         chat = session.get_or_create_chat(chat_id, True)
         internal_tools = InternalTools(session, METHODS[method])
-        result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
+        result = await METHODS[method](session, chat, message.streaming, internal_tools).query(message.user_query)
     except Exception as e:
         result = QueryResponse.from_exception(message.user_query, e)
     finally:

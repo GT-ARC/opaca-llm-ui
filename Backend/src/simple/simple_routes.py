@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, ToolCall, MethodConfig, ToolCallMessage, \
+from ..models import QueryResponse, AgentMessage, ChatMessage, ToolCall, MethodConfig, ToolCallMessage, \
     LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """
@@ -69,10 +69,10 @@ class SimpleMethod(AbstractMethod):
     NAME = "simple"
     CONFIG = SimpleConfig
 
-    def __init__(self, session, streaming=False, internal_tools=None):
-        super().__init__(session, streaming, internal_tools)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
@@ -88,16 +88,15 @@ class SimpleMethod(AbstractMethod):
         ) if actions else FALLBACK_PROMPT
 
         while response.iterations < max_iters:
-            await self.send_to_websocket(ResetTextMessage(chat_id=chat.chat_id))
+            await self.send_to_websocket(ResetTextMessage(chat_id=self.chat.chat_id))
             response.iterations += 1
 
             result = await self.call_llm(
                 model_config=config.model,
                 agent="assistant",
                 system_prompt=self.build_full_prompt(prompt),
-                chat_id=chat.chat_id,
                 messages=[
-                    *chat.messages,
+                    *self.chat.messages,
                     ChatMessage(role="user", content=message),
                     *(ChatMessage(role=am.agent, content=am.content) for am in response.agent_messages),
                 ],

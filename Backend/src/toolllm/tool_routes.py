@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
+from ..models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
 
 
 class ToolLlmConfig(MethodConfig):
@@ -22,14 +22,14 @@ class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
     CONFIG = ToolLlmConfig
 
-    def __init__(self, session, streaming=False, internal_tools=None):
-        super().__init__(session, streaming, internal_tools)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     class EvaluatorResponse(BaseModel):
         reason: str
         decision: str
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
@@ -59,7 +59,6 @@ class ToolLLMMethod(AbstractMethod):
                 model_config=config.tool_eval_model,
                 agent='Tool Evaluator',
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
-                chat_id=chat.chat_id,
                 messages=[
                     ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
                         message=message,
@@ -88,9 +87,8 @@ class ToolLLMMethod(AbstractMethod):
                 model_config=config.tool_gen_model,
                 agent='Tool Generator',
                 system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
-                chat_id=chat.chat_id,
                 messages=[
-                    *chat.messages,
+                    *self.chat.messages,
                     ChatMessage(role="user", content=message),
                     *tool_messages,
                 ],
@@ -116,9 +114,8 @@ class ToolLLMMethod(AbstractMethod):
                     model_config=config.tool_gen_model,
                     agent='Tool Generator',
                     system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
-                    chat_id=chat.chat_id,
                     messages=[
-                        *chat.messages,
+                        *self.chat.messages,
                         ChatMessage(role="user", content=message),
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
@@ -152,9 +149,8 @@ class ToolLLMMethod(AbstractMethod):
                     model_config=config.tool_eval_model,
                     agent='Tool Evaluator',
                     system_prompt='',
-                    chat_id=chat.chat_id,
                     messages=[
-                        *chat.messages,
+                        *self.chat.messages,
                         ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
                             message=message,
                             called_tools=called_tools,
@@ -189,9 +185,8 @@ class ToolLLMMethod(AbstractMethod):
             model_config=config.output_model,
             agent='Output Generator',
             system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
-            chat_id=chat.chat_id,
             messages=[
-                *chat.messages,
+                *self.chat.messages,
                 ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
                 OUTPUT_GENERATOR_TEMPLATE.format(
                     message=message,

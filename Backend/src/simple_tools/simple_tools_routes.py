@@ -2,7 +2,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, Chat, MethodConfig, LLMConfig, ResetTextMessage
+from ..models import QueryResponse, AgentMessage, ChatMessage, MethodConfig, LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -30,10 +30,10 @@ class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
     CONFIG = SimpleToolConfig
 
-    def __init__(self, session, streaming=False, internal_tools=None):
-        super().__init__(session, streaming, internal_tools)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self, message: str) -> QueryResponse:
         exec_time = time.time()
         logger.info(message, extra={"agent_name": "user"})
         response = QueryResponse(query=message)
@@ -45,11 +45,11 @@ class SimpleToolsMethod(AbstractMethod):
         tools, error = await self.get_tools()
 
         # initialize message history
-        messages = list(chat.messages)
+        messages = list(self.chat.messages)
         messages.append(ChatMessage(role="user", content=message))
 
         while response.iterations < max_iters:
-            await self.send_to_websocket(ResetTextMessage(chat_id=chat.chat_id))
+            await self.send_to_websocket(ResetTextMessage(chat_id=self.chat.chat_id))
             response.iterations += 1
 
             # call the LLM with function-calling enabled
@@ -57,7 +57,6 @@ class SimpleToolsMethod(AbstractMethod):
                 model_config=config.model,
                 agent="assistant",
                 system_prompt=self.build_full_prompt(SYSTEM_PROMPT),
-                chat_id=chat.chat_id,
                 messages=messages,
                 tools=tools,
                 is_output=True,
