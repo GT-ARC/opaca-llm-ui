@@ -134,7 +134,7 @@ export interface ConfigPayload {
 export interface Container {
     containerId: string;
     image: ContainerImage;
-    arguments?: Record<string, any>;
+    arguments: Record<string, any>;
     agents: ContainerAgent[];
     owner: string;
     runningSince: string;
@@ -143,23 +143,23 @@ export interface Container {
 
 export interface ContainerImage {
     imageName: string;
-    requires: any[];
-    provides: any[];
-    name?: string;
-    version?: string;
-    description?: string;
-    provider?: string;
+    requires: string[];
+    provides: string[];
     url?: string;
+    name?: string;
+    description?: string;
+    version?: string;
+    provider?: string;
     apiPort: number;
-    extraPorts: Record<string, any>;
-    parameters?: ContainerParameter[];
+    extraPorts: Record<number, PortMapping>;
+    parameters: ContainerParameter[];
     definitions: Record<string, any>;
-    defintionsByUrl: Record<string, any>;
+    defintionsByUrl: Record<string, string>;
 }
 
 export interface ContainerParameter {
     name: string;
-    type: "string" | "boolean" | "integer" | "number" | string;
+    type: string;
     required: boolean;
     confidential: boolean;
     defaultValue?: any;
@@ -168,13 +168,24 @@ export interface ContainerParameter {
 export interface ContainerAction {
     name: string;
     description?: string;
-    parameters?: any;
+    parameters?: Record<string, any>;
     result?: any;
+    callback?: any
+}
+
+export interface ContainerStream {
+    name: string;
+    description?: string;
+    mode: "GET" | "POST";
+    callback?: any;
 }
 
 export interface ContainerAgent {
     agentId: string;
+    agentType: string;
+    description?: string;
     actions: ContainerAction[];
+    streams: ContainerStream[];
 }
 
 export interface PortMapping {
