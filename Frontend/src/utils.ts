@@ -1,5 +1,5 @@
 // @ts-ignore
-import conf from '../config.js';
+import conf from '../config';
 import axios, { type  Method } from "axios";
 import type { 
     Container, 

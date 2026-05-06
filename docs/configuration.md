@@ -4,11 +4,11 @@ Following is an overview of all environment variables that can be set in the [do
 
 ## Frontend
 
-Frontend env-vars correspond to settings in `config.js`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system).
+Frontend env-vars correspond to settings in `config.ts`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system).
 
 * `VITE_PLATFORM_BASE_URL`: The default URL where to find the OPACA platform
 * `VITE_BACKEND_BASE_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
-* `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.js`
+* `VITE_DEFAULT_METHOD`: The default prompting method to use, see options in `config.ts`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required, and can be overwritten with `autoconnect` query parameter.
 * `VITE_CONTAINER_MANAGEMENT`: Whether to enable the buttons for starting and stopping OPACA containers from within SAGE, provided the user has sufficient privileges.

@@ -1,7 +1,7 @@
 import {ref, type Ref} from "vue";
-import conf from "../config.js";
-import Localizer from "./Localizer.js";
-import * as utils from "./utils.js"
+import conf from "../config";
+import Localizer from "./Localizer";
+import * as utils from "./utils"
 
 
 /**

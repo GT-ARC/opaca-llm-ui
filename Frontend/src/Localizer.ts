@@ -37,7 +37,7 @@ interface LocaleInfo {
 // - use underscore to separate terms and camelcase for words, e.g. "files_createNew"
 // - use at least one underscore to make it easier to search for occurrences in code
 // - put new keys into their respective "group"
-export const localizationData: LocalizationData = {
+const localizationData: LocalizationData = {
     GB: {
         name: "English",
         code: "en",
