@@ -258,6 +258,7 @@ class Chat(BaseModel):
     time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     abort_sent: bool = False
+    is_finished: bool = True
 
     @property
     def messages(self) -> Iterator[ChatMessage]:
@@ -519,11 +520,15 @@ class TextChunkMessage(BaseModel):
     agent: str
     chunk: str
     is_output: bool
-    chat_id: str = ''
+    chat_id: str
+
+
+class ReloadChatsMessage(BaseModel):
+    pass
 
 
 class ResetTextMessage(BaseModel):
-    chat_id: str = ''
+    chat_id: str
 
 
 class ToolCallMessage(BaseModel):
@@ -531,26 +536,26 @@ class ToolCallMessage(BaseModel):
     id: str
     name: str
     args: Dict[str, Any] = {}
-    chat_id: str = ''
+    chat_id: str
 
 
 class ToolResultMessage(BaseModel):
     id: str
     result: Any | None
-    chat_id: str = ''
+    chat_id: str
 
 
 class StatusMessage(BaseModel):
     agent: str
     status: str
-    chat_id: str = ''
+    chat_id: str
 
 
 class MetricsMessage(BaseModel):
     agent: str
     metrics: dict
     execution_time: float
-    chat_id: str = ''
+    chat_id: str
 
 
 class PushAdvert(BaseModel):
@@ -573,12 +578,10 @@ class PushMessage(QueryResponse):
 class ConfirmActionNotification(BaseModel):
     tool: str
     params: dict
-    chat_id: str = ''
 
 
 class ConfirmActionResponse(BaseModel):
     allowed: bool
-    chat_id: str = ''
 
 
 class ContainerLoginNotification(BaseModel):
@@ -593,7 +596,6 @@ class ContainerLoginNotification(BaseModel):
     container_name: str = ''
     tool_name: str = ''
     retry: bool = False
-    chat_id: str = ''
 
 
 class ContainerLoginResponse(BaseModel):
@@ -608,7 +610,6 @@ class ContainerLoginResponse(BaseModel):
     username: str
     password: str
     timeout: int
-    chat_id: str = ''
 
 
 class MissingApiKeyNotification(BaseModel):

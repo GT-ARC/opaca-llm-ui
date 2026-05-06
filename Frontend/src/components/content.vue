@@ -29,7 +29,7 @@
             :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
-            :is-finished="isFinished"
+            :is-finished="this.isChatFinished()"
             ref="sidebar"
             @select-question="question => this.handleSelectQuestion(question)"
             @select-category="category => this.handleSelectCategory(category)"
@@ -147,7 +147,7 @@
                                 ref="fileInput"
                                 accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
-                                :disabled="!this.isFinished"
+                                :disabled="!this.isChatFinished()"
                                 @change="e => uploadFiles(e.target.files)"
                                 multiple
                             />
@@ -159,7 +159,7 @@
                                     v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
-                                    :disabled="!isFinished"
+                                    :disabled="!this.isChatFinished()"
                                     :title="Localizer.get('chatarea_speak')">
                                 <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
                                 <i v-else class="fa fa-microphone" />
@@ -168,13 +168,13 @@
                                     v-if="AudioManager.isRecognitionSupported() && AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="AudioManager.stopRecognition()"
-                                    :disabled="!isFinished"
+                                    :disabled="!this.isChatFinished()"
                                     :title="Localizer.get('chatarea_speak_stop')">
                                 <i class="fa fa-stop"/>
                             </button>
 
                             <button type="button"
-                                    v-if="!isFinished"
+                                    v-if="!this.isChatFinished()"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
                                     :title="Localizer.get('chatarea_abort')">
@@ -182,7 +182,7 @@
                             </button>
 
                             <button type="button"
-                                    v-if="isFinished"
+                                    v-if="this.isChatFinished()"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
@@ -247,7 +247,6 @@ export default {
         return {
             messages: [],
             textInput: '',
-            isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
             selectedCategory: conf.DefaultQuestions,
@@ -271,7 +270,7 @@ export default {
         },
 
         async submitText() {
-            if (this.textInput && this.isFinished) {
+            if (this.textInput && this.isChatFinished()) {
                 // Copy current input and reset field
                 let userInput = this.textInput.trim();
                 this.textInput = '';
@@ -342,7 +341,6 @@ export default {
         },
 
         async askChatGpt(userText, files = null) {
-            this.isFinished = false;
             this.showExampleQuestions = false;
             this.newChat = false;
 
@@ -372,9 +370,9 @@ export default {
             } finally {
                 // always set to completed, even in case of error, e.g. timeout
                 aiBubble.toggleLoading(false);
-                this.isFinished = true;
                 this.startAutoSpeak();
                 this.scrollDownChat();
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
@@ -471,12 +469,16 @@ export default {
             const result = JSON.parse(event.data);
 
             if (result.chat_id !== undefined && result.chat_id !== this.selectedChatId) {
-                console.log('Received websocket message for another chat: ',
-                    result.type, result.chat_id, this.selectedChatId);
+                // console.log('Received websocket message for another chat: ',
+                //    result.type, result.chat_id, this.selectedChatId);
                 return;
             } else if (result.chat_id !== undefined && !this.messages || this.messages.length === 0) {
-                console.log('No chat bubbles for streaming found.');
+                // console.log('No chat bubbles for streaming found.');
                 return;
+            }
+
+            if (result.type === 'ReloadChatsMessage') {
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
 
             if (result.type === "ConfirmActionNotification") {
@@ -494,7 +496,7 @@ export default {
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
-                if (result.is_output && ! this.isFinished) {
+                if (result.is_output) {
                     const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);
@@ -836,6 +838,13 @@ export default {
         openViewer(file) {
             this.viewerFile = file;
         },
+
+        isChatFinished() {
+            const currentChat = this.$refs.sidebar?.$refs.chats?.chats
+                ?.find(chat => chat?.chat_id === this.selectedChatId);
+            console.log('is chat finished?', currentChat?.is_finished);
+            return currentChat?.is_finished || this.newChat;
+        }
     },
 
     mounted() {

@@ -23,7 +23,7 @@ from openai import OpenAI
 from . import sample_prompts as prompts
 from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateMessage, PushMessage, \
-    InvokeRequest, InvokeResponse, SessionPrompts
+    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -271,7 +271,8 @@ async def delete_mcp_server(server_label: str, session: SessionData = Depends(ha
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.", tags=["chat"])
 async def get_chats(session: SessionData = Depends(handle_session_http)) -> List[Chat]:
     chats = [
-        Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
+        Chat(chat_id=chat.chat_id, name=chat.name, is_finished=chat.is_finished,
+             time_created=chat.time_created, time_modified=chat.time_modified)
         for chat in session.chats.values()
     ]
     chats.sort(key=lambda chat: chat.time_modified, reverse=True)
@@ -289,14 +290,18 @@ async def query_chat(method: str, chat_id: str, message: QueryRequest, session: 
     chat = session.get_or_create_chat(chat_id, True)
     response = QueryResponse(query=message.user_query)
     chat.store_interaction(response)
+    chat.derive_name()
     chat.abort_sent = False
+    chat.is_finished = False
     try:
         internal_tools = InternalTools(session, METHODS[method])
         method_impl = METHODS[method](session, chat, response, message.streaming, internal_tools)
+        await session.websocket_send(ReloadChatsMessage())
         await method_impl.query()
     except Exception as e:
         response.make_error_response(e)
     finally:
+        chat.is_finished = True
         return response
 
 
