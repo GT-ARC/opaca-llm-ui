@@ -209,7 +209,7 @@ class AbstractMethod(ABC):
                             logger.warning(f"Could not parse tool arguments: {t.arguments}")
                             tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args={})
                         agent_message.tools.append(tool)
-                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
+                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent, chat_id=self.chat.chat_id))
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.model_dump()
 
@@ -261,7 +261,7 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result, chat_id=self.chat.chat_id))
         return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=t_result)
 
 

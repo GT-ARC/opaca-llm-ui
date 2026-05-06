@@ -106,7 +106,7 @@ class SimpleMethod(AbstractMethod):
                     break
 
                 tool.id = self.next_tool_id(result)
-                await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant"))
+                await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent="assistant", chat_id=self.chat.chat_id))
                 tool_call = await self.invoke_tool(tool.name, tool.args, tool.id)
                 self.response.agent_messages.append(AgentMessage(
                     agent="assistant",
