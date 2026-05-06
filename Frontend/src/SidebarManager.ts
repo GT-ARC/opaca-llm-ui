@@ -49,7 +49,7 @@ export class SidebarManager {
             if (this.viewNotInCollapsed(key) && collapsed) {
                 return;
             }
-            this._selectedView.value = key as SidebarView;
+            this._selectedView.value = key;
             Cookie.set('selected_view', key);
         } else {
             console.warn(`${key} is not a valid sidebar view`);
@@ -59,7 +59,11 @@ export class SidebarManager {
 
     /** select if not already open, close otherwise */
     toggleView(key: SidebarView): void {
-        this.isViewSelected(key) ? this.close() : this.selectView(key);
+        if (this.isViewSelected(key)) {
+            this.selectView('none');
+        } else {
+            this.selectView(key);
+        }
     }
 
     isViewSelected(key: SidebarView): boolean {

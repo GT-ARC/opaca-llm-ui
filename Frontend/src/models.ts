@@ -138,18 +138,18 @@ export interface Container {
     agents: ContainerAgent[];
     owner: string;
     runningSince: string;
-    connectivity?: ContainerConnectivity;
+    connectivity: ContainerConnectivity | null;
 }
 
 export interface ContainerImage {
     imageName: string;
     requires: string[];
     provides: string[];
-    url?: string;
-    name?: string;
-    description?: string;
-    version?: string;
-    provider?: string;
+    url: string | null;
+    name: string | null;
+    description: string | null;
+    version: string | null;
+    provider: string | null;
     apiPort: number;
     extraPorts: Record<number, PortMapping>;
     parameters: ContainerParameter[];
@@ -167,8 +167,8 @@ export interface ContainerParameter {
 
 export interface ContainerAction {
     name: string;
-    description?: string;
-    parameters?: Record<string, any>;
+    description: string | null;
+    parameters: Record<string, any>;
     result?: any;
     callback?: any
 }

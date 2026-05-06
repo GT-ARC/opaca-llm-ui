@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue';
 import { shuffleArray } from "./utils";
 import conf from '../config';
+import { Prompt, PromptCategory } from './models';
 
 /** 
  * Interface for the translation object structure 
@@ -14,17 +15,6 @@ interface TranslationSchema {
 
 interface LocalizationData {
     [locale: string]: TranslationSchema;
-}
-
-interface Question {
-    question: string;
-    icon?: string;
-}
-
-interface Category {
-    header: string;
-    icon: string;
-    questions: Question[];
 }
 
 interface LocaleInfo {
@@ -309,8 +299,8 @@ const localizationData: LocalizationData = {
 export class Localizer {
     private _fallbackLanguage: Ref<string>;
     private _selectedLanguage: Ref<string>;
-    private _randomSampleQuestions: Ref<Question[] | null>;
-    private _samplePrompts: Ref<Record<string, Category> | null>;
+    private _randomSampleQuestions: Ref<Prompt[] | null>;
+    private _samplePrompts: Ref<Record<string, PromptCategory> | null>;
 
     constructor(selectedLanguage: string, fallbackLanguage: string) {
         this._fallbackLanguage = ref(fallbackLanguage)
@@ -344,7 +334,7 @@ export class Localizer {
         return this._fallbackLanguage.value;
     }
 
-    set randomSampleQuestions(value: Question[] | null) {
+    set randomSampleQuestions(value: Prompt[] | null) {
         this._randomSampleQuestions.value = value;
     }
 
@@ -352,7 +342,7 @@ export class Localizer {
         return this._randomSampleQuestions.value;
     }
 
-    set samplePrompts(value: Record<string, Category> | null) {
+    set samplePrompts(value: Record<string, PromptCategory> | null) {
         this._samplePrompts.value = value;
     }
 
@@ -403,7 +393,7 @@ export class Localizer {
         );
     }
 
-    getSampleQuestions(textInput: string | null, categoryHeader: string | null): Question[] | null {
+    getSampleQuestions(textInput: string | null, categoryHeader: string | null): Prompt[] | null {
         if (textInput) {
             this.randomSampleQuestions = this.getFilteredSampleQuestions(null, textInput, 3);
         } else if (!this.randomSampleQuestions) {
@@ -424,7 +414,7 @@ export class Localizer {
         // assemble questions from all or selected category into a single array
         let filteredQuestions = Object.values(prompts)
             .filter(category => categoryHeader === null || categoryHeader === 'none' || category.header === categoryHeader)
-            .flatMap(category => category.questions.map((question: Question) => _mapCategoryIcons(question, category)))
+            .flatMap(category => category.questions.map((question: Prompt) => _mapCategoryIcons(question, category)))
             .filter(question => textInput === null || matches(question.question, textInput));
 
         // if no text input was given -> shuffle and get first k questions
@@ -444,7 +434,7 @@ export class Localizer {
         return this.getAvailableLocales().find(locale => locale.key === langName) !== undefined;
     }
 
-    getPrompts(): Category | undefined {
+    getPrompts(): PromptCategory | undefined {
         return this.samplePrompts?.[this.language];
     }
 }
@@ -454,7 +444,7 @@ export class Localizer {
  * map the category's icon into the (copied) question object,
  * if not icon is defined for the question
  */
-function _mapCategoryIcons(question: Question, category: Category): Question {
+function _mapCategoryIcons(question: Prompt, category: PromptCategory): Prompt {
     return {
         question: question.question,
         icon: question.icon ?? category.icon

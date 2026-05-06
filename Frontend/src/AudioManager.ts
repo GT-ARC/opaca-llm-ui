@@ -17,11 +17,11 @@ export abstract class TtsAudio {
         this.isLoading = false;
     }
 
-    abstract setup(): void;
+    abstract setup(): Promise<void>;
 
-    abstract play(): void;
+    abstract play(): Promise<void>;
 
-    abstract stop(): void;
+    abstract stop(): Promise<void>;
 
     abstract canPlay(): boolean;
 
@@ -67,10 +67,6 @@ export class WhisperAudio extends TtsAudio {
         }
     }
 
-    /**
-     * @param audioBlob {Blob}
-     * @returns {HTMLAudioElement}
-     */
     makeFromBlob(audioBlob: Blob): HTMLAudioElement | null {
         if (!audioBlob) return null;
         const audioUrl = URL.createObjectURL(audioBlob);
@@ -81,7 +77,7 @@ export class WhisperAudio extends TtsAudio {
         return audio;
     }
 
-    async play() {
+    async play(): Promise<void> {
         if (!this.canPlay()) return;
         try {
             if (!this.isPlaying) {
@@ -96,18 +92,18 @@ export class WhisperAudio extends TtsAudio {
         }
     }
 
-    async stop() {
+    async stop(): Promise<void> {
         if (!this.audio) return;
         this.audio.pause();
         this.audio.currentTime = 0;
         this.isPlaying = false;
     }
 
-    canPlay() {
+    canPlay(): boolean {
         return this.audio !== null && !this.isLoading;
     }
 
-    canStop() {
+    canStop(): boolean {
         return this.audio !== null && !this.isLoading;
     }
 
@@ -132,11 +128,11 @@ export class WebSpeechAudio extends TtsAudio {
         const utterance = new SpeechSynthesisUtterance(this._text);
         utterance.lang = Localizer.languageCode;
 
-        utterance.onstart = () => {
+        utterance.onstart = (): void => {
             this.isLoading = false;
             this.isPlaying = true;
         };
-        utterance.onend = () => {
+        utterance.onend = (): void => {
             this.isPlaying = false;
             this.isLoading = false;
         };
@@ -200,23 +196,23 @@ export class AudioManager {
         this._mediaRecorder = null;
     }
     
-    get isRecording() {
+    get isRecording(): boolean {
         return this._isRecording.value;
     }
 
-    set isRecording(value) {
+    set isRecording(value: boolean) {
         this._isRecording.value = value;
     }
 
-    get isTranscribing() {
+    get isTranscribing(): boolean {
         return this._isTranscribing.value;
     }
 
-    set isTranscribing(value) {
+    set isTranscribing(value: boolean) {
         this._isTranscribing.value = value;
     }
 
-    getAudioMethods() {
+    getAudioMethods(): Record<string, string> {
         if (this.isWebSpeechSupported()) {
             return { WHISPER: "Whisper", WEBSPEECH: "WebSpeech" };
         } else {
@@ -238,7 +234,7 @@ export class AudioManager {
      * @param onResult Callback that should expect the successfully recognized text as an argument.
      * @param onError Callback that should expect any error messages.
      */
-    async startRecognition(onResult: (text: string) => void, onError: (error: string) => void) {
+    async startRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         if (!this.isRecognitionSupported()) return;
         switch (this.method) {
             case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
@@ -246,7 +242,7 @@ export class AudioManager {
         };
     }
 
-    async stopRecognition() {
+    async stopRecognition(): Promise<void> {
         if (!this.isRecognitionSupported()) return;
         switch (this.method) {
             case "WHISPER": this.stopWhisperRecognition(); break;
@@ -254,7 +250,7 @@ export class AudioManager {
         };
     }
 
-    async startWebSpeechRecognition(onResult: (text: string) => void, onError: (error: string) => void) {
+    async startWebSpeechRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         if (! this.isWebSpeechSupported()) {
             onError("WebSpeech is not supported in your Browser");
         }
@@ -289,18 +285,18 @@ export class AudioManager {
         this._recognition.start();
     }
 
-    stopWebSpeechRecognition() {
+    stopWebSpeechRecognition(): void {
         if (this._recognition) {
             this._recognition.stop();
             this._recognition = null;
         }
     }
 
-    isRecognitionSupported() {
+    isRecognitionSupported(): boolean {
         return utils.isSecureConnection();
     }
 
-    isWebSpeechSupported() {
+    isWebSpeechSupported(): boolean {
         return this._isGoogleChrome() && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
     }
 
@@ -313,7 +309,7 @@ export class AudioManager {
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
     }
 
-    async startWhisperRecognition(onResult: (text: string) => void, onError: (error: string) => void) {
+    async startWhisperRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         try {
             this.isRecording = true;
             this._audioContext = new AudioContext();
@@ -373,7 +369,7 @@ export class AudioManager {
         }
     }
 
-    stopWhisperRecognition() {
+    stopWhisperRecognition(): void {
         if (this._mediaRecorder) {
             this._mediaRecorder.stop();
             this._mediaRecorder = null;
