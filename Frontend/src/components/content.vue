@@ -468,12 +468,12 @@ export default {
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
 
+            // Abort if the websocket message is not for the currently
+            // selected chat.
             if (result.chat_id !== undefined && result.chat_id !== this.selectedChatId) {
-                // console.log('Received websocket message for another chat: ',
-                //    result.type, result.chat_id, this.selectedChatId);
                 return;
             } else if (result.chat_id !== undefined && !this.messages || this.messages.length === 0) {
-                // console.log('No chat bubbles for streaming found.');
+                console.warn('No chat bubbles for streaming found.');
                 return;
             }
 
@@ -717,9 +717,6 @@ export default {
                     if (msg.error) {
                         aiBubble.setError(msg.error);
                     }
-                    this.messages.forEach((msg, index) => {
-                        console.log(`MSG ${index}`, msg);
-                    });
                 }
 
                 this.showExampleQuestions = false;
@@ -748,7 +745,6 @@ export default {
         },
 
         async handleSelectChat(chatId) {
-            console.log('Select chat: ', chatId)
             await this.loadHistory(chatId);
             this.$refs.textInputRef.focus();
         },
@@ -842,7 +838,6 @@ export default {
         isChatFinished() {
             const currentChat = this.$refs.sidebar?.$refs.chats?.chats
                 ?.find(chat => chat?.chat_id === this.selectedChatId);
-            console.log('is chat finished?', currentChat?.is_finished);
             return currentChat?.is_finished || this.newChat;
         }
     },
