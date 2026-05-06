@@ -22,9 +22,6 @@ class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
     CONFIG = ToolLlmConfig
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     class EvaluatorResponse(BaseModel):
         reason: str
         decision: str

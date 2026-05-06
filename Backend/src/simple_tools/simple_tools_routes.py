@@ -30,9 +30,6 @@ class SimpleToolsMethod(AbstractMethod):
     NAME = "simple-tools"
     CONFIG = SimpleToolConfig
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     async def query(self) -> QueryResponse:
         exec_time = time.time()
         logger.info(self.response.query, extra={"agent_name": "user"})
