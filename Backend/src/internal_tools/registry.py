@@ -127,7 +127,3 @@ class InternalTools:
     async def resume_scheduled_task(self, task: ScheduledTask):
         """resume scheduled task after deserialization"""
         return await self._get_group(ScheduledTaskTools).resume_scheduled_task(task)
-
-    async def query_method(self, query: str):
-        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
-        return await self.context.query(query)
