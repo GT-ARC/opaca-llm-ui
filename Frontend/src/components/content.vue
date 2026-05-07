@@ -517,7 +517,7 @@ export default {
                     aiBubble.addContent(result.chunk);
                     this.scrollDownChat();
                 }
-                await this.addDebugToken(result);
+                this.addDebugToken(result);
                 this.scrollDownDebug();
             }
 
@@ -527,12 +527,12 @@ export default {
             }
 
             if (result.type === "ToolCallMessage") {
-                await this.addDebugTool(result.agent, result);
+                this.addDebugTool(result.agent, result);
                 this.scrollDownDebug();
             }
 
             if (result.type === "ToolResultMessage") {
-                await this.addDebugResult(result);
+                this.addDebugResult(result);
                 this.scrollDownDebug();
             }
 
@@ -632,11 +632,11 @@ export default {
             this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
-        async addDebugToken(chunk) {
+        addDebugToken(chunk) {
             this.addDebug(chunk.chunk, chunk.agent, chunk.id);
         },
 
-        async addDebugTool(llm_agent, tool) {
+        addDebugTool(llm_agent, tool) {
             const id = tool.id.split("/")[1];
             const [agent, action] = tool.name.split("--");
             const args = Object.entries(tool.args).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join("\n");
@@ -644,7 +644,7 @@ export default {
             this.addDebug(toolOutput, llm_agent, tool.id);
         },
 
-        async addDebugResult(result) {
+        addDebugResult(result) {
             const id = result.id.split("/")[1];
             const toolOutput = `Result: ${formatToolDebugResult(result.result)}`
             this.addDebug(toolOutput, `Result ${id}`, result.id);
@@ -662,14 +662,14 @@ export default {
             const debug = this.$refs.sidebar.$refs.debug;
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type, id);
+            aiBubble?.addDebugMessage(text, type, id);
         },
 
         setDebug(text, type, id=null) {
             const debug = this.$refs.sidebar.$refs.debug;
             debug.setDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.setDebugMessage(text, type, id);
+            aiBubble?.setDebugMessage(text, type, id);
         },
 
         isMainContentVisible() {
@@ -692,7 +692,7 @@ export default {
         async loadHistory(chatId, switchChat = true) {
             if (!chatId || (!switchChat && this.selectedChatId !== chatId)) return;
             try {
-                const res = await backendClient.history(chatId);
+                const chat = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
 
                 // clear messages
@@ -700,16 +700,21 @@ export default {
                 debug.clearDebugMessages();
 
                 // add messages from history
-                for (const msg of res.responses) {
+                const numResponses = chat.responses?.length ?? 0;
+                for (const [index, msg] of chat.responses?.entries()) {
                     if (!msg) continue;
+
                     // request
                     if (msg.query) {
                         await this.addChatBubble(msg.query, true);
                         debug.addDebugMessage(msg.query, "user");
                     }
+
                     // response
-                    await this.addChatBubble(msg.content, false);
-                    const aiBubble = this.getLastBubble();
+                    const isLoading = !chat.is_finished && index === numResponses - 1;
+                    await this.addChatBubble(msg.content, false, isLoading);
+                    await nextTick();
+
                     for (const agent_message of msg.agent_messages) {
                         const chunk = {
                             id: agent_message.id,
@@ -727,16 +732,22 @@ export default {
                             execution_time: agent_message.execution_time,
                             metrics: agent_message.response_metadata
                         };
-                        aiBubble.addMetric(metric)
+                        const aiBubble = this.getLastBubble();
+                        aiBubble?.addMetric(metric)
                     }
                     if (msg.error) {
                         aiBubble.setError(msg.error);
                     }
                 }
 
-                this.showExampleQuestions = false;
-                this.selectedChatId = chatId;
-                this.newChat = false;
+                if (this.messages.length > 0) {
+                    this.showExampleQuestions = false;
+                    this.selectedChatId = chatId;
+                    this.newChat = false;
+                    this.messages[this.messages.length - 1]
+                        .isLoading = true
+                }
+
             } catch (err) {
                 console.error("Failed to load chat history:", err);
             }
