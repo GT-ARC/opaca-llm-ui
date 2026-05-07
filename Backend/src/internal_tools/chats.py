@@ -4,7 +4,7 @@ import json
 from textwrap import dedent
 
 from .context import InternalToolContext
-from .definitions import InternalTool
+from ..models import InternalTool
 
 
 class ChatTools:

@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from ..code_execution import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, extract_code_block
+from ..models import InternalTool
 from .context import InternalToolContext
-from .definitions import InternalTool
 
 
 logger = logging.getLogger(__name__)

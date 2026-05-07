@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Set, Literal, Annotated
+from typing import Callable, Iterable, Set, Literal, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -202,6 +202,16 @@ class ToolCall(BaseModel):
     def without_id(self):
         """representation for tool without ID field, to be passed back to LLM (ID can be confusing)"""
         return {k: v for k, v in self.model_dump().items() if k != "id"}
+
+
+class InternalTool(BaseModel):
+    name: str
+    description: str
+    params: dict[str, str]
+    required_params: list[str] | None = None
+    result: str
+    function: Callable
+    requires_code_execution: bool = False
 
 
 class ScheduledTask(BaseModel):

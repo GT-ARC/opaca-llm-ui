@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..code_execution import CodeExecutor
-from ..models import ScheduledTask, SessionData
+from ..models import InternalTool, ScheduledTask, SessionData
 from .context import InternalToolContext
-from .definitions import INTERNAL_TOOLS_AGENT_NAME, InternalTool
 from .chats import ChatTools
 from .code_tools import CodeTools
 from .files import FileTools
@@ -13,6 +12,9 @@ from .scheduling import ScheduledTaskTools
 
 if TYPE_CHECKING:
     from ..abstract_method import AbstractMethod
+
+
+INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
 
 
 TOOL_GROUPS = (

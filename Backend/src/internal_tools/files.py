@@ -5,8 +5,8 @@ import logging
 import requests
 
 from ..file_utils import filename_from_url_and_type, register_bytes_as_uploaded_file
+from ..models import InternalTool
 from .context import InternalToolContext
-from .definitions import InternalTool
 
 
 logger = logging.getLogger(__name__)

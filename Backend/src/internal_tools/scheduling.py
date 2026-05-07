@@ -6,9 +6,8 @@ from datetime import datetime, timedelta
 from math import ceil
 from textwrap import dedent
 
-from ..models import PushAdvert, PushMessage, QueryResponse, ScheduledTask
+from ..models import InternalTool, PushAdvert, PushMessage, QueryResponse, ScheduledTask
 from .context import InternalToolContext
-from .definitions import InternalTool
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
