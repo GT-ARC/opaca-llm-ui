@@ -4,6 +4,7 @@ import pytest
 
 from src.code_execution import CodeExecutor
 from src.internal_tools import INTERNAL_TOOLS_AGENT_NAME, InternalTools
+from src.internal_tools.scheduling import ScheduledTaskTools
 from src.models import QueryResponse, ScheduledTask, SessionData
 
 
@@ -132,6 +133,27 @@ def test_openai_schema_is_unchanged(code_executor_available):
     }
 
 
+def test_internal_tools_container_groups_tools_for_ui(code_executor_available):
+    containers = make_internal_tools().get_internal_tools_containers()
+
+    assert len(containers) == 1
+    container = containers[0]
+    assert container["containerId"] == "__internal_tools__"
+    assert container["image"]["imageName"] == "Internal Tools"
+
+    groups = {agent["agentId"]: agent["actions"] for agent in container["agents"]}
+    assert list(groups) == ["Scheduled Tasks", "Chat History", "Files", "Code Execution"]
+    assert [action["name"] for action in groups["Scheduled Tasks"]] == [
+        "ScheduleIntervalTask",
+        "ScheduleCalendarTask",
+        "GetScheduledTasks",
+        "CancelScheduleTask",
+    ]
+    assert [action["name"] for action in groups["Chat History"]] == ["GatherUserInfo", "SearchChats"]
+    assert [action["name"] for action in groups["Files"]] == ["ReadFileFromUrl"]
+    assert [action["name"] for action in groups["Code Execution"]] == ["ExecuteCode", "SolveWithCode"]
+
+
 def test_code_tools_are_hidden_when_code_executor_is_unavailable():
     previous = CodeExecutor.available
     CodeExecutor.available = False
@@ -182,7 +204,7 @@ def test_resume_scheduled_task_compatibility_wrapper(code_executor_available, mo
         called["task"] = received_task
         return "ok"
 
-    monkeypatch.setattr(internal_tools.scheduling, "resume_scheduled_task", fake_resume)
+    monkeypatch.setattr(internal_tools._get_group(ScheduledTaskTools), "resume_scheduled_task", fake_resume)
 
     result = asyncio.run(internal_tools.resume_scheduled_task(task))
 

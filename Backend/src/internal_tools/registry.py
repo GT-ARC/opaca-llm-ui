@@ -6,17 +6,25 @@ from ..code_execution import CodeExecutor
 from ..models import ScheduledTask, SessionData
 from .context import InternalToolContext
 from .definitions import INTERNAL_TOOLS_AGENT_NAME, InternalTool
+from .chats import ChatTools
+from .code_tools import CodeTools
+from .files import FileTools
+from .scheduling import ScheduledTaskTools
 
 if TYPE_CHECKING:
     from ..abstract_method import AbstractMethod
 
+
+TOOL_GROUPS = (
+    ScheduledTaskTools,
+    ChatTools,
+    FileTools,
+    CodeTools,
+)
+
+
 class InternalTools:
     def __init__(self, session: SessionData, agent_method: type["AbstractMethod"]):
-        from .chats import ChatTools
-        from .code_tools import CodeTools
-        from .files import FileTools
-        from .scheduling import ScheduledTaskTools
-
         self.session = session
         self.agent_method = agent_method
         self.code_executor = CodeExecutor()
@@ -25,40 +33,66 @@ class InternalTools:
             agent_method=self.agent_method,
             code_executor=self.code_executor,
         )
-        self.scheduling = ScheduledTaskTools(self.context)
+        self.groups = [group_cls(self.context) for group_cls in TOOL_GROUPS]
+        self.group_tools = [(group, group.tools()) for group in self.groups]
+        self.tools = [tool for _, tools in self.group_tools for tool in tools]
 
-        groups = [
-            self.scheduling,
-            ChatTools(self.context),
-            FileTools(self.context),
-            CodeTools(self.context),
-        ]
-        self.tools = [tool for group in groups for tool in group.tools()]
+    def _get_group(self, group_type):
+        return next(group for group in self.groups if isinstance(group, group_type))
 
     def available_tools(self) -> list[InternalTool]:
         if CodeExecutor.available is True:
             return self.tools
         return [tool for tool in self.tools if not tool.requires_code_execution]
 
+    def _format_internal_tool_simple(self, tool: InternalTool) -> dict:
+        return {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": {
+                key: {
+                    "type": val,
+                    "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys()),
+                }
+                for key, val in tool.params.items()
+            },
+            "result": {"type": tool.result, "required": True},
+        }
+
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
         return {
             INTERNAL_TOOLS_AGENT_NAME: [
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": {
-                        key: {
-                            "type": val,
-                            "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys()),
-                        }
-                        for key, val in tool.params.items()
-                    },
-                    "result": {"type": tool.result, "required": True},
-                }
+                self._format_internal_tool_simple(tool)
                 for tool in self.available_tools()
             ]
         }
+
+    def get_internal_tools_containers(self) -> list[dict]:
+        """return internal tools as a pseudo OPACA container for UI display"""
+        agents = []
+        for group, tools in self.group_tools:
+            actions = [
+                self._format_internal_tool_simple(tool)
+                for tool in tools
+                if CodeExecutor.available is True or not tool.requires_code_execution
+            ]
+            if actions:
+                agents.append({
+                    "agentId": group.GROUP_NAME,
+                    "actions": actions,
+                })
+
+        return [{
+            "containerId": "__internal_tools__",
+            "image": {
+                "imageName": "Internal Tools",
+                "name": "Internal Tools",
+                "version": "builtin",
+                "provider": "SAGE",
+            },
+            "agents": agents,
+        }]
 
     def get_internal_tools_openai(self) -> list[dict]:
         """return internal tools in OpenAI Functions format"""
@@ -89,7 +123,7 @@ class InternalTools:
 
     async def resume_scheduled_task(self, task: ScheduledTask):
         """resume scheduled task after deserialization"""
-        return await self.scheduling.resume_scheduled_task(task)
+        return await self._get_group(ScheduledTaskTools).resume_scheduled_task(task)
 
     async def query_method(self, query: str):
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""

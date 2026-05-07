@@ -36,10 +36,10 @@
                             :data-bs-target="`#container-accordion-body-${containerId}`"
                             :aria-controls="`container-accordion-body-${containerId}`"
                             aria-expanded="false">
-                        <i class="fa fa-box me-3"/>
+                        <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
 
-                        <i v-if="conf.ContainerManagement"
+                        <i v-if="conf.ContainerManagement && !isInternalContainer(containerId)"
                             class="fa fa-remove delete-icon"
                             @click.stop.prevent="this.stopContainer(containerId)"
                             :title="Localizer.get('agents_undeploy')"
@@ -98,7 +98,7 @@
                                              class="accordion-collapse collapse action-body p-2"
                                              :aria-labelledby="`action-accordion-header-${containerId}-${agentIndex}-${actionIndex}`"
                                              :data-bs-parent="`#actions-accordion-${containerId}-${agentIndex}`">
-                                            <p class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
+                                            <p v-if="!isInternalContainer(containerId)" class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
                                                 <strong>{{ Localizer.get('agents_invoke') }}</strong>
                                                 <i class="fa fa-circle-play mx-2"/>
                                             </p>
@@ -121,7 +121,7 @@
             </div>
         </div>
     </div>
-    <button v-if="conf.ContainerManagement && this.platformContainers !== null /* null -> not-connected */"
+    <button v-if="conf.ContainerManagement && this.isPlatformConnected"
             type="button"
             class="btn btn-primary py-2 w-100"
             @click.stop="addContainer()">
@@ -162,15 +162,24 @@ export default {
     methods: {
         async updatePlatformInfo() {
             this.isLoading = true;
-            this.platformContainers = this.isPlatformConnected
-                ? await backendClient.getContainers()
-                : null;
-            this.isLoading = false;
+            try {
+                const externalContainers = this.isPlatformConnected
+                    ? await backendClient.getContainers()
+                    : [];
+                const internalContainers = await backendClient.getInternalTools();
+                this.platformContainers = [...externalContainers, ...internalContainers];
+            } finally {
+                this.isLoading = false;
+            }
             await nextTick();
         },
 
         formatJSON(obj) {
             return JSON.stringify(obj, null, 2);
+        },
+
+        isInternalContainer(containerId) {
+            return containerId === "__internal_tools__";
         },
 
         getContainers() {
@@ -184,7 +193,11 @@ export default {
             let containers = JSON.parse(JSON.stringify(this.platformContainers));
 
             // sort containers/agents/actions alphabetically
-            containers.sort((a, b) => a.image.imageName.toLowerCase().localeCompare(b.image.imageName.toLowerCase()));
+            containers.sort((a, b) => {
+                if (this.isInternalContainer(a.containerId) && !this.isInternalContainer(b.containerId)) return -1;
+                if (!this.isInternalContainer(a.containerId) && this.isInternalContainer(b.containerId)) return 1;
+                return a.image.imageName.toLowerCase().localeCompare(b.image.imageName.toLowerCase());
+            });
             containers.forEach(container => {
                 container.agents.sort((a, b) => a.agentId.toLowerCase().localeCompare(b.agentId.toLowerCase()));
                 container.agents.forEach(agent => {
@@ -304,12 +317,15 @@ export default {
         },
 
         async updateContainerDialogue() {
-            if (!this.platformContainers || this.platformContainers.length === 0) {
+            const externalContainers = (this.platformContainers ?? [])
+                .filter(container => !this.isInternalContainer(container.containerId));
+
+            if (externalContainers.length === 0) {
                 throw new Error(Localizer.get("agents_deploy_update_missing"));
             }
 
             const containerOptions = Object.fromEntries(
-                this.platformContainers.map(c => [c.image.imageName, c.image.imageName])
+                externalContainers.map(c => [c.image.imageName, c.image.imageName])
             );
 
             await this.$refs.input.showDialogue(
@@ -320,7 +336,7 @@ export default {
                     container: { type: "select", values: containerOptions }
                 },
                 async values => {
-                    const existing = this.platformContainers.find(c => c.image.imageName === values.container);
+                    const existing = externalContainers.find(c => c.image.imageName === values.container);
                     const baseContainer = {
                         image: existing.image,
                         arguments: existing.arguments || {}
@@ -423,6 +439,9 @@ export default {
         isPlatformConnected() {
             this.updatePlatformInfo();
         }
+    },
+    mounted() {
+        this.updatePlatformInfo();
     }
 }
 </script>

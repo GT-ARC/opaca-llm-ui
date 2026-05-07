@@ -8,6 +8,8 @@ from .definitions import InternalTool
 
 
 class ChatTools:
+    GROUP_NAME = "Chat History"
+
     def __init__(self, ctx: InternalToolContext):
         self.ctx = ctx
 

@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class CodeTools:
+    GROUP_NAME = "Code Execution"
+
     def __init__(self, ctx: InternalToolContext):
         self.ctx = ctx
 

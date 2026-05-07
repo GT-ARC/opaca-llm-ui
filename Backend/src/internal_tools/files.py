@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class FileTools:
+    GROUP_NAME = "Files"
+
     def __init__(self, ctx: InternalToolContext):
         self.ctx = ctx
 

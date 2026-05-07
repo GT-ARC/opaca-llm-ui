@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class ScheduledTaskTools:
+    GROUP_NAME = "Scheduled Tasks"
+
     def __init__(self, ctx: InternalToolContext):
         self.ctx = ctx
 

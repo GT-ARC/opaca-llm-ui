@@ -24,6 +24,10 @@ class BackendClient {
         return await this.sendRequest("GET", "containers");
     }
 
+    async getInternalTools() {
+        return await this.sendRequest("GET", "internal-tools");
+    }
+
     async deployContainer(postContainer, update = false) {
         return await this.sendRequest("POST", `containers?update=${update}`, postContainer);
     }
