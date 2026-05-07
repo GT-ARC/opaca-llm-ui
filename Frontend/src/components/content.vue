@@ -4,7 +4,7 @@
          @dragenter.prevent="() => toggleFileDropOverlay(true)">
 
         <!-- File Drop Overlay -->
-        <div v-if="showFileDropOverlay" id="fileDropOverlay"
+        <div v-if="showFileDropOverlay && this.isChatFinished()" id="fileDropOverlay"
              @dragleave.prevent="() => toggleFileDropOverlay(false)"
              @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
             <div id="overlayContent">
@@ -140,7 +140,7 @@
 
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
-                               :class="[this.isMobile ? 'me-1': 'ms-1']"
+                               :class="[this.isMobile ? 'me-1': 'ms-1', !this.isChatFinished() ? 'disabled' : '']"
                                :title="Localizer.get('files_upload')" >
                             <i class="fa fa-upload" />
                             <input
@@ -976,7 +976,8 @@ export default {
     transform: translateY(-1px);
 }
 
-.input-area-button:disabled {
+.input-area-button:disabled,
+.input-area-button.disabled {
     opacity: 0.5;
 }
 
