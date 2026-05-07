@@ -147,8 +147,10 @@ class AbstractMethod(ABC):
         stream = await litellm.aresponses_api_with_mcp(**kwargs)
         async for event in stream:
 
-            # Check if an "abort" message has been sent by the user
-            if self.chat.abort_sent:
+            # Abort the response generation for a specific chat,
+            # or for all notifications and other anonymous queries at once.
+            if (self.chat.is_aborted
+                    or (self.chat.chat_id == '' and self.session.is_notifs_aborted)):
                 raise OpacaException(
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."

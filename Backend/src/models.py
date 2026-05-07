@@ -249,15 +249,16 @@ class Chat(BaseModel):
         responses: list of full query-responses incl. intermediate messages and meta-infos
         time_created: when the chat was created
         time_modified: when the chat was last used
+        is_aborted: Boolean indicating whether the current interaction should be aborted.
+        is_finished: Boolean indicating whether the chat has finished generating a response for its last query.
         messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
     """
     chat_id: str
     name: str = ''
     responses: List[QueryResponse] = []
     time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    abort_sent: bool = False
+    is_aborted: bool = False
     is_finished: bool = True
 
     @property
@@ -300,6 +301,7 @@ class SessionData(BaseModel):
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
         prompts: Prompt Library data.
+        is_notifs_aborted: Boolean indicating if all current notification generations should be aborted.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -322,6 +324,7 @@ class SessionData(BaseModel):
     mcp_servers: List[Dict] = Field(default_factory=list)
     blocked: bool = False
     prompts: SessionPrompts | None = None
+    is_notifs_aborted: bool = False
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)

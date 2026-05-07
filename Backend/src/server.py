@@ -234,6 +234,7 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
+    session.is_notifs_aborted = False
     try:
         internal_tools = InternalTools(session, METHODS[method])
         response = QueryResponse(query=message.user_query)
@@ -290,8 +291,7 @@ async def query_chat(method: str, chat_id: str, message: QueryRequest, session: 
     chat = session.get_or_create_chat(chat_id, True)
     response = QueryResponse(query=message.user_query)
     chat.store_interaction(response)
-    chat.derive_name()
-    chat.abort_sent = False
+    chat.is_aborted = False
     chat.is_finished = False
     try:
         internal_tools = InternalTools(session, METHODS[method])
@@ -363,10 +363,15 @@ async def append(chat_id: str, auto_append: bool, push_message: PushMessage, ses
         session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
 
 
-@app.post("/chats/{chat_id}/stop", description="Abort generation for every query of the current session.", tags=["chat"])
+@app.post("/chats/{chat_id}/stop", description="Abort generation for a specific chat.", tags=["chat"])
 async def stop_query(chat_id: str, session: SessionData = Depends(handle_session_http)) -> None:
     chat = session.get_or_create_chat(chat_id, create_if_missing=False)
-    chat.abort_sent = True
+    chat.is_aborted = True
+
+
+@app.post("/stop", description="Abort generation for all anonymous query of the session (e.g. notifications).", tags=["chat"])
+async def stop_query(session: SessionData = Depends(handle_session_http)) -> None:
+    session.is_notifs_aborted = True
 
 
 ## CONFIG ROUTES

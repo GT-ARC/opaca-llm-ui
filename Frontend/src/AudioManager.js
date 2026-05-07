@@ -290,7 +290,7 @@ class AudioManager {
 
     stopWebSpeechRecognition() {
         if (this._recognition) {
-            this._recognition.stop();
+            this._recognition.stop_chat();
             this._recognition = null;
         }
     }
@@ -377,7 +377,7 @@ class AudioManager {
 
     stopWhisperRecognition() {
         if (this._mediaRecorder) {
-            this._mediaRecorder.stop();
+            this._mediaRecorder.stop_chat();
             this._mediaRecorder = null;
         }
     }

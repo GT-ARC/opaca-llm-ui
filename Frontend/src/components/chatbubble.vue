@@ -453,7 +453,7 @@ export default {
 
         stopAudioPlayback() {
             if (this.ttsAudio) {
-                this.ttsAudio.stop();
+                this.ttsAudio.stop_chat();
             }
         },
 
