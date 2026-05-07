@@ -20,6 +20,3 @@ class InternalToolContext:
         """Call AgentMethod.query without streaming, chat history, or internal tools."""
         self.session.abort_sent = False
         return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=""))
-
-    def create_task_id(self) -> int:
-        return max(self.session.scheduled_tasks, default=-1) + 1

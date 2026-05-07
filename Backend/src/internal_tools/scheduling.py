@@ -73,6 +73,9 @@ class ScheduledTaskTools:
         next_time = self._get_next_calendar_time(current, time_of_day, weekdays)
         return ceil((next_time - current).total_seconds())
 
+    def create_task_id(self) -> int:
+        return max(self.ctx.session.scheduled_tasks, default=-1) + 1
+
     async def deferred_execution_helper(
         self,
         query: str,
@@ -156,7 +159,7 @@ class ScheduledTaskTools:
             raise ValueError("Repetitions must not be zero")
 
         if task_id is None:
-            task_id = self.ctx.create_task_id()
+            task_id = self.create_task_id()
         session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions))
         return task_id

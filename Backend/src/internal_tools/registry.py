@@ -128,6 +128,3 @@ class InternalTools:
     async def query_method(self, query: str):
         """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
         return await self.context.query(query)
-
-    def create_task_id(self) -> int:
-        return self.context.create_task_id()
