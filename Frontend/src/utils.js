@@ -59,11 +59,11 @@ class BackendClient {
 
     // TODO query stream
 
-    async stop_chat(chatId) {
+    async stopChat(chatId) {
         await this.sendRequest("POST", `chats/${chatId}/stop`);
     }
 
-    async stop_notifs() {
+    async stopNotifs() {
         await this.sendRequest("POST", `stop`);
     }
 

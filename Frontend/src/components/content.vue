@@ -291,7 +291,7 @@ export default {
         },
 
         async stopGeneration() {
-            await backendClient.stop_chat(this.selectedChatId);
+            await backendClient.stopChat(this.selectedChatId);
         },
 
         async askSampleQuestion(questionText) {
@@ -511,7 +511,7 @@ export default {
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
-                if (result.is_output) {
+                if (result.is_output && !this.isChatFinished()) {
                     const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);

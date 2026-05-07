@@ -495,7 +495,7 @@ export default {
 
         stopAudioPlayback() {
             if (this.ttsAudio) {
-                this.ttsAudio.stop_chat();
+                this.ttsAudio.stop();
             }
         },
 
