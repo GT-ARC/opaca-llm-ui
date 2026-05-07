@@ -93,7 +93,7 @@ input[type="checkbox"] {
     gap: 0.5rem;
 }
 
-.btn:not(.input-group .btn) {
+.btn:not(.input-group .btn):not(.btn-group .btn) {
     border-radius: var(--bs-border-radius-pill);
 }
 

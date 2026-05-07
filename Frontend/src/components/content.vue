@@ -63,6 +63,7 @@
                         :initial-loading="isLoading"
                         :files="files"
                         :chat-id="this.selectedChatId"
+                        @view-file="openViewer"
                         :ref="elementId"
                     />
                 </div>
@@ -278,7 +279,7 @@ export default {
                 await nextTick();
                 this.resizeTextInput();
 
-                const files = this.selectedFiles.map(wrappedFile => wrappedFile.file);
+                const files = this.selectedFiles.map(wrappedFile => this.createMessageFile(wrappedFile.file));
                 await this.askChatGpt(userInput, files);
 
                 // Clear files list after sending
@@ -301,7 +302,7 @@ export default {
             if (placeholders !== null) {
                 // substitute placeholders
                 await this.$refs.input.showDialogue(
-                    Localizer.get("questions_placeholders"), questionText, null, 
+                    Localizer.get("questions_placeholders"), questionText, null,
                     Object.fromEntries(placeholders.map(x => [x, {type: "text", label: x}])),
                     async (values) => {
                         // ask the completed question
@@ -387,6 +388,12 @@ export default {
         async uploadFiles(fileList) {
             const files = Array.from(fileList);
 
+            files.forEach(file => {
+                if (file.type?.startsWith("image/") && !file.previewUrl) {
+                    file.previewUrl = URL.createObjectURL(file);
+                }
+            });
+
             // Save selected files to state
             // Files will remain here while component instance is alive (i.e. till page reload)
             const wrappedFiles = files.map(file => ({
@@ -457,6 +464,14 @@ export default {
 
         maxDisplayedFiles() {
             return this.isMobile ? 2 : 4;
+        },
+
+        createMessageFile(file) {
+            return {
+                name: file.name,
+                type: file.type,
+                url: file.url || file.previewUrl || null,
+            };
         },
 
         async connectWebsocket() {

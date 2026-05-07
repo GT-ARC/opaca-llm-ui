@@ -177,6 +177,11 @@ class BackendClient {
         return await this.sendRequest("DELETE", `mcp/${serverLabel}`);
     }
 
+    async setMcpToolApproval(serverLabel, toolName, approval) {
+        const body = {tool_name: toolName, approval: approval};
+        return await this.sendRequest("PATCH", `mcp/${serverLabel}/approval`, body);
+    }
+
     // internal helper
 
     async sendRequest(method, path, body = null, timeout = 10000) {
