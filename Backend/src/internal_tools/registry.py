@@ -43,9 +43,10 @@ class InternalTools:
         return next(group for group in self.groups if isinstance(group, group_type))
 
     def available_tools(self) -> list[InternalTool]:
-        if CodeExecutor.available is True:
-            return self.tools
-        return [tool for tool in self.tools if not tool.requires_code_execution]
+        return [tool for tool in self.tools if self._is_tool_available(tool)]
+
+    def _is_tool_available(self, tool: InternalTool) -> bool:
+        return CodeExecutor.available is True or not tool.requires_code_execution
 
     def _format_internal_tool_simple(self, tool: InternalTool) -> dict:
         return {
@@ -77,7 +78,7 @@ class InternalTools:
             actions = [
                 self._format_internal_tool_simple(tool)
                 for tool in tools
-                if CodeExecutor.available is True or not tool.requires_code_execution
+                if self._is_tool_available(tool)
             ]
             if actions:
                 agents.append({
