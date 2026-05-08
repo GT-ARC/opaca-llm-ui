@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, Chat, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
+from ..models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
 
 
 class ToolLlmConfig(MethodConfig):
@@ -22,14 +22,11 @@ class ToolLLMMethod(AbstractMethod):
     NAME = 'tool-llm'
     CONFIG = ToolLlmConfig
 
-    def __init__(self, session, streaming=False, internal_tools=None):
-        super().__init__(session, streaming, internal_tools)
-
     class EvaluatorResponse(BaseModel):
         reason: str
         decision: str
 
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self) -> QueryResponse:
 
         # Initialize parameters
         tool_messages = []          # Internal messages between llm-components
@@ -38,10 +35,6 @@ class ToolLLMMethod(AbstractMethod):
         should_continue = True      # Whether the internal iteration should continue or not
         skip_chain = False          # Whether to skip the internal chain and go straight to the output generation
         eval_reason = ""            # Saves the last reason the Evaluator Agent output for its decision
-
-        # Initialize the response object
-        response = QueryResponse()
-        response.query = message
 
         # Use config set in session, if nothing was set yet, use default values
         config: ToolLlmConfig = self.get_config()
@@ -61,7 +54,7 @@ class ToolLLMMethod(AbstractMethod):
                 system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
                 messages=[
                     ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
-                        message=message,
+                        message=self.response.query,
                     )),
                 ],
                 response_format=self.EvaluatorResponse,
@@ -69,7 +62,7 @@ class ToolLLMMethod(AbstractMethod):
                 tool_choice="none",
                 status_message="Checking if tools are needed",
             )
-            response.agent_messages.append(result)
+            self.response.agent_messages.append(result)
             try:
                 formatted_result = json.loads(result.content)
                 skip_chain = formatted_result["decision"] == 'FINISHED'
@@ -88,8 +81,8 @@ class ToolLLMMethod(AbstractMethod):
                 agent='Tool Generator',
                 system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                 messages=[
-                    *chat.messages,
-                    ChatMessage(role="user", content=message),
+                    *self.chat.messages,
+                    ChatMessage(role="user", content=self.response.query),
                     *tool_messages,
                 ],
                 tool_choice="only",
@@ -115,8 +108,8 @@ class ToolLLMMethod(AbstractMethod):
                     agent='Tool Generator',
                     system_prompt=self.build_full_prompt(GENERATOR_PROMPT),
                     messages=[
-                        *chat.messages,
-                        ChatMessage(role="user", content=message),
+                        *self.chat.messages,
+                        ChatMessage(role="user", content=self.response.query),
                         *tool_messages,
                         ChatMessage(role="user", content=full_err),
                     ],
@@ -126,7 +119,7 @@ class ToolLLMMethod(AbstractMethod):
                 )
                 correction_limit += 1
 
-            response.agent_messages.append(result)
+            self.response.agent_messages.append(result)
 
             # Check if opaca and mcp tools were generated and if so, execute them by calling the opaca-proxy
             tasks = []
@@ -148,9 +141,9 @@ class ToolLLMMethod(AbstractMethod):
                     agent='Tool Evaluator',
                     system_prompt='',
                     messages=[
-                        *chat.messages,
+                        *self.chat.messages,
                         ChatMessage(role="user", content=EVALUATOR_TEMPLATE.format(
-                            message=message,
+                            message=self.response.query,
                             called_tools=called_tools,
                         )),
                     ],
@@ -159,7 +152,7 @@ class ToolLLMMethod(AbstractMethod):
                     tool_choice="none",
                     status_message="Evaluating Tool Call Results"
                 )
-                response.agent_messages.append(result)
+                self.response.agent_messages.append(result)
 
                 try:
                     formatted_result = json.loads(result.content)
@@ -184,10 +177,10 @@ class ToolLLMMethod(AbstractMethod):
             agent='Output Generator',
             system_prompt=self.build_full_prompt(OUTPUT_GENERATOR_SYSTEM_PROMPT),
             messages=[
-                *chat.messages,
-                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=message) if len(called_tools) == 0 else
+                *self.chat.messages,
+                ChatMessage(role="user", content=OUTPUT_GENERATOR_NO_TOOLS.format(message=self.response.query) if len(called_tools) == 0 else
                 OUTPUT_GENERATOR_TEMPLATE.format(
-                    message=message,
+                    message=self.response.query,
                     eval_reason=eval_reason,
                     called_tools=called_tools or "",
                 )),
@@ -197,13 +190,13 @@ class ToolLLMMethod(AbstractMethod):
             status_message="Generating final output",
             is_output=True,
         )
-        response.agent_messages.append(result)
+        self.response.agent_messages.append(result)
 
-        response.execution_time = time.time() - total_exec_time
-        response.iterations = c_it
-        response.content = result.content
-        response.error = error
-        return response
+        self.response.execution_time = time.time() - total_exec_time
+        self.response.iterations = c_it
+        self.response.content = result.content
+        self.response.error = error
+        return self.response
 
     async def check_valid_action(self, calls: List[ToolCall]) -> str:
         # Save all encountered errors in a single string, which will be given to the llm as an input

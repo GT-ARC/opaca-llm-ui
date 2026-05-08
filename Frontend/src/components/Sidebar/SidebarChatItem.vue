@@ -1,6 +1,6 @@
 <template>
 <div class="chat align-items-center"
-     :class="{'chat-selected': this.selectedChatId === chatId, 'chat-disabled': !this.isFinished}"
+     :class="{'chat-selected': this.selectedChatId === chatId/*, 'chat-disabled': !this.isFinished*/}"
      @click="this.select()" >
     <input
         class="chat-name"
@@ -53,7 +53,7 @@ export default {
     },
     methods: {
         select() {
-            if (!this.isFinished) return;
+            // if (!this.isFinished) return;
             this.$emit('select-chat', this.chatId);
         },
 

@@ -113,9 +113,10 @@ export default {
         },
 
         async stopNotifications() {
-            backendClient.stop();
-            // there is no differentiation WHICH notification to stop, so this just removes all loading...
+            // there is no differentiation WHICH notification to stop,
+            // so this just removes all loading...
             this.messages = this.messages.filter(m => ! m.loading);
+            await backendClient.stopNotifs();
         },
 
         async dismissNotification(elementId) {
