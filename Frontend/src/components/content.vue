@@ -1,17 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
-         @dragover.prevent="() => toggleFileDropOverlay(true)"
-         @dragenter.prevent="() => toggleFileDropOverlay(true)">
-
-        <!-- File Drop Overlay -->
-        <div v-if="showFileDropOverlay && this.isChatFinished()" id="fileDropOverlay"
-             @dragleave.prevent="() => toggleFileDropOverlay(false)"
-             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
-            <div id="overlayContent">
-                <p>{{ Localizer.get("files_droparea") }}</p>
-                <span class="fa fa-file" />
-            </div>
-        </div>
+         @dragover.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)">
 
         <!-- File Viewer Overlay -->
         <FileViewer
@@ -23,6 +13,11 @@
         />
 
         <InputDialogue ref="input" />
+        <FileDropHandler
+            ref="fileDropHandler"
+            @files-dropped="handleFiles"
+            @text-dropped="insertDroppedText"
+        />
 
         <Sidebar
             :method="method"
@@ -146,10 +141,9 @@
                             <input
                                 type="file"
                                 ref="fileInput"
-                                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
-                                :disabled="!this.isChatFinished()"
-                                @change="e => uploadFiles(e.target.files)"
+                                :disabled="!this.isFinished"
+                                @change="handleFileSelection"
                                 multiple
                             />
                         </label>
@@ -218,6 +212,7 @@ import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
+import FileDropHandler from "./FileDropHandler.vue";
 
 export default {
     name: 'main-content',
@@ -227,7 +222,8 @@ export default {
         OptionsSelect,
         Sidebar,
         InputDialogue,
-        Chatbubble
+        Chatbubble,
+        FileDropHandler,
     },
     props: {
         method: String,
@@ -255,7 +251,6 @@ export default {
             selectedFiles: [],
             selectedChatId: '',
             newChat: false,
-            showFileDropOverlay: false,
             autoScrollEnabled: true,
             socket: null,
             viewerFile: null,
@@ -381,8 +376,61 @@ export default {
             await this.$refs.input.showInfo(null, message);
         },
 
-        async toggleFileDropOverlay(show) {
-            this.showFileDropOverlay = show;
+        async handleFiles(fileList) {
+            const files = Array.from(fileList ?? []);
+            if (files.length === 0) {
+                return;
+            }
+
+            const { cancelled, formattedText, uploadableFiles } = await this.$refs.fileDropHandler.prepareFiles(
+                files,
+                message => this.showInfo(message)
+            );
+            if (cancelled) {
+                return;
+            }
+
+            if (formattedText.length > 0) {
+                await this.insertDroppedText(formattedText.join("\n\n"));
+            }
+
+            if (uploadableFiles.length > 0) {
+                await this.uploadFiles(uploadableFiles);
+            }
+        },
+
+        async handleFileSelection(event) {
+            try {
+                await this.handleFiles(event.target.files);
+            } finally {
+                if (this.$refs.fileInput) {
+                    this.$refs.fileInput.value = "";
+                }
+            }
+        },
+
+        async insertDroppedText(text) {
+            const textarea = this.$refs.textInputRef;
+            const normalizedText = text.replace(/\r\n/g, "\n");
+
+            if (!textarea || typeof textarea.selectionStart !== "number") {
+                this.textInput = `${this.textInput}${normalizedText}`;
+                await nextTick();
+                this.resizeTextInput();
+                this.$refs.textInputRef?.focus();
+                return;
+            }
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentInput = this.textInput ?? "";
+            this.textInput = `${currentInput.slice(0, start)}${normalizedText}${currentInput.slice(end)}`;
+
+            await nextTick();
+            this.resizeTextInput();
+            textarea.focus();
+            const caretPosition = start + normalizedText.length;
+            textarea.setSelectionRange(caretPosition, caretPosition);
         },
 
         async uploadFiles(fileList) {
@@ -852,7 +900,7 @@ export default {
                 // Prevent from being inserted into the input
                 event.preventDefault();
 
-                await this.uploadFiles(files);
+                await this.handleFiles(files);
             }
             // If no file found, let normal paste happen
         },
@@ -1009,29 +1057,6 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
-}
-
-#fileDropOverlay {
-    position: absolute;
-    display: flex;
-    height: calc(100% - 2rem); /* room for margin + border */
-    width: calc(100% - 2rem); /* room for margin + border */
-    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
-    color: var(--primary-color);
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    transition: opacity 0.2s ease;
-    backdrop-filter: blur(3px);
-    border: 3px dashed var(--primary-color);
-    border-radius: 1rem;
-    margin: 1rem;
-}
-
-#overlayContent {
-    font-size: 1.5rem;
-    text-align: center;
-    pointer-events: none;
 }
 
 .sample-questions {

@@ -25,6 +25,7 @@ class SidebarManager {
      */
     constructor(selectedView = 'none') {
         this._selectedView = ref(selectedView);
+        this._isResizing = ref(false);
     }
 
     isValidView(key) {
@@ -64,6 +65,14 @@ class SidebarManager {
 
     isSidebarOpen() {
         return this.getSelectedView() !== 'none';
+    }
+
+    isResizing() {
+        return this._isResizing.value;
+    }
+
+    setResizing(isResizing) {
+        this._isResizing.value = isResizing;
     }
 
     close() {
