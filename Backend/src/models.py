@@ -147,16 +147,17 @@ class QueryResponse(BaseModel):
     content: str = ''
     error: str = ''
 
-    @staticmethod
-    def from_exception(user_query: str, exception: Exception) -> 'QueryResponse':
+    def make_error_response(self, exception: Exception) -> None:
         """Convert an exception (generic or OpacaException) to a QueryResponse to be
         returned to the Chat-UI."""
         if isinstance(exception, OpacaException):
             logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
-            return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
+            self.content = exception.user_message
+            self.error = exception.error_message
         else:
             logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
-            return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
+            self.content = 'Generation failed'
+            self.error = str(exception)
 
 
 class OpacaFile(BaseModel):
@@ -262,6 +263,8 @@ class Chat(BaseModel):
         responses: list of full query-responses incl. intermediate messages and meta-infos
         time_created: when the chat was created
         time_modified: when the chat was last used
+        is_aborted: Boolean indicating whether the current interaction should be aborted.
+        is_finished: Boolean indicating whether the chat has finished generating a response for its last query.
         messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
     """
     chat_id: str
@@ -269,6 +272,8 @@ class Chat(BaseModel):
     responses: List[QueryResponse] = []
     time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    is_aborted: bool = False
+    is_finished: bool = True
 
     @property
     def messages(self) -> Iterator[ChatMessage]:
@@ -336,7 +341,6 @@ class SessionData(BaseModel):
         session_id: The session's internal ID.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         notifications_chats_map: Which notifications should be auto-appended to which chats.
@@ -344,6 +348,7 @@ class SessionData(BaseModel):
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
         prompts: Prompt Library data.
+        is_notifs_aborted: Boolean indicating if all current notification generations should be aborted.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -359,7 +364,6 @@ class SessionData(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
-    abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
@@ -367,6 +371,7 @@ class SessionData(BaseModel):
     mcp_servers: Dict[str, MCPServer] = Field(default_factory=dict)
     blocked: bool = False
     prompts: SessionPrompts | None = None
+    is_notifs_aborted: bool = False
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
@@ -605,10 +610,15 @@ class TextChunkMessage(BaseModel):
     agent: str
     chunk: str
     is_output: bool
+    chat_id: str
+
+
+class ReloadChatsMessage(BaseModel):
+    pass
 
 
 class ResetTextMessage(BaseModel):
-    pass
+    chat_id: str
 
 
 class ToolCallMessage(BaseModel):
@@ -616,22 +626,26 @@ class ToolCallMessage(BaseModel):
     id: str
     name: str
     args: Dict[str, Any] = {}
+    chat_id: str
 
 
 class ToolResultMessage(BaseModel):
     id: str
     result: Any | None
+    chat_id: str
 
 
 class StatusMessage(BaseModel):
     agent: str
     status: str
+    chat_id: str
 
 
 class MetricsMessage(BaseModel):
     agent: str
     metrics: dict
     execution_time: float
+    chat_id: str
 
 
 class PushAdvert(BaseModel):
@@ -669,8 +683,8 @@ class ContainerLoginNotification(BaseModel):
         tool_name: The name of the tool that requires further credentials
         retry: Whether the login attempt has already been tried
     """
-    container_name: str = ""
-    tool_name: str = ""
+    container_name: str = ''
+    tool_name: str = ''
     retry: bool = False
 
 

@@ -1,17 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
-         @dragover.prevent="() => toggleFileDropOverlay(true)"
-         @dragenter.prevent="() => toggleFileDropOverlay(true)">
-
-        <!-- File Drop Overlay -->
-        <div v-if="showFileDropOverlay" id="fileDropOverlay"
-             @dragleave.prevent="() => toggleFileDropOverlay(false)"
-             @drop.prevent="e => {toggleFileDropOverlay(false); uploadFiles(e.dataTransfer.files);}">
-            <div id="overlayContent">
-                <p>{{ Localizer.get("files_droparea") }}</p>
-                <span class="fa fa-file" />
-            </div>
-        </div>
+         @dragover.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)">
 
         <!-- File Viewer Overlay -->
         <FileViewer
@@ -23,13 +13,18 @@
         />
 
         <InputDialogue ref="input" />
+        <FileDropHandler
+            ref="fileDropHandler"
+            @files-dropped="handleFiles"
+            @text-dropped="insertDroppedText"
+        />
 
         <Sidebar
             :method="method"
             :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
-            :is-finished="isFinished"
+            :is-finished="this.isChatFinished()"
             ref="sidebar"
             @select-question="question => this.handleSelectQuestion(question)"
             @select-category="category => this.handleSelectCategory(category)"
@@ -140,16 +135,15 @@
 
                         <!-- upload file button -->
                         <label class="btn btn-secondary input-area-button align-items-center"
-                               :class="[this.isMobile ? 'me-1': 'ms-1']"
+                               :class="[this.isMobile ? 'me-1': 'ms-1', !this.isChatFinished() ? 'disabled' : '']"
                                :title="Localizer.get('files_upload')" >
                             <i class="fa fa-upload" />
                             <input
                                 type="file"
                                 ref="fileInput"
-                                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
                                 class="d-none"
                                 :disabled="!this.isFinished"
-                                @change="e => uploadFiles(e.target.files)"
+                                @change="handleFileSelection"
                                 multiple
                             />
                         </label>
@@ -160,7 +154,7 @@
                                     v-if="AudioManager.isRecognitionSupported() && ! AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="this.startRecognition()"
-                                    :disabled="!isFinished"
+                                    :disabled="!this.isChatFinished()"
                                     :title="Localizer.get('chatarea_speak')">
                                 <i v-if="AudioManager.isTranscribing" class="fa fa-spin fa-spinner" />
                                 <i v-else class="fa fa-microphone" />
@@ -169,13 +163,13 @@
                                     v-if="AudioManager.isRecognitionSupported() && AudioManager.isRecording"
                                     class="btn btn-outline-primary input-area-button ms-1"
                                     @click="AudioManager.stopRecognition()"
-                                    :disabled="!isFinished"
+                                    :disabled="!this.isChatFinished()"
                                     :title="Localizer.get('chatarea_speak_stop')">
                                 <i class="fa fa-stop"/>
                             </button>
 
                             <button type="button"
-                                    v-if="!isFinished"
+                                    v-if="!this.isChatFinished()"
                                     class="btn btn-outline-danger input-area-button ms-1"
                                     @click="stopGeneration"
                                     :title="Localizer.get('chatarea_abort')">
@@ -183,7 +177,7 @@
                             </button>
 
                             <button type="button"
-                                    v-if="isFinished"
+                                    v-if="this.isChatFinished()"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
                                     :disabled="this.textInput.trim().length <= 0"
@@ -218,6 +212,7 @@ import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
+import FileDropHandler from "./FileDropHandler.vue";
 
 export default {
     name: 'main-content',
@@ -227,7 +222,8 @@ export default {
         OptionsSelect,
         Sidebar,
         InputDialogue,
-        Chatbubble
+        Chatbubble,
+        FileDropHandler,
     },
     props: {
         method: String,
@@ -248,7 +244,6 @@ export default {
         return {
             messages: [],
             textInput: '',
-            isFinished: true,
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
             selectedCategory: conf.DefaultQuestions,
@@ -256,7 +251,6 @@ export default {
             selectedFiles: [],
             selectedChatId: '',
             newChat: false,
-            showFileDropOverlay: false,
             autoScrollEnabled: true,
             socket: null,
             viewerFile: null,
@@ -272,7 +266,7 @@ export default {
         },
 
         async submitText() {
-            if (this.textInput && this.isFinished) {
+            if (this.textInput && this.isChatFinished()) {
                 // Copy current input and reset field
                 let userInput = this.textInput.trim();
                 this.textInput = '';
@@ -292,7 +286,7 @@ export default {
         },
 
         async stopGeneration() {
-            await backendClient.stop();
+            await backendClient.stopChat(this.selectedChatId);
         },
 
         async askSampleQuestion(questionText) {
@@ -343,7 +337,6 @@ export default {
         },
 
         async askChatGpt(userText, files = null) {
-            this.isFinished = false;
             this.showExampleQuestions = false;
             this.newChat = false;
 
@@ -373,9 +366,9 @@ export default {
             } finally {
                 // always set to completed, even in case of error, e.g. timeout
                 aiBubble.toggleLoading(false);
-                this.isFinished = true;
                 this.startAutoSpeak();
                 this.scrollDownChat();
+                await this.$refs.sidebar.$refs.chats.updateChats();
             }
         },
 
@@ -383,8 +376,61 @@ export default {
             await this.$refs.input.showInfo(null, message);
         },
 
-        async toggleFileDropOverlay(show) {
-            this.showFileDropOverlay = show;
+        async handleFiles(fileList) {
+            const files = Array.from(fileList ?? []);
+            if (files.length === 0) {
+                return;
+            }
+
+            const { cancelled, formattedText, uploadableFiles } = await this.$refs.fileDropHandler.prepareFiles(
+                files,
+                message => this.showInfo(message)
+            );
+            if (cancelled) {
+                return;
+            }
+
+            if (formattedText.length > 0) {
+                await this.insertDroppedText(formattedText.join("\n\n"));
+            }
+
+            if (uploadableFiles.length > 0) {
+                await this.uploadFiles(uploadableFiles);
+            }
+        },
+
+        async handleFileSelection(event) {
+            try {
+                await this.handleFiles(event.target.files);
+            } finally {
+                if (this.$refs.fileInput) {
+                    this.$refs.fileInput.value = "";
+                }
+            }
+        },
+
+        async insertDroppedText(text) {
+            const textarea = this.$refs.textInputRef;
+            const normalizedText = text.replace(/\r\n/g, "\n");
+
+            if (!textarea || typeof textarea.selectionStart !== "number") {
+                this.textInput = `${this.textInput}${normalizedText}`;
+                await nextTick();
+                this.resizeTextInput();
+                this.$refs.textInputRef?.focus();
+                return;
+            }
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentInput = this.textInput ?? "";
+            this.textInput = `${currentInput.slice(0, start)}${normalizedText}${currentInput.slice(end)}`;
+
+            await nextTick();
+            this.resizeTextInput();
+            textarea.focus();
+            const caretPosition = start + normalizedText.length;
+            textarea.setSelectionRange(caretPosition, caretPosition);
         },
 
         async uploadFiles(fileList) {
@@ -485,6 +531,19 @@ export default {
         async handleStreamingSocketMessage(event) {
             const result = JSON.parse(event.data);
 
+            // Abort if the websocket message is not for the currently
+            // selected chat.
+            if (result.chat_id !== undefined && result.chat_id !== this.selectedChatId) {
+                return;
+            } else if (result.chat_id !== undefined && !this.messages || this.messages.length === 0) {
+                console.warn('No chat bubbles for streaming found.');
+                return;
+            }
+
+            if (result.type === 'ReloadChatsMessage') {
+                await this.$refs.sidebar.$refs.chats.updateChats();
+            }
+
             if (result.type === "ConfirmActionNotification") {
                 this.$emit('action-confirmation-required', result);
             }
@@ -500,13 +559,13 @@ export default {
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool
-                if (result.is_output && ! this.isFinished) {
+                if (result.is_output && !this.isChatFinished()) {
                     const aiBubble = this.getLastBubble();
                     aiBubble.toggleLoading(false);
                     aiBubble.addContent(result.chunk);
                     this.scrollDownChat();
                 }
-                await this.addDebugToken(result);
+                this.addDebugToken(result);
                 this.scrollDownDebug();
             }
 
@@ -516,12 +575,12 @@ export default {
             }
 
             if (result.type === "ToolCallMessage") {
-                await this.addDebugTool(result.agent, result);
+                this.addDebugTool(result.agent, result);
                 this.scrollDownDebug();
             }
 
             if (result.type === "ToolResultMessage") {
-                await this.addDebugResult(result);
+                this.addDebugResult(result);
                 this.scrollDownDebug();
             }
 
@@ -621,11 +680,11 @@ export default {
             this.$refs.sidebar.$refs.debug.scrollDownDebugView();
         },
 
-        async addDebugToken(chunk) {
+        addDebugToken(chunk) {
             this.addDebug(chunk.chunk, chunk.agent, chunk.id);
         },
 
-        async addDebugTool(llm_agent, tool) {
+        addDebugTool(llm_agent, tool) {
             const id = tool.id.split("/")[1];
             const [agent, action] = tool.name.split("--");
             const args = Object.entries(tool.args).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join("\n");
@@ -633,7 +692,7 @@ export default {
             this.addDebug(toolOutput, llm_agent, tool.id);
         },
 
-        async addDebugResult(result) {
+        addDebugResult(result) {
             const id = result.id.split("/")[1];
             const toolOutput = `Result: ${formatToolDebugResult(result.result)}`
             this.addDebug(toolOutput, `Result ${id}`, result.id);
@@ -651,14 +710,14 @@ export default {
             const debug = this.$refs.sidebar.$refs.debug;
             debug.addDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.addDebugMessage(text, type, id);
+            aiBubble?.addDebugMessage(text, type, id);
         },
 
         setDebug(text, type, id=null) {
             const debug = this.$refs.sidebar.$refs.debug;
             debug.setDebugMessage(text, type, id);
             const aiBubble = this.getLastBubble();
-            aiBubble.setDebugMessage(text, type, id);
+            aiBubble?.setDebugMessage(text, type, id);
         },
 
         isMainContentVisible() {
@@ -679,9 +738,9 @@ export default {
         },
 
         async loadHistory(chatId, switchChat = true) {
-            if (!chatId || !switchChat && this.selectedChatId !== chatId) return;
+            if (!chatId || (!switchChat && this.selectedChatId !== chatId)) return;
             try {
-                const res = await backendClient.history(chatId);
+                const chat = await backendClient.history(chatId);
                 const debug = this.$refs.sidebar.$refs.debug;
 
                 // clear messages
@@ -689,16 +748,21 @@ export default {
                 debug.clearDebugMessages();
 
                 // add messages from history
-                for (const msg of res.responses) {
+                const numResponses = chat.responses?.length ?? 0;
+                for (const [index, msg] of chat.responses?.entries()) {
                     if (!msg) continue;
+
                     // request
                     if (msg.query) {
                         await this.addChatBubble(msg.query, true);
                         debug.addDebugMessage(msg.query, "user");
                     }
+
                     // response
-                    await this.addChatBubble(msg.content, false);
-                    const aiBubble = this.getLastBubble();
+                    const isLoading = !chat.is_finished && index === numResponses - 1;
+                    await this.addChatBubble(msg.content, false, isLoading);
+                    await nextTick();
+
                     for (const agent_message of msg.agent_messages) {
                         const chunk = {
                             id: agent_message.id,
@@ -716,18 +780,22 @@ export default {
                             execution_time: agent_message.execution_time,
                             metrics: agent_message.response_metadata
                         };
-                        aiBubble.addMetric(metric)
+                        const aiBubble = this.getLastBubble();
+                        aiBubble?.addMetric(metric)
                     }
                     if (msg.error) {
                         aiBubble.setError(msg.error);
                     }
                 }
 
-                if (this.messages.length !== 0) {
+                if (this.messages.length > 0) {
                     this.showExampleQuestions = false;
                     this.selectedChatId = chatId;
                     this.newChat = false;
+                    this.messages[this.messages.length - 1]
+                        .isLoading = true
                 }
+
             } catch (err) {
                 console.error("Failed to load chat history:", err);
             }
@@ -832,7 +900,7 @@ export default {
                 // Prevent from being inserted into the input
                 event.preventDefault();
 
-                await this.uploadFiles(files);
+                await this.handleFiles(files);
             }
             // If no file found, let normal paste happen
         },
@@ -840,6 +908,12 @@ export default {
         openViewer(file) {
             this.viewerFile = file;
         },
+
+        isChatFinished() {
+            const currentChat = this.$refs.sidebar?.$refs.chats?.chats
+                ?.find(chat => chat?.chat_id === this.selectedChatId);
+            return currentChat?.is_finished || this.newChat;
+        }
     },
 
     mounted() {
@@ -950,7 +1024,8 @@ export default {
     transform: translateY(-1px);
 }
 
-.input-area-button:disabled {
+.input-area-button:disabled,
+.input-area-button.disabled {
     opacity: 0.5;
 }
 
@@ -982,29 +1057,6 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
-}
-
-#fileDropOverlay {
-    position: absolute;
-    display: flex;
-    height: calc(100% - 2rem); /* room for margin + border */
-    width: calc(100% - 2rem); /* room for margin + border */
-    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
-    color: var(--primary-color);
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    transition: opacity 0.2s ease;
-    backdrop-filter: blur(3px);
-    border: 3px dashed var(--primary-color);
-    border-radius: 1rem;
-    margin: 1rem;
-}
-
-#overlayContent {
-    font-size: 1.5rem;
-    text-align: center;
-    pointer-events: none;
 }
 
 .sample-questions {

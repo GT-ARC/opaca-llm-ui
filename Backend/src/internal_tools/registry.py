@@ -1,3 +1,14 @@
+"""
+Wrapper for different internal tools, to be provided to the OPACA LLM as "actions" like OPACA,
+but implemented directly in the backend.
+
+Those tools are then added to the OPACA Proxy's actions in the AbstractMethod's get_tools method.
+The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
+
+Some of the tools (like execute-later or summarize-chat) may again issue LLM calls.
+For this they have access to the AbstractMethod they are used by.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

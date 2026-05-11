@@ -18,5 +18,7 @@ class InternalToolContext:
 
     async def query(self, query: str) -> QueryResponse:
         """Call AgentMethod.query without streaming, chat history, or internal tools."""
-        self.session.abort_sent = False
-        return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=""))
+        self.session.is_notifs_aborted = False
+        response = QueryResponse(query=query)
+        method_impl = self.agent_method(self.session, Chat(chat_id=''), response, streaming=False)
+        return await method_impl.query()

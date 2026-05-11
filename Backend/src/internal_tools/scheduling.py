@@ -124,7 +124,8 @@ class ScheduledTaskTools:
                 result = await self.ctx.query(query_ext)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
-                result = QueryResponse.from_exception(query, e)
+                result = QueryResponse(query=query)
+                result.make_error_response(e)
 
             # Clean mapping
             session.prune_notifications_chats_map()
