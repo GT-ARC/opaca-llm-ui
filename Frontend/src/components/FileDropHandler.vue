@@ -224,7 +224,7 @@ export default {
                     {
                         handling: {
                             type: "select",
-                            label: "files_textHandling_mode",
+                            label: "",
                             default: "insert",
                             values: {
                                 insert: Localizer.get("files_textHandling_insert"),
