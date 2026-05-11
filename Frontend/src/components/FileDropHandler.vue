@@ -228,7 +228,7 @@ export default {
                             default: "insert",
                             values: {
                                 insert: Localizer.get("files_textHandling_insert"),
-                                upload: Localizer.get("files_textHandling_upload"),
+                                //upload: Localizer.get("files_textHandling_upload"),  // XXX commented until this is implemented in the backend
                             }
                         }
                     },
