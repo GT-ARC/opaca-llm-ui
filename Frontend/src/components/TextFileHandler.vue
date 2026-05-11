@@ -1,9 +1,18 @@
 <template>
-    <span class="d-none" aria-hidden="true" />
+    <div v-if="showFileDropOverlay"
+         id="fileDropOverlay"
+         @dragleave.prevent="() => toggleFileDropOverlay(false)"
+         @drop.prevent="handleOverlayDrop">
+        <div id="overlayContent">
+            <p>{{ Localizer.get("files_droparea") }}</p>
+            <span class="fa fa-upload" />
+        </div>
+    </div>
 </template>
 
 <script>
 import Localizer from "../Localizer.js";
+import SidebarManager from "../SidebarManager";
 
 const TEXT_SAMPLE_BYTES = 4096;
 const ALLOWED_TEXT_CONTROL_CODES = new Set([9, 10, 12, 13]);
@@ -19,7 +28,42 @@ const CODE_FENCE_LANGUAGES = {
 
 export default {
     name: "TextFileHandler",
+    emits: ["files-dropped", "text-dropped"],
+    setup() {
+        return { Localizer };
+    },
+    data() {
+        return {
+            showFileDropOverlay: false,
+        };
+    },
     methods: {
+        async toggleFileDropOverlay(show) {
+            this.showFileDropOverlay = show && !SidebarManager.isResizing();
+        },
+
+        async handleOverlayDrop(event) {
+            const dataTransfer = event.dataTransfer;
+            if (!dataTransfer) {
+                return;
+            }
+
+            const draggedContentType = this.getDraggedContentType(dataTransfer);
+            await this.toggleFileDropOverlay(false);
+
+            if (draggedContentType === "files") {
+                this.$emit("files-dropped", dataTransfer.files);
+                return;
+            }
+
+            const text = dataTransfer.getData("text/plain");
+            if (text) {
+                this.$emit("text-dropped", text);
+            }
+        },
+
+        // Textfile Handling
+
         getDraggedContentType(dataTransfer) {
             const items = Array.from(dataTransfer.items ?? []);
             const types = Array.from(dataTransfer.types ?? []);
@@ -191,3 +235,28 @@ export default {
     },
 }
 </script>
+
+<style scoped>
+#fileDropOverlay {
+    position: absolute;
+    display: flex;
+    height: calc(100% - 2rem); /* room for margin + border */
+    width: calc(100% - 2rem); /* room for margin + border */
+    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
+    color: var(--primary-color);
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(3px);
+    border: 3px dashed var(--primary-color);
+    border-radius: 1rem;
+    margin: 1rem;
+}
+
+#overlayContent {
+    font-size: 1.5rem;
+    text-align: center;
+    pointer-events: none;
+}
+</style>

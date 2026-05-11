@@ -1,17 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
-         @dragover.prevent="() => toggleFileDropOverlay(true)"
-         @dragenter.prevent="() => toggleFileDropOverlay(true)">
-
-        <!-- File Drop Overlay -->
-        <div v-if="showFileDropOverlay" id="fileDropOverlay"
-             @dragleave.prevent="() => toggleFileDropOverlay(false)"
-             @drop.prevent="handleOverlayDrop">
-            <div id="overlayContent">
-                <p>{{ Localizer.get("files_droparea") }}</p>
-                <span class="fa fa-upload" />
-            </div>
-        </div>
+         @dragover.prevent="() => this.$refs.textFileHandler?.toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => this.$refs.textFileHandler?.toggleFileDropOverlay(true)">
 
         <!-- File Viewer Overlay -->
         <FileViewer
@@ -23,7 +13,11 @@
         />
 
         <InputDialogue ref="input" />
-        <TextFileHandler ref="textFileHandler" />
+        <TextFileHandler
+            ref="textFileHandler"
+            @files-dropped="handleFiles"
+            @text-dropped="insertDroppedText"
+        />
 
         <Sidebar
             :method="method"
@@ -257,7 +251,6 @@ export default {
             selectedFiles: [],
             selectedChatId: '',
             newChat: false,
-            showFileDropOverlay: false,
             autoScrollEnabled: true,
             socket: null,
             viewerFile: null,
@@ -382,31 +375,6 @@ export default {
 
         async showInfo(message) {
             await this.$refs.input.showInfo(null, message);
-        },
-
-        async toggleFileDropOverlay(show) {
-            this.showFileDropOverlay = show && !SidebarManager.isResizing();
-        },
-
-        async handleOverlayDrop(event) {
-            const dataTransfer = event.dataTransfer;
-            if (!dataTransfer) {
-                return;
-            }
-
-            const textFileHandler = this.$refs.textFileHandler;
-            const draggedContentType = textFileHandler.getDraggedContentType(dataTransfer);
-            await this.toggleFileDropOverlay(false);
-
-            if (draggedContentType === "files") {
-                await this.handleFiles(dataTransfer.files);
-                return;
-            }
-
-            const text = dataTransfer.getData("text/plain");
-            if (text) {
-                await this.insertDroppedText(text);
-            }
         },
 
         async handleFiles(fileList) {
@@ -1048,29 +1016,6 @@ export default {
     overflow: hidden;
     position: relative; /* For fade positioning */
     background-color: var(--background-color);
-}
-
-#fileDropOverlay {
-    position: absolute;
-    display: flex;
-    height: calc(100% - 2rem); /* room for margin + border */
-    width: calc(100% - 2rem); /* room for margin + border */
-    background: color-mix(in srgb, var(--background-color) 80%, transparent); /* Adds opacity */
-    color: var(--primary-color);
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    transition: opacity 0.2s ease;
-    backdrop-filter: blur(3px);
-    border: 3px dashed var(--primary-color);
-    border-radius: 1rem;
-    margin: 1rem;
-}
-
-#overlayContent {
-    font-size: 1.5rem;
-    text-align: center;
-    pointer-events: none;
 }
 
 .sample-questions {
