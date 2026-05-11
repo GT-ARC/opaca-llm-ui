@@ -1,7 +1,7 @@
 <template>
     <div class="d-flex justify-content-start flex-grow-1 w-100 position-relative z-1"
-         @dragover.prevent="() => this.$refs.textFileHandler?.toggleFileDropOverlay(true)"
-         @dragenter.prevent="() => this.$refs.textFileHandler?.toggleFileDropOverlay(true)">
+         @dragover.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)"
+         @dragenter.prevent="() => this.$refs.fileDropHandler?.toggleFileDropOverlay(true)">
 
         <!-- File Viewer Overlay -->
         <FileViewer
@@ -13,8 +13,8 @@
         />
 
         <InputDialogue ref="input" />
-        <TextFileHandler
-            ref="textFileHandler"
+        <FileDropHandler
+            ref="fileDropHandler"
             @files-dropped="handleFiles"
             @text-dropped="insertDroppedText"
         />
@@ -211,7 +211,7 @@ import OptionsSelect from "./OptionsSelect.vue";
 import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
-import TextFileHandler from "./TextFileHandler.vue";
+import FileDropHandler from "./FileDropHandler.vue";
 
 export default {
     name: 'main-content',
@@ -222,7 +222,7 @@ export default {
         Sidebar,
         InputDialogue,
         Chatbubble,
-        TextFileHandler,
+        FileDropHandler,
     },
     props: {
         method: String,
@@ -383,9 +383,8 @@ export default {
                 return;
             }
 
-            const { cancelled, formattedText, uploadableFiles } = await this.$refs.textFileHandler.prepareFiles(
+            const { cancelled, formattedText, uploadableFiles } = await this.$refs.fileDropHandler.prepareFiles(
                 files,
-                this.$refs.input,
                 message => this.showInfo(message)
             );
             if (cancelled) {

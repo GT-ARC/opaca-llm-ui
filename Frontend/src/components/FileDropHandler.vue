@@ -1,18 +1,22 @@
 <template>
-    <div v-if="showFileDropOverlay"
-         id="fileDropOverlay"
-         @dragleave.prevent="() => toggleFileDropOverlay(false)"
-         @drop.prevent="handleOverlayDrop">
-        <div id="overlayContent">
-            <p>{{ Localizer.get("files_droparea") }}</p>
-            <span class="fa fa-upload" />
+    <div>
+        <div v-if="showFileDropOverlay"
+             id="fileDropOverlay"
+             @dragleave.prevent="() => toggleFileDropOverlay(false)"
+             @drop.prevent="handleOverlayDrop">
+            <div id="overlayContent">
+                <p>{{ Localizer.get("files_droparea") }}</p>
+                <span class="fa fa-upload" />
+            </div>
         </div>
+        <InputDialogue ref="input" />
     </div>
 </template>
 
 <script>
 import Localizer from "../Localizer.js";
 import SidebarManager from "../SidebarManager";
+import InputDialogue from "./InputDialogue.vue";
 
 const TEXT_SAMPLE_BYTES = 4096;
 const ALLOWED_TEXT_CONTROL_CODES = new Set([9, 10, 12, 13]);
@@ -27,7 +31,8 @@ const CODE_FENCE_LANGUAGES = {
 };
 
 export default {
-    name: "TextFileHandler",
+    name: "FileDropHandler",
+    components: { InputDialogue },
     emits: ["files-dropped", "text-dropped"],
     setup() {
         return { Localizer };
@@ -86,7 +91,7 @@ export default {
             return dotIndex >= 0 ? fileName.slice(dotIndex) : "";
         },
 
-        async prepareFiles(fileList, inputDialogue, onReadError) {
+        async prepareFiles(fileList, onReadError) {
             const files = Array.from(fileList ?? []);
             if (files.length === 0) {
                 return { cancelled: false, formattedText: [], uploadableFiles: [] };
@@ -108,7 +113,7 @@ export default {
             }
 
             // Ask once per batch
-            const textFileHandling = await this.askTextFileHandling(inputDialogue);
+            const textFileHandling = await this.askTextFileHandling();
             if (!textFileHandling) {
                 return { cancelled: true, formattedText: [], uploadableFiles: [] };
             }
@@ -210,9 +215,9 @@ export default {
             )).filter(text => text != null);
         },
 
-        async askTextFileHandling(inputDialogue) {
+        async askTextFileHandling() {
             return await new Promise(resolve => {
-                inputDialogue.showDialogue(
+                this.$refs.input.showDialogue(
                     Localizer.get("files_textHandling_title"),
                     Localizer.get("files_textHandling_message"),
                     null,
