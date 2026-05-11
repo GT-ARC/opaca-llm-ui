@@ -21,14 +21,15 @@ from starlette.datastructures import Headers
 from openai import OpenAI
 
 from . import sample_prompts as prompts
-from .models import ConnectRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
+from .models import ConnectRequest, MCPToolApproval, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateMessage, PushMessage, \
-    InvokeRequest, InvokeResponse, SessionPrompts
+    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
 from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
+from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
@@ -63,6 +64,7 @@ info_queries = {
 async def lifespan(app: FastAPI):
     # before start
     asyncio.create_task(cleanup_task(60))
+    CodeExecutor.warmup_task = asyncio.create_task(CodeExecutor().warmup())
     await load_all_sessions()
     await restore_scheduled_tasks(METHODS)
 
@@ -181,11 +183,13 @@ async def get_platform_info(lang: str, session: SessionData = Depends(handle_ses
     if lang not in info_queries:
         lang = 'GB'
     query = info_queries[lang]
+    response = QueryResponse(query=query)
     actions = await session.opaca_client.get_containers()
     key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
         internal_tools = InternalTools(session, METHODS['simple-tools'])
-        result = await METHODS['simple-tools'](session, False, internal_tools).query(query, Chat(chat_id=''))
+        method_impl = METHODS['simple-tools'](session, Chat(chat_id=''), response, False, internal_tools)
+        result = await method_impl.query()
         platform_infos[key] = result.content
     return platform_infos[key]
 
@@ -200,10 +204,10 @@ async def get_containers(session: SessionData = Depends(handle_session_http)) ->
     return await session.opaca_client.get_containers()
 
 
-@app.post("/containers", description="Deploy container to connected OPACA Runtime Platform.", tags=["opaca"])
-async def post_container(post_container: dict, session: SessionData = Depends(handle_session_http)) -> dict:
+@app.post("/containers", description="Deploy or update container to connected OPACA Runtime Platform.", tags=["opaca"])
+async def post_container(post_container: dict, update: bool = False, session: SessionData = Depends(handle_session_http)) -> dict:
     try:
-        await session.opaca_client.deploy_container(post_container)
+        await session.opaca_client.deploy_container(post_container, update)
         return {"success": True}
     except HTTPStatusError as e:
         message = "Unauthorized" if e.response.status_code == 403 else unpack_error(e.response.json())
@@ -230,17 +234,16 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
+    session.is_notifs_aborted = False
     try:
-        session.abort_sent = False
         internal_tools = InternalTools(session, METHODS[method])
-        return await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, Chat(chat_id=''))
+        response = QueryResponse(query=message.user_query)
+        method_impl = METHODS[method](session, Chat(chat_id=''), response, message.streaming, internal_tools)
+        return await method_impl.query()
     except Exception as e:
-        return QueryResponse.from_exception(message.user_query, e)
-
-
-@app.post("/stop", description="Abort generation for every query of the current session.", tags=["chat"])
-async def stop_query(session: SessionData = Depends(handle_session_http)) -> None:
-    session.abort_sent = True
+        response = QueryResponse(query=message.user_query)
+        response.make_error_response(e)
+        return response
 
 
 # MCP Routes
@@ -263,13 +266,18 @@ async def delete_mcp_server(server_label: str, session: SessionData = Depends(ha
     else:
         return Response(status_code=404, content="No matching mcp server found!")
 
+@app.patch("/mcp/{server_label}/approval", description="Set whether a tool call should be allowed, denied, or require confirmation by the user.", tags=["mcp"])
+async def update_mcp_tool_approval(data: MCPToolApproval, server_label: str, session: SessionData = Depends(handle_session_http)) -> Response:
+    await session.set_mcp_tool_approval(server_label, data.tool_name, data.approval)
+    return Response(status_code=204)
 
 ### CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.", tags=["chat"])
 async def get_chats(session: SessionData = Depends(handle_session_http)) -> List[Chat]:
     chats = [
-        Chat(chat_id=chat.chat_id, name=chat.name, time_created=chat.time_created, time_modified=chat.time_modified)
+        Chat(chat_id=chat.chat_id, name=chat.name, is_finished=chat.is_finished,
+             time_created=chat.time_created, time_modified=chat.time_modified)
         for chat in session.chats.values()
     ]
     chats.sort(key=lambda chat: chat.time_modified, reverse=True)
@@ -284,18 +292,21 @@ async def get_chat_history(chat_id: str, session: SessionData = Depends(handle_s
 
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(method: str, chat_id: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
-    chat = None
+    chat = session.get_or_create_chat(chat_id, True)
+    response = QueryResponse(query=message.user_query)
+    chat.store_interaction(response)
+    chat.is_aborted = False
+    chat.is_finished = False
     try:
-        session.abort_sent = False
-        chat = session.get_or_create_chat(chat_id, True)
         internal_tools = InternalTools(session, METHODS[method])
-        result = await METHODS[method](session, message.streaming, internal_tools).query(message.user_query, chat)
+        method_impl = METHODS[method](session, chat, response, message.streaming, internal_tools)
+        await session.websocket_send(ReloadChatsMessage())
+        await method_impl.query()
     except Exception as e:
-        result = QueryResponse.from_exception(message.user_query, e)
+        response.make_error_response(e)
     finally:
-        if chat is not None:
-            chat.store_interaction(result)
-        return result
+        chat.is_finished = True
+        return response
 
 
 @app.put("/chats/{chat_id}", description="Update a chat's name.", tags=["chat"])
@@ -354,6 +365,17 @@ async def append(chat_id: str, auto_append: bool, push_message: PushMessage, ses
     # Update mapping for auto-append
     if auto_append:
         session.notifications_chats_map.setdefault(push_message.task_id, set()).add(chat_id)
+
+
+@app.post("/chats/{chat_id}/stop", description="Abort generation for a specific chat.", tags=["chat"])
+async def stop_query(chat_id: str, session: SessionData = Depends(handle_session_http)) -> None:
+    chat = session.get_or_create_chat(chat_id, create_if_missing=False)
+    chat.is_aborted = True
+
+
+@app.post("/stop", description="Abort generation for all anonymous query of the session (e.g. notifications).", tags=["chat"])
+async def stop_query(session: SessionData = Depends(handle_session_http)) -> None:
+    session.is_notifs_aborted = True
 
 
 ## CONFIG ROUTES

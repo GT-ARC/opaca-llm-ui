@@ -28,9 +28,9 @@ export default {
     name: 'FileViewer',
     props: {
         fileName: String,
-        src: String,   // can be blob:... or https://...
+        src: String,
         mimeType: String,
-        visible: Boolean
+        visible: Boolean,
     },
     emits: ['close'],
     computed: {

@@ -24,8 +24,8 @@ class BackendClient {
         return await this.sendRequest("GET", "containers");
     }
 
-    async deployContainer(postContainer) {
-        return await this.sendRequest("POST", "containers", postContainer);
+    async deployContainer(postContainer, update = false) {
+        return await this.sendRequest("POST", `containers?update=${update}`, postContainer);
     }
 
     async undeployContainer(containerId) {
@@ -59,7 +59,11 @@ class BackendClient {
 
     // TODO query stream
 
-    async stop() {
+    async stopChat(chatId) {
+        await this.sendRequest("POST", `chats/${chatId}/stop`);
+    }
+
+    async stopNotifs() {
         await this.sendRequest("POST", `stop`);
     }
 
@@ -171,6 +175,11 @@ class BackendClient {
 
     async deleteMcp(serverLabel) {
         return await this.sendRequest("DELETE", `mcp/${serverLabel}`);
+    }
+
+    async setMcpToolApproval(serverLabel, toolName, approval) {
+        const body = {tool_name: toolName, approval: approval};
+        return await this.sendRequest("PATCH", `mcp/${serverLabel}/approval`, body);
     }
 
     // internal helper

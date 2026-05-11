@@ -147,16 +147,17 @@ class QueryResponse(BaseModel):
     content: str = ''
     error: str = ''
 
-    @staticmethod
-    def from_exception(user_query: str, exception: Exception) -> 'QueryResponse':
+    def make_error_response(self, exception: Exception) -> None:
         """Convert an exception (generic or OpacaException) to a QueryResponse to be
         returned to the Chat-UI."""
         if isinstance(exception, OpacaException):
             logger.error(f'OpacaException: {exception.error_message}\nTraceback: {traceback.format_exc()}')
-            return QueryResponse(query=user_query, content=exception.user_message, error=exception.error_message)
+            self.content = exception.user_message
+            self.error = exception.error_message
         else:
             logger.error(f'Exception: {exception}\nTraceback: {traceback.format_exc()}')
-            return QueryResponse(query=user_query, content='Generation failed', error=str(exception))
+            self.content = 'Generation failed'
+            self.error = str(exception)
 
 
 class OpacaFile(BaseModel):
@@ -214,6 +215,8 @@ class ScheduledTask(BaseModel):
         query: the query that will be played back to the LLM on execution
         next_time: the next time this task should be executed
         interval: interval between executions (or just until the first execution if no repetitions)
+        time_of_day: execution time for daily/weekly schedules, formatted as HH:MM
+        weekdays: weekdays for weekly schedules, or all weekdays for daily schedules, using 0=Monday ... 6=Sunday
         repetitions: how many more times this task should be executed; -1 for infinite (should never be zero)
     """
     method: str
@@ -221,6 +224,8 @@ class ScheduledTask(BaseModel):
     query: str
     next_time: str
     interval: int
+    time_of_day: str | None = None
+    weekdays: List[int] | None = None
     repetitions: int
 
 
@@ -248,6 +253,8 @@ class Chat(BaseModel):
         responses: list of full query-responses incl. intermediate messages and meta-infos
         time_created: when the chat was created
         time_modified: when the chat was last used
+        is_aborted: Boolean indicating whether the current interaction should be aborted.
+        is_finished: Boolean indicating whether the chat has finished generating a response for its last query.
         messages: Chat history (user queries and final LLM responses), used in subsequent requests. (derived)
     """
     chat_id: str
@@ -255,6 +262,8 @@ class Chat(BaseModel):
     responses: List[QueryResponse] = []
     time_created: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     time_modified: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    is_aborted: bool = False
+    is_finished: bool = True
 
     @property
     def messages(self) -> Iterator[ChatMessage]:
@@ -280,6 +289,39 @@ class Chat(BaseModel):
 SessionPrompts = Dict[str, List[PromptCategory]]
 
 
+class MCPTool(BaseModel):
+    name: str
+    description: str
+    inputSchema: Dict[str, Any]
+    server_label: str
+    approval: Literal["ask", "deny", "allow"]
+
+    def get_full_name(self) -> str:
+        """Get the full tool name as expected by the LLM, including the server label."""
+        return f"{self.server_label}--{self.name}"
+
+    def cast_to_openai_tool(self) -> Dict[str, Any]:
+        """Cast the MCPTool into the format expected by LiteLLM's OpenAPI tool schema."""
+        return {
+            "type": "function",
+            "name": self.get_full_name(),
+            "description": self.description,
+            "parameters": self.inputSchema
+        }
+
+
+class MCPServerParams(BaseModel):
+    server_url: str
+    server_label: str
+    type: str | None = None
+    require_approval: str
+
+
+class MCPServer(BaseModel):
+    params: MCPServerParams
+    tools: Dict[str, MCPTool] = Field(default_factory=dict)
+    
+
 class SessionData(BaseModel):
     """
     Stores relevant information regarding the session, including messages, configuration,
@@ -289,7 +331,6 @@ class SessionData(BaseModel):
         session_id: The session's internal ID.
         chats: All the chat histories associated with the session.
         config: Configuration dictionary, one sub-dict for each method.
-        abort_sent: Boolean indicating whether the current interaction should be aborted.
         uploaded_files: Dictionary storing each uploaded PDF file.
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
         notifications_chats_map: Which notifications should be auto-appended to which chats.
@@ -297,6 +338,7 @@ class SessionData(BaseModel):
         mcp_servers: All added mcp server information in JSON format.
         blocked: Whether this session is currently blocked, not accepting any requests.
         prompts: Prompt Library data.
+        is_notifs_aborted: Boolean indicating if all current notification generations should be aborted.
     Transient fields:
         _websocket: Can be used to send intermediate result and other messages back to the UI
         _ws_message_queue: Used to buffer messages received from the websocket
@@ -312,14 +354,14 @@ class SessionData(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='_id')
     chats: Dict[str, Chat] = Field(default_factory=dict)
     config: Dict[str, Any] = Field(default_factory=dict)
-    abort_sent: bool = False
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
-    mcp_servers: List[Dict] = Field(default_factory=list)
+    mcp_servers: Dict[str, MCPServer] = Field(default_factory=dict)
     blocked: bool = False
     prompts: SessionPrompts | None = None
+    is_notifs_aborted: bool = False
 
     _websocket: WebSocket | None = PrivateAttr(default=None)
     _ws_msg_queue: asyncio.Queue | None = PrivateAttr(default=None)
@@ -390,51 +432,86 @@ class SessionData(BaseModel):
         else:
             raise Exception("Websocket not connected")
 
-    async def get_mcp_tools(self) -> Dict:
-        """Returns a list of all available mcp server tools"""
+    async def get_mcp_tools(self) -> dict[str, list[MCPTool]]:
+        """Returns a list of all available mcp server tools."""
         tools = {}
-        for mcp_server in self.mcp_servers:
-            client = MCPClient(server_url=mcp_server["server_url"])
-            tools[mcp_server["server_label"]] = await client.list_tools()
+        for server in self.mcp_servers.values():
+            tools[server.params.server_label] = list(server.tools.values())
         return tools
 
-    async def add_mcp_server(self, mcp_server: Dict[str, Any]) -> bool:
+    async def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: Literal["ask", "deny", "allow"]):
+        """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
+        server = self.mcp_servers.get(server_label)
+        if not server:
+            raise KeyError(f"MCP server with label '{server_label}' not found.")
+        
+        full_name = f"{server_label}--{tool_name}"
+        tool = server.tools.get(full_name)
+        if not tool:
+            raise KeyError(f"Tool '{full_name}' not found in MCP server '{server_label}'.")
+        
+        tool.approval = approval
+
+    async def add_mcp_server(self, params: Dict[str, Any]) -> bool:
         """Adds a new mcp server json"""
 
         # Check if the server_url field is existing
-        if "server_url" not in mcp_server:
+        if "server_url" not in params:
             raise OpacaException("The 'server_url' field is required.", "No 'server_url' provided!", 400)
 
         # Check if the server url is in a valid format:
-        if not re.match(r'^https?://', mcp_server["server_url"]):
+        if not re.match(r'^https?://', params["server_url"]):
             raise OpacaException("The 'server_url' needs to be in a valid url-format (e.g. 'http://<address>.com/mcp')", "Malformed 'server_url'!", 400)
 
         # Check if a previous mcp server with the same url already exists
-        if any(m["server_url"] == mcp_server["server_url"] for m in self.mcp_servers):
-            raise OpacaException(f"An MCP server with the given server_url '{mcp_server['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
+        if any(m.params.server_url == params["server_url"] for m in self.mcp_servers.values()):
+            raise OpacaException(f"An MCP server with the given server_url '{params['server_url']}' already exists!", "Duplicate 'server_url'!", 400)
 
         # If no server label was given, transform the server_url into the label
-        if not mcp_server["server_label"]:
-            mcp_server["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', mcp_server["server_url"]).replace('.', '-')
+        if not params.get("server_label"):
+            params["server_label"] = re.sub(r'^.*//([^/]+).*$', r'\1', params["server_url"]).replace('.', '-')
+            
+        label = params["server_label"]
 
         # Check if a previous mcp server with the same label already exists (UI saves mcp servers based on label)
-        if any(m["server_label"] == mcp_server["server_label"] for m in self.mcp_servers):
-            raise OpacaException(f"An MCP server with the given server_label '{mcp_server['server_label']} already exists!", "Duplicate 'server_label'!", 400)
+        if label in self.mcp_servers:
+            raise OpacaException(f"An MCP server with the given server_label '{label}' already exists!", "Duplicate 'server_label'!", 400)
 
         # Check if the given server-url is actually an mcp server
-        client = MCPClient(server_url=mcp_server["server_url"])
-        if not await client.list_tools():
-            raise OpacaException(f"The given server_url '{mcp_server['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
+        client = MCPClient(server_url=params["server_url"])
+        client_tools = await client.list_tools()
+        if not client_tools:
+            raise OpacaException(f"The given server_url '{params['server_url']}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
-        self.mcp_servers.append(mcp_server)
+        # Disable auto-execution of MCP tools by LiteLLM: Force it to always require approval
+        # Our backend manages the permission flow itself with UI integration
+        params["require_approval"] = "always"
+
+        # Extract and remove default_approval from the mcp_server dict (prevent litellm unknown parameter exception)
+        default_approval = params.pop("default_approval", "ask")
+
+        mcp_tools = {}
+        for tool in client_tools:
+            full_name = f"{label}--{tool.name}"
+            mcp_tools[full_name] = MCPTool(
+                name=tool.name,
+                description=tool.description if tool.description else '',
+                inputSchema=tool.inputSchema,
+                server_label=label,
+                approval=default_approval
+            )
+
+        self.mcp_servers[label] = MCPServer(
+            params=MCPServerParams.model_validate(params),
+            tools=mcp_tools
+        )
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
         """Deletes an mcp server based on its name. The UI only stores the server_label."""
-        for mcp in self.mcp_servers:
-            if (mcp["server_label"]) == mcp_name:
-                self.mcp_servers.remove(mcp)
-                return True
+        if mcp_name in self.mcp_servers:
+            del self.mcp_servers[mcp_name]
+            return True
         return False
 
     def prune_notifications_chats_map(self):
@@ -474,6 +551,22 @@ class SearchResult(BaseModel):
     excerpt: str
 
 
+class ExecutionResult(BaseModel):
+    """
+    Result of Code Execution.
+
+    Attributes:
+        run_id: Short identifier used to correlate logs for one execution.
+        status: One of "success" or "error" (from Pyodide), or a handful of others like "timeout"
+        stdout: Captured standard output produced by the executed code.
+        stderr: Captured standard error or execution diagnostics.
+    """
+    run_id: str
+    status: str
+    stdout: str | None = None
+    stderr: str | None = None
+
+
 # CUSTOM EXCEPTIONS
 
 class OpacaException(Exception):
@@ -495,6 +588,11 @@ class MCPCreateMessage(BaseModel):
     content: Dict[str, Any]
 
 
+class MCPToolApproval(BaseModel):
+    tool_name: str
+    approval: Literal["ask", "deny", "allow"]
+
+
 # MESSAGES SENT OR RECEIVED VIA WEBSOCKET
 
 class TextChunkMessage(BaseModel):
@@ -502,10 +600,15 @@ class TextChunkMessage(BaseModel):
     agent: str
     chunk: str
     is_output: bool
+    chat_id: str
+
+
+class ReloadChatsMessage(BaseModel):
+    pass
 
 
 class ResetTextMessage(BaseModel):
-    pass
+    chat_id: str
 
 
 class ToolCallMessage(BaseModel):
@@ -513,22 +616,26 @@ class ToolCallMessage(BaseModel):
     id: str
     name: str
     args: Dict[str, Any] = {}
+    chat_id: str
 
 
 class ToolResultMessage(BaseModel):
     id: str
     result: Any | None
+    chat_id: str
 
 
 class StatusMessage(BaseModel):
     agent: str
     status: str
+    chat_id: str
 
 
 class MetricsMessage(BaseModel):
     agent: str
     metrics: dict
     execution_time: float
+    chat_id: str
 
 
 class PushAdvert(BaseModel):
@@ -566,8 +673,8 @@ class ContainerLoginNotification(BaseModel):
         tool_name: The name of the tool that requires further credentials
         retry: Whether the login attempt has already been tried
     """
-    container_name: str = ""
-    tool_name: str = ""
+    container_name: str = ''
+    tool_name: str = ''
     retry: bool = False
 
 

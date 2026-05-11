@@ -2,7 +2,7 @@
 Wrapper for different internal tools, to be provided to the OPACA LLM as "actions" like OPACA,
 but implemented directly in the backend.
 
-Those tools are then added to the OPACA Proxy's actions in the AbstracMethod's get_tools method.
+Those tools are then added to the OPACA Proxy's actions in the AbstractMethod's get_tools method.
 The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
 
 Some of the tools (like execute-later or maybe summarize-file) may again issue LLM calls.
@@ -17,15 +17,20 @@ from datetime import datetime, timedelta
 from math import ceil
 
 from pydantic import BaseModel
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from textwrap import dedent
 
 from .file_utils import register_bytes_as_uploaded_file, filename_from_url_and_type
 from .models import SessionData, Chat, PushAdvert, PushMessage, ScheduledTask, QueryResponse
+from .code_execution import CodeExecutor, extract_code_block, PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT
+
+if TYPE_CHECKING:
+    from .abstract_method import AbstractMethod
 
 
 TIME_FORMAT = "%b %d %Y %H:%M"
 INTERNAL_TOOLS_AGENT_NAME = "LLM-Assistant"
+DAYS_OF_WEEK = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +39,10 @@ class InternalTool(BaseModel):
     name: str
     description: str
     params: dict[str, str]
+    required_params: list[str] | None = None
     result: str
     function: Callable
+    requires_code_execution: bool = False
 
 
 class InternalTools:
@@ -43,6 +50,7 @@ class InternalTools:
     def __init__(self, session: SessionData, agent_method: type['AbstractMethod']):
         self.session = session
         self.agent_method = agent_method
+        self.code_executor = CodeExecutor()
         self.tools = [
             # TASK SCHEDULING
             InternalTool(
@@ -50,14 +58,14 @@ class InternalTools:
                 description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the interval in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The delay should be a time in seconds for the first execution from now, and interval between executions, if applicable. Returns task ID",
                 params={"query": "string", "delay_seconds": "integer", "repetitions": "integer"},
                 result="integer",
-                function=self.tool_schedule_task,
+                function=self.tool_schedule_interval_task,
             ),
             InternalTool(
-                name="ScheduleDailyTask",
-                description="Schedule some action to be executed later. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time in the query itself. Tasks can be executed just once or recurring. A negative value for 'repetitions' is interpreted as 'forever'. The task will be executed once per day at the specified time, in format 'HH:MM'. Returns task ID",
-                params={"query": "string", "time_of_day": "string", "repetitions": "integer"},
+                name="ScheduleCalendarTask",
+                description="Schedule some action to be executed forever on a calendar schedule. The query is just another natural-language query that will be sent back to the LLM, having access to the same tools as the 'main' LLM. The query has to be self-contained, so the LLM can infer the action(s) to be called and their parameters, but it can be natural language, not JSON. Do not include the time or weekdays in the query itself. The task repeats forever. 'weekdays' must be a comma-separated list like 'Mon,Fri'; Pass an empty string for 'weekdays' to make it a daily task. For 'time_of_day' pass the local time in format 'HH:MM', or an empty string to use the current local time. Returns task ID",
+                params={"query": "string", "time_of_day": "string", "weekdays": "string"},
                 result="integer",
-                function=self.tool_schedule_daily_task,
+                function=self.tool_schedule_calendar_task,
             ),
             InternalTool(
                 name="GetScheduledTasks",
@@ -94,8 +102,32 @@ class InternalTools:
                 params={"url": "string"},
                 result="object",
                 function=self.tool_read_file_from_url,
-            )
+            ),
+            # CODE EXECUTION
+            InternalTool(
+                name="ExecuteCode",
+                description="Execute a given Python code snippet directly in a Pyodide sandbox. Prefer SolveWithCode unless you already have a specific snippet. Libraries may not be installed. Bare expressions are printed like in Jupyter. Returns stdout, stderr, status (e.g. success, error,  timeout), and run_id.",
+                params={"code": "string", "timeout_s": "integer"},
+                required_params=["code"],
+                result="object",
+                function=self.code_executor.execute_code,
+                requires_code_execution=True,
+            ),
+            InternalTool(
+                name="SolveWithCode",
+                description="Solve a computational task by generating and executing Python code in a Pyodide sandbox. Describe the task in plain language. Code is generated, executed, and retried automatically when execution fails. Returns runtime execution artifacts, generated_code, attempts, and attempt_history.",
+                params={"task": "string", "timeout_s": "integer", "max_code_retries": "integer"},
+                required_params=["task"],
+                result="object",
+                function=self.tool_solve_with_code,
+                requires_code_execution=True,
+            ),
         ]
+
+    def available_tools(self) -> list[InternalTool]:
+        if CodeExecutor.available:
+            return self.tools
+        return [tool for tool in self.tools if not tool.requires_code_execution]
 
     def get_internal_tools_simple(self) -> dict[str, list[dict]]:
         """return internal tools in OPACA format used by simple agent"""
@@ -105,12 +137,15 @@ class InternalTools:
                     "name": tool.name,
                     "description": tool.description,
                     "parameters": {
-                        key: {"type": val, "required": True}
+                        key: {
+                            "type": val,
+                            "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys())
+                        }
                         for key, val in tool.params.items()
                     },
                     "result": {"type": tool.result, "required": True}
                 }
-                for tool in self.tools
+                for tool in self.available_tools()
             ]
         }
 
@@ -128,20 +163,49 @@ class InternalTools:
                         for key, val in tool.params.items()
                     },
                     "additionalProperties": False,
-                    "required": list(tool.params),
+                    "required": tool.required_params if tool.required_params is not None else list(tool.params),
                 }
             }
-            for tool in self.tools
+            for tool in self.available_tools()
         ]
 
     async def call_internal_tool(self, tool: str, parameters: dict):
         """get callback method for internal tool matching the name and call with given parameters"""
-        callback = next(t.function for t in self.tools if t.name == tool)
-        return await callback(**parameters)
+        tool_def = next((t for t in self.available_tools() if t.name == tool), None)
+        if tool_def is None:
+            raise ValueError(f"Internal tool '{tool}' is not available")
+        return await tool_def.function(**parameters)
 
-    async def deferred_execution_helper(self, query: str, delay: int, interval: int, repetitions: int, task_id=None):
+    def _parse_weekdays(self, weekdays: str) -> list[int]:
+        return [DAYS_OF_WEEK.index(day.strip().lower()[:3]) for day in weekdays.split(",")]
+
+    def _get_next_calendar_time(self, current: datetime, time_of_day: str, weekdays: list[int]) -> datetime:
+        hh, mm = map(int, time_of_day.split(":"))
+        for days_ahead in range(8):
+            candidate = current + timedelta(days=days_ahead)
+            candidate = candidate.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if candidate.weekday() in weekdays and candidate > current:
+                return candidate
+        raise ValueError("Could not compute next execution time")
+
+    def _get_next_delay(self, current: datetime, interval: int, time_of_day: str | None = None, weekdays: list[int] | None = None) -> int:
+        if time_of_day is None or weekdays is None:
+            return interval
+        next_time = self._get_next_calendar_time(current, time_of_day, weekdays)
+        return ceil((next_time - current).total_seconds())
+
+    async def deferred_execution_helper(
+        self,
+        query: str,
+        delay: int,
+        interval: int,
+        repetitions: int,
+        task_id=None,
+        time_of_day: str | None = None,
+        weekdays: list[int] | None = None,
+    ):
         """
-        helper method used for creating different sorts of scheduled tasks (interval and daily)
+        helper method used for creating different sorts of scheduled tasks (interval and daily/weekly)
         and for restoring serialized scheduled tasks after restart
         """
         async def _callback(wait_time: int, remaining: int):
@@ -154,8 +218,9 @@ class InternalTools:
             # schedule next execution or remove task from list of tasks
             new_remaining = remaining - 1 if remaining > 0 else remaining
             if new_remaining != 0:
-                asyncio.create_task(_callback(interval, new_remaining))
-                self.session.scheduled_tasks[task_id] = make_task(interval, new_remaining)
+                next_delay = self._get_next_delay(datetime.now(), interval, time_of_day, weekdays)
+                asyncio.create_task(_callback(next_delay, new_remaining))
+                self.session.scheduled_tasks[task_id] = make_task(next_delay, new_remaining)
             else:
                 del self.session.scheduled_tasks[task_id]
 
@@ -176,7 +241,8 @@ class InternalTools:
                 result = await self.query_method(query_ext)
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
-                result = QueryResponse.from_exception(query, e)
+                result = QueryResponse(query=query)
+                result.make_error_response(e)
 
             # Clean mapping
             self.session.prune_notifications_chats_map()
@@ -192,9 +258,19 @@ class InternalTools:
 
             await self.session.websocket_send(push_message)
 
-        def make_task(delay, remaining):
-            next_time = (datetime.now() + timedelta(seconds=delay)).strftime(TIME_FORMAT)
-            return ScheduledTask(method=self.agent_method.NAME, task_id=task_id, query=query, next_time=next_time, interval=interval, repetitions=remaining)
+        def make_task(next_delay, remaining):
+            next_time = (datetime.now() + timedelta(seconds=next_delay)).strftime(TIME_FORMAT)
+            stored_interval = interval if time_of_day is None or weekdays is None else next_delay
+            return ScheduledTask(
+                method=self.agent_method.NAME,
+                task_id=task_id,
+                query=query,
+                next_time=next_time,
+                interval=stored_interval,
+                time_of_day=time_of_day,
+                weekdays=weekdays,
+                repetitions=remaining,
+            )
 
         if repetitions == 0:
             raise ValueError("Repetitions must not be zero")
@@ -210,22 +286,37 @@ class InternalTools:
         now = datetime.now()
         then = datetime.strptime(task.next_time, TIME_FORMAT)
         skipped = 0
-        if now >= then:
-            skipped = ceil((now - then).seconds / task.interval)
-            then += timedelta(seconds=task.interval) * skipped
-            if task.repetitions >= 0:
-                task.repetitions = max(0, task.repetitions - skipped)
+        if task.weekdays is None or task.time_of_day is None:
+            if now >= then:
+                skipped = ceil((now - then).total_seconds() / task.interval)
+                then += timedelta(seconds=task.interval) * skipped
+                if task.repetitions >= 0:
+                    task.repetitions = max(0, task.repetitions - skipped)
+        else:
+            while now >= then:
+                skipped += 1
+                then = self._get_next_calendar_time(then, task.time_of_day, task.weekdays)
         if task.repetitions != 0:
             logger.info(f"Resuming task {task.task_id} ({task.query}), after skipping {skipped} repetitions.")
-            await self.deferred_execution_helper(task.query, (then - now).seconds, task.interval, task.repetitions, task.task_id)
+            await self.deferred_execution_helper(
+                task.query,
+                max(0, ceil((then - now).total_seconds())),
+                task.interval,
+                task.repetitions,
+                task.task_id,
+                task.time_of_day,
+                task.weekdays,
+            )
         else:
             logger.info(f"Not resuming task {task.task_id} ({task.query}), all repetitions skipped.")
             del self.session.scheduled_tasks[task.task_id]
 
     async def query_method(self, query: str) -> QueryResponse:
-        """short-hand for calling AgentMethod.query, without streaming, chat, or internal tools"""
-        self.session.abort_sent = False
-        return await self.agent_method(self.session, streaming=False).query(query, Chat(chat_id=''))
+        """shorthand for calling AgentMethod.query, without streaming, chat, or internal tools"""
+        response = QueryResponse(query=query)
+        self.session.is_notifs_aborted = False
+        method_impl = self.agent_method(self.session, Chat(chat_id=''), response, streaming=False)
+        return await method_impl.query()
 
     def create_task_id(self) -> int:
         return max(self.session.scheduled_tasks, default=-1) + 1
@@ -233,16 +324,22 @@ class InternalTools:
 
     # IMPLEMENTATIONS OF ACTUAL TOOLS (see tool descriptions above for what those should do)
 
-    async def tool_schedule_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
+    async def tool_schedule_interval_task(self, query: str, delay_seconds: int, repetitions: int) -> int:
         return await self.deferred_execution_helper(query, delay_seconds, delay_seconds, repetitions)
 
-    async def tool_schedule_daily_task(self, query: str, time_of_day: str, repetitions: int) -> int:
-        hh, mm = map(int, time_of_day.split(":"))
-        now = datetime.now()
-        sec_now = now.hour*3600 + now.minute*60 + now.second
-        one_day = 24 * 60 * 60
-        delay = ((60*hh + mm)*60 - sec_now) % one_day
-        return await self.deferred_execution_helper(query, delay, one_day, repetitions)
+    async def tool_schedule_calendar_task(self, query: str, time_of_day: str, weekdays: str) -> int:
+        if not time_of_day:
+            time_of_day = datetime.now().strftime("%H:%M")
+        weekday_list = self._parse_weekdays(weekdays) if weekdays else list(range(7))
+        delay = self._get_next_delay(datetime.now(), 24 * 60 * 60, time_of_day, weekday_list)
+        return await self.deferred_execution_helper(
+            query,
+            delay,
+            -1,  # Not used
+            -1,
+            time_of_day=time_of_day,
+            weekdays=weekday_list,
+        )
 
     async def tool_get_scheduled_tasks(self) -> dict:
         return self.session.scheduled_tasks
@@ -305,3 +402,57 @@ class InternalTools:
                 "ok": False,
                 "error": str(e),
             }
+
+
+    async def tool_solve_with_code(self, task: str, timeout_s: int = 10, max_code_retries: int = 2) -> dict:
+        """
+        Generate Python code for *task* via an internal LLM call, execute it
+        in the Pyodide sandbox, and — if execution fails — retry up to
+        max_code_retries times with the error fed back to the LLM.
+        """
+        prompt = PYODIDE_CODE_PROMPT.format(task=task)
+        attempt_history: list[dict] = []
+
+        for attempt in range(1, max_code_retries + 2):
+            # 1. Ask the LLM to write code
+            llm_response = await self.query_method(prompt)
+            code = extract_code_block(llm_response.content)
+
+            if not code:
+                attempt_history.append(
+                    {"attempt": attempt, "error": "LLM did not produce any code."}
+                )
+                logger.warning(
+                    "SolveWithCode attempt %d/%d failed: No code generated",
+                    attempt, 1 + max_code_retries,
+                )
+                prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + (
+                    "Your previous reply did not contain executable Python code. "
+                    "Respond with ONLY valid Python code."
+                )
+                continue
+
+            # 2. Execute in sandbox, add to history
+            exec_result = await self.code_executor.execute_code(code=code, timeout_s=timeout_s)
+            attempt_history.append(
+                {"attempt": attempt, "generated_code": code, **exec_result.model_dump()}
+            )
+
+            # 3. Success → return immediately
+            if exec_result.status == "success":
+                return { **attempt_history.pop(), "previous_attempts": attempt_history }
+
+            # 4. Failure → build retry prompt
+            logger.warning(
+                "SolveWithCode attempt %d/%d failed. status=%s stderr=%s",
+                attempt, 1 + max_code_retries,
+                exec_result.status, exec_result.stderr,
+            )
+            prompt = PYODIDE_CODE_PROMPT.format(task=task) + "\n" + PYODIDE_CODE_RETRY_PROMPT.format(
+                code=code,
+                status=exec_result.status,
+                stdout=exec_result.stdout,
+                stderr=exec_result.stderr,
+            )
+
+        return { **attempt_history.pop(), "previous_attempts": attempt_history }

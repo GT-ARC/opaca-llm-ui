@@ -16,8 +16,7 @@
         <!-- "New Chat" button -->
         <button type="button"
                 class="btn btn-primary py-2 w-100"
-                @click="this.$emit('new-chat')"
-                :disabled="!this.isFinished" >
+                @click="this.$emit('new-chat')" >
             <i class="fa fa-pen-to-square" />
             {{ Localizer.get('chats_new') }}
         </button>
@@ -26,7 +25,7 @@
         <button type="button"
                 class="btn btn-secondary py-2 w-100"
                 @click="this.isSearching = true"
-                :disabled="!this.isFinished" >
+                :disabled="this.chats.length === 0" >
             <i class="fa fa-magnifying-glass" />
             {{ Localizer.get('chats_search') }}
         </button>
@@ -35,7 +34,7 @@
         <button type="button"
                 class="btn btn-danger py-2 w-100"
                 @click="onDeleteAllChats"
-                :disabled="!this.isFinished || this.chats.length === 0">
+                :disabled="this.chats.length === 0">
             <i class="fa fa-trash" />
             {{ Localizer.get('chats_deleteAll') }}
         </button>
