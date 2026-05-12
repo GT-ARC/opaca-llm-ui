@@ -193,7 +193,7 @@ class OpacaClient:
         res.raise_for_status()
 
         # Return the containerId and container name of the first matching container to include the given agent and action
-        return next((c["containerId"], c["image"].get("name", c["image"]["imageName"])) for c in res.json()
+        return next((c["containerId"], c["image"].get("name") or c["image"]["imageName"]) for c in res.json()
                     for a in c["agents"] if a["agentId"] == agent and any(action == ac["name"] for ac in a["actions"]))
 
     def _headers(self):
