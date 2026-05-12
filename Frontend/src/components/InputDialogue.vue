@@ -8,7 +8,7 @@
 
                     <div v-for="(val, key, idx) in schema" :key="key">
                         <div v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'">
-                            <label class="form-label mb-1">{{ val.label ?? key }}</label>
+                            <label class="form-label mb-1">{{ val.label ?? '' }}</label>
                             <input 
                                 v-model="values[key]"
                                 class="form-control mb-2"
@@ -18,7 +18,7 @@
                             />
                         </div>
                         <div v-if="val.type === 'textarea'">
-                            <label class="form-label mb-1">{{ val.label ?? key }}</label>
+                            <label class="form-label mb-1">{{ val.label ?? '' }}</label>
                             <textarea 
                                 v-model="values[key]"
                                 class="form-control mb-2"
@@ -31,10 +31,10 @@
                         </div>
                         <div v-if="val.type === 'checkbox'">
                             <input id="cb" class="form-check-input mb-2" type="checkbox" v-model="values[key]" v-bind:autofocus="idx === 0"/>
-                            <label for="cb" class="form-check-label mx-2"> {{ val.label ?? key }} </label>
+                            <label for="cb" class="form-check-label mx-2"> {{ val.label ?? '' }} </label>
                         </div>
                         <div v-if="val.type === 'select'">
-                            <label class="form-label mb-1">{{ val.label ?? key }}</label>
+                            <label class="form-label mb-1">{{ val.label ?? '' }}</label>
                             <select
                                 v-model="values[key]"
                                 v-bind:autofocus="idx === 0"
@@ -107,7 +107,7 @@ export default {
          * Where
          * - key: the internal name of the property, reused in the dict of results
          * - type: one of "text", "textarea", "password", "checkbox", "number", or "select"
-         * - label: display label above the input field, optional (if not present, key is used)
+         * - label: display label above the input field, optional (if not present, label is blank)
          * - default: default value, optional (default-default is just null)
          * - placeholder: placeholder text for input field, optional
          * - values: dict (value -> label) for options, only for type 'select'
