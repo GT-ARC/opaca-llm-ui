@@ -216,7 +216,7 @@ export default {
                 Localizer.get("agents_deploy_how"),
                 null,
                 {
-                    howto: { type: "select", label: "", default: "name", values: {
+                    howto: { type: "select", default: "name", values: {
                         "name": "Image Name",
                         "json": "JSON",
                         "reg": "Registry",
@@ -257,7 +257,7 @@ export default {
                         Localizer.get("agents_deploy_select"),
                         null,
                         {
-                            image: { type: "select", label: "", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, `${v.name} (${v.version}), ${v.provider}`]))},
+                            image: { type: "select", values: Object.fromEntries(Object.entries(images).map(([k, v]) => [k, `${v.name} (${v.version}), ${v.provider}`]))},
                         },
                         async values => {
                             const json = images[values.image];
@@ -317,7 +317,7 @@ export default {
                 Localizer.get("agents_deploy_update_select"),
                 null,
                 {
-                    container: { type: "select", label: "", values: containerOptions }
+                    container: { type: "select", values: containerOptions }
                 },
                 async values => {
                     const existing = this.platformContainers.find(c => c.image.imageName === values.container);
