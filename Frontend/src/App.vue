@@ -314,7 +314,7 @@ export default {
                 {
                     username: { type: "text", label: Localizer.get("general_username") },
                     password: { type: "password", label: Localizer.get("general_password") },
-                    timeout: { type: "select", default: 300, values: {
+                    timeout: { type: "select", label: "", default: 300, values: {
                         "0": "Logout immediately",
                         "300": "Logout after 5 minutes",
                         "1800": "Logout after 30 minutes",
@@ -333,7 +333,7 @@ export default {
                 (apiKeyMessage?.is_invalid ? Localizer.get("apiKey_invalid") : Localizer.get("apiKey_missing")) + apiKeyMessage?.model,
                 null,
                 {
-                    apiKey: { type: "password" },
+                    apiKey: { type: "password", label: "API Key" },
                 },
                 (values) => this.$refs.content.submitApiKey(values.apiKey),
                 () => this.$refs.content.submitApiKey("")
