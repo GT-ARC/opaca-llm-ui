@@ -160,8 +160,6 @@ class ScheduledTaskTools:
 
         if task_id is None:
             task_id = self.create_task_id()
-        else:
-            session.remember_scheduled_task_id(task_id)
         session.scheduled_tasks[task_id] = make_task(delay, repetitions)
         asyncio.create_task(_callback(delay, repetitions))
         return task_id

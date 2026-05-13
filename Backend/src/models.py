@@ -385,16 +385,12 @@ class SessionData(BaseModel):
     def initialize_scheduled_task_id_counter(self) -> "SessionData":
         task_ids = [self.last_scheduled_task_id]
         task_ids.extend(int(task_id) for task_id in self.scheduled_tasks)
-        task_ids.extend(task.task_id for task in self.scheduled_tasks.values())
         self.last_scheduled_task_id = max(task_ids)
         return self
 
     def create_scheduled_task_id(self) -> int:
         self.last_scheduled_task_id += 1
         return self.last_scheduled_task_id
-
-    def remember_scheduled_task_id(self, task_id: int) -> None:
-        self.last_scheduled_task_id = max(self.last_scheduled_task_id, int(task_id))
 
     @property
     def opaca_client(self) -> OpacaClient:
