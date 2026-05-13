@@ -2,7 +2,7 @@
 Request and response models used in the FastAPI routes (and in some of the implementations).
 """
 import re
-from typing import Iterable, Set, Literal, Annotated
+from typing import Callable, Iterable, Set, Literal, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -205,6 +205,16 @@ class ToolCall(BaseModel):
         return {k: v for k, v in self.model_dump().items() if k != "id"}
 
 
+class InternalTool(BaseModel):
+    name: str
+    description: str
+    params: dict[str, str]
+    required_params: list[str] | None = None
+    result: str
+    function: Callable
+    requires_code_execution: bool = False
+
+
 class ScheduledTask(BaseModel):
     """
     An LLM Task scheduled for later execution, by sending the query to the LLM at a later time
@@ -333,6 +343,7 @@ class SessionData(BaseModel):
         config: Configuration dictionary, one sub-dict for each method.
         uploaded_files: Dictionary storing each uploaded PDF file.
         scheduled_tasks: LLM queries scheduled for later execution by Internal Tools.
+        last_scheduled_task_id: Last assigned scheduled task ID, used to generate monotonic IDs.
         notifications_chats_map: Which notifications should be auto-appended to which chats.
         valid_until: Timestamp until session is active.
         mcp_servers: All added mcp server information in JSON format.
@@ -356,6 +367,7 @@ class SessionData(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
     uploaded_files: Dict[str, OpacaFile] = Field(default_factory=dict)
     scheduled_tasks: Dict[int, ScheduledTask] = Field(default_factory=dict)
+    last_scheduled_task_id: int = -1
     notifications_chats_map: Dict[int, Set[str]] = Field(default_factory=dict)
     valid_until: float = -1
     mcp_servers: Dict[str, MCPServer] = Field(default_factory=dict)
@@ -368,6 +380,17 @@ class SessionData(BaseModel):
     _ws_out_cache: list[dict] | None = PrivateAttr(default_factory=list)
     _opaca_client: OpacaClient = PrivateAttr(default_factory=OpacaClient)
     _user_api_keys: Dict[str, str] = PrivateAttr(default_factory=dict)
+
+    @model_validator(mode="after")
+    def initialize_scheduled_task_id_counter(self) -> "SessionData":
+        task_ids = [self.last_scheduled_task_id]
+        task_ids.extend(int(task_id) for task_id in self.scheduled_tasks)
+        self.last_scheduled_task_id = max(task_ids)
+        return self
+
+    def create_scheduled_task_id(self) -> int:
+        self.last_scheduled_task_id += 1
+        return self.last_scheduled_task_id
 
     @property
     def opaca_client(self) -> OpacaClient:

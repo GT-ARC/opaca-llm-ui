@@ -204,6 +204,11 @@ async def get_containers(session: SessionData = Depends(handle_session_http)) ->
     return await session.opaca_client.get_containers()
 
 
+@app.get("/internal-tools", description="Get backend-provided internal tools as a pseudo OPACA container.", tags=["opaca"])
+async def get_internal_tools(session: SessionData = Depends(handle_session_http)) -> list:
+    return InternalTools(session, METHODS['simple-tools']).get_internal_tools_containers()
+
+
 @app.post("/containers", description="Deploy or update container to connected OPACA Runtime Platform.", tags=["opaca"])
 async def post_container(post_container: dict, update: bool = False, session: SessionData = Depends(handle_session_http)) -> dict:
     try:
