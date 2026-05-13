@@ -73,7 +73,7 @@ class ScheduledTaskTools:
         return ceil((next_time - current).total_seconds())
 
     def create_task_id(self) -> int:
-        return max(self.ctx.session.scheduled_tasks, default=-1) + 1
+        return self.ctx.session.create_scheduled_task_id()
 
     async def deferred_execution_helper(
         self,
