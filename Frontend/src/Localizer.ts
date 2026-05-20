@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue';
 import { shuffleArray } from "./utils";
 import conf from '../config';
-import { Prompt, PromptCategory } from './models';
+import { type Prompt, type PromptCategory } from './models';
 
 /** 
  * Interface for the translation object structure 
