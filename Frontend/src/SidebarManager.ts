@@ -27,12 +27,15 @@ export class SidebarManager {
     private static readonly _availableViews = AVAILABLE_VIEWS;
 
     private _selectedView: Ref<SidebarView>;
+    private _isResizing: Ref<boolean>;
 
     /**
      * @param selectedView The initially selected view.
      */
     constructor(selectedView: SidebarView = 'none') {
         this._selectedView = ref(selectedView);
+        this._isResizing = ref(false);
+
     }
 
     isValidView(key: string): key is SidebarView {
@@ -72,6 +75,14 @@ export class SidebarManager {
 
     isSidebarOpen(): boolean {
         return this.getSelectedView() !== 'none';
+    }
+
+    isResizing(): boolean {
+        return this._isResizing.value;
+    }
+
+    setResizing(isResizing: boolean) {
+        this._isResizing.value = isResizing;
     }
 
     close(): void {

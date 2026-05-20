@@ -255,15 +255,14 @@ export default {
         setupResizer() {
             const resizer = document.getElementById('resizer');
             const sidebar = document.getElementById('sidebar-content');
-            let isResizing = false;
 
             resizer.addEventListener('mousedown', (e) => {
-                isResizing = true;
+                SidebarManager.setResizing(true);
                 document.body.style.cursor = 'ew-resize';
             });
 
             document.addEventListener('mousemove', (event) => {
-                if (!isResizing) return;
+                if (!SidebarManager.isResizing()) return;
 
                 // Calculate the new width for the aside
                 const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
@@ -274,7 +273,7 @@ export default {
             });
 
             document.addEventListener('mouseup', () => {
-                isResizing = false;
+                SidebarManager.setResizing(false);
                 document.body.style.cursor = 'default';
             });
         },

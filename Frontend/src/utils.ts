@@ -37,6 +37,10 @@ class BackendClient {
         return this.sendRequest("GET", "containers");
     }
 
+    async getInternalTools(): Promise<Container[]> {
+        return await this.sendRequest("GET", "internal-tools");
+    }
+
     async deployContainer(postContainer: PostContainerRequest, update: boolean = false): Promise<PostContainerResponse> {
         return this.sendRequest("POST", `containers?update=${update}`, postContainer);
     }
@@ -72,7 +76,11 @@ class BackendClient {
 
     // TODO query stream
 
-    async stop(): Promise<void> {
+    async stopChat(chatId: string): Promise<void> {
+        await this.sendRequest("POST", `chats/${chatId}/stop`);
+    }
+
+    async stopNotifs(): Promise<void> {
         await this.sendRequest("POST", `stop`);
     }
 
@@ -184,6 +192,11 @@ class BackendClient {
 
     async deleteMcp(serverLabel: string): Promise<void> {
         return await this.sendRequest("DELETE", `mcp/${serverLabel}`);
+    }
+
+    async setMcpToolApproval(serverLabel: string, toolName: string, approval: string): Promise<void> {
+        const body = {tool_name: toolName, approval: approval};
+        await this.sendRequest("PATCH", `mcp/${serverLabel}/approval`, body);
     }
 
     // internal helper

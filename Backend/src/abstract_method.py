@@ -13,8 +13,10 @@ import httpx
 from openai.types.responses import ResponseFunctionToolCall
 from pydantic import BaseModel, ValidationError
 import litellm
+from litellm.experimental_mcp_client.client import MCPClient
 from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
+from mcp.types import CallToolRequestParams
 
 from .models import (SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ContainerLoginNotification, ContainerLoginResponse, ToolCallMessage,
@@ -35,8 +37,17 @@ class AbstractMethod(ABC):
     NAME: str
     CONFIG: type[MethodConfig]
 
-    def __init__(self, session: SessionData, streaming=False, internal_tools: InternalTools = None):
+    def __init__(
+            self,
+            session: SessionData,
+            chat: Chat,
+            response: QueryResponse,
+            streaming: bool = False,
+            internal_tools: InternalTools = None
+    ) -> None:
         self.session = session
+        self.chat = chat
+        self.response = response
         self.streaming = streaming
         self.tool_counter = count(0)
         self.internal_tools = internal_tools
@@ -49,7 +60,7 @@ class AbstractMethod(ABC):
         return self.session.get_config(self)
 
     @abstractmethod
-    async def query(self, message: str, chat: Chat) -> QueryResponse:
+    async def query(self) -> QueryResponse:
         pass
 
     def next_tool_id(self, agent_message: AgentMessage):
@@ -86,7 +97,7 @@ class AbstractMethod(ABC):
         """
 
         if status_message:
-            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message))
+            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message, chat_id=self.chat.chat_id))
 
         # Extract model name and config
         model = model_config.model
@@ -138,8 +149,10 @@ class AbstractMethod(ABC):
         stream = await litellm.aresponses_api_with_mcp(**kwargs)
         async for event in stream:
 
-            # Check if an "abort" message has been sent by the user
-            if self.session.abort_sent:
+            # Abort the response generation for a specific chat,
+            # or for all notifications and other anonymous queries at once.
+            if (self.chat.is_aborted
+                    or (self.chat.chat_id == '' and self.session.is_notifs_aborted)):
                 raise OpacaException(
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
@@ -166,15 +179,17 @@ class AbstractMethod(ABC):
                         tool = ToolCall(name=event.item.name, type="mcp", id=self.next_tool_id(agent_message), args={}, result=event.item.output)
                     agent_message.tools.append(tool)
                     # Stream the tool call and the result
-                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
-                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result))
+                    await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent, chat_id=self.chat.chat_id))
+                    await self.send_to_websocket(ToolResultMessage(id=tool.id, result=tool.result, chat_id=self.chat.chat_id))
 
             # Plain text chunk received
             elif event.type == event_type.OUTPUT_TEXT_DELTA:
                 if tool_choice == "only":
                     break
                 agent_message.content += event.delta
-                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output))
+                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output, chat_id=self.chat.chat_id))
+                if event.delta and is_output:
+                    self.response.content += event.delta
 
             # Final message received
             elif event.type == event_type.RESPONSE_COMPLETED:
@@ -192,13 +207,21 @@ class AbstractMethod(ABC):
                 # Alternative tool output
                 for t in event.response.output:
                     if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                        if t.name is None:
+                            # Should not happen, exists just to get rid of pylance warnings
+                            logger.warning("Received tool call without a name, skipping.")
+                            continue
+
+                        # Determine tool type and name based on presence of server label and matching MCP server/tools
+                        tool_type = "mcp" if any(t.name in mcp_server.tools for mcp_server in self.session.mcp_servers.values()) else "opaca"
+
                         try:
-                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
+                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse tool arguments: {t.arguments}")
-                            tool = ToolCall(name=t.name, type="opaca", id=self.next_tool_id(agent_message), args={})
+                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args={})
                         agent_message.tools.append(tool)
-                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent))
+                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent, chat_id=self.chat.chat_id))
                 # Capture token usage
                 agent_message.response_metadata = event.response.usage.model_dump()
 
@@ -209,6 +232,7 @@ class AbstractMethod(ABC):
             agent=agent,
             execution_time=agent_message.execution_time,
             metrics=agent_message.response_metadata,
+            chat_id=self.chat.chat_id,
         ))
 
         logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
@@ -249,8 +273,48 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke tool.\nCause: {e}"
 
-        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result, chat_id=self.chat.chat_id))
         return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=t_result)
+
+    async def invoke_mcp_tool(self, full_tool_name: str, tool_args: dict, tool_id: str) -> ToolCall:
+        server_label, tool_name = full_tool_name.split('--', maxsplit=1)
+        server = self.session.mcp_servers.get(server_label)
+        if not server:
+            t_result = f"MCP Server '{server_label}' not found."
+            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+        
+        tool = server.tools.get(full_tool_name)
+        if not tool:
+            t_result = f"Tool '{full_tool_name}' not found on MCP Server '{server_label}'."
+            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+
+        if tool.approval == 'deny':
+            # Should not happen due to filtering in get_tools, but double-checking approval status just in case it changes in the future
+            t_result = "Execution denied by user settings, do not attempt again."
+            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+            
+        if tool.approval == 'ask':
+            if not await self.check_confirmation(full_tool_name, tool_args, force_ask=True):
+                t_result = "Execution declined by user, do not attempt again."
+                await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+                return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+
+        try:
+            client = MCPClient(server_url=server.params.server_url)
+            res = await client.call_tool(CallToolRequestParams(name=tool_name, arguments=tool_args))
+            
+            if res.isError:
+                t_result = f"Execution failed. Error: {res.content}"
+            else:
+                t_result = res.content
+        except Exception as e:
+            t_result = f"Failed to invoke MCP tool.\nCause: {e}"
+
+        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
+        return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
 
 
     async def get_tools(self, include_internal: bool = True, include_mcp: bool = True, max_tools=128) -> tuple[list[dict], str]:
@@ -258,8 +322,15 @@ class AbstractMethod(ABC):
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
         tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
-        if self.session.mcp_servers and include_mcp:
-            tools.extend(self.session.mcp_servers)
+
+        if include_mcp and self.session.mcp_servers:
+            for server in self.session.mcp_servers.values():
+                for tool in server.tools.values():
+                    if tool.approval == 'deny':
+                        # Hide tools from LLM that are denied by user settings
+                        continue
+                    tools.append(tool.cast_to_openai_tool())
+
         if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
         if len(tools) > max_tools:
@@ -269,11 +340,11 @@ class AbstractMethod(ABC):
         return tools, error
 
 
-    async def check_confirmation(self, tool_name: str, parameters: dict) -> bool:
+    async def check_confirmation(self, tool_name: str, parameters: dict, force_ask: bool = False) -> bool:
         """Use websocket to ask user for confirmation before executing the action if it matches any of the "needing confirmation" actions.
         Returns whether the action may be executed or not.
         """
-        if any(x.lower() in tool_name.lower() for x in actions_needing_confirmation):
+        if force_ask or any(x.lower() in tool_name.lower() for x in actions_needing_confirmation):
             if not self.session.has_websocket(): return False
             # ask user for confirmation, sharing lock-mechanism with container-login
             async with self.session.opaca_client.login_lock:
