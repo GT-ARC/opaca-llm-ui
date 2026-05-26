@@ -130,7 +130,6 @@
             :method="this.method"
             :language="this.language"
             :connected="this.connected"
-            @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
@@ -168,7 +167,6 @@ export default {
             opacaUser: "",
             connected: false,
             isConnecting: false,
-            selectedCategory: null,
             unreadNotifications: 0,
             pendingNotification: false,
         }
@@ -249,7 +247,7 @@ export default {
 
         updateLanguage(newLanguage) {
             Localizer.language = newLanguage;
-            Localizer.reloadSampleQuestions(this.selectedCategory);
+            Localizer.reloadSampleQuestions(conf2.selectedCategory);
         },
 
         handleOptionSelect(key, value) {

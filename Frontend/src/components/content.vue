@@ -68,7 +68,7 @@
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
                         {{ Localizer.get("chatarea_welcome") }}
                     </div>
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, this.selectedCategory)"
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, conf2.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
@@ -232,14 +232,13 @@ export default {
         connected: Boolean,
     },
     emits: [
-        'select-category',
         'container-login-required',
         'api-key-required',
         'new-notification',
     ],
     setup() {
         const { isMobile } = useDevice()
-        return { Localizer, AudioManager, isMobile };
+        return { conf2, Localizer, AudioManager, isMobile };
     },
     data() {
         return {
@@ -247,7 +246,6 @@ export default {
             textInput: '',
             showExampleQuestions: true,
             autoSpeakNextMessage: false,
-            selectedCategory: conf.DefaultQuestions,
             isSmallScrollbar: true,
             selectedFiles: [],
             selectedChatId: '',
@@ -810,12 +808,11 @@ export default {
         },
 
         handleSelectCategory(category) {
-            if (this.selectedCategory !== category) {
+            if (conf2.selectedCategory !== category) {
                 if (this.showExampleQuestions) {
                     Localizer.reloadSampleQuestions(category);
                 }
-                this.selectedCategory = category;
-                this.$emit('select-category', category);
+                conf2.selectedCategory = category;
             }
         },
 
