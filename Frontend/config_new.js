@@ -46,10 +46,10 @@ let baseConfig = {
     // Which sidebar view is shown by default.
     selectedSidebar: getStringOrDefault("selectedSidebar", "questions"),
 
-    // whether the sidebar is showing only the most relevant icons
+    // TODO whether the sidebar is showing only the most relevant icons
     sidebarCollapsed: getBoolOrDefault("sidebarCollapsed", true),
 
-    // Default UI language
+    // TODO Default UI language
     language: getStringOrDefault("language", "GB"),
 
     // TODO audio input/output method to use

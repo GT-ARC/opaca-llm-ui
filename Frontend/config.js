@@ -37,7 +37,7 @@ let config = {
     //ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
 
     // The initial color scheme: light, dark, or system (default)
-    ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
+    //ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
 
     // Which set of questions is shown within the chat window on startup.
     // This should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
