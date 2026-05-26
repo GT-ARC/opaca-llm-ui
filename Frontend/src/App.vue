@@ -59,7 +59,7 @@
                                     <span v-if="this.opacaUser ?? '' !== ''">
                                         {{ this.opacaUser }} @
                                     </span>
-                                    {{ this.opacaRuntimePlatform }}
+                                    {{ conf2.platformUrl }}
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
@@ -165,7 +165,6 @@ export default {
         return {
             language: conf.DefaultLanguage,
             method: conf.DefaultMethod,
-            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: "",
             connected: false,
             isConnecting: false,
@@ -180,12 +179,12 @@ export default {
             await this.$refs.input.showDialogue(
                 Localizer.get("general_connect"), Localizer.get("main_connectHint"), error,
                 {
-                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: this.opacaRuntimePlatform },
+                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: conf2.platformUrl },
                     username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser, optional: (values) => !values.password },
                     password: { type: "password", label: Localizer.get("general_password"), default: "", optional: (values) => !values.username },
                 },
                 async (values) => {
-                    this.opacaRuntimePlatform = values.url;
+                    conf2.platformUrl = values.url;
                     this.opacaUser = values.username;
                     await this.connectToPlatform(values.username, values.password);
                 }
@@ -196,7 +195,7 @@ export default {
             this.connected = false;
             this.isConnecting = true;
             try {
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
+                const rpStatus = await backendClient.connect(conf2.platformUrl, username, password);
                 this.isConnecting = false;
                 if (rpStatus === 200) {
                     this.connected = true;
@@ -389,7 +388,7 @@ export default {
         const url = await this.waitForConnection();
         if (url != null) {
             this.connected = true;
-            this.opacaRuntimePlatform = url;
+            conf2.platformUrl = url;
         } else if (conf2.autoConnect) {
             await this.connectToPlatform();
         } else {
