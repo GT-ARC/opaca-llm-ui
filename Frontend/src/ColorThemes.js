@@ -23,6 +23,9 @@ const cssColors = [
 
 // Color themes; if "basedOn" is null, the theme is defined directly in CSS
 const colorThemes = {
+    system: {
+        "name": "Adaptive"
+    },
     light: {
         "name": "Light",
         "basedOn": null,
@@ -43,7 +46,7 @@ const colorThemes = {
     },
 }
 
-const currentTheme = ref(getEffectiveColorTheme());
+const currentTheme = ref(conf.colorScheme);
 
 function getEffectiveColorTheme() {
     if (conf.colorScheme === 'system') {
