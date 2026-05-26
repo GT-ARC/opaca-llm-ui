@@ -45,7 +45,7 @@ let config = {
 
     // Which sidebar view is shown by default.
     // Possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
-    DefaultSidebarView: 'questions',
+    //DefaultSidebarView: 'questions',
 
     // Default UI language
     DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',

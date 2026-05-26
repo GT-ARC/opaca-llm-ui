@@ -1,5 +1,6 @@
 import {ref} from "vue";
 import Cookie from "js-cookie";
+import conf from "../config_new";
 
 /**
  * This class handles manages the state of the sidebar in a responsive manner.
@@ -34,6 +35,7 @@ class SidebarManager {
 
     getSelectedView() {
         return this._selectedView.value;
+        //return conf.selectedSidebar;
     }
 
     /** select view, keep as-is if already open */
@@ -43,10 +45,11 @@ class SidebarManager {
                 return;
             }
             this._selectedView.value = key;
-            Cookie.set('selected_view', key);
+            conf.selectedSidebar = key;
         } else {
             console.warn(`${key} is not a valid sidebar view`);
             this._selectedView.value = 'none';
+            conf.selectedSidebar = 'none';
         }
     }
 

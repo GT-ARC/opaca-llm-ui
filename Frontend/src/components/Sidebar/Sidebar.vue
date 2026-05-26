@@ -168,7 +168,7 @@
 </template>
 
 <script>
-import conf from '../../../config.js'
+import conf from '../../../config_new.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Cookie from "js-cookie";
@@ -287,8 +287,7 @@ export default {
         if (this.isMobile) {
             SidebarManager.close()
         } else {
-            const selectedView = Cookie.get('selected_view') ?? conf.DefaultSidebarView;
-            SidebarManager.selectView(selectedView, this.sidebarCollapsed);
+            SidebarManager.selectView(conf.selectedSidebar, this.sidebarCollapsed);
         }
     },
 }
