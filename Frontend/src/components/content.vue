@@ -353,7 +353,7 @@ export default {
 
             // get chat response (intermediate results are streamed via websocket)
             try {
-                const result = await backendClient.query(this.selectedChatId, this.method, userText, true, 5*60*1000);
+                const result = await backendClient.query(this.selectedChatId, conf2.method, userText, true, 5*60*1000);
 
                 // display final result
                 if (result.error) {

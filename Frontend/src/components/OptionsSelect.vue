@@ -48,6 +48,7 @@
 
 <script>
 import conf, {Methods} from '../../config.js';
+import conf2 from '../../config_new.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { getColorThemes } from '../ColorThemes.js';
@@ -149,7 +150,7 @@ export default {
     },
 
     mounted() {
-        this.select('method', Cookie.get("method") ?? conf.DefaultMethod);
+        this.select('method', conf2.method);
         this.select('language', Cookie.get("language") ?? Localizer.language);
         this.select('colorMode', this.getInitialColorMode());
         this.select('audio', Cookie.get("audio") ?? AudioManager.method);

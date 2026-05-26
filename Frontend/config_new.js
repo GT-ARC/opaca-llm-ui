@@ -22,7 +22,6 @@ let baseConfig = {
     backendUrl: getStringOrDefault("backendUrl", "http://localhost:3001"),
 
     // The initially selected prompting method
-    //DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
     method: getStringOrDefault("method", "tool-llm"),
 
     // Optional "back-link" that redirects the user to a pre-configured site.
@@ -51,7 +50,6 @@ let baseConfig = {
     sidebarCollapsed: getBoolOrDefault("sidebarCollapsed", true),
 
     // Default UI language
-    //DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
     language: getStringOrDefault("language", "GB"),
 
     audioMethod: getStringOrDefault("audioMethod", "WHISPER"),

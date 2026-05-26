@@ -223,7 +223,8 @@ export default {
         },
 
         setMethod(key) {
-            this.method = key;
+            this.method = key; // still needed to pass through to MethodConfigSidebar for "watch" directive???
+            conf2.method = key;
         },
 
         /**

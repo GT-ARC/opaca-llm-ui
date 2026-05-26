@@ -21,7 +21,7 @@ let config = {
     //BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
     // The initially selected prompting method
-    DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
+    //DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
 
     // Optional "back-link" that redirects the user to a pre-configured site.
     //BackLink: import.meta.env.VITE_BACKLINK ?? null,
