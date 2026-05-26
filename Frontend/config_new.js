@@ -52,9 +52,13 @@ let baseConfig = {
     // Default UI language
     language: getStringOrDefault("language", "GB"),
 
+    // TODO audio input/output method to use
     audioMethod: getStringOrDefault("audioMethod", "WHISPER"),
 
+    // TODO OPACA container registry
     registryUrl: getStringOrDefault("registryUrl", null),
+
+    // TODO expanded sidebar?
 }
 
 function getStringOrDefault(key, defaultValue) {
@@ -87,6 +91,8 @@ const cookieSetter = {
         return true;
     }
 };
+
+// TODO allow to add custom change listeners, e.g. for method-config sidebar?
 
 const proxiedConfig = new Proxy(Object.assign({}, baseConfig), cookieSetter);
 
