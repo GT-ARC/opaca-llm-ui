@@ -1,4 +1,4 @@
-import conf from '../config.js';
+import conf from '../config_new.js';
 import axios from "axios";
 
 
@@ -125,7 +125,7 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.BackendAddress}/files`, formData, {
+        const response = await axios.post(`${conf.backendUrl}/files`, formData, {
             timeout: 10000,
             withCredentials: true,
             headers: {
@@ -191,7 +191,7 @@ class BackendClient {
     async sendRequest(method, path, body = null, timeout = 10000) {
         const response = await axios.request({
             method: method,
-            url: `${conf.BackendAddress}/${path}`,
+            url: `${conf.backendUrl}/${path}`,
             data: body,
             timeout: timeout,
             withCredentials: true,

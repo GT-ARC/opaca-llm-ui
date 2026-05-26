@@ -203,6 +203,7 @@ import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import Chatbubble from "./chatbubble.vue";
 import conf from '../../config'
+import conf2 from '../../config_new'
 import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
@@ -523,7 +524,7 @@ export default {
         },
 
         async connectWebsocket() {
-            const url = `${conf.BackendAddress}/ws`
+            const url = `${conf2.backendUrl}/ws`
             this.socket = new WebSocket(url);
             this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
         },

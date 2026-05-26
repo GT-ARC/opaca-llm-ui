@@ -1,5 +1,5 @@
 import {ref} from "vue";
-import conf from "../config.js";
+import conf from "../config_new.js";
 import Localizer from "./Localizer.js";
 import * as utils from "./utils.js"
 
@@ -51,7 +51,7 @@ class WhisperAudio extends TtsAudio {
     async setup() {
         this.isLoading = true;
         try {
-            const url = `${conf.BackendAddress}/whisper/generate`;
+            const url = `${conf.backendUrl}/whisper/generate`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
@@ -391,7 +391,7 @@ class AudioManager {
         const formData = new FormData();
         formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
 
-        const response = await fetch(`${conf.BackendAddress}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
+        const response = await fetch(`${conf.backendUrl}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
             method: 'POST',
             body: formData
         });

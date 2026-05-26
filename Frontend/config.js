@@ -18,23 +18,23 @@ export const MethodDescriptions = {
 let config = {
 
     // URL to the SAGE backend
-    BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
+    //BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
 
     // The initially selected prompting method
     DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
 
     // Optional "back-link" that redirects the user to a pre-configured site.
-    BackLink: import.meta.env.VITE_BACKLINK ?? null,
+    //BackLink: import.meta.env.VITE_BACKLINK ?? null,
 
     // URL to the OPACA Runtime platform
     OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
 
     // If true, attempt to connect to the configured platform on-load
     // the boolean value is parsed later, together with the one passed as query param, if any
-    AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
+    //AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
 
     // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
-    ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
+    //ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
 
     // The initial color scheme: light, dark, or system (default)
     ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',

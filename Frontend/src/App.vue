@@ -7,8 +7,8 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
-                    <a :href="conf.BackLink">
+                <div class="ms-1 w-auto text-start" v-if="conf2.backLink != null">
+                    <a :href="conf2.backLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -142,6 +142,7 @@
 
 <script>
 import conf from '../config.js';
+import conf2 from '../config_new.js'
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
@@ -158,7 +159,7 @@ export default {
     components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile } = useDevice();
-        return { conf, Localizer, isMobile };
+        return { conf, conf2, Localizer, isMobile };
     },
     data() {
         return {
@@ -389,7 +390,7 @@ export default {
         if (url != null) {
             this.connected = true;
             this.opacaRuntimePlatform = url;
-        } else if (conf.AutoConnect) {
+        } else if (conf2.autoConnect) {
             await this.connectToPlatform();
         } else {
             this.toggleConnectionDropdown(true);
