@@ -1,6 +1,6 @@
 // names of the CSS-variables for individual colors
 // theme-variants replace "color" with the name of the theme
-import conf from "../config.js";
+import conf from "../config_new.js";
 import {ref} from "vue";
 
 const cssColors = [
@@ -43,14 +43,14 @@ const colorThemes = {
     },
 }
 
-const currentTheme = ref(initColorTheme());
+const currentTheme = ref(getEffectiveColorTheme());
 
-export function initColorTheme() {
-    if (conf.ColorScheme === 'system') {
+function getEffectiveColorTheme() {
+    if (conf.colorScheme === 'system') {
         return window.matchMedia('(prefers-color-scheme: dark)').matches
             ? 'dark' : 'light';
     }
-    return conf.ColorScheme;
+    return conf.colorScheme;
 }
 
 export function getColorThemes() {
@@ -59,10 +59,11 @@ export function getColorThemes() {
     );
 }
 
-export function setColorTheme(document, theme) {
-    currentTheme.value = theme;
+export function setColorTheme(theme) {
+    conf.colorScheme = theme;
+    currentTheme.value = getEffectiveColorTheme();
     for (const color of cssColors) {
-        document.documentElement.style.setProperty(`--${color}-color`, getColor(theme, color));
+        document.documentElement.style.setProperty(`--${color}-color`, getColor(currentTheme.value, color));
     }
 }
 

@@ -242,10 +242,6 @@ export default {
             }
         },
 
-        setTheme(theme) {
-            setColorTheme(document, theme);
-        },
-
         updateLanguage(newLanguage) {
             Localizer.language = newLanguage;
             Localizer.reloadSampleQuestions(conf2.selectedCategory);
@@ -255,7 +251,7 @@ export default {
             switch (key) {
                 case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
-                case 'colorMode': this.setTheme(value); break;
+                case 'colorMode': setColorTheme(value); break;
                 case 'audio': AudioManager.method = value; break;
                 default: break;
             }
@@ -373,10 +369,6 @@ export default {
     },
 
     async mounted() {
-        if (conf.ColorScheme !== "system") {
-            this.setTheme(conf.ColorScheme);
-        }
-
         // prevent options dropdown menu from closing once anything in it is clicked
         document.getElementById('options-menu')?.addEventListener('click', e => {
             e.stopPropagation();

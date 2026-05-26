@@ -51,7 +51,7 @@ import conf, {Methods} from '../../config.js';
 import conf2 from '../../config_new.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-import { getColorThemes } from '../ColorThemes.js';
+import { getCurrentTheme, getColorThemes } from '../ColorThemes.js';
 import ComboBox from "./ComboBox.vue";
 import Cookie from "js-cookie";
 
@@ -126,14 +126,6 @@ export default {
             }
         },
 
-        getInitialColorMode() {
-            if (conf.ColorScheme === 'system') {
-                return window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'dark' : 'light';
-            }
-            return conf.ColorScheme;
-        },
-
         select(key, value) {
             Cookie.set(key, value);
             this.selectedItems[key] = value;
@@ -152,7 +144,7 @@ export default {
     mounted() {
         this.select('method', conf2.method);
         this.select('language', Cookie.get("language") ?? Localizer.language);
-        this.select('colorMode', this.getInitialColorMode());
+        this.select('colorMode', getCurrentTheme());
         this.select('audio', Cookie.get("audio") ?? AudioManager.method);
     }
 }
