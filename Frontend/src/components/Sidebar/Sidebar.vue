@@ -171,7 +171,6 @@
 import conf from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
-import Cookie from "js-cookie";
 import Localizer from "../../Localizer.js";
 import SidebarQuestions from './SidebarQuestions.vue';
 import SidebarAgents from "./SidebarAgents.vue";
@@ -224,14 +223,14 @@ export default {
     },
     data() {
         return {
-            sidebarCollapsed: true,
+            sidebarCollapsed: conf.sidebarCollapsed,
             sidebarToggleHovered: false,
         };
     },
     methods: {
         toggleSidebar() {
-            this.sidebarCollapsed = !this.sidebarCollapsed;
-            Cookie.set('sidebar_collapsed', this.sidebarCollapsed);
+            conf.sidebarCollapsed = !conf.sidebarCollapsed;
+            this.sidebarCollapsed = conf.sidebarCollapsed; // needed for auto-update
 
             // Close view if it is now hidden
             const view = this.SidebarManager.getSelectedView();
@@ -241,13 +240,13 @@ export default {
         },
 
         getSidebarToggleIcon() {
-            if (this.sidebarCollapsed) return 'fa-angle-down';
+            if (conf.sidebarCollapsed) return 'fa-angle-down';
             if (this.sidebarToggleHovered) return 'fa-angle-up';
             return 'fa-minus';
         },
 
         getSidebarToggleTooltip() {
-            if (this.sidebarCollapsed) return Localizer.get('sidebar_showAdvancedTools');
+            if (conf.sidebarCollapsed) return Localizer.get('sidebar_showAdvancedTools');
             return Localizer.get('sidebar_showStandardTools');
         },
 
@@ -281,12 +280,10 @@ export default {
     mounted() {
         this.setupResizer();
 
-        this.sidebarCollapsed = Cookie.get('sidebar_collapsed') !== 'false';
-
         if (this.isMobile) {
             SidebarManager.close()
         } else {
-            SidebarManager.selectView(conf.selectedSidebar, this.sidebarCollapsed);
+            SidebarManager.selectView(conf.selectedSidebar, conf.sidebarCollapsed);
         }
     },
 }

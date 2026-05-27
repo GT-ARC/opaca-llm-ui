@@ -46,7 +46,7 @@ let baseConfig = {
     // Which sidebar view is shown.
     selectedSidebar: getStringOrDefault("selectedSidebar", "questions"),
 
-    // TODO whether the sidebar is showing only the most relevant icons
+    // whether the sidebar is showing only the most relevant icons
     sidebarCollapsed: getBoolOrDefault("sidebarCollapsed", true),
 
     // selected UI language
@@ -57,8 +57,6 @@ let baseConfig = {
 
     // OPACA container registry
     registryUrl: getStringOrDefault("registryUrl", null),
-
-    // TODO expanded sidebar?
 }
 
 function getStringOrDefault(key, defaultValue) {
