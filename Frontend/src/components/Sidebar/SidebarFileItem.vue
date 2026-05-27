@@ -35,7 +35,7 @@
 
 <script>
 import Localizer from "../../Localizer.js";
-import config from "../../../config_new.js";
+import conf from "../../../config.js";
 import {nextTick} from "vue";
 
 export default {
@@ -73,7 +73,7 @@ export default {
         viewFile() {
             this.$emit('view-file', {
                 fileName: this.file.file_name,
-                src: `${config.backendUrl}/files/${this.fileId}/view`,
+                src: `${conf.backendUrl}/files/${this.fileId}/view`,
                 mimeType: this.file.content_type
             });
         },

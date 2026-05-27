@@ -168,7 +168,7 @@
 </template>
 
 <script>
-import conf from '../../../config_new.js'
+import conf from '../../../config.js'
 import { useDevice } from "../../useIsMobile.js";
 import SidebarManager from "../../SidebarManager.js";
 import Cookie from "js-cookie";

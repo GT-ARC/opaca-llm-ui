@@ -1,6 +1,6 @@
 import {ref} from "vue";
 import Cookie from "js-cookie";
-import conf from "../config_new";
+import conf from "../config.js";
 
 /**
  * This class handles manages the state of the sidebar in a responsive manner.

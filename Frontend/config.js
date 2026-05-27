@@ -1,4 +1,5 @@
 import * as url from "node:url";
+import Cookie from "js-cookie";
 
 // Available prompting methods
 export const Methods = {
@@ -15,73 +16,84 @@ export const MethodDescriptions = {
     "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
 };
 
-let config = {
+let baseConfig = {
 
     // URL to the SAGE backend
-    //BackendAddress: import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:3001',
+    backendUrl: getStringOrDefault("backendUrl", "http://localhost:3001"),
 
-    // The initially selected prompting method
-    //DefaultMethod: import.meta.env.VITE_DEFAULT_METHOD ?? "tool-llm",
+    // The selected prompting method
+    method: getStringOrDefault("method", "tool-llm"),
 
     // Optional "back-link" that redirects the user to a pre-configured site.
-    //BackLink: import.meta.env.VITE_BACKLINK ?? null,
+    backLink: getStringOrDefault("backLink", null),
 
     // URL to the OPACA Runtime platform
-    //OpacaRuntimePlatform: import.meta.env.VITE_PLATFORM_BASE_URL ?? 'http://localhost:8000',
+    platformUrl: getStringOrDefault("platformUrl", "http://localhost:8000"),
 
     // If true, attempt to connect to the configured platform on-load
-    // the boolean value is parsed later, together with the one passed as query param, if any
-    //AutoConnect: parseEnvBool('VITE_AUTOCONNECT', false),
+    autoConnect: getBoolOrDefault("autoConnect", false),
 
     // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
-    //ContainerManagement: parseEnvBool('VITE_CONTAINER_MANAGEMENT', true),
+    allowContainerManagement: getBoolOrDefault("allowContainerManagement", true),
 
-    // The initial color scheme: light, dark, or system (default)
-    //ColorScheme: import.meta.env.VITE_COLOR_SCHEME ?? 'system',
+    // The color scheme: light, dark, or system (default)
+    colorScheme: getStringOrDefault("colorScheme", "system"),
 
-    // Which set of questions is shown within the chat window on startup.
+    // Which set of questions is shown within the chat window.
     // This should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
-    //DefaultQuestions: 'none',
+    selectedCategory: getStringOrDefault("selectedCategory", "none"),
 
-    // Which sidebar view is shown by default.
-    // Possible values: 'none', 'info', 'questions', 'agents', 'config', 'debug'
-    //DefaultSidebarView: 'questions',
+    // Which sidebar view is shown.
+    selectedSidebar: getStringOrDefault("selectedSidebar", "questions"),
 
-    // Default UI language
-    //DefaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? 'GB',
+    // TODO whether the sidebar is showing only the most relevant icons
+    sidebarCollapsed: getBoolOrDefault("sidebarCollapsed", true),
+
+    // selected UI language
+    language: getStringOrDefault("language", "GB"),
+
+    // TODO audio input/output method to use
+    audioMethod: getStringOrDefault("audioMethod", "WHISPER"),
+
+    // TODO OPACA container registry
+    registryUrl: getStringOrDefault("registryUrl", null),
+
+    // TODO expanded sidebar?
 }
 
-/**
- * Parse an environment variable value to a boolean.
- *
- * @param name {String} The variable's name.
- * @param defaultValue {boolean} The default value.
- * @private
- */
-function parseEnvBool(name, defaultValue = false) {
-    const value = import.meta.env[name];
+function getStringOrDefault(key, defaultValue) {
+    return getRawValue(key) ?? defaultValue;
+}
+
+function getBoolOrDefault(key, defaultValue) {
+    const value = getRawValue(key)
     return value ? value.toLowerCase() === 'true' : defaultValue;
 }
 
-/**
- * Parse relevant query params and let their values override the default config values.
- * @private
- */
-function parseQueryParams() {
-    const urlParams = {};
-    for (const [key, value] of (new URLSearchParams(window.location.search)).entries()) {
-        urlParams[key.toLowerCase()] = value;
-    }
-
-    config.AutoConnect = urlParams['autoconnect'] !== undefined
-        ? urlParams['autoconnect'] === 'true'
-        : config.AutoConnect;
-    config.DefaultSidebarView = urlParams['sidebar'] ?? config.DefaultSidebarView;
-    config.DefaultQuestions = urlParams['samples'] ?? config.DefaultQuestions;
-    config.DefaultLanguage = urlParams['lang'] ?? config.DefaultLanguage;
-    config.ColorScheme = urlParams['colorscheme'] ?? config.ColorScheme;
+function getRawValue(key) {
+    return getQueryParam(key) ?? Cookie.get(key) ?? getViteEnvVar(key);
 }
 
-parseQueryParams();
+function getQueryParam(key) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key);
+}
 
-export default config;
+function getViteEnvVar(key) {
+    const name = "VITE_" + key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+    return import.meta.env[name];
+}
+
+const cookieSetter = {
+    set(target, key, value) {
+        target[key] = value;
+        Cookie.set(key, value);
+        return true;
+    }
+};
+
+// TODO allow to add custom change listeners, e.g. for method-config sidebar?
+
+const proxiedConfig = new Proxy(Object.assign({}, baseConfig), cookieSetter);
+
+export default proxiedConfig;

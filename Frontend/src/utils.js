@@ -1,4 +1,4 @@
-import conf from '../config_new.js';
+import conf from '../config.js';
 import axios from "axios";
 
 

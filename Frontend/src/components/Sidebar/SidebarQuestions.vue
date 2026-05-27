@@ -121,7 +121,7 @@
 
 <script>
 import Localizer from "../../Localizer.js";
-import conf from "../../../config_new.js";
+import conf from "../../../config.js";
 import backendClient from "../../utils.js";
 import {nextTick} from "vue";
 import {useDevice} from "../../useIsMobile.js";

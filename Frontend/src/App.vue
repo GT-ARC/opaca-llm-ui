@@ -7,8 +7,8 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="conf2.backLink != null">
-                    <a :href="conf2.backLink">
+                <div class="ms-1 w-auto text-start" v-if="conf.backLink != null">
+                    <a :href="conf.backLink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -59,7 +59,7 @@
                                     <span v-if="this.opacaUser ?? '' !== ''">
                                         {{ this.opacaUser }} @
                                     </span>
-                                    {{ conf2.platformUrl }}
+                                    {{ conf.platformUrl }}
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
@@ -140,7 +140,6 @@
 
 <script>
 import conf from '../config.js';
-import conf2 from '../config_new.js'
 import MainContent from './components/content.vue';
 import {useDevice} from "./useIsMobile.js";
 import Localizer from "./Localizer.js"
@@ -157,11 +156,11 @@ export default {
     components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile } = useDevice();
-        return { conf, conf2, Localizer, isMobile };
+        return { conf, Localizer, isMobile };
     },
     data() {
         return {
-            method: conf.DefaultMethod,
+            method: conf.method,
             opacaUser: "",
             connected: false,
             isConnecting: false,
@@ -175,12 +174,12 @@ export default {
             await this.$refs.input.showDialogue(
                 Localizer.get("general_connect"), Localizer.get("main_connectHint"), error,
                 {
-                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: conf2.platformUrl },
+                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: conf.platformUrl },
                     username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser, optional: (values) => !values.password },
                     password: { type: "password", label: Localizer.get("general_password"), default: "", optional: (values) => !values.username },
                 },
                 async (values) => {
-                    conf2.platformUrl = values.url;
+                    conf.platformUrl = values.url;
                     this.opacaUser = values.username;
                     await this.connectToPlatform(values.username, values.password);
                 }
@@ -191,7 +190,7 @@ export default {
             this.connected = false;
             this.isConnecting = true;
             try {
-                const rpStatus = await backendClient.connect(conf2.platformUrl, username, password);
+                const rpStatus = await backendClient.connect(conf.platformUrl, username, password);
                 this.isConnecting = false;
                 if (rpStatus === 200) {
                     this.connected = true;
@@ -222,7 +221,7 @@ export default {
 
         setMethod(key) {
             this.method = key; // still needed to pass through to MethodConfigSidebar for "watch" directive???
-            conf2.method = key;
+            conf.method = key;
         },
 
         /**
@@ -242,7 +241,7 @@ export default {
 
         updateLanguage(newLanguage) {
             Localizer.language = newLanguage;
-            Localizer.reloadSampleQuestions(conf2.selectedCategory);
+            Localizer.reloadSampleQuestions(conf.selectedCategory);
         },
 
         handleOptionSelect(key, value) {
@@ -377,8 +376,8 @@ export default {
         const url = await this.waitForConnection();
         if (url != null) {
             this.connected = true;
-            conf2.platformUrl = url;
-        } else if (conf2.autoConnect) {
+            conf.platformUrl = url;
+        } else if (conf.autoConnect) {
             await this.connectToPlatform();
         } else {
             this.toggleConnectionDropdown(true);

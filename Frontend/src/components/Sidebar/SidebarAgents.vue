@@ -39,7 +39,7 @@
                         <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
 
-                        <i v-if="conf2.allowContainerManagement && !isInternalContainer(containerId)"
+                        <i v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
                             class="fa fa-remove delete-icon"
                             @click.stop.prevent="this.stopContainer(containerId)"
                             :title="Localizer.get('agents_undeploy')"
@@ -121,7 +121,7 @@
             </div>
         </div>
     </div>
-    <button v-if="conf2.allowContainerManagement && this.isPlatformConnected"
+    <button v-if="conf.allowContainerManagement && this.isPlatformConnected"
             type="button"
             class="btn btn-primary py-2 w-100"
             @click.stop="addContainer()">
@@ -136,7 +136,6 @@
 <script>
 import { nextTick } from 'vue';
 import conf from '../../../config.js';
-import conf2 from '../../../config_new.js'
 import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
@@ -151,7 +150,7 @@ export default {
     },
     setup() {
         const { isMobile } = useDevice();
-        return { conf, conf2, Localizer, isMobile };
+        return { conf, Localizer, isMobile };
     },
     data() {
         return {

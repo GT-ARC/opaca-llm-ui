@@ -1,5 +1,5 @@
 import {ref} from "vue";
-import conf from "../config_new.js";
+import conf from "../config.js";
 import Localizer from "./Localizer.js";
 import * as utils from "./utils.js"
 

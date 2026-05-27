@@ -1,6 +1,6 @@
 import {reactive, ref} from 'vue';
 import {shuffleArray} from "./utils.js";
-import conf from '../config_new.js';
+import conf from '../config.js';
 
 // Some general guidelines on creating Localizer keys
 // - use the format "topic_action" or similar

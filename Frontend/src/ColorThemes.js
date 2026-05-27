@@ -1,6 +1,6 @@
 // names of the CSS-variables for individual colors
 // theme-variants replace "color" with the name of the theme
-import conf from "../config_new.js";
+import conf from "../config.js";
 import {ref} from "vue";
 
 const cssColors = [

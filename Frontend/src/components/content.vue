@@ -67,7 +67,7 @@
                     <div v-if="!this.isMobile" class="w-100 p-3 text-center fs-4">
                         {{ Localizer.get("chatarea_welcome") }}
                     </div>
-                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, conf2.selectedCategory)"
+                    <div v-for="(question, index) in Localizer.getSampleQuestions(this.textInput, conf.selectedCategory)"
                          :key="index"
                          class="sample-question"
                          @click="this.askSampleQuestion(question.question)">
@@ -201,8 +201,7 @@ import {nextTick} from "vue";
 import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import Chatbubble from "./chatbubble.vue";
-import conf from '../../config'
-import conf2 from '../../config_new'
+import conf from '../../config.js'
 import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
@@ -236,7 +235,7 @@ export default {
     ],
     setup() {
         const { isMobile } = useDevice()
-        return { conf2, Localizer, AudioManager, isMobile };
+        return { conf, Localizer, AudioManager, isMobile };
     },
     data() {
         return {
@@ -351,7 +350,7 @@ export default {
 
             // get chat response (intermediate results are streamed via websocket)
             try {
-                const result = await backendClient.query(this.selectedChatId, conf2.method, userText, true, 5*60*1000);
+                const result = await backendClient.query(this.selectedChatId, conf.method, userText, true, 5*60*1000);
 
                 // display final result
                 if (result.error) {
@@ -520,7 +519,7 @@ export default {
         },
 
         async connectWebsocket() {
-            const url = `${conf2.backendUrl}/ws`
+            const url = `${conf.backendUrl}/ws`
             this.socket = new WebSocket(url);
             this.socket.onmessage = event => this.handleStreamingSocketMessage(event);
         },
@@ -806,11 +805,11 @@ export default {
         },
 
         handleSelectCategory(category) {
-            if (conf2.selectedCategory !== category) {
+            if (conf.selectedCategory !== category) {
                 if (this.showExampleQuestions) {
                     Localizer.reloadSampleQuestions(category);
                 }
-                conf2.selectedCategory = category;
+                conf.selectedCategory = category;
             }
         },
 
