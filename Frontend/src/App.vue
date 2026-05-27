@@ -7,8 +7,8 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="conf.backLink != null">
-                    <a :href="conf.backLink">
+                <div class="ms-1 w-auto text-start" v-if="conf.backlink != null">
+                    <a :href="conf.backlink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -377,7 +377,7 @@ export default {
         if (url != null) {
             this.connected = true;
             conf.platformUrl = url;
-        } else if (conf.autoConnect) {
+        } else if (conf.autoconnect) {
             await this.connectToPlatform();
         } else {
             this.toggleConnectionDropdown(true);

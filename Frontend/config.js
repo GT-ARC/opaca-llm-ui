@@ -25,13 +25,13 @@ let baseConfig = {
     method: getStringOrDefault("method", "tool-llm"),
 
     // Optional "back-link" that redirects the user to a pre-configured site.
-    backLink: getStringOrDefault("backLink", null),
+    backlink: getStringOrDefault("backlink", null),
 
     // URL to the OPACA Runtime platform
     platformUrl: getStringOrDefault("platformUrl", "http://localhost:8000"),
 
     // If true, attempt to connect to the configured platform on-load
-    autoConnect: getBoolOrDefault("autoConnect", false),
+    autoconnect: getBoolOrDefault("autoconnect", false),
 
     // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
     allowContainerManagement: getBoolOrDefault("allowContainerManagement", true),
