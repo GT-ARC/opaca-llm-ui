@@ -141,7 +141,6 @@
                                 type="file"
                                 ref="fileInput"
                                 class="d-none"
-                                :disabled="!this.isFinished"
                                 @change="handleFileSelection"
                                 multiple
                             />

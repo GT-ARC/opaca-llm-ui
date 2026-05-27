@@ -56,11 +56,9 @@ import ComboBox from "./ComboBox.vue";
 export default {
     name: "OptionsSelect",
     components: {ComboBox},
-    props: {},
     data() {
         return {
             selectedItems: {},
-            isAudioConnecting: false,
         };
     },
     setup() {
