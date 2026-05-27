@@ -1,6 +1,6 @@
 import {reactive, ref} from 'vue';
 import {shuffleArray} from "./utils.js";
-import conf from '../config.js';
+import conf from '../config_new.js';
 
 // Some general guidelines on creating Localizer keys
 // - use the format "topic_action" or similar
@@ -283,13 +283,15 @@ export const localizationData = {
     },
 };
 
+// hard-code the most complete language as fallback language
+const fallbackLanguage = 'GB';
+
 
 class Localizer {
 
-    constructor(selectedLanguage, fallbackLanguage) {
-        this._fallbackLanguage = ref(fallbackLanguage)
-        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
-            ? ref(selectedLanguage)
+    constructor() {
+        this._selectedLanguage = this.isAvailableLanguage(conf.language)
+            ? ref(conf.language)
             : ref(fallbackLanguage);
 
         this._randomSampleQuestions = ref(null);
@@ -299,6 +301,7 @@ class Localizer {
     set language(newLang) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
+        conf.language = newLang;
     }
 
     get language() {
@@ -307,15 +310,6 @@ class Localizer {
 
     get languageCode() {
         return this.get("code")
-    }
-
-    set fallbackLanguage(newLang) {
-        this._selectedLanguage.value = newLang;
-        this._verifySettings();
-    }
-
-    get fallbackLanguage() {
-        return this._fallbackLanguage.value;
     }
 
     set randomSampleQuestions(value) {
@@ -335,8 +329,8 @@ class Localizer {
     }
 
     _verifySettings() {
-        if (!localizationData[this.language] || !localizationData[this.fallbackLanguage]) {
-            throw Error(`Invalid languages configured in Localizer: ${this.language}, ${this.fallbackLanguage}`);
+        if (!localizationData[this.language] || !localizationData[fallbackLanguage]) {
+            throw Error(`Invalid languages configured in Localizer: ${this.language}, ${fallbackLanguage}`);
         }
     }
 
@@ -360,7 +354,7 @@ class Localizer {
     }
 
     _getFrom(data, key, args, defaultValue, warningText, errorText) {
-        const fallbackText = this.formatText(data?.[this.fallbackLanguage]?.[key], ...args);
+        const fallbackText = this.formatText(data?.[fallbackLanguage]?.[key], ...args);
         const text = this.formatText(data?.[this.language]?.[key], ...args);
         if (text) {
             return text;
@@ -446,8 +440,6 @@ function matches(question, textInput) {
         .every(word => question.toLowerCase().includes(word));
 }
 
-// hard-code the most complete language as fallback language
-const fallbackLanguage = 'GB';
 
-const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
+const localizer = new Localizer();
 export default localizer;

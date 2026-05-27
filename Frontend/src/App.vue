@@ -128,7 +128,6 @@
     <div class="col background">
         <MainContent
             :method="this.method"
-            :language="this.language"
             :connected="this.connected"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
@@ -162,7 +161,6 @@ export default {
     },
     data() {
         return {
-            language: conf.DefaultLanguage,
             method: conf.DefaultMethod,
             opacaUser: "",
             connected: false,

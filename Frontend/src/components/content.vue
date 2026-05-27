@@ -21,7 +21,6 @@
 
         <Sidebar
             :method="method"
-            :language="language"
             :connected="connected"
             :selected-chat-id="selectedChatId"
             :is-finished="this.isChatFinished()"
@@ -228,7 +227,6 @@ export default {
     },
     props: {
         method: String,
-        language: String,
         connected: Boolean,
     },
     emits: [

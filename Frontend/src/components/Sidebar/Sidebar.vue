@@ -200,7 +200,6 @@ export default {
     },
     props: {
         method: String,
-        language: String,
         connected: Boolean,
         selectedChatId: String,
         isFinished: Boolean,
