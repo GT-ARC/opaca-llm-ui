@@ -52,10 +52,10 @@ let baseConfig = {
     // selected UI language
     language: getStringOrDefault("language", "GB"),
 
-    // TODO audio input/output method to use
+    // audio input/output method to use
     audioMethod: getStringOrDefault("audioMethod", "WHISPER"),
 
-    // TODO OPACA container registry
+    // OPACA container registry
     registryUrl: getStringOrDefault("registryUrl", null),
 
     // TODO expanded sidebar?

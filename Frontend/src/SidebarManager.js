@@ -1,5 +1,4 @@
 import {ref} from "vue";
-import Cookie from "js-cookie";
 import conf from "../config.js";
 
 /**

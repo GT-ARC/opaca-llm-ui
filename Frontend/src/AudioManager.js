@@ -190,7 +190,6 @@ class AudioManager {
     constructor() {
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
-        this.method = "WHISPER";
 
         // webkit
         this._recognition = null;
@@ -226,7 +225,7 @@ class AudioManager {
 
     async generateAudio(text) {
         if (!text) return null;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": return new WhisperAudio(text);
             case "WEBSPEECH": return new WebSpeechAudio(text);
         };
@@ -239,7 +238,7 @@ class AudioManager {
      */
     async startRecognition(onResult, onError) {
         if (!this.isRecognitionSupported()) return;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
             case "WEBSPEECH": this.startWebSpeechRecognition(onResult, onError); break;
         };
@@ -247,7 +246,7 @@ class AudioManager {
 
     async stopRecognition() {
         if (!this.isRecognitionSupported()) return;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": this.stopWhisperRecognition(); break;
             case "WEBSPEECH": this.stopWebSpeechRecognition(); break;
         };

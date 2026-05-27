@@ -249,7 +249,7 @@ export default {
                 case 'method': this.setMethod(value); break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': setColorTheme(value); break;
-                case 'audio': AudioManager.method = value; break;
+                case 'audio': conf.audioMethod = value; break;
                 default: break;
             }
         },

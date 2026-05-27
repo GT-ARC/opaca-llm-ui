@@ -140,7 +140,6 @@ import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import InputDialogue from '../InputDialogue.vue';
-import Cookie from "js-cookie";
 
 export default {
     name: 'SidebarAgents',
@@ -253,11 +252,11 @@ export default {
                 Localizer.get("agents_deploy_registry"),
                 null,
                 {
-                    registry: { type: "text", label: "Registry URL (incl Port)", default: Cookie.get("registryUrl")},
+                    registry: { type: "text", label: "Registry URL (incl Port)", default: conf.registryUrl},
                 },
                 async values => {
                     // get images from the registry (names and JSON)
-                    Cookie.set("registryUrl", values.registry);
+                    conf.registryUrl = values.registry;
                     const res = await fetch(`${values.registry}/images`);
                     const images = Object.fromEntries(
                         JSON.parse(await res.text())

@@ -52,7 +52,6 @@ import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
 import { getCurrentTheme, getColorThemes } from '../ColorThemes.js';
 import ComboBox from "./ComboBox.vue";
-import Cookie from "js-cookie";
 
 export default {
     name: "OptionsSelect",
@@ -126,7 +125,6 @@ export default {
         },
 
         select(key, value) {
-            Cookie.set(key, value);
             this.selectedItems[key] = value;
             this.$emit('select', key, value);
         },
@@ -144,7 +142,7 @@ export default {
         this.select('method', conf.method);
         this.select('language', Localizer.language);
         this.select('colorMode', getCurrentTheme());
-        this.select('audio', Cookie.get("audio") ?? AudioManager.method);
+        this.select('audio', conf.audioMethod);
     }
 }
 </script>
