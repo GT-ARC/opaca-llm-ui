@@ -82,16 +82,36 @@ function getViteEnvVar(key) {
     return import.meta.env[name];
 }
 
-const cookieSetter = {
+// listeners can be used to react to config changes
+const listeners = new Map();
+
+export function addListener(key, callback) {
+    const lst = listeners.get(key);
+    if (lst) {
+        lst.push(callback);
+    } else {
+        listeners.set(key, [callback]);
+    }
+}
+
+function triggerListeners(key, newValue) {
+    const lst = listeners.get(key);
+    if (lst) {
+        for (const callback of lst) {
+            callback(newValue);
+        }
+    }
+}
+
+// the proxied config automatically sets cookies and calls any registered listeners whenever a setting is changed
+const configHandler = {
     set(target, key, value) {
         target[key] = value;
         Cookie.set(key, value);
+        triggerListeners(key, value);
         return true;
     }
 };
-
-// TODO allow to add custom change listeners, e.g. for method-config sidebar?
-
-const proxiedConfig = new Proxy(Object.assign({}, baseConfig), cookieSetter);
+const proxiedConfig = new Proxy(Object.assign({}, baseConfig), configHandler);
 
 export default proxiedConfig;

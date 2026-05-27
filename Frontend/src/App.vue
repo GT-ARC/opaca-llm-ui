@@ -127,7 +127,6 @@
 
     <div class="col background">
         <MainContent
-            :method="this.method"
             :connected="this.connected"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
@@ -160,7 +159,6 @@ export default {
     },
     data() {
         return {
-            method: conf.method,
             opacaUser: "",
             connected: false,
             isConnecting: false,
@@ -219,11 +217,6 @@ export default {
             }
         },
 
-        setMethod(key) {
-            this.method = key; // still needed to pass through to MethodConfigSidebar for "watch" directive???
-            conf.method = key;
-        },
-
         /**
          * Force the connection dropdown opened or closed.
          *
@@ -246,7 +239,7 @@ export default {
 
         handleOptionSelect(key, value) {
             switch (key) {
-                case 'method': this.setMethod(value); break;
+                case 'method': conf.method = value; break;
                 case 'language': this.updateLanguage(value); break;
                 case 'colorMode': setColorTheme(value); break;
                 case 'audio': conf.audioMethod = value; break;

@@ -144,7 +144,6 @@
                 <!-- method config -->
                 <SidebarConfig
                     v-show="SidebarManager.isViewSelected('config')"
-                    :method="this.method"
                     ref="config"
                 />
 
@@ -198,7 +197,6 @@ export default {
         SidebarQuestions,
     },
     props: {
-        method: String,
         connected: Boolean,
         selectedChatId: String,
         isFinished: Boolean,

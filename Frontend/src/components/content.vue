@@ -20,7 +20,6 @@
         />
 
         <Sidebar
-            :method="method"
             :connected="connected"
             :selected-chat-id="selectedChatId"
             :is-finished="this.isChatFinished()"
@@ -224,7 +223,6 @@ export default {
         FileDropHandler,
     },
     props: {
-        method: String,
         connected: Boolean,
     },
     emits: [

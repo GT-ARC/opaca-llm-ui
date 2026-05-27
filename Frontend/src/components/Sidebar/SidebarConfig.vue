@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import {Methods, MethodDescriptions} from "../../../config.js";
+import conf, {addListener, Methods, MethodDescriptions} from "../../../config.js";
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
 import ConfigParameter from "../ConfigParameter.vue";
@@ -70,9 +70,6 @@ import ConfigGroup from "../ConfigGroup.vue";
 export default {
     name: 'SidebarConfig',
     components: {ConfigGroup, ConfigParameter},
-    props: {
-        method: String,
-    },
     setup() {
         const {isMobile} = useDevice();
         return {Localizer, Methods, MethodDescriptions, isMobile};
@@ -82,6 +79,7 @@ export default {
             shouldFadeOut: false,
             configChangeSuccess: false,
             configMessage: '',
+            method: null,
             methodConfig: {},
             methodConfigSchema: null,
             fullSchema: null,
@@ -93,10 +91,10 @@ export default {
             // Fetches the config schema and the config values
             // The schema includes parameter details, such as type, options, max and min
             // The values hold the current values the parameters are set to
-            const method = this.method;
+            this.method = conf.method;
             this.methodConfig = this.methodConfigSchema = null;
             try {
-                const res = await backendClient.getConfig(method);
+                const res = await backendClient.getConfig(this.method);
                 this.methodConfig = res.config_values;
                 this.methodConfigSchema = this.dereferenceSchema(res.config_schema).properties;
             } catch (error) {
@@ -202,12 +200,8 @@ export default {
     },
     mounted() {
         //this.fetchMethodConfig(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
+        addListener("method", (value) => this.fetchMethodConfig()); // update method config when changed
     },
-    watch: {
-        method() {
-            this.fetchMethodConfig();
-        },
-    }
 };
 </script>
 
