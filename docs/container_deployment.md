@@ -59,7 +59,7 @@ If SAGE is connected to an OPACA Runtime Platform, then the Agents view in the s
 
 Conversely, running agent containers can also be stopped and removed from the Agents view and OPACA Runtime Platform by clicking the small "x" symbol.
 
-Both starting and stopping containers from within SAGE can be deactivated via the `VITE_CONTAINER_MANAGEMENT` environment variable, which can be useful to prevent container deployment in a public no-auth deployment.
+Both starting and stopping containers from within SAGE can be deactivated via the `VITE_ALLOW_CONTAINER_MANAGEMENT` environment variable, which can be useful to prevent container deployment in a public no-auth deployment.
 
 ## Developing Agent Containers
 

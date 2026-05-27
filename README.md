@@ -23,8 +23,8 @@ cp .env.example .env
 ```bash
 URL="http://<YOUR_IP>"                     # For example "http://192.168.1.100"
 PUBLIC_URL="${URL}:8000"
-VITE_PLATFORM_BASE_URL="${PUBLIC_URL}"
-VITE_BACKEND_BASE_URL="${URL}:3001"
+VITE_PLATFORM_URL="${PUBLIC_URL}"
+VITE_BACKEND_URL="${URL}:3001"
 CORS_WHITELIST="${URL}:5173"
 ```
 

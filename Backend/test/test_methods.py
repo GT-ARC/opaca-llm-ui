@@ -8,7 +8,7 @@ unexpected errors, and whether all the other non-LLM routes work.
 How to test:
 - start OPACA Runtime Platform (RP)
 - Deploy the Smart office container to it (rkader2811/smart-office)
-- set the environment variable VITE_PLATFORM_BASE_URL to the URL of the RP
+- set the environment variable VITE_PLATFORM_URL to the URL of the RP
 - run "python -m test" from /Backend to run all tests
 
 Note:
@@ -36,7 +36,7 @@ client = TestClient(app)
 methods = ["simple", "simple-tools", "tool-llm", "self-orchestrated"]
 
 # Get the OPACA RP URL from the environment variable
-URL = os.getenv("VITE_PLATFORM_BASE_URL")
+URL = os.getenv("VITE_PLATFORM_URL")
 
 
 # TODO find some faster test query for the LLM? find-temp takes too long...
