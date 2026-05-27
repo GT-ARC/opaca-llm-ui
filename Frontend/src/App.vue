@@ -110,7 +110,6 @@
                                  aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
-                                        @select="(key, value) => this.handleOptionSelect(key, value)"
                                         ref="OptionsSelect"
                                     />
                                 </div>
@@ -146,7 +145,6 @@ import backendClient from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
-import {setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 import InputDialogue from './components/InputDialogue.vue';
 
@@ -229,21 +227,6 @@ export default {
                 dropdown.show();
             } else {
                 dropdown.hide();
-            }
-        },
-
-        updateLanguage(newLanguage) {
-            Localizer.language = newLanguage;
-            Localizer.reloadSampleQuestions(conf.selectedCategory);
-        },
-
-        handleOptionSelect(key, value) {
-            switch (key) {
-                case 'method': conf.method = value; break;
-                case 'language': this.updateLanguage(value); break;
-                case 'colorMode': setColorTheme(value); break;
-                case 'audio': conf.audioMethod = value; break;
-                default: break;
             }
         },
 

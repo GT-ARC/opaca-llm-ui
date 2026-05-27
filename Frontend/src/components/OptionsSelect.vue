@@ -50,7 +50,7 @@
 import conf, {Methods} from '../../config.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-import { getCurrentTheme, getColorThemes } from '../ColorThemes.js';
+import { getCurrentTheme, getColorThemes, setColorTheme } from '../ColorThemes.js';
 import ComboBox from "./ComboBox.vue";
 
 export default {
@@ -64,9 +64,6 @@ export default {
     setup() {
         return { };
     },
-    emits: [
-        'select'
-    ],
 
     methods: {
         getCombinedSettingsData() {
@@ -124,7 +121,18 @@ export default {
 
         select(key, value) {
             this.selectedItems[key] = value;
-            this.$emit('select', key, value);
+            switch (key) {
+                case 'method': conf.method = value; break;
+                case 'language': this.updateLanguage(value); break;
+                case 'colorMode': setColorTheme(value); break;
+                case 'audio': conf.audioMethod = value; break;
+                default: break;
+            }
+        },
+
+        updateLanguage(newLanguage) {
+            Localizer.language = newLanguage;
+            Localizer.reloadSampleQuestions(conf.selectedCategory);
         },
 
         getSelectedItem(key) {
