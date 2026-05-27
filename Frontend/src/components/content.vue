@@ -25,7 +25,6 @@
             :is-finished="this.isChatFinished()"
             ref="sidebar"
             @select-question="question => this.handleSelectQuestion(question)"
-            @select-category="category => this.handleSelectCategory(category)"
             @select-chat="chatId => this.handleSelectChat(chatId)"
             @delete-chat="chatId => this.handleDeleteChat(chatId)"
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
@@ -199,7 +198,7 @@ import {nextTick} from "vue";
 import * as uuid from "uuid";
 import Sidebar from "./Sidebar/Sidebar.vue";
 import Chatbubble from "./chatbubble.vue";
-import conf from '../../config.js'
+import conf, {addListener} from '../../config.js'
 import backendClient, { formatAgentDebugText, formatToolDebugResult } from "../utils.js";
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
@@ -802,11 +801,8 @@ export default {
         },
 
         handleSelectCategory(category) {
-            if (conf.selectedCategory !== category) {
-                if (this.showExampleQuestions) {
-                    Localizer.reloadSampleQuestions(category);
-                }
-                conf.selectedCategory = category;
+            if (this.showExampleQuestions) {
+                Localizer.reloadSampleQuestions(category);
             }
         },
 
@@ -911,6 +907,7 @@ export default {
     mounted() {
         this.startNewChat();
         this.updateScrollbarThumb();
+        addListener("selectedCategory", (category) => this.handleSelectCategory(category));
     },
     watch: {
         textInput() {

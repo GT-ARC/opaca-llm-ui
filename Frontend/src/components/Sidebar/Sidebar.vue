@@ -116,7 +116,6 @@
                 <SidebarQuestions
                     v-show="SidebarManager.isViewSelected('questions')"
                     @select-question="question => this.$emit('select-question', question)"
-                    @select-category="category => this.$emit('select-category', category)"
                     ref="questions"
                 />
 
@@ -203,7 +202,6 @@ export default {
     },
     emits: [
         'select-question',
-        'select-category',
         'select-chat',
         'delete-chat',
         'rename-chat',
