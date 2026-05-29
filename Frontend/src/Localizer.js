@@ -427,6 +427,11 @@ class Localizer {
     getPrompts() {
         return this.samplePrompts?.[this.language];
     }
+
+    toLocaleString(isotime) {
+        return new Date(Date.parse(isotime)).toLocaleString(this.languageCode);
+    }
+    
 }
 
 /**

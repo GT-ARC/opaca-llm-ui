@@ -1,6 +1,7 @@
 <template>
 <div class="chat align-items-center"
      :class="{'chat-selected': this.selectedChatId === chatId/*, 'chat-disabled': !this.isFinished*/}"
+     :title="this.getTooltip()"
      @click="this.select()" >
     <input
         class="chat-name"
@@ -100,6 +101,13 @@ export default {
             if (this.isEditingName) {
                 event.stopPropagation();
             }
+        },
+
+        getTooltip() {
+            return `ID: ${this.chat.chat_id}\n` + 
+                   //`Responses: ${this.chat.responses.length}\n` +  // XXX shows as zero?
+                   `Created: ${Localizer.toLocaleString(this.chat.time_created)}\n` +
+                   `Modified: ${Localizer.toLocaleString(this.chat.time_modified)}`;
         },
     },
     mounted() {
