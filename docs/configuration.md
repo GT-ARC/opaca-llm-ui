@@ -4,10 +4,10 @@ Following is an overview of all environment variables that can be set in the [do
 
 ## Frontend
 
-Frontend env-vars correspond to settings in `config.js`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system). The most important of those are:
+Frontend env-vars correspond to settings in `config.ts`; check there for context and default values. Env vars have to start with `VITE_` so they are evaluated when the app is started (i.e. taking values defined on the host system). The most important of those are:
 
 * `VITE_BACKEND_URL`: The URL where to find the backend; defaults to `localhost`, which works for testing, but should be replaced with actual IP for deployment to prevent problems with CORS
-* `VITE_METHOD`: The prompting method to use, see options in `config.js`
+* `VITE_METHOD`: The prompting method to use, see options in `config.ts`
 * `VITE_BACKLINK`: Optional 'back' link to be shown in the top-left corner.
 * `VITE_PLATFORM_URL`: The URL where to find the OPACA platform
 * `VITE_AUTOCONNECT`: Whether to automatically connect to the given OPACA URL on load; only if no auth is required.
@@ -22,7 +22,7 @@ The resolution order for the config settings is as follows:
 * If the setting is given in a query parameter in the URL, use that.
 * Else, use the value from the Cookie (i.e. from the previous session), if set.
 * Else, use the value from the corresponding `VITE_` environment variable.
-* Else, use the default value defined in `config.js`.
+* Else, use the default value defined in `config.ts`.
 
 
 ## Backend

@@ -1,0 +1,14 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": ["env.d.ts", "src/**/*", "config.ts"],
+  "exclude": ["src/**/*.vue"], // TODO: include vue files in second stage.
+  "compilerOptions": {
+    "composite": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "allowJs": true,
+    "ignoreDeprecations": "5.0",
+    "types": ["dom-speech-recognition"]
+  }
+}

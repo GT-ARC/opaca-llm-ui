@@ -1,4 +1,3 @@
-import * as url from "node:url";
 import Cookie from "js-cookie";
 
 // Available prompting methods
@@ -59,33 +58,34 @@ let baseConfig = {
     registryUrl: getStringOrDefault("registryUrl", null),
 }
 
-function getStringOrDefault(key, defaultValue) {
+function getStringOrDefault(key: string, defaultValue: string | null): string | null {
     return getRawValue(key) ?? defaultValue;
 }
 
-function getBoolOrDefault(key, defaultValue) {
+function getBoolOrDefault(key: string, defaultValue: boolean): boolean {
     const value = getRawValue(key)
     return value ? value.toLowerCase() === 'true' : defaultValue;
 }
 
-function getRawValue(key) {
+function getRawValue(key: string): string | null {
     return getQueryParam(key) ?? Cookie.get(key) ?? getViteEnvVar(key);
 }
 
-function getQueryParam(key) {
+function getQueryParam(key: string): string | null {
     const params = new URLSearchParams(window.location.search);
     return params.get(key);
 }
 
-function getViteEnvVar(key) {
+function getViteEnvVar(key: string): string | null {
     const name = "VITE_" + key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
     return import.meta.env[name];
 }
 
 // listeners can be used to react to config changes
-const listeners = new Map();
+type Callback = (newValue: any) => void;
+const listeners = new Map<string, Callback[]>();
 
-export function addListener(key, callback) {
+export function addListener(key: string, callback: Callback) {
     const lst = listeners.get(key);
     if (lst) {
         lst.push(callback);
@@ -94,7 +94,7 @@ export function addListener(key, callback) {
     }
 }
 
-function triggerListeners(key, newValue) {
+function triggerListeners(key: string, newValue: any) {
     const lst = listeners.get(key);
     if (lst) {
         for (const callback of lst) {
@@ -104,14 +104,15 @@ function triggerListeners(key, newValue) {
 }
 
 // the proxied config automatically sets cookies and calls any registered listeners whenever a setting is changed
+type Config = { [key: string]: any };
 const configHandler = {
-    set(target, key, value) {
+    set(target: Config, key: string, value: any) {
         target[key] = value;
         Cookie.set(key, value);
         triggerListeners(key, value);
         return true;
     }
 };
-const proxiedConfig = new Proxy(Object.assign({}, baseConfig), configHandler);
+const proxiedConfig = new Proxy<Config>(Object.assign({}, baseConfig), configHandler);
 
 export default proxiedConfig;

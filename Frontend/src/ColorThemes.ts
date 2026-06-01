@@ -1,7 +1,7 @@
 // names of the CSS-variables for individual colors
 // theme-variants replace "color" with the name of the theme
-import conf from "../config.js";
-import {ref} from "vue";
+import conf from "../config";
+import { ref, type Ref } from "vue";
 
 const cssColors = [
     "background",
@@ -19,12 +19,21 @@ const cssColors = [
     "input",
     "debug-console",
     "icon-invert",
-];
+] as const;
+
+type CssColor = typeof cssColors[number];
+
+interface ColorTheme {
+    name: string;
+    basedOn: string | null;
+    colors?: Partial<Record<CssColor, string>>;
+}
 
 // Color themes; if "basedOn" is null, the theme is defined directly in CSS
-const colorThemes = {
+const colorThemes: Record<string, ColorTheme> = {
     system: {
-        "name": "Adaptive"
+        "name": "Adaptive",
+        "basedOn": null,
     },
     light: {
         "name": "Light",
@@ -44,11 +53,11 @@ const colorThemes = {
             "secondary": "#33cc99",
         },
     },
-}
+};
 
-const currentTheme = ref(conf.colorScheme);
+const currentTheme: Ref<string> = ref(conf.colorScheme);
 
-function getEffectiveColorTheme() {
+function getEffectiveColorTheme(): string {
     if (conf.colorScheme === 'system') {
         return window.matchMedia('(prefers-color-scheme: dark)').matches
             ? 'dark' : 'light';
@@ -56,13 +65,13 @@ function getEffectiveColorTheme() {
     return conf.colorScheme;
 }
 
-export function getColorThemes() {
+export function getColorThemes(): Record<string, string> {
     return Object.fromEntries(
         Object.entries(colorThemes).map(([k,v]) => [k, v.name])
     );
 }
 
-export function setColorTheme(theme) {
+export function setColorTheme(theme: string): void {
     conf.colorScheme = theme;
     currentTheme.value = getEffectiveColorTheme();
     for (const color of cssColors) {
@@ -70,23 +79,36 @@ export function setColorTheme(theme) {
     }
 }
 
-export function getCurrentTheme() {
+export function getCurrentTheme(): string {
     return currentTheme.value;
 }
 
-export function isDarkTheme(theme = null) {
+export function isDarkTheme(theme: string | null = null): boolean {
     if (theme === null) return isDarkTheme(getCurrentTheme());
     if (theme === 'light') return false;
     if (theme === 'dark') return true;
     return isDarkTheme(colorThemes[theme].basedOn);
 }
 
-function getColor(theme, color) {
-    if (colorThemes[theme].basedOn === null) {
-        return `var(--${color}-${theme})`
+/**
+ * Recursively get the color value for the given theme and color name.
+ */
+function getColor(theme: string, color: CssColor): string {
+    const themeConfig = colorThemes[theme];
+
+    // If theme doesn't exist, fallback to light/CSS var logic
+    if (!themeConfig) return `var(--${color}-light)`;
+
+    // If it's a base theme (no parent), return the standard CSS variable reference
+    if (themeConfig.basedOn === null) {
+        return `var(--${color}-${theme})`;
     }
-    if (color in colorThemes[theme].colors) {
-        return colorThemes[theme].colors[color];
+
+    // If the color is explicitly defined in this theme's overrides
+    if (themeConfig.colors && color in themeConfig.colors) {
+        return themeConfig.colors[color]!;
     }
-    return getColor(colorThemes[theme].basedOn, color);
+
+    // Otherwise, recurse up to the parent theme
+    return getColor(themeConfig.basedOn, color);
 }
