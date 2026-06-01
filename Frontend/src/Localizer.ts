@@ -303,17 +303,18 @@ const localizationData: LocalizationData = {
     },
 };
 
+// hard-code the most complete language as fallback language
+const fallbackLanguage: string = 'GB';
+
 
 export class Localizer {
-    private _fallbackLanguage: Ref<string>;
     private _selectedLanguage: Ref<string>;
     private _randomSampleQuestions: Ref<Prompt[] | null>;
     private _samplePrompts: Ref<Record<string, PromptCategory> | null>;
 
-    constructor(selectedLanguage: string, fallbackLanguage: string) {
-        this._fallbackLanguage = ref(fallbackLanguage)
-        this._selectedLanguage = this.isAvailableLanguage(selectedLanguage)
-            ? ref(selectedLanguage)
+    constructor() {
+        this._selectedLanguage = this.isAvailableLanguage(conf.language)
+            ? ref(conf.language)
             : ref(fallbackLanguage);
 
         this._randomSampleQuestions = ref(null);
@@ -323,6 +324,7 @@ export class Localizer {
     set language(newLang: string) {
         this._selectedLanguage.value = newLang;
         this._verifySettings();
+        conf.language = newLang;
     }
 
     get language(): string {
@@ -331,15 +333,6 @@ export class Localizer {
 
     get languageCode(): string {
         return this.get("code")
-    }
-
-    set fallbackLanguage(newLang: string) {
-        this._selectedLanguage.value = newLang;
-        this._verifySettings();
-    }
-
-    get fallbackLanguage(): string {
-        return this._fallbackLanguage.value;
     }
 
     set randomSampleQuestions(value: Prompt[] | null) {
@@ -359,8 +352,8 @@ export class Localizer {
     }
 
     _verifySettings(): void {
-        if (!localizationData[this.language] || !localizationData[this.fallbackLanguage]) {
-            throw Error(`Invalid languages configured in Localizer: ${this.language}, ${this.fallbackLanguage}`);
+        if (!localizationData[this.language] || !localizationData[fallbackLanguage]) {
+            throw Error(`Invalid languages configured in Localizer: ${this.language}, ${fallbackLanguage}`);
         }
     }
 
@@ -380,7 +373,7 @@ export class Localizer {
     }
 
     _getFrom(data: LocalizationData, key: string, args: any[], defaultValue: string, warningText: string, errorText: string): string {
-        const fallbackText = this.formatText(data?.[this.fallbackLanguage]?.[key], ...args);
+        const fallbackText = this.formatText(data?.[fallbackLanguage]?.[key], ...args);
         const text = this.formatText(data?.[this.language]?.[key], ...args);
         if (text) {
             return text;
@@ -464,8 +457,6 @@ function matches(question: string, textInput: string): boolean {
         .every(word => question.toLowerCase().includes(word));
 }
 
-// hard-code the most complete language as fallback language
-const fallbackLanguage: string = 'GB';
 
-const localizer = new Localizer(conf.DefaultLanguage, fallbackLanguage);
+const localizer = new Localizer();
 export default localizer;

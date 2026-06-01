@@ -50,26 +50,20 @@
 import conf, {Methods} from '../../config.js';
 import Localizer from "../Localizer.js";
 import AudioManager from "../AudioManager.js";
-import { getColorThemes } from '../ColorThemes.js';
+import { getCurrentTheme, getColorThemes, setColorTheme } from '../ColorThemes.js';
 import ComboBox from "./ComboBox.vue";
-import Cookie from "js-cookie";
 
 export default {
     name: "OptionsSelect",
     components: {ComboBox},
-    props: {},
     data() {
         return {
             selectedItems: {},
-            isAudioConnecting: false,
         };
     },
     setup() {
         return { };
     },
-    emits: [
-        'select'
-    ],
 
     methods: {
         getCombinedSettingsData() {
@@ -125,18 +119,20 @@ export default {
             }
         },
 
-        getInitialColorMode() {
-            if (conf.ColorScheme === 'system') {
-                return window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'dark' : 'light';
+        select(key, value) {
+            this.selectedItems[key] = value;
+            switch (key) {
+                case 'method': conf.method = value; break;
+                case 'language': this.updateLanguage(value); break;
+                case 'colorMode': setColorTheme(value); break;
+                case 'audio': conf.audioMethod = value; break;
+                default: break;
             }
-            return conf.ColorScheme;
         },
 
-        select(key, value) {
-            Cookie.set(key, value);
-            this.selectedItems[key] = value;
-            this.$emit('select', key, value);
+        updateLanguage(newLanguage) {
+            Localizer.language = newLanguage;
+            Localizer.reloadSampleQuestions(conf.selectedCategory);
         },
 
         getSelectedItem(key) {
@@ -149,10 +145,10 @@ export default {
     },
 
     mounted() {
-        this.select('method', Cookie.get("method") ?? conf.DefaultMethod);
-        this.select('language', Cookie.get("language") ?? Localizer.language);
-        this.select('colorMode', this.getInitialColorMode());
-        this.select('audio', Cookie.get("audio") ?? AudioManager.method);
+        this.select('method', conf.method);
+        this.select('language', Localizer.language);
+        this.select('colorMode', getCurrentTheme());
+        this.select('audio', conf.audioMethod);
     }
 }
 </script>

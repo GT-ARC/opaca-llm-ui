@@ -44,7 +44,7 @@ export class WhisperAudio extends TtsAudio {
     async setup(): Promise<void> {
         this.isLoading = true;
         try {
-            const url = `${conf.BackendAddress}/whisper/generate`;
+            const url = `${conf.backendUrl}/whisper/generate`;
             const payload = { method: 'POST' };
             const params = new URLSearchParams({
                 text: this._text,
@@ -186,7 +186,6 @@ export class AudioManager {
     constructor() {
         this._isRecording = ref(false);
         this._isTranscribing = ref(false);
-        this.method = "WHISPER";
 
         // webkit
         this._recognition = null;
@@ -222,7 +221,7 @@ export class AudioManager {
 
     async generateAudio(text: string): Promise<TtsAudio | null> {
         if (!text) return null;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": return new WhisperAudio(text);
             case "WEBSPEECH": return new WebSpeechAudio(text);
         };
@@ -236,7 +235,7 @@ export class AudioManager {
      */
     async startRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         if (!this.isRecognitionSupported()) return;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
             case "WEBSPEECH": this.startWebSpeechRecognition(onResult, onError); break;
         };
@@ -244,7 +243,7 @@ export class AudioManager {
 
     async stopRecognition(): Promise<void> {
         if (!this.isRecognitionSupported()) return;
-        switch (this.method) {
+        switch (conf.audioMethod) {
             case "WHISPER": this.stopWhisperRecognition(); break;
             case "WEBSPEECH": this.stopWebSpeechRecognition(); break;
         };
@@ -385,7 +384,7 @@ export class AudioManager {
         const formData = new FormData();
         formData.append('file', new File([new Blob(audioChunks)], `audio.${ext}`, { type: `audio/${ext}` }));
 
-        const response = await fetch(`${conf.BackendAddress}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
+        const response = await fetch(`${conf.backendUrl}/whisper/transcribe/?filetype=${ext}&language=${lang}`, {
             method: 'POST',
             body: formData
         });

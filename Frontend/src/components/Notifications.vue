@@ -49,8 +49,6 @@ export default {
     components: {
         Chatbubble
     },
-    props: {
-    },
     emits: [
         "append-to-chat"
     ],

@@ -139,7 +139,7 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.BackendAddress}/files`, formData, {
+        const response = await axios.post(`${conf.backendUrl}/files`, formData, {
             timeout: 10000,
             withCredentials: true,
             headers: {
@@ -205,7 +205,7 @@ class BackendClient {
     async sendRequest(method: Method | string, path: string, body: any = null, timeout: number = 10000): Promise<any> {
         const response = await axios.request({
             method: method as Method,
-            url: `${conf.BackendAddress}/${path}`,
+            url: `${conf.backendUrl}/${path}`,
             data: body,
             timeout: timeout,
             withCredentials: true,

@@ -1,5 +1,5 @@
 import { ref, type Ref } from "vue";
-import Cookie from "js-cookie";
+import conf from "../config.js";
 
 const AVAILABLE_VIEWS = [
     'none',
@@ -53,10 +53,11 @@ export class SidebarManager {
                 return;
             }
             this._selectedView.value = key;
-            Cookie.set('selected_view', key);
+            conf.selectedSidebar = key;
         } else {
             console.warn(`${key} is not a valid sidebar view`);
             this._selectedView.value = 'none';
+            conf.selectedSidebar = 'none';
         }
     }
 

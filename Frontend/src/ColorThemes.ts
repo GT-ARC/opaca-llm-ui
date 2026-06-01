@@ -31,6 +31,10 @@ interface ColorTheme {
 
 // Color themes; if "basedOn" is null, the theme is defined directly in CSS
 const colorThemes: Record<string, ColorTheme> = {
+    system: {
+        "name": "Adaptive",
+        "basedOn": null,
+    },
     light: {
         "name": "Light",
         "basedOn": null,
@@ -51,14 +55,14 @@ const colorThemes: Record<string, ColorTheme> = {
     },
 };
 
-const currentTheme: Ref<string> = ref(initColorTheme());
+const currentTheme: Ref<string> = ref(conf.colorScheme);
 
-export function initColorTheme(): string {
-    if (conf.ColorScheme === 'system') {
+function getEffectiveColorTheme(): string {
+    if (conf.colorScheme === 'system') {
         return window.matchMedia('(prefers-color-scheme: dark)').matches
             ? 'dark' : 'light';
     }
-    return conf.ColorScheme;
+    return conf.colorScheme;
 }
 
 export function getColorThemes(): Record<string, string> {
@@ -67,10 +71,11 @@ export function getColorThemes(): Record<string, string> {
     );
 }
 
-export function setColorTheme(document: Document, theme: string): void {
-    currentTheme.value = theme;
+export function setColorTheme(theme: string): void {
+    conf.colorScheme = theme;
+    currentTheme.value = getEffectiveColorTheme();
     for (const color of cssColors) {
-        document.documentElement.style.setProperty(`--${color}-color`, getColor(theme, color));
+        document.documentElement.style.setProperty(`--${color}-color`, getColor(currentTheme.value, color));
     }
 }
 

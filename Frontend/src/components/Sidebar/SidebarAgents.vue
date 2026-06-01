@@ -39,7 +39,7 @@
                         <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
                         <strong>{{ image?.imageName ?? containerId }}</strong>
 
-                        <i v-if="conf.ContainerManagement && !isInternalContainer(containerId)"
+                        <i v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
                             class="fa fa-remove delete-icon"
                             @click.stop.prevent="this.stopContainer(containerId)"
                             :title="Localizer.get('agents_undeploy')"
@@ -121,7 +121,7 @@
             </div>
         </div>
     </div>
-    <button v-if="conf.ContainerManagement && this.isPlatformConnected"
+    <button v-if="conf.allowContainerManagement && this.isPlatformConnected"
             type="button"
             class="btn btn-primary py-2 w-100"
             @click.stop="addContainer()">
@@ -140,7 +140,6 @@ import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import InputDialogue from '../InputDialogue.vue';
-import Cookie from "js-cookie";
 
 export default {
     name: 'SidebarAgents',
@@ -253,11 +252,11 @@ export default {
                 Localizer.get("agents_deploy_registry"),
                 null,
                 {
-                    registry: { type: "text", label: "Registry URL (incl Port)", default: Cookie.get("registryUrl")},
+                    registry: { type: "text", label: "Registry URL (incl Port)", default: conf.registryUrl},
                 },
                 async values => {
                     // get images from the registry (names and JSON)
-                    Cookie.set("registryUrl", values.registry);
+                    conf.registryUrl = values.registry;
                     const res = await fetch(`${values.registry}/images`);
                     const images = Object.fromEntries(
                         JSON.parse(await res.text())
