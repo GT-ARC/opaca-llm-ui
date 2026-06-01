@@ -1,54 +1,47 @@
-import {ref} from "vue";
-import conf from "../config.js";
-import Localizer from "./Localizer.js";
-import * as utils from "./utils.js"
+import {ref, type Ref} from "vue";
+import conf from "../config";
+import Localizer from "./Localizer";
+import * as utils from "./utils"
 
 
 /**
  * Provide unified API for TTS/STT using either the browser built-in
  * Web Speech API or a custom Whisper server running locally.
  */
-class TtsAudio {
+export abstract class TtsAudio {
+    protected isPlaying: boolean;
+    protected isLoading: boolean;
 
     constructor() {
         this.isPlaying = false;
         this.isLoading = false;
     }
 
-    async setup() {
-        throw Error("Not implemented");
-    }
+    abstract setup(): Promise<void>;
 
-    async play() {
-        throw Error("Not implemented");
-    }
+    abstract play(): Promise<void>;
 
-    async stop() {
-        throw Error("Not implemented");
-    }
+    abstract stop(): Promise<void>;
 
-    canPlay() {
-        throw Error("Not implemented");
-    }
+    abstract canPlay(): boolean;
 
-    canStop() {
-        throw Error("Not implemented");
-    }
-
+    abstract canStop(): boolean;
 }
 
 /**
  * Class for handling whisper-generated audio.
  */
-class WhisperAudio extends TtsAudio {
+export class WhisperAudio extends TtsAudio {
+    private _text: string;
+    private audio: HTMLAudioElement | null;
 
-    constructor(text) {
+    constructor(text: string) {
         super();
         this._text = text;
         this.audio = null;
     }
 
-    async setup() {
+    async setup(): Promise<void> {
         this.isLoading = true;
         try {
             const url = `${conf.BackendAddress}/whisper/generate`;
@@ -65,37 +58,31 @@ class WhisperAudio extends TtsAudio {
             } else {
                 const errorText = await response.text();
                 console.error('Audio API error:', response.status, errorText);
-                return null;
             }
         } catch (error) {
             console.error(error);
             alert('Failed to generate audio.');
-            return null;
         } finally {
             this.isLoading = false;
         }
     }
 
-    /**
-     * @param audioBlob {Blob}
-     * @returns {HTMLAudioElement}
-     */
-    makeFromBlob(audioBlob) {
+    makeFromBlob(audioBlob: Blob): HTMLAudioElement | null {
         if (!audioBlob) return null;
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
         audio.onplay = () => this.isPlaying = true;
         audio.onpause = () => this.isPlaying = false;
-        audio.onend = () => this.isPlaying = false;
+        audio.onended = () => this.isPlaying = false;
         return audio;
     }
 
-    async play() {
+    async play(): Promise<void> {
         if (!this.canPlay()) return;
         try {
             if (!this.isPlaying) {
                 this.isPlaying = true;
-                await this.audio.play();
+                await this.audio?.play();
             } else {
                 await this.stop();
             }
@@ -105,18 +92,18 @@ class WhisperAudio extends TtsAudio {
         }
     }
 
-    async stop() {
+    async stop(): Promise<void> {
         if (!this.audio) return;
         this.audio.pause();
         this.audio.currentTime = 0;
         this.isPlaying = false;
     }
 
-    canPlay() {
+    canPlay(): boolean {
         return this.audio !== null && !this.isLoading;
     }
 
-    canStop() {
+    canStop(): boolean {
         return this.audio !== null && !this.isLoading;
     }
 
@@ -125,24 +112,27 @@ class WhisperAudio extends TtsAudio {
 /**
  * Class for handling WebSpeech-generated audio.
  */
-class WebSpeechAudio extends TtsAudio {
+export class WebSpeechAudio extends TtsAudio {
+    private _text: string;
+    private _synthesis: SpeechSynthesis | null;
+    private _utterance: SpeechSynthesisUtterance | null;
 
-    constructor(text) {
+    constructor(text: string) {
         super();
         this._text = text;
         this._synthesis = null;
         this._utterance = null;
     }
 
-    async setup() {
+    async setup(): Promise<void> {
         const utterance = new SpeechSynthesisUtterance(this._text);
         utterance.lang = Localizer.languageCode;
 
-        utterance.onstart = () => {
+        utterance.onstart = (): void => {
             this.isLoading = false;
             this.isPlaying = true;
         };
-        utterance.onend = () => {
+        utterance.onend = (): void => {
             this.isPlaying = false;
             this.isLoading = false;
         };
@@ -155,27 +145,27 @@ class WebSpeechAudio extends TtsAudio {
         this._utterance = utterance;
     }
 
-    async play() {
+    async play(): Promise<void> {
         if (this.canPlay()) {
             this.isLoading = true;
             this._synthesis = window.speechSynthesis;
-            this._synthesis.speak(this._utterance);
+            this._synthesis.speak(this._utterance!);
         }
     }
 
-    async stop() {
+    async stop(): Promise<void> {
         if (this.canStop()) {
-            this._synthesis.pause();
-            this._synthesis.cancel();
+            this._synthesis!.pause();
+            this._synthesis!.cancel();
             this._synthesis = null;
         }
     }
 
-    canPlay() {
-        return this._utterance != null && this._utterance.text;
+    canPlay(): boolean {
+        return this._utterance != null && this._utterance.text != '';
     }
 
-    canStop() {
+    canStop(): boolean {
         return this._utterance != null && this._synthesis !== null
             && this._synthesis.speaking
     }
@@ -185,7 +175,13 @@ class WebSpeechAudio extends TtsAudio {
 /**
  * Manager class that provides unified public access.
  */
-class AudioManager {
+export class AudioManager {
+    private _isRecording: Ref<boolean>;
+    private _isTranscribing: Ref<boolean>;
+    private method: string;
+    private _recognition: SpeechRecognition | null;
+    private _audioContext: AudioContext | null;
+    private _mediaRecorder: MediaRecorder | null;
 
     constructor() {
         this._isRecording = ref(false);
@@ -200,23 +196,23 @@ class AudioManager {
         this._mediaRecorder = null;
     }
     
-    get isRecording() {
+    get isRecording(): boolean {
         return this._isRecording.value;
     }
 
-    set isRecording(value) {
+    set isRecording(value: boolean) {
         this._isRecording.value = value;
     }
 
-    get isTranscribing() {
+    get isTranscribing(): boolean {
         return this._isTranscribing.value;
     }
 
-    set isTranscribing(value) {
+    set isTranscribing(value: boolean) {
         this._isTranscribing.value = value;
     }
 
-    getAudioMethods() {
+    getAudioMethods(): Record<string, string> {
         if (this.isWebSpeechSupported()) {
             return { WHISPER: "Whisper", WEBSPEECH: "WebSpeech" };
         } else {
@@ -224,12 +220,13 @@ class AudioManager {
         }
     }
 
-    async generateAudio(text) {
+    async generateAudio(text: string): Promise<TtsAudio | null> {
         if (!text) return null;
         switch (this.method) {
             case "WHISPER": return new WhisperAudio(text);
             case "WEBSPEECH": return new WebSpeechAudio(text);
         };
+        throw new Error(`Unsupported audio method: ${this.method}`);
     }
 
     /**
@@ -237,7 +234,7 @@ class AudioManager {
      * @param onResult Callback that should expect the successfully recognized text as an argument.
      * @param onError Callback that should expect any error messages.
      */
-    async startRecognition(onResult, onError) {
+    async startRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         if (!this.isRecognitionSupported()) return;
         switch (this.method) {
             case "WHISPER": this.startWhisperRecognition(onResult, onError); break;
@@ -245,7 +242,7 @@ class AudioManager {
         };
     }
 
-    async stopRecognition() {
+    async stopRecognition(): Promise<void> {
         if (!this.isRecognitionSupported()) return;
         switch (this.method) {
             case "WHISPER": this.stopWhisperRecognition(); break;
@@ -253,7 +250,7 @@ class AudioManager {
         };
     }
 
-    async startWebSpeechRecognition(onResult, onError) {
+    async startWebSpeechRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         if (! this.isWebSpeechSupported()) {
             onError("WebSpeech is not supported in your Browser");
         }
@@ -288,26 +285,23 @@ class AudioManager {
         this._recognition.start();
     }
 
-    stopWebSpeechRecognition() {
+    stopWebSpeechRecognition(): void {
         if (this._recognition) {
             this._recognition.stop();
             this._recognition = null;
         }
     }
 
-    isRecognitionSupported() {
+    isRecognitionSupported(): boolean {
         return utils.isSecureConnection();
     }
 
-    isWebSpeechSupported() {
+    isWebSpeechSupported(): boolean {
         return this._isGoogleChrome() && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
     }
 
-    /**
-     * Very hacky check if the user is using the (full) Google Chrome browser.
-     * @returns {boolean}
-     */
-    _isGoogleChrome() {
+    /** Very hacky check if the user is using the (full) Google Chrome browser. */
+    _isGoogleChrome(): boolean {
         return window.chrome !== undefined
             && window.navigator.vendor === "Google Inc."
             && window.navigator.userAgentData !== undefined
@@ -315,7 +309,7 @@ class AudioManager {
             && Array.from(window.navigator.plugins)?.some(plugin => plugin.name === "Chrome PDF Viewer");
     }
 
-    async startWhisperRecognition(onResult, onError) {
+    async startWhisperRecognition(onResult: (text: string) => void, onError: (error: string) => void): Promise<void> {
         try {
             this.isRecording = true;
             this._audioContext = new AudioContext();
@@ -335,7 +329,7 @@ class AudioManager {
             const analyser = this._audioContext.createAnalyser();
             const dataArray = new Float32Array(analyser.fftSize);
             this._audioContext.createMediaStreamSource(stream).connect(analyser);
-            const audioChunks = [];
+            const audioChunks: Blob[] = [];
             let lastSound = Date.now()
             let recordingStart = Date.now()
 
@@ -375,14 +369,14 @@ class AudioManager {
         }
     }
 
-    stopWhisperRecognition() {
+    stopWhisperRecognition(): void {
         if (this._mediaRecorder) {
             this._mediaRecorder.stop();
             this._mediaRecorder = null;
         }
     }
 
-    async processAudioChunks(audioChunks) {
+    async processAudioChunks(audioChunks: Blob[]): Promise<string> {
         if (audioChunks.length === 0) return '';
 
         const ext = audioChunks[0].type.split("/")[1].split(";")[0].trim();

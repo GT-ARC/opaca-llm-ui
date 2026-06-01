@@ -1,5 +1,3 @@
-import * as url from "node:url";
-
 // Available prompting methods
 export const Methods = {
     "simple": "Simple Prompt",
@@ -53,22 +51,17 @@ let config = {
 
 /**
  * Parse an environment variable value to a boolean.
- *
- * @param name {String} The variable's name.
- * @param defaultValue {boolean} The default value.
- * @private
  */
-function parseEnvBool(name, defaultValue = false) {
+function parseEnvBool(name: string, defaultValue: boolean = false): boolean {
     const value = import.meta.env[name];
     return value ? value.toLowerCase() === 'true' : defaultValue;
 }
 
 /**
  * Parse relevant query params and let their values override the default config values.
- * @private
  */
-function parseQueryParams() {
-    const urlParams = {};
+function parseQueryParams(): void {
+    const urlParams: Record<string, string> = {};
     for (const [key, value] of (new URLSearchParams(window.location.search)).entries()) {
         urlParams[key.toLowerCase()] = value;
     }
