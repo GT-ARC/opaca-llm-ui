@@ -1,19 +1,20 @@
 // @ts-ignore
 import conf from '../config';
 import axios, { type  Method } from "axios";
-import type { 
-    Container, 
-    PostContainerRequest, 
+import type {
+    Container,
+    PostContainerRequest,
     PostContainerResponse,
-    ContainerExtraPorts, 
-    InvokeResponse, 
-    QueryResponse, 
-    Chat, 
-    SearchResult, 
-    OpacaFile, 
-    ConfigPayload, 
+    ContainerExtraPorts,
+    InvokeResponse,
+    QueryResponse,
+    Chat,
+    SearchResult,
+    OpacaFile,
+    ConfigPayload,
     SessionPrompts,
-    PushMessage
+    PushMessage,
+    DebugMessage,
 } from "./models";
 
 class BackendClient {
@@ -237,14 +238,6 @@ export function isSecureConnection(): boolean {
     return window.location.protocol === 'https'
         || window.location.hostname === 'localhost'
         || window.location.hostname === '127.0.0.1';
-}
-
-export interface DebugMessage {
-    id: string;
-    type?: string;
-    text?: string;
-    chatId?: string;
-    [key: string]: any;
 }
 
 /**

@@ -6,6 +6,14 @@ export interface ConnectRequest {
     pwd: string | null;
 }
 
+export interface DebugMessage {
+    id: string;
+    type?: string;
+    text?: string;
+    chatId?: string;
+    [key: string]: any;
+}
+
 export interface InvokeRequest {
     action: string;
     agent: string;
