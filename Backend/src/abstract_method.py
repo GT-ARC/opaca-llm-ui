@@ -277,30 +277,26 @@ class AbstractMethod(ABC):
         return ToolCall(id=tool_id, type="opaca", name=tool_name, args=tool_args, result=t_result)
 
     async def invoke_mcp_tool(self, full_tool_name: str, tool_args: dict, tool_id: str) -> ToolCall:
+        async def create_result(result):
+            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=result, chat_id=self.chat.chat_id))
+            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=result)
+
         server_label, tool_name = full_tool_name.split('--', maxsplit=1)
         server = self.session.mcp_servers.get(server_label)
         if not server:
-            t_result = f"MCP Server '{server_label}' not found."
-            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+            return await create_result(f"MCP Server '{server_label}' not found.")
         
         tool = server.tools.get(full_tool_name)
         if not tool:
-            t_result = f"Tool '{full_tool_name}' not found on MCP Server '{server_label}'."
-            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+            return await create_result(f"Tool '{full_tool_name}' not found on MCP Server '{server_label}'.")
 
         if tool.approval == 'deny':
             # Should not happen due to filtering in get_tools, but double-checking approval status just in case it changes in the future
-            t_result = "Execution denied by user settings, do not attempt again."
-            await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-            return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+            return await create_result("Execution denied by user settings, do not attempt again.")
             
         if tool.approval == 'ask':
             if not await self.check_confirmation(full_tool_name, tool_args, force_ask=True):
-                t_result = "Execution declined by user, do not attempt again."
-                await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-                return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+                return await create_result("Execution declined by user, do not attempt again.")
 
         try:
             client = MCPClient(server_url=server.params.server_url)
@@ -313,8 +309,7 @@ class AbstractMethod(ABC):
         except Exception as e:
             t_result = f"Failed to invoke MCP tool.\nCause: {e}"
 
-        await self.send_to_websocket(ToolResultMessage(id=tool_id, result=t_result))
-        return ToolCall(id=tool_id, type="mcp", name=full_tool_name, args=tool_args, result=t_result)
+        return await create_result(t_result)
 
 
     async def get_tools(self, include_internal: bool = True, include_mcp: bool = True, max_tools=128) -> tuple[list[dict], str]:
