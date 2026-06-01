@@ -15,7 +15,23 @@ export const MethodDescriptions = {
     "self-orchestrated": "A two-staged approach, where an orchestrator delegates to several groups of worker agents, each responsible for different OPACA agents.",
 };
 
-let baseConfig = {
+interface Config {
+    backendUrl: string;
+    method: string;
+    backlink: string | null;
+    platformUrl: string;
+    autoconnect: boolean;
+    allowContainerManagement: boolean;
+    colorScheme: string;
+    selectedCategory: string;
+    selectedSidebar: string;
+    sidebarCollapsed: boolean;
+    language: string;
+    audioMethod: string;
+    registryUrl: string | null;
+};
+
+const baseConfig: Config = {
 
     // URL to the SAGE backend
     backendUrl: getStringOrDefault("backendUrl", "http://localhost:3001"),
@@ -24,7 +40,7 @@ let baseConfig = {
     method: getStringOrDefault("method", "tool-llm"),
 
     // Optional "back-link" that redirects the user to a pre-configured site.
-    backlink: getStringOrDefault("backlink", null),
+    backlink: getMaybeStringOrDefault("backlink", null),
 
     // URL to the OPACA Runtime platform
     platformUrl: getStringOrDefault("platformUrl", "http://localhost:8000"),
@@ -55,10 +71,14 @@ let baseConfig = {
     audioMethod: getStringOrDefault("audioMethod", "WHISPER"),
 
     // OPACA container registry
-    registryUrl: getStringOrDefault("registryUrl", null),
+    registryUrl: getMaybeStringOrDefault("registryUrl", null),
 }
 
-function getStringOrDefault(key: string, defaultValue: string | null): string | null {
+function getStringOrDefault(key: string, defaultValue: string): string {
+    return getRawValue(key) ?? defaultValue;
+}
+
+function getMaybeStringOrDefault(key: string, defaultValue: string | null): string | null {
     return getRawValue(key) ?? defaultValue;
 }
 
@@ -104,10 +124,9 @@ function triggerListeners(key: string, newValue: any) {
 }
 
 // the proxied config automatically sets cookies and calls any registered listeners whenever a setting is changed
-type Config = { [key: string]: any };
 const configHandler = {
     set(target: Config, key: string, value: any) {
-        target[key] = value;
+        (target as any)[key as keyof Config] = value;
         Cookie.set(key, value);
         triggerListeners(key, value);
         return true;
