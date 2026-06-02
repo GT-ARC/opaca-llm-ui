@@ -438,6 +438,11 @@ export class Localizer {
     getPrompts(): PromptCategory | undefined {
         return this.samplePrompts?.[this.language];
     }
+
+    toLocaleString(isotime: string): string {
+        return new Date(Date.parse(isotime)).toLocaleString(this.languageCode);
+    }
+    
 }
 
 /**
