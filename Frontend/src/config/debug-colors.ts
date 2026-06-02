@@ -1,5 +1,5 @@
 // Debug color schemes for different modes [dark, light]
-export const debugColors = {
+export const debugColors: Record<string, string[]> = {
     // System
     "preparing": ["#10a37f", "#10a37f"],  // Primary green color for preparation phase
     // Multi-Agent System - Orchestration Level
@@ -25,14 +25,14 @@ export const debugColors = {
 }
 
 // Default colors for unknown agents [dark, light]
-export const defaultDebugColors = ["#fff", "#000"];
+export const defaultDebugColors: string[] = ["#fff", "#000"];
 
-export function getDebugColor(key, isDarkScheme) {
+export function getDebugColor(key: string, isDarkScheme: boolean): string {
     const darkSchemeId = isDarkScheme ? 0 : 1;
     if (debugColors[key]) {
         return debugColors[key][darkSchemeId];
     } else {
         console.warn(`Debug color ${key} not found.`);
-        return defaultDebugColors[key]?.[darkSchemeId] || null;
+        return defaultDebugColors[darkSchemeId];
     }
 }

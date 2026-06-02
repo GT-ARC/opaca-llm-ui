@@ -44,4 +44,4 @@ Note: At the moment, the Extensions sidebar itself does not provide means for Co
 
 ## Configuration
 
-Several aspects of the UI, such as the available and default prompting method, the selection of sample prompts, or the default language can be configured in `config.js`. Several of those can also be configured via environment variables, e.g. in the `docker-compose.yml` file.
+Several aspects of the UI, such as the available and default prompting method, the selection of sample prompts, or the default language can be configured in `config.ts`. Several of those can also be configured via environment variables, e.g. in the `docker-compose.yml` file.

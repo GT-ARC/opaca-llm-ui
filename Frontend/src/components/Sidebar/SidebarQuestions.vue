@@ -44,8 +44,7 @@
             <!-- body -->
             <div :id="'questions-' + index"
                  class="accordion-collapse collapse"
-                 data-bs-parent="#sidebar-questions"
-                 v-on:[bsCollapseEvent]="this.$emit('select-category', section.header)">
+                 data-bs-parent="#sidebar-questions">
                 <div class="accordion-body">
 
                     <!-- category questions -->
@@ -132,7 +131,6 @@ export default {
     components: { InputDialogue },
     emits: [
         'select-question',
-        'select-category',
     ],
     data() {
         return {
@@ -247,10 +245,10 @@ export default {
                 collapse.show();
                 const questions = Localizer.getPrompts();
                 const header = index in questions ? questions[index].header : 'none';
-                this.$emit('select-category', header);
+                conf.selectedCategory = header;
             } else {
                 collapse.hide();
-                this.$emit('select-category', null);
+                conf.selectedCategory = "none";
             }
         },
 
@@ -405,19 +403,8 @@ export default {
     async mounted() {
         Localizer.samplePrompts = await backendClient.getPrompts();
 
-        // attach listeners for category opening
-        for (let i = 0; i < Localizer.getPrompts()?.length; ++i) {
-            const toggle = document.getElementById('questions-' + i);
-            if (! toggle) continue;
-
-            const header = Localizer.getPrompts()[i].header;
-            toggle.addEventListener('show.bs.collapse', () => {
-                this.$emit('select-category', header);
-            });
-        }
-
         // open default category
-        this.expandSectionByHeader(conf.DefaultQuestions);
+        this.expandSectionByHeader(conf.selectedCategory);
     }
 }
 </script>

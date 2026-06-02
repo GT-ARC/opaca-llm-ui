@@ -32,7 +32,6 @@ import SidebarFileItem from "./SidebarFileItem.vue";
 export default {
     name: 'SidebarFiles',
     components: {SidebarFileItem},
-    props: {},
     setup() {
         const {isMobile} = useDevice();
         return {Localizer, isMobile};
@@ -46,7 +45,6 @@ export default {
     data() {
         return {
             files: {},
-            showFileMenu: false,
         };
     },
     methods: {

@@ -7,8 +7,8 @@
             <nav class="navbar navbar-expand" type="light">
 
                 <!-- backlink -->
-                <div class="ms-1 w-auto text-start" v-if="conf.BackLink != null">
-                    <a :href="conf.BackLink">
+                <div class="ms-1 w-auto text-start" v-if="conf.backlink != null">
+                    <a :href="conf.backlink">
                         <img src="./assets/Icons/back.png" class="logo" alt="Back" height="20"/>
                     </a>
                 </div>
@@ -59,7 +59,7 @@
                                     <span v-if="this.opacaUser ?? '' !== ''">
                                         {{ this.opacaUser }} @
                                     </span>
-                                    {{ this.opacaRuntimePlatform }}
+                                    {{ conf.platformUrl }}
                                 </div>
                                 <button :class="['w-100', 'btn', connected ? 'btn-secondary' : 'btn-primary']"
                                         :disabled="isConnecting"
@@ -110,7 +110,6 @@
                                  aria-labelledby="options-dropdown">
                                 <div class="dropdown-item d-flex">
                                     <OptionsSelect
-                                        @select="(key, value) => this.handleOptionSelect(key, value)"
                                         ref="OptionsSelect"
                                     />
                                 </div>
@@ -127,10 +126,7 @@
 
     <div class="col background">
         <MainContent
-            :method="this.method"
-            :language="this.language"
             :connected="this.connected"
-            @select-category="category => this.selectedCategory = category"
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
@@ -149,7 +145,6 @@ import backendClient from "./utils.js";
 import AudioManager from "./AudioManager.js";
 import Notifications from './components/Notifications.vue';
 import OptionsSelect from "./components/OptionsSelect.vue";
-import {setColorTheme} from './ColorThemes.js';
 import CookieBanner from './components/CookieBanner.vue';
 import InputDialogue from './components/InputDialogue.vue';
 
@@ -162,13 +157,9 @@ export default {
     },
     data() {
         return {
-            language: conf.DefaultLanguage,
-            method: conf.DefaultMethod,
-            opacaRuntimePlatform: conf.OpacaRuntimePlatform,
             opacaUser: "",
             connected: false,
             isConnecting: false,
-            selectedCategory: null,
             unreadNotifications: 0,
             pendingNotification: false,
         }
@@ -179,12 +170,12 @@ export default {
             await this.$refs.input.showDialogue(
                 Localizer.get("general_connect"), Localizer.get("main_connectHint"), error,
                 {
-                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: this.opacaRuntimePlatform },
+                    url:  { type: "text", label: Localizer.get("main_opacaUrl"), default: conf.platformUrl },
                     username: { type: "text", label: Localizer.get("general_username"), default: this.opacaUser, optional: (values) => !values.password },
                     password: { type: "password", label: Localizer.get("general_password"), default: "", optional: (values) => !values.username },
                 },
                 async (values) => {
-                    this.opacaRuntimePlatform = values.url;
+                    conf.platformUrl = values.url;
                     this.opacaUser = values.username;
                     await this.connectToPlatform(values.username, values.password);
                 }
@@ -195,7 +186,7 @@ export default {
             this.connected = false;
             this.isConnecting = true;
             try {
-                const rpStatus = await backendClient.connect(this.opacaRuntimePlatform, username, password);
+                const rpStatus = await backendClient.connect(conf.platformUrl, username, password);
                 this.isConnecting = false;
                 if (rpStatus === 200) {
                     this.connected = true;
@@ -224,10 +215,6 @@ export default {
             }
         },
 
-        setMethod(key) {
-            this.method = key;
-        },
-
         /**
          * Force the connection dropdown opened or closed.
          *
@@ -240,25 +227,6 @@ export default {
                 dropdown.show();
             } else {
                 dropdown.hide();
-            }
-        },
-
-        setTheme(theme) {
-            setColorTheme(document, theme);
-        },
-
-        updateLanguage(newLanguage) {
-            Localizer.language = newLanguage;
-            Localizer.reloadSampleQuestions(this.selectedCategory);
-        },
-
-        handleOptionSelect(key, value) {
-            switch (key) {
-                case 'method': this.setMethod(value); break;
-                case 'language': this.updateLanguage(value); break;
-                case 'colorMode': this.setTheme(value); break;
-                case 'audio': AudioManager.method = value; break;
-                default: break;
             }
         },
 
@@ -374,10 +342,6 @@ export default {
     },
 
     async mounted() {
-        if (conf.ColorScheme !== "system") {
-            this.setTheme(conf.ColorScheme);
-        }
-
         // prevent options dropdown menu from closing once anything in it is clicked
         document.getElementById('options-menu')?.addEventListener('click', e => {
             e.stopPropagation();
@@ -388,8 +352,8 @@ export default {
         const url = await this.waitForConnection();
         if (url != null) {
             this.connected = true;
-            this.opacaRuntimePlatform = url;
-        } else if (conf.AutoConnect) {
+            conf.platformUrl = url;
+        } else if (conf.autoconnect) {
             await this.connectToPlatform();
         } else {
             this.toggleConnectionDropdown(true);
