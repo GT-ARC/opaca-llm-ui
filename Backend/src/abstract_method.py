@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type, Literal
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 from itertools import count
@@ -24,8 +26,10 @@ from .models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage
                      MissingApiKeyNotification, MissingApiKeyResponse, ConfirmActionNotification, ConfirmActionResponse,
                      LLMConfig)
 from .file_utils import upload_files
-from .internal_tools import InternalTools
 from .opaca_client import actions_blacklist
+
+if TYPE_CHECKING:
+    from .internal_tools import InternalTools
 
 
 # list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool
@@ -52,6 +56,8 @@ class AbstractMethod(ABC):
         self.streaming = streaming
         self.tool_counter = count(0)
         self.internal_tools = internal_tools
+        if self.internal_tools:
+            self.internal_tools.set_chat(chat)
 
     @classmethod
     def config_schema(cls) -> Dict[str, Any]:
@@ -97,6 +103,7 @@ class AbstractMethod(ABC):
             response_format: Optional[Type[BaseModel]] = None,
             status_message: str | None = None,
             is_output: bool = False,
+            attached_file_ids: set[str] | None = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -111,6 +118,8 @@ class AbstractMethod(ABC):
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             status_message (str): optional message to be streamed to the UI
             is_output (bool): whether agent output should be streamed directly to chat or only to debug
+            attached_file_ids: IDs of files whose full contents should be attached to this call.
+            By default, agents receive only a short file-availability notice.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -130,7 +139,10 @@ class AbstractMethod(ABC):
         exec_time = time.time()
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(self.session, self.chat, model)
+        file_message_parts = []
+        if attached_file_ids:
+            file_chat = Chat(chat_id=self.chat.chat_id, active_files=attached_file_ids)
+            file_message_parts = await upload_files(self.session, file_chat, model)
 
         # Modify the last user message to include file parts
         if file_message_parts:
@@ -145,6 +157,35 @@ class AbstractMethod(ABC):
 
             # Prepend file parts
             last.content = [*file_message_parts, *parts]
+
+        if not attached_file_ids:
+            current_file_ids = (
+                self.internal_tools.context.current_file_ids
+                if self.internal_tools else set()
+            )
+            current_files = [
+                f"{file.file_name} (ID: {file_id})"
+                for file_id, file in self.session.uploaded_files.items()
+                if file_id in current_file_ids
+            ]
+            if current_files:
+                system_prompt = (
+                    f"{system_prompt.rstrip()}\n\nFiles attached to this user message: "
+                    f"{', '.join(current_files)}. References such as 'this file' or "
+                    "'the attached file' mean these files. Use these IDs directly. For a "
+                    "summary, overview, description, or main points, always call "
+                    "GetFileSummaries first. Do not call AskFiles unless the stored summary is "
+                    "unavailable or the user requests details beyond it. FindRelevantFiles is "
+                    "unnecessary unless other active files may also be relevant."
+                )
+            elif self.chat.active_files.intersection(self.session.uploaded_files):
+                system_prompt = (
+                    f"{system_prompt.rstrip()}\n\nUploaded files are active but not attached. "
+                    "Use FindRelevantFiles when file selection is needed. For summaries, "
+                    "overviews, descriptions, or main points, call GetFileSummaries before "
+                    "AskFiles. AskFiles reads full contents and should only be used for details "
+                    "that the stored summaries cannot provide."
+                )
 
         # Set settings for model invocation
         kwargs = {
@@ -177,7 +218,7 @@ class AbstractMethod(ABC):
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
-            
+
             elif event.type == event_type.RESPONSE_FAILED:
                 raise OpacaException(
                     user_message="(The generation of the response has failed. See error message for details.)",
@@ -260,7 +301,7 @@ class AbstractMethod(ABC):
 
     async def invoke_tool(self, tool: ToolCall, login_attempt_retry: bool = False) -> ToolCall:
         """
-        Invoke tool (OPACA or MCP) matching the given ToolCall. 
+        Invoke tool (OPACA or MCP) matching the given ToolCall.
         If OPACA invoke fails due to required login, attempt Login (via websocket callback) and try again.
         In any case returns a ToolCall, where "result" can be an error message.
         """
@@ -275,7 +316,7 @@ class AbstractMethod(ABC):
             if approval_state == ToolApprovalState.DENY:
                 # Should not happen due to filtering in get_tools, but double-checking approval status just in case it changes in the future
                 return await create_result("Execution denied by user settings, do not attempt again.")
-                
+
             if approval_state == ToolApprovalState.ASK and not await self.check_confirmation(tool.name, tool.args):
                 return await create_result("Execution declined by user, do not attempt again.")
 
@@ -300,7 +341,9 @@ class AbstractMethod(ABC):
             try:
                 t_result = await self.internal_tools.call_internal_tool(tool_name, tool.args)
             except Exception as e:
-                t_result = f"Failed to invoke Internal tool.\nCause: {e}"
+                logger.exception("Internal tool %s failed", tool.name)
+                cause = getattr(e, "error_message", None) or str(e) or type(e).__name__
+                t_result = f"Failed to invoke Internal tool.\nCause: {cause}"
 
         # OPACA Tool Execution Flow
         else:
@@ -330,7 +373,7 @@ class AbstractMethod(ABC):
 
         # Filter out OPACA tools if user denied OR if it hits the admin blacklist
         tools = [
-            t for t in tools 
+            t for t in tools
             if self.session.get_opaca_tool_approval(t["name"]) != ToolApprovalState.DENY
             and not any(x.lower() in t["name"].lower() for x in actions_blacklist)
         ]
@@ -392,7 +435,7 @@ class AbstractMethod(ABC):
                 if not (response.username and response.password):
                     tool.result = "Failed to invoke tool.\nNo credentials provided."
                     return tool
-                
+
                 # Attempt to login at container via OPACA (error if immediate login-check fails)
                 try:
                     await self.session.opaca_client.container_login(container_id, response.username, response.password)
@@ -409,7 +452,9 @@ class AbstractMethod(ABC):
         return res
 
     async def handle_invalid_api_key(self, model, is_invalid: bool = False):
-        await self.send_to_websocket(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
+        if not self.session.has_websocket():
+            raise OpacaException(user_message=f"No API key is available for model {model}.")
+        await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
         response = MissingApiKeyResponse(**await self.session.websocket_receive())
         if response.api_key:
             if litellm.check_valid_key(model, response.api_key):

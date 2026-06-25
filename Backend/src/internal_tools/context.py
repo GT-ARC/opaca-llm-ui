@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ..code_execution import CodeExecutor
@@ -15,6 +15,8 @@ class InternalToolContext:
     session: SessionData
     agent_method: type["AbstractMethod"]
     code_executor: CodeExecutor
+    chat: Chat | None = None
+    current_file_ids: set[str] = field(default_factory=set)
 
     async def query(self, query: str) -> QueryResponse:
         """Call AgentMethod.query without streaming, chat history, or internal tools."""

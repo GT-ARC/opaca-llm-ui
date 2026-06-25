@@ -32,6 +32,7 @@ from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
+from .file_analysis import generate_file_metadata
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 from .opaca_client import actions_blacklist
@@ -256,9 +257,17 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     session.is_notifs_aborted = False
     try:
+        current_file_ids = set(message.file_ids) & set(session.uploaded_files)
         internal_tools = InternalTools(session, METHODS[method])
+        internal_tools.set_current_file_ids(current_file_ids)
         response = QueryResponse(query=message.user_query)
-        method_impl = METHODS[method](session, Chat(chat_id=''), response, message.streaming, internal_tools)
+        method_impl = METHODS[method](
+            session,
+            Chat(chat_id='', active_files=current_file_ids),
+            response,
+            message.streaming,
+            internal_tools,
+        )
         return await method_impl.query()
     except Exception as e:
         response = QueryResponse(query=message.user_query)
@@ -316,12 +325,14 @@ async def get_chat_history(chat_id: str, session: SessionData = Depends(handle_s
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(method: str, chat_id: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     chat = session.get_or_create_chat(chat_id, True)
+    current_file_ids = set(message.file_ids) & chat.active_files & set(session.uploaded_files)
     response = QueryResponse(query=message.user_query)
     chat.store_interaction(response)
     chat.is_aborted = False
     chat.is_finished = False
     try:
         internal_tools = InternalTools(session, METHODS[method])
+        internal_tools.set_current_file_ids(current_file_ids)
         method_impl = METHODS[method](session, chat, response, message.streaming, internal_tools)
         await session.websocket_send(ReloadChatsMessage())
         await method_impl.query()
@@ -439,7 +450,7 @@ async def get_files(session: SessionData = Depends(handle_session_http)) -> dict
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["files"])
+@app.post("/files", description="Upload a file and immediately generate an LLM summary and keywords for selective use in later queries.", tags=["files"])
 async def upload_files(chat_id: str | None = None, files: List[UploadFile] | None = None, session: SessionData = Depends(handle_session_http)):
     if files is None: files = []
     uploaded: List[OpacaFile] = []
@@ -452,6 +463,11 @@ async def upload_files(chat_id: str | None = None, files: List[UploadFile] | Non
                 status_code=500,
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
+
+    await asyncio.gather(*(
+        generate_file_metadata(session, file_id)
+        for file_id in {file.file_id for file in uploaded}
+    ))
 
     if chat_id is not None:
         chat = session.get_or_create_chat(chat_id, True)

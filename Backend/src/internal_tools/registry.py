@@ -46,6 +46,12 @@ class InternalTools:
         )
         self.groups = [group_cls(self.context) for group_cls in TOOL_GROUPS]
 
+    def set_chat(self, chat):
+        self.context.chat = chat
+
+    def set_current_file_ids(self, file_ids: set[str]):
+        self.context.current_file_ids = file_ids
+
     # FORMAT INTERNAL TOOLS FOR DIFFERENT OCCASIONS
 
     def _format_internal_tool_simple(self, tool: InternalTool) -> dict:

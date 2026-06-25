@@ -118,7 +118,7 @@ class MCPCreateRequest(BaseModel):
 
 class ToolApprovalUpdateRequest(BaseModel):
     """Used as payload for updating the approval status of a tool.
-    
+
     Attributes:
         tool_name: the full name of the tool for which the approval status should be updated
         approval: the new approval status
@@ -135,9 +135,11 @@ class QueryRequest(BaseModel):
     Attributes
         user_query: The query a user has input into the SAGE ChatBot.
         streaming: whether intermediate results should be streamed via Websocket
+        file_ids: Files attached to this specific user message.
     """
     user_query: str
     streaming: bool = False
+    file_ids: List[str] = Field(default_factory=list)
 
 
 class AgentMessage(BaseModel):
@@ -197,17 +199,21 @@ class QueryResponse(BaseModel):
 
 class OpacaFile(BaseModel):
     """
-    Represents a single uploaded PDF file.
+    Represents a single uploaded file.
 
     Attributes:
         file_id: ID assigned after upload
         content_type: MIME type of the file
         file_name: The absolute path to the file
+        description: LLM-generated summary
+        keywords: Short key terms used for inexpensive relevance selection
         host_ids: IDs assigned by each host the file has been uploaded to
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
     file_name: str
+    description: str = ""
+    keywords: List[str] = Field(default_factory=list)
     host_ids: Dict[str, str] = Field(default_factory=dict)
 
 
@@ -365,7 +371,7 @@ class MCPServer(BaseModel):
     server_label: str
     type: str | None = None
     tools: Dict[str, MCPTool] = Field(default_factory=dict)
-    
+
 
 class SessionData(BaseModel):
     """
@@ -505,7 +511,7 @@ class SessionData(BaseModel):
         if not (tool := server.tools.get(full_name)):
             raise KeyError(f"Tool '{full_name}' not found in MCP server '{server_label}'.")
         return tool
-    
+
     def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: ToolApprovalState):
         """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
         tool = self.get_mcp_tool(server_label, tool_name)
@@ -837,7 +843,7 @@ class LLMConfig(BaseModel):
         filtered = self._filter_supported(self.parameters.model_dump())
         self.parameters = LLMParameters(**filtered)
         return self
-    
+
     def _filter_supported(self, params: dict) -> dict:
         """Remove unsupported parameters from config schema."""
         supported = get_supported_openai_params(self.model)
