@@ -143,6 +143,20 @@ class AbstractMethod(ABC):
         if attached_file_ids:
             file_chat = Chat(chat_id=self.chat.chat_id, active_files=attached_file_ids)
             file_message_parts = await upload_files(self.session, file_chat, model)
+            if not file_message_parts:
+                file_list = ", ".join(
+                    file.file_name
+                    for file_id, file in self.session.uploaded_files.items()
+                    if file_id in attached_file_ids
+                ) or "the selected file"
+                raise OpacaException(
+                    user_message="The selected file could not be attached to the LLM.",
+                    error_message=(
+                        f"No supported file parts were produced for {file_list} using model {model}. "
+                        "PDFs require a model provider with file-upload support; images require a "
+                        "vision-capable OpenAI model in the current implementation."
+                    ),
+                )
 
         # Modify the last user message to include file parts
         if file_message_parts:
