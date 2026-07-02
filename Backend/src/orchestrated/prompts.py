@@ -100,6 +100,9 @@ The output generator can format and synthesize information that has already been
 no extra step is needed only to rewrite existing results. It cannot retrieve missing information.
 For a summary or overview of an uploaded file, GetFileSummaries is the preferred retrieval tool.
 AskFiles should only read full file contents when the stored summary is unavailable or insufficient.
+FindRelevantFiles can select from all uploaded files, including inactive files; if relevant files are
+inactive, SetActiveFiles should set the current relevant file working set before summaries or full-file
+questions are retrieved.
 
 Your ONLY role is to output EXACTLY ONE of these two options:
 - REITERATE: If there are remaining ESSENTIAL steps that MUST be attempted
@@ -205,7 +208,8 @@ The 'should_retry' field is the most important. Set it to 'True' only if:
 The final OutputGenerator will summarize information already present in execution results. Do not
 suggest steps merely to rewrite those results. However, a requested uploaded-file summary must first
 be retrieved with GetFileSummaries; AskFiles is only needed if that stored summary is unavailable or
-insufficient for the user's request.
+insufficient for the user's request. FindRelevantFiles can select inactive uploaded files; if selected
+files are inactive, SetActiveFiles should be used before retrieving summaries or full contents.
 
 Your Thought Process:
 1. Analyze results
@@ -260,7 +264,8 @@ INTERNAL_AGENT_DESC = """**Purpose:** The InternalToolsAgent provides different 
 * accessing information from past chats and interactions,
 * managing reminders to the user and scheduled tasks for later or regular execution,
 * loading files from a URI,
-* selecting uploaded files by keywords,
+* selecting uploaded files by stored summaries and keywords, including inactive files,
+* setting the active file working set when relevant inactive files should be used,
 * quickly retrieving stored summaries for summary, overview, description, and main-point requests,
 * reading full file contents only for detailed questions the stored summaries cannot answer,
 * running code to perform complex calculations.

@@ -172,11 +172,8 @@ class AbstractMethod(ABC):
             # Prepend file parts
             last.content = [*file_message_parts, *parts]
 
-        if not attached_file_ids:
-            current_file_ids = (
-                self.internal_tools.context.current_file_ids
-                if self.internal_tools else set()
-            )
+        if not attached_file_ids and self.internal_tools:
+            current_file_ids = self.internal_tools.context.current_file_ids
             current_files = [
                 f"{file.file_name} (ID: {file_id})"
                 for file_id, file in self.session.uploaded_files.items()
@@ -190,12 +187,18 @@ class AbstractMethod(ABC):
                     "summary, overview, description, or main points, always call "
                     "GetFileSummaries first. Do not call AskFiles unless the stored summary is "
                     "unavailable or the user requests details beyond it. FindRelevantFiles is "
-                    "unnecessary unless other active files may also be relevant."
+                    "unnecessary unless other uploaded files may also be relevant. "
+                    "FindRelevantFiles searches all uploaded files and reports whether they are "
+                    "active; if relevant files are inactive, call SetActiveFiles with the complete "
+                    "relevant file set before GetFileSummaries or AskFiles."
                 )
-            elif self.chat.active_files.intersection(self.session.uploaded_files):
+            elif self.session.uploaded_files:
                 system_prompt = (
-                    f"{system_prompt.rstrip()}\n\nUploaded files are active but not attached. "
-                    "Use FindRelevantFiles when file selection is needed. For summaries, "
+                    f"{system_prompt.rstrip()}\n\nUploaded files are available. Some may be "
+                    "inactive for this chat. Use FindRelevantFiles when file selection is needed; "
+                    "it searches all uploaded files using stored metadata and reports active "
+                    "status. If relevant files are inactive, call SetActiveFiles with the complete "
+                    "relevant file set before GetFileSummaries or AskFiles. For summaries, "
                     "overviews, descriptions, or main points, call GetFileSummaries before "
                     "AskFiles. AskFiles reads full contents and should only be used for details "
                     "that the stored summaries cannot provide."

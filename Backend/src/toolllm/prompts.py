@@ -73,6 +73,8 @@ available tools. If the request clearly requires further processing with your av
 If the request requires summarization or specific information from uploaded files, output "CONTINUE" so the Files tools
 can process it. For summary, overview, description, or main-point requests, GetFileSummaries is the preferred fast path.
 AskFiles should read full contents only when a stored summary is unavailable or the request needs more specific details.
+FindRelevantFiles can select from all uploaded files, including inactive ones; inactive relevant files should be activated
+with SetActiveFiles before summaries or full-file questions are retrieved.
 Explain your decision with a short reason. There are other agents that will take care of the final response generation. 
 Do not answer the user directly, rather analyze if any of the tools are suitable for the given request."""
 

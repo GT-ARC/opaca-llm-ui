@@ -42,10 +42,27 @@ class FileTools:
             ),
             InternalTool(
                 name="FindRelevantFiles",
-                description="Select active files relevant to a query using filenames and keywords. Files attached to the current user message can be used directly from the prompt.",
+                description=(
+                    "Select relevant files from all uploaded files using filenames, stored summaries, "
+                    "and keywords. Returns whether each selected file is currently active. If relevant "
+                    "files are inactive, call SetActiveFiles with the complete relevant file set before "
+                    "using GetFileSummaries or AskFiles."
+                ),
                 params={"query": "string"},
                 result="object",
                 function=self.tool_find_relevant_files,
+            ),
+            InternalTool(
+                name="SetActiveFiles",
+                description=(
+                    "Replace the current chat's active file working set. Use after FindRelevantFiles "
+                    "when relevant files are inactive, or when the active files should be narrowed to "
+                    "the current relevant set. Pass the complete set of file IDs that should remain "
+                    "active, not only newly relevant inactive files."
+                ),
+                params={"file_ids": "string"},
+                result="object",
+                function=self.tool_set_active_files,
             ),
             InternalTool(
                 name="GetFileSummaries",
@@ -82,10 +99,7 @@ class FileTools:
             return set(self.ctx.session.uploaded_files)
         return set(self.ctx.chat.active_files)
 
-    def _selected_active_file_ids(
-            self,
-            file_ids: str | list[str],
-    ) -> tuple[set[str], set[str]]:
+    def _parse_file_ids(self, file_ids: str | list[str]) -> set[str]:
         if isinstance(file_ids, list):
             values = file_ids
         else:
@@ -96,7 +110,13 @@ class FileTools:
                 parsed = None
             values = parsed if isinstance(parsed, list) else value.split(",")
 
-        requested_ids = {str(file_id).strip() for file_id in values if str(file_id).strip()}
+        return {str(file_id).strip() for file_id in values if str(file_id).strip()}
+
+    def _selected_active_file_ids(
+            self,
+            file_ids: str | list[str],
+    ) -> tuple[set[str], set[str]]:
+        requested_ids = self._parse_file_ids(file_ids)
         return requested_ids & self._active_file_ids(), requested_ids
 
     async def tool_read_file_from_url(self, url: str) -> dict:
@@ -145,13 +165,56 @@ class FileTools:
             files = await find_relevant_files(
                 self.ctx.session,
                 query,
-                self._active_file_ids(),
-                self.ctx.current_file_ids,
+                current_file_ids=self.ctx.current_file_ids,
+                active_file_ids=self._active_file_ids(),
             )
-            return {"ok": True, "files": files}
+            inactive_file_ids = [
+                file["file_id"]
+                for file in files
+                if not file["active"]
+            ]
+            return {
+                "ok": True,
+                "files": files,
+                "inactive_file_ids": inactive_file_ids,
+                "needs_activation": bool(inactive_file_ids),
+            }
         except Exception as exc:
             logger.exception("Finding relevant files failed")
             return {"ok": False, "files": [], "error": _error_message(exc)}
+
+    async def tool_set_active_files(self, file_ids: str | list[str]) -> dict:
+        if self.ctx.chat is None:
+            return {
+                "ok": False,
+                "error": "No chat is available for setting active files.",
+            }
+
+        selected_ids = self._parse_file_ids(file_ids) & set(self.ctx.session.uploaded_files)
+
+        if not selected_ids:
+            return {
+                "ok": False,
+                "files": [],
+                "error": "No valid uploaded file IDs were provided. Active files were not changed.",
+            }
+
+        self.ctx.chat.active_files.clear()
+        self.ctx.chat.active_files.update(selected_ids)
+
+        active_files = [
+            {
+                "file_id": file_id,
+                "file_name": file.file_name,
+            }
+            for file_id, file in self.ctx.session.uploaded_files.items()
+            if file_id in selected_ids
+        ]
+        return {
+            "ok": True,
+            "files": active_files,
+            "active_file_ids": sorted(selected_ids),
+        }
 
     async def tool_get_file_summaries(self, file_ids: str | list[str]) -> dict:
         selected_ids, requested_ids = self._selected_active_file_ids(file_ids)
