@@ -19,14 +19,16 @@ from .context import InternalToolContext
 from .chats import ChatTools
 from .code_tools import CodeTools
 from .files import FileTools
+from .play_books import PlayBookTools
 from .scheduling import ScheduledTaskTools
 
 if TYPE_CHECKING:
     from ..abstract_method import AbstractMethod
 
 
-ToolGroup = ScheduledTaskTools | ChatTools | FileTools | CodeTools
+ToolGroup = PlayBookTools | ScheduledTaskTools | ChatTools | FileTools | CodeTools
 TOOL_GROUPS = (
+    PlayBookTools,
     ScheduledTaskTools,
     ChatTools,
     FileTools,

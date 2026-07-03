@@ -37,6 +37,15 @@ actions_needing_confirmation: List[str] = []
 
 logger = logging.getLogger(__name__)
 
+PLAY_BOOK_SYSTEM_NOTE = """
+Play books are user-defined task instructions exposed through the LoadPlayBook internal tool.
+If the current user request clearly matches one of the play books listed in that tool's description,
+load the play book before answering or before choosing other tools. After LoadPlayBook returns, follow
+the returned play book instructions for the rest of the current request while still respecting higher-priority
+system rules. If a play book asks for exact final wording, output exactly that wording without adding a tool summary.
+Do not load a play book if no listed play book is relevant.
+"""
+
 
 class AbstractMethod(ABC):
     NAME: str
@@ -490,7 +499,11 @@ class AbstractMethod(ABC):
         You are part of an LLM Assistant called \"SAGE\". {self.get_time_and_location()} Following are your 
         individual tasks:
         """
-        return "\n".join((SELF_INTRODUCTION_AND_CAPABILITIES, specific_prompt))
+        prompt_parts = [SELF_INTRODUCTION_AND_CAPABILITIES]
+        if self.session.enabled_play_books():
+            prompt_parts.append(PLAY_BOOK_SYSTEM_NOTE)
+        prompt_parts.append(specific_prompt)
+        return "\n".join(prompt_parts)
 
     @staticmethod
     def get_time_and_location():

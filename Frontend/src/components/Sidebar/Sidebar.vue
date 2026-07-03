@@ -44,6 +44,11 @@
                    :title="Localizer.get('sidebar_agents')"
                    v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('agents')}"/>
 
+                <i @click="SidebarManager.toggleView('playBooks')"
+                   class="fa fa-clipboard-check sidebar-menu-item"
+                   :title="Localizer.get('sidebar_playBooks')"
+                   v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('playBooks')}"/>
+
                 <i @click="SidebarManager.toggleView('extensions')"
                    class="fa fa-puzzle-piece sidebar-menu-item"
                    :title="Localizer.get('sidebar_extensions')"
@@ -129,6 +134,13 @@
                     ref="agents"
                 />
 
+                <!-- play books -->
+                <SidebarPlayBooks
+                    v-show="SidebarManager.isViewSelected('playBooks')"
+                    :sidebar-view="SidebarManager.getSelectedView()"
+                    ref="playBooks"
+                />
+
                 <!-- UI extensions -->
                 <SidebarExtensions
                     v-show="SidebarManager.isViewSelected('extensions')"
@@ -182,6 +194,7 @@ import SidebarFaq from "./SidebarFaq.vue";
 import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
 import SidebarMcp from "./SidebarMcp.vue";
+import SidebarPlayBooks from "./SidebarPlayBooks.vue";
 import backendClient from "../../utils.js";
 
 export default {
@@ -195,6 +208,7 @@ export default {
         SidebarInfo,
         SidebarConfig,
         SidebarAgents,
+        SidebarPlayBooks,
         SidebarExtensions,
         SidebarQuestions,
     },

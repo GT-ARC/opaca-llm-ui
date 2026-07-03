@@ -24,7 +24,7 @@ from openai import OpenAI
 from . import sample_prompts as prompts
 from .models import ConnectRequest, ToolApprovalUpdateRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateRequest, PushMessage, \
-    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile
+    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, PlayBook
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -569,6 +569,26 @@ async def post_default_prompts(data: SessionPrompts, auth = Depends(require_pass
 @app.delete("/prompts/default", description="Reset default Sample Prompts for new sessions", tags=["sample prompts", "admin"])
 async def reset_default_prompts(auth = Depends(require_password)) -> None:
     prompts.reset_default_prompts()
+
+
+# play books
+
+@app.get("/play-books", description="Get user-defined play books for the current session.", tags=["play books"])
+async def get_play_books(session: SessionData = Depends(handle_session_http)) -> List[PlayBook]:
+    return session.play_books
+
+
+@app.post("/play-books", description="Add or update a play book for the current session.", tags=["play books"])
+async def post_play_book(data: PlayBook, session: SessionData = Depends(handle_session_http)) -> PlayBook:
+    session.set_play_book(data)
+    return data
+
+
+@app.delete("/play-books/{play_book_id}", description="Delete a play book from the current session.", tags=["play books"])
+async def delete_play_book(play_book_id: str, session: SessionData = Depends(handle_session_http)) -> Response:
+    if not session.delete_play_book(play_book_id):
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Play book '{play_book_id}' not found.")
+    return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
 # WHISPER TTS/STT

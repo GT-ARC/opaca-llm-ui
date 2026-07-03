@@ -19,6 +19,7 @@ import type {
     ToolApprovalState,
     MCPTool,
     MCPCreateRequest,
+    PlayBook,
 } from "./models";
 
 const FILE_UPLOAD_TIMEOUT = 5 * 60 * 1000;
@@ -214,6 +215,24 @@ class BackendClient {
 
     async resetPrompts(): Promise<void> {
         return await this.sendRequest("DELETE", "prompts");
+    }
+
+    // play books
+
+    async getPlayBooks(): Promise<PlayBook[]> {
+        return await this.sendRequest("GET", "play-books");
+    }
+
+    async savePlayBook(playBook: PlayBook | Omit<PlayBook, "id" | "enabled">): Promise<PlayBook> {
+        return await this.sendRequest("POST", "play-books", playBook);
+    }
+
+    async setPlayBookEnabled(playBook: PlayBook, enabled: boolean): Promise<PlayBook> {
+        return await this.savePlayBook({...playBook, enabled});
+    }
+
+    async deletePlayBook(playBookId: string): Promise<void> {
+        return await this.sendRequest("DELETE", `play-books/${encodeURIComponent(playBookId)}`);
     }
 
     async getContainerApprovals(containerId: string): Promise<Record<string, ToolApprovalState>> {

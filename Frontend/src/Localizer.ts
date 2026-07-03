@@ -3,8 +3,8 @@ import { shuffleArray } from "./utils";
 import conf from '../config';
 import { type Prompt, type PromptCategory } from './models';
 
-/** 
- * Interface for the translation object structure 
+/**
+ * Interface for the translation object structure
  * Using an index signature [key: string] allows for the many dynamic keys
  */
 interface TranslationSchema {
@@ -54,6 +54,7 @@ const localizationData: LocalizationData = {
         sidebar_questions: "Prompt Library",
         sidebar_files: "Uploaded Files",
         sidebar_agents: "Agents and Actions",
+        sidebar_playBooks: "Play Books",
         sidebar_extensions: "Extensions",
         sidebar_mcp: "MCP Servers",
         sidebar_config: "Configuration",
@@ -107,6 +108,19 @@ const localizationData: LocalizationData = {
         mcp_missing: "No MCP servers available.",
         mcp_add: "Add MCP Server",
         mcp_remove: "Remove MCP Server",
+        playBooks_loading: "Loading play books...",
+        playBooks_missing: "No play books available.",
+        playBooks_add: "Add Play Book",
+        playBooks_delete: "Delete Play Book",
+        playBooks_delete_confirm: "Delete play book \"%1\"?",
+        playBooks_enable: "Enable Play Book",
+        playBooks_disable: "Disable Play Book",
+        playBooks_name: "Name",
+        playBooks_whenToUse: "When to use",
+        playBooks_whatToDo: "What to do",
+        playBooks_loadFailed: "Could not load play books.",
+        playBooks_saveFailed: "Could not save play books.",
+        playBooks_deleteFailed: "Could not delete play book.",
         info_missing: "It's a little quiet here...",
         info_loading: "Querying functionality, please wait...",
         info_failed: "There was an error when querying the functionality: %1",
@@ -194,6 +208,7 @@ const localizationData: LocalizationData = {
         sidebar_questions: "Prompt-Bibliothek",
         sidebar_files: "Hochgeladene Dateien",
         sidebar_agents: "Agenten und Aktionen",
+        sidebar_playBooks: "Play Books",
         sidebar_extensions: "Erweiterungen",
         sidebar_mcp: "MCP Servers",
         sidebar_config: "Konfiguration",
@@ -243,6 +258,19 @@ const localizationData: LocalizationData = {
         mcp_missing: "Keine MCP-Server verfügbar.",
         mcp_add: "MCP Server hinzufügen",
         mcp_remove: "MCP Server entfernen",
+        playBooks_loading: "Play Books werden geladen...",
+        playBooks_missing: "Keine Play Books verfügbar.",
+        playBooks_add: "Play Book hinzufügen",
+        playBooks_delete: "Play Book löschen",
+        playBooks_delete_confirm: "Play Book \"%1\" löschen?",
+        playBooks_enable: "Play Book aktivieren",
+        playBooks_disable: "Play Book deaktivieren",
+        playBooks_name: "Name",
+        playBooks_whenToUse: "Wann verwenden",
+        playBooks_whatToDo: "Was tun",
+        playBooks_loadFailed: "Play Books konnten nicht geladen werden.",
+        playBooks_saveFailed: "Play Books konnten nicht gespeichert werden.",
+        playBooks_deleteFailed: "Play Book konnte nicht gelöscht werden.",
         files_textHandling_title: "Textdatei gefunden",
         files_textHandling_message: "Das Hochladen von Textdateien ist derzeit nicht möglich. Möchten Sie den Text stattdessen in die Nachricht einfügen?",
         files_textHandling_insert: "In Nachricht einfügen",
@@ -448,7 +476,7 @@ export class Localizer {
     toLocaleString(isotime: string): string {
         return new Date(Date.parse(isotime)).toLocaleString(this.languageCode);
     }
-    
+
 }
 
 /**
