@@ -24,7 +24,7 @@ from openai import OpenAI
 from . import sample_prompts as prompts
 from .models import ConnectRequest, ToolApprovalUpdateRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateRequest, PushMessage, \
-    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, PlayBook
+    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, ToolCall, PlayBook
 from .simple import SimpleMethod
 from .simple_tools import SimpleToolsMethod
 from .toolllm import ToolLLMMethod
@@ -36,7 +36,7 @@ from .file_analysis import generate_file_metadata
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
 from .opaca_client import actions_blacklist
-from .abstract_method import actions_needing_confirmation
+from .tool_calling import actions_needing_confirmation, ToolCaller
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
@@ -244,13 +244,17 @@ async def update_container_approval(container_id: str, data: ToolApprovalUpdateR
 
 @app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
 async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(handle_session_http)) -> InvokeResponse:
-    try:
-        res = await session.opaca_client.safe_invoke(invoke.action, invoke.agent, invoke.parameters)
-        return InvokeResponse(success=True, result=res, error=None)
-    except HTTPStatusError as e:
-        return InvokeResponse(success=False, result=None, error=unpack_error(e.response.json()))
-    except Exception as e:
-        return InvokeResponse(success=False, result=None, error=str(e))
+    internal_tools = InternalTools(session, METHODS[SimpleToolsMethod.NAME])
+    tool_caller = ToolCaller(session, internal_tools, streaming=True)
+
+    tool_name = f"{invoke.agent}--{invoke.action}"
+    tool_call = ToolCall(name=tool_name, type=tool_caller.determine_tool_type(tool_name), id="none", args=invoke.parameters)
+    tool_result = await tool_caller.invoke_tool(tool_call, skip_approval=True)
+
+    if isinstance(tool_result.result, str) and tool_result.result.startswith("Failed to invoke "):
+        return InvokeResponse(success=False, result=None, error=tool_result.result)
+    else:
+        return InvokeResponse(success=True, result=tool_result.result, error=None)
 
 
 @app.post("/query/{method}", description="Send message to the given LLM method. Returns the final LLM response along with all intermediate messages and different metrics. This method does not include, nor is the message and response added to, any chat history.", tags=["chat"])

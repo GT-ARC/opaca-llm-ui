@@ -54,6 +54,10 @@
 
                     <template #body="{ item: mcp, index: mcpIndex }">
                         <div class="mcp-body">
+                            <p class="invoke" @click.stop="invokeAction(mcp.server_label, mcp.name, mcpToOpacaSchema(mcp.inputSchema))">
+                                <strong>{{ Localizer.get('agents_invoke') }}</strong>
+                                <i class="fa fa-circle-play mx-2"/>
+                            </p>
                             <p v-if="mcp.description" class="mb-2">
                                 <strong>{{ Localizer.get('agents_description') }}:</strong>
                                 {{ mcp.description }}
@@ -254,7 +258,62 @@ export default {
             }
 
             return "Unknown error encountered!"
-        }
+        },
+
+        // MCP INVOCATION
+        // Copied from Agents Sidebar; intentionally left param names unchanged for easier comparison
+        // we could maybe also move this to a utils class, or wait if Agents and MCP sidebar are merged eventually?
+
+        async invokeAction(agent, action, schema) {
+            const types = {"string": "text", "boolean": "checkbox", "integer": "number", "number": "number"};
+            await this.$refs.input.showDialogue(
+                Localizer.get('agents_invoke'),
+                `**Server:** ${agent}\n\n**Tool:** ${action}`,
+                null,
+                Object.fromEntries(
+                    Object.entries(schema).map(([k, v]) => [k, {
+                        type: types[v.type] ?? "textarea",
+                        label: `${k} (${this.typeHint(v)}${v.required ? "" : ", opt."})`,
+                        optional: !v.required,
+                        default: v.defaultValue }]
+                    )
+                ),
+                async values => {
+                    // JSON-parse non-primitive inputs --> parse errors are shown in error label
+                    var parameters = Object.fromEntries(
+                        Object.entries(values)
+                                .map(([k, v]) => [k, schema[k].type !== "string" && v === "" ? null : v])
+                                .filter(([k, v]) => v !== null || schema[k].required)
+                                .map(([k, v]) => [k, types[schema[k].type] === undefined ? JSON.parse(v) : v])
+                    );
+                    var res = await backendClient.invokeAction(agent, action, parameters);
+                    if (res.success) {
+                        await this.$refs.input.showInfo(Localizer.get('agents_result'), "```\n" + JSON.stringify(res.result, null, 2) + "\n```");
+                    } else {
+                        throw new Error(res.error);
+                    }
+                }
+            );
+        },
+
+        typeHint(json) {
+            if (json.anyOf) {
+                return json.anyOf.map(this.typeHint).join(" or ");
+            }
+            if (json.type === "array") {
+                return `list of ${this.typeHint(json.items)}`;
+            } else {
+                return json.type;
+            }
+        },
+
+        mcpToOpacaSchema(inputSchema) {
+            const res = { ...inputSchema.properties };
+            for (const key of inputSchema.required ?? []) {
+                res[key].required = true;
+            }
+            return res;
+        },
     },
 
     mounted() {

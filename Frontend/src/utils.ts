@@ -80,7 +80,7 @@ class BackendClient {
 
     async invokeAction(agent: string, action: string, parameters: any): Promise<InvokeResponse> {
         const body = { agent, action, parameters };
-        return this.sendRequest("POST", "invoke", body);
+        return this.sendRequest("POST", "invoke", body, 3*60*1000); // more time for invoke, possibly including container-login callback
     }
 
     async getExtraPorts(): Promise<ContainerExtraPorts[]> {
