@@ -68,24 +68,6 @@ If tool results failed multiple times, it is sometimes better to finish the curr
 to incorrectly parameters provided by the user. Use your best judgement.
 """
 
-FILE_EVALUATOR_SYSTEM_PROMPT = """You shall decide whether a given user query requires any further processing with your 
-available tools. If the request clearly requires further processing with your available tools, you output "CONTINUE". 
-If the request requires summarization or specific information from uploaded files, output "CONTINUE" so the Files tools
-can process it. For summary, overview, description, or main-point requests, GetFileSummaries is the preferred fast path.
-AskFiles should read full contents only when a stored summary is unavailable or the request needs more specific details.
-FindRelevantFiles can select from all uploaded files, including inactive ones; inactive relevant files should be activated
-with SetActiveFiles before summaries or full-file questions are retrieved.
-Explain your decision with a short reason. There are other agents that will take care of the final response generation. 
-Do not answer the user directly, rather analyze if any of the tools are suitable for the given request."""
-
-FILE_EVALUATOR_TEMPLATE = """A user had the following request regarding one or multiple files: 
-
-{message}
-
-Decide if any of the tools are necessary to call in order to fulfill the request. If so, output "CONTINUE". 
-If not, output "FINISHED". Keep your reasoning short."""
-
-
 OUTPUT_GENERATOR_SYSTEM_PROMPT = """You are the OUTPUT GENERATOR agent. 
 Your primary goal is to produce a clear, visually pleasant, and truthful response for the user. Do not make up 
 or infer additional information beyond what is available to you. If the user wants to know something you are unable 

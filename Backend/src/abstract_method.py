@@ -166,26 +166,17 @@ class AbstractMethod(ABC):
             if current_files:
                 system_prompt = (
                     f"{system_prompt.rstrip()}\n\nFiles attached to this user message: "
-                    f"{', '.join(current_files)}. References such as 'this file' or "
-                    "'the attached file' mean these files. Use these IDs directly. For a "
-                    "summary, overview, description, or main points, always call "
-                    "GetFileSummaries first. Do not call AskFiles unless the stored summary is "
-                    "unavailable or the user requests details beyond it. FindRelevantFiles is "
-                    "unnecessary unless other uploaded files may also be relevant. "
-                    "FindRelevantFiles searches all uploaded files and reports whether they are "
-                    "active; if relevant files are inactive, call SetActiveFiles with the complete "
-                    "relevant file set before GetFileSummaries or AskFiles."
+                    f"{', '.join(current_files)}. References like 'this file' mean these IDs. "
+                    "For summaries use GetFileSummaries first; use AskFiles only for details "
+                    "beyond the stored summary. Use FindRelevantFiles only if other uploaded "
+                    "files may matter, and activate inactive relevant files with SetActiveFiles."
                 )
             elif self.session.uploaded_files:
                 system_prompt = (
-                    f"{system_prompt.rstrip()}\n\nUploaded files are available. Some may be "
-                    "inactive for this chat. Use FindRelevantFiles when file selection is needed; "
-                    "it searches all uploaded files using stored metadata and reports active "
-                    "status. If relevant files are inactive, call SetActiveFiles with the complete "
-                    "relevant file set before GetFileSummaries or AskFiles. For summaries, "
-                    "overviews, descriptions, or main points, call GetFileSummaries before "
-                    "AskFiles. AskFiles reads full contents and should only be used for details "
-                    "that the stored summaries cannot provide."
+                    f"{system_prompt.rstrip()}\n\nUploaded files are available, possibly inactive. "
+                    "Use FindRelevantFiles for file selection and SetActiveFiles for inactive "
+                    "matches. For summaries use GetFileSummaries first; use AskFiles only for "
+                    "details beyond stored summaries."
                 )
 
         # Set settings for model invocation
