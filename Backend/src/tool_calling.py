@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 import asyncio
 
 import httpx
@@ -10,8 +12,10 @@ from pydantic import BaseModel
 from .models import (ToolApprovalState, SessionData,
                      ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
                      ToolResultMessage, ConfirmActionNotification, ConfirmActionResponse)
-from .internal_tools import InternalTools
 from .opaca_client import actions_blacklist
+
+if TYPE_CHECKING:
+    from .internal_tools import InternalTools
 
 
 # list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool

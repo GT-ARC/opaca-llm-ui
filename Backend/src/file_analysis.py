@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from .file_utils import is_image
 from .models import AgentMessage, Chat, ChatMessage, OpacaFile, QueryResponse, SessionData
-from .simple_tools import SimpleToolsMethod
 
 
 logger = logging.getLogger(__name__)
@@ -119,27 +118,6 @@ def _normalize_keywords(keywords: list[str]) -> list[str]:
     return normalized
 
 
-def _extract_json_object(text: str) -> str:
-    stripped = (text or "").strip()
-    if stripped.startswith("```"):
-        lines = stripped.splitlines()
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        stripped = "\n".join(lines).strip()
-
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start < 0 or end < start:
-        raise ValueError("LLM returned no JSON object")
-    return stripped[start:end + 1]
-
-
-def _parse_file_metadata(text: str) -> _FileMetadataResponse:
-    return _FileMetadataResponse.model_validate_json(_extract_json_object(text))
-
-
 async def _call_file_llm(
         session: SessionData,
         *,
@@ -148,6 +126,10 @@ async def _call_file_llm(
         file_ids: set[str] | None = None,
         response_format: type[BaseModel] | None = None,
 ) -> AgentMessage:
+    # Lazy import avoids a startup cycle:
+    # abstract_method -> tool_calling -> internal_tools.files -> file_analysis -> simple_tools -> abstract_method
+    from .simple_tools import SimpleToolsMethod
+
     method = SimpleToolsMethod(
         session=session,
         chat=Chat(chat_id=""),
@@ -178,14 +160,13 @@ async def generate_file_metadata(session: SessionData, file_id: str) -> OpacaFil
             result = await _call_file_llm(
                 session,
                 system_prompt=system_prompt,
-                user_prompt=(
-                    "Create summary and keyword metadata for the attached file. "
-                    "The complete response must be exactly one JSON object matching this shape: "
-                    '{"summary":"...","keywords":["..."]}'
-                ),
+                user_prompt="Create summary and keyword metadata for the attached file.",
                 file_ids={file_id},
+                response_format=_FileMetadataResponse,
             )
-        metadata = _parse_file_metadata(result.content)
+        metadata = result.formatted_output
+        if metadata is None:
+            raise ValueError("LLM returned no structured file metadata")
 
         summary = _normalize_summary(metadata.summary)
         keywords = _normalize_keywords(metadata.keywords)

@@ -1,3 +1,4 @@
+import hashlib
 import io
 import re
 import os
@@ -19,6 +20,23 @@ logger = logging.getLogger(__name__)
 FILES_PATH = './data/files'
 
 
+def _provider_file_key(session: SessionData, model: str, host: str, purpose: str) -> str:
+    api_key = session.get_api_key(model)
+    if not api_key:
+        return f"{host}:{purpose}"
+
+    fingerprint = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+    return f"{host}:{purpose}:{fingerprint}"
+
+
+def _file_upload_purpose(filename: str, host: str, model_supports_vision: bool) -> str | None:
+    if is_image(filename) and model_supports_vision:
+        return "vision"
+    if is_pdf(filename):
+        return "user_data" if host == "openai" else "assistants"
+    return None
+
+
 async def upload_files(session: SessionData, chat: Chat, model: str):
     """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
 
@@ -37,19 +55,15 @@ async def upload_files(session: SessionData, chat: Chat, model: str):
         if host not in ["openai", "azure", "vertex_ai", "bedrock"]:
             raise OpacaException(user_message=f"Host {host} does not support file upload.")
 
-        # If this host already has an uploaded id for this file, skip
-        if host in file_data.host_ids:
+        purpose = _file_upload_purpose(file_data.file_name, host, model_supports_vision)
+        if not purpose:
+            logger.info(f"Skipping file upload (Type not supported): {model} ({file_data.file_name})")
             continue
 
-        filename = file_data.file_name
+        provider_key = _provider_file_key(session, model, host, purpose)
 
-        # Check file type (purpose)
-        if is_image(filename) and model_supports_vision:
-            purpose = "vision"
-        elif is_pdf(filename):
-            purpose = "assistants"
-        else:
-            logger.info(f"Skipping file upload (Type not supported): {model} ({filename})")
+        # If this provider/purpose/key combination already has an uploaded id for this file, skip
+        if provider_key in file_data.host_ids:
             continue
 
         # prepare file for upload
@@ -59,20 +73,32 @@ async def upload_files(session: SessionData, chat: Chat, model: str):
             file_obj.name = file_data.file_name  # Required by OpenAI SDK
 
         # Upload to the current host and store host-specific id
-        uploaded = await litellm.acreate_file(file=file_obj, purpose=purpose, custom_llm_provider=host)
+        uploaded = await litellm.acreate_file(
+            file=file_obj,
+            purpose=purpose,
+            custom_llm_provider=host,
+            api_key=session.get_api_key(model),
+        )
         logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
         # record host id under this host_url
-        file_data.host_ids[host] = uploaded.id
+        file_data.host_ids[provider_key] = uploaded.id
 
     parts = []
     for file_id, file_data in session.uploaded_files.items():
-        if (file_id not in chat.active_files) or (host not in file_data.host_ids):
+        if file_id not in chat.active_files:
             continue
 
-        if is_image(file_data.file_name) and model_supports_vision:
-            parts.append({"type": "input_image", "file_id": file_data.host_ids[host]})
+        purpose = _file_upload_purpose(file_data.file_name, host, model_supports_vision)
+        if not purpose:
+            continue
+
+        provider_key = _provider_file_key(session, model, host, purpose)
+        if is_image(file_data.file_name) and purpose == "vision":
+            if provider_key in file_data.host_ids:
+                parts.append({"type": "input_image", "file_id": file_data.host_ids[provider_key]})
         else:
-            parts.append({"type": "input_file", "file_id": file_data.host_ids[host]})
+            if provider_key in file_data.host_ids:
+                parts.append({"type": "input_file", "file_id": file_data.host_ids[provider_key]})
 
     return parts
 
@@ -91,14 +117,20 @@ async def delete_file_from_all_clients(session: SessionData, file_id: str, ignor
     if not filedata:
         return ignore_error
 
-    for host, host_file_id in filedata.host_ids.items():
+    for provider_key, host_file_id in filedata.host_ids.items():
+        host = provider_key.split(":", maxsplit=1)[0]
+
         # Check if the selected host supports file deletion
         if not host in ["openai", "azure"]:
             logger.warning(f"Host {host} does not support file deletion.")
             continue
 
         try:
-            await litellm.afile_delete(file_id=host_file_id, custom_llm_provider=host)
+            await litellm.afile_delete(
+                file_id=host_file_id,
+                custom_llm_provider=host,
+                api_key=session.get_api_key(f"{host}/dummy"),
+            )
             logger.info(f"Deleted file {host_file_id} from host {host}")
 
         except Exception as e:

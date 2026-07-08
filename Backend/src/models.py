@@ -207,7 +207,7 @@ class OpacaFile(BaseModel):
         file_name: The absolute path to the file
         description: LLM-generated summary
         keywords: Short key terms used for inexpensive relevance selection
-        host_ids: IDs assigned by each host the file has been uploaded to
+        host_ids: IDs assigned by each provider/purpose/API-key combination
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
