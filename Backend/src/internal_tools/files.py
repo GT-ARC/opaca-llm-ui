@@ -68,12 +68,11 @@ class FileTools:
                 name="GetFileSummaries",
                 description=(
                     "Fast preferred tool for requests to summarize, describe, give an overview, "
-                    "list main points, or explain what active files are about. Returns summaries "
-                    "created during upload and does not call an LLM. Use this before AskFiles; "
-                    "only fall back to AskFiles when a stored summary is unavailable or the user "
-                    "asks for details beyond it."
+                    "list main points, or explain what active files are about. Use this before AskFiles; "
+                    "file_ids is optional; if omitted or invalid, all active file summaries are returned."
                 ),
                 params={"file_ids": "string"},
+                required_params=[],
                 result="object",
                 function=self.tool_get_file_summaries,
             ),
@@ -83,7 +82,8 @@ class FileTools:
                     "Slow, detailed lookup that attaches the full contents of active files and "
                     "calls an LLM. Use only for specific questions requiring details beyond the "
                     "stored summaries, or after GetFileSummaries reports that a summary is "
-                    "unavailable or insufficient. Do not use for an ordinary summary or overview."
+                    "unavailable or insufficient. Do not use for an ordinary summary or overview. "
+                    "file_ids must be uploaded file ids, not file names."
                 ),
                 params={
                     "question": "string",
@@ -99,7 +99,9 @@ class FileTools:
             return set(self.ctx.session.uploaded_files)
         return set(self.ctx.chat.active_files)
 
-    def _parse_file_ids(self, file_ids: str | list[str]) -> set[str]:
+    def _parse_file_ids(self, file_ids: str | list[str] | None) -> set[str]:
+        if file_ids is None:
+            return set()
         if isinstance(file_ids, list):
             values = file_ids
         else:
@@ -216,13 +218,24 @@ class FileTools:
             "active_file_ids": sorted(selected_ids),
         }
 
-    async def tool_get_file_summaries(self, file_ids: str | list[str]) -> dict:
-        selected_ids, requested_ids = self._selected_active_file_ids(file_ids)
-        return {
+    async def tool_get_file_summaries(self, file_ids: str | list[str] | None = None) -> dict:
+        requested_ids = self._parse_file_ids(file_ids)
+        active_ids = self._active_file_ids() & set(self.ctx.session.uploaded_files)
+        selected_ids = requested_ids & active_ids
+
+        fallback_used = False
+        if not selected_ids:
+            selected_ids = active_ids
+            fallback_used = bool(selected_ids)
+
+        result = {
             "ok": True,
             "files": get_file_summaries(self.ctx.session, selected_ids),
             "unavailable_file_ids": sorted(requested_ids - selected_ids),
         }
+        if fallback_used:
+            result["note"] = "No valid active file IDs were provided; returned all active file summaries instead."
+        return result
 
     async def tool_ask_files(
             self,
