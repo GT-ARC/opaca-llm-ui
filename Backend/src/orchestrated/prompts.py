@@ -98,8 +98,7 @@ AGENT_EVALUATOR_PROMPT = """You are an evaluator that determines if an agent's t
 IMPORTANT: Keep in mind that there is an output generating LLM-Agent at the end of the chain.
 The output generator can format and synthesize information that has already been retrieved, so
 no extra step is needed only to rewrite existing results. It cannot retrieve missing information.
-For uploaded files, use FindRelevantFiles/SetActiveFiles when inactive files may be relevant,
-and AskFiles when file contents are needed.
+Uploaded files may need to be activated before their contents can be used.
 
 Your ONLY role is to output EXACTLY ONE of these two options:
 - REITERATE: If there are remaining ESSENTIAL steps that MUST be attempted

@@ -9,6 +9,7 @@ from ..file_utils import filename_from_url_and_type, register_bytes_as_uploaded_
 from ..file_analysis import (
     answer_from_files,
     find_relevant_files,
+    get_file_keyword_catalog,
     generate_file_metadata,
 )
 from ..models import InternalTool, OpacaException
@@ -52,12 +53,24 @@ class FileTools:
                 function=self.tool_find_relevant_files,
             ),
             InternalTool(
+                name="GetFileKeywords",
+                description=(
+                    "List all uploaded files with filenames, keywords, active status, and whether "
+                    "they are attached to the current message. Does not select files or call an LLM; "
+                    "If relevant files are inactive, call SetActiveFiles with the complete relevant "
+                    "file set before using AskFiles."
+                ),
+                params={},
+                result="object",
+                function=self.tool_get_file_keywords,
+            ),
+            InternalTool(
                 name="SetActiveFiles",
                 description=(
                     "Replace the current chat's active file working set. Use after FindRelevantFiles "
-                    "when relevant files are inactive, or when the active files should be narrowed to "
-                    "the current relevant set. Pass the complete set of file IDs that should remain "
-                    "active, not only newly relevant inactive files."
+                    "or GetFileKeywords when relevant files are inactive, or when the active files "
+                    "should be narrowed to the current relevant set. Pass the complete set of file "
+                    "IDs that should remain active, not only newly relevant inactive files."
                 ),
                 params={"file_ids": "string"},
                 result="object",
@@ -165,11 +178,27 @@ class FileTools:
                 "ok": True,
                 "files": files,
                 "inactive_file_ids": inactive_file_ids,
-                "needs_activation": bool(inactive_file_ids),
             }
         except Exception as exc:
             logger.exception("Finding relevant files failed")
             return {"ok": False, "files": [], "error": _error_message(exc)}
+
+    async def tool_get_file_keywords(self) -> dict:
+        files = get_file_keyword_catalog(
+            self.ctx.session,
+            current_file_ids=self.ctx.current_file_ids,
+            active_file_ids=self._active_file_ids(),
+        )
+        inactive_file_ids = [
+            file["file_id"]
+            for file in files
+            if not file["active"]
+        ]
+        return {
+            "ok": True,
+            "files": files,
+            "inactive_file_ids": inactive_file_ids,
+        }
 
     async def tool_set_active_files(self, file_ids: str | list[str]) -> dict:
         if self.ctx.chat is None:

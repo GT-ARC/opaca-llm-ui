@@ -38,7 +38,7 @@ class _RelevantFilesResponse(BaseModel):
     )
 
 
-def _get_file_keyword_catalog(
+def get_file_keyword_catalog(
         session: SessionData,
         file_ids: set[str] | None = None,
         current_file_ids: set[str] | None = None,
@@ -193,7 +193,7 @@ async def find_relevant_files(
         record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> list[dict]:
     """Use uploaded-file metadata to select files relevant to a query."""
-    catalog = _get_file_keyword_catalog(session, file_ids, current_file_ids, active_file_ids)
+    catalog = get_file_keyword_catalog(session, file_ids, current_file_ids, active_file_ids)
     if not catalog:
         return []
 
