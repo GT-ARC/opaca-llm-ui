@@ -60,6 +60,8 @@ class AbstractMethod(ABC):
         self.internal_tools = internal_tools
         if self.internal_tools:
             self.internal_tools.set_chat(chat)
+            self.internal_tools.set_response(response)
+            self.internal_tools.set_streaming(streaming)
         self.tool_caller = ToolCaller(session, internal_tools, streaming, chat.chat_id)
 
     @classmethod

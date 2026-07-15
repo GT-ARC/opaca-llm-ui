@@ -74,7 +74,7 @@ class SimpleToolsMethod(AbstractMethod):
                     content=f"A user had the following request: {self.response.query}\n"
                             f"You have used the following tools: \n{tool_contents}")
                 )
-                self.response.agent_messages[-1].tools = tool_entries
+                result.tools = tool_entries
 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"

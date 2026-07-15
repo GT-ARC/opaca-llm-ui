@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Awaitable, Callable
 
 import yake
 from pypdf import PdfReader
@@ -118,10 +119,12 @@ def _extract_yake_keywords(text: str) -> list[str]:
 async def _call_file_llm(
         session: SessionData,
         *,
+        agent: str,
         system_prompt: str,
         user_prompt: str,
         file_ids: set[str] | None = None,
         response_format: type[BaseModel] | None = None,
+        record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> AgentMessage:
     # Lazy import avoids a startup cycle:
     # abstract_method -> tool_calling -> internal_tools.files -> file_analysis -> simple_tools -> abstract_method
@@ -132,14 +135,17 @@ async def _call_file_llm(
         chat=Chat(chat_id=""),
         response=QueryResponse(),
     )
-    return await method.call_llm(
+    result = await method.call_llm(
         model_config=method.get_config().model,
-        agent="File Assistant",
+        agent=agent,
         system_prompt=system_prompt,
         messages=[ChatMessage(role="user", content=user_prompt)],
         response_format=response_format,
         attached_file_ids=file_ids,
     )
+    if record_agent_message is not None:
+        await record_agent_message(result)
+    return result
 
 
 async def generate_file_metadata(session: SessionData, file_id: str) -> OpacaFile:
@@ -184,6 +190,7 @@ async def find_relevant_files(
         file_ids: set[str] | None = None,
         current_file_ids: set[str] | None = None,
         active_file_ids: set[str] | None = None,
+        record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> list[dict]:
     """Use uploaded-file metadata to select files relevant to a query."""
     catalog = _get_file_keyword_catalog(session, file_ids, current_file_ids, active_file_ids)
@@ -192,12 +199,14 @@ async def find_relevant_files(
 
     result = await _call_file_llm(
         session,
+        agent="InternalTool / FindRelevantFiles",
         system_prompt=SELECTION_SYSTEM_PROMPT,
         user_prompt=(
             f"Query:\n{query}\n\nAvailable file keyword metadata:\n"
             f"{json.dumps(catalog, ensure_ascii=False, separators=(',', ':'))}"
         ),
         response_format=_RelevantFilesResponse,
+        record_agent_message=record_agent_message,
     )
     selected_ids = set(result.formatted_output.file_ids if result.formatted_output else ())
     return [
@@ -217,6 +226,7 @@ async def answer_from_files(
         session: SessionData,
         question: str,
         file_ids: set[str],
+        record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> str:
     """Attach the selected full files and answer a question from their contents."""
     valid_ids = file_ids & set(session.uploaded_files)
@@ -225,8 +235,10 @@ async def answer_from_files(
 
     result = await _call_file_llm(
         session,
+        agent="InternalTool / AskFiles",
         system_prompt=ANSWER_SYSTEM_PROMPT,
         user_prompt=question,
         file_ids=valid_ids,
+        record_agent_message=record_agent_message,
     )
     return result.content

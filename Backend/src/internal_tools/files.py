@@ -154,6 +154,7 @@ class FileTools:
                 query,
                 current_file_ids=self.ctx.current_file_ids,
                 active_file_ids=self._active_file_ids(),
+                record_agent_message=self.ctx.record_agent_message,
             )
             inactive_file_ids = [
                 file["file_id"]
@@ -222,6 +223,7 @@ class FileTools:
                 self.ctx.session,
                 question,
                 selected_ids,
+                record_agent_message=self.ctx.record_agent_message,
             )
         except Exception as exc:
             logger.exception("Answering from files failed")

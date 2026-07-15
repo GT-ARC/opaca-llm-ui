@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..code_execution import CodeExecutor
-from ..models import InternalTool, ScheduledTask, SessionData
+from ..models import InternalTool, QueryResponse, ScheduledTask, SessionData
 from .context import InternalToolContext
 from .chats import ChatTools
 from .code_tools import CodeTools
@@ -50,6 +50,12 @@ class InternalTools:
 
     def set_chat(self, chat):
         self.context.chat = chat
+
+    def set_response(self, response: QueryResponse):
+        self.context.response = response
+
+    def set_streaming(self, streaming: bool):
+        self.context.streaming = streaming
 
     def set_current_file_ids(self, file_ids: set[str]):
         self.context.current_file_ids = file_ids
