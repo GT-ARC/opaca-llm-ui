@@ -169,16 +169,16 @@ class AbstractMethod(ABC):
                 system_prompt = (
                     f"{system_prompt.rstrip()}\n\nFiles attached to this user message: "
                     f"{', '.join(current_files)}. References like 'this file' mean these IDs. "
-                    "Use AskFiles for summaries, overviews, or questions about file contents. "
-                    "Use GetFileKeywords or FindRelevantFiles only if other uploaded files may "
-                    "matter, and activate inactive relevant files with SetActiveFiles."
+                    "Use the available file tools to identify relevant file IDs, activate inactive "
+                    "relevant files if needed, and read full file contents only when metadata is "
+                    "insufficient."
                 )
             elif self.session.uploaded_files:
                 system_prompt = (
                     f"{system_prompt.rstrip()}\n\nUploaded files are available, possibly inactive. "
-                    "Use GetFileKeywords to inspect keyword metadata yourself, or FindRelevantFiles "
-                    "to delegate relevance selection. Use SetActiveFiles for inactive matches and "
-                    "AskFiles for summaries, overviews, or questions about active file contents."
+                    "Use the available file tools to identify relevant file IDs, activate inactive "
+                    "relevant files if needed, and read full file contents only when metadata is "
+                    "insufficient."
                 )
 
         # Set settings for model invocation

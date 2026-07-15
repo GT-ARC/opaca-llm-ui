@@ -43,10 +43,9 @@ class FileTools:
             InternalTool(
                 name="FindRelevantFiles",
                 description=(
-                    "Find relevant files in all uploaded files using filenames "
-                    "and keywords. Returns whether each selected file is currently active. If relevant "
-                    "files are inactive, call SetActiveFiles with the complete relevant file set before "
-                    "using AskFiles."
+                    "Select relevant uploaded files using filenames and keywords. Returns selected "
+                    "file metadata and active status. Does not read full file contents or answer "
+                    "content questions."
                 ),
                 params={"query": "string"},
                 result="object",
@@ -56,9 +55,8 @@ class FileTools:
                 name="GetFileKeywords",
                 description=(
                     "List all uploaded files with filenames, keywords, active status, and whether "
-                    "they are attached to the current message. Does not select files or call an LLM; "
-                    "If relevant files are inactive, call SetActiveFiles with the complete relevant "
-                    "file set before using AskFiles."
+                    "they are attached to the current message. Does not select files, read full "
+                    "file contents, or call an LLM."
                 ),
                 params={},
                 result="object",
@@ -67,10 +65,9 @@ class FileTools:
             InternalTool(
                 name="SetActiveFiles",
                 description=(
-                    "Replace the current chat's active file working set. Use after FindRelevantFiles "
-                    "or GetFileKeywords when relevant files are inactive, or when the active files "
-                    "should be narrowed to the current relevant set. Pass the complete set of file "
-                    "IDs that should remain active, not only newly relevant inactive files."
+                    "Replace the current chat's active file working set after relevant file IDs are "
+                    "known. Pass the complete set of file IDs that should be active, not only "
+                    "newly relevant inactive files."
                 ),
                 params={"file_ids": "string"},
                 result="object",
@@ -79,10 +76,9 @@ class FileTools:
             InternalTool(
                 name="AskFiles",
                 description=(
-                    "Slow, detailed lookup that attaches the full contents of active files and "
-                    "calls an LLM. Use for questions, summaries, overviews, or details that require "
-                    "the actual file contents. "
-                    "file_ids must be uploaded file ids, not file names."
+                    "Read active files and answer from their full contents. Use for questions, "
+                    "summaries, overviews, or details that require actual file contents. "
+                    "file_ids must be uploaded file IDs, not file names."
                 ),
                 params={
                     "question": "string",
