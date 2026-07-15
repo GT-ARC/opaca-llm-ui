@@ -102,7 +102,6 @@ export interface OpacaFile {
     file_id: string;
     content_type: string;
     file_name: string;
-    description: string;
     keywords: string[];
     host_ids: Record<string, string>;
 }

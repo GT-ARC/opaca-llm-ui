@@ -10,7 +10,6 @@ from ..file_analysis import (
     answer_from_files,
     find_relevant_files,
     generate_file_metadata,
-    get_file_summaries,
 )
 from ..models import InternalTool, OpacaException
 from .context import InternalToolContext
@@ -43,10 +42,10 @@ class FileTools:
             InternalTool(
                 name="FindRelevantFiles",
                 description=(
-                    "Select relevant files from all uploaded files using filenames, stored summaries, "
+                    "Find relevant files in all uploaded files using filenames "
                     "and keywords. Returns whether each selected file is currently active. If relevant "
                     "files are inactive, call SetActiveFiles with the complete relevant file set before "
-                    "using GetFileSummaries or AskFiles."
+                    "using AskFiles."
                 ),
                 params={"query": "string"},
                 result="object",
@@ -65,24 +64,11 @@ class FileTools:
                 function=self.tool_set_active_files,
             ),
             InternalTool(
-                name="GetFileSummaries",
-                description=(
-                    "Fast preferred tool for requests to summarize, describe, give an overview, "
-                    "list main points, or explain what active files are about. Use this before AskFiles; "
-                    "file_ids is optional; if omitted or invalid, all active file summaries are returned."
-                ),
-                params={"file_ids": "string"},
-                required_params=[],
-                result="object",
-                function=self.tool_get_file_summaries,
-            ),
-            InternalTool(
                 name="AskFiles",
                 description=(
                     "Slow, detailed lookup that attaches the full contents of active files and "
-                    "calls an LLM. Use only for specific questions requiring details beyond the "
-                    "stored summaries, or after GetFileSummaries reports that a summary is "
-                    "unavailable or insufficient. Do not use for an ordinary summary or overview. "
+                    "calls an LLM. Use for questions, summaries, overviews, or details that require "
+                    "the actual file contents. "
                     "file_ids must be uploaded file ids, not file names."
                 ),
                 params={
@@ -150,7 +136,6 @@ class FileTools:
                 "ok": True,
                 "file_id": file.file_id,
                 "filename": filename,
-                "description": file.description,
                 "keywords": file.keywords,
                 "note": "File downloaded and made available for analysis.",
             }
@@ -217,25 +202,6 @@ class FileTools:
             "files": active_files,
             "active_file_ids": sorted(selected_ids),
         }
-
-    async def tool_get_file_summaries(self, file_ids: str | list[str] | None = None) -> dict:
-        requested_ids = self._parse_file_ids(file_ids)
-        active_ids = self._active_file_ids() & set(self.ctx.session.uploaded_files)
-        selected_ids = requested_ids & active_ids
-
-        fallback_used = False
-        if not selected_ids:
-            selected_ids = active_ids
-            fallback_used = bool(selected_ids)
-
-        result = {
-            "ok": True,
-            "files": get_file_summaries(self.ctx.session, selected_ids),
-            "unavailable_file_ids": sorted(requested_ids - selected_ids),
-        }
-        if fallback_used:
-            result["note"] = "No valid active file IDs were provided; returned all active file summaries instead."
-        return result
 
     async def tool_ask_files(
             self,

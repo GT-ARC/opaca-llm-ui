@@ -454,7 +454,7 @@ async def get_files(session: SessionData = Depends(handle_session_http)) -> dict
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file and immediately generate an LLM summary and keywords for selective use in later queries.", tags=["files"])
+@app.post("/files", description="Upload a file and immediately generate local keywords for selective use in later queries.", tags=["files"])
 async def upload_files(chat_id: str | None = None, files: List[UploadFile] | None = None, session: SessionData = Depends(handle_session_http)):
     if files is None: files = []
     uploaded: List[OpacaFile] = []

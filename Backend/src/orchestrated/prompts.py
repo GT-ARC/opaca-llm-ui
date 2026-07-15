@@ -98,8 +98,8 @@ AGENT_EVALUATOR_PROMPT = """You are an evaluator that determines if an agent's t
 IMPORTANT: Keep in mind that there is an output generating LLM-Agent at the end of the chain.
 The output generator can format and synthesize information that has already been retrieved, so
 no extra step is needed only to rewrite existing results. It cannot retrieve missing information.
-For uploaded files, prefer GetFileSummaries for summaries; use AskFiles only for details beyond
-stored summaries. Use FindRelevantFiles/SetActiveFiles when inactive files may be relevant.
+For uploaded files, use FindRelevantFiles/SetActiveFiles when inactive files may be relevant,
+and AskFiles when file contents are needed.
 
 Your ONLY role is to output EXACTLY ONE of these two options:
 - REITERATE: If there are remaining ESSENTIAL steps that MUST be attempted
@@ -203,8 +203,8 @@ The 'should_retry' field is the most important. Set it to 'True' only if:
 - There is a clear and feasible way to retrieve it in another iteration.
 
 The final OutputGenerator will summarize information already present in execution results. Do not
-suggest steps merely to rewrite those results. For uploaded files, prefer summaries first and only
-retry for full-file lookup if essential details are still missing.
+suggest steps merely to rewrite those results. For uploaded files, retry with file lookup only if
+essential file contents are still missing.
 
 Your Thought Process:
 1. Analyze results
@@ -259,7 +259,7 @@ INTERNAL_AGENT_DESC = """**Purpose:** The InternalToolsAgent provides different 
 * accessing information from past chats and interactions,
 * managing reminders to the user and scheduled tasks for later or regular execution,
 * loading files from a URI,
-* selecting/activating uploaded files by stored summaries and keywords,
-* retrieving stored file summaries or, when necessary, full file contents,
+* selecting/activating uploaded files by filenames and keywords,
+* retrieving full file contents when necessary,
 * running code to perform complex calculations.
 """

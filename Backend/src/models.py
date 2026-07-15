@@ -205,14 +205,12 @@ class OpacaFile(BaseModel):
         file_id: ID assigned after upload
         content_type: MIME type of the file
         file_name: The absolute path to the file
-        description: LLM-generated summary
         keywords: Short key terms used for inexpensive relevance selection
         host_ids: IDs assigned by each provider/purpose/API-key combination
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
     file_name: str
-    description: str = ""
     keywords: List[str] = Field(default_factory=list)
     host_ids: Dict[str, str] = Field(default_factory=dict)
 
