@@ -19,8 +19,8 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 
 * `GET /chats`: Returns a list of all chats associated with the current session, but without their full message histories.
 * `GET /chats/{chat_id}`: Returns the full message history and other details for the given chat.
-* `POST /chats/{chat_id}/query/{method}`: Makes a query to the given prompting method using a user query and the given chat's message history. The result is returned once, in full.
-* `PUT /chats/{chat_id}`: Used to update a chat's displayed name.
+* `POST /chats/{chat_id}/query/{method}`: Makes a query to the given prompting method using the chat history. Its optional `file_ids` identify files attached to this specific request; they do not automatically send the files' contents to the LLM. The result is returned once, in full.
+* `PUT /chats/{chat_id}`: Updates the displayed name or activates/deactivates files for the chat through `active_files`.
 * `DELETE /chats/{chat_id}`: Deletes the given chat.
 
 #### Config routes
@@ -38,10 +38,10 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 
 #### File routes
 
-* `POST /files`: Add files to be taken into account with the next request.
-* `GET /files`: Returns all uploaded files for the current session.
-* `DELETE /files/{file_id}`: Deletes a file from the current session.
-* `PATCH /files/{file_id}`: Toggle the inclusion of a file in the next request.
+* `POST /files`: Saves files in the current session and generates local keyword metadata. When `chat_id` is provided, the uploaded files become active in that chat.
+* `GET /files`: Returns all uploaded files and their metadata for the current session.
+* `DELETE /files/{file_id}`: Deletes a file from the session and relevant model providers.
+* `PATCH /files/{file_id}`: Renames an uploaded file.
 * `GET /files/{file_id}/view`: Serves a file for preview in the browser.
 
 #### Sample Prompts routes

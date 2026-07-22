@@ -208,7 +208,7 @@ async def find_relevant_files(
         response_format=_RelevantFilesResponse,
         record_agent_message=record_agent_message,
     )
-    selected_ids = set(result.formatted_output.file_ids if result.formatted_output else ())
+    relevant_ids = set(result.formatted_output.file_ids if result.formatted_output else ())
     return [
         {
             "file_id": file["file_id"],
@@ -218,7 +218,7 @@ async def find_relevant_files(
             "attached_to_current_message": file["attached_to_current_message"],
         }
         for file in catalog
-        if file["file_id"] in selected_ids
+        if file["file_id"] in relevant_ids
     ]
 
 

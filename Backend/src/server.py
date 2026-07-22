@@ -347,7 +347,7 @@ async def query_chat(method: str, chat_id: str, message: QueryRequest, session: 
     return response
 
 
-@app.put("/chats/{chat_id}", description="Update a chat's name.", tags=["chat"])
+@app.put("/chats/{chat_id}", description="Update a chat's name or active files.", tags=["chat"])
 async def update_chat(chat_id: str, new_name: str | None = None, active_files: Dict[str, bool] | None = None, session: SessionData = Depends(handle_session_http)) -> None:
     chat = session.get_or_create_chat(chat_id, True)
 
@@ -494,7 +494,7 @@ async def delete_file(file_id: str, ignore_error: bool = False, session: Session
     return await delete_file_from_all_clients(session, file_id, ignore_error)
 
 
-@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["files"])
+@app.patch("/files/{file_id}", description="Rename an uploaded file.", tags=["files"])
 async def update_file(file_id: str, name: str | None = None, session: SessionData = Depends(handle_session_http)) -> bool:
     files = session.uploaded_files
 

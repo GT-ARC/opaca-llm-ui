@@ -125,6 +125,8 @@ class AbstractMethod(ABC):
         exec_time = time.time()
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
+        # Full file contents are opt-in per LLM call. Only these explicitly requested
+        # files are uploaded to the provider and added to the model input.
         file_message_parts = []
         if attached_file_ids:
             file_chat = Chat(chat_id=self.chat.chat_id, active_files=attached_file_ids)
@@ -158,6 +160,9 @@ class AbstractMethod(ABC):
             # Prepend file parts
             last.content = [*file_message_parts, *parts]
 
+        # Without full contents, preserve only which files belong to the current user request.
+        # This lets the model resolve references such as "this file" without sending their contents.
+        # current_file_ids originates from QueryRequest.
         if not attached_file_ids and self.internal_tools:
             current_file_ids = self.internal_tools.context.current_file_ids
             current_files = [
@@ -167,18 +172,8 @@ class AbstractMethod(ABC):
             ]
             if current_files:
                 system_prompt = (
-                    f"{system_prompt.rstrip()}\n\nFiles attached to this user message: "
-                    f"{', '.join(current_files)}. References like 'this file' mean these IDs. "
-                    "Use the available file tools to identify relevant file IDs, activate inactive "
-                    "relevant files if needed, and read full file contents only when metadata is "
-                    "insufficient."
-                )
-            elif self.session.uploaded_files:
-                system_prompt = (
-                    f"{system_prompt.rstrip()}\n\nUploaded files are available, possibly inactive. "
-                    "Use the available file tools to identify relevant file IDs, activate inactive "
-                    "relevant files if needed, and read full file contents only when metadata is "
-                    "insufficient."
+                    f"{system_prompt.rstrip()}\n\nFiles attached to this request: "
+                    f"{', '.join(current_files)}."
                 )
 
         # Set settings for model invocation
