@@ -128,7 +128,7 @@ async def handle_custom_error(request: Request, exc: OpacaException):
     raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message})")
 
 
-# 'GENERAL' ROUTES
+# GENERAL ROUTES
 
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.", tags=["methods"])
 async def get_methods() -> list:
@@ -277,7 +277,7 @@ async def query_no_history(method: str, message: QueryRequest, session: SessionD
         return response
 
 
-# MCP Routes
+# MCP ROUTES
 
 @app.get("/mcp", description="Get a list of all added MCP servers and their actions", tags=["mcp"])
 async def get_mcp_list(session: SessionData = Depends(handle_session_http)) -> Dict:
@@ -304,7 +304,7 @@ async def update_mcp_tool_approval(data: ToolApprovalUpdateRequest, server_label
     return Response(status_code=204)
 
 
-### CHAT ROUTES
+# CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.", tags=["chat"])
 async def get_chats(session: SessionData = Depends(handle_session_http)) -> List[Chat]:
@@ -423,7 +423,7 @@ async def stop_query(session: SessionData = Depends(handle_session_http)) -> Non
     session.is_notifs_aborted = True
 
 
-## CONFIG ROUTES
+# CONFIG ROUTES
 
 @app.get("/config/{method}", description="Get current configuration of the given prompting method.", tags=["methods"])
 async def get_config(method: str, session: SessionData = Depends(handle_session_http)) -> ConfigPayload:
@@ -445,7 +445,7 @@ async def reset_config(method: str, session: SessionData = Depends(handle_sessio
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
-## FILE ROUTES
+# FILE ROUTES
 
 @app.get("/files", description="Get a list of all uploaded files.", tags=["files"])
 async def get_files(session: SessionData = Depends(handle_session_http)) -> dict:
@@ -529,7 +529,7 @@ async def view_file(file_id: str, session: SessionData = Depends(handle_session_
     )
 
 
-# SAMPLE PROMPTS
+# SAMPLE PROMPT ROUTES
 
 @app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
 async def get_prompts(session: SessionData = Depends(handle_session_http)) -> SessionPrompts:
@@ -573,7 +573,7 @@ async def reset_default_prompts(auth = Depends(require_password)) -> None:
     prompts.reset_default_prompts()
 
 
-# play books
+# PLAY BOOK ROUTES
 
 @app.get("/play-books", description="Get user-defined play books for the current session.", tags=["play books"])
 async def get_play_books(session: SessionData = Depends(handle_session_http)) -> List[PlayBook]:
@@ -593,7 +593,7 @@ async def delete_play_book(play_book_id: str, session: SessionData = Depends(han
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
-# WHISPER TTS/STT
+# WHISPER ROUTES
 
 @app.post("/whisper/transcribe", tags=["whisper"])
 async def whisper_transcribe(file: UploadFile, filetype: str = Query("mp3"), language: str = Query("en")):
@@ -616,7 +616,7 @@ async def whisper_generate(text: str = Query(""), voice: str = Query("alloy")) -
     )
 
 
-# WEBSOCKET CONNECTION (permanently opened)
+# WEBSOCKET CONNECTION (PERMANENTLY OPENED)
 
 @app.websocket("/ws")
 async def open_websocket(websocket: WebSocket, session: SessionData = Depends(handle_session_ws)):
@@ -639,7 +639,7 @@ async def open_websocket(websocket: WebSocket, session: SessionData = Depends(ha
         session._websocket = None
 
 
-## HELPER FUNCTIONS
+# HELPER FUNCTIONS
 
 async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
     """
