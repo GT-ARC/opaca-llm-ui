@@ -261,13 +261,11 @@ async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(ha
 async def query_no_history(method: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     session.is_notifs_aborted = False
     try:
-        current_file_ids = set(message.file_ids) & set(session.uploaded_files)
         internal_tools = InternalTools(session, METHODS[method])
-        internal_tools.set_current_file_ids(current_file_ids)
         response = QueryResponse(query=message.user_query)
         method_impl = METHODS[method](
             session,
-            Chat(chat_id='', active_files=current_file_ids),
+            Chat(chat_id=''),
             response,
             message.streaming,
             internal_tools,
