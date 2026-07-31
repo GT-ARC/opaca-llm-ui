@@ -25,12 +25,9 @@ The query's `file_ids` field identifies files attached to that specific user req
 
 The file sets have the following relationship:
 
-TODO: Add venn diagram
-
-- **Uploaded files** are all files stored in the current session.
-- **Active files** are the files that tools are permitted to read in one chat. They are a subset of uploaded files.
-- **Current files** are the active, uploaded IDs included with the current query. They are a subset of active files and are not persisted as a separate set.
-- **Relevant files** are selected per query from all uploaded filenames and keywords. They may be active or inactive and are not stored after selection.
+- **Current files**: Files that have just been uploaded to SAGE since the last interaction. They are automatically "activated" for the current chat, but listing them explicitly in the "current files" set helps the LLM to understand what the user refers to when they e.g. ask about "this" file.
+- **Active files**: Files that have been "activated" for the current chat, by ticking the checkbox in the Files sidebar, or by having just been uploaded to SAGE. The LLM can read those files by invoking an internal action (see below).
+- **Uploaded files**: All files that have been uploaded by the current user / in the current session. The LLM is aware of all those files, and can add them to the set of "active" files, but this requires an additional step / tool-call, allowing more control by the user.
 
 Internal file tools keep metadata selection separate from full-content access:
 
@@ -38,6 +35,9 @@ Internal file tools keep metadata selection separate from full-content access:
 - `FindRelevantFiles` uses an LLM to select relevant files from the same metadata, including inactive files.
 - `SetActiveFiles` replaces the chat's active file working set and can require user approval.
 - `AskFiles` sends selected active files to a supporting model and answers from their full contents.
+
+The LLM can either get the file keywords to determine relevant files, or use an action for this. In any case, files from all three sets -- current, active and uploaded -- can be considered relevant for a given query. By managing the confirmation level for `SetActiveFiles`, the user can manage whether the LLM is implicitly allowed to also access inactive files or not. The relevant file IDs are then sent to `AskFiles`, where they are processed by an internal LLM call and the answer to the query is returned to the main LLM thread.
+
 
 ## OPACA Tools
 

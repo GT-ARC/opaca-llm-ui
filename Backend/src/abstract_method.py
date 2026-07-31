@@ -104,8 +104,7 @@ class AbstractMethod(ABC):
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             status_message (str): optional message to be streamed to the UI
             is_output (bool): whether agent output should be streamed directly to chat or only to debug
-            attached_file_ids: IDs of files whose full contents should be attached to this call.
-            By default, agents receive only a short file-availability notice.
+            attached_file_ids: IDs of files whose full contents should be attached to this call; by default, agents receive only a list of recently added files.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -280,9 +279,6 @@ class AbstractMethod(ABC):
 
     async def invoke_tool(self, tool: ToolCall) -> ToolCall:
         return await self.tool_caller.invoke_tool(tool)
-
-    def determine_tool_type(self, tool_name: str) -> ToolType:
-        return self.tool_caller.determine_tool_type(tool_name)
 
     async def get_tools(self, include_internal: bool = True, include_mcp: bool = True, max_tools=128) -> tuple[list[dict], str]:
         """

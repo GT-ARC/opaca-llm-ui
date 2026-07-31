@@ -48,6 +48,8 @@ class InternalTools:
         )
         self.groups = [group_cls(self.context) for group_cls in TOOL_GROUPS]
 
+    # TODO reconsider whether to just add all those to __init__, since they are called right after init anyway, either in server.py or abstract_method.py
+
     def set_chat(self, chat):
         self.context.chat = chat
 

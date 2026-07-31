@@ -275,13 +275,7 @@ async def query_no_history(method: str, message: QueryRequest, session: SessionD
     try:
         internal_tools = InternalTools(session, METHODS[method])
         response = QueryResponse(query=message.user_query)
-        method_impl = METHODS[method](
-            session,
-            Chat(chat_id=''),
-            response,
-            message.streaming,
-            internal_tools,
-        )
+        method_impl = METHODS[method](session, Chat(chat_id=''), response, message.streaming, internal_tools)
         return await method_impl.query()
     except Exception as e:
         response = QueryResponse(query=message.user_query)

@@ -38,6 +38,8 @@ def _file_upload_purpose(filename: str, host: str, model_supports_vision: bool) 
 
 
 async def upload_files(session: SessionData, chat: Chat, model: str):
+    # TODO refactor this method
+    #  different name, file-ids paraemter, clean up loop logic
     """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
 
     host = model.rsplit("/", 1)[0]
