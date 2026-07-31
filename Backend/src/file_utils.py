@@ -37,25 +37,24 @@ def _file_upload_purpose(filename: str, host: str, model_supports_vision: bool) 
     return None
 
 
-async def upload_files(session: SessionData, chat: Chat, model: str):
-    # TODO refactor this method
-    #  different name, file-ids paraemter, clean up loop logic
-    """Uploads all unsent files to the connected LLM. Returns a list of file messages including file IDs."""
+async def get_file_parts(session: SessionData, model: str, file_ids: list[str]):
+    """Returns a list of file message parts for the given file-ids. Uploads all unsent files to the given model, if necessary."""
 
     host = model.rsplit("/", 1)[0]
+
+    # Check if the selected host supports file upload
+    if host not in ["openai", "azure", "vertex_ai", "bedrock"]:
+        raise OpacaException(user_message=f"Host {host} does not support file upload.")
 
     # Check if model supports vision
     model_supports_vision = (bool(litellm.supports_vision(model=model)) and host == "openai")
 
     # Upload all files that haven't been uploaded to this host
-    for file_id, file_data in session.uploaded_files.items():
-        # Skip suspended files
-        if file_id not in chat.active_files:
-            continue
-
-        # Check if the selected host supports file upload
-        if host not in ["openai", "azure", "vertex_ai", "bedrock"]:
-            raise OpacaException(user_message=f"Host {host} does not support file upload.")
+    parts = []
+    for file_id in file_ids:
+        if file_id not in session.uploaded_files:
+            raise OpacaException(user_message=f"File {file_id} not known in session.")
+        file_data = session.uploaded_files[file_id]
 
         purpose = _file_upload_purpose(file_data.file_name, host, model_supports_vision)
         if not purpose:
@@ -64,43 +63,30 @@ async def upload_files(session: SessionData, chat: Chat, model: str):
 
         provider_key = _provider_file_key(session, model, host, purpose)
 
-        # If this provider/purpose/key combination already has an uploaded id for this file, skip
-        if provider_key in file_data.host_ids:
-            continue
+        # If this provider/purpose/key combination does not already have an uploaded id, upload the file
+        if provider_key not in file_data.host_ids:
+            # prepare file for upload
+            file_path = create_path(session.session_id, file_id)
+            with open(file_path, 'rb') as f:
+                file_obj = io.BytesIO(f.read())
+                file_obj.name = file_data.file_name  # Required by OpenAI SDK
 
-        # prepare file for upload
-        file_path = create_path(session.session_id, file_id)
-        with open(file_path, 'rb') as f:
-            file_obj = io.BytesIO(f.read())
-            file_obj.name = file_data.file_name  # Required by OpenAI SDK
+            # Upload to the current host and store host-specific id
+            uploaded = await litellm.acreate_file(
+                file=file_obj,
+                purpose=purpose,
+                custom_llm_provider=host,
+                api_key=session.get_api_key(model),
+            )
+            logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
+            # record host id under this host_url
+            file_data.host_ids[provider_key] = uploaded.id
 
-        # Upload to the current host and store host-specific id
-        uploaded = await litellm.acreate_file(
-            file=file_obj,
-            purpose=purpose,
-            custom_llm_provider=host,
-            api_key=session.get_api_key(model),
-        )
-        logger.info(f"Uploaded file ID={uploaded.id} for file_id={file_id} (host={host})")
-        # record host id under this host_url
-        file_data.host_ids[provider_key] = uploaded.id
-
-    parts = []
-    for file_id, file_data in session.uploaded_files.items():
-        if file_id not in chat.active_files:
-            continue
-
-        purpose = _file_upload_purpose(file_data.file_name, host, model_supports_vision)
-        if not purpose:
-            continue
-
-        provider_key = _provider_file_key(session, model, host, purpose)
+        # file uploaded -> create file message part        
         if is_image(file_data.file_name) and purpose == "vision":
-            if provider_key in file_data.host_ids:
-                parts.append({"type": "input_image", "file_id": file_data.host_ids[provider_key]})
+            parts.append({"type": "input_image", "file_id": file_data.host_ids[provider_key]})
         else:
-            if provider_key in file_data.host_ids:
-                parts.append({"type": "input_file", "file_id": file_data.host_ids[provider_key]})
+            parts.append({"type": "input_file", "file_id": file_data.host_ids[provider_key]})
 
     return parts
 

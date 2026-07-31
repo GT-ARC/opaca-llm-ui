@@ -20,7 +20,7 @@ from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 from .models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
-from .file_utils import upload_files
+from .file_utils import get_file_parts
 from .opaca_client import actions_blacklist
 from .tool_calling import ToolCaller
 
@@ -126,10 +126,9 @@ class AbstractMethod(ABC):
 
         # Full file contents are opt-in per LLM call. Only these explicitly requested
         # files are uploaded to the provider and added to the model input.
-        file_message_parts = []
         if attached_file_ids:
-            file_chat = Chat(chat_id=self.chat.chat_id, active_files=attached_file_ids)
-            file_message_parts = await upload_files(self.session, file_chat, model)
+            file_message_parts = await get_file_parts(self.session, model, attached_file_ids)
+
             if not file_message_parts:
                 file_list = ", ".join(
                     file.file_name
@@ -145,8 +144,7 @@ class AbstractMethod(ABC):
                     ),
                 )
 
-        # Modify the last user message to include file parts
-        if file_message_parts:
+            # Modify the last user message to include file parts
             last = messages[-1]
 
             # Normalize last content to "content parts"
@@ -162,7 +160,7 @@ class AbstractMethod(ABC):
         # Without full contents, preserve only which files belong to the current user request.
         # This lets the model resolve references such as "this file" without sending their contents.
         # current_file_ids originates from QueryRequest.
-        if not attached_file_ids and self.internal_tools:
+        if not attached_file_ids and self.internal_tools and tools:
             current_file_ids = self.internal_tools.context.current_file_ids
             current_files = [
                 f"{file.file_name} (ID: {file_id})"
