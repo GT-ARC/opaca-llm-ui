@@ -151,7 +151,7 @@ class SimpleMethod(AbstractMethod):
             d = json.loads(llm_response.strip("`json\n")) # strip markdown, if included
             if type(d) is dict:
                 full_name = f'{d["agentId"]}--{d["action"]}'
-                tool_type = self.determine_tool_type(full_name)
+                tool_type = self.tool_caller.determine_tool_type(full_name)
                 return ToolCall(id="0", type=tool_type, name=full_name, args=d["params"])
         except (json.JSONDecodeError, KeyError):
             pass

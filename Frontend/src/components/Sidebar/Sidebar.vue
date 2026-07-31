@@ -78,6 +78,14 @@
                class="fa fa-question-circle sidebar-menu-item"
                :title="Localizer.get('sidebar_faq')"
                v-bind:class="{'sidebar-menu-item-select': SidebarManager.isViewSelected('faq')}"/>
+
+            <!-- Always Visible: User Profile -->
+            <SidebarAccount
+                v-show="conf.authEnabled"
+                @update-user-info="updateSidebarUserInfo"
+                @update-mcp-servers="$refs.mcp.updateMcp(connected)"
+                ref="account"
+            />
         </div>
 
         <!-- sidebar content -->
@@ -114,6 +122,8 @@
                     :chats="this.chats"
                     v-show="SidebarManager.isViewSelected('files')"
                     @delete-file="fileId => this.$emit('delete-file', fileId)"
+                    @delete-all-files="() => this.$emit('delete-all-files')"
+                    @upload-file="() => this.$emit('upload-file')"
                     @view-file="$emit('view-file', $event)"
                     @rename-file="(fileId, newName) => this.$emit('rename-file', fileId, newName)"
                     @update-chats="this.updateChats"
@@ -123,6 +133,7 @@
                 <!-- sample questions -->
                 <SidebarQuestions
                     v-show="SidebarManager.isViewSelected('questions')"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     @select-question="question => this.$emit('select-question', question)"
                     ref="questions"
                 />
@@ -195,6 +206,7 @@ import SidebarChats from "./SidebarChats.vue";
 import SidebarFiles from "./SidebarFiles.vue";
 import SidebarMcp from "./SidebarMcp.vue";
 import SidebarPlayBooks from "./SidebarPlayBooks.vue";
+import SidebarAccount from "./SidebarAccount.vue";
 import backendClient from "../../utils.js";
 
 export default {
@@ -211,6 +223,7 @@ export default {
         SidebarPlayBooks,
         SidebarExtensions,
         SidebarQuestions,
+        SidebarAccount,
     },
     props: {
         connected: Boolean,
@@ -223,14 +236,16 @@ export default {
         'rename-chat',
         'new-chat',
         'delete-file',
+        'upload-file',
         'view-file',
         'rename-file',
         'goto-search-result',
         'delete-all-chats',
+        'delete-all-files',
     ],
     setup() {
         const { isMobile } = useDevice();
-        return { SidebarManager, Localizer, isMobile };
+        return { conf, SidebarManager, Localizer, isMobile };
     },
     data() {
         return {
@@ -277,7 +292,7 @@ export default {
                 // Calculate the new width for the aside
                 const newWidth = event.clientX - sidebar.getBoundingClientRect().left;
 
-                if (newWidth > 200 && newWidth < 768) {
+                if (newWidth >= 275 && newWidth < 768) {
                     sidebar.style.width = `${newWidth}px`;
                 }
             });
@@ -296,6 +311,15 @@ export default {
                 this.chats = [];
             }
         },
+
+        async updateSidebarUserInfo() {
+            // All-in-One Place to update user data in the sidebar
+            // Called by App.vue
+            await this.updateChats();
+            await this.$refs.files.updateFiles();
+            await this.$refs.config.fetchMethodConfig();
+            await this.$refs.questions.loadPrompts();
+        }
     },
     mounted() {
         this.setupResizer();
@@ -314,10 +338,143 @@ export default {
 .sidebar-title {
     display: flex;
     align-items: center;
+    gap: .25rem;
     font-size: 150%;
     border-left: 5px solid var(--primary-color);
     padding-left: .5em;
     margin-bottom: .5em;
+}
+
+.sidebar-title-action {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--primary-color);
+    cursor: pointer;
+    background-color: transparent;
+    color: var(--primary-color);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar-title-action:hover {
+    background-color: var(--primary-color);
+    color: var(--button-primary-color);
+    transform: translateY(-1px);
+}
+
+.sidebar-title-action.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--button-primary-color);
+}
+
+.sidebar-title-action-secondary {
+    border-color: var(--text-secondary-color);
+    color: var(--text-secondary-color);
+}
+
+.sidebar-title-action-danger {
+    border-color: var(--text-danger-color);
+    color: var(--text-danger-color);
+}
+
+.sidebar-title-action-secondary:hover {
+    background-color: var(--text-secondary-color);
+    border-color: var(--text-secondary-color);
+    color: var(--button-primary-color);
+}
+
+.sidebar-title-action-danger:hover {
+    background-color: var(--text-danger-color);
+    color: var(--button-primary-color);
+}
+
+.sidebar-title-action.disabled {
+    opacity: .5;
+    cursor: default;
+    pointer-events: none;
+    transform: none;
+}
+
+.click-icon {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+    padding: 0;
+    margin: 0;
+    aspect-ratio: 1 / 1 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem !important;
+    cursor: pointer;
+    color: var(--text-primary-color);
+}
+
+.click-icon:hover {
+    background-color: var(--input-color);
+    color: var(--text-danger-color);
+    transform: translateY(-1px);
+}
+
+.click-icon.disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+    pointer-events: none;
+    color: var(--text-primary-color) !important;
+    background: none !important;
+}
+
+.section-actions .click-icon:hover {
+    background-color: var(--primary-color);
+}
+
+.section-actions .click-icon {
+    margin-right: 0 !important;
+}
+
+.section-actions .click-icon:last-child {
+    margin-right: .75rem !important;
+}
+
+.sidebar-search-results {
+    max-height: 12rem;
+    overflow-y: auto;
+    margin-bottom: .5rem;
+}
+
+.sidebar-search-result-group + .sidebar-search-result-group {
+    margin-top: .75rem;
+}
+
+.sidebar-search-result-heading {
+    color: var(--secondary-color);
+    font-size: .875rem;
+}
+
+.sidebar-search-result-context {
+    padding: .5rem;
+    margin-top: .25rem;
+    overflow-wrap: anywhere;
+}
+
+.sidebar-search-result-clickable:hover {
+    background-color: var(--surface-color);
+    cursor: pointer;
+}
+
+.sidebar-empty-state {
+    padding: 1.2rem;
+    color: var(--text-secondary-color);
+    font-size: 1rem;
+    text-align: center;
 }
 </style>
 
@@ -330,7 +487,7 @@ export default {
 #sidebar-content {
     width: min(400px, 100vw - 3rem);
     height: calc(100vh - 50px - 1rem - 1rem); /* 100% - header - top margin - bottom margin */
-    min-width: 150px;
+    min-width: min(275px, calc(100vw - 3rem));
     max-width: 768px;
     padding: .5rem;
     margin: 1rem 0 0 1rem;

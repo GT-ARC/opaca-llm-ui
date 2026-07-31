@@ -134,8 +134,8 @@ async def create_or_refresh_session(session_id: Optional[str], max_age: int = 0)
             # if session is valid and was loaded from DB, save into memory
             sessions[session_id] = session
 
-        # update session expiration
-        if max_age > 0:
+        # update session expiration for anonymous sessions
+        if max_age > 0 and not session.user_id:
             session.valid_until = time.time() + max_age
 
     return session
@@ -145,6 +145,33 @@ def create_new_session(session_id: Optional[str] = None) -> SessionData:
     session = SessionData()
     if session_id:
         session.session_id = session_id
+    return session
+
+
+async def get_user_session(user_id: str, anonymous_session_id: Optional[str], methods: dict[str, type['AbstractMethod']]) -> SessionData:
+    # At this point, all user ids can be assumed verified
+    session = next((session for session in sessions.values() if user_id == session.user_id), None)
+
+    # If no session was found by the user id, associate current session with it
+    # At this point, the user should always have a session associated with it
+    if not session:
+        anonymous_session = await create_or_refresh_session(anonymous_session_id)
+        # Create a new session but copy the anonymous session's data
+        session = anonymous_session.create_user_session(user_id)
+        # Save the session in the sessions
+        sessions[session.session_id] = session
+
+        # Move the scheduled tasks from the anonymous session to the user session
+        for task_id in list(anonymous_session.scheduled_tasks):
+            task = anonymous_session.scheduled_tasks[task_id]
+            try:
+                await InternalTools(session, methods[task.method]).resume_scheduled_task(task)
+            except Exception as e:
+                logger.warning(f"Failed to move Scheduled Task {task_id} ({task.query}) for user {user_id} to new session.")
+            finally:
+                del anonymous_session.scheduled_tasks[task_id]
+    # TODO Merge sessions if user session already existed but current session was filled with content (chats, prompts, ...)
+
     return session
 
 
@@ -187,6 +214,7 @@ async def get_all_sessions() -> dict:
     """
     return {
         _id: {
+            "user_id": session.user_id,
             "valid_until": datetime.fromtimestamp(session.valid_until).isoformat(),
             "chats": [chat.name for chat in session.chats.values()],
             "files": [file.file_name for file in session.uploaded_files.values()],

@@ -1,6 +1,6 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_faq') }}
     </div>
 
@@ -8,7 +8,7 @@
          v-html="this.faqContent"
          class="d-flex flex-column text-start faq-content">
     </div>
-    <div v-else>
+    <div v-else class="sidebar-empty-state">
         {{ Localizer.get('faq_missing') }}
     </div>
 </div>

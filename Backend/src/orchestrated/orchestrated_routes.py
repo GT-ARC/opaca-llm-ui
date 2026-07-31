@@ -473,12 +473,12 @@ Please address these specific improvements:
     async def get_agent_details(self) -> Dict[str, Dict]:
         """Get simplified agent summaries for the orchestrator"""
         agent_details = {
-            agent["agentId"]: {
-                "description": agent["description"],
-                "functions": [action["name"] for action in agent["actions"]]
+            agent.agentId: {
+                "description": agent.description,
+                "functions": [action.name for action in agent.actions]
             }
             for container in await self.session.opaca_client.get_containers()
-            for agent in container["agents"]
+            for agent in container.agents
         }
         agent_details["GeneralAgent"] = {"description": GENERAL_AGENT_DESC, "functions": ["GeneralAgent--getGeneralCapabilities"]}
         if self.internal_tools:

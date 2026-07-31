@@ -148,12 +148,18 @@ import OptionsSelect from "./components/OptionsSelect.vue";
 import CookieBanner from './components/CookieBanner.vue';
 import InputDialogue from './components/InputDialogue.vue';
 import {showDesktopNotification} from "./browserNotifications.js";
+import { useAuthentication } from "./useAuthentication.ts";
 
 export default {
     name: 'App',
     components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile } = useDevice();
+        const { getAccessTokenSilently, isAuthenticated } = useAuthentication();
+        backendClient.init({
+            getTokenFn: getAccessTokenSilently,
+            isAuthenticated: isAuthenticated
+        })
         return { conf, Localizer, isMobile };
     },
     data() {
@@ -351,11 +357,7 @@ export default {
         }
         // initialize sidebar states; NOTE: this is done here, and not in their respective mounted() methods
         // to ensure that all those steps are executed sequentially and no redundant sessions are created!
-        const sidebars = await this.$refs.content.$refs.sidebar.$refs;
-        await sidebars.files.updateFiles();
-        await this.$refs.content.$refs.sidebar.updateChats();
-        await sidebars.config.fetchMethodConfig();
-        await sidebars.questions.loadPrompts();
+        await this.$refs.content.$refs.sidebar.updateSidebarUserInfo()
         // open permanent websocket connection to backend for "push notifications" to the UI
         this.$refs.content.connectWebsocket();
     },

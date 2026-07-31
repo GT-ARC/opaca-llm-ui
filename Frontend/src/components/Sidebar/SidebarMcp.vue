@@ -1,14 +1,18 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_mcp') }}
+        <i class="fa fa-plus ms-auto sidebar-title-action"
+           @click.stop="addMcp()"
+           :title="Localizer.get('mcp_add')" />
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('mcp_loading') }}
     </div>
-    <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0">
+    <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0"
+         class="sidebar-empty-state">
         {{ Localizer.get('mcp_missing') }}
     </div>
     <div v-else class="flex-row" >
@@ -20,14 +24,13 @@
         >
             <template #header="{ item: server }">
                 <i class="fa fa-server me-3"/>
-                <strong>{{ server.name }}</strong>
+                <strong class="flex-grow-1">{{ server.name }}</strong>
 
-                <!-- Delete Button -->
-                <i
-                    class="fa fa-remove delete-icon"
-                    @click.stop="this.deleteMcp(server.name)"
-                    :title="Localizer.get('mcp_remove')"
-                />
+                <span class="section-actions">
+                    <i class="fa fa-remove click-icon"
+                       @click.stop="this.deleteMcp(server.name)"
+                       :title="Localizer.get('mcp_remove')" />
+                </span>
             </template>
 
             <template #body="{ item: server, index: mcpServerIndex }">
@@ -90,13 +93,6 @@
             </template>
         </AppAccordion>
     </div>
-    <button type="button"
-            class="btn btn-primary py-2 w-100"
-            @click.stop="addMcp()">
-        <i class="fa fa-plus me-2"></i>
-        {{ Localizer.get("mcp_add") }}
-    </button>
-
     <InputDialogue ref="input" />
 </div>
 
@@ -325,25 +321,6 @@ export default {
 <style scoped>
 .mcp-body {
     padding: 0.5rem;
-}
-
-.delete-icon {
-    position: absolute;
-    width: 2em;
-    height: 2em;
-    right: 2rem;
-    top: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: translateY(-50%);
-    border-radius: var(--bs-border-radius-lg);
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-
-.delete-icon:hover {
-    color: var(--text-danger-color);
 }
 
 </style>

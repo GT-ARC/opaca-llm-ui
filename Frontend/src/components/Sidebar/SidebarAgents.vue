@@ -1,7 +1,19 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_agents') }}
+        <i v-if="conf.allowContainerManagement && this.isPlatformConnected"
+           class="fa fa-plus ms-auto sidebar-title-action"
+           @click.stop="addContainer()"
+           :title="Localizer.get('agents_deploy')" />
+        <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+           :class="{
+               'ms-auto': !(conf.allowContainerManagement && this.isPlatformConnected),
+               disabled: this.isLoading || !this.platformContainers || this.platformContainers.length === 0,
+           }"
+           :aria-disabled="this.isLoading || !this.platformContainers || this.platformContainers.length === 0"
+           @click="toggleSearch"
+           :title="Localizer.get('agents_search')" />
     </div>
 
     <InputDialogue ref="input"/>
@@ -10,19 +22,30 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('agents_loading') }}
     </div>
-    <div v-else-if="platformContainers === null">
+    <div v-else-if="platformContainers === null"
+         class="sidebar-empty-state">
         {{ Localizer.get('general_disconnected') }}
     </div>
-    <div v-else-if="platformContainers.length === 0">
+    <div v-else-if="platformContainers.length === 0"
+         class="sidebar-empty-state">
         {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
-        <input
-            type="text"
+        <input v-if="isSearching"
+            type="search"
+            ref="searchBar"
             class="form-control my-2"
             :placeholder="Localizer.get('agents_search')"
             v-model="this.searchQuery"
         />
+        <div v-if="agentSearchContexts.length > 0" class="sidebar-search-results">
+            <div v-for="result in agentSearchContexts"
+                 :key="result.key"
+                 class="sidebar-search-result-group">
+                <div class="sidebar-search-result-heading">{{ result.path }}</div>
+                <div class="sidebar-search-result-context">{{ result.context }}</div>
+            </div>
+        </div>
         <AppAccordion
             id="agents-accordion"
             class="text-start"
@@ -33,11 +56,12 @@
                 <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
                 <strong class="container-name">{{ (image?.name === "" ? null : image?.name) ?? image?.imageName ?? containerId }}</strong>
 
-                <i v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
-                    class="fa fa-remove delete-icon"
-                    @click.stop.prevent="this.stopContainer(containerId)"
-                    :title="Localizer.get('agents_undeploy')"
-                />
+                <span v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
+                      class="section-actions">
+                    <i class="fa fa-remove click-icon"
+                       @click.stop.prevent="this.stopContainer(containerId)"
+                       :title="Localizer.get('agents_undeploy')" />
+                </span>
             </template>
 
             <template #body="{ item: {containerId, agents, approvals}, index: containerIndex }">
@@ -120,13 +144,6 @@
             </template>
         </AppAccordion>
     </div>
-    <button v-if="conf.allowContainerManagement && this.isPlatformConnected"
-            type="button"
-            class="btn btn-primary py-2 w-100"
-            @click.stop="addContainer()">
-        <i class="fa fa-plus me-2"></i>
-        {{ Localizer.get("agents_deploy") }}
-    </button>
 </div>
 
 </template>
@@ -156,11 +173,71 @@ export default {
         return {
             platformContainers: null,
             isLoading: false,
+            isSearching: false,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
         };
     },
+    computed: {
+        agentSearchContexts() {
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query || !this.platformContainers) return [];
+
+            const results = [];
+            const matches = value => value?.toLowerCase().includes(query);
+            const excerpt = value => {
+                const text = value ?? '';
+                const index = text.toLowerCase().indexOf(query);
+                if (index < 0) return text;
+                const start = Math.max(0, index - 40);
+                const end = Math.min(text.length, index + query.length + 40);
+                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+            };
+
+            this.platformContainers.forEach(container => {
+                const containerName = container.image?.imageName ?? container.containerId;
+                if (matches(containerName)) {
+                    results.push({
+                        key: `container-${container.containerId}`,
+                        path: containerName,
+                        context: excerpt(containerName),
+                    });
+                }
+
+                container.agents?.forEach(agent => {
+                    if (matches(agent.agentId)) {
+                        results.push({
+                            key: `agent-${container.containerId}-${agent.agentId}`,
+                            path: `${containerName} › ${agent.agentId}`,
+                            context: excerpt(agent.agentId),
+                        });
+                    }
+
+                    agent.actions?.forEach(action => {
+                        if (!matches(action.name) && !matches(action.description)) return;
+                        results.push({
+                            key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
+                            path: `${containerName} › ${agent.agentId} › ${action.name}`,
+                            context: excerpt(matches(action.description) ? action.description : action.name),
+                        });
+                    });
+                });
+            });
+
+            return results;
+        },
+    },
     methods: {
+        async toggleSearch() {
+            this.isSearching = !this.isSearching;
+            if (!this.isSearching) {
+                this.searchQuery = '';
+                return;
+            }
+            await nextTick();
+            this.$refs.searchBar?.focus();
+        },
+
         getEffectiveApproval(agentId, action, approvals) {
             return getEffectiveApproval(`${agentId}--${action.name}`, approvals?.[`${agentId}--${action.name}`], this.restrictedActions);
         },
@@ -500,24 +577,6 @@ export default {
     border-radius: var(--bs-border-radius);
     white-space: pre-wrap; /* Ensures line breaks */
     font-family: monospace;
-}
-
-.delete-icon {
-    flex: 0 0 auto;
-    width: 2em;
-    height: 2em;
-    right: 2rem;
-    top: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--bs-border-radius-lg);
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-
-.delete-icon:hover {
-    color: var(--text-danger-color);
 }
 
 </style>

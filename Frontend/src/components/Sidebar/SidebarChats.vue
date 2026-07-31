@@ -1,47 +1,61 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <SearchChatsOverlay
-        v-if="isSearching"
-        :is-searching="isSearching"
-        :chats="chats"
-        @stop-search="this.isSearching = false"
-        @goto-search-result="this.gotoSearchResult"
-    />
-
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_chats') }}
+        <i class="fa fa-plus ms-auto sidebar-title-action"
+           @click="this.$emit('new-chat')"
+           :title="Localizer.get('chats_new')" />
+        <i v-if="showHeaderActions"
+           class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+           :class="{ disabled: this.chats.length === 0 }"
+           :aria-disabled="this.chats.length === 0"
+           @click="toggleSearch"
+           :title="Localizer.get('chats_search')" />
+        <i v-if="showHeaderActions"
+           class="fa fa-trash sidebar-title-action sidebar-title-action-danger"
+           :class="{ disabled: this.chats.length === 0 }"
+           :aria-disabled="this.chats.length === 0"
+           @click="onDeleteAllChats"
+           :title="Localizer.get('chats_deleteAll')" />
+        <i class="fa sidebar-title-action sidebar-title-action-secondary"
+           :class="showHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
+           @click="toggleHeaderActions"
+           :title="Localizer.get(showHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
     </div>
 
-    <div class="d-grid gap-2">
-        <!-- "New Chat" button -->
-        <button type="button"
-                class="btn btn-primary py-2 w-100"
-                @click="this.$emit('new-chat')" >
-            <i class="fa fa-pen-to-square" />
-            {{ Localizer.get('chats_new') }}
-        </button>
+    <div v-if="isSearching">
+        <input v-model="searchQuery"
+               ref="searchBar"
+               type="search"
+               class="form-control my-2"
+               :placeholder="Localizer.get('chats_search')"
+               @input="updateSearchResults"
+               @keyup.enter="updateSearchResults"
+               @keyup.esc="closeSearch" />
 
-        <!-- "Search" button -->
-        <button type="button"
-                class="btn btn-secondary py-2 w-100"
-                @click="this.isSearching = true"
-                :disabled="this.chats.length === 0" >
-            <i class="fa fa-magnifying-glass" />
-            {{ Localizer.get('chats_search') }}
-        </button>
+        <div v-if="isLoadingResults" class="py-2 text-center text-muted">
+            <i class="fa fa-circle-notch fa-spin" />
+        </div>
 
-        <!-- "Delete All Chats" button -->
-        <button type="button"
-                class="btn btn-danger py-2 w-100"
-                @click="onDeleteAllChats"
-                :disabled="this.chats.length === 0">
-            <i class="fa fa-trash" />
-            {{ Localizer.get('chats_deleteAll') }}
-        </button>
+        <div v-if="Object.keys(searchResults).length > 0" class="sidebar-search-results">
+            <div v-for="(results, chatId) in searchResults"
+                 :key="chatId"
+                 class="sidebar-search-result-group">
+                <div class="sidebar-search-result-heading">
+                    {{ results?.[0].chat_name }}
+                </div>
+                <div v-for="(result, index) in results"
+                     :key="index"
+                     class="sidebar-search-result-context sidebar-search-result-clickable"
+                     @click="gotoSearchResult(result.chat_id, result.message_id)">
+                    {{ result.excerpt }}
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- List all the chats -->
-    <div v-for="chat in chats" :key="chat.chat_id">
+    <div v-for="chat in visibleChats" :key="chat.chat_id">
         <SidebarChatItem
             :selected-chat-id="this.selectedChatId"
             :chat-id="chat.chat_id"
@@ -58,12 +72,13 @@
 <script>
 import Localizer from "../../Localizer.js";
 import {useDevice} from "../../useIsMobile.js";
+import {nextTick} from "vue";
+import backendClient from "../../utils.js";
 import SidebarChatItem from "./SidebarChatItem.vue";
-import SearchChatsOverlay from "../SearchChatsOverlay.vue";
 
 export default {
     name: 'SidebarChats',
-    components: {SearchChatsOverlay, SidebarChatItem},
+    components: {SidebarChatItem},
     props: {
         selectedChatId: String,
         chats: Array,
@@ -84,11 +99,64 @@ export default {
     data() {
         return {
             missedResponseChatIds: [],
-            showChatMenu: false,
+            showHeaderActions: false,
             isSearching: false,
+            searchQuery: '',
+            searchResults: {},
+            isLoadingResults: false,
         };
     },
     methods: {
+        toggleHeaderActions() {
+            this.showHeaderActions = !this.showHeaderActions;
+            if (!this.showHeaderActions) {
+                this.closeSearch();
+            }
+        },
+
+        async toggleSearch() {
+            if (this.isSearching) {
+                this.closeSearch();
+                return;
+            }
+            this.isSearching = true;
+            await nextTick();
+            this.$refs.searchBar?.focus();
+        },
+
+        closeSearch() {
+            this.isSearching = false;
+            this.searchQuery = '';
+            this.searchResults = {};
+            this.isLoadingResults = false;
+        },
+
+        async updateSearchResults() {
+            const query = this.searchQuery;
+            this.searchResults = {};
+
+            if (query.length < 3) {
+                this.isLoadingResults = false;
+                return;
+            }
+
+            this.isLoadingResults = true;
+            try {
+                const results = await backendClient.search(query);
+                if (query !== this.searchQuery) return;
+                this.searchResults = results;
+            } catch (error) {
+                console.error(error);
+                if (query === this.searchQuery) {
+                    this.searchResults = {};
+                }
+            } finally {
+                if (query === this.searchQuery) {
+                    this.isLoadingResults = false;
+                }
+            }
+        },
+
         async updateChats() {
             this.$emit('update-chats');
         },
@@ -111,7 +179,7 @@ export default {
         },
 
         gotoSearchResult(chatId, messageId) {
-            this.isSearching = false;
+            this.closeSearch();
             this.$emit('goto-search-result', chatId, messageId)
         },
 
@@ -121,11 +189,20 @@ export default {
             }
         },
     },
+    computed: {
+        visibleChats() {
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query) return this.chats;
+
+            const matchingChatIds = new Set(Object.keys(this.searchResults));
+            return this.chats.filter(chat =>
+                chat.name?.toLowerCase().includes(query)
+                || matchingChatIds.has(chat.chat_id)
+            );
+        },
+    },
     mounted() {
         //this.updateChats(); // ... is called in this stage, but moved to App.mounted to fix concurrency issues
     },
 }
 </script>
-
-<style scoped>
-</style>

@@ -125,7 +125,7 @@ Please note that not all models support file uploads.
 
 * [User-Interface](docs/ui.md) - The main user interface of the OPACA LLM UI.
 * [Methods](docs/methods_overview.md) - A brief overview of all integrated methods for task-solving.
-* [Session-Handling](docs/session_handling.md) - How sessions are handled and how messages are stored.
+* [User Management & Sessions](docs/user_management.md) - How user authentication is done, sessions are handled and messages are stored.
 * [Backend-API](docs/api.md) - The RESTful API of the backend.
 
 ### Task-Solving Methods

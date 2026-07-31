@@ -21,6 +21,7 @@ import type {
     MCPCreateRequest,
     PlayBook,
 } from "./models";
+import type {Ref} from "vue";
 
 const FILE_UPLOAD_TIMEOUT = 5 * 60 * 1000;
 
@@ -42,6 +43,18 @@ function getRequestErrorMessage(error: unknown): string {
 }
 
 class BackendClient {
+
+    private getTokenFn!: () => Promise<String>;
+    private isAuthenticated!: Ref<boolean>;
+
+    init(params: {
+        getTokenFn: () => Promise<String>;
+        isAuthenticated: Ref<boolean>;
+    }) {
+        this.getTokenFn = params.getTokenFn;
+        this.isAuthenticated = params.isAuthenticated;
+    }
+
     // OPACA connection
 
     async connect(url: string, user: string, pwd: string): Promise<number> {
@@ -181,6 +194,11 @@ class BackendClient {
                 params: {
                     chat_id: chatId,
                 },
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Access-Control-Allow-Origin': '*',
+                    ...(await this.getAuthorizationHeader()),
+                }
             });
             return response.data;
         } catch (error: unknown) {
@@ -263,6 +281,12 @@ class BackendClient {
         await this.sendRequest("PATCH", `mcp/${serverLabel}/approval`, body);
     }
 
+    // users
+
+    async user_logout(): Promise<string> {
+        return await this.sendRequest("GET", `users/logout`)
+    }
+
     // internal helper
 
     async sendRequest(method: Method | string, path: string, body: any = null, timeout: number = 10000): Promise<any> {
@@ -274,10 +298,15 @@ class BackendClient {
             withCredentials: true,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                ...(await this.getAuthorizationHeader()),
             }
         });
         return response.data;
+    }
+
+    private async getAuthorizationHeader(): Promise<Record<string, string>> {
+        return this.isAuthenticated.value ? {Authorization: `Bearer ${await this.getTokenFn()}`} : {}
     }
 
 }

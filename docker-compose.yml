@@ -17,6 +17,10 @@ services:
       VITE_ALLOW_CONTAINER_MANAGEMENT:
       VITE_COLOR_SCHEME:
       VITE_LANGUAGE:
+      VITE_AUTH_ENABLED:
+      VITE_AUTH_DOMAIN:
+      VITE_AUTH_CLIENT_ID:
+      VITE_AUTH_AUDIENCE:
 
   # FastAPI-based backend for SAGE Integration
   backend:
@@ -39,6 +43,8 @@ services:
       MONGODB_URI: "mongodb://user:pass@session-db:27017"
       SESSION_ADMIN_PWD:
       LOCATION:
+      VITE_AUTH_DOMAIN:
+      VITE_AUTH_AUDIENCE:
     volumes:
       - appdata:/app/data
 

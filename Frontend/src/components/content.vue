@@ -29,6 +29,8 @@
             @rename-chat="(chatId, newName) => this.handleRenameChat(chatId, newName)"
             @new-chat="() => this.startNewChat()"
             @delete-file="fileId => this.handleDeleteFile(fileId)"
+            @delete-all-files="() => this.handleDeleteAllFiles()"
+            @upload-file="() => this.$refs.fileInput?.click()"
             @view-file="openViewer"
             @rename-file="handleRenameFile"
             @goto-search-result="(chatId, messageId) => this.gotoSearchResult(chatId, messageId)"
@@ -560,6 +562,19 @@ export default {
             } else {
                 await this.$refs.sidebar.$refs.files.updateFiles();
             }
+        },
+
+        async handleDeleteAllFiles() {
+            const fileIds = Object.keys(this.$refs.sidebar.$refs.files.files);
+
+            this.viewerFile = null;
+            this.selectedFiles = [];
+
+            for (const fileId of fileIds) {
+                await this.handleDeleteFile(fileId);
+            }
+
+            await this.$refs.sidebar.updateChats();
         },
 
         async handleRenameFile(fileId, newName) {

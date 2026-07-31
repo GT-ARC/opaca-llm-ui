@@ -51,7 +51,7 @@ Ja. Wenn du die Backend‑URL und Zugangsdaten hast, kannst du neue AgentContain
 
 ## Weiterführende Literatur
 
-* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE auf GitHub</a>
-* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA auf GitHub</a>
-* <a href="https://github.com/GT-ARC/opaca-python-sdk" target="_blank">OPACA Python SDK auf GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>SAGE auf GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-core" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>OPACA auf GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-python-sdk" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>OPACA Python SDK auf GitHub</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Projekt</a>

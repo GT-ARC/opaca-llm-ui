@@ -1,14 +1,20 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_extensions') }}
+        <i class="fa fa-refresh ms-auto sidebar-title-action sidebar-title-action-secondary"
+           :class="{ disabled: this.isLoading }"
+           :aria-disabled="this.isLoading"
+           @click.stop="updatePlatformInfo()"
+           :title="Localizer.get('extensions_refresh')" />
     </div>
 
     <div v-if="this.isLoading">
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('extensions_loading') }}
     </div>
-    <div v-else-if="!this.extraPorts || Object.keys(this.extraPorts).length === 0">
+    <div v-else-if="!this.extraPorts || Object.keys(this.extraPorts).length === 0"
+         class="sidebar-empty-state">
         {{ Localizer.get('extensions_missing') }}
     </div>
     <div v-else class="flex-row" >
@@ -38,11 +44,12 @@
                     variant="nested"
                 >
                     <template #header="{ item: extension }">
-                        {{ extension.description }}
-                        <i class="fa fa-expand extension-expand-button"
-                            @click.stop="this.maximized = extension.fullUrl"
-                            :title="Localizer.get('extensions_expand')"
-                        />
+                        <span class="flex-grow-1">{{ extension.description }}</span>
+                        <span class="section-actions">
+                            <i class="fa fa-expand click-icon"
+                               @click.stop="this.maximized = extension.fullUrl"
+                               :title="Localizer.get('extensions_expand')" />
+                        </span>
                     </template>
 
                     <template #body="{ item: extension }">
@@ -54,13 +61,6 @@
             </template>
         </AppAccordion>
     </div>
-    <button type="button"
-            class="btn btn-secondary py-2 w-100"
-            @click.stop="updatePlatformInfo()"
-            :disabled="this.isLoading" >
-        <i class="fa fa-refresh" />
-        {{ Localizer.get('extensions_refresh') }}
-    </button>
 </div>
 
 </template>
@@ -121,21 +121,6 @@ export default {
 <style scoped>
 .extension-body {
     padding: 0.5rem 0;
-}
-
-/* the following are copied from chat tab and search chat overlay... */
-.extension-expand-button {
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    aspect-ratio: 1 / 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-end;
-    border-radius: 1rem !important;
-    cursor: pointer;
 }
 
 .extension-expand-overlay {

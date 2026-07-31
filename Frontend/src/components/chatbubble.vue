@@ -74,7 +74,7 @@
                 <!-- attached files -->
                 <div v-show="this.files?.length > 0"
                      class="footer-item w-auto me-2"
-                     @click="this.isFilesExpanded = !this.isFilesExpanded"
+                     @click.stop="this.toggleFooter('files')"
                      :title="Localizer.get('chatbubble_files')">
                     <i class="fa" :class="getFilesIconClass()" />
                 </div>
@@ -82,7 +82,7 @@
             </div>
 
             <!-- footer: attached files -->
-            <div v-show="this.isFilesExpanded">
+            <div v-show="this.isFooterExpanded('files')">
                 <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                      style="max-height: 200px; max-width: 600px;">
                     <div class="message-text w-auto"
@@ -169,7 +169,7 @@
                     <!-- debug messages -->
                     <div v-show="this.debugMessages.length > 0"
                          class="footer-item w-auto me-2"
-                         @click.stop="this.isDebugExpanded = !this.isDebugExpanded"
+                         @click.stop="this.toggleFooter('debug')"
                          :title="Localizer.get('chatbubble_debug')">
                         <i class="fa fa-bug" />
                     </div>
@@ -178,7 +178,7 @@
                     <div v-show="this.getToolCalls().length > 0"
                          class="footer-item w-auto me-2"
                          style="cursor: pointer;"
-                         @click.stop="this.isToolsExpanded = !this.isToolsExpanded"
+                         @click.stop="this.toggleFooter('tools')"
                          :title="Localizer.get('chatbubble_tools')">
                         <i class="fa fa-wrench" />
                     </div>
@@ -187,7 +187,7 @@
                     <div v-show="this.getMetrics().length > 0"
                          class="footer-item w-auto me-2"
                          style="cursor: pointer;"
-                         @click.stop="this.isMetricsExpanded = !this.isMetricsExpanded"
+                         @click.stop="this.toggleFooter('metrics')"
                          :title="Localizer.get('chatbubble_metrics')">
                         <i class="fa fa-chart-simple" />
                     </div>
@@ -195,7 +195,7 @@
                     <!-- error handling -->
                     <div v-show="this.error !== null"
                          class="footer-item w-auto me-2"
-                         @click.stop="this.isErrorExpanded = !this.isErrorExpanded"
+                         @click.stop="this.toggleFooter('error')"
                          :title="Localizer.get('chatbubble_error')">
                         <i class="fa fa-exclamation-circle text-danger me-1" />
                     </div>
@@ -203,7 +203,7 @@
                 </div>
 
                 <!-- footer: debug messages -->
-                <div v-show="this.isDebugExpanded">
+                <div v-show="this.isFooterExpanded('debug')">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
                          style="max-height: 200px"
                          @scroll="handleDebugScroll">
@@ -215,7 +215,7 @@
                 </div>
 
                 <!-- footer: tool calls -->
-                <div v-show="this.isToolsExpanded">
+                <div v-show="this.isFooterExpanded('tools')">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
                         <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
@@ -225,7 +225,7 @@
                 </div>
 
                 <!-- footer: metrics -->
-                <div v-show="this.isMetricsExpanded">
+                <div v-show="this.isFooterExpanded('metrics')">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
                         <div v-for="text in this.getMetrics()" class="text-wrap text-break">
@@ -235,7 +235,7 @@
                 </div>
 
                 <!-- footer: errors -->
-                <div v-show="this.isErrorExpanded">
+                <div v-show="this.isFooterExpanded('error')">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
                          style="max-height: 200px">
                         <div class="message-text w-auto text-danger"
@@ -283,16 +283,12 @@ export default {
             content: this.initialContent ?? '',
             statusMessages: new Map(),
             debugMessages: [],
-            isDebugExpanded: false,
             isLoading: this.initialLoading ?? false,
             error: null,
-            isErrorExpanded: false,
             ttsAudio: null,
             copySuccess: false,
             autoScrollDebugMessage: true,
-            isFilesExpanded: false,
-            isToolsExpanded: false,
-            isMetricsExpanded: false,
+            expandedFooter: null,
             isCollapsed: false,
             metrics: {},
             galleryIndex: 0,
@@ -366,6 +362,14 @@ export default {
             metric.tokens_out += (m.metrics.total_tokens ?? 0) - (m.metrics.input_tokens ?? 0);
             metric.execution_time += m.execution_time;
             this.metrics[m.agent] = metric;
+        },
+
+        toggleFooter(name) {
+            this.expandedFooter = this.expandedFooter === name ? null : name;
+        },
+
+        isFooterExpanded(name) {
+            return this.expandedFooter === name;
         },
 
         addDebugMessage(text, type, id=null) {

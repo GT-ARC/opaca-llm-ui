@@ -29,65 +29,73 @@ interface Config {
     language: string;
     audioMethod: string;
     registryUrl: string | null;
+    authEnabled: boolean;
+    authDomain: string;
+    authClientId: string;
+    authAudience: string;
 };
 
 const baseConfig: Config = {
 
     // URL to the SAGE backend
-    backendUrl: getStringOrDefault("backendUrl", "http://localhost:3001"),
+    backendUrl: getViteEnvVar("backendUrl") ?? "http://localhost:3001",
 
     // The selected prompting method
-    method: getStringOrDefault("method", "tool-llm"),
+    method: getValue("method") ?? "tool-llm",
 
     // Optional "back-link" that redirects the user to a pre-configured site.
-    backlink: getMaybeStringOrDefault("backlink", null),
+    backlink: getValue("backlink"),
 
     // URL to the OPACA Runtime platform
-    platformUrl: getStringOrDefault("platformUrl", "http://localhost:8000"),
+    platformUrl: getValue("platformUrl") ?? "http://localhost:8000",
 
     // If true, attempt to connect to the configured platform on-load
-    autoconnect: getBoolOrDefault("autoconnect", false),
+    autoconnect: asBool(getValue("autoconnect") ?? "false"),
 
     // Whether to allow container management in the SAGE UI; should be deactivated for public no-auth deployment
-    allowContainerManagement: getBoolOrDefault("allowContainerManagement", true),
+    allowContainerManagement: asBool(getValue("allowContainerManagement") ?? "true"),
 
     // The color scheme: light, dark, or system (default)
-    colorScheme: getStringOrDefault("colorScheme", "system"),
+    colorScheme: getValue("colorScheme") ?? "system",
 
     // Which set of questions is shown within the chat window.
     // This should be the name of one of the categories, or 'none' (or any other nonexistent value) for none
-    selectedCategory: getStringOrDefault("selectedCategory", "none"),
+    selectedCategory: getValue("selectedCategory") ?? "none",
 
     // Which sidebar view is shown.
-    selectedSidebar: getStringOrDefault("selectedSidebar", "questions"),
+    selectedSidebar: getValue("selectedSidebar") ?? "questions",
 
     // whether the sidebar is showing only the most relevant icons
-    sidebarCollapsed: getBoolOrDefault("sidebarCollapsed", true),
+    sidebarCollapsed: asBool(getValue("sidebarCollapsed") ?? "true"),
 
     // selected UI language
-    language: getStringOrDefault("language", "GB"),
+    language: getValue("language") ?? "GB",
 
     // audio input/output method to use
-    audioMethod: getStringOrDefault("audioMethod", "WHISPER"),
+    audioMethod: getValue("audioMethod") ?? "WHISPER",
 
     // OPACA container registry
-    registryUrl: getMaybeStringOrDefault("registryUrl", null),
+    registryUrl: getValue("registryUrl"),
+
+    // Auth0 user management
+    authEnabled: asBool(getViteEnvVar("authEnabled") ?? "false"),
+
+    // Auth0 Domain
+    authDomain: getViteEnvVar("authDomain") ?? "",
+
+    // Auth0 Client Id
+    authClientId: getViteEnvVar("authClientId") ?? "",
+
+    // Auth0 Audience
+    authAudience: getViteEnvVar("authAudience") ?? "",
 }
 
-function getStringOrDefault(key: string, defaultValue: string): string {
-    return getRawValue(key) ?? defaultValue;
+
+function asBool(value: string): boolean {
+    return value.toLowerCase() === 'true';
 }
 
-function getMaybeStringOrDefault(key: string, defaultValue: string | null): string | null {
-    return getRawValue(key) ?? defaultValue;
-}
-
-function getBoolOrDefault(key: string, defaultValue: boolean): boolean {
-    const value = getRawValue(key)
-    return value ? value.toLowerCase() === 'true' : defaultValue;
-}
-
-function getRawValue(key: string): string | null {
+function getValue(key: string): string | null {
     return getQueryParam(key) ?? Cookie.get(key) ?? getViteEnvVar(key);
 }
 

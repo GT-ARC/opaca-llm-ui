@@ -7,7 +7,7 @@ import httpx
 import jsonref
 from typing import Optional, List, Any
 from opaca import AsyncOpacaClient
-from opaca.models import ActionDescription
+from opaca.models import ActionDescription, ContainerDescription
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +97,9 @@ class OpacaClient(AsyncOpacaClient):
             for agent in container.agents
         }
     
-    async def get_containers(self):
+    async def get_containers(self) -> list[ContainerDescription]:
         if not self.url: return []
-        return await super().get_containers()
+        return await super().get_containers(include_connected=True)
 
     async def get_actions_openapi(self, inline_refs=False) -> dict:
         """Get actions of OPACA agents in OpenAPI format; if inline_refs is true, datatypes will be

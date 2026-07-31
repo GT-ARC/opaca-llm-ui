@@ -51,7 +51,7 @@ Yes. If you have the backend URL and credentials, you can deploy and register ne
 
 ## Further Reading
 
-* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank">SAGE on GitHub</a>
-* <a href="https://github.com/GT-ARC/opaca-core" target="_blank">OPACA on GitHub</a>
-* <a href="https://github.com/GT-ARC/opaca-python-sdk" target="_blank">OPACA Python SDK on GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-llm-ui" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>SAGE on GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-core" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>OPACA on GitHub</a>
+* <a href="https://github.com/GT-ARC/opaca-python-sdk" target="_blank"><i class="fa-brands fa-github me-1" aria-hidden="true"></i>OPACA Python SDK on GitHub</a>
 * <a href="https://go-ki.org/" target="_blank">Go-KI Project</a>

@@ -6,8 +6,12 @@ and different routes for posting questions, updating the configuration, etc.
 import os
 import io
 import json
+from functools import lru_cache
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
+
+from jose import jwt
+import requests
 from httpx import HTTPStatusError
 import asyncio
 import logging
@@ -34,7 +38,7 @@ from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .file_analysis import generate_file_metadata
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
-    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction
+    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction, get_user_session
 from .opaca_client import actions_blacklist
 from .tool_calling import actions_needing_confirmation, ToolCaller
 
@@ -98,6 +102,14 @@ def require_password(x_api_password: str | None = Header(None)):
     admin_pwd = os.getenv('SESSION_ADMIN_PWD')
     if admin_pwd and x_api_password != admin_pwd:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized")
+
+
+# Auth0 HELPER TO GET PUBLIC KEYS (JWKS)
+
+@lru_cache
+def get_jwks():
+    # Request the JWKS from the auth0 tenant
+    return requests.get(f"https://{os.getenv('VITE_AUTH_DOMAIN')}/.well-known/jwks.json").json()
 
 
 # SESSION HANDLING
@@ -186,8 +198,8 @@ async def get_platform_info(lang: str, session: SessionData = Depends(handle_ses
         lang = 'GB'
     query = info_queries[lang]
     response = QueryResponse(query=query)
-    actions = await session.opaca_client.get_containers()
-    key = hash(json.dumps([lang, actions], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
+    containers = await session.opaca_client.get_containers()
+    key = hash(json.dumps([lang, [c.model_dump() for c in containers]], sort_keys=True, ensure_ascii=False, separators=(",", ":")))
     if key not in platform_infos:
         internal_tools = InternalTools(session, METHODS['simple-tools'])
         method_impl = METHODS['simple-tools'](session, Chat(chat_id=''), response, False, internal_tools)
@@ -593,6 +605,27 @@ async def delete_play_book(play_book_id: str, session: SessionData = Depends(han
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
+# USER ROUTES
+
+@app.get("/users/logout", tags=["users"])
+async def user_logout(request: Request, response: Response) -> str:
+    """
+    Performs a 'logout' by switching to the original session.
+    Be aware that this only resets the http session and a new websocket needs to be established afterward by the frontend,
+    which should automatically happen since the "logout" in the UI will trigger a site refresh.
+    """
+    session = await handle_session_http(request, response)
+    if session.user_id == "":
+        raise HTTPException(status_code=401, detail="Not logged in")
+    if session.original_session_id == "":
+        # This should never happen. The original session should be set when the user_id is set
+        raise HTTPException(status_code=500, detail="Encountered unexpected error during logout. No original session ID found.")
+    max_age = 60 * 60 * 24 * 30  # 30 days
+    org_session = await create_or_refresh_session(session.original_session_id, max_age)
+    response.set_cookie("session_id", org_session.session_id, max_age=max_age)
+    return "Logged out"
+
+
 # WHISPER ROUTES
 
 @app.post("/whisper/transcribe", tags=["whisper"])
@@ -641,10 +674,34 @@ async def open_websocket(websocket: WebSocket, session: SessionData = Depends(ha
 
 # HELPER FUNCTIONS
 
+def verify_token(token: str):
+
+    # Get JWKS from auth0 audience (API)
+    jwks = get_jwks()
+    header = jwt.get_unverified_header(token)
+
+    # Find matching key to decode token
+    rsa_key = {k: key[k] for key in jwks["keys"] if key["kid"] == header["kid"] for k in ["kty", "kid", "use", "n", "e"]}
+    if not rsa_key:
+        raise HTTPException(401, "No matching keys were found")
+
+    # Decode token and verify
+    payload = jwt.decode(
+        token,
+        rsa_key,
+        algorithms=["RS256"],
+        audience=os.getenv("VITE_AUTH_AUDIENCE"),
+        issuer=f"https://{os.getenv('VITE_AUTH_DOMAIN')}/",
+    )
+
+    return payload
+
+
 async def handle_session_id(source: Union[Request, WebSocket], response: Optional[Response] = None) -> SessionData:
     """
     Unified session handler for both HTTP requests and WebSocket connections.
     If no valid session ID is found, a new one is created and optionally set in the response cookie.
+    If an Authentication header is provided and valid, will load the associated user session.
     """
 
     # Extract cookies from headers
@@ -652,20 +709,43 @@ async def handle_session_id(source: Union[Request, WebSocket], response: Optiona
     cookies = headers.get("cookie")
     session_id = None
 
+    # Max age for session cookies
+    max_age = 60 * 60 * 24 * 30  # 30 days
+
     # Extract session_id from cookies
     if cookies:
         cookie_dict = dict(cookie.split("=", 1) for cookie in cookies.split("; "))
         session_id = cookie_dict.get("session_id", None)
 
-    max_age = 60 * 60 * 24 * 30  # 30 days
-    # create Cookie (or just update max-age if already exists)
-    session = await create_or_refresh_session(session_id, max_age)
+    # Check if Authorization is present in header
+    if auth_header := source.headers.get("authorization"):
+
+        # Check if the token has the correct format
+        try:
+            scheme, token = auth_header.split(" ", 1)
+        except Exception as e:
+            raise HTTPException(400, "Malformed authorization header. Expected format: 'Bearer <token>'")
+
+        # Check if the token is valid and get the user sub claim (unique identifier)
+        user_sub = verify_token(token)["sub"]
+
+        # This will automatically create a new user session from the current session if no previous one existed
+        session = await get_user_session(user_sub, session_id, METHODS)
+
+        # This will overwrite the original session id if the user has logged in from a different client/device
+        if session_id is not None and session_id != session.session_id and session_id != session.original_session_id:
+            session.original_session_id = session_id
+
+    else:
+        session = await create_or_refresh_session(session_id, max_age)
 
     if session.blocked:
         raise OpacaException("The session has been blocked. If you think this is an error, please consult the platform administrator.")
 
     # If it's an HTTP request, and you want to set a cookie
+    # This will also set the session id for logged in users, important for the websocket connection
     if response is not None:
+        # create Cookie (or just update max-age if already exists)
         response.set_cookie("session_id", session.session_id, max_age=max_age)
 
     # Return the session data for the session ID

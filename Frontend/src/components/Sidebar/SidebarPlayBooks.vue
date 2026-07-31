@@ -1,7 +1,12 @@
 <template>
 <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_playBooks') }}
+        <i class="fa fa-plus ms-auto sidebar-title-action"
+           :class="{ disabled: isSaving }"
+           :aria-disabled="isSaving"
+           @click.stop="addPlayBook"
+           :title="Localizer.get('playBooks_add')" />
     </div>
 
     <div v-if="isLoading">
@@ -9,11 +14,12 @@
         {{ Localizer.get('playBooks_loading') }}
     </div>
 
-    <div v-if="errorMessage" class="text-danger mb-2">
+    <div v-if="errorMessage" class="sidebar-empty-state">
         {{ errorMessage }}
     </div>
 
-    <div v-if="!isLoading && !errorMessage && playBooks.length === 0">
+    <div v-if="!isLoading && !errorMessage && playBooks.length === 0"
+         class="sidebar-empty-state">
         {{ Localizer.get('playBooks_missing') }}
     </div>
 
@@ -32,12 +38,12 @@
                 {{ playBook.name }}
             </strong>
 
-            <span class="play-book-actions">
-                <i class="fa fa-lg play-book-action"
+            <span class="play-book-actions section-actions">
+                <i class="fa click-icon"
                    :class="playBook.enabled ? 'fa-toggle-on' : 'fa-toggle-off'"
                    @click.stop="togglePlayBook(playBook.id)"
                    :title="Localizer.get(playBook.enabled ? 'playBooks_disable' : 'playBooks_enable')" />
-                <i class="fa fa-remove play-book-action"
+                <i class="fa fa-remove click-icon"
                    @click.stop="deletePlayBook(playBook)"
                    :title="Localizer.get('playBooks_delete')" />
             </span>
@@ -57,14 +63,6 @@
             </div>
         </template>
     </AppAccordion>
-
-    <button type="button"
-            class="btn btn-primary py-2 w-100"
-            :disabled="isSaving"
-            @click.stop="addPlayBook">
-        <i class="fa fa-plus me-2" />
-        {{ Localizer.get('playBooks_add') }}
-    </button>
 
     <InputDialogue ref="input" />
 </div>
@@ -227,32 +225,12 @@ export default {
     align-items: center;
 }
 
-.play-book-action {
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    cursor: pointer;
-    margin-right: 0 !important;
-}
-
-.play-book-action:hover {
-    background-color: var(--input-color);
-}
-
 .fa-toggle-on {
     color: var(--text-success-color);
 }
 
 .fa-toggle-off {
     color: var(--text-secondary-color);
-}
-
-.fa-remove:hover {
-    color: var(--text-danger-color);
 }
 
 .play-book-disabled {

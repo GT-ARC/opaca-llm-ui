@@ -1,8 +1,18 @@
 <template>
 <div id="config-display"
      class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div v-if="!isMobile" class="sidebar-title">
+    <div class="sidebar-title">
         {{ Localizer.get('sidebar_config') }}
+        <i class="fa fa-save ms-auto sidebar-title-action"
+           :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
+           :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
+           @click="saveMethodConfig"
+           :title="Localizer.get('config_save')" />
+        <i class="fa fa-undo sidebar-title-action sidebar-title-action-danger"
+           :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
+           :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
+           @click="resetMethodConfig"
+           :title="Localizer.get('config_reset')" />
     </div>
 
     <div class="py-2">
@@ -17,7 +27,8 @@
         <i class="fa fa-circle-notch fa-spin me-1" />
         {{ Localizer.get('config_loading', this.method) }}
     </div>
-    <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0">
+    <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0"
+         class="sidebar-empty-state">
         {{ Localizer.get('config_missing', this.method) }}
     </div>
     <div v-else class="flex-row text-start">
@@ -39,16 +50,6 @@
             />
         </template>
 
-        <div class="py-2 text-center">
-            <button class="btn btn-primary py-2 w-100" type="button" @click="saveMethodConfig">
-                <i class="fa fa-save me-2"/>{{ Localizer.get('config_save') }}
-            </button>
-        </div>
-        <div class="py-2 text-center">
-            <button class="btn btn-danger py-2 w-100" type="button" @click="resetMethodConfig">
-                <i class="fa fa-undo me-2"/>{{ Localizer.get('config_reset') }}
-            </button>
-        </div>
         <div v-if="!this.shouldFadeOut"
              class="text-center"
              :class="{ 'text-danger': !this.configChangeSuccess,
