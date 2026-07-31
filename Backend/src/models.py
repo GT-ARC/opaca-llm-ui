@@ -30,7 +30,7 @@ def get_supported_models(supports_structured_output: bool = False):
         return os.getenv(key, alt).split(";")
     hosts = get_env("LLM_HOSTS", "openai;mistral;anthropic;gemini")
     api_keys = get_env("LLM_API_KEYS", ";;;")
-    models = get_env("LLM_MODELS", "gpt-5.6-luna,gpt-5.6-terra,gpt-5.6-luna,gpt-4o-mini,gpt-4o;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-6,claude-opus-4-6;gemini-2.5-pro,gemini-3.6-flash,gemini-3.1-pro-preview")
+    models = get_env("LLM_MODELS", "gpt-5.6-luna,gpt-5.6-terra,gpt-5.6-sol,gpt-4o-mini,gpt-4o;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-6,claude-opus-4-6;gemini-2.5-pro,gemini-3.6-flash,gemini-3.1-pro-preview")
     return [
         (url, key, models.split(","))
         for url, key, models in zip(hosts, api_keys, models)
