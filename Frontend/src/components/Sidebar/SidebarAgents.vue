@@ -24,7 +24,7 @@
     </div>
     <div v-else-if="platformContainers === null"
          class="sidebar-empty-state">
-        {{ Localizer.get('general_disconnected') }}
+        {{ Localizer.get('agents_disconnected') }}
     </div>
     <div v-else-if="platformContainers.length === 0"
          class="sidebar-empty-state">

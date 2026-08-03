@@ -162,6 +162,7 @@
                 <!-- MCP servers -->
                 <SidebarMcp
                     v-show="SidebarManager.isViewSelected('mcp')"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="mcp"
                 />
 
