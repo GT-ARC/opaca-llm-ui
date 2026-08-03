@@ -1,5 +1,5 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+<div ref="scrollContainer" class="container flex-grow-1 overflow-hidden overflow-y-auto">
     <div class="sidebar-title">
         {{ Localizer.get('sidebar_mcp') }}
         <i class="fa fa-plus ms-auto sidebar-title-action"
@@ -189,14 +189,14 @@
                 </template>
             </AppAccordion>
 
-            <button v-if="registryNextCursor"
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm w-100 mt-2"
-                    :disabled="isRegistryLoadingMore"
-                    @click="loadMoreRegistry()">
-                <i v-if="isRegistryLoadingMore" class="fa fa-circle-notch fa-spin me-1" />
-                {{ Localizer.get('mcp_registryLoadMore') }}
-            </button>
+            <div v-if="registryNextCursor"
+                 ref="registryLoadMoreTrigger"
+                 class="mcp-registry-load-more-trigger">
+                <span v-if="isRegistryLoadingMore">
+                    <i class="fa fa-circle-notch fa-spin me-1" />
+                    {{ Localizer.get('mcp_registryLoading') }}
+                </span>
+            </div>
         </div>
     </section>
 
@@ -243,6 +243,7 @@ export default {
             isRegistryLoadingMore: false,
             registrySearchTimeout: null,
             registryAbortController: null,
+            registryLoadMoreObserver: null,
             registryQueryVersion: 0,
         };
     },
@@ -365,9 +366,11 @@ export default {
             const requestVersion = this.registryQueryVersion;
             const controller = new AbortController();
             this.registryAbortController = controller;
+            this.registryLoadMoreObserver?.disconnect();
             this.isRegistryLoading = true;
             this.registryUnavailable = false;
             this.registryLoadMoreFailed = false;
+            let loaded = false;
             try {
                 const result = await this.requestRegistryPage(
                     null,
@@ -377,6 +380,7 @@ export default {
                 if (requestVersion !== this.registryQueryVersion) return;
                 this.registryMcp = this.normalizeRegistryServers(result.servers);
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
+                loaded = true;
             } catch (error) {
                 if (error.name === 'AbortError') return;
                 console.error('Failed to load the MCP registry', error);
@@ -387,14 +391,16 @@ export default {
                 if (this.registryAbortController === controller) {
                     this.registryAbortController = null;
                     this.isRegistryLoading = false;
+                    if (loaded) await this.observeRegistryLoadMoreTrigger();
                 }
             }
         },
 
         async loadMoreRegistry() {
-            if (!this.registryNextCursor || this.isRegistryLoadingMore) return;
+            if (!this.registryNextCursor || this.isRegistryLoading || this.isRegistryLoadingMore) return;
 
             const requestVersion = this.registryQueryVersion;
+            let loaded = false;
             this.isRegistryLoadingMore = true;
             this.registryLoadMoreFailed = false;
             try {
@@ -407,12 +413,31 @@ export default {
                 const knownServers = new Set(this.registryMcp.map(server => server.name));
                 this.registryMcp.push(...nextServers.filter(server => !knownServers.has(server.name)));
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
+                loaded = true;
             } catch (error) {
                 console.error('Failed to load more MCP registry entries', error);
                 this.registryLoadMoreFailed = true;
             } finally {
                 this.isRegistryLoadingMore = false;
+                if (loaded) await this.observeRegistryLoadMoreTrigger();
             }
+        },
+
+        async observeRegistryLoadMoreTrigger() {
+            await nextTick();
+            this.registryLoadMoreObserver?.disconnect();
+
+            const trigger = this.$refs.registryLoadMoreTrigger;
+            if (!trigger || !this.registryNextCursor) return;
+
+            if (!this.registryLoadMoreObserver) {
+                this.registryLoadMoreObserver = new IntersectionObserver(entries => {
+                    if (entries.some(entry => entry.isIntersecting)) this.loadMoreRegistry();
+                }, {
+                    root: this.$refs.scrollContainer,
+                });
+            }
+            this.registryLoadMoreObserver.observe(trigger);
         },
 
         async addMcp(registryServer = null) {
@@ -661,6 +686,7 @@ export default {
     beforeUnmount() {
         clearTimeout(this.registrySearchTimeout);
         this.registryAbortController?.abort();
+        this.registryLoadMoreObserver?.disconnect();
     }
 }
 </script>
@@ -681,6 +707,13 @@ export default {
 .mcp-registry-warning {
     margin-bottom: 0.5rem;
     color: var(--text-danger-color);
+    text-align: center;
+}
+
+.mcp-registry-load-more-trigger {
+    min-height: 2.5rem;
+    padding: 0.75rem;
+    color: var(--text-secondary-color);
     text-align: center;
 }
 
