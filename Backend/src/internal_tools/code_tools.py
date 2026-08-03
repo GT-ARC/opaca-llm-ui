@@ -48,7 +48,7 @@ class CodeTools:
 
         for attempt in range(1, max_code_retries + 2):
             # 1. Ask the LLM to write code
-            llm_response = await self.ctx.query(prompt)
+            llm_response = await self.ctx.query(prompt, agent_prefix="InternalTool / SolveWithCode")
             code = extract_code_block(llm_response.content)
 
             if not code:

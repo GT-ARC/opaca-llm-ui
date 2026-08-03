@@ -36,6 +36,7 @@ from .orchestrated import SelfOrchestratedMethod
 from .internal_tools import InternalTools
 from .code_execution import CodeExecutor
 from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
+from .file_analysis import generate_file_metadata
 from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction, get_user_session
 from .opaca_client import actions_blacklist
@@ -139,7 +140,7 @@ async def handle_custom_error(request: Request, exc: OpacaException):
     raise HTTPException(status_code=exc.status_code, detail=f"{exc.user_message} (details: {exc.error_message})")
 
 
-# 'GENERAL' ROUTES
+# GENERAL ROUTES
 
 @app.get("/methods", description="Get list of available LLM-prompting-methods, to be used as parameter for other routes.", tags=["methods"])
 async def get_methods() -> list:
@@ -282,7 +283,7 @@ async def query_no_history(method: str, message: QueryRequest, session: SessionD
         return response
 
 
-# MCP Routes
+# MCP ROUTES
 
 @app.get("/mcp", description="Get a list of all added MCP servers and their actions", tags=["mcp"])
 async def get_mcp_list(session: SessionData = Depends(handle_session_http)) -> Dict:
@@ -309,7 +310,7 @@ async def update_mcp_tool_approval(data: ToolApprovalUpdateRequest, server_label
     return Response(status_code=204)
 
 
-### CHAT ROUTES
+# CHAT ROUTES
 
 @app.get("/chats", description="Get available chats, just their names and IDs, but NOT the messages.", tags=["chat"])
 async def get_chats(session: SessionData = Depends(handle_session_http)) -> List[Chat]:
@@ -332,12 +333,14 @@ async def get_chat_history(chat_id: str, session: SessionData = Depends(handle_s
 @app.post("/chats/{chat_id}/query/{method}", description="Send message to the given LLM method; the history is stored in the backend and will be sent to the actual LLM along with the new message. Returns the final LLM response along with all intermediate messages and different metrics.", tags=["chat"])
 async def query_chat(method: str, chat_id: str, message: QueryRequest, session: SessionData = Depends(handle_session_http)) -> QueryResponse:
     chat = session.get_or_create_chat(chat_id, True)
+    current_file_ids = set(message.file_ids) & chat.active_files & set(session.uploaded_files)
     response = QueryResponse(query=message.user_query)
     chat.store_interaction(response)
     chat.is_aborted = False
     chat.is_finished = False
     try:
         internal_tools = InternalTools(session, METHODS[method])
+        internal_tools.set_current_file_ids(current_file_ids)
         method_impl = METHODS[method](session, chat, response, message.streaming, internal_tools)
         await session.websocket_send(ReloadChatsMessage())
         await method_impl.query()
@@ -350,7 +353,7 @@ async def query_chat(method: str, chat_id: str, message: QueryRequest, session: 
     return response
 
 
-@app.put("/chats/{chat_id}", description="Update a chat's name.", tags=["chat"])
+@app.put("/chats/{chat_id}", description="Update a chat's name or active files.", tags=["chat"])
 async def update_chat(chat_id: str, new_name: str | None = None, active_files: Dict[str, bool] | None = None, session: SessionData = Depends(handle_session_http)) -> None:
     chat = session.get_or_create_chat(chat_id, True)
 
@@ -426,7 +429,7 @@ async def stop_query(session: SessionData = Depends(handle_session_http)) -> Non
     session.is_notifs_aborted = True
 
 
-## CONFIG ROUTES
+# CONFIG ROUTES
 
 @app.get("/config/{method}", description="Get current configuration of the given prompting method.", tags=["methods"])
 async def get_config(method: str, session: SessionData = Depends(handle_session_http)) -> ConfigPayload:
@@ -448,14 +451,14 @@ async def reset_config(method: str, session: SessionData = Depends(handle_sessio
     return ConfigPayload(config_values=session.config[method], config_schema=METHODS[method].config_schema())
 
 
-## FILE ROUTES
+# FILE ROUTES
 
 @app.get("/files", description="Get a list of all uploaded files.", tags=["files"])
 async def get_files(session: SessionData = Depends(handle_session_http)) -> dict:
     return session.uploaded_files
 
 
-@app.post("/files", description="Upload a file to the backend, to be sent to the LLM for consideration with the next user queries.", tags=["files"])
+@app.post("/files", description="Upload a file and immediately generate local keywords for selective use in later queries.", tags=["files"])
 async def upload_files(chat_id: str | None = None, files: List[UploadFile] | None = None, session: SessionData = Depends(handle_session_http)):
     if files is None: files = []
     uploaded: List[OpacaFile] = []
@@ -468,6 +471,11 @@ async def upload_files(chat_id: str | None = None, files: List[UploadFile] | Non
                 status_code=500,
                 detail=f"Failed to process file {file.filename}: {str(e)}"
             )
+
+    await asyncio.gather(*(
+        generate_file_metadata(session, file_id)
+        for file_id in {file.file_id for file in uploaded}
+    ))
 
     if chat_id is not None:
         chat = session.get_or_create_chat(chat_id, True)
@@ -492,7 +500,7 @@ async def delete_file(file_id: str, ignore_error: bool = False, session: Session
     return await delete_file_from_all_clients(session, file_id, ignore_error)
 
 
-@app.patch("/files/{file_id}", description="Mark a file as suspended or unsuspended.", tags=["files"])
+@app.patch("/files/{file_id}", description="Rename an uploaded file.", tags=["files"])
 async def update_file(file_id: str, name: str | None = None, session: SessionData = Depends(handle_session_http)) -> bool:
     files = session.uploaded_files
 
@@ -527,7 +535,7 @@ async def view_file(file_id: str, session: SessionData = Depends(handle_session_
     )
 
 
-# SAMPLE PROMPTS
+# SAMPLE PROMPT ROUTES
 
 @app.get("/prompts", description="Get the Prompt Library data for the current session.", tags=["sample prompts"])
 async def get_prompts(session: SessionData = Depends(handle_session_http)) -> SessionPrompts:
@@ -571,7 +579,7 @@ async def reset_default_prompts(auth = Depends(require_password)) -> None:
     prompts.reset_default_prompts()
 
 
-# play books
+# PLAY BOOK ROUTES
 
 @app.get("/play-books", description="Get user-defined play books for the current session.", tags=["play books"])
 async def get_play_books(session: SessionData = Depends(handle_session_http)) -> List[PlayBook]:
@@ -612,7 +620,7 @@ async def user_logout(request: Request, response: Response) -> str:
     return "Logged out"
 
 
-# WHISPER TTS/STT
+# WHISPER ROUTES
 
 @app.post("/whisper/transcribe", tags=["whisper"])
 async def whisper_transcribe(file: UploadFile, filetype: str = Query("mp3"), language: str = Query("en")):
@@ -635,7 +643,7 @@ async def whisper_generate(text: str = Query(""), voice: str = Query("alloy")) -
     )
 
 
-# WEBSOCKET CONNECTION (permanently opened)
+# WEBSOCKET CONNECTION (PERMANENTLY OPENED)
 
 @app.websocket("/ws")
 async def open_websocket(websocket: WebSocket, session: SessionData = Depends(handle_session_ws)):
@@ -658,7 +666,7 @@ async def open_websocket(websocket: WebSocket, session: SessionData = Depends(ha
         session._websocket = None
 
 
-## HELPER FUNCTIONS
+# HELPER FUNCTIONS
 
 def verify_token(token: str):
 

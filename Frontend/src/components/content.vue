@@ -176,7 +176,7 @@
                                     v-if="this.isChatFinished()"
                                     class="btn btn-primary input-area-button ms-1"
                                     @click="submitText"
-                                    :disabled="this.textInput.trim().length <= 0"
+                                    :disabled="this.textInput.trim().length <= 0 || this.hasPendingUploads()"
                                     :title="Localizer.get('chatarea_submit')">
                                 <i class="fa fa-paper-plane" style="transform: translateX(-1px)" />
                             </button>
@@ -247,6 +247,7 @@ export default {
             autoSpeakNextMessage: false,
             isSmallScrollbar: true,
             selectedFiles: [],
+            pendingFileOperations: 0,
             selectedChatId: '',
             newChat: false,
             autoScrollEnabled: true,
@@ -265,7 +266,7 @@ export default {
         },
 
         async submitText() {
-            if (this.textInput && this.isChatFinished()) {
+            if (this.textInput && this.isChatFinished() && !this.hasPendingUploads()) {
                 // Copy current input and reset field
                 let userInput = this.textInput.trim();
                 this.textInput = '';
@@ -274,7 +275,10 @@ export default {
                 this.resizeTextInput();
 
                 const files = this.selectedFiles.map(wrappedFile => this.createMessageFile(wrappedFile.file));
-                await this.askChatGpt(userInput, files);
+                const fileIds = this.selectedFiles
+                    .map(wrappedFile => wrappedFile.fileId)
+                    .filter(fileId => fileId != null);
+                await this.askChatGpt(userInput, files, fileIds);
 
                 // Clear files list after sending
                 this.selectedFiles = [];
@@ -333,7 +337,7 @@ export default {
             return this.$refs[refId][0];
         },
 
-        async askChatGpt(userText, files = null) {
+        async askChatGpt(userText, files = null, fileIds = []) {
             const chatId = this.selectedChatId;
             this.showExampleQuestions = false;
             this.newChat = false;
@@ -353,7 +357,14 @@ export default {
 
             // get chat response (intermediate results are streamed via websocket)
             try {
-                const result = await backendClient.query(chatId, conf.method, userText, true, 5*60*1000);
+                const result = await backendClient.query(
+                    chatId,
+                    conf.method,
+                    userText,
+                    true,
+                    5*60*1000,
+                    fileIds,
+                );
 
                 // display final result
                 if (this.selectedChatId === chatId) {
@@ -435,20 +446,25 @@ export default {
                 return;
             }
 
-            const { cancelled, formattedText, uploadableFiles } = await this.$refs.fileDropHandler.prepareFiles(
-                files,
-                message => this.showInfo(message)
-            );
-            if (cancelled) {
-                return;
-            }
+            this.pendingFileOperations += 1;
+            try {
+                const { cancelled, formattedText, uploadableFiles } = await this.$refs.fileDropHandler.prepareFiles(
+                    files,
+                    message => this.showInfo(message)
+                );
+                if (cancelled) {
+                    return;
+                }
 
-            if (formattedText.length > 0) {
-                await this.insertDroppedText(formattedText.join("\n\n"));
-            }
+                if (formattedText.length > 0) {
+                    await this.insertDroppedText(formattedText.join("\n\n"));
+                }
 
-            if (uploadableFiles.length > 0) {
-                await this.uploadFiles(uploadableFiles);
+                if (uploadableFiles.length > 0) {
+                    await this.uploadFiles(uploadableFiles);
+                }
+            } finally {
+                this.pendingFileOperations -= 1;
             }
         },
 
@@ -517,7 +533,9 @@ export default {
                 await this.$refs.sidebar.updateChats();
             } catch (error) {
                 console.error("File upload failed:", error);
-                this.showInfo("File upload failed. See console for details.");
+                this.selectedFiles = this.selectedFiles.filter(wrapper => !wrappedFiles.includes(wrapper));
+                const message = error instanceof Error ? error.message : String(error);
+                await this.showInfo(`File upload failed: ${message}`);
             } finally {
                 // Force vue to update
                 this.selectedFiles = [...this.selectedFiles];
@@ -978,6 +996,11 @@ export default {
             const currentChat = this.$refs.sidebar?.$refs.chats?.chats
                 ?.find(chat => chat?.chat_id === this.selectedChatId);
             return currentChat?.is_finished || this.newChat;
+        },
+
+        hasPendingUploads() {
+            return this.pendingFileOperations > 0
+                || this.selectedFiles.some(file => file.isUploading);
         }
     },
 

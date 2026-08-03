@@ -34,6 +34,7 @@ export interface RestrictedActions {
 export interface QueryRequest {
     user_query: string;
     streaming?: boolean;
+    file_ids?: string[];
 }
 
 export interface MCPCreateRequest {
@@ -101,6 +102,7 @@ export interface OpacaFile {
     file_id: string;
     content_type: string;
     file_name: string;
+    keywords: string[];
     host_ids: Record<string, string>;
 }
 

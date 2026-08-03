@@ -23,6 +23,25 @@ import type {
 } from "./models";
 import type {Ref} from "vue";
 
+const FILE_UPLOAD_TIMEOUT = 5 * 60 * 1000;
+
+function getRequestErrorMessage(error: unknown): string {
+    if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        if (typeof detail === "string") {
+            return detail;
+        }
+        if (detail != null) {
+            return JSON.stringify(detail);
+        }
+        if (error.code === "ECONNABORTED") {
+            return "The upload timed out while the file was being analyzed.";
+        }
+        return error.message;
+    }
+    return error instanceof Error ? error.message : String(error);
+}
+
 class BackendClient {
 
     private getTokenFn!: () => Promise<String>;
@@ -87,8 +106,15 @@ class BackendClient {
 
     // chat
 
-    async query(chatId: string, method: string, userQuery: string, streaming: boolean = false, timeout: number = 10000): Promise<QueryResponse> {
-        const body = { user_query: userQuery, streaming };
+    async query(
+        chatId: string,
+        method: string,
+        userQuery: string,
+        streaming: boolean = false,
+        timeout: number = 10000,
+        fileIds: string[] = [],
+    ): Promise<QueryResponse> {
+        const body = { user_query: userQuery, streaming, file_ids: fileIds };
         return await this.sendRequest("POST", `chats/${chatId}/query/${method}`, body, timeout);
     }
 
@@ -161,22 +187,24 @@ class BackendClient {
             formData.append("files", file);
         }
         // XXX extend sendRequest for this case?
-        const response = await axios.post(`${conf.backendUrl}/files`, formData, {
-            timeout: 10000,
-            withCredentials: true,
-            params: {
-                chat_id: chatId,
-            },
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                'Access-Control-Allow-Origin': '*',
-                ...(await this.getAuthorizationHeader()),
-            }
-        }).catch((error: any) => {
+        try {
+            const response = await axios.post(`${conf.backendUrl}/files`, formData, {
+                timeout: FILE_UPLOAD_TIMEOUT,
+                withCredentials: true,
+                params: {
+                    chat_id: chatId,
+                },
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Access-Control-Allow-Origin': '*',
+                    ...(await this.getAuthorizationHeader()),
+                }
+            });
+            return response.data;
+        } catch (error: unknown) {
             console.error('Upload failed:', error);
-            throw new Error(error.toJSON());
-        });
-        return response.data;
+            throw new Error(getRequestErrorMessage(error));
+        }
     }
 
     // config

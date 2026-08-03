@@ -136,9 +136,11 @@ class QueryRequest(BaseModel):
     Attributes
         user_query: The query a user has input into the SAGE ChatBot.
         streaming: whether intermediate results should be streamed via Websocket
+        file_ids: Files attached to this specific user message.
     """
     user_query: str
     streaming: bool = False
+    file_ids: List[str] = Field(default_factory=list)
 
 
 class AgentMessage(BaseModel):
@@ -198,17 +200,19 @@ class QueryResponse(BaseModel):
 
 class OpacaFile(BaseModel):
     """
-    Represents a single uploaded PDF file.
+    Represents a single uploaded file.
 
     Attributes:
         file_id: ID assigned after upload
         content_type: MIME type of the file
         file_name: The absolute path to the file
-        host_ids: IDs assigned by each host the file has been uploaded to
+        keywords: Short key terms used for inexpensive relevance selection
+        host_ids: IDs assigned by each provider/purpose/API-key combination
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
     file_name: str
+    keywords: List[str] = Field(default_factory=list)
     host_ids: Dict[str, str] = Field(default_factory=dict)
 
 
@@ -551,7 +555,7 @@ class SessionData(BaseModel):
         if not (tool := server.tools.get(full_name)):
             raise KeyError(f"Tool '{full_name}' not found in MCP server '{server_label}'.")
         return tool
-    
+
     def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: ToolApprovalState):
         """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
         tool = self.get_mcp_tool(server_label, tool_name)
