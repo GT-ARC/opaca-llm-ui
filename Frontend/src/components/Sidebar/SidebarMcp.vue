@@ -5,6 +5,24 @@
         <i class="fa fa-plus ms-auto sidebar-title-action"
            @click.stop="addMcp()"
            :title="Localizer.get('mcp_add')" />
+        <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+           @click="toggleSearch"
+           :title="Localizer.get('mcp_search')" />
+    </div>
+
+    <input v-if="isSearching"
+           type="search"
+           ref="searchBar"
+           class="form-control my-2"
+           :placeholder="Localizer.get('mcp_search')"
+           v-model="this.searchQuery" />
+    <div v-if="mcpSearchContexts.length > 0" class="sidebar-search-results">
+        <div v-for="result in mcpSearchContexts"
+             :key="result.key"
+             class="sidebar-search-result-group">
+            <div class="sidebar-search-result-heading">{{ result.path }}</div>
+            <div class="sidebar-search-result-context">{{ result.context }}</div>
+        </div>
     </div>
 
     <section class="mcp-section">
@@ -118,18 +136,18 @@
              class="sidebar-empty-state">
             {{ Localizer.get('mcp_registryUnavailable') }}
         </div>
-        <div v-else-if="registryMcp && registryMcp.length === 0"
+        <div v-else-if="filteredRegistryMcp && filteredRegistryMcp.length === 0"
              class="sidebar-empty-state">
             {{ Localizer.get('mcp_registryEmpty') }}
         </div>
-        <div v-else-if="registryMcp" class="flex-row">
+        <div v-else-if="filteredRegistryMcp" class="flex-row">
             <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
                 {{ Localizer.get('mcp_registryLoadMoreFailed') }}
             </div>
             <AppAccordion
                 id="mcp-registry-accordion"
                 class="text-start"
-                :items="registryMcp"
+                :items="filteredRegistryMcp"
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
@@ -189,6 +207,7 @@
 
 
 <script>
+import { nextTick } from 'vue';
 import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
@@ -213,6 +232,7 @@ export default {
         return {
             platformMcp: null,
             isLoading: false,
+            isSearching: false,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -221,9 +241,83 @@ export default {
             registryLoadMoreFailed: false,
             isRegistryLoading: false,
             isRegistryLoadingMore: false,
+            registrySearchTimeout: null,
+            registryAbortController: null,
+            registryQueryVersion: 0,
         };
     },
+    computed: {
+        mcpSearchContexts() {
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query) return [];
+
+            const results = [];
+            const matches = value => value?.toLowerCase().includes(query);
+            const excerpt = value => {
+                const text = value ?? '';
+                const index = text.toLowerCase().indexOf(query);
+                if (index < 0) return text;
+                const start = Math.max(0, index - 40);
+                const end = Math.min(text.length, index + query.length + 40);
+                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+            };
+
+            Object.entries(this.platformMcp ?? {}).forEach(([serverName, tools]) => {
+                if (matches(serverName)) {
+                    results.push({
+                        key: `installed-${serverName}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName}`,
+                        context: excerpt(serverName),
+                    });
+                }
+
+                tools.forEach(tool => {
+                    if (!matches(tool.name) && !matches(tool.description)) return;
+                    results.push({
+                        key: `installed-${serverName}-${tool.name}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
+                        context: excerpt(matches(tool.description) ? tool.description : tool.name),
+                    });
+                });
+            });
+
+            (this.registryMcp ?? []).forEach(server => {
+                if (!matches(server.name) && !matches(server.title) && !matches(server.description)) return;
+                const serverTitle = server.title || server.name;
+                results.push({
+                    key: `registry-${server.name}`,
+                    path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
+                    context: excerpt(matches(server.description) ? server.description : serverTitle),
+                });
+            });
+
+            return results;
+        },
+
+        filteredRegistryMcp() {
+            if (!this.registryMcp) return this.registryMcp;
+
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query) return this.registryMcp;
+
+            return this.registryMcp.filter(server =>
+                server.name?.toLowerCase().includes(query)
+                || server.title?.toLowerCase().includes(query)
+                || server.description?.toLowerCase().includes(query)
+            );
+        },
+    },
     methods: {
+        async toggleSearch() {
+            this.isSearching = !this.isSearching;
+            if (!this.isSearching) {
+                this.searchQuery = '';
+                return;
+            }
+            await nextTick();
+            this.$refs.searchBar?.focus();
+        },
+
         async updateMcp() {
             this.isLoading = true;
             try {
@@ -234,14 +328,16 @@ export default {
             }
         },
 
-        async requestRegistryPage(cursor = null) {
+        async requestRegistryPage(cursor = null, searchQuery = '', signal = null) {
             const url = new URL(MCP_REGISTRY_ENDPOINT);
             url.searchParams.set('version', 'latest');
             url.searchParams.set('limit', MCP_REGISTRY_PAGE_SIZE.toString());
             if (cursor) url.searchParams.set('cursor', cursor);
+            if (searchQuery) url.searchParams.set('search', searchQuery);
 
             const response = await fetch(url, {
                 headers: { Accept: 'application/json' },
+                signal,
             });
             if (!response.ok) {
                 throw new Error(`MCP registry returned HTTP ${response.status}`);
@@ -260,33 +356,53 @@ export default {
         },
 
         async updateRegistry(force = false) {
-            if (this.isRegistryLoading || this.isRegistryLoadingMore) return;
+            if (this.isRegistryLoading) {
+                if (!force) return;
+                this.registryAbortController?.abort();
+            }
             if (!force && this.registryMcp !== null) return;
 
+            const requestVersion = this.registryQueryVersion;
+            const controller = new AbortController();
+            this.registryAbortController = controller;
             this.isRegistryLoading = true;
             this.registryUnavailable = false;
             this.registryLoadMoreFailed = false;
             try {
-                const result = await this.requestRegistryPage();
+                const result = await this.requestRegistryPage(
+                    null,
+                    this.searchQuery.trim(),
+                    controller.signal,
+                );
+                if (requestVersion !== this.registryQueryVersion) return;
                 this.registryMcp = this.normalizeRegistryServers(result.servers);
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 console.error('Failed to load the MCP registry', error);
                 this.registryMcp = [];
                 this.registryNextCursor = null;
                 this.registryUnavailable = true;
             } finally {
-                this.isRegistryLoading = false;
+                if (this.registryAbortController === controller) {
+                    this.registryAbortController = null;
+                    this.isRegistryLoading = false;
+                }
             }
         },
 
         async loadMoreRegistry() {
             if (!this.registryNextCursor || this.isRegistryLoadingMore) return;
 
+            const requestVersion = this.registryQueryVersion;
             this.isRegistryLoadingMore = true;
             this.registryLoadMoreFailed = false;
             try {
-                const result = await this.requestRegistryPage(this.registryNextCursor);
+                const result = await this.requestRegistryPage(
+                    this.registryNextCursor,
+                    this.searchQuery.trim(),
+                );
+                if (requestVersion !== this.registryQueryVersion) return;
                 const nextServers = this.normalizeRegistryServers(result.servers);
                 const knownServers = new Set(this.registryMcp.map(server => server.name));
                 this.registryMcp.push(...nextServers.filter(server => !knownServers.has(server.name)));
@@ -530,6 +646,21 @@ export default {
         sidebarView(newView) {
             if (newView === 'mcp') this.updateRegistry();
         },
+        searchQuery() {
+            this.registryQueryVersion += 1;
+            this.registryNextCursor = null;
+            this.registryLoadMoreFailed = false;
+            clearTimeout(this.registrySearchTimeout);
+            this.registrySearchTimeout = setTimeout(() => {
+                this.registrySearchTimeout = null;
+                this.updateRegistry(true);
+            }, 300);
+        },
+    },
+
+    beforeUnmount() {
+        clearTimeout(this.registrySearchTimeout);
+        this.registryAbortController?.abort();
     }
 }
 </script>
