@@ -126,6 +126,22 @@
                :aria-disabled="isRegistryLoading || isRegistryLoadingMore"
                @click.stop="updateRegistry(true)"
                :title="Localizer.get('mcp_registryRefresh')" />
+            <i v-if="showRegistryHeaderActions"
+               class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="[hideUnavailableRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideUnavailableRegistryMcp }]"
+               :aria-pressed="hideUnavailableRegistryMcp"
+               @click="hideUnavailableRegistryMcp = !hideUnavailableRegistryMcp"
+               :title="Localizer.get('mcp_filterUnavailable')" />
+            <i v-if="showRegistryHeaderActions"
+               class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="[hideCredentialedRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideCredentialedRegistryMcp }]"
+               :aria-pressed="hideCredentialedRegistryMcp"
+               @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
+               :title="Localizer.get('mcp_filterCredentials')" />
+            <i class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
+               @click="showRegistryHeaderActions = !showRegistryHeaderActions"
+               :title="Localizer.get(showRegistryHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
         </div>
 
         <div v-if="isRegistryLoading">
@@ -136,15 +152,15 @@
              class="sidebar-empty-state">
             {{ Localizer.get('mcp_registryUnavailable') }}
         </div>
-        <div v-else-if="filteredRegistryMcp && filteredRegistryMcp.length === 0"
-             class="sidebar-empty-state">
-            {{ Localizer.get('mcp_registryEmpty') }}
-        </div>
         <div v-else-if="filteredRegistryMcp" class="flex-row">
             <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
                 {{ Localizer.get('mcp_registryLoadMoreFailed') }}
             </div>
+            <div v-if="filteredRegistryMcp.length === 0" class="sidebar-empty-state">
+                {{ Localizer.get('mcp_registryEmpty') }}
+            </div>
             <AppAccordion
+                v-else
                 id="mcp-registry-accordion"
                 class="text-start"
                 :items="filteredRegistryMcp"
@@ -233,6 +249,9 @@ export default {
             platformMcp: null,
             isLoading: false,
             isSearching: false,
+            showRegistryHeaderActions: false,
+            hideUnavailableRegistryMcp: false,
+            hideCredentialedRegistryMcp: false,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -282,8 +301,7 @@ export default {
                 });
             });
 
-            (this.registryMcp ?? []).forEach(server => {
-                if (!matches(server.name) && !matches(server.title) && !matches(server.description)) return;
+            (this.filteredRegistryMcp ?? []).forEach(server => {
                 const serverTitle = server.title || server.name;
                 results.push({
                     key: `registry-${server.name}`,
@@ -298,10 +316,21 @@ export default {
         filteredRegistryMcp() {
             if (!this.registryMcp) return this.registryMcp;
 
-            const query = this.searchQuery.trim().toLowerCase();
-            if (!query) return this.registryMcp;
+            // These filters are applied locally to loaded registry entries only
+            let servers = this.registryMcp;
+            if (this.hideUnavailableRegistryMcp) {
+                // An entry is available when it exposes at least one compatible HTTPS remote
+                servers = servers.filter(server => server.compatibleRemoteUrls.length > 0);
+            }
+            if (this.hideCredentialedRegistryMcp) {
+                // This reflects declared secrets, not authentication discovered at runtime
+                servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
+            }
 
-            return this.registryMcp.filter(server =>
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query) return servers;
+
+            return servers.filter(server =>
                 server.name?.toLowerCase().includes(query)
                 || server.title?.toLowerCase().includes(query)
                 || server.description?.toLowerCase().includes(query)
@@ -507,6 +536,27 @@ export default {
                         return false;
                     }
                 }))];
+        },
+
+        registryInputDeclaresCredential(input) {
+            // Inputs may contain nested variables, so inspect the complete declaration tree
+            return input?.isSecret === true
+                || Object.values(input?.variables ?? {})
+                    .some(variable => this.registryInputDeclaresCredential(variable));
+        },
+
+        registryServerHasDeclaredCredentials(server) {
+            const remoteInputs = (server.remotes ?? []).flatMap(remote => [
+                ...(remote.headers ?? []),
+                ...Object.values(remote.variables ?? {}),
+            ]);
+            const packageInputs = (server.packages ?? []).flatMap(pkg => [
+                ...(pkg.environmentVariables ?? []),
+                ...(pkg.runtimeArguments ?? []),
+                ...(pkg.packageArguments ?? []),
+            ]);
+            return [...remoteInputs, ...packageInputs]
+                .some(input => this.registryInputDeclaresCredential(input));
         },
 
         getRegistryLabel(server) {
@@ -728,6 +778,7 @@ export default {
 .mcp-section-title {
     display: flex;
     align-items: center;
+    gap: 0.25rem;
     min-height: 2rem;
     margin-bottom: 0.5rem;
     font-size: 0.8rem;
