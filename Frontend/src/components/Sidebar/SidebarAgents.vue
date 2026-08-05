@@ -58,7 +58,7 @@
 
                 <span v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
                       class="section-actions">
-                    <i class="fa fa-remove click-icon"
+                    <i class="fa fa-remove click-icon click-icon-danger"
                        @click.stop.prevent="this.stopContainer(containerId)"
                        :title="Localizer.get('agents_undeploy')" />
                 </span>

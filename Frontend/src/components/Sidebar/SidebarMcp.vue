@@ -50,7 +50,7 @@
                     <strong class="flex-grow-1">{{ server.name }}</strong>
 
                     <span class="section-actions">
-                        <i class="fa fa-remove click-icon"
+                        <i class="fa fa-remove click-icon click-icon-danger"
                            @click.stop="this.deleteMcp(server.name)"
                            :title="Localizer.get('mcp_remove')" />
                     </span>
@@ -173,7 +173,7 @@
                           :title="server.compatibleRemoteUrls.length === 0
                               ? Localizer.get('mcp_registryNoRemote')
                               : null">
-                        <i class="fa fa-plus click-icon mcp-add-icon"
+                        <i class="fa fa-plus click-icon"
                            :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
                            @click.stop="addMcp(server)"
                            :title="server.compatibleRemoteUrls.length > 0
@@ -766,11 +766,6 @@ export default {
     color: var(--text-secondary-color);
     text-align: center;
 }
-
-.mcp-add-icon:hover {
-    color: var(--button-primary-color);
-}
-
 .mcp-section + .mcp-section {
     margin-top: 1.5rem;
 }
