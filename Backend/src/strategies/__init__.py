@@ -5,7 +5,7 @@ from .orchestrated import SelfOrchestratedMethod
 from .abstract_method import AbstractMethod
 
 # all Strategies by name
-METHODS = {
+METHODS: dict[str, AbstractMethod] = {
     SimpleMethod.NAME: SimpleMethod,
     SimpleToolsMethod.NAME: SimpleToolsMethod,
     ToolLLMMethod.NAME: ToolLLMMethod,
