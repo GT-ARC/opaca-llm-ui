@@ -227,11 +227,11 @@ import { nextTick } from 'vue';
 import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
+import conf from "../../../config.js";
 import AppAccordion from '../AppAccordion.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
 
-const MCP_REGISTRY_ENDPOINT = 'https://registry.modelcontextprotocol.io/v0.1/servers';
 const MCP_REGISTRY_PAGE_SIZE = 20;
 
 export default {
@@ -359,7 +359,7 @@ export default {
         },
 
         async requestRegistryPage(cursor = null, searchQuery = '', signal = null) {
-            const url = new URL(MCP_REGISTRY_ENDPOINT);
+            const url = new URL(conf.mcpRegistryEndpoint);
             url.searchParams.set('version', 'latest');
             url.searchParams.set('limit', MCP_REGISTRY_PAGE_SIZE.toString());
             if (cursor) url.searchParams.set('cursor', cursor);
