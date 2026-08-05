@@ -459,7 +459,7 @@ export default {
 
             await this.$refs.input.showDialogue(
                 Localizer.get('mcp_add'),
-                null,
+                registryServer ? Localizer.get('mcp_registrySafetyNotice') : null,
                 null,
                 {
                     mcpServerUrl: serverUrlInput,
