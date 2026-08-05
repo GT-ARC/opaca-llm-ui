@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.models import ScheduledTask
-from src.session_manager import create_or_refresh_session
+from src.services.session_manager import create_or_refresh_session
 from src.server import app, handle_session_http
 
 from util import example_prompt, handle_admin_session_id, handle_user_session_id

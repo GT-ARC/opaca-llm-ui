@@ -4,7 +4,7 @@ import time
 import json
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, ToolCall, MethodConfig, ToolCallMessage, \
+from ...models import QueryResponse, AgentMessage, ChatMessage, ToolCall, MethodConfig, ToolCallMessage, \
     LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """

@@ -25,33 +25,23 @@ from starlette.websockets import WebSocket
 from starlette.datastructures import Headers
 from openai import OpenAI
 
-from . import sample_prompts as prompts
+from .services import sample_prompts as prompts
 from .models import ConnectRequest, ToolApprovalUpdateRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateRequest, PushMessage, \
     InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, ToolCall, PlayBook
-from .simple import SimpleMethod
-from .simple_tools import SimpleToolsMethod
-from .toolllm import ToolLLMMethod
-from .orchestrated import SelfOrchestratedMethod
+from .strategies import METHODS, DEFAULT_METHOD
 from .internal_tools import InternalTools
-from .code_execution import CodeExecutor
-from .file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
-from .file_analysis import generate_file_metadata
-from .session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
+from .services.code_execution import CodeExecutor
+from .services.file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
+from .services.file_analysis import generate_file_metadata
+from .services.session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
     restore_scheduled_tasks, get_all_sessions, update_session, SessionAction, get_user_session
-from .opaca_client import actions_blacklist
-from .tool_calling import actions_needing_confirmation, ToolCaller
+from .services.opaca_client import actions_blacklist
+from .services.tool_calling import actions_needing_confirmation, ToolCaller
 
 # Configure CORS settings
 origins = os.getenv('CORS_WHITELIST', 'http://localhost:5173').split(";")
 
-
-METHODS = {
-    SimpleMethod.NAME: SimpleMethod,
-    SimpleToolsMethod.NAME: SimpleToolsMethod,
-    ToolLLMMethod.NAME: ToolLLMMethod,
-    SelfOrchestratedMethod.NAME: SelfOrchestratedMethod,
-}
 
 
 logger = logging.getLogger("uvicorn")
@@ -256,7 +246,7 @@ async def update_container_approval(container_id: str, data: ToolApprovalUpdateR
 
 @app.post("/invoke", description="Invoke OPACA action directly.", tags=["opaca"])
 async def invoke_action(invoke: InvokeRequest, session: SessionData = Depends(handle_session_http)) -> InvokeResponse:
-    internal_tools = InternalTools(session, METHODS[SimpleToolsMethod.NAME])
+    internal_tools = InternalTools(session, DEFAULT_METHOD)
     tool_caller = ToolCaller(session, internal_tools, streaming=True)
 
     tool_name = f"{invoke.agent}--{invoke.action}"

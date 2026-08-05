@@ -3,7 +3,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, MethodConfig, LLMConfig, ResetTextMessage
+from ...models import QueryResponse, AgentMessage, ChatMessage, MethodConfig, LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 

@@ -12,7 +12,7 @@ import litellm
 from fastapi import UploadFile
 from starlette.datastructures import Headers
 
-from .models import SessionData, OpacaFile, OpacaException, Chat
+from ..models import SessionData, OpacaFile, OpacaException, Chat
 
 logger = logging.getLogger(__name__)
 

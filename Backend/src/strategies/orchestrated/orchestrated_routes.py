@@ -9,7 +9,7 @@ from .prompts import (
     OUTPUT_GENERATOR_PROMPT, BACKGROUND_INFO, GENERAL_CAPABILITIES_RESPONSE, GENERAL_AGENT_DESC, INTERNAL_AGENT_DESC
 )
 from ..abstract_method import AbstractMethod, openapi_to_functions
-from ..models import QueryResponse, AgentMessage, ChatMessage, ToolCall, StatusMessage, MethodConfig, \
+from ...models import QueryResponse, AgentMessage, ChatMessage, ToolCall, StatusMessage, MethodConfig, \
     LLMConfig
 from .agents import (
     OrchestratorAgent,

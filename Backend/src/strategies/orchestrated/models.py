@@ -1,7 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from ..models import AgentMessage, ToolCall
+from ...models import AgentMessage, ToolCall
 
 class AgentTask(BaseModel):
     """Model for tasks assigned to agents by the orchestrator or planner"""

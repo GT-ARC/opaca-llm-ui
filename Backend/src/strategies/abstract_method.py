@@ -17,15 +17,15 @@ import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
-from .models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
-from .file_utils import get_file_parts
-from .opaca_client import actions_blacklist
-from .tool_calling import ToolCaller
+from ..services.file_utils import get_file_parts
+from ..services.opaca_client import actions_blacklist
+from ..services.tool_calling import ToolCaller
 
 if TYPE_CHECKING:
-    from .internal_tools import InternalTools
+    from ..internal_tools import InternalTools
 
 
 logger = logging.getLogger(__name__)

@@ -3,12 +3,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .models import PromptCategory, SessionPrompts
+from ..models import PromptCategory, SessionPrompts
 
 log = logging.getLogger(__name__)
 
 # Get the base directory
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # default-default file
 DEFAULT_PROMPTS_BASE = BASE_DIR / 'default_prompts.json'

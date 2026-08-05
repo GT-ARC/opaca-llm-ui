@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
     OUTPUT_GENERATOR_NO_TOOLS, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
+from ...models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
 
 
 class ToolLlmConfig(MethodConfig):

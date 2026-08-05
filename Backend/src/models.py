@@ -4,7 +4,7 @@ Request and response models used in the FastAPI routes (and in some of the imple
 import copy
 from enum import Enum
 import re
-from typing import Callable, Iterable, Set, Literal, Annotated
+from typing import Callable, Iterable, Set, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -19,7 +19,7 @@ from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
-from .opaca_client import OpacaClient
+from .services.opaca_client import OpacaClient
 
 
 logger = logging.getLogger(__name__)

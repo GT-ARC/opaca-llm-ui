@@ -5,8 +5,8 @@ import logging
 
 import requests
 
-from ..file_utils import filename_from_url_and_type, register_bytes_as_uploaded_file
-from ..file_analysis import (
+from ..services.file_utils import filename_from_url_and_type, register_bytes_as_uploaded_file
+from ..services.file_analysis import (
     answer_from_files,
     find_relevant_files,
     get_file_keyword_catalog,
