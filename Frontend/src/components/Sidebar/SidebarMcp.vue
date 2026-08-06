@@ -170,15 +170,12 @@
                     <i class="fa fa-server me-3" />
                     <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
                     <span class="section-actions"
-                          :title="server.compatibleRemoteUrls.length === 0
-                              ? Localizer.get('mcp_registryNoRemote')
-                              : null">
+                          :title="server.compatibleRemoteUrls.length > 0
+                              ? Localizer.get('mcp_add')
+                              : Localizer.get('mcp_registryNoRemote')">
                         <i class="fa fa-plus click-icon"
                            :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
-                           @click.stop="addMcp(server)"
-                           :title="server.compatibleRemoteUrls.length > 0
-                               ? Localizer.get('mcp_add')
-                               : null" />
+                           @click.stop="addMcp(server)" />
                     </span>
                 </template>
 
@@ -473,7 +470,7 @@ export default {
             const registryRemoteUrls = registryServer?.compatibleRemoteUrls ?? [];
             if (registryServer && registryRemoteUrls.length === 0) return;
 
-            const serverUrlInput = registryRemoteUrls.length > 1
+            const serverUrlInput = registryServer
                 ? {
                     type: "select",
                     label: "Server URL",
