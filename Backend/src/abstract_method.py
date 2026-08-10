@@ -314,8 +314,8 @@ class AbstractMethod(ABC):
     async def handle_invalid_api_key(self, model, is_invalid: bool = False):
         if not self.session.has_websocket():
             raise OpacaException(user_message=f"No API key is available for model {model}.")
-        await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
-        response = MissingApiKeyResponse(**await self.session.websocket_receive())
+        msg_id = await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
+        response = MissingApiKeyResponse(**await self.session.websocket_receive(msg_id))
         if response.api_key:
             if litellm.check_valid_key(model, response.api_key):
                 self.session.set_api_key(model, response.api_key)

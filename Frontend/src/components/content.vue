@@ -685,8 +685,9 @@ export default {
             }
         },
 
-        submitContainerLogin(containerLoginUser, containerLoginPassword, containerLoginTimeout) {
+        submitContainerLogin(id, containerLoginUser, containerLoginPassword, containerLoginTimeout) {
             const containerLoginDetails = JSON.stringify({
+                id: id,
                 username: containerLoginUser,
                 password: containerLoginPassword,
                 timeout: containerLoginTimeout,
@@ -694,12 +695,12 @@ export default {
             this.socket.send(containerLoginDetails);
         },
 
-        submitConfirmAction(allowed) {
-            this.socket.send(JSON.stringify({allowed: allowed}));
+        submitConfirmAction(id, allowed) {
+            this.socket.send(JSON.stringify({id: id, allowed: allowed}));
         },
 
-        submitApiKey(apiKey) {
-            const apiKeyResponse = JSON.stringify({api_key: apiKey});
+        submitApiKey(id, apiKey) {
+            const apiKeyResponse = JSON.stringify({id: id, api_key: apiKey});
             this.socket.send(apiKeyResponse);
         },
 
