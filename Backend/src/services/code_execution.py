@@ -6,7 +6,7 @@ import uuid
 import ast
 from textwrap import dedent
 
-from .models import ExecutionResult
+from ..models import ExecutionResult
 
 logger = logging.getLogger(__name__)
 

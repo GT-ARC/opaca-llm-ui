@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from ..code_execution import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, CodeExecutor, extract_code_block
+from ..services.code_execution import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, CodeExecutor, extract_code_block
 from ..models import InternalTool
 from .context import InternalToolContext
 

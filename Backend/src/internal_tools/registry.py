@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..code_execution import CodeExecutor
+from ..services.code_execution import CodeExecutor
 from ..models import InternalTool, QueryResponse, ScheduledTask, SessionData
 from .context import InternalToolContext
 from .chats import ChatTools
@@ -23,7 +23,7 @@ from .play_books import PlayBookTools
 from .scheduling import ScheduledTaskTools
 
 if TYPE_CHECKING:
-    from ..abstract_method import AbstractMethod
+    from ..strategies import AbstractMethod
 
 
 ToolGroup = PlayBookTools | ScheduledTaskTools | ChatTools | FileTools | CodeTools

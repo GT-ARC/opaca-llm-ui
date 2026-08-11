@@ -9,7 +9,7 @@ from pypdf import PdfReader
 from pydantic import BaseModel, Field
 
 from .file_utils import create_path, is_pdf
-from .models import AgentMessage, Chat, ChatMessage, OpacaFile, QueryResponse, SessionData
+from ..models import AgentMessage, Chat, ChatMessage, OpacaFile, QueryResponse, SessionData
 
 
 logger = logging.getLogger(__name__)
@@ -128,9 +128,9 @@ async def _call_file_llm(
 ) -> AgentMessage:
     # Lazy import avoids a startup cycle:
     # abstract_method -> tool_calling -> internal_tools.files -> file_analysis -> simple_tools -> abstract_method
-    from .simple_tools import SimpleToolsMethod
+    from ..strategies import DEFAULT_METHOD
 
-    method = SimpleToolsMethod(
+    method = DEFAULT_METHOD(
         session=session,
         chat=Chat(chat_id=""),
         response=QueryResponse(),

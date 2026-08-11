@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from ..code_execution import CodeExecutor
+from ..services.code_execution import CodeExecutor
 from ..models import AgentMessage, Chat, MetricsMessage, QueryResponse, SessionData
 
 if TYPE_CHECKING:
-    from ..abstract_method import AbstractMethod
+    from ..strategies import AbstractMethod
 
 
 @dataclass(slots=True)

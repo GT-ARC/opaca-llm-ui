@@ -10,8 +10,9 @@ from pydantic import ValidationError
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from .file_utils import delete_all_files_from_disk
-from .internal_tools import InternalTools
-from .models import SessionData
+from ..internal_tools import InternalTools
+from ..models import SessionData
+from ..strategies import METHODS
 
 
 class SessionAction(Enum):
@@ -266,7 +267,7 @@ async def cleanup_task(delay_seconds: int = 60 * 60 * 24) -> None:
         await asyncio.sleep(delay_seconds)
 
 
-async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) -> None:
+async def restore_scheduled_tasks() -> None:
     """
     Re-create scheduled tasks on restart. Details see InternalTools. In short, missed tasks are NOT
     executed but just skipped, also decrementing the remaining repetitions accordingly. The first
@@ -278,7 +279,7 @@ async def restore_scheduled_tasks(methods: dict[str, type['AbstractMethod']]) ->
         for task_id in list(session.scheduled_tasks):
             task = session.scheduled_tasks[task_id]
             try:
-                await InternalTools(session, methods[task.method]).resume_scheduled_task(task)
+                await InternalTools(session, METHODS[task.method]).resume_scheduled_task(task)
             except Exception as e:
                 logger.warning(f"Failed to restore Scheduled Task {task_id} ({task.query})")
                 del session.scheduled_tasks[task_id]

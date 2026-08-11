@@ -9,13 +9,13 @@ from litellm.experimental_mcp_client.client import MCPClient
 from mcp.types import CallToolRequestParams
 from pydantic import BaseModel
 
-from .models import (ToolApprovalState, SessionData,
+from ..models import (ToolApprovalState, SessionData,
                      ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
                      ToolResultMessage, ConfirmActionNotification, ConfirmActionResponse)
 from .opaca_client import actions_blacklist
 
 if TYPE_CHECKING:
-    from .internal_tools import InternalTools
+    from ..internal_tools import InternalTools
 
 
 # list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool
