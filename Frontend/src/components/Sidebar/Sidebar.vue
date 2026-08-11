@@ -162,6 +162,7 @@
                 <!-- MCP servers -->
                 <SidebarMcp
                     v-show="SidebarManager.isViewSelected('mcp')"
+                    :sidebar-view="SidebarManager.getSelectedView()"
                     ref="mcp"
                 />
 
@@ -419,8 +420,13 @@ export default {
 
 .click-icon:hover {
     background-color: var(--input-color);
-    color: var(--text-danger-color);
+    color: var(--text-secondary-color);
     transform: translateY(-1px);
+}
+
+.click-icon-danger:hover {
+    background-color: var(--text-danger-color);
+    color: var(--button-primary-color);
 }
 
 .click-icon.disabled {
@@ -430,10 +436,6 @@ export default {
     pointer-events: none;
     color: var(--text-primary-color) !important;
     background: none !important;
-}
-
-.section-actions .click-icon:hover {
-    background-color: var(--primary-color);
 }
 
 .section-actions .click-icon {

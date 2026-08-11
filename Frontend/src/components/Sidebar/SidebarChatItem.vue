@@ -15,20 +15,22 @@
         :disabled="!isEditingName"
     />
     <i v-if="isWorking()"
-       class="fa fa-spin fa-spinner chat-menu-button chat-status"
+       class="fa fa-spin fa-spinner click-icon chat-status"
        :title="Localizer.get('chats_working')"
     />
     <i v-else-if="hasMissedResponse"
-       class="fa fa-circle-exclamation chat-menu-button chat-status chat-status-ready"
+       class="fa fa-circle-exclamation click-icon chat-status chat-status-ready"
        :title="Localizer.get('chats_responseReady')"
     />
-    <i class="fa fa-edit ms-auto chat-menu-button"
-       :class="{'chat-disabled': !this.canModify()}"
+    <i class="fa fa-edit ms-auto click-icon"
+       :class="{ disabled: !this.canModify() }"
+       :aria-disabled="!this.canModify()"
        @click.stop="this.rename()"
        :title="Localizer.get('chats_edit')"
     />
-    <i class="fa fa-remove chat-menu-button"
-       :class="{'chat-disabled': !this.canModify()}"
+    <i class="fa fa-remove click-icon click-icon-danger"
+       :class="{ disabled: !this.canModify() }"
+       :aria-disabled="!this.canModify()"
        @click.stop="this.delete()"
        :title="Localizer.get('chats_delete')"
     />
@@ -160,18 +162,6 @@ export default {
     border-color: var(--primary-color);
 }
 
-.chat-disabled {
-    opacity: 0.5 !important;
-    transform: none !important;
-}
-
-.chat-disabled:hover {
-    cursor: default !important;
-    border-color: var(--border-color) !important;
-    color: var(--text-primary-color) !important;
-    background-color: var(--background-color) !important;
-}
-
 .chat-name {
     white-space: nowrap !important;
     text-overflow: clip !important;
@@ -203,25 +193,6 @@ export default {
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
-}
-
-.chat-menu-button {
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    aspect-ratio: 1 / 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-end;
-    border-radius: 1rem !important;
-    cursor: pointer;
-}
-
-.chat-menu-button:hover {
-    background-color: var(--input-color);
-    color: var(--text-danger-color);
 }
 
 .chat-status,

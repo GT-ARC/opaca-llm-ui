@@ -29,6 +29,7 @@ interface Config {
     language: string;
     audioMethod: string;
     registryUrl: string | null;
+    mcpRegistryEndpoint: string;
     authEnabled: boolean;
     authDomain: string;
     authClientId: string;
@@ -76,6 +77,10 @@ const baseConfig: Config = {
 
     // OPACA container registry
     registryUrl: getValue("registryUrl"),
+
+    // MCP server registry (environment-only to prevent client-side overrides)
+    mcpRegistryEndpoint: getViteEnvVar("mcpRegistryEndpoint")
+        ?? "https://registry.modelcontextprotocol.io/v0.1/servers",
 
     // Auth0 user management
     authEnabled: asBool(getViteEnvVar("authEnabled") ?? "false"),

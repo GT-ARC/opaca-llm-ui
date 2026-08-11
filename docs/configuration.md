@@ -14,8 +14,10 @@ Frontend env-vars correspond to settings in `config.ts`; check there for context
 * `VITE_ALLOW_CONTAINER_MANAGEMENT`: Whether to enable the buttons for starting and stopping OPACA containers from within SAGE, provided the user has sufficient privileges.
 * `VITE_COLOR_SCHEME`: The color scheme, can be "light", "dark", or "system".
 * `VITE_LANGUAGE`: The language to use by default in the UI. Possible options: "GB" (english), "DE" (german).
+* `VITE_MCP_REGISTRY_ENDPOINT`: The MCP server-list endpoint; defaults to the official MCP registry.
+* `VITE_AUTH_...`: See [user-management docs](user_management.md) for details.
 
-The other settings found in `config.js` can also be given as Environment variables, but may be less relevant. The name of the env-var is derived from the name of the config parameter by converting to `UPPER_SNAKE_CASE` and prepending `VITE_`, e.g. `VITE_REGISTRY_URL` for `registryUrl`. Similarly, all the config settings can be passed as query parameters, e.g. as `?autoconnect=true&method=simple`. Finally, each of those values is automatically stored in and read from a session cookie.
+The other settings found in `config.ts` can also be given as Environment variables, but may be less relevant. The name of the env-var is derived from the name of the config parameter by converting to `UPPER_SNAKE_CASE` and prepending `VITE_`, e.g. `VITE_REGISTRY_URL` for `registryUrl`. Similarly, most of the config settings can be passed as query parameters, e.g. as `?autoconnect=true&method=simple`, and their updated values are automatically stored in and read from a session cookie.
 
 The resolution order for the config settings is as follows:
 
@@ -23,6 +25,8 @@ The resolution order for the config settings is as follows:
 * Else, use the value from the Cookie (i.e. from the previous session), if set.
 * Else, use the value from the corresponding `VITE_` environment variable.
 * Else, use the default value defined in `config.ts`.
+
+Exceptions to this are the backend URL, MCP server URL, and everything related to authentication; those are only read from environment variables or the defaults.
 
 
 ## Backend

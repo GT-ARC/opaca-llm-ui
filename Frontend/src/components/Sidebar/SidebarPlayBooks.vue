@@ -43,7 +43,7 @@
                    :class="playBook.enabled ? 'fa-toggle-on' : 'fa-toggle-off'"
                    @click.stop="togglePlayBook(playBook.id)"
                    :title="Localizer.get(playBook.enabled ? 'playBooks_disable' : 'playBooks_enable')" />
-                <i class="fa fa-remove click-icon"
+                <i class="fa fa-remove click-icon click-icon-danger"
                    @click.stop="deletePlayBook(playBook)"
                    :title="Localizer.get('playBooks_delete')" />
             </span>

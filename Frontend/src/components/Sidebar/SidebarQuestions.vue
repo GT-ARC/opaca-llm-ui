@@ -52,7 +52,7 @@
                    :title="Localizer.get('questions_editCategory')"
                 />
                 <i v-if="isEditModeActive"
-                   class="fa fa-remove click-icon"
+                   class="fa fa-remove click-icon click-icon-danger"
                    :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
                    @click.stop.prevent="this.deleteCategory(section, getSectionIndex(section))"
                    :title="Localizer.get('questions_deleteCategory')"
@@ -79,7 +79,7 @@
                    :title="Localizer.get('questions_editPrompt')"
                 />
                 <i v-if="isEditModeActive && section.id !== this.autogenKey"
-                   class="fa fa-remove click-icon"
+                   class="fa fa-remove click-icon click-icon-danger"
                    :class="{'disabled': !this.isEditingAllowed}"
                    @click.stop="this.deletePrompt(section, q, qIndex)"
                    :title="Localizer.get('questions_deletePrompt')"

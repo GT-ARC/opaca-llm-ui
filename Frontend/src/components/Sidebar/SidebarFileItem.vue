@@ -18,16 +18,16 @@
             'fa fa-lg',
             this.isFileActive()? 'fa-toggle-on' : 'fa-toggle-off',
             'ms-auto',
-            'file-menu-button'
+            'click-icon'
             ]"
            @click.stop="this.activateFile()"
            :title="Localizer.get('files_include')"
         />
-        <i class="fa fa-pen-to-square file-menu-button"
+        <i class="fa fa-pen-to-square click-icon"
            @click.stop="this.renameFile()"
            :title="Localizer.get('files_rename')"
         />
-        <i class="fa fa-remove file-menu-button"
+        <i class="fa fa-remove click-icon click-icon-danger"
            @click.stop="this.deleteFile()"
            :title="Localizer.get('files_delete')"
         />
@@ -203,25 +203,6 @@ export default {
 
 .file-suspended .file-name:disabled {
     opacity: 0.5;
-}
-
-.file-menu-button {
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    aspect-ratio: 1 / 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-end;
-    border-radius: 1rem !important;
-    cursor: pointer;
-}
-
-.file-menu-button:hover {
-    background-color: var(--input-color);
-    color: var(--text-danger-color);
 }
 
 .fa-toggle-off {

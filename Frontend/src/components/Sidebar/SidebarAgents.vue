@@ -24,7 +24,7 @@
     </div>
     <div v-else-if="platformContainers === null"
          class="sidebar-empty-state">
-        {{ Localizer.get('general_disconnected') }}
+        {{ Localizer.get('agents_disconnected') }}
     </div>
     <div v-else-if="platformContainers.length === 0"
          class="sidebar-empty-state">
@@ -58,7 +58,7 @@
 
                 <span v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
                       class="section-actions">
-                    <i class="fa fa-remove click-icon"
+                    <i class="fa fa-remove click-icon click-icon-danger"
                        @click.stop.prevent="this.stopContainer(containerId)"
                        :title="Localizer.get('agents_undeploy')" />
                 </span>
