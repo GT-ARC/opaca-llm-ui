@@ -134,8 +134,8 @@ class ToolCaller:
         if not self.session.has_websocket(): return False
         # ask user for confirmation, sharing lock-mechanism with container-login
         async with self.session.opaca_client.login_lock:
-            await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
-            return ConfirmActionResponse(**await self.session.websocket_receive()).allowed
+            msg_id = await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
+            return ConfirmActionResponse(**await self.session.websocket_receive(msg_id)).allowed
 
 
     async def handle_container_login(self, agent_name: str, action_name: str, tool: ToolCall, login_attempt_retry: bool = False):
@@ -157,12 +157,12 @@ class ToolCaller:
                 return await self.invoke_tool(tool, True)
             while True:
                 # Get credentials from user
-                await self.session.websocket_send(ContainerLoginNotification(
+                msg_id = await self.session.websocket_send(ContainerLoginNotification(
                     container_name=container_name,
                     tool_name=tool.name,
                     retry=login_attempt_retry
                 ))
-                response = ContainerLoginResponse(**await self.session.websocket_receive())
+                response = ContainerLoginResponse(**await self.session.websocket_receive(msg_id))
                 if not (response.username and response.password):
                     tool.result = "Failed to invoke tool.\nNo credentials provided."
                     return tool

@@ -525,19 +525,30 @@ class SessionData(BaseModel):
             await self._websocket.send_json(msg)
         self._ws_out_cache.clear()
 
-    async def websocket_send(self, message: BaseModel) -> bool:
-        """Send object as JSON over websocket. The JSON will include the class name as "type"."""
-        typed_message = {"type": message.__class__.__name__, **message.model_dump()}
+    async def websocket_send(self, message: BaseModel) -> str:
+        """Send object as JSON over websocket. The JSON will include the class name as "type", as well
+        as a UUID "id". The id is returned and can be used to retrieve a response to the message."""
+        id = str(uuid.uuid4())
+        typed_message = {
+            "type": message.__class__.__name__,
+            "id": id,
+            **message.model_dump()
+        }
         if self._websocket:
             await self._websocket.send_json(typed_message)
-            return True
         else:
             self._ws_out_cache.append(typed_message)
-            return False
+        return id
 
-    async def websocket_receive(self) -> dict:
+    async def websocket_receive(self, id: str) -> dict:
         if self._websocket and self._ws_msg_queue:
-            return await self._ws_msg_queue.get()
+            while True:
+                msg = await self._ws_msg_queue.get()
+                if msg["id"] == id:
+                    return msg
+                else:
+                    await self._ws_msg_queue.put(msg)  # not the message we are looking for
+                    await asyncio.sleep(0.1)  # wait a bit before checking the queue again
         else:
             raise Exception("Websocket not connected")
 

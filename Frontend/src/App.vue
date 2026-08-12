@@ -265,8 +265,8 @@ export default {
                 message,
                 null,
                 {},
-                (_) => this.$refs.content.submitConfirmAction(true),
-                () => this.$refs.content.submitConfirmAction(false)
+                (_) => this.$refs.content.submitConfirmAction(confirmActionDetails.id, true),
+                () => this.$refs.content.submitConfirmAction(confirmActionDetails.id, false)
             );
         },
 
@@ -286,8 +286,8 @@ export default {
                         "14400": "Logout after 4 hours",
                     }},
                 },
-                (values) => this.$refs.content.submitContainerLogin(values.username, values.password, values.timeout),
-                () => this.$refs.content.submitContainerLogin("", "", 0)
+                (values) => this.$refs.content.submitContainerLogin(containerLoginDetails.id, values.username, values.password, values.timeout),
+                () => this.$refs.content.submitContainerLogin(containerLoginDetails.id, "", "", 0)
             );
         },
 
@@ -299,8 +299,8 @@ export default {
                 {
                     apiKey: { type: "password" },
                 },
-                (values) => this.$refs.content.submitApiKey(values.apiKey),
-                () => this.$refs.content.submitApiKey("")
+                (values) => this.$refs.content.submitApiKey(apiKeyMessage.id, values.apiKey),
+                () => this.$refs.content.submitApiKey(apiKeyMessage.id, "")
             );
         },
 
