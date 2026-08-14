@@ -228,6 +228,7 @@ import conf from "../../../config.js";
 import AppAccordion from '../AppAccordion.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
+import {closeMcpOAuthWindow, prepareMcpOAuthWindow} from '../../mcpOAuth.js';
 
 const MCP_REGISTRY_PAGE_SIZE = 20;
 
@@ -466,6 +467,95 @@ export default {
             this.registryLoadMoreObserver.observe(trigger);
         },
 
+        registryInputField(input, label, visible) {
+            const choices = input?.choices;
+            return {
+                type: choices?.length ? "select" : (input?.isSecret ? "password" : "text"),
+                label,
+                placeholder: input?.description ?? "",
+                values: choices?.length ? Object.fromEntries(choices.map(choice => [choice, choice])) : undefined,
+                default: input?.default ?? null,
+                optional: input?.isRequired !== true,
+                visible,
+            };
+        },
+
+        registryConfigurationSchema(server) {
+            const schema = {};
+            (server?.remotes ?? []).forEach((remote, remoteIndex) => {
+                const visible = values => values.mcpServerUrl === remote.url;
+                Object.entries(remote.variables ?? {}).forEach(([name, input], variableIndex) => {
+                    schema[`registry_${remoteIndex}_url_${variableIndex}`] = this.registryInputField(
+                        input, name, visible,
+                    );
+                });
+                (remote.headers ?? []).forEach((header, headerIndex) => {
+                    const variables = Object.entries(header.variables ?? {});
+                    if (variables.length) {
+                        variables.forEach(([name, input], variableIndex) => {
+                            schema[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`] =
+                                this.registryInputField(input, `${header.name}: ${name}`, visible);
+                        });
+                    } else if (header.value == null) {
+                        schema[`registry_${remoteIndex}_header_${headerIndex}`] = this.registryInputField(
+                            header, header.name, visible,
+                        );
+                    }
+                });
+            });
+            schema.mcpRegistryAdvancedHeaders = {
+                type: "textarea", label: "Additional HTTP Headers (JSON, Optional)", monospace: true,
+                placeholder: '{"Header-Name":"value"}', optional: true,
+            };
+            return schema;
+        },
+
+        replaceRegistryVariables(template, variables) {
+            return template.replace(/\{([^}]+)\}/g, (match, name) =>
+                Object.hasOwn(variables, name) ? (variables[name] ?? "") : match
+            );
+        },
+
+        parseMcpHeaders(value) {
+            const headers = JSON.parse(value);
+            if (!headers || Array.isArray(headers) || typeof headers !== "object"
+                || Object.values(headers).some(headerValue => typeof headerValue !== "string")) {
+                throw new Error("Custom headers must be a JSON object containing string values.");
+            }
+            return headers;
+        },
+
+        registryConnection(server, values) {
+            const remoteIndex = (server.remotes ?? []).findIndex(remote => remote.url === values.mcpServerUrl);
+            const remote = server.remotes[remoteIndex];
+            const urlVariables = {};
+            Object.keys(remote.variables ?? {}).forEach((name, variableIndex) => {
+                urlVariables[name] = values[`registry_${remoteIndex}_url_${variableIndex}`];
+            });
+            const headers = {};
+            (remote.headers ?? []).forEach((header, headerIndex) => {
+                const variableEntries = Object.entries(header.variables ?? {});
+                let value;
+                if (variableEntries.length) {
+                    const headerVariables = {};
+                    variableEntries.forEach(([name], variableIndex) => {
+                        headerVariables[name] = values[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`];
+                    });
+                    value = this.replaceRegistryVariables(header.value ?? "", headerVariables);
+                } else {
+                    value = header.value ?? values[`registry_${remoteIndex}_header_${headerIndex}`];
+                }
+                if (value != null && value !== "") headers[header.name] = String(value);
+            });
+            if (values.mcpRegistryAdvancedHeaders) {
+                Object.assign(headers, this.parseMcpHeaders(values.mcpRegistryAdvancedHeaders));
+            }
+            return {
+                serverUrl: this.replaceRegistryVariables(remote.url, urlVariables),
+                headers,
+            };
+        },
+
         async addMcp(registryServer = null) {
             const registryRemoteUrls = registryServer?.compatibleRemoteUrls ?? [];
             if (registryServer && registryRemoteUrls.length === 0) return;
@@ -480,8 +570,43 @@ export default {
                 : {
                     type: "text",
                     label: "Server URL",
-                    default: registryRemoteUrls[0] ?? null,
+                    default: null,
                 };
+            const authSchema = registryServer ? this.registryConfigurationSchema(registryServer) : {
+                mcpAuthType: {type: "select", label: "Authentication", default: "none", values: {
+                    none: "None",
+                    oauth2: "OAuth 2.1 (browser login)",
+                    credential: "API key or token",
+                    headers: "Advanced HTTP headers"
+                }},
+                mcpCredential: {
+                    type: "password", label: "API Key or Token",
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpCredentialHeader: {
+                    type: "text", label: "HTTP Header", default: "Authorization",
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpCredentialPrefix: {
+                    type: "select", label: "Value Format", default: "bearer", values: {
+                        bearer: "Bearer <token>", raw: "Raw value"
+                    },
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpHeaders: {
+                    type: "textarea", label: "Custom Headers (JSON)", monospace: true,
+                    placeholder: '{"Authorization":"Bearer token"}',
+                    visible: values => values.mcpAuthType === "headers",
+                },
+                mcpOAuthClientId: {
+                    type: "text", label: "OAuth Client ID (Optional)", optional: true,
+                    visible: values => values.mcpAuthType === "oauth2",
+                },
+                mcpOAuthClientSecret: {
+                    type: "password", label: "OAuth Client Secret (Optional)", optional: true,
+                    visible: values => values.mcpAuthType === "oauth2",
+                },
+            };
 
             await this.$refs.input.showDialogue(
                 Localizer.get('mcp_add'),
@@ -500,22 +625,55 @@ export default {
                         allow: "Auto Allow",
                         deny: "Auto Deny"
                     }},
+                    ...authSchema,
                 },
                 async (values) => {
+                    let serverUrl = values.mcpServerUrl;
+                    let auth;
+                    if (registryServer) {
+                        const connection = this.registryConnection(registryServer, values);
+                        serverUrl = connection.serverUrl;
+                        auth = {auth_type: "auto", headers: connection.headers};
+                    } else if (values.mcpAuthType === "credential") {
+                        const prefix = values.mcpCredentialPrefix === "bearer" ? "Bearer " : "";
+                        auth = {
+                            auth_type: "headers",
+                            headers: {[values.mcpCredentialHeader]: `${prefix}${values.mcpCredential}`},
+                        };
+                    } else if (values.mcpAuthType === "headers") {
+                        auth = {auth_type: "headers", headers: this.parseMcpHeaders(values.mcpHeaders)};
+                    } else {
+                        auth = {
+                            auth_type: values.mcpAuthType,
+                            client_id: values.mcpOAuthClientId || null,
+                            client_secret: values.mcpOAuthClientSecret || null,
+                        };
+                    }
+
                     // Get values from submission dialogue
-                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, default_approval: values.mcpDefaultApproval}
+                    const data = {
+                        type: "mcp",
+                        server_url: serverUrl,
+                        server_label: values.mcpServerLabel,
+                        default_approval: values.mcpDefaultApproval,
+                        auth,
+                    };
 
                     // Validate input
-                    var mcpError = this.isValidInput(data.server_url, data.server_label);
+                    const mcpError = this.isValidInput(data.server_url, data.server_label);
                     if (mcpError !== "") {
                         throw new Error(mcpError);
                     }
 
-                    // Add MCP server to backend, retry on failure
+                    // Reserve the popup before the asynchronous request so browsers do not block it.
+                    const mayUseOAuth = auth.auth_type === "oauth2" || auth.auth_type === "auto";
                     try {
+                        if (mayUseOAuth) prepareMcpOAuthWindow();
                         await backendClient.addMcp(data);
                     } catch (err) {
-                        throw new Error(err.response.data.detail);
+                        throw new Error(err.response?.data?.detail ?? err.message ?? "Failed to add MCP server.");
+                    } finally {
+                        if (mayUseOAuth) closeMcpOAuthWindow();
                     }
                     await this.updateMcp(true);
                 }
@@ -525,14 +683,9 @@ export default {
 
         getRegistryRemoteUrls(server) {
             return [...new Set((server.remotes ?? [])
+                .filter(remote => remote.type === "streamable-http")
                 .map(remote => remote.url)
-                .filter(url => {
-                    try {
-                        return new URL(url).protocol === 'https:';
-                    } catch (_) {
-                        return false;
-                    }
-                }))];
+                .filter(url => typeof url === 'string' && /^https:\/\//i.test(url)))];
         },
 
         registryInputDeclaresCredential(input) {

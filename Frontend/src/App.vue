@@ -130,6 +130,7 @@
             @container-login-required="containerLoginDetails => handleContainerLogin(containerLoginDetails)"
             @action-confirmation-required="confirmActionDetails => handleConfirmAction(confirmActionDetails)"
             @api-key-required="apiKeyMessage => handleApiKey(apiKeyMessage)"
+            @mcp-auth-required="mcpAuth => handleMcpAuth(mcpAuth)"
             @new-notification="response => createNotification(response)"
             ref="content"
         />
@@ -149,6 +150,7 @@ import CookieBanner from './components/CookieBanner.vue';
 import InputDialogue from './components/InputDialogue.vue';
 import {showDesktopNotification} from "./browserNotifications.js";
 import { useAuthentication } from "./useAuthentication.ts";
+import {showMcpAuthorization} from "./mcpOAuth.ts";
 
 export default {
     name: 'App',
@@ -302,6 +304,10 @@ export default {
                 (values) => this.$refs.content.submitApiKey(values.apiKey),
                 () => this.$refs.content.submitApiKey("")
             );
+        },
+
+        handleMcpAuth(mcpAuth) {
+            showMcpAuthorization(mcpAuth.authorization_url);
         },
 
         async waitForConnection() {

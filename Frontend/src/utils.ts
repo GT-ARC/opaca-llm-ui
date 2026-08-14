@@ -241,7 +241,8 @@ class BackendClient {
     }
 
     async addMcp(mcp: MCPCreateRequest): Promise<void> {
-        return await this.sendRequest("POST", "mcp", mcp);
+        // OAuth may include account creation, MFA, and a consent round trip.
+        return await this.sendRequest("POST", "mcp", mcp, 15*60*1000);
     }
 
     async deleteMcp(serverLabel: string): Promise<void> {

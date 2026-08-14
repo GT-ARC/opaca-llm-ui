@@ -33,6 +33,17 @@ sessions_lock: asyncio.Lock = asyncio.Lock()
 sessions: Dict[str, SessionData] = {}
 
 
+def session_document(session: SessionData) -> dict:
+    """Serialize a session without credentials that are limited to backend memory."""
+    bson = session.model_dump(mode='json', by_alias=True)
+    bson["mcp_servers"] = {
+        label: server
+        for label, server in bson.get("mcp_servers", {}).items()
+        if server.get("credential_expires_at") is None
+    }
+    return bson
+
+
 class SessionDbClient:
 
     def __init__(self, uri: Optional[str] = None):
@@ -53,7 +64,7 @@ class SessionDbClient:
         collection = self.client[DB_NAME][SESSIONS_COLLECTION]
         try:
             logger.debug(f'Storing session {session.session_id} in DB.')
-            bson = session.model_dump(mode='json', by_alias=True)
+            bson = session_document(session)
             await collection.replace_one({'_id': session.session_id}, bson, upsert=True)
         except Exception as e:
             logger.error(f'Failed to save session: {e}')
@@ -157,7 +168,15 @@ async def get_user_session(user_id: str, anonymous_session_id: Optional[str], me
     if not session:
         anonymous_session = await create_or_refresh_session(anonymous_session_id)
         # Create a new session but copy the anonymous session's data
-        session = anonymous_session.create_user_session(user_id)
+        persist_mcp_credentials = True
+        if db_client.is_db_configured() and any(
+                server.encrypted_credentials for server in anonymous_session.mcp_servers.values()):
+            from .mcp_auth import uses_ephemeral_encryption_key
+            persist_mcp_credentials = not uses_ephemeral_encryption_key
+        session = anonymous_session.create_user_session(user_id, persist_mcp_credentials)
+        for label, server in list(anonymous_session.mcp_servers.items()):
+            if server.encrypted_credentials:
+                del anonymous_session.mcp_servers[label]
         # Save the session in the sessions
         sessions[session.session_id] = session
 
@@ -188,7 +207,12 @@ async def cleanup_old_sessions() -> None:
     Delete all expired sessions.
     """
     logger.info("Cleaning out expired sessions...")
+    now = time.time()
     for session_id, session in sessions.items():
+        session.mcp_servers = {
+            label: server for label, server in session.mcp_servers.items()
+            if server.credential_expires_at is None or server.credential_expires_at > now
+        }
         if not session.is_valid():
             await delete_session(session_id)
 

@@ -610,6 +610,10 @@ export default {
                 this.$emit('api-key-required', result);
             }
 
+            if (result.type === "MCPAuthNotification") {
+                this.$emit('mcp-auth-required', result);
+            }
+
             if (result.type === "TextChunkMessage") {
                 // chunk: str
                 // is_output: bool

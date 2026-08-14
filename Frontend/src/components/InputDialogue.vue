@@ -6,7 +6,7 @@
                 <div class="scroll-container">
                     <div class="mb-3" v-html="message" />
 
-                    <div v-for="(val, key, idx) in schema" :key="key">
+                    <div v-for="(val, key, idx) in schema" :key="key" v-show="isVisible(val)">
                         <div v-if="val.type === 'text' || val.type === 'password' || val.type === 'number'">
                             <label class="form-label mb-1">{{ val.label ?? '' }}</label>
                             <input 
@@ -115,6 +115,7 @@ export default {
          *             (if the parameter has a default, it is automatically optional)
          * - rows: number of rows to display, only for type 'textarea' (default: 4)
          * - monospace: whether to use a monospace font and disable spellcheck, only for type 'textarea' (default: false)
+         * - visible: boolean or function(values) controlling whether the field is displayed (default: true)
          * 
          * @param title the title (bold)
          * @param message message below the title, optional; can contain Markdown
@@ -156,6 +157,8 @@ export default {
             if (this.errorMsg) return;
             if (this.queue.length === 0) {
                 this.show = false;
+                this.schema = null;
+                this.values = null;
                 return;
             }
             const {title, message, errorMsg, schema, onOkay, onCancel, values} = this.queue.shift();
@@ -183,9 +186,14 @@ export default {
         canSubmit() {
             if (this.loading) return false;
             return Object.entries(this.values).every(([k, v]) => {
-                const isOptional = typeof this.schema[k].optional === 'function' ? this.schema[k].optional(this.values) : this.schema[k].optional;
-                return (v != null && v !== "") || isOptional;
+                return !this.isVisible(this.schema[k])
+                    || (v != null && v !== "")
+                    || this.schema[k].optional;
             });
+        },
+
+        isVisible(field) {
+            return typeof field.visible === 'function' ? field.visible(this.values) : field.visible !== false;
         },
 
         async handleSubmit(okay) {

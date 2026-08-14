@@ -15,7 +15,6 @@ import traceback
 import asyncio
 
 from litellm import get_supported_openai_params
-from litellm.experimental_mcp_client.client import MCPClient
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
@@ -101,6 +100,43 @@ class ToolApprovalState(Enum):
     ALLOW = "allow"
 
 
+class MCPAuthType(str, Enum):
+    NONE = "none"
+    AUTO = "auto"
+    OAUTH2 = "oauth2"
+    HEADERS = "headers"
+
+
+class MCPAuthRequest(BaseModel):
+    """Authentication material supplied while installing an MCP server.
+
+    Values in this model are accepted only by the add-MCP route. They are
+    encrypted before being attached to the persisted MCP server model and are
+    never returned by the MCP API.
+    """
+    auth_type: MCPAuthType = MCPAuthType.NONE
+    headers: Dict[str, str] = Field(default_factory=dict, repr=False)
+    client_id: str | None = None
+    client_secret: str | None = Field(default=None, repr=False)
+
+    @model_validator(mode="after")
+    def validate_auth_material(self) -> "MCPAuthRequest":
+        if self.auth_type == MCPAuthType.NONE and (self.headers or self.client_id or self.client_secret):
+            raise ValueError("MCP credentials require an authentication type.")
+        if self.auth_type == MCPAuthType.HEADERS and not self.headers:
+            raise ValueError("MCP header authentication requires at least one header.")
+        if self.auth_type not in (MCPAuthType.AUTO, MCPAuthType.OAUTH2) and (self.client_id or self.client_secret):
+            raise ValueError("MCP OAuth client credentials require OAuth authentication.")
+        if self.client_secret and not self.client_id:
+            raise ValueError("An MCP OAuth client secret requires a client ID.")
+        for name in self.headers:
+            if not re.fullmatch(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+", name):
+                raise ValueError(f"Invalid MCP HTTP header name: '{name}'.")
+        if any("\r" in value or "\n" in value for value in self.headers.values()):
+            raise ValueError("MCP HTTP header values cannot contain line breaks.")
+        return self
+
+
 class MCPCreateRequest(BaseModel):
     """
     Used as payload for creating a new MCP server connection.
@@ -115,6 +151,7 @@ class MCPCreateRequest(BaseModel):
     server_url: str
     server_label: str | None = None
     default_approval: ToolApprovalState
+    auth: MCPAuthRequest = Field(default_factory=MCPAuthRequest)
 
 
 class ToolApprovalUpdateRequest(BaseModel):
@@ -374,6 +411,10 @@ class MCPServer(BaseModel):
     server_label: str
     type: str | None = None
     tools: Dict[str, MCPTool] = Field(default_factory=dict)
+    auth_type: MCPAuthType = MCPAuthType.NONE
+    encrypted_credentials: str | None = Field(default=None, repr=False)
+    credential_expires_at: float | None = None
+    oauth_redirect_uri: str | None = None
 
 
 class SessionData(BaseModel):
@@ -465,7 +506,7 @@ class SessionData(BaseModel):
     def is_valid(self) -> bool:
         return self.valid_until > time.time()
 
-    def create_user_session(self, user_id: str) -> "SessionData":
+    def create_user_session(self, user_id: str, persist_mcp_credentials: bool = True) -> "SessionData":
         """
         Creates a new user session instance based on the current anonymous session.
         """
@@ -477,7 +518,11 @@ class SessionData(BaseModel):
         user_session._user_api_keys = copy.deepcopy(self._user_api_keys)
         user_session.user_id = user_id
         user_session.original_session_id = self.session_id
-        # Set "valid_until" to year 2100 to avoid deletion of the user session
+        # Credentials installed anonymously become persistent once ownership is bound to a verified application user.
+        for server in user_session.mcp_servers.values():
+            if persist_mcp_credentials and server.encrypted_credentials:
+                server.credential_expires_at = None
+        # Avoid deletion of the user session
         user_session.valid_until = datetime(2100, 1, 1).timestamp()
         return user_session
 
@@ -551,7 +596,7 @@ class SessionData(BaseModel):
         if not (tool := server.tools.get(full_name)):
             raise KeyError(f"Tool '{full_name}' not found in MCP server '{server_label}'.")
         return tool
-    
+
     def set_mcp_tool_approval(self, server_label: str, tool_name: str, approval: ToolApprovalState):
         """Set whether a tool call should be allowed, denied, or require confirmation by the user."""
         tool = self.get_mcp_tool(server_label, tool_name)
@@ -569,7 +614,7 @@ class SessionData(BaseModel):
             self.opaca_approvals[container_id] = {}
         self.opaca_approvals[container_id][tool_name] = approval
 
-    async def add_mcp_server(self, req: MCPCreateRequest) -> bool:
+    async def add_mcp_server(self, req: MCPCreateRequest, oauth_redirect_uri: str | None = None) -> bool:
         """Adds a new mcp server json"""
 
         # Check if the server url is in a valid format:
@@ -588,9 +633,14 @@ class SessionData(BaseModel):
         if req.server_label in self.mcp_servers:
             raise OpacaException(f"An MCP server with the given server_label '{req.server_label}' already exists!", "Duplicate 'server_label'!", 400)
 
-        # Check if the given server-url is actually an mcp server
-        client = MCPClient(server_url=req.server_url)
-        client_tools = await client.list_tools()
+        from .mcp_auth import create_mcp_server, list_mcp_tools
+
+        # Create a candidate connection first.
+        # It is only installed after authenticated discovery has completed successfully.
+        server = create_mcp_server(req, persistent=bool(self.user_id))
+        if req.auth.auth_type in (MCPAuthType.AUTO, MCPAuthType.OAUTH2):
+            server.oauth_redirect_uri = oauth_redirect_uri
+        client_tools = await list_mcp_tools(self, server)
         if not client_tools:
             raise OpacaException(f"The given server_url '{req.server_url}' provides no mcp tools and cannot be added!", "Unreachable MCP server!", 400)
 
@@ -598,18 +648,14 @@ class SessionData(BaseModel):
             f"{req.server_label}--{tool.name}": MCPTool(
                 name=tool.name,
                 description=tool.description or '',
-                inputSchema=tool.inputSchema,
+                inputSchema=tool.input_schema,
                 server_label=req.server_label,
                 approval=req.default_approval
             )
             for tool in client_tools
         }
-        self.mcp_servers[req.server_label] = MCPServer(
-            server_url=req.server_url,
-            server_label=req.server_label,
-            type=req.type,
-            tools=mcp_tools
-        )
+        server.tools = mcp_tools
+        self.mcp_servers[req.server_label] = server
         return True
 
     def delete_mcp_server(self, mcp_name: str) -> bool:
@@ -770,6 +816,11 @@ class ContainerLoginNotification(BaseModel):
     container_name: str = ''
     tool_name: str = ''
     retry: bool = False
+
+
+class MCPAuthNotification(BaseModel):
+    """Ask the frontend to open an MCP provider's OAuth authorization page."""
+    authorization_url: str
 
 
 class ContainerLoginResponse(BaseModel):

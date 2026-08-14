@@ -3,8 +3,6 @@ from typing import List
 import asyncio
 
 import httpx
-from litellm.experimental_mcp_client.client import MCPClient
-from mcp.types import CallToolRequestParams
 from pydantic import BaseModel
 
 from .models import (ToolApprovalState, SessionData,
@@ -68,9 +66,9 @@ class ToolCaller:
         if tool.type == ToolType.MCP:
             server = self.session.mcp_servers.get(provider)
             try:
-                client = MCPClient(server_url=server.server_url)
-                res = await client.call_tool(CallToolRequestParams(name=tool_name, arguments=tool.args))
-                if res.isError:
+                from .mcp_auth import call_mcp_tool
+                res = await call_mcp_tool(self.session, server, tool_name, tool.args)
+                if res.is_error:
                     t_result = f"Failed to invoke MCP tool.\nError: {res.content}"
                 else:
                     t_result = res.content
@@ -179,4 +177,3 @@ class ToolCaller:
     async def send_to_websocket(self, message: BaseModel):
         if self.session.has_websocket() and self.streaming:
             await self.session.websocket_send(message)
-
