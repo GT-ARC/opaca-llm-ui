@@ -25,4 +25,10 @@ Each tool can be configured with one of three approval types:
 ## MCP Tools
 
 - When an MCP server is added to SAGE, the backend scans all server tools, converts them into OpenAPI compatible tools and caches them in a session.
+- Connections use the MCP Python SDK v2 in automatic mode. Modern servers are discovered without an `initialize` request; legacy servers automatically fall back to the existing initialize handshake.
 - Default approval type for the tools can be set when adding the MCP server.
+- Manual installation offers no authentication, OAuth 2.1, an API-key/token preset, and advanced HTTP headers. The token preset produces either a Bearer authorization header or a raw value in a selected header.
+- Registry installations derive URL-variable and HTTP-header fields from the selected remote's registry metadata. If no OAuth token is available, the backend follows a standards-compliant OAuth challenge automatically; a public server falls back to no authentication. Only Streamable HTTP remotes are offered by the browser.
+- MCP credentials are encrypted before they are attached to session data and are never exposed to the LLM or returned by the MCP API.
+- Logged-in users retain encrypted MCP credentials and OAuth refresh tokens with their persistent authenticated session. Anonymous credentials remain available for at most 24 hours and are not written to the session database, so they are lost when the backend stops.
+- Removing an MCP server also removes its locally stored credential material. To replace invalid credentials, remove and add the server again.

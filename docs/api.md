@@ -32,7 +32,7 @@ SAGE provides a RESTful API for most requests, while also providing a websocket 
 #### MCP routes
 
 * `GET /mcp`: Returns all available MCP tools for the current session.
-* `POST /mcp`: Adds a new MCP endpoint and all its tools to the current session.
+* `POST /mcp`: Adds a new MCP endpoint and all its tools to the current session. The backend automatically negotiates modern MCP v2 discovery or the legacy initialize handshake. The optional `auth` object selects `none`, `oauth2`, or `headers`; registry clients may use installation-only `auto` with optional headers. Automatic authentication settles the stored connection to OAuth, headers, or no authentication.
 * `DELETE /mcp/{server_label}`: Deletes an MCP endpoint and removes its tools from the current session.
 * `PATCH /mcp/{server_label}/approval`: Updates the approval type for a tool (e.g. "ask", "deny", "allow").
 
