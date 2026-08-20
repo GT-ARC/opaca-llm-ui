@@ -186,9 +186,13 @@ export default {
         canSubmit() {
             if (this.loading) return false;
             return Object.entries(this.values).every(([k, v]) => {
-                return !this.isVisible(this.schema[k])
+                const field = this.schema[k];
+                const isOptional = typeof field.optional === 'function'
+                    ? field.optional(this.values)
+                    : field.optional;
+                return !this.isVisible(field)
                     || (v != null && v !== "")
-                    || this.schema[k].optional;
+                    || isOptional;
             });
         },
 

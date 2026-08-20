@@ -189,6 +189,7 @@ async def get_user_session(user_id: str, anonymous_session_id: Optional[str], me
                 logger.warning(f"Failed to move Scheduled Task {task_id} ({task.query}) for user {user_id} to new session.")
             finally:
                 del anonymous_session.scheduled_tasks[task_id]
+        await db_client.save_session(session)
     # TODO Merge sessions if user session already existed but current session was filled with content (chats, prompts, ...)
 
     return session

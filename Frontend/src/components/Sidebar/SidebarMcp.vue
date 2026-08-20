@@ -228,7 +228,7 @@ import conf from "../../../config.js";
 import AppAccordion from '../AppAccordion.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
-import {closeMcpOAuthWindow, prepareMcpOAuthWindow} from '../../mcpOAuth.js';
+import {closeMcpOAuthWindow, prepareMcpOAuthWindow} from '../../mcpOAuth.ts';
 
 const MCP_REGISTRY_PAGE_SIZE = 20;
 
@@ -684,6 +684,8 @@ export default {
         getRegistryRemoteUrls(server) {
             return [...new Set((server.remotes ?? [])
                 .filter(remote => remote.type === "streamable-http")
+                .filter(remote => !Object.values(remote.variables ?? {})
+                    .some(variable => this.registryInputDeclaresCredential(variable)))
                 .map(remote => remote.url)
                 .filter(url => typeof url === 'string' && /^https:\/\//i.test(url)))];
         },

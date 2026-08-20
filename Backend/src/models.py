@@ -416,6 +416,10 @@ class MCPServer(BaseModel):
     credential_expires_at: float | None = None
     oauth_redirect_uri: str | None = None
 
+    # OAuthClientProvider keeps token-expiry and discovery state in memory.
+    # It must not be serialized with the user session, but reused for subsequent calls to this server.
+    _oauth_provider: Any = PrivateAttr(default=None)
+
 
 class SessionData(BaseModel):
     """

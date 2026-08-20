@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from mcp.client import Client
 from mcp.client.auth import AuthorizationCodeResult, OAuthClientProvider, TokenStorage
 from mcp.client.streamable_http import streamable_http_client
-from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthMetadata, OAuthToken
 from pydantic import AnyUrl
 
 from .models import MCPAuthType, MCPCreateRequest, MCPServer, MCPAuthNotification, OpacaException, SessionData
@@ -30,6 +30,8 @@ from .models import MCPAuthType, MCPCreateRequest, MCPServer, MCPAuthNotificatio
 logger = logging.getLogger(__name__)
 ANONYMOUS_CREDENTIAL_TTL_SECONDS = 60 * 60 * 24
 OAUTH_TIMEOUT_SECONDS = 15 * 60
+TOKEN_EXPIRY_KEY = "token_expires_at"
+OAUTH_METADATA_KEY = "oauth_metadata"
 
 
 def _load_cipher() -> tuple[Fernet, bool]:
@@ -110,6 +112,10 @@ class MCPTokenStorage(TokenStorage):
     def __init__(self, server: MCPServer, session: SessionData | None = None):
         self.server = server
         self.session = session
+        self.provider: OAuthClientProvider | None = None
+
+    def bind_provider(self, provider: OAuthClientProvider) -> None:
+        self.provider = provider
 
     async def _persist_if_installed(self) -> None:
         """Persist refreshed OAuth state without waiting for periodic session storage."""
@@ -127,6 +133,16 @@ class MCPTokenStorage(TokenStorage):
     async def set_tokens(self, tokens: OAuthToken) -> None:
         data = decrypt_credentials(self.server)
         data["tokens"] = tokens.model_dump(mode="json")
+        if tokens.expires_in is None:
+            data.pop(TOKEN_EXPIRY_KEY, None)
+        else:
+            # expires_in is relative to issuance
+            # Persist the absolute time
+            data[TOKEN_EXPIRY_KEY] = time.time() + int(tokens.expires_in)
+        if self.provider and self.provider.context.oauth_metadata:
+            # Refresh can happen before another resource request,
+            # so a provider recreated after restart must already know the discovered token
+            data[OAUTH_METADATA_KEY] = self.provider.context.oauth_metadata.model_dump(mode="json")
         update_credentials(self.server, data)
         await self._persist_if_installed()
 
@@ -161,7 +177,14 @@ class OAuthCallbackBroker:
         self.state = state
         self.future = asyncio.get_running_loop().create_future()
         oauth_callbacks[state] = self.future
-        await self.session.websocket_send(MCPAuthNotification(authorization_url=authorization_url))
+        try:
+            await self.session.websocket_send(MCPAuthNotification(authorization_url=authorization_url))
+        except BaseException:
+            oauth_callbacks.pop(state, None)
+            self.future.cancel()
+            self.future = None
+            self.state = None
+            raise
 
     async def callback(self) -> AuthorizationCodeResult:
         if not self.future:
@@ -203,8 +226,12 @@ def _oauth_provider(session: SessionData, server: MCPServer) -> OAuthClientProvi
             "Missing OAuth redirect URI.",
             500,
         )
+    if server._oauth_provider is not None:
+        return server._oauth_provider
+
     broker = OAuthCallbackBroker(session)
-    return OAuthClientProvider(
+    storage = MCPTokenStorage(server, session)
+    provider = OAuthClientProvider(
         server_url=server.server_url,
         client_metadata=OAuthClientMetadata(
             client_name="SAGE",
@@ -212,10 +239,21 @@ def _oauth_provider(session: SessionData, server: MCPServer) -> OAuthClientProvi
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
         ),
-        storage=MCPTokenStorage(server, session),
+        storage=storage,
         redirect_handler=broker.redirect,
         callback_handler=broker.callback,
     )
+    storage.bind_provider(provider)
+    # Restore our encrypted absolute value before its lazy token initialization so an
+    # expired access token is refreshed instead of sent and followed by OAuth
+    credentials = decrypt_credentials(server)
+    token_expiry = credentials.get(TOKEN_EXPIRY_KEY)
+    if isinstance(token_expiry, (int, float)):
+        provider.context.token_expiry_time = float(token_expiry)
+    if metadata := credentials.get(OAUTH_METADATA_KEY):
+        provider.context.oauth_metadata = OAuthMetadata.model_validate(metadata)
+    server._oauth_provider = provider
+    return provider
 
 
 @asynccontextmanager
@@ -251,20 +289,39 @@ def _settle_automatic_auth(server: MCPServer) -> None:
             server.credential_expires_at = None
         if server.auth_type != MCPAuthType.OAUTH2:
             server.oauth_redirect_uri = None
+            server._oauth_provider = None
+
+
+async def _list_tools(client: Client, stop_after: str | None = None) -> list[Any]:
+    tools = []
+    cursor = None
+    seen_cursors = set()
+    while True:
+        page = await client.list_tools() if cursor is None else await client.list_tools(cursor=cursor)
+        tools.extend(page.tools)
+        if stop_after is not None and any(tool.name == stop_after for tool in page.tools):
+            break
+        cursor = page.next_cursor
+        if not cursor:
+            break
+        if cursor in seen_cursors:
+            raise RuntimeError("MCP server returned a repeated tools cursor.")
+        seen_cursors.add(cursor)
+    return tools
 
 
 async def list_mcp_tools(session: SessionData, server: MCPServer) -> list[Any]:
     async with authenticated_mcp_client(session, server) as client:
-        tools = (await client.list_tools()).tools
+        tools = await _list_tools(client)
     _settle_automatic_auth(server)
     return tools
 
 
 async def call_mcp_tool(session: SessionData, server: MCPServer, name: str, arguments: dict[str, Any]):
     async with authenticated_mcp_client(session, server) as client:
-        # Each invocation creates a fresh client. Listing first gives the v2
-        # client the input schema needed for modern x-mcp-header parameters and
-        # result validation.
-        await client.list_tools()
+        # Each invocation creates a fresh client. Listing through the requested
+        # tool gives the v2 client the schema needed for modern x-mcp-header
+        # parameters and result validation.
+        await _list_tools(client, stop_after=name)
         result = await client.call_tool(name=name, arguments=arguments)
     return result

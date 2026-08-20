@@ -4,6 +4,7 @@ let oauthWindow: Window | null = null;
 export function prepareMcpOAuthWindow(): void {
     oauthWindow = window.open("about:blank", "sage-mcp-oauth", "popup,width=720,height=800");
     if (oauthWindow) {
+        oauthWindow.opener = null;
         oauthWindow.document.title = "MCP Authorization";
         oauthWindow.document.body.textContent = "Checking MCP authentication...";
     }
@@ -14,6 +15,7 @@ export function showMcpAuthorization(authorizationUrl: string): void {
         oauthWindow.location.href = authorizationUrl;
     } else {
         oauthWindow = window.open(authorizationUrl, "sage-mcp-oauth", "popup,width=720,height=800");
+        if (oauthWindow) oauthWindow.opener = null;
     }
 }
 
