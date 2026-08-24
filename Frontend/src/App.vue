@@ -155,10 +155,11 @@ export default {
     components: {OptionsSelect, MainContent, CookieBanner, Notifications, InputDialogue},
     setup() {
         const { isMobile } = useDevice();
-        const { getAccessTokenSilently, isAuthenticated } = useAuthentication();
+        const { getAccessTokenSilently, isAuthenticated, logout } = useAuthentication();
         backendClient.init({
             getTokenFn: getAccessTokenSilently,
-            isAuthenticated: isAuthenticated
+            isAuthenticated: isAuthenticated,
+            logoutFn: logout
         })
         return { conf, Localizer, isMobile };
     },

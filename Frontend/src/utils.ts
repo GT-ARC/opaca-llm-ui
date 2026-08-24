@@ -46,13 +46,16 @@ class BackendClient {
 
     private getTokenFn!: () => Promise<String>;
     private isAuthenticated!: Ref<boolean>;
+    private logoutFn!: () => Promise<void>;
 
     init(params: {
         getTokenFn: () => Promise<String>;
         isAuthenticated: Ref<boolean>;
+        logoutFn: () => Promise<void>;
     }) {
         this.getTokenFn = params.getTokenFn;
         this.isAuthenticated = params.isAuthenticated;
+        this.logoutFn = params.logoutFn;
     }
 
     // OPACA connection
@@ -201,7 +204,10 @@ class BackendClient {
                 }
             });
             return response.data;
-        } catch (error: unknown) {
+        } catch (error: any) {
+            if (error.error === "invalid_grant") {
+                await this.handleAuthenticationFailure()
+            }
             console.error('Upload failed:', error);
             throw new Error(getRequestErrorMessage(error));
         }
@@ -290,23 +296,36 @@ class BackendClient {
     // internal helper
 
     async sendRequest(method: Method | string, path: string, body: any = null, timeout: number = 10000): Promise<any> {
-        const response = await axios.request({
-            method: method as Method,
-            url: `${conf.backendUrl}/${path}`,
-            data: body,
-            timeout: timeout,
-            withCredentials: true,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                ...(await this.getAuthorizationHeader()),
+        try {
+            const response = await axios.request({
+                method: method as Method,
+                url: `${conf.backendUrl}/${path}`,
+                data: body,
+                timeout: timeout,
+                withCredentials: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    ...(await this.getAuthorizationHeader()),
+                }
+            });
+            return response.data;
+        } catch (error: any) {
+            if (error.error === "invalid_grant") {
+                await this.handleAuthenticationFailure()
             }
-        });
-        return response.data;
+        }
     }
 
     private async getAuthorizationHeader(): Promise<Record<string, string>> {
         return this.isAuthenticated.value ? {Authorization: `Bearer ${await this.getTokenFn()}`} : {}
+    }
+
+    private async handleAuthenticationFailure() {
+        if (this.isAuthenticated) {
+            console.warn('Unknown or invalid refresh token. Logging out automatically.');
+            await this.logoutFn()
+        }
     }
 
 }
