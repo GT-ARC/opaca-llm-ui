@@ -187,11 +187,14 @@ export default {
             try {
                 await backendClient.setContainerApproval(containerId, toolName, approval);
 
-                const container = this.platformContainers.find(c => c.containerId === containerId);
-                if (container) {
-                    if (!container.approvals) container.approvals = {};
-                    container.approvals[toolName] = approval;
-                }
+                this.platformContainers = this.platformContainers.map(container =>
+                    container.containerId === containerId
+                        ? {
+                            ...container,
+                            approvals: {...(container.approvals ?? {}), [toolName]: approval},
+                        }
+                        : container,
+                );
             } catch (err) {
                 console.error("Failed to update approval", err);
             }
@@ -260,8 +263,14 @@ export default {
                 });
             }
 
-            // Create a local deep copy and preserve the existing alphabetical list ordering.
-            let containers = JSON.parse(JSON.stringify(platformContainers));
+            // Copy only the arrays changed by sorting/filtering; retain reactive item data.
+            let containers = platformContainers.map(container => ({
+                ...container,
+                agents: (container.agents ?? []).map(agent => ({
+                    ...agent,
+                    actions: [...(agent.actions ?? [])],
+                })),
+            }));
             containers.sort((a, b) => {
                 if (this.isInternalContainer(a.containerId) && !this.isInternalContainer(b.containerId)) return -1;
                 if (!this.isInternalContainer(a.containerId) && this.isInternalContainer(b.containerId)) return 1;

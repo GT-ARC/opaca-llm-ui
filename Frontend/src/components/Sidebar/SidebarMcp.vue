@@ -420,7 +420,10 @@ export default {
                 if (requestVersion !== this.registryQueryVersion) return;
                 const nextServers = this.normalizeRegistryServers(result.servers);
                 const knownServers = new Set(this.registryMcp.map(server => server.name));
-                this.registryMcp.push(...nextServers.filter(server => !knownServers.has(server.name)));
+                this.registryMcp = [
+                    ...this.registryMcp,
+                    ...nextServers.filter(server => !knownServers.has(server.name)),
+                ];
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
                 loaded = true;
             } catch (error) {
