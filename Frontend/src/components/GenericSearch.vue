@@ -15,45 +15,54 @@
             <i class="fa fa-circle-notch fa-spin" />
         </div>
 
-        <slot
-            name="context-previews"
-            :context-previews="contextPreviews"
-            :select-context="selectContext"
-        >
-            <div v-if="contextPreviews.length > 0" class="sidebar-search-results">
+        <div v-if="contextPreviews.length > 0" class="sidebar-search-results">
+            <div
+                v-for="preview in contextPreviews"
+                :key="preview.key"
+                class="sidebar-search-result-group"
+            >
+                <div class="sidebar-search-result-heading">{{ preview.path }}</div>
                 <div
-                    v-for="preview in contextPreviews"
-                    :key="preview.key"
-                    class="sidebar-search-result-group"
+                    v-for="context in preview.contexts"
+                    :key="context.key"
+                    class="sidebar-search-result-context"
+                    :class="{ 'sidebar-search-result-clickable': context.clickable }"
+                    @click="context.clickable && selectContext(preview, context)"
                 >
-                    <div class="sidebar-search-result-heading">{{ preview.path }}</div>
-                    <div
-                        v-for="context in preview.contexts"
-                        :key="context.key"
-                        class="sidebar-search-result-context"
-                        :class="{ 'sidebar-search-result-clickable': context.clickable }"
-                        @click="selectContext(preview, context)"
-                    >
-                        {{ context.text }}
-                    </div>
+                    {{ context.text }}
                 </div>
             </div>
-        </slot>
+        </div>
     </template>
 
-    <slot
-        :filtered-items="filteredItems"
-        :search-active="searchActive"
-        :search-query="searchQuery"
-        :is-loading="isLoading"
-        :context-previews="contextPreviews"
-    />
+    <slot :filtered-items="filteredItems" />
 </template>
 
 <script>
 import {nextTick} from 'vue';
 
-const identity = value => value;
+/**
+ * Reusable search controller and renderer.
+ *
+ * Local flat collections can provide getItemSearchValues and optionally
+ * getItemContextPreview. More complex or asynchronous searches provide
+ * filterItems(items, query, helpers), returning:
+ *
+ * {
+ *     filteredItems: Array | Object,
+ *     contextPreviews: [{
+ *         key: any,
+ *         path: string,
+ *         context?: string,
+ *         contexts?: [{key?: any, text: string, clickable?: boolean, onSelect?: Function}],
+ *     }],
+ * }
+ *
+ * helpers contains the normalized query plus matches(value) and
+ * excerpt(value, radius). The default slot receives filteredItems. Through a
+ * template ref, callers can toggle/open/close/refresh search and read its
+ * filtered items, active state, query, or context previews.
+ */
 
 export default {
     name: 'GenericSearch',
@@ -70,11 +79,7 @@ export default {
             type: Number,
             default: 0,
         },
-        /**
-         * May return the filtered collection directly or an object containing
-         * { filteredItems, contextPreviews }. Both synchronous and asynchronous
-         * callbacks are supported.
-         */
+        /** Both synchronous and asynchronous callbacks are supported. */
         filterItems: {
             type: Function,
             default: null,
@@ -89,21 +94,14 @@ export default {
             default: (_item, index) => index,
         },
         /**
-         * Builds a preview for one filtered item. It may return a string, one
-         * preview, multiple previews, or null to suppress the preview.
+         * Builds one or more previews for a filtered item, or null to suppress it.
          */
         getItemContextPreview: {
             type: Function,
             default: null,
         },
     },
-    emits: [
-        'search-active-change',
-        'search-query-change',
-        'filtered-items-change',
-        'context-select',
-        'search-error',
-    ],
+    emits: ['search-query-change'],
     data() {
         return {
             searchActive: false,
@@ -127,7 +125,6 @@ export default {
         async openSearch() {
             if (!this.searchActive) {
                 this.searchActive = true;
-                this.$emit('search-active-change', true);
             }
             await nextTick();
             this.$refs.searchBar?.focus();
@@ -142,7 +139,6 @@ export default {
             this.contextPreviews = [];
             this.filteredItems = this.items;
             this.$emit('search-query-change', '');
-            this.$emit('search-active-change', false);
             this.refreshSearch();
         },
 
@@ -166,26 +162,22 @@ export default {
             try {
                 const result = this.filterItems
                     ? await this.filterItems(this.items, query, helpers)
-                    : this.defaultFilterItems(this.items, query, helpers);
+                    : {
+                        filteredItems: this.defaultFilterItems(this.items, query, helpers),
+                        contextPreviews: null,
+                    };
                 if (version !== this.searchVersion) return;
 
-                const hasSearchResultShape = result
-                    && !Array.isArray(result)
-                    && Object.prototype.hasOwnProperty.call(result, 'filteredItems');
-                this.filteredItems = hasSearchResultShape ? result.filteredItems : result;
+                this.filteredItems = result.filteredItems;
                 this.contextPreviews = this.normalizeContextPreviews(
-                    hasSearchResultShape
-                        ? result.contextPreviews
-                        : this.createContextPreviews(this.filteredItems, query, helpers),
+                    result.contextPreviews
+                        ?? this.createContextPreviews(this.filteredItems, query, helpers),
                 );
-                this.$emit('filtered-items-change', this.filteredItems);
             } catch (error) {
                 if (version !== this.searchVersion) return;
                 console.error(error);
                 this.filteredItems = this.emptyCollection(this.items);
                 this.contextPreviews = [];
-                this.$emit('search-error', error);
-                this.$emit('filtered-items-change', this.filteredItems);
             } finally {
                 if (version === this.searchVersion) this.isLoading = false;
             }
@@ -211,27 +203,23 @@ export default {
             return entries.flatMap(([index, item]) => {
                 const preview = this.getItemContextPreview(item, query, helpers, index);
                 return this.asArray(preview).map((entry, previewIndex) => {
-                    if (!entry || typeof entry === 'string') return entry;
+                    if (!entry) return entry;
                     return {
                         ...entry,
                         key: entry.key ?? `${this.getItemKey(item, index)}-${previewIndex}`,
                     };
                 });
-            }).filter(identity);
+            }).filter(Boolean);
         },
 
         normalizeContextPreviews(previews = []) {
-            return previews.filter(identity).map((preview, previewIndex) => {
-                if (typeof preview === 'string') {
-                    preview = {context: preview};
-                }
-                const rawContexts = preview.contexts ?? [preview.context ?? ''];
+            return previews.filter(Boolean).map((preview, previewIndex) => {
+                const rawContexts = preview.contexts ?? [{text: preview.context ?? ''}];
                 const contexts = rawContexts.map((context, contextIndex) => {
-                    if (typeof context === 'string') context = {text: context};
                     return {
                         ...context,
                         key: context.key ?? contextIndex,
-                        text: context.text ?? context.context ?? '',
+                        text: context.text ?? '',
                         clickable: context.clickable ?? Boolean(context.onSelect),
                     };
                 });
@@ -246,7 +234,6 @@ export default {
 
         selectContext(preview, context) {
             context.onSelect?.(context, preview);
-            this.$emit('context-select', context, preview);
         },
 
         getSearchHelpers(query = this.searchQuery) {
@@ -302,3 +289,31 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.sidebar-search-results {
+    max-height: 12rem;
+    overflow-y: auto;
+    margin-bottom: .5rem;
+}
+
+.sidebar-search-result-group + .sidebar-search-result-group {
+    margin-top: .75rem;
+}
+
+.sidebar-search-result-heading {
+    color: var(--secondary-color);
+    font-size: .875rem;
+}
+
+.sidebar-search-result-context {
+    padding: .5rem;
+    margin-top: .25rem;
+    overflow-wrap: anywhere;
+}
+
+.sidebar-search-result-clickable:hover {
+    background-color: var(--surface-color);
+    cursor: pointer;
+}
+</style>

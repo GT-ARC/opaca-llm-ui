@@ -446,32 +446,6 @@ export default {
     margin-right: .75rem !important;
 }
 
-.sidebar-search-results {
-    max-height: 12rem;
-    overflow-y: auto;
-    margin-bottom: .5rem;
-}
-
-.sidebar-search-result-group + .sidebar-search-result-group {
-    margin-top: .75rem;
-}
-
-.sidebar-search-result-heading {
-    color: var(--secondary-color);
-    font-size: .875rem;
-}
-
-.sidebar-search-result-context {
-    padding: .5rem;
-    margin-top: .25rem;
-    overflow-wrap: anywhere;
-}
-
-.sidebar-search-result-clickable:hover {
-    background-color: var(--surface-color);
-    cursor: pointer;
-}
-
 .sidebar-empty-state {
     padding: 1.2rem;
     color: var(--text-secondary-color);
