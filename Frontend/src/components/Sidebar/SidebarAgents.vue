@@ -12,7 +12,7 @@
                disabled: this.isLoading || !this.platformContainers || this.platformContainers.length === 0,
            }"
            :aria-disabled="this.isLoading || !this.platformContainers || this.platformContainers.length === 0"
-           @click="toggleSearch"
+           @click="$refs.search.toggleSearch()"
            :title="Localizer.get('agents_search')" />
     </div>
 
@@ -31,28 +31,20 @@
         {{ Localizer.get('agents_missing') }}
     </div>
     <div v-else class="flex-row" >
-        <input v-if="isSearching"
-            type="search"
-            ref="searchBar"
-            class="form-control my-2"
+        <GenericSearch
+            ref="search"
+            :items="platformContainers"
             :placeholder="Localizer.get('agents_search')"
-            v-model="this.searchQuery"
-        />
-        <div v-if="agentSearchContexts.length > 0" class="sidebar-search-results">
-            <div v-for="result in agentSearchContexts"
-                 :key="result.key"
-                 class="sidebar-search-result-group">
-                <div class="sidebar-search-result-heading">{{ result.path }}</div>
-                <div class="sidebar-search-result-context">{{ result.context }}</div>
-            </div>
-        </div>
-        <AppAccordion
-            id="agents-accordion"
-            class="text-start"
-            :items="getContainers()"
-            :get-key="container => container.containerId"
+            :filter-items="filterContainers"
         >
-            <template #header="{ item: {containerId, image} }">
+            <template #default="{ filteredItems }">
+                <AppAccordion
+                    id="agents-accordion"
+                    class="text-start"
+                    :items="filteredItems"
+                    :get-key="container => container.containerId"
+                >
+                <template #header="{ item: {containerId, image} }">
                 <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
                 <strong class="container-name">{{ (image?.name === "" ? null : image?.name) ?? image?.imageName ?? containerId }}</strong>
 
@@ -141,8 +133,10 @@
                         </AppAccordion>
                     </template>
                 </AppAccordion>
+                </template>
+                </AppAccordion>
             </template>
-        </AppAccordion>
+        </GenericSearch>
     </div>
 </div>
 
@@ -156,12 +150,13 @@ import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import AppAccordion from '../AppAccordion.vue';
+import GenericSearch from '../GenericSearch.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
 
 export default {
     name: 'SidebarAgents',
-    components: {AppAccordion, InputDialogue},
+    components: {AppAccordion, GenericSearch, InputDialogue},
     props: {
         isPlatformConnected: Boolean,
     },
@@ -173,71 +168,10 @@ export default {
         return {
             platformContainers: null,
             isLoading: false,
-            isSearching: false,
-            searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
         };
     },
-    computed: {
-        agentSearchContexts() {
-            const query = this.searchQuery.trim().toLowerCase();
-            if (!query || !this.platformContainers) return [];
-
-            const results = [];
-            const matches = value => value?.toLowerCase().includes(query);
-            const excerpt = value => {
-                const text = value ?? '';
-                const index = text.toLowerCase().indexOf(query);
-                if (index < 0) return text;
-                const start = Math.max(0, index - 40);
-                const end = Math.min(text.length, index + query.length + 40);
-                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
-            };
-
-            this.platformContainers.forEach(container => {
-                const containerName = container.image?.imageName ?? container.containerId;
-                if (matches(containerName)) {
-                    results.push({
-                        key: `container-${container.containerId}`,
-                        path: containerName,
-                        context: excerpt(containerName),
-                    });
-                }
-
-                container.agents?.forEach(agent => {
-                    if (matches(agent.agentId)) {
-                        results.push({
-                            key: `agent-${container.containerId}-${agent.agentId}`,
-                            path: `${containerName} › ${agent.agentId}`,
-                            context: excerpt(agent.agentId),
-                        });
-                    }
-
-                    agent.actions?.forEach(action => {
-                        if (!matches(action.name) && !matches(action.description)) return;
-                        results.push({
-                            key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
-                            path: `${containerName} › ${agent.agentId} › ${action.name}`,
-                            context: excerpt(matches(action.description) ? action.description : action.name),
-                        });
-                    });
-                });
-            });
-
-            return results;
-        },
-    },
     methods: {
-        async toggleSearch() {
-            this.isSearching = !this.isSearching;
-            if (!this.isSearching) {
-                this.searchQuery = '';
-                return;
-            }
-            await nextTick();
-            this.$refs.searchBar?.focus();
-        },
-
         getEffectiveApproval(agentId, action, approvals) {
             return getEffectiveApproval(`${agentId}--${action.name}`, approvals?.[`${agentId}--${action.name}`], this.restrictedActions);
         },
@@ -293,17 +227,41 @@ export default {
             return containerId === "__internal_tools__";
         },
 
-        getContainers() {
-            const matches = (s) => {
-                if (!this.searchQuery) return true;
-                return s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+        filterContainers(platformContainers, query, {matches, excerpt}) {
+            if (!platformContainers) return {filteredItems: [], contextPreviews: []};
+            const contextPreviews = [];
+            if (query.trim()) {
+                platformContainers.forEach(container => {
+                    const containerName = container.image?.imageName ?? container.containerId;
+                    if (matches(containerName)) {
+                        contextPreviews.push({
+                            key: `container-${container.containerId}`,
+                            path: containerName,
+                            context: excerpt(containerName),
+                        });
+                    }
+                    container.agents?.forEach(agent => {
+                        if (matches(agent.agentId)) {
+                            contextPreviews.push({
+                                key: `agent-${container.containerId}-${agent.agentId}`,
+                                path: `${containerName} › ${agent.agentId}`,
+                                context: excerpt(agent.agentId),
+                            });
+                        }
+                        agent.actions?.forEach(action => {
+                            if (!matches(action.name) && !matches(action.description)) return;
+                            contextPreviews.push({
+                                key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
+                                path: `${containerName} › ${agent.agentId} › ${action.name}`,
+                                context: excerpt(matches(action.description) ? action.description : action.name),
+                            });
+                        });
+                    });
+                });
             }
-            if (!this.platformContainers) return [];
 
-            // Create local deep-copy of the container data
-            let containers = JSON.parse(JSON.stringify(this.platformContainers));
-
-            // sort containers/agents/actions alphabetically
+            // Create a local deep copy and preserve the existing alphabetical list ordering.
+            let containers = JSON.parse(JSON.stringify(platformContainers));
             containers.sort((a, b) => {
                 if (this.isInternalContainer(a.containerId) && !this.isInternalContainer(b.containerId)) return -1;
                 if (!this.isInternalContainer(a.containerId) && this.isInternalContainer(b.containerId)) return 1;
@@ -316,7 +274,7 @@ export default {
                 });
             });
 
-            // filter for search query
+            if (!query.trim()) return {filteredItems: containers, contextPreviews};
             containers = containers.filter(container => {
                 if (matches(container.image.imageName)) return true;
                 container.agents = container.agents.filter(agent => {
@@ -329,7 +287,7 @@ export default {
                 return container.agents.length > 0;
             });
 
-            return containers;
+            return {filteredItems: containers, contextPreviews};
         },
 
         // MULTI-PAGE "WIZARD" FOR STARTING CONTAINERS IN DIFFERENT WAYS, INCLUDING PARAMETERS
