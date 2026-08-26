@@ -406,8 +406,40 @@ class MCPTool(BaseModel):
             "type": "function",
             "name": self.get_full_name(),
             "description": self.description,
-            "parameters": self.inputSchema
+            "parameters": normalize_mcp_schema_for_llm(self.inputSchema)
         }
+
+
+def normalize_mcp_schema_for_llm(value: Any) -> Any:
+    """Return an LLM-compatible copy of an MCP tool's JSON Schema.
+
+    JSON Schema patterns may contain lookarounds, but OpenAI's tool-schema
+    validator rejects them. Dropping only those pattern constraints keeps the
+    original MCP schema intact and lets the MCP server validate invoked input.
+    """
+    if isinstance(value, dict):
+        return {
+            key: normalize_mcp_schema_for_llm(item)
+            for key, item in value.items()
+            if not (key == "pattern" and isinstance(item, str) and _contains_regex_lookaround(item))
+        }
+    if isinstance(value, list):
+        return [normalize_mcp_schema_for_llm(item) for item in value]
+    return value
+
+
+def _contains_regex_lookaround(pattern: str) -> bool:
+    for index, char in enumerate(pattern):
+        if char != "(":
+            continue
+        preceding_backslashes = 0
+        cursor = index - 1
+        while cursor >= 0 and pattern[cursor] == "\\":
+            preceding_backslashes += 1
+            cursor -= 1
+        if preceding_backslashes % 2 == 0 and pattern.startswith(("(?=", "(?!", "(?<=", "(?<!"), index):
+            return True
+    return False
 
 
 class MCPServer(BaseModel):
