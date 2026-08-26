@@ -121,7 +121,7 @@ class ScheduledTaskTools:
                     e.g. 'You asked me to remind you to ...'; do NOT create another 'ScheduleTask' reminder!
                     If it asked you to do something by that time, just do it and report on the results as usual.
                 """)
-                result = await self.ctx.query(query_ext)
+                result = await self.ctx.query(query_ext, agent_prefix="InternalTool / ScheduledTask")
             except Exception as e:
                 logger.error(f"Scheduled task {task_id} failed:SCHEDULED TASK FAILED: {e}")
                 result = QueryResponse(query=query)

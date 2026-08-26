@@ -107,7 +107,7 @@ class OpacaClient(AsyncOpacaClient):
         """
         if not self.url: return {}
         try:
-            res = await self._request('GET', '/v3/api-docs/actions')
+            res = await self._request('GET', '/v3/api-docs/actions?includeConnected=true')
             if inline_refs:
                 loader = functools.partial(jsonref.jsonloader, parse_float=decimal.Decimal)
                 return jsonref.load(res, loader=loader)

@@ -5,7 +5,7 @@ from starlette.datastructures import Headers
 from starlette.websockets import WebSocket
 
 from src.models import SessionData, OpacaException
-from src.session_manager import create_or_refresh_session
+from src.services.session_manager import create_or_refresh_session
 
 
 def example_prompt():

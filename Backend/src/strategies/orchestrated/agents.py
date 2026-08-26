@@ -7,7 +7,7 @@ import pytz
 from copy import deepcopy
 
 
-from ..models import ChatMessage, AgentMessage
+from ...models import ChatMessage
 from .models import (
     AgentTask, OrchestratorPlan, PlannerPlan, AgentEvaluation,
     AgentResult, IterationAdvice

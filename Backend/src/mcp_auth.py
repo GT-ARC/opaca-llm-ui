@@ -123,7 +123,7 @@ class MCPTokenStorage(TokenStorage):
             return
         if self.session.mcp_servers.get(self.server.server_label) is not self.server:
             return
-        from .session_manager import db_client
+        from .services.session_manager import db_client
         await db_client.save_session(self.session)
 
     async def get_tokens(self) -> OAuthToken | None:

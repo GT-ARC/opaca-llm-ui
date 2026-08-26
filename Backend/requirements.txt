@@ -17,3 +17,5 @@ opaca>=0.0.8
 auth0-fastapi-api>=1.0.0b7
 python-jose[cryptography]>=3.5.0
 cryptography>=44.0.0
+yake>=0.4.8
+pypdf>=5.0.0

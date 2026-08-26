@@ -43,7 +43,7 @@ class ChatTools:
             {search_query}
         """)
         try:
-            res = await self.ctx.query(query)
+            res = await self.ctx.query(query, agent_prefix="InternalTool / SearchChats")
             return res.content
         except Exception as e:
             return f"Search failed: {e}"

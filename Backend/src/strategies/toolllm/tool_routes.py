@@ -6,9 +6,9 @@ from typing import List
 from pydantic import BaseModel
 
 from .prompts import GENERATOR_PROMPT, EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_TEMPLATE, \
-    OUTPUT_GENERATOR_NO_TOOLS, FILE_EVALUATOR_SYSTEM_PROMPT, FILE_EVALUATOR_TEMPLATE, OUTPUT_GENERATOR_SYSTEM_PROMPT
+    OUTPUT_GENERATOR_NO_TOOLS, OUTPUT_GENERATOR_SYSTEM_PROMPT
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
+from ...models import QueryResponse, ChatMessage, ToolCall, MethodConfig, LLMConfig, ToolResultMessage
 
 
 class ToolLlmConfig(MethodConfig):
@@ -45,29 +45,6 @@ class ToolLLMMethod(AbstractMethod):
 
         # Save time before execution
         total_exec_time = time.time()
-
-        # If files were uploaded, check if any tools need to be called with extracted information
-        if self.chat.active_files:
-            result = await self.call_llm(
-                model_config=config.tool_eval_model,
-                agent='Tool Evaluator',
-                system_prompt=FILE_EVALUATOR_SYSTEM_PROMPT,
-                messages=[
-                    ChatMessage(role="user", content=FILE_EVALUATOR_TEMPLATE.format(
-                        message=self.response.query,
-                    )),
-                ],
-                response_format=self.EvaluatorResponse,
-                tools=tools,
-                tool_choice="none",
-                status_message="Checking if tools are needed",
-            )
-            self.response.agent_messages.append(result)
-            try:
-                formatted_result = json.loads(result.content)
-                skip_chain = formatted_result["decision"] == 'FINISHED'
-            except json.JSONDecodeError as e:
-                print(f'Encountered error when parsing json content: {e}')
 
         # If no tools are available, skip the internal chain and go straight to the output generation
         if len(tools) == 0:

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..code_execution import CodeExecutor
-from ..models import InternalTool, ScheduledTask, SessionData
+from ..services.code_execution import CodeExecutor
+from ..models import InternalTool, QueryResponse, ScheduledTask, SessionData
 from .context import InternalToolContext
 from .chats import ChatTools
 from .code_tools import CodeTools
@@ -23,7 +23,7 @@ from .play_books import PlayBookTools
 from .scheduling import ScheduledTaskTools
 
 if TYPE_CHECKING:
-    from ..abstract_method import AbstractMethod
+    from ..strategies import AbstractMethod
 
 
 ToolGroup = PlayBookTools | ScheduledTaskTools | ChatTools | FileTools | CodeTools
@@ -47,6 +47,20 @@ class InternalTools:
             code_executor=self.code_executor,
         )
         self.groups = [group_cls(self.context) for group_cls in TOOL_GROUPS]
+
+    # TODO reconsider whether to just add all those to __init__, since they are called right after init anyway, either in server.py or abstract_method.py
+
+    def set_chat(self, chat):
+        self.context.chat = chat
+
+    def set_response(self, response: QueryResponse):
+        self.context.response = response
+
+    def set_streaming(self, streaming: bool):
+        self.context.streaming = streaming
+
+    def set_current_file_ids(self, file_ids: set[str]):
+        self.context.current_file_ids = file_ids
 
     # FORMAT INTERNAL TOOLS FOR DIFFERENT OCCASIONS
 

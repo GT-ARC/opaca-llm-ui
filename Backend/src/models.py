@@ -4,7 +4,7 @@ Request and response models used in the FastAPI routes (and in some of the imple
 import copy
 from enum import Enum
 import re
-from typing import Callable, Iterable, Set, Literal, Annotated
+from typing import Callable, Iterable, Set, Annotated
 from typing import List, Dict, Any, Iterator
 from datetime import datetime, timezone
 import logging
@@ -18,7 +18,7 @@ from litellm import get_supported_openai_params
 from starlette.websockets import WebSocket
 from pydantic import BaseModel, Field, PrivateAttr, SerializeAsAny, ValidationError, model_serializer, model_validator
 
-from .opaca_client import OpacaClient
+from .services.opaca_client import OpacaClient
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def get_supported_models(supports_structured_output: bool = False):
         return os.getenv(key, alt).split(";")
     hosts = get_env("LLM_HOSTS", "openai;mistral;anthropic;gemini")
     api_keys = get_env("LLM_API_KEYS", ";;;")
-    models = get_env("LLM_MODELS", "gpt-4o-mini,gpt-4o,gpt-5-mini,gpt-5;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-5,claude-opus-4-1;gemini-2.5-pro,gemini-2.5-flash")
+    models = get_env("LLM_MODELS", "gpt-5.6-luna,gpt-5.6-terra,gpt-5.6-sol,gpt-4o-mini,gpt-4o;mistral-medium-latest,magistral-medium-latest;claude-sonnet-4-6,claude-opus-4-6;gemini-2.5-pro,gemini-3.6-flash,gemini-3.1-pro-preview")
     return [
         (url, key, models.split(","))
         for url, key, models in zip(hosts, api_keys, models)
@@ -173,9 +173,11 @@ class QueryRequest(BaseModel):
     Attributes
         user_query: The query a user has input into the SAGE ChatBot.
         streaming: whether intermediate results should be streamed via Websocket
+        file_ids: Files attached to this specific user message.
     """
     user_query: str
     streaming: bool = False
+    file_ids: List[str] = Field(default_factory=list)
 
 
 class AgentMessage(BaseModel):
@@ -235,17 +237,19 @@ class QueryResponse(BaseModel):
 
 class OpacaFile(BaseModel):
     """
-    Represents a single uploaded PDF file.
+    Represents a single uploaded file.
 
     Attributes:
         file_id: ID assigned after upload
         content_type: MIME type of the file
         file_name: The absolute path to the file
-        host_ids: IDs assigned by each host the file has been uploaded to
+        keywords: Short key terms used for inexpensive relevance selection
+        host_ids: IDs assigned by each provider/purpose/API-key combination
     """
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content_type: str
     file_name: str
+    keywords: List[str] = Field(default_factory=list)
     host_ids: Dict[str, str] = Field(default_factory=dict)
 
 
@@ -570,19 +574,30 @@ class SessionData(BaseModel):
             await self._websocket.send_json(msg)
         self._ws_out_cache.clear()
 
-    async def websocket_send(self, message: BaseModel) -> bool:
-        """Send object as JSON over websocket. The JSON will include the class name as "type"."""
-        typed_message = {"type": message.__class__.__name__, **message.model_dump()}
+    async def websocket_send(self, message: BaseModel) -> str:
+        """Send object as JSON over websocket. The JSON will include the class name as "type", as well
+        as a UUID "id". The id is returned and can be used to retrieve a response to the message."""
+        id = str(uuid.uuid4())
+        typed_message = {
+            "type": message.__class__.__name__,
+            "id": id,
+            **message.model_dump()
+        }
         if self._websocket:
             await self._websocket.send_json(typed_message)
-            return True
         else:
             self._ws_out_cache.append(typed_message)
-            return False
+        return id
 
-    async def websocket_receive(self) -> dict:
+    async def websocket_receive(self, id: str) -> dict:
         if self._websocket and self._ws_msg_queue:
-            return await self._ws_msg_queue.get()
+            while True:
+                msg = await self._ws_msg_queue.get()
+                if msg["id"] == id:
+                    return msg
+                else:
+                    await self._ws_msg_queue.put(msg)  # not the message we are looking for
+                    await asyncio.sleep(0.1)  # wait a bit before checking the queue again
         else:
             raise Exception("Websocket not connected")
 
@@ -947,6 +962,7 @@ class LLMConfig(BaseModel):
         # Special handling for reasoning models not supporting temperature settings
         if any(i in self.model for i in ["gpt-5", "claude-opus", "claude-sonnet"]):
             filtered.pop("temperature", None)
+            filtered.pop("top_p", None)
 
         return filtered
 

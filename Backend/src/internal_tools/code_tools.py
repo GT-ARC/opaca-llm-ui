@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from ..code_execution import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, CodeExecutor, extract_code_block
+from ..services.code_execution import PYODIDE_CODE_PROMPT, PYODIDE_CODE_RETRY_PROMPT, CodeExecutor, extract_code_block
 from ..models import InternalTool
 from .context import InternalToolContext
 
@@ -48,7 +48,7 @@ class CodeTools:
 
         for attempt in range(1, max_code_retries + 2):
             # 1. Ask the LLM to write code
-            llm_response = await self.ctx.query(prompt)
+            llm_response = await self.ctx.query(prompt, agent_prefix="InternalTool / SolveWithCode")
             code = extract_code_block(llm_response.content)
 
             if not code:

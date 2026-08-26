@@ -96,7 +96,9 @@ REMEMBER: ALWAYS USE A TOOL, NEVER RESPOND WITH TEXT."""
 AGENT_EVALUATOR_PROMPT = """You are an evaluator that determines if an agent's task execution needs another iteration.
 
 IMPORTANT: Keep in mind that there is an output generating LLM-Agent at the end of the chain.
-If the task requires summarizing information, no separate agent or function is needed for that, as the output generating agent will do that AUTOMATICALLY!
+The output generator can format and synthesize information that has already been retrieved, so
+no extra step is needed only to rewrite existing results. It cannot retrieve missing information.
+Uploaded files may need to be activated before their contents can be used.
 
 Your ONLY role is to output EXACTLY ONE of these two options:
 - REITERATE: If there are remaining ESSENTIAL steps that MUST be attempted
@@ -199,7 +201,9 @@ The 'should_retry' field is the most important. Set it to 'True' only if:
 - Critical information is still missing,
 - There is a clear and feasible way to retrieve it in another iteration.
 
-The final OutputGenerator agent will handle all summarization - do not suggest steps just to summarize.
+The final OutputGenerator will summarize information already present in execution results. Do not
+suggest steps merely to rewrite those results. For uploaded files, retry with file lookup only if
+essential file contents are still missing.
 
 Your Thought Process:
 1. Analyze results
@@ -254,5 +258,7 @@ INTERNAL_AGENT_DESC = """**Purpose:** The InternalToolsAgent provides different 
 * accessing information from past chats and interactions,
 * managing reminders to the user and scheduled tasks for later or regular execution,
 * loading files from a URI,
+* selecting/activating uploaded files by filenames and keywords,
+* retrieving full file contents when necessary,
 * running code to perform complex calculations.
 """

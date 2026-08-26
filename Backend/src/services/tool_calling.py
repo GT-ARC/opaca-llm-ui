@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 import asyncio
 
 import httpx
 from pydantic import BaseModel
 
-from .models import (ToolApprovalState, SessionData,
+from ..models import (ToolApprovalState, SessionData,
                      ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
                      ToolResultMessage, ConfirmActionNotification, ConfirmActionResponse)
-from .internal_tools import InternalTools
 from .opaca_client import actions_blacklist
+
+if TYPE_CHECKING:
+    from ..internal_tools import InternalTools
 
 
 # list of string-fragments; if any action or agent name contains one of those, SAGE will ask for confirmation before calling the tool
@@ -40,7 +44,7 @@ class ToolCaller:
 
     async def invoke_tool(self, tool: ToolCall, login_attempt_retry: bool = False, skip_approval: bool = False) -> ToolCall:
         """
-        Invoke tool (OPACA or MCP) matching the given ToolCall. 
+        Invoke tool (OPACA or MCP) matching the given ToolCall.
         If OPACA invoke fails due to required login, attempt Login (via websocket callback) and try again.
         In any case returns a ToolCall, where "result" can be an error message.
         """
@@ -55,7 +59,7 @@ class ToolCaller:
             if approval_state == ToolApprovalState.DENY:
                 # Should not happen due to filtering in get_tools, but double-checking approval status just in case it changes in the future
                 return await create_result("Failed to invoke tool.\nExecution denied by user settings, do not attempt again.")
-                
+
             if approval_state == ToolApprovalState.ASK and not await self.check_confirmation(tool.name, tool.args):
                 return await create_result("Failed to invoke tool.\nExecution declined by user, do not attempt again.")
 
@@ -66,7 +70,7 @@ class ToolCaller:
         if tool.type == ToolType.MCP:
             server = self.session.mcp_servers.get(provider)
             try:
-                from .mcp_auth import call_mcp_tool
+                from ..mcp_auth import call_mcp_tool
                 res = await call_mcp_tool(self.session, server, tool_name, tool.args)
                 if res.is_error:
                     t_result = f"Failed to invoke MCP tool.\nError: {res.content}"
@@ -80,7 +84,9 @@ class ToolCaller:
             try:
                 t_result = await self.internal_tools.call_internal_tool(tool_name, tool.args)
             except Exception as e:
-                t_result = f"Failed to invoke Internal tool.\nCause: {e}"
+                logger.exception("Internal tool %s failed", tool.name)
+                cause = getattr(e, "error_message", None) or str(e) or type(e).__name__
+                t_result = f"Failed to invoke Internal tool.\nCause: {cause}"
 
         # OPACA Tool Execution Flow
         else:
@@ -126,8 +132,8 @@ class ToolCaller:
         if not self.session.has_websocket(): return False
         # ask user for confirmation, sharing lock-mechanism with container-login
         async with self.session.opaca_client.login_lock:
-            await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
-            return ConfirmActionResponse(**await self.session.websocket_receive()).allowed
+            msg_id = await self.session.websocket_send(ConfirmActionNotification(tool=tool_name, params=parameters))
+            return ConfirmActionResponse(**await self.session.websocket_receive(msg_id)).allowed
 
 
     async def handle_container_login(self, agent_name: str, action_name: str, tool: ToolCall, login_attempt_retry: bool = False):
@@ -149,16 +155,16 @@ class ToolCaller:
                 return await self.invoke_tool(tool, True)
             while True:
                 # Get credentials from user
-                await self.session.websocket_send(ContainerLoginNotification(
+                msg_id = await self.session.websocket_send(ContainerLoginNotification(
                     container_name=container_name,
                     tool_name=tool.name,
                     retry=login_attempt_retry
                 ))
-                response = ContainerLoginResponse(**await self.session.websocket_receive())
+                response = ContainerLoginResponse(**await self.session.websocket_receive(msg_id))
                 if not (response.username and response.password):
                     tool.result = "Failed to invoke tool.\nNo credentials provided."
                     return tool
-                
+
                 # Attempt to login at container via OPACA (error if immediate login-check fails)
                 try:
                     await self.session.opaca_client.container_login(container_id, response.username, response.password)

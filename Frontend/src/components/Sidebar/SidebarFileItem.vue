@@ -1,6 +1,7 @@
 <template>
     <div class="file align-items-center"
          :class="{ 'file-suspended': !this.isFileActive() }"
+         :title="this.file.file_name"
          @click.stop="this.viewFile()">
         <input
             class="file-name"

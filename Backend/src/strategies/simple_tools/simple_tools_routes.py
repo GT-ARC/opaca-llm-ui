@@ -3,7 +3,7 @@ import logging
 import time
 
 from ..abstract_method import AbstractMethod
-from ..models import QueryResponse, AgentMessage, ChatMessage, MethodConfig, LLMConfig, ResetTextMessage
+from ...models import QueryResponse, AgentMessage, ChatMessage, MethodConfig, LLMConfig, ResetTextMessage
 
 SYSTEM_PROMPT = """You are a helpful ai assistant who answers user queries with the help of 
 tools. You can find those tools in the tool section. Do not generate optional 
@@ -74,7 +74,7 @@ class SimpleToolsMethod(AbstractMethod):
                     content=f"A user had the following request: {self.response.query}\n"
                             f"You have used the following tools: \n{tool_contents}")
                 )
-                self.response.agent_messages[-1].tools = tool_entries
+                result.tools = tool_entries
 
             except Exception as e:
                 error = f"There was an error in simple_tools_routes: {e}"

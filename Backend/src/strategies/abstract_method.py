@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Type, Literal
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal
 import asyncio
 import jsonref
 from itertools import count
@@ -15,13 +17,15 @@ import litellm
 from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
-from .models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
+from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
-from .file_utils import upload_files
-from .internal_tools import InternalTools
-from .opaca_client import actions_blacklist
-from .tool_calling import ToolCaller
+from ..services.file_utils import get_file_parts
+from ..services.opaca_client import actions_blacklist
+from ..services.tool_calling import ToolCaller
+
+if TYPE_CHECKING:
+    from ..internal_tools import InternalTools
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +58,10 @@ class AbstractMethod(ABC):
         self.streaming = streaming
         self.tool_counter = count(0)
         self.internal_tools = internal_tools
+        if self.internal_tools:
+            self.internal_tools.set_chat(chat)
+            self.internal_tools.set_response(response)
+            self.internal_tools.set_streaming(streaming)
         self.tool_caller = ToolCaller(session, internal_tools, streaming, chat.chat_id)
 
     @classmethod
@@ -81,6 +89,7 @@ class AbstractMethod(ABC):
             response_format: Optional[Type[BaseModel]] = None,
             status_message: str | None = None,
             is_output: bool = False,
+            attached_file_ids: set[str] | None = None,
     ) -> AgentMessage:
         """
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
@@ -95,6 +104,7 @@ class AbstractMethod(ABC):
             response_format (Optional[Type[BaseModel]]): Optional Pydantic schema to validate response.
             status_message (str): optional message to be streamed to the UI
             is_output (bool): whether agent output should be streamed directly to chat or only to debug
+            attached_file_ids: IDs of files whose full contents should be attached to this call; by default, agents receive only a list of recently added files.
 
         Returns:
             AgentMessage: The final message returned by the LLM with metadata.
@@ -114,10 +124,27 @@ class AbstractMethod(ABC):
         exec_time = time.time()
         agent_message = AgentMessage(agent=agent, content='', tools=[])
 
-        file_message_parts = await upload_files(self.session, self.chat, model)
+        # Full file contents are opt-in per LLM call. Only these explicitly requested
+        # files are uploaded to the provider and added to the model input.
+        if attached_file_ids:
+            file_message_parts = await get_file_parts(self.session, model, attached_file_ids)
 
-        # Modify the last user message to include file parts
-        if file_message_parts:
+            if not file_message_parts:
+                file_list = ", ".join(
+                    file.file_name
+                    for file_id, file in self.session.uploaded_files.items()
+                    if file_id in attached_file_ids
+                ) or "the selected file"
+                raise OpacaException(
+                    user_message="The selected file could not be attached to the LLM.",
+                    error_message=(
+                        f"No supported file parts were produced for {file_list} using model {model}. "
+                        "PDFs require a model provider with file-upload support; images require a "
+                        "vision-capable OpenAI model in the current implementation."
+                    ),
+                )
+
+            # Modify the last user message to include file parts
             last = messages[-1]
 
             # Normalize last content to "content parts"
@@ -129,6 +156,22 @@ class AbstractMethod(ABC):
 
             # Prepend file parts
             last.content = [*file_message_parts, *parts]
+
+        # Without full contents, preserve only which files belong to the current user request.
+        # This lets the model resolve references such as "this file" without sending their contents.
+        # current_file_ids originates from QueryRequest.
+        if not attached_file_ids and self.internal_tools and tools:
+            current_file_ids = self.internal_tools.context.current_file_ids
+            current_files = [
+                f"{file.file_name} (ID: {file_id})"
+                for file_id, file in self.session.uploaded_files.items()
+                if file_id in current_file_ids
+            ]
+            if current_files:
+                system_prompt = (
+                    f"{system_prompt.rstrip()}\n\nFiles attached to this request: "
+                    f"{', '.join(current_files)}."
+                )
 
         # Set settings for model invocation
         kwargs = {
@@ -161,7 +204,7 @@ class AbstractMethod(ABC):
                     user_message="(The generation of the response has been stopped.)",
                     error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
                 )
-            
+
             elif event.type == event_type.RESPONSE_FAILED:
                 raise OpacaException(
                     user_message="(The generation of the response has failed. See error message for details.)",
@@ -246,7 +289,7 @@ class AbstractMethod(ABC):
 
         # Filter out OPACA tools if user denied OR if it hits the admin blacklist
         tools = [
-            t for t in tools 
+            t for t in tools
             if self.session.get_opaca_tool_approval(t["name"]) != ToolApprovalState.DENY
             and not any(x.lower() in t["name"].lower() for x in actions_blacklist)
         ]
@@ -269,8 +312,10 @@ class AbstractMethod(ABC):
         return tools, error
 
     async def handle_invalid_api_key(self, model, is_invalid: bool = False):
-        await self.send_to_websocket(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
-        response = MissingApiKeyResponse(**await self.session.websocket_receive())
+        if not self.session.has_websocket():
+            raise OpacaException(user_message=f"No API key is available for model {model}.")
+        msg_id = await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
+        response = MissingApiKeyResponse(**await self.session.websocket_receive(msg_id))
         if response.api_key:
             if litellm.check_valid_key(model, response.api_key):
                 self.session.set_api_key(model, response.api_key)

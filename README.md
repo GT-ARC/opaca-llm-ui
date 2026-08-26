@@ -111,7 +111,11 @@ Currently, SAGE can support the following file types as input:
 * PDFs: `.pdf`
 * Images: `.jpg, .jpeg, .png, .gif, .webp`,
 
-Files can be added to a conversation by either adding them via the "Upload File" button in the chat input section or by dragging them into the screen. Files are first uploaded to the SAGE backend and then to the individual selected models in the method configuration upon querying. Including files cross conversations can be toggled in the File-Sidebar. Please note that not all models support file uploads.
+Files can be added through the upload button or by dragging them into the chat. Selecting a PDF or image uploads it immediately to the SAGE backend and activates it for the current chat. Extractable PDF text is also used to generate local keywords for inexpensive relevance selection. Text files are inserted into the prompt instead of being uploaded.
+
+Uploaded files are not automatically sent to an LLM with every query. The current request identifies newly attached files, while internal file tools can inspect metadata across all uploaded files, activate relevant files, and send full contents to a supporting model only when needed. Active files can also be managed from the Files sidebar. See [File handling](docs/tools.md#file-handling) for the complete workflow and file-set definitions.
+
+Please note that not all models support file uploads.
 
 ## 📚 Documentation
 
