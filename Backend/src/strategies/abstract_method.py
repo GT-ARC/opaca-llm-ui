@@ -393,7 +393,7 @@ def openapi_to_functions(
                 continue
 
             try:
-                schema = _rewrite_to_defs(schema, component_schemas)
+                schema = _make_inlined_schema(schema, component_schemas)
             except KeyError as e:
                 error_msg += f'Unresolvable reference in action {function_name}: {e}\n'
                 continue
@@ -411,21 +411,27 @@ def openapi_to_functions(
     return functions, error_msg
 
 
-def _rewrite_to_defs(schema: dict, component_schemas: dict) -> dict:
+def _make_inlined_schema(schema: dict, component_schemas: dict) -> dict:
     """
-    Rewrite all refs to components/schemas to $defs and move all move all
-    used schemas there, too.
+    Rewrite all refs to components/schemas to $defs and
+    move all used schemas there, too.
+
+    :param schema: The action's request body schema that should be rewritten and inlined.
+    :param component_schemas: The full OAS components.
+
+    :return: The schema with only the referenced sub-schemas inlined in $defs.
     """
     collected = {}
-    rewritten = _rewrite_node(schema, component_schemas, collected)
+    rewritten = _rewrite_refs_and_collect_schemas(schema, component_schemas, collected)
     if collected:
         rewritten["$defs"] = collected
     return rewritten
 
 
-def _rewrite_node(node: Any, component_schemas: dict, collected: dict) -> Any:
+def _rewrite_refs_and_collect_schemas(node: Any, component_schemas: dict, collected: dict) -> Any:
     """
-    Replace components/schemas refs with $defs
+    Replace components/schemas refs with $defs, and collect all
+    schemas that were referenced at least once.
     """
     _COMPONENTS_PREFIX = "#/components/schemas/"
     _DEFS_PREFIX = "#/$defs/"
@@ -438,12 +444,12 @@ def _rewrite_node(node: Any, component_schemas: dict, collected: dict) -> Any:
                 result[key] = _DEFS_PREFIX + name
                 if name not in collected:
                     collected[name] = {}  # placeholder blocks re-entry on cycles
-                    collected[name] = _rewrite_node(component_schemas[name], component_schemas, collected)
+                    collected[name] = _rewrite_refs_and_collect_schemas(component_schemas[name], component_schemas, collected)
             else:
-                result[key] = _rewrite_node(value, component_schemas, collected)
+                result[key] = _rewrite_refs_and_collect_schemas(value, component_schemas, collected)
         return result
 
     if isinstance(node, list):
-        return [_rewrite_node(item, component_schemas, collected) for item in node]
+        return [_rewrite_refs_and_collect_schemas(item, component_schemas, collected) for item in node]
 
     return node
