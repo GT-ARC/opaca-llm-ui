@@ -6,7 +6,6 @@ import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal, Tuple
 import asyncio
-import jsonref
 from itertools import count
 from datetime import datetime as dt
 import os
@@ -18,7 +17,7 @@ from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-                     ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
+                     ToolCall, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
 from ..services.file_utils import get_file_parts
 from ..services.opaca_client import actions_blacklist
