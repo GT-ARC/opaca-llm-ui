@@ -44,9 +44,26 @@ import {nextTick} from 'vue';
 /**
  * Reusable search controller and renderer.
  *
- * Local flat collections can provide getItemSearchValues and optionally
- * getItemContextPreview. More complex or asynchronous searches provide
- * filterItems(items, query, helpers), returning:
+ * `items` is always the source collection. The default slot always receives
+ * `filteredItems`, which is the search result derived from that collection.
+ * Search is also run with an empty query on mount, after `items` is replaced,
+ * and when search is closed. The default mode shows all `items` while
+ * inactive, whereas a custom search may additionally sort or transform them.
+ *
+ * There are two search modes:
+ *
+ * 1. Built-in flat-item search (no `filterItems` callback):
+ *    - `getItemSearchValues(item)` selects the values matched for each item.
+ *    - `getItemContextPreview(item, query, helpers, key)` optionally creates
+ *      the preview displayed above the filtered collection.
+ * 2. Custom filtering (`filterItems` is provided):
+ *    - `filterItems(items, query, helpers)` replaces built-in filtering and
+ *      supports nested collections and asynchronous search.
+ *    - If it returns `contextPreviews`, those are displayed. Otherwise,
+ *      `getItemContextPreview` is applied to its filtered items as a fallback.
+ *    - `getItemSearchValues` is ignored because filtering is fully custom.
+ *
+ * A custom filter returns:
  *
  * {
  *     filteredItems: Array | Object,
@@ -58,10 +75,14 @@ import {nextTick} from 'vue';
  *     }],
  * }
  *
- * helpers contains the normalized query plus matches(value) and
- * excerpt(value, radius). The default slot receives filteredItems. Through a
- * template ref, callers can toggle/open/close/refresh search and read its
- * filtered items, active state, query, or context previews.
+ * `helpers.matches(value)` compares only that value with the normalized query;
+ * it does not use `getItemSearchValues`. `helpers.getMatchExcerpt(value,
+ * radius)` shortens matching text for display, but does not create a context preview.
+ * Custom filters can return previews without providing `getItemContextPreview`,
+ * or rely on that callback for preview creation.
+ *
+ * Through a template ref, callers can toggle/open/close/refresh search and read
+ * its filtered items, active state, query, or context previews.
  */
 
 export default {
@@ -79,7 +100,7 @@ export default {
             type: Number,
             default: 0,
         },
-        /** Both synchronous and asynchronous callbacks are supported. */
+        /** Custom filtering; both synchronous and asynchronous callbacks are supported. */
         filterItems: {
             type: Function,
             default: null,
@@ -88,10 +109,6 @@ export default {
         getItemSearchValues: {
             type: Function,
             default: item => [item],
-        },
-        getItemKey: {
-            type: Function,
-            default: (_item, index) => index,
         },
         /**
          * Builds one or more previews for a filtered item, or null to suppress it.
@@ -206,7 +223,7 @@ export default {
                     if (!entry) return entry;
                     return {
                         ...entry,
-                        key: entry.key ?? `${this.getItemKey(item, index)}-${previewIndex}`,
+                        key: entry.key ?? `${index}-${previewIndex}`,
                     };
                 });
             }).filter(Boolean);
@@ -242,7 +259,7 @@ export default {
                 query,
                 normalizedQuery,
                 matches: value => String(value ?? '').toLowerCase().includes(normalizedQuery),
-                excerpt: (value, radius = 40) => {
+                getMatchExcerpt: (value, radius = 40) => {
                     const text = String(value ?? '');
                     const index = text.toLowerCase().indexOf(normalizedQuery);
                     if (index < 0 || !normalizedQuery) return text;

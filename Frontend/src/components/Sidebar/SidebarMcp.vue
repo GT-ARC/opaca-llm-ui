@@ -284,7 +284,7 @@ export default {
         },
     },
     methods: {
-        filterMcpItems(items, query, {matches, excerpt}) {
+        filterMcpItems(items, query, {matches, getMatchExcerpt}) {
             const installed = {};
             const registry = items.registry === null ? null : [];
             const contextPreviews = [];
@@ -300,7 +300,7 @@ export default {
                     contextPreviews.push({
                         key: `installed-${serverName}`,
                         path: `${Localizer.get('mcp_installed')} › ${serverName}`,
-                        context: excerpt(serverName),
+                        context: getMatchExcerpt(serverName),
                     });
                 }
                 tools.forEach(tool => {
@@ -308,7 +308,7 @@ export default {
                     contextPreviews.push({
                         key: `installed-${serverName}-${tool.name}`,
                         path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
-                        context: excerpt(matches(tool.description) ? tool.description : tool.name),
+                        context: getMatchExcerpt(matches(tool.description) ? tool.description : tool.name),
                     });
                 });
             });
@@ -321,7 +321,7 @@ export default {
                 contextPreviews.push({
                     key: `registry-${server.name}`,
                     path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
-                    context: excerpt(matches(server.description) ? server.description : serverTitle),
+                    context: getMatchExcerpt(matches(server.description) ? server.description : serverTitle),
                 });
             });
 

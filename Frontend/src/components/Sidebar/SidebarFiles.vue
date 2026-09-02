@@ -85,13 +85,13 @@ export default {
             return [file.file_name, ...(file.keywords ?? [])];
         },
 
-        fileContextPreview(file, _query, {matches, excerpt}) {
+        fileContextPreview(file, _query, {matches, getMatchExcerpt}) {
             const matchedKeyword = (file.keywords ?? []).find(matches);
             const matchedText = matchedKeyword ?? file.file_name;
             return {
                 key: file.file_id,
                 path: file.file_name,
-                context: excerpt(matchedText),
+                context: getMatchExcerpt(matchedText),
             };
         },
 

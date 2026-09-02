@@ -230,7 +230,7 @@ export default {
             return containerId === "__internal_tools__";
         },
 
-        filterContainers(platformContainers, query, {matches, excerpt}) {
+        filterContainers(platformContainers, query, {matches, getMatchExcerpt}) {
             if (!platformContainers) return {filteredItems: [], contextPreviews: []};
             const contextPreviews = [];
             if (query.trim()) {
@@ -240,7 +240,7 @@ export default {
                         contextPreviews.push({
                             key: `container-${container.containerId}`,
                             path: containerName,
-                            context: excerpt(containerName),
+                            context: getMatchExcerpt(containerName),
                         });
                     }
                     container.agents?.forEach(agent => {
@@ -248,7 +248,7 @@ export default {
                             contextPreviews.push({
                                 key: `agent-${container.containerId}-${agent.agentId}`,
                                 path: `${containerName} › ${agent.agentId}`,
-                                context: excerpt(agent.agentId),
+                                context: getMatchExcerpt(agent.agentId),
                             });
                         }
                         agent.actions?.forEach(action => {
@@ -256,7 +256,7 @@ export default {
                             contextPreviews.push({
                                 key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
                                 path: `${containerName} › ${agent.agentId} › ${action.name}`,
-                                context: excerpt(matches(action.description) ? action.description : action.name),
+                                context: getMatchExcerpt(matches(action.description) ? action.description : action.name),
                             });
                         });
                     });
