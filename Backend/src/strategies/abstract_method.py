@@ -362,15 +362,15 @@ def openapi_to_functions(
     - openapi_spec: the OpenAPI specification
     - agent: name of OPACA agent to filter for, or None for all
     """
+    functions = []
+    error_msg = ""
     component_schemas: dict = openapi_spec.get('components', {}).get('schemas', {})
-    functions: List = []
-    error_msg: str = ''
 
     for path, methods in openapi_spec.get("paths", {}).items():
         for method, spec in methods.items():
             # Extract a name for the functions
             try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
+                # The operation id is formatted as 'containerId;agentName;actionName'
                 container_id, agent_name, function_name = spec.get("operationId").split(';')
                 # action relevant for selected agent?
                 if agent and agent_name != agent:
@@ -380,14 +380,15 @@ def openapi_to_functions(
                 continue
 
             # Extract a description and parameters.
-            desc = spec.get('description', '')[:1024] or spec.get('summary', '')[:1024]
+            desc = spec.get("description", "")[:1024] or spec.get("summary", "")[:1024]
 
             # assemble function block
             # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
-            schema = (spec.get('requestBody', {})
-                      .get('content', {})
-                      .get('application/json', {})
-                      .get('schema'))
+            schema = (spec.get("requestBody", {})
+                      .get("content", {})
+                      .get("application/json", {})
+                      .get("schema"))
+
             if schema is None:
                 error_msg += f'No request body schema found for action {function_name}\n'
                 continue
