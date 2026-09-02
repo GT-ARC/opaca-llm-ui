@@ -313,7 +313,8 @@ class AbstractMethod(ABC):
 
     async def handle_invalid_api_key(self, model, is_invalid: bool = False):
         if not self.session.has_websocket():
-            raise OpacaException(user_message=f"No API key is available for model {model}.")
+            msg = f"The API key for {model} is invalid." if is_invalid else f"No API key is available for {model}."
+            raise OpacaException(user_message=msg)
         msg_id = await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
         response = MissingApiKeyResponse(**await self.session.websocket_receive(msg_id))
         if response.api_key:
