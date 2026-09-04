@@ -151,15 +151,9 @@ class FileTools:
                 active_file_ids=self._active_file_ids(),
                 record_agent_message=self.ctx.record_agent_message,
             )
-            inactive_file_ids = [
-                file.file_id
-                for file in files
-                if not file.active
-            ]
             return {
                 "ok": True,
                 "files": [file.to_dict() for file in files],
-                "inactive_file_ids": inactive_file_ids,
             }
         except Exception as exc:
             logger.exception("Finding relevant files failed")
@@ -171,15 +165,9 @@ class FileTools:
             current_file_ids=self.ctx.current_file_ids,
             active_file_ids=self._active_file_ids(),
         )
-        inactive_file_ids = [
-            file.file_id
-            for file in files
-            if not file.active
-        ]
         return {
             "ok": True,
             "files": [file.to_dict() for file in files],
-            "inactive_file_ids": inactive_file_ids,
         }
 
     async def tool_set_active_files(self, file_ids: list[str]) -> dict:
