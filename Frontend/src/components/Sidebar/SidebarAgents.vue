@@ -187,14 +187,11 @@ export default {
             try {
                 await backendClient.setContainerApproval(containerId, toolName, approval);
 
-                this.platformContainers = this.platformContainers.map(container =>
-                    container.containerId === containerId
-                        ? {
-                            ...container,
-                            approvals: {...(container.approvals ?? {}), [toolName]: approval},
-                        }
-                        : container,
-                );
+                const container = this.platformContainers.find(c => c.containerId === containerId);
+                if (container) {
+                    container.approvals ??= {};
+                    container.approvals[toolName] = approval;
+                }
             } catch (err) {
                 console.error("Failed to update approval", err);
             }
