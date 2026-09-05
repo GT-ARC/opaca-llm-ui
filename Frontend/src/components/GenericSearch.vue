@@ -1,5 +1,5 @@
 <template>
-    <template v-if="searchActive">
+    <div v-if="searchActive" class="sidebar-search-container">
         <input
             ref="searchBar"
             v-model="searchQuery"
@@ -33,7 +33,7 @@
                 </div>
             </div>
         </div>
-    </template>
+    </div>
 
     <slot :filtered-items="filteredItems" />
 </template>
@@ -308,6 +308,13 @@ export default {
 </script>
 
 <style scoped>
+.sidebar-search-container {
+    padding: 0 .5rem;
+    margin: .5rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--bs-border-radius);
+}
+
 .sidebar-search-results {
     max-height: 12rem;
     overflow-y: auto;
