@@ -414,10 +414,12 @@ def openapi_to_functions(
 
 def _make_inlined_schema(schema: dict, component_schemas: dict) -> dict:
     """
-    Rewrite all refs to components/schemas to $defs and
-    move all used schemas there, too.
+    Inline the definitions of types used in the schema into the schema's $defs.
 
-    :param schema: The action's request body schema that should be rewritten and inlined.
+    This is needed since the tool schema passed to the LLM needs to be standalone
+    and contain the definitions for all types referenced in it.
+
+    :param schema: The tool schema where the definitions should be inlined.
     :param component_schemas: The full OAS components.
 
     :return: The schema with only the referenced sub-schemas inlined in $defs.
