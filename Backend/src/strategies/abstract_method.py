@@ -4,9 +4,8 @@ import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal, Tuple
 import asyncio
-import jsonref
 from itertools import count
 from datetime import datetime as dt
 import os
@@ -18,7 +17,7 @@ from litellm.types.responses.main import OutputFunctionToolCall
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-                     ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
+                     ToolCall, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
                      MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
 from ..services.file_utils import get_file_parts
 from ..services.opaca_client import actions_blacklist
@@ -282,7 +281,8 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        openapi_actions = await self.session.opaca_client.get_actions_openapi(inline_refs=False)
+        tools, error = openapi_to_functions(openapi_actions)
 
         if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
@@ -350,7 +350,11 @@ class AbstractMethod(ABC):
         else:
             return f"The current date and time is {now}."
 
-def openapi_to_functions(openapi_spec, agent: str | None = None):
+
+def openapi_to_functions(
+        openapi_spec: dict,
+        agent: str | None = None
+) -> Tuple[List, str]:
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
@@ -360,19 +364,13 @@ def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     functions = []
     error_msg = ""
+    component_schemas: dict = openapi_spec.get('components', {}).get('schemas', {})
 
     for path, methods in openapi_spec.get("paths", {}).items():
-        for method, spec_with_ref in methods.items():
-            # Resolve JSON references.
-            try:
-                spec = jsonref.replace_refs(spec_with_ref)
-            except Exception as e:
-                error_msg += f'Error while replacing references for unknown action. Cause: {e}\n'
-                continue
-
+        for method, spec in methods.items():
             # Extract a name for the functions
             try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
+                # The operation id is formatted as 'containerId;agentName;actionName'
                 container_id, agent_name, function_name = spec.get("operationId").split(';')
                 # action relevant for selected agent?
                 if agent and agent_name != agent:
@@ -387,18 +385,72 @@ def openapi_to_functions(openapi_spec, agent: str | None = None):
             # assemble function block
             # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
             schema = (spec.get("requestBody", {})
-                        .get("content", {})
-                        .get("application/json", {})
-                        .get("schema"))
-            schema.setdefault("properties", {})  # must be present even if no params
+                      .get("content", {})
+                      .get("application/json", {})
+                      .get("schema"))
 
-            functions.append(
-                {
-                    "type": "function",
-                    "name": agent_name + '--' + function_name,
-                    "description": desc,
-                    "parameters": schema,
-                }
-            )
+            if schema is None:
+                error_msg += f'No request body schema found for action {function_name}\n'
+                continue
+
+            try:
+                schema = _make_inlined_schema(schema, component_schemas)
+            except KeyError as e:
+                error_msg += f'Unresolvable reference in action {function_name}: {e}\n'
+                continue
+
+            # must be present even if no params
+            schema.setdefault("properties", {})
+
+            functions.append({
+                "type": "function",
+                "name": agent_name + '--' + function_name,
+                "description": desc,
+                "parameters": schema,
+            })
 
     return functions, error_msg
+
+
+def _make_inlined_schema(schema: dict, component_schemas: dict) -> dict:
+    """
+    Rewrite all refs to components/schemas to $defs and
+    move all used schemas there, too.
+
+    :param schema: The action's request body schema that should be rewritten and inlined.
+    :param component_schemas: The full OAS components.
+
+    :return: The schema with only the referenced sub-schemas inlined in $defs.
+    """
+    collected = {}
+    rewritten = _rewrite_refs_and_collect_schemas(schema, component_schemas, collected)
+    if collected:
+        rewritten["$defs"] = collected
+    return rewritten
+
+
+def _rewrite_refs_and_collect_schemas(node: Any, component_schemas: dict, collected: dict) -> Any:
+    """
+    Replace components/schemas refs with $defs, and collect all
+    schemas that were referenced at least once.
+    """
+    _COMPONENTS_PREFIX = "#/components/schemas/"
+    _DEFS_PREFIX = "#/$defs/"
+
+    if isinstance(node, dict):
+        result = {}
+        for key, value in node.items():
+            if key == "$ref" and isinstance(value, str) and value.startswith(_COMPONENTS_PREFIX):
+                name = value[len(_COMPONENTS_PREFIX):]
+                result[key] = _DEFS_PREFIX + name
+                if name not in collected:
+                    collected[name] = {}  # placeholder blocks re-entry on cycles
+                    collected[name] = _rewrite_refs_and_collect_schemas(component_schemas[name], component_schemas, collected)
+            else:
+                result[key] = _rewrite_refs_and_collect_schemas(value, component_schemas, collected)
+        return result
+
+    if isinstance(node, list):
+        return [_rewrite_refs_and_collect_schemas(item, component_schemas, collected) for item in node]
+
+    return node
