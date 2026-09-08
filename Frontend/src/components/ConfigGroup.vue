@@ -1,42 +1,42 @@
 <template>
-<div class="config-group">
+    <div class="config-group">
 
-    <h5 v-if="showTitle" class="mt-3>"><strong>{{ name }}</strong></h5>
+        <h5 v-if="showTitle" class="mt-3"><strong>{{ name }}</strong></h5>
 
-    <div class="nested-group" :class="{ 'no-header': !showTitle }">
-        <template v-for="(schema, name) in schema.properties" :key="schema">
+        <div class="nested-group" :class="{ 'no-header': !showTitle }">
+            <template v-for="(schema, name) in schema.properties" :key="schema">
 
-            <ConfigGroup
-                v-if="schema.type === 'object'"
-                :name="name"
-                :schema="schema"
-                v-model="localValue[name]"
-                v-show="!collapsed"
-            />
+                <ConfigGroup
+                    v-if="schema.type === 'object'"
+                    :name="name"
+                    :schema="schema"
+                    v-model="localValue[name]"
+                    v-show="!collapsed"
+                />
 
-            <ConfigParameter
-                v-else-if="localValue[name] !== undefined"
-                :name="name"
-                :config-param="schema"
-                v-model="localValue[name]"
-                @update:modelValue="schema?.title === 'model' ? $emit('update:modelValue', localValue) : null"
-            />
+                <ConfigParameter
+                    v-else-if="localValue[name] !== undefined"
+                    :name="name"
+                    :config-param="schema"
+                    v-model="localValue[name]"
+                    @update:modelValue="schema?.title === 'model' ? $emit('update:modelValue', localValue) : null"
+                />
 
-            <div v-if="showTitle && schema.type !== 'object'" class="group-header mt-3>">
-                <div class="header" @click="toggleCollapse">
-                    <strong>Advanced Settings</strong>
-                    <span
-                        class="chevron"
-                        :class="{ rotated: !collapsed }"
-                    >
+                <div v-if="showTitle && schema.type !== 'object'" class="group-header mt-3">
+                    <div class="header" @click="toggleCollapse">
+                        <strong>Advanced Settings</strong>
+                        <span
+                            class="chevron"
+                            :class="{ rotated: !collapsed }"
+                        >
                         ▶
-                    </span>
+                        </span>
+                    </div>
                 </div>
-            </div>
 
-        </template>
+            </template>
+        </div>
     </div>
-</div>
 
 
 </template>

@@ -1,40 +1,40 @@
 <template>
-<div class="chat align-items-center"
-     :class="{'chat-selected': this.selectedChatId === chatId}"
-     :title="this.getTooltip()"
-     @click="this.select()" >
-    <input
-        class="chat-name"
-        v-model="nameInput"
-        ref="nameInput"
-        @click="e => this.handleInputClick(e)"
-        @keyup.enter="e => this.handleSubmitName(e)"
-        @change="e => this.handleSubmitName(e)"
-        @blur="e => this.handleCancelName(e)"
-        @keyup.esc="e => this.handleCancelName(e)"
-        :disabled="!isEditingName"
-    />
-    <i v-if="isWorking()"
-       class="fa fa-spin fa-spinner click-icon chat-status"
-       :title="Localizer.get('chats_working')"
-    />
-    <i v-else-if="hasMissedResponse"
-       class="fa fa-circle-exclamation click-icon chat-status chat-status-ready"
-       :title="Localizer.get('chats_responseReady')"
-    />
-    <i class="fa fa-edit ms-auto click-icon"
-       :class="{ disabled: !this.canModify() }"
-       :aria-disabled="!this.canModify()"
-       @click.stop="this.rename()"
-       :title="Localizer.get('chats_edit')"
-    />
-    <i class="fa fa-remove click-icon click-icon-danger"
-       :class="{ disabled: !this.canModify() }"
-       :aria-disabled="!this.canModify()"
-       @click.stop="this.delete()"
-       :title="Localizer.get('chats_delete')"
-    />
-</div>
+    <div class="chat align-items-center"
+         :class="{'chat-selected': this.selectedChatId === chatId}"
+         :title="this.getTooltip()"
+         @click="this.select()" >
+        <input
+            class="chat-name"
+            v-model="nameInput"
+            ref="nameInput"
+            @click="e => this.handleInputClick(e)"
+            @keyup.enter="e => this.handleSubmitName(e)"
+            @change="e => this.handleSubmitName(e)"
+            @blur="e => this.handleCancelName(e)"
+            @keyup.esc="e => this.handleCancelName(e)"
+            :disabled="!isEditingName"
+        />
+        <i v-if="isWorking()"
+           class="fa fa-spin fa-spinner click-icon chat-status"
+           :title="Localizer.get('chats_working')"
+        />
+        <i v-else-if="hasMissedResponse"
+           class="fa fa-circle-exclamation click-icon chat-status chat-status-ready"
+           :title="Localizer.get('chats_responseReady')"
+        />
+        <i class="fa fa-edit ms-auto click-icon"
+           :class="{ disabled: !this.canModify() }"
+           :aria-disabled="!this.canModify()"
+           @click.stop="this.rename()"
+           :title="Localizer.get('chats_edit')"
+        />
+        <i class="fa fa-remove click-icon click-icon-danger"
+           :class="{ disabled: !this.canModify() }"
+           :aria-disabled="!this.canModify()"
+           @click.stop="this.delete()"
+           :title="Localizer.get('chats_delete')"
+        />
+    </div>
 </template>
 
 <script>

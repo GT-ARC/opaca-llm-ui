@@ -1,216 +1,216 @@
 <template>
-<div ref="scrollContainer" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_mcp') }}
-        <i class="fa fa-plus ms-auto sidebar-title-action"
-           @click.stop="addMcp()"
-           :title="Localizer.get('mcp_add')" />
-        <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
-           @click="$refs.search.toggleSearch()"
-           :title="Localizer.get('mcp_search')" />
-    </div>
-
-    <GenericSearch
-        ref="search"
-        :items="mcpSearchItems"
-        :placeholder="Localizer.get('mcp_search')"
-        :filter-items="filterMcpItems"
-        @search-query-change="searchQuery = $event"
-    >
-        <template #default="{ filteredItems }">
-
-    <section class="mcp-section">
-        <div class="mcp-section-title">
-            {{ Localizer.get('mcp_installed') }}
+    <div ref="scrollContainer" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_mcp') }}
+            <i class="fa fa-plus ms-auto sidebar-title-action"
+               @click.stop="addMcp()"
+               :title="Localizer.get('mcp_add')" />
+            <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+               @click="$refs.search.toggleSearch()"
+               :title="Localizer.get('mcp_search')" />
         </div>
 
-        <div v-if="this.isLoading">
-            <i class="fa fa-circle-notch fa-spin me-1" />
-            {{ Localizer.get('mcp_loading') }}
-        </div>
-        <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0"
-             class="sidebar-empty-state">
-            {{ Localizer.get('mcp_installedPlaceholder') }}
-        </div>
-        <div v-else class="flex-row" >
-            <AppAccordion
-                id="mcp-accordion"
-                class="text-start"
-                :items="getMcpServers(filteredItems.installed)"
-                :get-key="server => server.name"
-            >
-                <template #header="{ item: server }">
-                    <i class="fa fa-server me-3"/>
-                    <strong class="flex-grow-1">{{ server.name }}</strong>
+        <GenericSearch
+            ref="search"
+            :items="mcpSearchItems"
+            :placeholder="Localizer.get('mcp_search')"
+            :filter-items="filterMcpItems"
+            @search-query-change="searchQuery = $event"
+        >
+            <template #default="{ filteredItems }">
 
-                    <span class="section-actions">
-                        <i class="fa fa-remove click-icon click-icon-danger"
-                           @click.stop="this.deleteMcp(server.name)"
-                           :title="Localizer.get('mcp_remove')" />
-                    </span>
-                </template>
+                <section class="mcp-section">
+                    <div class="mcp-section-title">
+                        {{ Localizer.get('mcp_installed') }}
+                    </div>
 
-                <template #body="{ item: server, index: mcpServerIndex }">
-                    <AppAccordion
-                        :id="`mcp-accordion-${mcpServerIndex}`"
-                        :items="server.tools"
-                        :get-key="mcp => mcp.name"
-                        variant="nested"
-                    >
-                        <template #header="{ item: mcp }">
-                            <div class="position-relative d-inline-block me-3">
-                                <i class="fa fa-wrench"/>
-                                <span class="position-absolute top-100 start-100 p-1 rounded-circle"
-                                      :class="{
-                                          'bg-approval-ask': getEffectiveApproval(mcp) === 'ask',
-                                          'bg-approval-deny': getEffectiveApproval(mcp) === 'deny',
-                                          'bg-approval-allow': getEffectiveApproval(mcp) === 'allow'
-                                      }" style="outline: 2px solid var(--surface-color); transform: translate(-30%, -90%);">
-                                    <span class="visually-hidden">Approval State</span>
+                    <div v-if="this.isLoading">
+                        <i class="fa fa-circle-notch fa-spin me-1" />
+                        {{ Localizer.get('mcp_loading') }}
+                    </div>
+                    <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0"
+                         class="sidebar-empty-state">
+                        {{ Localizer.get('mcp_installedPlaceholder') }}
+                    </div>
+                    <div v-else class="flex-row" >
+                        <AppAccordion
+                            id="mcp-accordion"
+                            class="text-start"
+                            :items="getMcpServers(filteredItems.installed)"
+                            :get-key="server => server.name"
+                        >
+                            <template #header="{ item: server }">
+                                <i class="fa fa-server me-3"/>
+                                <strong class="flex-grow-1">{{ server.name }}</strong>
+
+                                <span class="section-actions">
+                                    <i class="fa fa-remove click-icon click-icon-danger"
+                                       @click.stop="this.deleteMcp(server.name)"
+                                       :title="Localizer.get('mcp_remove')" />
                                 </span>
-                            </div>
-                            {{ mcp.name }}
-                        </template>
+                            </template>
 
-                        <template #body="{ item: mcp, index: mcpIndex }">
-                            <div class="mcp-body">
-                                <p class="invoke" @click.stop="invokeAction(mcp.server_label, mcp.name, mcpToOpacaSchema(mcp.inputSchema))">
-                                    <strong>{{ Localizer.get('agents_invoke') }}</strong>
-                                    <i class="fa fa-circle-play mx-2"/>
-                                </p>
-                                <p v-if="mcp.description" class="mb-2">
-                                    <strong>{{ Localizer.get('agents_description') }}:</strong>
-                                    {{ mcp.description }}
-                                </p>
-                                <div class="d-flex align-items-center">
-                                    <strong class="me-2">Approval:</strong>
-                                    <div class="btn-group btn-group-sm w-100" role="group">
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-ask-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'ask')"
-                                            :checked="getEffectiveApproval(mcp) === 'ask'"
-                                            :disabled="isForbiddenApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-ask" :for="'btn-ask-' + mcpServerIndex + '-' + mcpIndex">Ask</label>
+                            <template #body="{ item: server, index: mcpServerIndex }">
+                                <AppAccordion
+                                    :id="`mcp-accordion-${mcpServerIndex}`"
+                                    :items="server.tools"
+                                    :get-key="mcp => mcp.name"
+                                    variant="nested"
+                                >
+                                    <template #header="{ item: mcp }">
+                                        <div class="position-relative d-inline-block me-3">
+                                            <i class="fa fa-wrench"/>
+                                            <span class="position-absolute top-100 start-100 p-1 rounded-circle"
+                                                  :class="{
+                                                      'bg-approval-ask': getEffectiveApproval(mcp) === 'ask',
+                                                      'bg-approval-deny': getEffectiveApproval(mcp) === 'deny',
+                                                      'bg-approval-allow': getEffectiveApproval(mcp) === 'allow'
+                                                  }" style="outline: 2px solid var(--surface-color); transform: translate(-30%, -90%);">
+                                                <span class="visually-hidden">Approval State</span>
+                                            </span>
+                                        </div>
+                                        {{ mcp.name }}
+                                    </template>
 
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-deny-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'deny')"
-                                            :checked="getEffectiveApproval(mcp) === 'deny'"
-                                            :disabled="isForbiddenApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-deny" :for="'btn-deny-' + mcpServerIndex + '-' + mcpIndex">Deny</label>
+                                    <template #body="{ item: mcp, index: mcpIndex }">
+                                        <div class="mcp-body">
+                                            <p class="invoke" @click.stop="invokeAction(mcp.server_label, mcp.name, mcpToOpacaSchema(mcp.inputSchema))">
+                                                <strong>{{ Localizer.get('agents_invoke') }}</strong>
+                                                <i class="fa fa-circle-play mx-2"/>
+                                            </p>
+                                            <p v-if="mcp.description" class="mb-2">
+                                                <strong>{{ Localizer.get('agents_description') }}:</strong>
+                                                {{ mcp.description }}
+                                            </p>
+                                            <div class="d-flex align-items-center">
+                                                <strong class="me-2">Approval:</strong>
+                                                <div class="btn-group btn-group-sm w-100" role="group">
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-ask-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'ask')"
+                                                           :checked="getEffectiveApproval(mcp) === 'ask'"
+                                                           :disabled="isForbiddenApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-ask" :for="'btn-ask-' + mcpServerIndex + '-' + mcpIndex">Ask</label>
 
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-allow-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'allow')"
-                                            :checked="getEffectiveApproval(mcp) === 'allow'"
-                                            :disabled="isForbiddenApplied(mcp) || isConfirmationApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-allow" :for="'btn-allow-' + mcpServerIndex + '-' + mcpIndex">Allow</label>
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-deny-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'deny')"
+                                                           :checked="getEffectiveApproval(mcp) === 'deny'"
+                                                           :disabled="isForbiddenApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-deny" :for="'btn-deny-' + mcpServerIndex + '-' + mcpIndex">Deny</label>
+
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-allow-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'allow')"
+                                                           :checked="getEffectiveApproval(mcp) === 'allow'"
+                                                           :disabled="isForbiddenApplied(mcp) || isConfirmationApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-allow" :for="'btn-allow-' + mcpServerIndex + '-' + mcpIndex">Allow</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </AppAccordion>
+                            </template>
+                        </AppAccordion>
+                    </div>
+                </section>
+
+                <section class="mcp-section">
+                    <div class="mcp-section-title">
+                        {{ Localizer.get('mcp_browse') }}
+                        <i class="fa fa-refresh ms-auto sidebar-title-action sidebar-title-action-secondary"
+                           :class="{ disabled: isRegistryLoading || isRegistryLoadingMore }"
+                           :aria-disabled="isRegistryLoading || isRegistryLoadingMore"
+                           @click.stop="updateRegistry(true)"
+                           :title="Localizer.get('mcp_registryRefresh')" />
+                        <i v-if="showRegistryHeaderActions"
+                           class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="[hideUnavailableRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideUnavailableRegistryMcp }]"
+                           :aria-pressed="hideUnavailableRegistryMcp"
+                           @click="hideUnavailableRegistryMcp = !hideUnavailableRegistryMcp"
+                           :title="Localizer.get('mcp_filterUnavailable')" />
+                        <i v-if="showRegistryHeaderActions"
+                           class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="[hideCredentialedRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideCredentialedRegistryMcp }]"
+                           :aria-pressed="hideCredentialedRegistryMcp"
+                           @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
+                           :title="Localizer.get('mcp_filterCredentials')" />
+                        <i class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
+                           @click="showRegistryHeaderActions = !showRegistryHeaderActions"
+                           :title="Localizer.get(showRegistryHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
+                    </div>
+
+                    <div v-if="isRegistryLoading">
+                        <i class="fa fa-circle-notch fa-spin me-1" />
+                        {{ Localizer.get('mcp_registryLoading') }}
+                    </div>
+                    <div v-else-if="registryUnavailable && (!registryMcp || registryMcp.length === 0)"
+                         class="sidebar-empty-state">
+                        {{ Localizer.get('mcp_registryUnavailable') }}
+                    </div>
+                    <div v-else-if="filteredItems.registry" class="flex-row">
+                        <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
+                            {{ Localizer.get('mcp_registryLoadMoreFailed') }}
+                        </div>
+                        <div v-if="filteredItems.registry.length === 0" class="sidebar-empty-state">
+                            {{ Localizer.get('mcp_registryEmpty') }}
+                        </div>
+                        <AppAccordion
+                            v-else
+                            id="mcp-registry-accordion"
+                            class="text-start"
+                            :items="filteredItems.registry"
+                            :get-key="server => server.name"
+                        >
+                            <template #header="{ item: server }">
+                                <i class="fa fa-server me-3" />
+                                <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
+                                <span class="section-actions"
+                                      :title="server.compatibleRemoteUrls.length > 0
+                                          ? Localizer.get('mcp_add')
+                                          : Localizer.get('mcp_registryNoRemote')">
+                                    <i class="fa fa-plus click-icon"
+                                       :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
+                                       @click.stop="addMcp(server)" />
+                                </span>
+                            </template>
+
+                            <template #body="{ item: server }">
+                                <div class="mcp-registry-body">
+                                    <p v-if="server.description" class="mb-2">
+                                        {{ server.description }}
+                                    </p>
+                                    <p class="mb-1 small">
+                                        <strong>{{ server.name }}</strong>
+                                    </p>
+                                    <p class="mb-2 small">
+                                        {{ Localizer.get('mcp_registryVersion') }}: {{ server.version }}
+                                    </p>
+                                    <div v-if="server.remotes?.length" class="small">
+                                        <strong>{{ Localizer.get('mcp_registryEndpoints') }}:</strong>
+                                        <div v-for="remote in server.remotes"
+                                             :key="`${remote.type}-${remote.url}`"
+                                             class="mcp-registry-endpoint">
+                                            {{ remote.url }}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </template>
-                    </AppAccordion>
-                </template>
-            </AppAccordion>
-        </div>
-    </section>
+                            </template>
+                        </AppAccordion>
 
-    <section class="mcp-section">
-        <div class="mcp-section-title">
-            {{ Localizer.get('mcp_browse') }}
-            <i class="fa fa-refresh ms-auto sidebar-title-action sidebar-title-action-secondary"
-               :class="{ disabled: isRegistryLoading || isRegistryLoadingMore }"
-               :aria-disabled="isRegistryLoading || isRegistryLoadingMore"
-               @click.stop="updateRegistry(true)"
-               :title="Localizer.get('mcp_registryRefresh')" />
-            <i v-if="showRegistryHeaderActions"
-               class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="[hideUnavailableRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideUnavailableRegistryMcp }]"
-               :aria-pressed="hideUnavailableRegistryMcp"
-               @click="hideUnavailableRegistryMcp = !hideUnavailableRegistryMcp"
-               :title="Localizer.get('mcp_filterUnavailable')" />
-            <i v-if="showRegistryHeaderActions"
-               class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="[hideCredentialedRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideCredentialedRegistryMcp }]"
-               :aria-pressed="hideCredentialedRegistryMcp"
-               @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
-               :title="Localizer.get('mcp_filterCredentials')" />
-            <i class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
-               @click="showRegistryHeaderActions = !showRegistryHeaderActions"
-               :title="Localizer.get(showRegistryHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
-        </div>
-
-        <div v-if="isRegistryLoading">
-            <i class="fa fa-circle-notch fa-spin me-1" />
-            {{ Localizer.get('mcp_registryLoading') }}
-        </div>
-        <div v-else-if="registryUnavailable && (!registryMcp || registryMcp.length === 0)"
-             class="sidebar-empty-state">
-            {{ Localizer.get('mcp_registryUnavailable') }}
-        </div>
-        <div v-else-if="filteredItems.registry" class="flex-row">
-            <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
-                {{ Localizer.get('mcp_registryLoadMoreFailed') }}
-            </div>
-            <div v-if="filteredItems.registry.length === 0" class="sidebar-empty-state">
-                {{ Localizer.get('mcp_registryEmpty') }}
-            </div>
-            <AppAccordion
-                v-else
-                id="mcp-registry-accordion"
-                class="text-start"
-                :items="filteredItems.registry"
-                :get-key="server => server.name"
-            >
-                <template #header="{ item: server }">
-                    <i class="fa fa-server me-3" />
-                    <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
-                    <span class="section-actions"
-                          :title="server.compatibleRemoteUrls.length > 0
-                              ? Localizer.get('mcp_add')
-                              : Localizer.get('mcp_registryNoRemote')">
-                        <i class="fa fa-plus click-icon"
-                           :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
-                           @click.stop="addMcp(server)" />
-                    </span>
-                </template>
-
-                <template #body="{ item: server }">
-                    <div class="mcp-registry-body">
-                        <p v-if="server.description" class="mb-2">
-                            {{ server.description }}
-                        </p>
-                        <p class="mb-1 small">
-                            <strong>{{ server.name }}</strong>
-                        </p>
-                        <p class="mb-2 small">
-                            {{ Localizer.get('mcp_registryVersion') }}: {{ server.version }}
-                        </p>
-                        <div v-if="server.remotes?.length" class="small">
-                            <strong>{{ Localizer.get('mcp_registryEndpoints') }}:</strong>
-                            <div v-for="remote in server.remotes"
-                                 :key="`${remote.type}-${remote.url}`"
-                                 class="mcp-registry-endpoint">
-                                {{ remote.url }}
-                            </div>
+                        <div v-if="registryNextCursor"
+                             ref="registryLoadMoreTrigger"
+                             class="mcp-registry-load-more-trigger">
+                            <span v-if="isRegistryLoadingMore">
+                                <i class="fa fa-circle-notch fa-spin me-1" />
+                                {{ Localizer.get('mcp_registryLoading') }}
+                            </span>
                         </div>
                     </div>
-                </template>
-            </AppAccordion>
+                </section>
+            </template>
+        </GenericSearch>
 
-            <div v-if="registryNextCursor"
-                 ref="registryLoadMoreTrigger"
-                 class="mcp-registry-load-more-trigger">
-                <span v-if="isRegistryLoadingMore">
-                    <i class="fa fa-circle-notch fa-spin me-1" />
-                    {{ Localizer.get('mcp_registryLoading') }}
-                </span>
-            </div>
-        </div>
-    </section>
-        </template>
-    </GenericSearch>
-
-    <InputDialogue ref="input" />
-</div>
+        <InputDialogue ref="input" />
+    </div>
 
 </template>
 

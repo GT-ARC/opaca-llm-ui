@@ -1,50 +1,50 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_chats') }}
-        <i class="fa fa-plus ms-auto sidebar-title-action"
-           @click="this.$emit('new-chat')"
-           :title="Localizer.get('chats_new')" />
-        <i v-if="showHeaderActions"
-           class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
-           :class="{ disabled: this.chats.length === 0 }"
-           :aria-disabled="this.chats.length === 0"
-           @click="$refs.search.toggleSearch()"
-           :title="Localizer.get('chats_search')" />
-        <i v-if="showHeaderActions"
-           class="fa fa-trash sidebar-title-action sidebar-title-action-danger"
-           :class="{ disabled: this.chats.length === 0 }"
-           :aria-disabled="this.chats.length === 0"
-           @click="onDeleteAllChats"
-           :title="Localizer.get('chats_deleteAll')" />
-        <i class="fa sidebar-title-action sidebar-title-action-secondary"
-           :class="showHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
-           @click="toggleHeaderActions"
-           :title="Localizer.get(showHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
-    </div>
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_chats') }}
+            <i class="fa fa-plus ms-auto sidebar-title-action"
+               @click="this.$emit('new-chat')"
+               :title="Localizer.get('chats_new')" />
+            <i v-if="showHeaderActions"
+               class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+               :class="{ disabled: this.chats.length === 0 }"
+               :aria-disabled="this.chats.length === 0"
+               @click="$refs.search.toggleSearch()"
+               :title="Localizer.get('chats_search')" />
+            <i v-if="showHeaderActions"
+               class="fa fa-trash sidebar-title-action sidebar-title-action-danger"
+               :class="{ disabled: this.chats.length === 0 }"
+               :aria-disabled="this.chats.length === 0"
+               @click="onDeleteAllChats"
+               :title="Localizer.get('chats_deleteAll')" />
+            <i class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="showHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
+               @click="toggleHeaderActions"
+               :title="Localizer.get(showHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
+        </div>
 
-    <GenericSearch
-        ref="search"
-        :items="chats"
-        :placeholder="Localizer.get('chats_search')"
-        :filter-items="filterChats"
-    >
-        <template #default="{ filteredItems }">
-            <!-- List all the chats -->
-            <div v-for="chat in filteredItems" :key="chat.chat_id">
-                <SidebarChatItem
-                    :selected-chat-id="this.selectedChatId"
-                    :chat-id="chat.chat_id"
-                    :chat="chat"
-                    :has-missed-response="isChatMissed(chat.chat_id)"
-                    @select-chat="chatId => this.$emit('select-chat', chatId)"
-                    @delete-chat="chatId => this.$emit('delete-chat', chatId)"
-                    @rename-chat="(chatId, name) => this.$emit('rename-chat', chatId, name)"
-                />
-            </div>
-        </template>
-    </GenericSearch>
-</div>
+        <GenericSearch
+            ref="search"
+            :items="chats"
+            :placeholder="Localizer.get('chats_search')"
+            :filter-items="filterChats"
+        >
+            <template #default="{ filteredItems }">
+                <!-- List all the chats -->
+                <div v-for="chat in filteredItems" :key="chat.chat_id">
+                    <SidebarChatItem
+                        :selected-chat-id="this.selectedChatId"
+                        :chat-id="chat.chat_id"
+                        :chat="chat"
+                        :has-missed-response="isChatMissed(chat.chat_id)"
+                        @select-chat="chatId => this.$emit('select-chat', chatId)"
+                        @delete-chat="chatId => this.$emit('delete-chat', chatId)"
+                        @rename-chat="(chatId, name) => this.$emit('rename-chat', chatId, name)"
+                    />
+                </div>
+            </template>
+        </GenericSearch>
+    </div>
 </template>
 
 <script>

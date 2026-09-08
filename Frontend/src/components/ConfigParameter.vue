@@ -1,69 +1,69 @@
 <template>
-<div class="config-section">
+    <div class="config-section">
 
-    <!-- header: name and tooltip description -->
-    <div class="config-section-header" v-if="(configParam?.title ?? this.name) !== 'model'">
-        <strong>{{ configParam?.title ?? this.name }}</strong>
+        <!-- header: name and tooltip description -->
+        <div class="config-section-header" v-if="(configParam?.title ?? this.name) !== 'model'">
+            <strong>{{ configParam?.title ?? this.name }}</strong>
 
-        <!-- param description -->
-        <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
-            <button
-                class="question-mark"
-                @mouseover="toggleTooltip"
-                @mouseleave="toggleTooltip">
+            <!-- param description -->
+            <div v-if="configParam?.description && !this.isMobile" class="tooltip-container">
+                <button
+                    class="question-mark"
+                    @mouseover="toggleTooltip"
+                    @mouseleave="toggleTooltip">
                 ?
-            </button>
-            <div v-if="showTooltip" class="tooltip-bubble">
-                {{ configParam.description }}
+                </button>
+                <div v-if="showTooltip" class="tooltip-bubble">
+                    {{ configParam.description }}
+                </div>
             </div>
+
+            <!-- if param is a slider, display the slider value here -->
+            <output v-if="['number', 'integer'].includes(configParam.type)"
+                    :id="`slider-value-${this.name}`"
+                    class="small w-auto ms-auto">
+                {{ localValue }}
+            </output>
         </div>
 
-        <!-- if param is a slider, display the slider value here -->
-        <output v-if="['number', 'integer'].includes(configParam.type)"
-                :id="`slider-value-${this.name}`"
-                class="small w-auto ms-auto">
-            {{ localValue }}
-        </output>
-    </div>
+        <!-- boolean type: checkbox -->
+        <div v-if="configParam.type === 'boolean'">
+            <input v-model="localValue"
+                   class="form-check-input"
+                   type="checkbox"
+            />
+        </div>
 
-    <!-- boolean type: checkbox -->
-    <div v-if="configParam.type === 'boolean'">
-        <input v-model="localValue"
-               class="form-check-input"
-               type="checkbox"
-        />
-    </div>
+        <!-- enums -->
+        <div v-else-if="Array.isArray(configParam?.options)">
+            <ComboBox
+                v-model="localValue"
+                :items="configParam?.options"
+                :default-input-disabled="!configParam?.allow_free_input"
+            />
+        </div>
 
-    <!-- enums -->
-    <div v-else-if="Array.isArray(configParam?.options)">
-        <ComboBox
-            v-model="localValue"
-            :items="configParam?.options"
-            :default-input-disabled="!configParam?.allow_free_input"
-        />
-    </div>
+        <!-- numbers: check min/max range -->
+        <div v-else-if="['number', 'integer'].includes(configParam.type)">
+            <input v-model="localValue"
+                   class="slider"
+                   type="range"
+                   :min="configParam.minimum"
+                   :max="configParam.maximum"
+                   :step="configParam.multipleOf"
+                   :aria-describedby="`slider-value-${this.name}`"
+            />
+        </div>
 
-    <!-- numbers: check min/max range -->
-    <div v-else-if="['number', 'integer'].includes(configParam.type)">
-        <input v-model="localValue"
-               class="slider"
-               type="range"
-               :min="configParam.minimum"
-               :max="configParam.maximum"
-               :step="configParam.multipleOf"
-               :aria-describedby="`slider-value-${this.name}`"
-        />
-    </div>
+        <!-- other elements: plain text input -->
+        <div v-else>
+            <input v-model="localValue"
+                   class="form-control"
+                   type="text"
+            />
+        </div>
 
-    <!-- other elements: plain text input -->
-    <div v-else>
-        <input v-model="localValue"
-               class="form-control"
-               type="text"
-        />
     </div>
-
-</div>
 </template>
 
 

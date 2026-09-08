@@ -1,104 +1,104 @@
 <!-- SidebarQuestions Component -->
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <InputDialogue ref="editDialog" />
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <InputDialogue ref="editDialog" />
 
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_questions') }}
-        <i v-if="!isEditModeActive"
-           class="fa fa-plus ms-auto sidebar-title-action"
-           :class="{ disabled: !isEditingAllowed }"
-           :aria-disabled="!isEditingAllowed"
-           @click="this.addNewCategory()"
-           :title="Localizer.get('questions_addCategory')" />
-        <i v-else
-           class="fa fa-sync ms-auto sidebar-title-action"
-           :class="{
-               'fa-spin': isRegenerating,
-               disabled: isRegenerating || !isEditingAllowed,
-           }"
-           :aria-disabled="isRegenerating || !isEditingAllowed"
-           @click="autogenerateSampleQuestions()"
-           :title="Localizer.get('questions_regenerate')" />
-        <i v-if="isEditModeActive"
-           class="fa fa-undo sidebar-title-action sidebar-title-action-danger"
-           :class="{ disabled: !isEditingAllowed }"
-           :aria-disabled="!isEditingAllowed"
-           @click="this.resetPrompts()"
-           :title="Localizer.get('questions_reset')" />
-        <i class="fa fa-edit sidebar-title-action sidebar-title-action-secondary"
-           :class="{ active: isEditModeActive }"
-           :aria-pressed="isEditModeActive"
-           @click="isEditModeActive = !isEditModeActive"
-           :title="Localizer.get('questions_toggleEditMode')" />
-    </div>
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_questions') }}
+            <i v-if="!isEditModeActive"
+               class="fa fa-plus ms-auto sidebar-title-action"
+               :class="{ disabled: !isEditingAllowed }"
+               :aria-disabled="!isEditingAllowed"
+               @click="this.addNewCategory()"
+               :title="Localizer.get('questions_addCategory')" />
+            <i v-else
+               class="fa fa-sync ms-auto sidebar-title-action"
+               :class="{
+                   'fa-spin': isRegenerating,
+                   disabled: isRegenerating || !isEditingAllowed,
+               }"
+               :aria-disabled="isRegenerating || !isEditingAllowed"
+               @click="autogenerateSampleQuestions()"
+               :title="Localizer.get('questions_regenerate')" />
+            <i v-if="isEditModeActive"
+               class="fa fa-undo sidebar-title-action sidebar-title-action-danger"
+               :class="{ disabled: !isEditingAllowed }"
+               :aria-disabled="!isEditingAllowed"
+               @click="this.resetPrompts()"
+               :title="Localizer.get('questions_reset')" />
+            <i class="fa fa-edit sidebar-title-action sidebar-title-action-secondary"
+               :class="{ active: isEditModeActive }"
+               :aria-pressed="isEditModeActive"
+               @click="isEditModeActive = !isEditModeActive"
+               :title="Localizer.get('questions_toggleEditMode')" />
+        </div>
 
-    <AppAccordion
-        id="sidebar-questions"
-        :model-value="activeQuestionSection"
-        @update:model-value="setActiveQuestionSection"
-        :items="visiblePromptSections"
-        :get-key="getSectionKey"
-        button-class="text-center"
-    >
-        <template #header="{ item: section }">
-            <span class="section-icon">{{ section.icon }}</span>
-            <span class="section-title">{{ section.header }}</span>
-            <span class="section-actions float-end">
-                <i v-if="isEditModeActive && !section.is_default"
-                   class="fa fa-edit click-icon"
-                   :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
-                   @click.stop.prevent="this.editCategory(section)"
-                   :title="Localizer.get('questions_editCategory')"
-                />
-                <i v-if="isEditModeActive"
-                   class="fa fa-remove click-icon click-icon-danger"
-                   :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
-                   @click.stop.prevent="this.deleteCategory(section, getSectionIndex(section))"
-                   :title="Localizer.get('questions_deleteCategory')"
-                />
-            </span>
-        </template>
-
-        <template #body="{ item: section }">
-            <!-- category questions -->
-            <div v-for="(q, qIndex) in section.questions"
-                 :key="qIndex"
-                 class="question-item"
-                 @click="this.$emit('select-question', q.question)">
-                <span class="question-text">
-                    <i v-if="section.id === this.autogenKey && isRegenerating"
-                       :class="['fa', 'fa-ellipsis', 'fa-beat-fade', 'text-center', 'w-100']"
+        <AppAccordion
+            id="sidebar-questions"
+            :model-value="activeQuestionSection"
+            @update:model-value="setActiveQuestionSection"
+            :items="visiblePromptSections"
+            :get-key="getSectionKey"
+            button-class="text-center"
+        >
+            <template #header="{ item: section }">
+                <span class="section-icon">{{ section.icon }}</span>
+                <span class="section-title">{{ section.header }}</span>
+                <span class="section-actions float-end">
+                    <i v-if="isEditModeActive && !section.is_default"
+                       class="fa fa-edit click-icon"
+                       :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
+                       @click.stop.prevent="this.editCategory(section)"
+                       :title="Localizer.get('questions_editCategory')"
                     />
-                    <span v-else class="mb-auto">{{ q?.question }}</span>
+                    <i v-if="isEditModeActive"
+                       class="fa fa-remove click-icon click-icon-danger"
+                       :class="{'disabled': !this.isEditingAllowed || (section.id === this.autogenKey && this.isRegenerating)}"
+                       @click.stop.prevent="this.deleteCategory(section, getSectionIndex(section))"
+                       :title="Localizer.get('questions_deleteCategory')"
+                    />
                 </span>
-                <i v-if="isEditModeActive && !section.is_default && section.id !== this.autogenKey"
-                   class="fa fa-edit click-icon"
-                   :class="{'disabled': !this.isEditingAllowed}"
-                   @click.stop="this.editPrompt(section, q)"
-                   :title="Localizer.get('questions_editPrompt')"
-                />
-                <i v-if="isEditModeActive && section.id !== this.autogenKey"
-                   class="fa fa-remove click-icon click-icon-danger"
-                   :class="{'disabled': !this.isEditingAllowed}"
-                   @click.stop="this.deletePrompt(section, q, qIndex)"
-                   :title="Localizer.get('questions_deletePrompt')"
-                />
-            </div>
+            </template>
 
-            <!-- add new prompt button -->
-            <div v-if="isEditModeActive && !section.is_default && section.id !== this.autogenKey"
-                 class="question-item justify-content-center"
-                 :class="{'disabled': !this.isEditingAllowed}"
-                 :aria-disabled="!isEditingAllowed"
-                 @click.stop="this.addNewPrompt(section)">
-                <i class="fa fa-plus me-1" />
-                <span>{{ Localizer.get('questions_addPrompt') }}</span>
-            </div>
-        </template>
-    </AppAccordion>
+            <template #body="{ item: section }">
+                <!-- category questions -->
+                <div v-for="(q, qIndex) in section.questions"
+                     :key="qIndex"
+                     class="question-item"
+                     @click="this.$emit('select-question', q.question)">
+                    <span class="question-text">
+                        <i v-if="section.id === this.autogenKey && isRegenerating"
+                           :class="['fa', 'fa-ellipsis', 'fa-beat-fade', 'text-center', 'w-100']"
+                        />
+                        <span v-else class="mb-auto">{{ q?.question }}</span>
+                    </span>
+                    <i v-if="isEditModeActive && !section.is_default && section.id !== this.autogenKey"
+                       class="fa fa-edit click-icon"
+                       :class="{'disabled': !this.isEditingAllowed}"
+                       @click.stop="this.editPrompt(section, q)"
+                       :title="Localizer.get('questions_editPrompt')"
+                    />
+                    <i v-if="isEditModeActive && section.id !== this.autogenKey"
+                       class="fa fa-remove click-icon click-icon-danger"
+                       :class="{'disabled': !this.isEditingAllowed}"
+                       @click.stop="this.deletePrompt(section, q, qIndex)"
+                       :title="Localizer.get('questions_deletePrompt')"
+                    />
+                </div>
 
-</div>
+                <!-- add new prompt button -->
+                <div v-if="isEditModeActive && !section.is_default && section.id !== this.autogenKey"
+                     class="question-item justify-content-center"
+                     :class="{'disabled': !this.isEditingAllowed}"
+                     :aria-disabled="!isEditingAllowed"
+                     @click.stop="this.addNewPrompt(section)">
+                    <i class="fa fa-plus me-1" />
+                    <span>{{ Localizer.get('questions_addPrompt') }}</span>
+                </div>
+            </template>
+        </AppAccordion>
+
+    </div>
 </template>
 
 <script>

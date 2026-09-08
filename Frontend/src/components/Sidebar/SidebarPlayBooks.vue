@@ -1,71 +1,71 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_playBooks') }}
-        <i class="fa fa-plus ms-auto sidebar-title-action"
-           :class="{ disabled: isSaving }"
-           :aria-disabled="isSaving"
-           @click.stop="addPlayBook"
-           :title="Localizer.get('playBooks_add')" />
-    </div>
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_playBooks') }}
+            <i class="fa fa-plus ms-auto sidebar-title-action"
+               :class="{ disabled: isSaving }"
+               :aria-disabled="isSaving"
+               @click.stop="addPlayBook"
+               :title="Localizer.get('playBooks_add')" />
+        </div>
 
-    <div v-if="isLoading">
-        <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('playBooks_loading') }}
-    </div>
+        <div v-if="isLoading">
+            <i class="fa fa-circle-notch fa-spin me-1" />
+            {{ Localizer.get('playBooks_loading') }}
+        </div>
 
-    <div v-if="errorMessage" class="sidebar-empty-state">
-        {{ errorMessage }}
-    </div>
+        <div v-if="errorMessage" class="sidebar-empty-state">
+            {{ errorMessage }}
+        </div>
 
-    <div v-if="!isLoading && !errorMessage && playBooks.length === 0"
-         class="sidebar-empty-state">
-        {{ Localizer.get('playBooks_missing') }}
-    </div>
+        <div v-if="!isLoading && !errorMessage && playBooks.length === 0"
+             class="sidebar-empty-state">
+            {{ Localizer.get('playBooks_missing') }}
+        </div>
 
-    <AppAccordion
-        v-if="!isLoading && playBooks.length > 0"
-        id="play-books-accordion"
-        class="text-start"
-        :items="sortedPlayBooks"
-        :get-key="playBook => playBook.id"
-    >
-        <template #header="{ item: playBook }">
-            <i class="fa fa-clipboard-check me-3"
-               :class="{ 'play-book-disabled': !playBook.enabled }" />
-            <strong class="play-book-name"
-                    :class="{ 'play-book-disabled': !playBook.enabled }">
-                {{ playBook.name }}
-            </strong>
+        <AppAccordion
+            v-if="!isLoading && playBooks.length > 0"
+            id="play-books-accordion"
+            class="text-start"
+            :items="sortedPlayBooks"
+            :get-key="playBook => playBook.id"
+        >
+            <template #header="{ item: playBook }">
+                <i class="fa fa-clipboard-check me-3"
+                   :class="{ 'play-book-disabled': !playBook.enabled }" />
+                <strong class="play-book-name"
+                        :class="{ 'play-book-disabled': !playBook.enabled }">
+                    {{ playBook.name }}
+                </strong>
 
-            <span class="play-book-actions section-actions">
-                <i class="fa click-icon"
-                   :class="playBook.enabled ? 'fa-toggle-on' : 'fa-toggle-off'"
-                   @click.stop="togglePlayBook(playBook.id)"
-                   :title="Localizer.get(playBook.enabled ? 'playBooks_disable' : 'playBooks_enable')" />
-                <i class="fa fa-remove click-icon click-icon-danger"
-                   @click.stop="deletePlayBook(playBook)"
-                   :title="Localizer.get('playBooks_delete')" />
-            </span>
-        </template>
+                <span class="play-book-actions section-actions">
+                    <i class="fa click-icon"
+                       :class="playBook.enabled ? 'fa-toggle-on' : 'fa-toggle-off'"
+                       @click.stop="togglePlayBook(playBook.id)"
+                       :title="Localizer.get(playBook.enabled ? 'playBooks_disable' : 'playBooks_enable')" />
+                    <i class="fa fa-remove click-icon click-icon-danger"
+                       @click.stop="deletePlayBook(playBook)"
+                       :title="Localizer.get('playBooks_delete')" />
+                </span>
+            </template>
 
-        <template #body="{ item: playBook }">
-            <div class="play-book-body"
-                 :class="{ 'play-book-disabled': !playBook.enabled }">
-                <div class="play-book-section">
-                    <strong>{{ Localizer.get('playBooks_whenToUse') }}</strong>
-                    <p>{{ playBook.when_to_use }}</p>
+            <template #body="{ item: playBook }">
+                <div class="play-book-body"
+                     :class="{ 'play-book-disabled': !playBook.enabled }">
+                    <div class="play-book-section">
+                        <strong>{{ Localizer.get('playBooks_whenToUse') }}</strong>
+                        <p>{{ playBook.when_to_use }}</p>
+                    </div>
+                    <div class="play-book-section">
+                        <strong>{{ Localizer.get('playBooks_whatToDo') }}</strong>
+                        <p class="play-book-instructions">{{ playBook.what_to_do }}</p>
+                    </div>
                 </div>
-                <div class="play-book-section">
-                    <strong>{{ Localizer.get('playBooks_whatToDo') }}</strong>
-                    <p class="play-book-instructions">{{ playBook.what_to_do }}</p>
-                </div>
-            </div>
-        </template>
-    </AppAccordion>
+            </template>
+        </AppAccordion>
 
-    <InputDialogue ref="input" />
-</div>
+        <InputDialogue ref="input" />
+    </div>
 </template>
 
 <script>

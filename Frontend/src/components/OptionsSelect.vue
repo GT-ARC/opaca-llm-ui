@@ -1,36 +1,36 @@
 <template>
-<div>
-    <AppAccordion
-        id="options-selector"
-        :items="getCombinedSettingsData()"
-        :get-key="setting => setting.elementId"
-        variant="compact"
-    >
-        <template #header="{ item: { data, name, elementId, icon } }">
-            <div class="d-flex me-1 p-1 text-start" style="height: 100%">
-                <i class="fa fs-4" :class="[icon]" style="width: 30px" />
-            </div>
-            <div class="d-flex flex-column">
-                <div>
-                    {{ data[this.getSelectedItem(elementId)] }}
+    <div>
+        <AppAccordion
+            id="options-selector"
+            :items="getCombinedSettingsData()"
+            :get-key="setting => setting.elementId"
+            variant="compact"
+        >
+            <template #header="{ item: { data, name, elementId, icon } }">
+                <div class="d-flex me-1 p-1 text-start" style="height: 100%">
+                    <i class="fa fs-4" :class="[icon]" style="width: 30px" />
                 </div>
-                <div class="text-muted">
-                    {{ name }}
+                <div class="d-flex flex-column">
+                    <div>
+                        {{ data[this.getSelectedItem(elementId)] }}
+                    </div>
+                    <div class="text-muted">
+                        {{ name }}
+                    </div>
                 </div>
-            </div>
-        </template>
+            </template>
 
-        <template #body="{ item: { data, elementId } }">
-            <div v-for="(name, itemId) in data"
-                 :key="itemId"
-                 class="options-item"
-                 @click="this.select(elementId, itemId)">
-                {{ name }}
-                <i class="fa fa-check-circle ms-1" v-if="this.isSelectedItem(elementId, itemId)" />
-            </div>
-        </template>
-    </AppAccordion>
-</div>
+            <template #body="{ item: { data, elementId } }">
+                <div v-for="(name, itemId) in data"
+                     :key="itemId"
+                     class="options-item"
+                     @click="this.select(elementId, itemId)">
+                    {{ name }}
+                    <i class="fa fa-check-circle ms-1" v-if="this.isSelectedItem(elementId, itemId)" />
+                </div>
+            </template>
+        </AppAccordion>
+    </div>
 </template>
 
 <script>
