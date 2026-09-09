@@ -40,10 +40,10 @@
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3"/>
-                    <strong class="flex-grow-1">{{ server.name }}</strong>
+                    <i class="fa fa-server me-3 flex-shrink-0"/>
+                    <strong class="mcp-server-title" :title="server.name">{{ server.name }}</strong>
 
-                    <span class="section-actions">
+                    <span class="section-actions flex-shrink-0">
                         <i class="fa fa-remove click-icon click-icon-danger"
                            @click.stop="this.deleteMcp(server.name)"
                            :title="Localizer.get('mcp_remove')" />
@@ -132,6 +132,12 @@
                :aria-pressed="hideCredentialedRegistryMcp"
                @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
                :title="Localizer.get('mcp_filterCredentials')" />
+            <i v-if="showRegistryHeaderActions"
+               class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="[prioritizeOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: prioritizeOfficialLookingRegistryMcp }]"
+               :aria-pressed="prioritizeOfficialLookingRegistryMcp"
+               @click="prioritizeOfficialLookingRegistryMcp = !prioritizeOfficialLookingRegistryMcp"
+               :title="Localizer.get('mcp_sortOfficialLooking')" />
             <i class="fa sidebar-title-action sidebar-title-action-secondary"
                :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
                @click="showRegistryHeaderActions = !showRegistryHeaderActions"
@@ -161,9 +167,9 @@
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3" />
-                    <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
-                    <span class="section-actions"
+                    <i class="fa fa-server me-3 flex-shrink-0" />
+                    <strong class="mcp-server-title" :title="server.title || server.name">{{ server.title || server.name }}</strong>
+                    <span class="section-actions flex-shrink-0"
                           :title="server.compatibleRemoteUrls.length > 0
                               ? Localizer.get('mcp_add')
                               : Localizer.get('mcp_registryNoRemote')">
@@ -245,6 +251,7 @@ export default {
             showRegistryHeaderActions: false,
             hideUnavailableRegistryMcp: false,
             hideCredentialedRegistryMcp: false,
+            prioritizeOfficialLookingRegistryMcp: true,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -279,6 +286,19 @@ export default {
             if (this.hideCredentialedRegistryMcp) {
                 // This reflects declared secrets, not authentication discovered at runtime
                 servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
+            }
+            const query = this.searchQuery.trim().toLowerCase();
+            if (this.prioritizeOfficialLookingRegistryMcp && query) {
+                const preferred = [];
+                const others = [];
+                for (const server of servers) {
+                    const separator = server.name.indexOf('/');
+                    const matchesPublisher = separator > 0
+                        && server.name.slice(0, separator).toLowerCase().includes(query);
+                    (matchesPublisher ? preferred : others).push(server);
+                }
+                // Preserve registry order within each group as more pages load.
+                servers = [...preferred, ...others];
             }
             return servers;
         },
@@ -711,12 +731,21 @@ export default {
 </script>
 
 <style scoped>
+.mcp-server-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .mcp-body {
     padding: 0.5rem;
 }
 
 .mcp-registry-body {
     padding: 0.75rem;
+    overflow-wrap: anywhere;
 }
 
 .mcp-registry-endpoint {
