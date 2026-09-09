@@ -209,6 +209,7 @@ import FilePreview from "./FilePreview.vue";
 import FileViewer from "./FileViewer.vue";
 import InputDialogue from "./InputDialogue.vue";
 import FileDropHandler from "./FileDropHandler.vue";
+import {showMcpAuthorization} from "../mcpOAuth.ts";
 import {
     clearMissedChatResponse as clearTabMissedChatResponse,
     markMissedChatResponse as markTabMissedChatResponse,
@@ -629,7 +630,7 @@ export default {
             }
 
             if (result.type === "MCPAuthNotification") {
-                this.$emit('mcp-auth-required', result);
+                showMcpAuthorization(result.authorization_url);
             }
 
             if (result.type === "TextChunkMessage") {
