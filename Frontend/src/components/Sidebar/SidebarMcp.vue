@@ -40,10 +40,10 @@
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3"/>
-                    <strong class="flex-grow-1">{{ server.name }}</strong>
+                    <i class="fa fa-server me-3 flex-shrink-0"/>
+                    <strong class="mcp-server-title" :title="server.name">{{ server.name }}</strong>
 
-                    <span class="section-actions">
+                    <span class="section-actions flex-shrink-0">
                         <i class="fa fa-remove click-icon click-icon-danger"
                            @click.stop="this.deleteMcp(server.name)"
                            :title="Localizer.get('mcp_remove')" />
@@ -167,9 +167,9 @@
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3" />
-                    <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
-                    <span class="section-actions"
+                    <i class="fa fa-server me-3 flex-shrink-0" />
+                    <strong class="mcp-server-title" :title="server.title || server.name">{{ server.title || server.name }}</strong>
+                    <span class="section-actions flex-shrink-0"
                           :title="server.compatibleRemoteUrls.length > 0
                               ? Localizer.get('mcp_add')
                               : Localizer.get('mcp_registryNoRemote')">
@@ -725,12 +725,21 @@ export default {
 </script>
 
 <style scoped>
+.mcp-server-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .mcp-body {
     padding: 0.5rem;
 }
 
 .mcp-registry-body {
     padding: 0.75rem;
+    overflow-wrap: anywhere;
 }
 
 .mcp-registry-endpoint {
