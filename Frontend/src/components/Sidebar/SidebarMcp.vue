@@ -134,10 +134,10 @@
                :title="Localizer.get('mcp_filterCredentials')" />
             <i v-if="showRegistryHeaderActions"
                class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="[onlyOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: onlyOfficialLookingRegistryMcp }]"
-               :aria-pressed="onlyOfficialLookingRegistryMcp"
-               @click="onlyOfficialLookingRegistryMcp = !onlyOfficialLookingRegistryMcp"
-               :title="Localizer.get('mcp_filterOfficialLooking')" />
+               :class="[prioritizeOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: prioritizeOfficialLookingRegistryMcp }]"
+               :aria-pressed="prioritizeOfficialLookingRegistryMcp"
+               @click="prioritizeOfficialLookingRegistryMcp = !prioritizeOfficialLookingRegistryMcp"
+               :title="Localizer.get('mcp_sortOfficialLooking')" />
             <i class="fa sidebar-title-action sidebar-title-action-secondary"
                :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
                @click="showRegistryHeaderActions = !showRegistryHeaderActions"
@@ -251,7 +251,7 @@ export default {
             showRegistryHeaderActions: false,
             hideUnavailableRegistryMcp: false,
             hideCredentialedRegistryMcp: false,
-            onlyOfficialLookingRegistryMcp: false,
+            prioritizeOfficialLookingRegistryMcp: true,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -288,11 +288,17 @@ export default {
                 servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
             }
             const query = this.searchQuery.trim().toLowerCase();
-            if (this.onlyOfficialLookingRegistryMcp && query) {
-                servers = servers.filter(server => {
+            if (this.prioritizeOfficialLookingRegistryMcp && query) {
+                const preferred = [];
+                const others = [];
+                for (const server of servers) {
                     const separator = server.name.indexOf('/');
-                    return separator > 0 && server.name.slice(0, separator).toLowerCase().includes(query);
-                });
+                    const matchesPublisher = separator > 0
+                        && server.name.slice(0, separator).toLowerCase().includes(query);
+                    (matchesPublisher ? preferred : others).push(server);
+                }
+                // Preserve registry order within each group as more pages load.
+                servers = [...preferred, ...others];
             }
             return servers;
         },
