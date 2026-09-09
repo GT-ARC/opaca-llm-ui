@@ -283,6 +283,9 @@ async def get_mcp_list(session: SessionData = Depends(handle_session_http)) -> D
 
 @app.post("/mcp", description="Add a new MCP server to the list of available MCP servers", tags=["mcp"])
 async def add_mcp_server(request: Request, mcp: MCPCreateRequest, session: SessionData = Depends(handle_session_http)) -> Response:
+    # AUTO is an installation-only registry mode.
+    # Discovery sends any supplied headers while remaining able to handle an OAuth challenge;
+    # after success, it records whether OAuth tokens, headers, or no credentials were used.
     uses_oauth = mcp.auth.auth_type in (MCPAuthType.AUTO, MCPAuthType.OAUTH2)
     if uses_oauth and not session.has_websocket():
         raise OpacaException(
@@ -299,6 +302,8 @@ async def add_mcp_server(request: Request, mcp: MCPCreateRequest, session: Sessi
             "Set MCP_CREDENTIAL_ENCRYPTION_KEY to a stable Fernet key.",
             503,
         )
+    # AUTO may succeed without credentials and settle to NONE, so defer its
+    # credential-storage error until discovery has classified the connection.
     if storage_error and mcp.auth.auth_type not in (MCPAuthType.NONE, MCPAuthType.AUTO):
         raise storage_error
 

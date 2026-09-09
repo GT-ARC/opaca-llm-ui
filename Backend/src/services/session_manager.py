@@ -40,6 +40,7 @@ def session_document(session: SessionData) -> dict:
     bson["mcp_servers"] = {
         label: server
         for label, server in bson.get("mcp_servers", {}).items()
+        # Anonymous credentials have timestamps. None marks servers that may survive a restart
         if server.get("credential_expires_at") is None
     }
     return bson
@@ -269,10 +270,10 @@ async def update_session(session_id: str, action: SessionAction):
         elif action == SessionAction.STOP_TASKS:
             # already scheduled tasks consider themselves cancelled if no longer in this list
             session.scheduled_tasks.clear()
-        
+
         elif action == SessionAction.BLOCK:
             session.blocked = True
-        
+
         elif action == SessionAction.UNBLOCK:
             session.blocked = False
 
@@ -296,7 +297,7 @@ async def restore_scheduled_tasks() -> None:
     """
     Re-create scheduled tasks on restart. Details see InternalTools. In short, missed tasks are NOT
     executed but just skipped, also decrementing the remaining repetitions accordingly. The first
-    execution is set such that the planned interval is kept as best as possible. This means that 
+    execution is set such that the planned interval is kept as best as possible. This means that
     tasks to be executed as a certain time are still executed at that time, but an hourly task missed
     by one minute will only be executed again in another hour.
     """
