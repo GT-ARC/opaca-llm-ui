@@ -132,6 +132,12 @@
                :aria-pressed="hideCredentialedRegistryMcp"
                @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
                :title="Localizer.get('mcp_filterCredentials')" />
+            <i v-if="showRegistryHeaderActions"
+               class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="[onlyOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: onlyOfficialLookingRegistryMcp }]"
+               :aria-pressed="onlyOfficialLookingRegistryMcp"
+               @click="onlyOfficialLookingRegistryMcp = !onlyOfficialLookingRegistryMcp"
+               :title="Localizer.get('mcp_filterOfficialLooking')" />
             <i class="fa sidebar-title-action sidebar-title-action-secondary"
                :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
                @click="showRegistryHeaderActions = !showRegistryHeaderActions"
@@ -245,6 +251,7 @@ export default {
             showRegistryHeaderActions: false,
             hideUnavailableRegistryMcp: false,
             hideCredentialedRegistryMcp: false,
+            onlyOfficialLookingRegistryMcp: false,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -279,6 +286,13 @@ export default {
             if (this.hideCredentialedRegistryMcp) {
                 // This reflects declared secrets, not authentication discovered at runtime
                 servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
+            }
+            const query = this.searchQuery.trim().toLowerCase();
+            if (this.onlyOfficialLookingRegistryMcp && query) {
+                servers = servers.filter(server => {
+                    const separator = server.name.indexOf('/');
+                    return separator > 0 && server.name.slice(0, separator).toLowerCase().includes(query);
+                });
             }
             return servers;
         },
