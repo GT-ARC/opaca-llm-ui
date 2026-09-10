@@ -19,7 +19,7 @@ Each tool can be configured with one of three approval types:
 
 ### File handling
 
-File upload and conversation queries are separate requests. Selecting a PDF or image uploads it immediately to the SAGE backend. If a chat ID is supplied, the file also becomes active for that chat. Extractable PDF text is processed locally with YAKE to generate keywords; images currently have no generated keywords and are represented by their filenames until their contents are read by a vision-capable model. Text files are inserted into the user prompt by the frontend rather than uploaded.
+File upload and conversation queries are separate requests. Selecting a PDF or image uploads it immediately to the SAGE backend. If a chat ID is supplied, the file also becomes active for that chat. Extractable PDF text is processed locally with language-specific spaCy models and TopicRank; noun-phrase candidates are filtered with built-in English or German stop words, clustered by lemma overlap, and ranked as a graph. Images currently have no generated keywords and are represented by their filenames until their contents are read by a vision-capable model. Text files are inserted into the user prompt by the frontend rather than uploaded.
 
 The query's `file_ids` field identifies files attached to that specific user request. This preserves the meaning of references such as "this file", but does not send full file contents to the LLM. Provider upload happens lazily when `AskFiles` reads selected active files, and the resulting provider IDs are cached per provider, purpose, and API key.
 

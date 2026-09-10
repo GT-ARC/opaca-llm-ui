@@ -64,13 +64,16 @@ class InternalTools:
 
     # FORMAT INTERNAL TOOLS FOR DIFFERENT OCCASIONS
 
+    @staticmethod
+    def _parameter_schema(parameter: str | dict) -> dict:
+        return {"type": parameter} if isinstance(parameter, str) else parameter
+
     def _format_internal_tool_simple(self, tool: InternalTool) -> dict:
         return {
             "name": tool.name,
             "description": tool.description,
             "parameters": {
-                key: {
-                    "type": val,
+                key: self._parameter_schema(val) | {
                     "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys()),
                 }
                 for key, val in tool.params.items()
@@ -118,7 +121,7 @@ class InternalTools:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        key: {"type": val}
+                        key: self._parameter_schema(val)
                         for key, val in tool.params.items()
                     },
                     "additionalProperties": False,

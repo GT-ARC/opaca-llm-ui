@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 
 import requests
@@ -17,6 +16,11 @@ from .context import InternalToolContext
 
 
 logger = logging.getLogger(__name__)
+
+FILE_IDS_SCHEMA = {
+    "type": "array",
+    "items": {"type": "string"},
+}
 
 
 def _error_message(exc: Exception) -> str:
@@ -69,7 +73,7 @@ class FileTools:
                     "known. Pass the complete set of file IDs that should be active, not only "
                     "newly relevant inactive files."
                 ),
-                params={"file_ids": "string"},
+                params={"file_ids": FILE_IDS_SCHEMA},
                 result="object",
                 function=self.tool_set_active_files,
             ),
@@ -82,7 +86,7 @@ class FileTools:
                 ),
                 params={
                     "question": "string",
-                    "file_ids": "string",
+                    "file_ids": FILE_IDS_SCHEMA,
                 },
                 result="object",
                 function=self.tool_ask_files,
@@ -94,26 +98,8 @@ class FileTools:
             return set(self.ctx.session.uploaded_files)
         return set(self.ctx.chat.active_files)
 
-    def _parse_file_ids(self, file_ids: str | list[str] | None) -> set[str]:
-        if file_ids is None:
-            return set()
-        if isinstance(file_ids, list):
-            values = file_ids
-        else:
-            value = file_ids.strip()
-            try:
-                parsed = json.loads(value) if value.startswith("[") else None
-            except json.JSONDecodeError:
-                parsed = None
-            values = parsed if isinstance(parsed, list) else value.split(",")
-
-        return {str(file_id).strip() for file_id in values if str(file_id).strip()}
-
-    def _selected_active_file_ids(
-            self,
-            file_ids: str | list[str],
-    ) -> tuple[set[str], set[str]]:
-        requested_ids = self._parse_file_ids(file_ids)
+    def _selected_active_file_ids(self, file_ids: list[str]) -> tuple[set[str], set[str]]:
+        requested_ids = set(file_ids)
         return requested_ids & self._active_file_ids(), requested_ids
 
     async def tool_read_file_from_url(self, url: str) -> dict:
@@ -165,15 +151,9 @@ class FileTools:
                 active_file_ids=self._active_file_ids(),
                 record_agent_message=self.ctx.record_agent_message,
             )
-            inactive_file_ids = [
-                file["file_id"]
-                for file in files
-                if not file["active"]
-            ]
             return {
                 "ok": True,
-                "files": files,
-                "inactive_file_ids": inactive_file_ids,
+                "files": [file.to_dict() for file in files],
             }
         except Exception as exc:
             logger.exception("Finding relevant files failed")
@@ -185,25 +165,19 @@ class FileTools:
             current_file_ids=self.ctx.current_file_ids,
             active_file_ids=self._active_file_ids(),
         )
-        inactive_file_ids = [
-            file["file_id"]
-            for file in files
-            if not file["active"]
-        ]
         return {
             "ok": True,
-            "files": files,
-            "inactive_file_ids": inactive_file_ids,
+            "files": [file.to_dict() for file in files],
         }
 
-    async def tool_set_active_files(self, file_ids: str | list[str]) -> dict:
+    async def tool_set_active_files(self, file_ids: list[str]) -> dict:
         if self.ctx.chat is None:
             return {
                 "ok": False,
                 "error": "No chat is available for setting active files.",
             }
 
-        selected_ids = self._parse_file_ids(file_ids) & set(self.ctx.session.uploaded_files)
+        selected_ids = set(file_ids) & set(self.ctx.session.uploaded_files)
 
         if not selected_ids:
             return {
@@ -229,11 +203,7 @@ class FileTools:
             "active_file_ids": sorted(selected_ids),
         }
 
-    async def tool_ask_files(
-            self,
-            question: str,
-            file_ids: str | list[str],
-    ) -> dict:
+    async def tool_ask_files(self, question: str, file_ids: list[str]) -> dict:
         selected_ids, requested_ids = self._selected_active_file_ids(file_ids)
         if not selected_ids:
             return {

@@ -15,5 +15,8 @@ langchain-sandbox>=0.0.6
 opaca>=0.0.8
 auth0-fastapi-api>=1.0.0b7
 python-jose[cryptography]>=3.5.0
-yake>=0.4.8
 pypdf>=5.0.0
+spacy>=3.8.0,<3.9.0
+rapid-textrank==0.1.4
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+de-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl
