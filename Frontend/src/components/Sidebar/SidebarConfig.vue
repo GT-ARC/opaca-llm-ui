@@ -1,63 +1,63 @@
 <template>
-<div id="config-display"
-     class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_config') }}
-        <i class="fa fa-save ms-auto sidebar-title-action"
-           :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
-           :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
-           @click="saveMethodConfig"
-           :title="Localizer.get('config_save')" />
-        <i class="fa fa-undo sidebar-title-action sidebar-title-action-danger"
-           :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
-           :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
-           @click="resetMethodConfig"
-           :title="Localizer.get('config_reset')" />
-    </div>
+    <div id="config-display"
+         class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_config') }}
+            <i class="fa fa-save ms-auto sidebar-title-action"
+               :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
+               :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
+               @click="saveMethodConfig"
+               :title="Localizer.get('config_save')" />
+            <i class="fa fa-undo sidebar-title-action sidebar-title-action-danger"
+               :class="{ disabled: isLoading || !methodConfig || Object.keys(methodConfig).length === 0 }"
+               :aria-disabled="isLoading || !methodConfig || Object.keys(methodConfig).length === 0"
+               @click="resetMethodConfig"
+               :title="Localizer.get('config_reset')" />
+        </div>
 
-    <div class="py-2">
-        <p class="fw-bold">Config for
-            <i class="fa fa-server ms-1"/>
-            {{ Methods[this.method] }}
-        </p>
-        <p>{{ MethodDescriptions[this.method] }}</p>
-    </div>
+        <div class="py-2">
+            <p class="fw-bold">Config for
+                <i class="fa fa-server ms-1"/>
+                {{ Methods[this.method] }}
+            </p>
+            <p>{{ MethodDescriptions[this.method] }}</p>
+        </div>
 
-    <div v-if="this.isLoading">
-        <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('config_loading', this.method) }}
-    </div>
-    <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0"
-         class="sidebar-empty-state">
-        {{ Localizer.get('config_missing', this.method) }}
-    </div>
-    <div v-else class="flex-row text-start">
-        <template v-for="(schema, name) in methodConfigSchema" :key="name">
-            <ConfigGroup
-                v-if="schema.type === 'object'"
-                :name="schema?.title ?? name"
-                :schema="schema"
-                :showTitle="true"
-                v-model="methodConfig[name]"
-                @update:modelValue="saveMethodConfig(); fetchMethodConfig()"
-            />
+        <div v-if="this.isLoading">
+            <i class="fa fa-circle-notch fa-spin me-1" />
+            {{ Localizer.get('config_loading', this.method) }}
+        </div>
+        <div v-else-if="!this.methodConfig ?? Object.keys(this.methodConfig).length === 0"
+             class="sidebar-empty-state">
+            {{ Localizer.get('config_missing', this.method) }}
+        </div>
+        <div v-else class="flex-row text-start">
+            <template v-for="(schema, name) in methodConfigSchema" :key="name">
+                <ConfigGroup
+                    v-if="schema.type === 'object'"
+                    :name="schema?.title ?? name"
+                    :schema="schema"
+                    :showTitle="true"
+                    v-model="methodConfig[name]"
+                    @update:modelValue="saveMethodConfig(); fetchMethodConfig()"
+                />
 
-            <ConfigParameter
-                v-else
-                :name="name"
-                :config-param="schema"
-                v-model="methodConfig[name]"
-            />
-        </template>
+                <ConfigParameter
+                    v-else
+                    :name="name"
+                    :config-param="schema"
+                    v-model="methodConfig[name]"
+                />
+            </template>
 
-        <div v-if="!this.shouldFadeOut"
-             class="text-center"
-             :class="{ 'text-danger': !this.configChangeSuccess,
-                       'text-success': this.configChangeSuccess}">
-            {{ this.configMessage }}
+            <div v-if="!this.shouldFadeOut"
+                 class="text-center"
+                 :class="{ 'text-danger': !this.configChangeSuccess,
+                           'text-success': this.configChangeSuccess}">
+                {{ this.configMessage }}
+            </div>
         </div>
     </div>
-</div>
 </template>
 
 <script>

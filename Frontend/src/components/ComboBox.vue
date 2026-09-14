@@ -1,50 +1,50 @@
 <template>
-<div class="position-relative" ref="root">
-    <div class="input-group combo-box">
-        <input
-            ref="input"
-            type="text"
-            class="form-control"
-            :placeholder="placeholder"
-            v-model="localValue"
-            @input="onInput"
-            @keydown.down.prevent="moveSelection(1)"
-            @keydown.up.prevent="moveSelection(-1)"
-            @keydown.enter.prevent="commitHighlighted"
-            @keydown.esc.prevent="toggleDropdown(false)"
-            role="combobox"
-            :aria-expanded="open ? 'true' : 'false'"
-            aria-autocomplete="list"
-            autocomplete="off"
-            :disabled="disabled || inputDisabled"
-        />
-        <button
-            class="btn btn-outline-secondary"
-            type="button"
-            @click="() => toggleDropdown()"
-            aria-label="Toggle options"
-            :disabled="disabled">
-            <i v-if="open" class="fa fa-caret-up" />
-            <i v-else class="fa fa-caret-down" />
-        </button>
-    </div>
+    <div class="position-relative" ref="root">
+        <div class="input-group combo-box">
+            <input
+                ref="input"
+                type="text"
+                class="form-control"
+                :placeholder="placeholder"
+                v-model="localValue"
+                @input="onInput"
+                @keydown.down.prevent="moveSelection(1)"
+                @keydown.up.prevent="moveSelection(-1)"
+                @keydown.enter.prevent="commitHighlighted"
+                @keydown.esc.prevent="toggleDropdown(false)"
+                role="combobox"
+                :aria-expanded="open ? 'true' : 'false'"
+                aria-autocomplete="list"
+                autocomplete="off"
+                :disabled="disabled || inputDisabled"
+            />
+            <button
+                class="btn btn-outline-secondary"
+                type="button"
+                @click="() => toggleDropdown()"
+                aria-label="Toggle options"
+                :disabled="disabled">
+                <i v-if="open" class="fa fa-caret-up" />
+                <i v-else class="fa fa-caret-down" />
+            </button>
+        </div>
 
-    <ul v-if="open"
-        class="list-group position-absolute start-0 end-0 mt-1"
-        style="z-index: 1050; max-height: 240px; overflow: auto;"
-        role="listbox">
-        <li v-for="(item, idx) in items"
-            :key="item + '_' + idx"
-            class="list-group-item list-group-item-action"
-            :class="{ active: idx === highlighted }"
-            role="option"
-            :aria-selected="idx === highlighted ? 'true' : 'false'"
-            @mouseup.prevent="select(item)"
-            @mousemove="highlighted = idx">
-            {{ item }}
-        </li>
-    </ul>
-</div>
+        <ul v-if="open"
+            class="list-group position-absolute start-0 end-0 mt-1"
+            style="z-index: 1050; max-height: 240px; overflow: auto;"
+            role="listbox">
+            <li v-for="(item, idx) in items"
+                :key="item + '_' + idx"
+                class="list-group-item list-group-item-action"
+                :class="{ active: idx === highlighted }"
+                role="option"
+                :aria-selected="idx === highlighted ? 'true' : 'false'"
+                @mouseup.prevent="select(item)"
+                @mousemove="highlighted = idx">
+                {{ item }}
+            </li>
+        </ul>
+    </div>
 </template>
 
 <script>

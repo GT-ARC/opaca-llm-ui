@@ -1,33 +1,33 @@
 <template>
-<div class="sidebar-account-wrapper">
-    <div class="sidebar-menu-item sidebar-avatar-wrapper"
-         @click.stop="toggleProfileMenu()"
-         :class="{'sidebar-menu-item-select': accountMenuOpen}"
-         :title="Localizer.get('sidebar_account')">
-         <img v-if="this.isAuthenticated && user?.picture"
-              :src="user.picture"
-              class="sidebar-avatar"
-              alt="User avatar"/>
-         <i v-else class="fa fa-user"/>
-    </div>
+    <div class="sidebar-account-wrapper">
+        <div class="sidebar-menu-item sidebar-avatar-wrapper"
+             @click.stop="toggleProfileMenu()"
+             :class="{'sidebar-menu-item-select': accountMenuOpen}"
+             :title="Localizer.get('sidebar_account')">
+            <img v-if="this.isAuthenticated && user?.picture"
+                 :src="user.picture"
+                 class="sidebar-avatar"
+                 alt="User avatar"/>
+            <i v-else class="fa fa-user"/>
+        </div>
 
-    <div v-if="accountMenuOpen"
-         class="sidebar-account-menu"
-         @click.stop>
-        <button type="button"
-                class="sidebar-account-menu-button"
-                @click="handleProfileAuthClick()">
-            <i :class="['fa', this.isAuthenticated ? 'fa-right-from-bracket' : 'fa-right-to-bracket']"/>
-            <span>{{ this.isAuthenticated ? Localizer.get('account_logout') : Localizer.get('account_login') }}</span>
-        </button>
-        <button type="button"
-                class="sidebar-account-menu-button"
-                @click="handleProfileSettingsClick()">
-            <i class="fa fa-gear"/>
-            <span>{{ Localizer.get('settings_menu') }}</span>
-        </button>
+        <div v-if="accountMenuOpen"
+             class="sidebar-account-menu"
+             @click.stop>
+            <button type="button"
+                    class="sidebar-account-menu-button"
+                    @click="handleProfileAuthClick()">
+                <i :class="['fa', this.isAuthenticated ? 'fa-right-from-bracket' : 'fa-right-to-bracket']"/>
+                <span>{{ this.isAuthenticated ? Localizer.get('account_logout') : Localizer.get('account_login') }}</span>
+            </button>
+            <button type="button"
+                    class="sidebar-account-menu-button"
+                    @click="handleProfileSettingsClick()">
+                <i class="fa fa-gear"/>
+                <span>{{ Localizer.get('settings_menu') }}</span>
+            </button>
+        </div>
     </div>
-</div>
 </template>
 
 <script>

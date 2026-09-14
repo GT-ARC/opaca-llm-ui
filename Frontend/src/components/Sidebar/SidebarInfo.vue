@@ -1,24 +1,24 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_info') }}
-    </div>
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_info') }}
+        </div>
 
-    <div v-if="this.isLoading">
-        <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('info_loading') }}
+        <div v-if="this.isLoading">
+            <i class="fa fa-circle-notch fa-spin me-1" />
+            {{ Localizer.get('info_loading') }}
+        </div>
+        <div v-else-if="!isPlatformConnected" class="placeholder-container">
+            <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
+            <h5 class="p-4">
+                {{ Localizer.get('info_missing') }}
+            </h5>
+        </div>
+        <div v-else
+             v-html="this.howAssistContent"
+             class="info-content w-auto"
+        />
     </div>
-    <div v-else-if="!isPlatformConnected" class="placeholder-container">
-        <img src="../../assets/opaca-llm-sleeping-dog-dark.png" alt="Sleeping-dog" class="placeholder-image" />
-        <h5 class="p-4">
-            {{ Localizer.get('info_missing') }}
-        </h5>
-    </div>
-    <div v-else
-         v-html="this.howAssistContent"
-         class="info-content w-auto"
-    />
-</div>
 </template>
 
 <script>
