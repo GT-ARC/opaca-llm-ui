@@ -67,9 +67,9 @@ class OpacaClient(AsyncOpacaClient):
             for container in containers:
                 cid = container.containerId
                 token = self.container_tokens.get(cid)
-                for k, v in container.connectivity["extraPortMappings"].items():
-                    if v["protocol"] == "TCP":
-                        url = f'{container.connectivity["publicUrl"]}:{k}'
+                for k, v in container.connectivity.extraPortMappings.items():
+                    if v.protocol == "TCP":
+                        url = f'{container.connectivity.publicUrl}:{k}'
                         if token: url += f"?token={token}"
                         try:
                             requests.get(url).raise_for_status()
@@ -79,7 +79,7 @@ class OpacaClient(AsyncOpacaClient):
                                     "extraPorts": []
                                 }
                             tmp[cid]["extraPorts"].append(
-                                {"fullUrl": url, "description": v["description"]}
+                                {"fullUrl": url, "description": v.description}
                             )
                         except Exception as e:
                             logger.warning(f"Could not load extension {url}: {e}")
