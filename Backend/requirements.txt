@@ -9,12 +9,14 @@ python-multipart>=0.0.20
 pydantic>=2.12.5
 pymongo>=4.15.1
 litellm>=1.81.0
-mcp>=1.23.3,<2.0.0
+mcp>=2,<3
+httpx2>=2.5.0,<3
 rich>=14.0.0
 langchain-sandbox>=0.0.6
 opaca>=0.0.8
 auth0-fastapi-api>=1.0.0b7
 python-jose[cryptography]>=3.5.0
+cryptography>=44.0.0
 pypdf>=5.0.0
 spacy>=3.8.0,<3.9.0
 rapid-textrank==0.1.4

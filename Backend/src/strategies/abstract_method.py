@@ -18,7 +18,7 @@ from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
 
 from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
                      ToolCall, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
-                     MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
+                     MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig, normalize_tool_schema_for_llm)
 from ..services.file_utils import get_file_parts
 from ..services.opaca_client import actions_blacklist
 from ..services.tool_calling import ToolCaller
@@ -178,7 +178,9 @@ class AbstractMethod(ABC):
             'model': model,
             'instructions': system_prompt,
             'input': [m.model_dump() for m in messages],
-            'tools': tools or [],
+            # Normalize all tool sources at their common LLM boundary while
+            # preserving the original schemas used by their providers.
+            'tools': normalize_tool_schema_for_llm(tools or []),
             'tool_choice': tool_choice if tools else 'none',
             'text_format': response_format,
             'stream': True

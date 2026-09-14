@@ -37,6 +37,8 @@ Exceptions to this are the backend URL, MCP server URL, and everything related t
 * `CORS_WHITELIST`: Semicolon-separated list of allowed referrers; this is important for CORS; defaults to `http://localhost:5173`, but for deployment should be actual IP and port of the frontend (and any other valid referrers).
 * `MONGODB_URI`: The full URI, including username and password, to the MongoDB used for storing the session data. If left empty, sessions are stored in memory only.
 * `SESSION_ADMIN_PWD`: password needed to call any of the `/admin/...` routes.
+* `MCP_CREDENTIAL_ENCRYPTION_KEY`: Stable URL-safe base64-encoded 32-byte Fernet key used to encrypt MCP access tokens, refresh tokens, and static credentials. This is required to persist authenticated MCP connections for logged-in users when MongoDB is enabled. Generate one with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` and store it as a deployment secret.
+* `MCP_OAUTH_CALLBACK_URL`: Public backend callback URL registered with MCP authorization servers, for example `https://sage.example.org/mcp/oauth/callback`. If omitted, SAGE derives the URL from the incoming add-MCP request; explicitly configure it when running behind a reverse proxy.
 
 ## Session-DB
 
