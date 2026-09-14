@@ -311,7 +311,7 @@ class ToolCall(BaseModel):
 class InternalTool(BaseModel):
     name: str
     description: str
-    params: dict[str, str]
+    params: dict[str, str | dict[str, Any]]
     required_params: list[str] | None = None
     result: str
     function: Callable

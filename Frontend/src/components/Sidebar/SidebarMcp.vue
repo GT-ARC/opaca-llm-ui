@@ -6,24 +6,18 @@
            @click.stop="addMcp()"
            :title="Localizer.get('mcp_add')" />
         <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
-           @click="toggleSearch"
+           @click="$refs.search.toggleSearch()"
            :title="Localizer.get('mcp_search')" />
     </div>
 
-    <input v-if="isSearching"
-           type="search"
-           ref="searchBar"
-           class="form-control my-2"
-           :placeholder="Localizer.get('mcp_search')"
-           v-model="this.searchQuery" />
-    <div v-if="mcpSearchContexts.length > 0" class="sidebar-search-results">
-        <div v-for="result in mcpSearchContexts"
-             :key="result.key"
-             class="sidebar-search-result-group">
-            <div class="sidebar-search-result-heading">{{ result.path }}</div>
-            <div class="sidebar-search-result-context">{{ result.context }}</div>
-        </div>
-    </div>
+    <GenericSearch
+        ref="search"
+        :items="mcpSearchItems"
+        :placeholder="Localizer.get('mcp_search')"
+        :filter-items="filterMcpItems"
+        @search-query-change="searchQuery = $event"
+    >
+        <template #default="{ filteredItems }">
 
     <section class="mcp-section">
         <div class="mcp-section-title">
@@ -42,14 +36,14 @@
             <AppAccordion
                 id="mcp-accordion"
                 class="text-start"
-                :items="getMcpServers()"
+                :items="getMcpServers(filteredItems.installed)"
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3"/>
-                    <strong class="flex-grow-1">{{ server.name }}</strong>
+                    <i class="fa fa-server me-3 flex-shrink-0"/>
+                    <strong class="mcp-server-title" :title="server.name">{{ server.name }}</strong>
 
-                    <span class="section-actions">
+                    <span class="section-actions flex-shrink-0">
                         <i class="fa fa-remove click-icon click-icon-danger"
                            @click.stop="this.deleteMcp(server.name)"
                            :title="Localizer.get('mcp_remove')" />
@@ -138,6 +132,12 @@
                :aria-pressed="hideCredentialedRegistryMcp"
                @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
                :title="Localizer.get('mcp_filterCredentials')" />
+            <i v-if="showRegistryHeaderActions"
+               class="fa sidebar-title-action sidebar-title-action-secondary"
+               :class="[prioritizeOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: prioritizeOfficialLookingRegistryMcp }]"
+               :aria-pressed="prioritizeOfficialLookingRegistryMcp"
+               @click="prioritizeOfficialLookingRegistryMcp = !prioritizeOfficialLookingRegistryMcp"
+               :title="Localizer.get('mcp_sortOfficialLooking')" />
             <i class="fa sidebar-title-action sidebar-title-action-secondary"
                :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
                @click="showRegistryHeaderActions = !showRegistryHeaderActions"
@@ -152,24 +152,24 @@
              class="sidebar-empty-state">
             {{ Localizer.get('mcp_registryUnavailable') }}
         </div>
-        <div v-else-if="filteredRegistryMcp" class="flex-row">
+        <div v-else-if="filteredItems.registry" class="flex-row">
             <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
                 {{ Localizer.get('mcp_registryLoadMoreFailed') }}
             </div>
-            <div v-if="filteredRegistryMcp.length === 0" class="sidebar-empty-state">
+            <div v-if="filteredItems.registry.length === 0" class="sidebar-empty-state">
                 {{ Localizer.get('mcp_registryEmpty') }}
             </div>
             <AppAccordion
                 v-else
                 id="mcp-registry-accordion"
                 class="text-start"
-                :items="filteredRegistryMcp"
+                :items="filteredItems.registry"
                 :get-key="server => server.name"
             >
                 <template #header="{ item: server }">
-                    <i class="fa fa-server me-3" />
-                    <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
-                    <span class="section-actions"
+                    <i class="fa fa-server me-3 flex-shrink-0" />
+                    <strong class="mcp-server-title" :title="server.title || server.name">{{ server.title || server.name }}</strong>
+                    <span class="section-actions flex-shrink-0"
                           :title="server.compatibleRemoteUrls.length > 0
                               ? Localizer.get('mcp_add')
                               : Localizer.get('mcp_registryNoRemote')">
@@ -212,6 +212,8 @@
             </div>
         </div>
     </section>
+        </template>
+    </GenericSearch>
 
     <InputDialogue ref="input" />
 </div>
@@ -226,6 +228,7 @@ import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import conf from "../../../config.js";
 import AppAccordion from '../AppAccordion.vue';
+import GenericSearch from '../GenericSearch.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
 import {closeMcpOAuthWindow, prepareMcpOAuthWindow} from '../../mcpOAuth.ts';
@@ -234,7 +237,7 @@ const MCP_REGISTRY_PAGE_SIZE = 20;
 
 export default {
     name: 'SidebarMcp',
-    components: {AppAccordion, InputDialogue},
+    components: {AppAccordion, GenericSearch, InputDialogue},
     props: {
         sidebarView: String,
     },
@@ -246,10 +249,10 @@ export default {
         return {
             platformMcp: null,
             isLoading: false,
-            isSearching: false,
             showRegistryHeaderActions: false,
             hideUnavailableRegistryMcp: false,
             hideCredentialedRegistryMcp: false,
+            prioritizeOfficialLookingRegistryMcp: true,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -265,53 +268,14 @@ export default {
         };
     },
     computed: {
-        mcpSearchContexts() {
-            const query = this.searchQuery.trim().toLowerCase();
-            if (!query) return [];
-
-            const results = [];
-            const matches = value => value?.toLowerCase().includes(query);
-            const excerpt = value => {
-                const text = value ?? '';
-                const index = text.toLowerCase().indexOf(query);
-                if (index < 0) return text;
-                const start = Math.max(0, index - 40);
-                const end = Math.min(text.length, index + query.length + 40);
-                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+        mcpSearchItems() {
+            return {
+                installed: this.platformMcp ?? {},
+                registry: this.registryMcpCandidates,
             };
-
-            Object.entries(this.platformMcp ?? {}).forEach(([serverName, tools]) => {
-                if (matches(serverName)) {
-                    results.push({
-                        key: `installed-${serverName}`,
-                        path: `${Localizer.get('mcp_installed')} › ${serverName}`,
-                        context: excerpt(serverName),
-                    });
-                }
-
-                tools.forEach(tool => {
-                    if (!matches(tool.name) && !matches(tool.description)) return;
-                    results.push({
-                        key: `installed-${serverName}-${tool.name}`,
-                        path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
-                        context: excerpt(matches(tool.description) ? tool.description : tool.name),
-                    });
-                });
-            });
-
-            (this.filteredRegistryMcp ?? []).forEach(server => {
-                const serverTitle = server.title || server.name;
-                results.push({
-                    key: `registry-${server.name}`,
-                    path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
-                    context: excerpt(matches(server.description) ? server.description : serverTitle),
-                });
-            });
-
-            return results;
         },
 
-        filteredRegistryMcp() {
+        registryMcpCandidates() {
             if (!this.registryMcp) return this.registryMcp;
 
             // These filters are applied locally to loaded registry entries only
@@ -324,26 +288,65 @@ export default {
                 // This reflects declared secrets, not authentication discovered at runtime
                 servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
             }
-
             const query = this.searchQuery.trim().toLowerCase();
-            if (!query) return servers;
-
-            return servers.filter(server =>
-                server.name?.toLowerCase().includes(query)
-                || server.title?.toLowerCase().includes(query)
-                || server.description?.toLowerCase().includes(query)
-            );
+            if (this.prioritizeOfficialLookingRegistryMcp && query) {
+                const preferred = [];
+                const others = [];
+                for (const server of servers) {
+                    const separator = server.name.indexOf('/');
+                    const matchesPublisher = separator > 0
+                        && server.name.slice(0, separator).toLowerCase().includes(query);
+                    (matchesPublisher ? preferred : others).push(server);
+                }
+                // Preserve registry order within each group as more pages load.
+                servers = [...preferred, ...others];
+            }
+            return servers;
         },
     },
     methods: {
-        async toggleSearch() {
-            this.isSearching = !this.isSearching;
-            if (!this.isSearching) {
-                this.searchQuery = '';
-                return;
-            }
-            await nextTick();
-            this.$refs.searchBar?.focus();
+        filterMcpItems(items, query, {matches, getMatchExcerpt}) {
+            const installed = {};
+            const registry = items.registry === null ? null : [];
+            const contextPreviews = [];
+
+            Object.entries(items.installed ?? {}).forEach(([serverName, tools]) => {
+                const serverMatches = matches(serverName);
+                if (!query.trim() || serverMatches || tools.some(tool => matches(tool.name) || matches(tool.description))) {
+                    installed[serverName] = tools;
+                }
+                if (!query.trim()) return;
+
+                if (serverMatches) {
+                    contextPreviews.push({
+                        key: `installed-${serverName}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName}`,
+                        context: getMatchExcerpt(serverName),
+                    });
+                }
+                tools.forEach(tool => {
+                    if (!matches(tool.name) && !matches(tool.description)) return;
+                    contextPreviews.push({
+                        key: `installed-${serverName}-${tool.name}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
+                        context: getMatchExcerpt(matches(tool.description) ? tool.description : tool.name),
+                    });
+                });
+            });
+
+            (items.registry ?? []).forEach(server => {
+                const serverTitle = server.title || server.name;
+                if (query.trim() && !matches(server.name) && !matches(serverTitle) && !matches(server.description)) return;
+                registry.push(server);
+                if (!query.trim()) return;
+                contextPreviews.push({
+                    key: `registry-${server.name}`,
+                    path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
+                    context: getMatchExcerpt(matches(server.description) ? server.description : serverTitle),
+                });
+            });
+
+            return {filteredItems: {installed, registry}, contextPreviews};
         },
 
         async updateMcp() {
@@ -438,7 +441,10 @@ export default {
                 if (requestVersion !== this.registryQueryVersion) return;
                 const nextServers = this.normalizeRegistryServers(result.servers);
                 const knownServers = new Set(this.registryMcp.map(server => server.name));
-                this.registryMcp.push(...nextServers.filter(server => !knownServers.has(server.name)));
+                this.registryMcp = [
+                    ...this.registryMcp,
+                    ...nextServers.filter(server => !knownServers.has(server.name)),
+                ];
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
                 loaded = true;
             } catch (error) {
@@ -779,23 +785,9 @@ export default {
             );
         },
 
-        getMcp() {
-            return Object.keys(this.platformMcp)
-                .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-                .filter(mcp => {
-                    const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
-                    return matches(mcp) || this.platformMcp[mcp].some(mcp =>
-                            matches(mcp.name) || matches(mcp.description)
-                    );
-                })
-                .reduce((acc, mcp) => {
-                    acc[mcp] = this.platformMcp[mcp];
-                    return acc;
-                }, {});
-        },
-
-        getMcpServers() {
-            return Object.entries(this.getMcp())
+        getMcpServers(platformMcp = {}) {
+            return Object.entries(platformMcp)
+                .sort(([left], [right]) => left.toLowerCase().localeCompare(right.toLowerCase()))
                 .map(([name, tools]) => ({name, tools}));
         },
 
@@ -944,12 +936,21 @@ export default {
 </script>
 
 <style scoped>
+.mcp-server-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .mcp-body {
     padding: 0.5rem;
 }
 
 .mcp-registry-body {
     padding: 0.75rem;
+    overflow-wrap: anywhere;
 }
 
 .mcp-registry-endpoint {
