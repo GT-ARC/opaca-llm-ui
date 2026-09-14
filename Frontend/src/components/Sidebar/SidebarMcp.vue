@@ -482,32 +482,70 @@ export default {
 
         registryConfigurationSchema(server) {
             const schema = {};
+            const firstRemote = (server?.remotes ?? [])
+                .find(remote => remote.url === server.compatibleRemoteUrls?.[0]);
+            const hasRegistryHeaders = (server?.remotes ?? [])
+                .some(remote => server.compatibleRemoteUrls?.includes(remote.url) && remote.headers?.length);
+            const authModes = {auto: "Automatic / OAuth"};
+            if (hasRegistryHeaders) authModes.registry = "Registry credentials";
+            authModes.headers = "Advanced HTTP headers";
+            schema.mcpRegistryAuthMode = {
+                type: "select",
+                label: "Authentication",
+                default: firstRemote?.headers?.length ? "registry" : "auto",
+                values: authModes,
+            };
             (server?.remotes ?? []).forEach((remote, remoteIndex) => {
-                const visible = values => values.mcpServerUrl === remote.url;
+                const remoteVisible = values => values.mcpServerUrl === remote.url;
+                const credentialVisible = values => remoteVisible(values)
+                    && values.mcpRegistryAuthMode === "registry";
                 Object.entries(remote.variables ?? {}).forEach(([name, input], variableIndex) => {
                     schema[`registry_${remoteIndex}_url_${variableIndex}`] = this.registryInputField(
-                        input, name, visible,
+                        input, name, remoteVisible,
                     );
                 });
                 (remote.headers ?? []).forEach((header, headerIndex) => {
-                    const variables = Object.entries(header.variables ?? {});
+                    const variables = this.registryHeaderVariableEntries(header);
                     if (variables.length) {
                         variables.forEach(([name, input], variableIndex) => {
                             schema[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`] =
-                                this.registryInputField(input, `${header.name}: ${name}`, visible);
+                                this.registryInputField(input, `${header.name}: ${name}`, credentialVisible);
                         });
                     } else if (header.value == null) {
                         schema[`registry_${remoteIndex}_header_${headerIndex}`] = this.registryInputField(
-                            header, header.name, visible,
+                            header, header.name, credentialVisible,
                         );
+                        if (this.registrySuggestsBearerPrefix(header)) {
+                            schema[`registry_${remoteIndex}_header_${headerIndex}_format`] = {
+                                type: "select", label: "Value Format", default: "bearer", values: {
+                                    bearer: "Bearer <token>", raw: "Raw value",
+                                },
+                                visible: credentialVisible,
+                            };
+                        }
                     }
                 });
             });
             schema.mcpRegistryAdvancedHeaders = {
                 type: "textarea", label: "Additional HTTP Headers (JSON, Optional)", monospace: true,
                 placeholder: '{"Header-Name":"value"}', optional: true,
+                visible: values => values.mcpRegistryAuthMode !== "auto",
             };
             return schema;
+        },
+
+        registryHeaderVariableEntries(header) {
+            const declared = Object.entries(header.variables ?? {});
+            if (declared.length || typeof header.value !== "string") return declared;
+
+            // Some registry entries use templates but omit the corresponding variable declarations.
+            // Infer a basic input so the unresolved placeholder is not sent as a credential.
+            const names = [...header.value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1]);
+            return [...new Set(names)].map(name => [name, {
+                description: header.description,
+                isRequired: header.isRequired,
+                isSecret: header.isSecret,
+            }]);
         },
 
         replaceRegistryVariables(template, variables) {
@@ -525,6 +563,11 @@ export default {
             return headers;
         },
 
+        registrySuggestsBearerPrefix(header) {
+            return header.name.toLowerCase() === "authorization"
+                && /\bbearer\b/i.test(header.description ?? "");
+        },
+
         registryConnection(server, values) {
             const remoteIndex = (server.remotes ?? []).findIndex(remote => remote.url === values.mcpServerUrl);
             const remote = server.remotes[remoteIndex];
@@ -533,21 +576,25 @@ export default {
                 urlVariables[name] = values[`registry_${remoteIndex}_url_${variableIndex}`];
             });
             const headers = {};
-            (remote.headers ?? []).forEach((header, headerIndex) => {
-                const variableEntries = Object.entries(header.variables ?? {});
-                let value;
-                if (variableEntries.length) {
-                    const headerVariables = {};
-                    variableEntries.forEach(([name], variableIndex) => {
-                        headerVariables[name] = values[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`];
-                    });
-                    value = this.replaceRegistryVariables(header.value ?? "", headerVariables);
-                } else {
-                    value = header.value ?? values[`registry_${remoteIndex}_header_${headerIndex}`];
-                }
-                if (value != null && value !== "") headers[header.name] = String(value);
-            });
-            if (values.mcpRegistryAdvancedHeaders) {
+            if (values.mcpRegistryAuthMode === "registry") {
+                (remote.headers ?? []).forEach((header, headerIndex) => {
+                    const variableEntries = this.registryHeaderVariableEntries(header);
+                    let value;
+                    if (variableEntries.length) {
+                        const headerVariables = {};
+                        variableEntries.forEach(([name], variableIndex) => {
+                            headerVariables[name] = values[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`];
+                        });
+                        value = this.replaceRegistryVariables(header.value ?? "", headerVariables);
+                    } else {
+                        value = header.value ?? values[`registry_${remoteIndex}_header_${headerIndex}`];
+                        const format = values[`registry_${remoteIndex}_header_${headerIndex}_format`];
+                        if (format === "bearer" && value != null && value !== "") value = `Bearer ${value}`;
+                    }
+                    if (value != null && value !== "") headers[header.name] = String(value);
+                });
+            }
+            if (values.mcpRegistryAuthMode !== "auto" && values.mcpRegistryAdvancedHeaders) {
                 Object.assign(headers, this.parseMcpHeaders(values.mcpRegistryAdvancedHeaders));
             }
             return {
@@ -633,7 +680,10 @@ export default {
                     if (registryServer) {
                         const connection = this.registryConnection(registryServer, values);
                         serverUrl = connection.serverUrl;
-                        auth = {auth_type: "auto", headers: connection.headers};
+                        auth = {
+                            auth_type: values.mcpRegistryAuthMode === "auto" ? "auto" : "headers",
+                            headers: connection.headers,
+                        };
                     } else if (values.mcpAuthType === "credential") {
                         const prefix = values.mcpCredentialPrefix === "bearer" ? "Bearer " : "";
                         auth = {
