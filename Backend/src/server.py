@@ -6,6 +6,7 @@ and different routes for posting questions, updating the configuration, etc.
 import os
 import io
 import json
+import html
 from functools import lru_cache
 from typing import Dict, Any, List, Union, Optional
 from http import HTTPStatus
@@ -18,7 +19,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, Header, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from opaca.models import PostContainer
 from starlette.websockets import WebSocket
@@ -28,14 +29,14 @@ from openai import OpenAI
 from .services import sample_prompts as prompts
 from .models import ConnectRequest, ToolApprovalUpdateRequest, QueryRequest, QueryResponse, ConfigPayload, Chat, RestrictedActions, \
     SearchResult, get_supported_models, SessionData, OpacaException, MCPCreateRequest, PushMessage, \
-    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, ToolCall, PlayBook
+    InvokeRequest, InvokeResponse, SessionPrompts, ReloadChatsMessage, OpacaFile, ToolCall, PlayBook, MCPAuthType
 from .strategies import METHODS, DEFAULT_METHOD
 from .internal_tools import InternalTools
 from .services.code_execution import CodeExecutor
 from .services.file_utils import delete_file_from_all_clients, save_file_to_disk, create_path, delete_file_from_disk, rename_file
 from .services.file_analysis import generate_file_metadata
 from .services.session_manager import create_or_refresh_session, cleanup_task, on_shutdown, load_all_sessions, \
-    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction, get_user_session
+    restore_scheduled_tasks, get_all_sessions, update_session, SessionAction, get_user_session, db_client
 from .services.opaca_client import actions_blacklist
 from .services.tool_calling import actions_needing_confirmation, ToolCaller
 
@@ -281,14 +282,75 @@ async def get_mcp_list(session: SessionData = Depends(handle_session_http)) -> D
 
 
 @app.post("/mcp", description="Add a new MCP server to the list of available MCP servers", tags=["mcp"])
-async def add_mcp_server(mcp: MCPCreateRequest, session: SessionData = Depends(handle_session_http)) -> Response:
-    await session.add_mcp_server(mcp)
+async def add_mcp_server(request: Request, mcp: MCPCreateRequest, session: SessionData = Depends(handle_session_http)) -> Response:
+    # AUTO is an installation-only registry mode.
+    # Discovery sends any supplied headers while remaining able to handle an OAuth challenge;
+    # after success, it records whether OAuth tokens, headers, or no credentials were used.
+    uses_oauth = mcp.auth.auth_type in (MCPAuthType.AUTO, MCPAuthType.OAUTH2)
+    if uses_oauth and not session.has_websocket():
+        raise OpacaException(
+            "OAuth MCP installation requires an active browser session.",
+            "No websocket is connected for the OAuth authorization redirect.",
+            409,
+        )
+
+    from .mcp_auth import uses_ephemeral_encryption_key
+    storage_error = None
+    if session.user_id and db_client.is_db_configured() and uses_ephemeral_encryption_key:
+        storage_error = OpacaException(
+            "Authenticated MCP storage is not configured on this backend.",
+            "Set MCP_CREDENTIAL_ENCRYPTION_KEY to a stable Fernet key.",
+            503,
+        )
+    # AUTO may succeed without credentials and settle to NONE, so defer its
+    # credential-storage error until discovery has classified the connection.
+    if storage_error and mcp.auth.auth_type not in (MCPAuthType.NONE, MCPAuthType.AUTO):
+        raise storage_error
+
+    callback_uri = None
+    if uses_oauth:
+        callback_uri = os.getenv("MCP_OAUTH_CALLBACK_URL") or str(request.url_for("mcp_oauth_callback"))
+    await session.add_mcp_server(mcp, callback_uri)
+    installed_server = session.mcp_servers[mcp.server_label]
+    if storage_error and installed_server.auth_type != MCPAuthType.NONE:
+        session.delete_mcp_server(mcp.server_label)
+        raise storage_error
+    await db_client.save_session(session)
     return Response(status_code=201)
+
+
+@app.get("/mcp/oauth/callback", name="mcp_oauth_callback", include_in_schema=False)
+async def mcp_oauth_callback(
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    iss: str | None = None,
+) -> HTMLResponse:
+    """Complete an MCP OAuth authorization started by the current backend process."""
+    if error:
+        if state:
+            from .mcp_auth import fail_oauth_callback
+            fail_oauth_callback(error, state)
+        message = f"MCP authorization failed: {html.escape(error)}"
+        return HTMLResponse(f"<h2>{message}</h2><p>You can close this window.</p>", status_code=400)
+    if not code or not state:
+        return HTMLResponse("<h2>Invalid MCP authorization callback.</h2>", status_code=400)
+
+    from .mcp_auth import finish_oauth_callback
+    if not finish_oauth_callback(code, state, iss):
+        return HTMLResponse("<h2>This MCP authorization request has expired.</h2>", status_code=400)
+    return HTMLResponse(
+        "<h2>MCP authorization completed.</h2>"
+        "<p>This window should close automatically. If it remains open, authorization is complete and you may "
+        "close it manually.</p><button type='button' onclick='window.close()'>Close window</button>"
+        "<script>window.close()</script>",
+    )
 
 
 @app.delete("/mcp/{server_label}", description="Delete a MCP server from the list of available MCP servers", tags=["mcp"])
 async def delete_mcp_server(server_label: str, session: SessionData = Depends(handle_session_http)) -> Response:
     if session.delete_mcp_server(server_label):
+        await db_client.save_session(session)
         return Response(status_code=204)
     else:
         return Response(status_code=404, content="No matching mcp server found!")

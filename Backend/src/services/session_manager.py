@@ -34,6 +34,18 @@ sessions_lock: asyncio.Lock = asyncio.Lock()
 sessions: Dict[str, SessionData] = {}
 
 
+def session_document(session: SessionData) -> dict:
+    """Serialize a session without credentials that are limited to backend memory."""
+    bson = session.model_dump(mode='json', by_alias=True)
+    bson["mcp_servers"] = {
+        label: server
+        for label, server in bson.get("mcp_servers", {}).items()
+        # Anonymous credentials have timestamps. None marks servers that may survive a restart
+        if server.get("credential_expires_at") is None
+    }
+    return bson
+
+
 class SessionDbClient:
 
     def __init__(self, uri: Optional[str] = None):
@@ -54,7 +66,7 @@ class SessionDbClient:
         collection = self.client[DB_NAME][SESSIONS_COLLECTION]
         try:
             logger.debug(f'Storing session {session.session_id} in DB.')
-            bson = session.model_dump(mode='json', by_alias=True)
+            bson = session_document(session)
             await collection.replace_one({'_id': session.session_id}, bson, upsert=True)
         except Exception as e:
             logger.error(f'Failed to save session: {e}')
@@ -158,7 +170,15 @@ async def get_user_session(user_id: str, anonymous_session_id: Optional[str], me
     if not session:
         anonymous_session = await create_or_refresh_session(anonymous_session_id)
         # Create a new session but copy the anonymous session's data
-        session = anonymous_session.create_user_session(user_id)
+        persist_mcp_credentials = True
+        if db_client.is_db_configured() and any(
+                server.encrypted_credentials for server in anonymous_session.mcp_servers.values()):
+            from ..mcp_auth import uses_ephemeral_encryption_key
+            persist_mcp_credentials = not uses_ephemeral_encryption_key
+        session = anonymous_session.create_user_session(user_id, persist_mcp_credentials)
+        for label, server in list(anonymous_session.mcp_servers.items()):
+            if server.encrypted_credentials:
+                del anonymous_session.mcp_servers[label]
         # Save the session in the sessions
         sessions[session.session_id] = session
 
@@ -171,6 +191,7 @@ async def get_user_session(user_id: str, anonymous_session_id: Optional[str], me
                 logger.warning(f"Failed to move Scheduled Task {task_id} ({task.query}) for user {user_id} to new session.")
             finally:
                 del anonymous_session.scheduled_tasks[task_id]
+        await db_client.save_session(session)
     # TODO Merge sessions if user session already existed but current session was filled with content (chats, prompts, ...)
 
     return session
@@ -189,7 +210,12 @@ async def cleanup_old_sessions() -> None:
     Delete all expired sessions.
     """
     logger.info("Cleaning out expired sessions...")
+    now = time.time()
     for session_id, session in sessions.items():
+        session.mcp_servers = {
+            label: server for label, server in session.mcp_servers.items()
+            if server.credential_expires_at is None or server.credential_expires_at > now
+        }
         if not session.is_valid():
             await delete_session(session_id)
 
@@ -244,10 +270,10 @@ async def update_session(session_id: str, action: SessionAction):
         elif action == SessionAction.STOP_TASKS:
             # already scheduled tasks consider themselves cancelled if no longer in this list
             session.scheduled_tasks.clear()
-        
+
         elif action == SessionAction.BLOCK:
             session.blocked = True
-        
+
         elif action == SessionAction.UNBLOCK:
             session.blocked = False
 
@@ -271,7 +297,7 @@ async def restore_scheduled_tasks() -> None:
     """
     Re-create scheduled tasks on restart. Details see InternalTools. In short, missed tasks are NOT
     executed but just skipped, also decrementing the remaining repetitions accordingly. The first
-    execution is set such that the planned interval is kept as best as possible. This means that 
+    execution is set such that the planned interval is kept as best as possible. This means that
     tasks to be executed as a certain time are still executed at that time, but an hourly task missed
     by one minute will only be executed again in another hour.
     """

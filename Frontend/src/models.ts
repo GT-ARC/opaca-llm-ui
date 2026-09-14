@@ -42,6 +42,16 @@ export interface MCPCreateRequest {
     server_url: string;
     server_label?: string;
     default_approval: ToolApprovalState;
+    auth?: MCPAuthRequest;
+}
+
+export type MCPAuthType = "none" | "auto" | "oauth2" | "headers";
+
+export interface MCPAuthRequest {
+    auth_type: MCPAuthType;
+    headers?: Record<string, string>;
+    client_id?: string;
+    client_secret?: string;
 }
 
 export interface ToolCall {

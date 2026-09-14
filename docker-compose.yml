@@ -43,6 +43,8 @@ services:
       CORS_WHITELIST:
       MONGODB_URI: "mongodb://user:pass@session-db:27017"
       SESSION_ADMIN_PWD:
+      MCP_CREDENTIAL_ENCRYPTION_KEY:
+      MCP_OAUTH_CALLBACK_URL:
       LOCATION:
       VITE_AUTH_DOMAIN:
       VITE_AUTH_AUDIENCE:
