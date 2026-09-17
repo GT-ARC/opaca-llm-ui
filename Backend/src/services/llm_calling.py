@@ -7,11 +7,15 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Type
 
 import litellm
 from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
+from litellm.types.responses.main import OutputFunctionToolCall
+from openai.types.responses import ResponseFunctionToolCall
+
 from pydantic import BaseModel, ValidationError
 
 from ..models import (AgentMessage, Chat, ChatMessage, LLMConfig, QueryResponse,
                       SessionData, OpacaException, StatusMessage, TextChunkMessage,
                       MetricsMessage, MissingApiKeyNotification, MissingApiKeyResponse,
+                      ToolCall, ToolCallMessage,
                       normalize_tool_schema_for_llm)
 from .file_utils import get_file_parts
 from .tool_calling import ToolCaller
@@ -242,11 +246,32 @@ class LLMCaller:
                     status_code=500
                 )
 
-        agent_message.tools.extend(await self.tool_caller.parse_tool_calls(
-            event.response.output, agent_message
-        ))
+        agent_message.tools.extend(await self.parse_tool_calls(event.response.output, agent_message))
         # Capture token usage
         agent_message.response_metadata = event.response.usage.model_dump()
+
+    async def parse_tool_calls(self, output, agent_message: AgentMessage) -> list[ToolCall]:
+        """Convert completed response calls and emit their debug messages, without invoking them."""
+        tools = []
+        for item in output:
+            if not isinstance(item, (OutputFunctionToolCall, ResponseFunctionToolCall)):
+                continue
+            if item.name is None:
+                logger.warning("Received tool call without a name, skipping.")
+                continue
+            try:
+                args = json.loads(item.arguments)
+            except json.JSONDecodeError:
+                logger.warning("Could not parse tool arguments: %s", item.arguments)
+                args = {}
+            tool = ToolCall(name=item.name, type=self.tool_caller.determine_tool_type(item.name),
+                            id=self.tool_caller.next_tool_id(agent_message), args=args)
+            tools.append(tool)
+            await self.send_to_websocket(ToolCallMessage(
+                id=tool.id, name=tool.name, args=tool.args,
+                agent=agent_message.agent, chat_id=self.chat.chat_id,
+            ))
+        return tools
 
     async def send_to_websocket(self, message: BaseModel):
         if self.session.has_websocket() and self.streaming:

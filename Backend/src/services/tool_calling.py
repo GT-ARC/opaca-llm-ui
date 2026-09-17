@@ -1,19 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from itertools import count
 from typing import TYPE_CHECKING, List
-
-from openai.types.responses import ResponseFunctionToolCall
-from litellm.types.responses.main import OutputFunctionToolCall
 
 import httpx
 from pydantic import BaseModel
 
 from ..models import (ToolApprovalState, SessionData,
-                     AgentMessage, ToolCallMessage, ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
+                     AgentMessage, ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
                      ToolResultMessage, ConfirmActionNotification, ConfirmActionResponse)
 from .opaca_client import actions_blacklist
 
@@ -40,29 +36,6 @@ class ToolCaller:
     def next_tool_id(self, agent_message: AgentMessage) -> str:
         return f"{agent_message.id}/{next(self.tool_counter)}"
 
-    async def parse_tool_calls(self, output, agent_message: AgentMessage) -> list[ToolCall]:
-        """Convert completed response calls and emit their debug messages, without invoking them."""
-        tools = []
-        for item in output:
-            if not isinstance(item, (OutputFunctionToolCall, ResponseFunctionToolCall)):
-                continue
-            if item.name is None:
-                logger.warning("Received tool call without a name, skipping.")
-                continue
-            try:
-                args = json.loads(item.arguments)
-            except json.JSONDecodeError:
-                logger.warning("Could not parse tool arguments: %s", item.arguments)
-                args = {}
-            tool = ToolCall(name=item.name, type=self.determine_tool_type(item.name),
-                            id=self.next_tool_id(agent_message), args=args)
-            tools.append(tool)
-            await self.send_to_websocket(ToolCallMessage(
-                id=tool.id, name=tool.name, args=tool.args,
-                agent=agent_message.agent, chat_id=self.chat_id,
-            ))
-        return tools
-
     def determine_tool_type(self, tool_name: str) -> ToolType:
         """Determine tool type and name based on presence of server label and matching MCP server/tools"""
         provider = tool_name.split('--')[0]
@@ -72,7 +45,6 @@ class ToolCaller:
             return ToolType.MCP
         else:
             return ToolType.OPACA
-
 
     async def invoke_tool(self, tool: ToolCall, login_attempt_retry: bool = False, skip_approval: bool = False) -> ToolCall:
         """
