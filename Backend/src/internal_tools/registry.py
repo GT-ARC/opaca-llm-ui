@@ -5,8 +5,8 @@ but implemented directly in the backend.
 Those tools are then added to the OPACA Proxy's actions in the AbstractMethod's get_tools method.
 The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
 
-Some of the tools (like execute-later or summarize-chat) may again issue LLM calls.
-For this they have access to the AbstractMethod they are used by.
+Tools that need tool execution and iterations (like scheduled tasks) use AbstractMethod.query.
+Single-call tools (like chat summaries and file analysis) use the shared LLMCaller service.
 """
 
 from __future__ import annotations

@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ..services.code_execution import CodeExecutor
-from ..models import AgentMessage, Chat, MetricsMessage, QueryResponse, SessionData
+from ..services.llm_calling import LLMCaller, get_internal_llm_config
+from ..models import AgentMessage, ChatMessage, Chat, MetricsMessage, QueryResponse, SessionData
 
 if TYPE_CHECKING:
     from ..strategies import AbstractMethod
@@ -48,4 +49,23 @@ class InternalToolContext:
         method_impl = self.agent_method(self.session, Chat(chat_id=''), response, streaming=False)
         result = await method_impl.query()
         await self.record_query_response(result, agent_prefix)
+        return result
+
+    async def call_llm(
+            self, query: str, agent: str = "InternalTool",
+            system_prompt: str = "You are a helpful assistant.",
+    ) -> AgentMessage:
+        """Make and record a single call without exposing tools or running a strategy."""
+        caller = LLMCaller(
+            session=self.session,
+            chat=self.chat if self.chat is not None else Chat(chat_id=""),
+            response=QueryResponse(query=query),
+        )
+        result = await caller.call_llm(
+            model_config=get_internal_llm_config(self.session),
+            agent=agent,
+            system_prompt=system_prompt,
+            messages=[ChatMessage(role="user", content=query)],
+        )
+        await self.record_agent_message(result)
         return result
