@@ -9,6 +9,7 @@ from functools import lru_cache
 
 from pydantic import BaseModel, Field
 
+from .llm_calling import LLMCaller, get_internal_llm_config
 from .file_utils import create_path, is_pdf
 from ..models import AgentMessage, Chat, ChatMessage, OpacaFile, QueryResponse, SessionData
 
@@ -167,17 +168,9 @@ async def _call_file_llm(
         response_format: type[BaseModel] | None = None,
         record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> AgentMessage:
-    # Lazy import avoids a startup cycle:
-    # abstract_method -> tool_calling -> internal_tools.files -> file_analysis -> simple_tools -> abstract_method
-    from ..strategies import DEFAULT_METHOD
-
-    method = DEFAULT_METHOD(
-        session=session,
-        chat=Chat(chat_id=""),
-        response=QueryResponse(),
-    )
-    result = await method.call_llm(
-        model_config=method.get_config().model,
+    caller = LLMCaller(session=session, chat=Chat(chat_id=""), response=QueryResponse())
+    result = await caller.call_llm(
+        model_config=get_internal_llm_config(session),
         agent=agent,
         system_prompt=system_prompt,
         messages=[ChatMessage(role="user", content=user_prompt)],
