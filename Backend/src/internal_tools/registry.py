@@ -5,8 +5,8 @@ but implemented directly in the backend.
 Those tools are then added to the OPACA Proxy's actions in the AbstractMethod's get_tools method.
 The AbstractMethod's invoke_tool method then checks if the tools belong to the "internal" agent.
 
-Some of the tools (like execute-later or summarize-chat) may again issue LLM calls.
-For this they have access to the AbstractMethod they are used by.
+Tools that need tool execution and iterations (like scheduled tasks) use AbstractMethod.query.
+Single-call tools (like chat summaries and file analysis) use the shared LLMCaller service.
 """
 
 from __future__ import annotations
@@ -64,13 +64,16 @@ class InternalTools:
 
     # FORMAT INTERNAL TOOLS FOR DIFFERENT OCCASIONS
 
+    @staticmethod
+    def _parameter_schema(parameter: str | dict) -> dict:
+        return {"type": parameter} if isinstance(parameter, str) else parameter
+
     def _format_internal_tool_simple(self, tool: InternalTool) -> dict:
         return {
             "name": tool.name,
             "description": tool.description,
             "parameters": {
-                key: {
-                    "type": val,
+                key: self._parameter_schema(val) | {
                     "required": key in (tool.required_params if tool.required_params is not None else tool.params.keys()),
                 }
                 for key, val in tool.params.items()
@@ -118,7 +121,7 @@ class InternalTools:
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        key: {"type": val}
+                        key: self._parameter_schema(val)
                         for key, val in tool.params.items()
                     },
                     "additionalProperties": False,

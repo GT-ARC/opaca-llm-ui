@@ -1,151 +1,56 @@
 <template>
-<div :class="{'chatbubble-collapsible': this.isCollapsible}"
-     @click.stop="this.toggleCollapsed()">
+    <div :class="{'chatbubble-collapsible': this.isCollapsible}"
+         @click.stop="this.toggleCollapsed()">
 
-    <!-- user bubble -->
-    <div v-if="this.isUser" :id="this.elementId"
-         class="d-flex flex-row justify-content-end" >
+        <!-- user bubble -->
+        <div v-if="this.isUser" :id="this.elementId"
+             class="d-flex flex-row justify-content-end" >
 
-        <div class="chatbubble chatbubble-user ms-auto w-auto">
-            <Galleria
-                v-if="imageFiles.length > 0"
-                :value="imageFiles"
-                :active-index="galleryIndex"
-                :num-visible="Math.min(3, imageFiles.length)"
-                :show-item-navigators="imageFiles.length > 1"
-                :show-thumbnail-navigators="false"
-                :show-thumbnails="imageFiles.length > 1"
-                :circular="imageFiles.length > 1"
-                :pt="{
-                    prevButton: { class: 'bubble-gallery-nav' },
-                    nextButton: { class: 'bubble-gallery-nav' },
-                }"
-                class="bubble-image-gallery"
-                @update:activeIndex="galleryIndex = $event">
-                <template #item="{ item }">
-                    <button
-                        type="button"
-                        class="bubble-gallery-item"
-                        @click.stop="openImageGallery()">
+            <div class="chatbubble chatbubble-user ms-auto w-auto">
+                <Galleria
+                    v-if="imageFiles.length > 0"
+                    :value="imageFiles"
+                    :active-index="galleryIndex"
+                    :num-visible="Math.min(3, imageFiles.length)"
+                    :show-item-navigators="imageFiles.length > 1"
+                    :show-thumbnail-navigators="false"
+                    :show-thumbnails="imageFiles.length > 1"
+                    :circular="imageFiles.length > 1"
+                    :pt="{
+                        prevButton: { class: 'bubble-gallery-nav' },
+                        nextButton: { class: 'bubble-gallery-nav' },
+                    }"
+                    class="bubble-image-gallery"
+                    @update:activeIndex="galleryIndex = $event">
+                    <template #item="{ item }">
+                        <button
+                            type="button"
+                            class="bubble-gallery-item"
+                            @click.stop="openImageGallery()">
+                            <img
+                                :src="item.src"
+                                :alt="item.fileName || 'Image preview'"
+                                class="bubble-gallery-image"/>
+                        </button>
+                    </template>
+
+                    <template #thumbnail="{ item }">
                         <img
                             :src="item.src"
-                            :alt="item.fileName || 'Image preview'"
-                            class="bubble-gallery-image"/>
-                    </button>
-                </template>
+                            :alt="item.fileName || 'Image preview thumbnail'"
+                            class="bubble-gallery-thumbnail"/>
+                    </template>
+                </Galleria>
 
-                <template #thumbnail="{ item }">
-                    <img
-                        :src="item.src"
-                        :alt="item.fileName || 'Image preview thumbnail'"
-                        class="bubble-gallery-thumbnail"/>
-                </template>
-            </Galleria>
+                <div v-html="this.getFormattedContent()" />
 
-            <div v-html="this.getFormattedContent()" />
-
-            <!-- footer: debug, generate audio, ... -->
-            <div class="d-flex justify-content-start small mt-2">
-
-                <!-- copy to clipboard -->
-                <div v-show="this.isCopyAvailable()"
-                     class="footer-item w-auto me-2"
-                     @click="this.copyContentToClipboard()"
-                     :title="Localizer.get('chatbubble_copy')">
-                    <i v-if="this.copySuccess" class="fa fa-check" />
-                    <i v-else class="fa fa-copy" />
-                </div>
-
-                <!-- audio stuff -->
-                <div v-show="!this.isLoading"
-                     class="footer-item w-auto me-2"
-                     @click="this.startAudioPlayback()">
-                    <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('chatbubble_audioLoad')" />
-                    <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('chatbubble_audioStop')" />
-                    <i v-else class="fa fa-volume-up"
-                       data-toggle="tooltip" data-placement="down"
-                       :title="Localizer.get('chatbubble_audioPlay')" />
-                </div>
-
-                <!-- attached files -->
-                <div v-show="this.files?.length > 0"
-                     class="footer-item w-auto me-2"
-                     @click.stop="this.toggleFooter('files')"
-                     :title="Localizer.get('chatbubble_files')">
-                    <i class="fa" :class="getFilesIconClass()" />
-                </div>
-
-            </div>
-
-            <!-- footer: attached files -->
-            <div v-show="this.isFooterExpanded('files')">
-                <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                     style="max-height: 200px; max-width: 600px;">
-                    <div class="message-text w-auto"
-                         v-for="file in this.files">
-                        {{ file.name }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- ai bubble -->
-    <div v-else :id="this.elementId"
-         class="d-flex flex-row justify-content-start w-100">
-
-        <div class="chatbubble chatbubble-ai"
-             :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
-
-            <div class="d-flex justify-content-start"
-                 :class="{'chatbubble-collapsed': this.isCollapsed}">
-
-                <div v-if="this.isCollapsed" class="chatbubble-collapsed-overlay">
-                    <i class="fa fa-arrow-alt-circle-down" />
-                </div>
-
-                <!-- loading spinner -->
-                <div v-show="this.isLoading" class="w-auto">
-                    <i class="fa fa-spin fa-circle-o-notch me-1" />
-                </div>
-
-                <!-- content, either status messages or actual response -->
-                <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4">
-                    <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
-                        <div v-if="completed">{{ text }} ✓</div>
-                        <div v-else>{{ text }} ...</div>
-                    </div>
-                    <div v-if="this.getToolCalls().length > 0">
-                        <hr />
-                        <div v-if="this.getToolCalls().length > 3">
-                            ...
-                        </div>
-                        <div v-for="text in this.getToolCalls().slice(-3)" class="text-wrap text-break">
-                            <i class="fa fa-wrench" /> {{ text }}
-                        </div>
-                    </div>
-                </div>
-                <div v-else class="message-text w-auto"
-                     v-html="this.getFormattedContent()"
-                />
-
-            </div>
-
-            <!-- expandable footer menus -->
-            <div v-show="!this.isCollapsed">
-
-                <!-- footer: icons -->
+                <!-- footer: debug, generate audio, ... -->
                 <div class="d-flex justify-content-start small mt-2">
 
                     <!-- copy to clipboard -->
                     <div v-show="this.isCopyAvailable()"
                          class="footer-item w-auto me-2"
-                         @click.stop="this.copyContentToClipboard()"
+                         @click="this.copyContentToClipboard()"
                          :title="Localizer.get('chatbubble_copy')">
                         <i v-if="this.copySuccess" class="fa fa-check" />
                         <i v-else class="fa fa-copy" />
@@ -154,7 +59,7 @@
                     <!-- audio stuff -->
                     <div v-show="!this.isLoading"
                          class="footer-item w-auto me-2"
-                         @click.stop="this.startAudioPlayback()">
+                         @click="this.startAudioPlayback()">
                         <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
                            data-toggle="tooltip" data-placement="down"
                            :title="Localizer.get('chatbubble_audioLoad')" />
@@ -166,89 +71,184 @@
                            :title="Localizer.get('chatbubble_audioPlay')" />
                     </div>
 
-                    <!-- debug messages -->
-                    <div v-show="this.debugMessages.length > 0"
+                    <!-- attached files -->
+                    <div v-show="this.files?.length > 0"
                          class="footer-item w-auto me-2"
-                         @click.stop="this.toggleFooter('debug')"
-                         :title="Localizer.get('chatbubble_debug')">
-                        <i class="fa fa-bug" />
-                    </div>
-
-                    <!-- tool calls -->
-                    <div v-show="this.getToolCalls().length > 0"
-                         class="footer-item w-auto me-2"
-                         style="cursor: pointer;"
-                         @click.stop="this.toggleFooter('tools')"
-                         :title="Localizer.get('chatbubble_tools')">
-                        <i class="fa fa-wrench" />
-                    </div>
-
-                    <!-- metrics -->
-                    <div v-show="this.getMetrics().length > 0"
-                         class="footer-item w-auto me-2"
-                         style="cursor: pointer;"
-                         @click.stop="this.toggleFooter('metrics')"
-                         :title="Localizer.get('chatbubble_metrics')">
-                        <i class="fa fa-chart-simple" />
-                    </div>
-
-                    <!-- error handling -->
-                    <div v-show="this.error !== null"
-                         class="footer-item w-auto me-2"
-                         @click.stop="this.toggleFooter('error')"
-                         :title="Localizer.get('chatbubble_error')">
-                        <i class="fa fa-exclamation-circle text-danger me-1" />
+                         @click.stop="this.toggleFooter('files')"
+                         :title="Localizer.get('chatbubble_files')">
+                        <i class="fa" :class="getFilesIconClass()" />
                     </div>
 
                 </div>
 
-                <!-- footer: debug messages -->
-                <div v-show="this.isFooterExpanded('debug')">
-                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
-                         style="max-height: 200px"
-                         @scroll="handleDebugScroll">
-                        <DebugMessage v-for="{ text, type } in this.debugMessages"
-                                      :text="text"
-                                      :type="type"
-                        />
-                    </div>
-                </div>
-
-                <!-- footer: tool calls -->
-                <div v-show="this.isFooterExpanded('tools')">
+                <!-- footer: attached files -->
+                <div v-show="this.isFooterExpanded('files')">
                     <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                         style="max-height: 200px">
-                        <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
-                            {{ text }}
+                         style="max-height: 200px; max-width: 600px;">
+                        <div class="message-text w-auto"
+                             v-for="file in this.files">
+                            {{ file.name }}
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- footer: metrics -->
-                <div v-show="this.isFooterExpanded('metrics')">
-                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                         style="max-height: 200px">
-                        <div v-for="text in this.getMetrics()" class="text-wrap text-break">
-                            {{ text }}
+
+        <!-- ai bubble -->
+        <div v-else :id="this.elementId"
+             class="d-flex flex-row justify-content-start w-100">
+
+            <div class="chatbubble chatbubble-ai"
+                 :class="{glow: this.isLoading}" :style="this.getGlowColors()" >
+
+                <div class="d-flex justify-content-start"
+                     :class="{'chatbubble-collapsed': this.isCollapsed}">
+
+                    <div v-if="this.isCollapsed" class="chatbubble-collapsed-overlay">
+                        <i class="fa fa-arrow-alt-circle-down" />
+                    </div>
+
+                    <!-- loading spinner -->
+                    <div v-show="this.isLoading" class="w-auto">
+                        <i class="fa fa-spin fa-circle-o-notch me-1" />
+                    </div>
+
+                    <!-- content, either status messages or actual response -->
+                    <div v-if="this.isLoading && this.statusMessages.size > 0" class="message-text w-auto mb-4">
+                        <div v-for="[agentName, { text, completed }] in this.statusMessages.entries()" :key="agentName">
+                            <div v-if="completed">{{ text }} ✓</div>
+                            <div v-else>{{ text }} ...</div>
+                        </div>
+                        <div v-if="this.getToolCalls().length > 0">
+                            <hr />
+                            <div v-if="this.getToolCalls().length > 3">
+                            ...
+                            </div>
+                            <div v-for="text in this.getToolCalls().slice(-3)" class="text-wrap text-break">
+                                <i class="fa fa-wrench" /> {{ text }}
+                            </div>
                         </div>
                     </div>
+                    <div v-else class="message-text w-auto"
+                         v-html="this.getFormattedContent()"
+                    />
+
                 </div>
 
-                <!-- footer: errors -->
-                <div v-show="this.isFooterExpanded('error')">
-                    <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
-                         style="max-height: 200px">
-                        <div class="message-text w-auto text-danger"
-                             v-html="this.error"
-                        />
+                <!-- expandable footer menus -->
+                <div v-show="!this.isCollapsed">
+
+                    <!-- footer: icons -->
+                    <div class="d-flex justify-content-start small mt-2">
+
+                        <!-- copy to clipboard -->
+                        <div v-show="this.isCopyAvailable()"
+                             class="footer-item w-auto me-2"
+                             @click.stop="this.copyContentToClipboard()"
+                             :title="Localizer.get('chatbubble_copy')">
+                            <i v-if="this.copySuccess" class="fa fa-check" />
+                            <i v-else class="fa fa-copy" />
+                        </div>
+
+                        <!-- audio stuff -->
+                        <div v-show="!this.isLoading"
+                             class="footer-item w-auto me-2"
+                             @click.stop="this.startAudioPlayback()">
+                            <i v-if="this.isAudioLoading()" class="fa fa-spin fa-spinner"
+                               data-toggle="tooltip" data-placement="down"
+                               :title="Localizer.get('chatbubble_audioLoad')" />
+                            <i v-else-if="this.isAudioPlaying()" class="fa fa-stop-circle"
+                               data-toggle="tooltip" data-placement="down"
+                               :title="Localizer.get('chatbubble_audioStop')" />
+                            <i v-else class="fa fa-volume-up"
+                               data-toggle="tooltip" data-placement="down"
+                               :title="Localizer.get('chatbubble_audioPlay')" />
+                        </div>
+
+                        <!-- debug messages -->
+                        <div v-show="this.debugMessages.length > 0"
+                             class="footer-item w-auto me-2"
+                             @click.stop="this.toggleFooter('debug')"
+                             :title="Localizer.get('chatbubble_debug')">
+                            <i class="fa fa-bug" />
+                        </div>
+
+                        <!-- tool calls -->
+                        <div v-show="this.getToolCalls().length > 0"
+                             class="footer-item w-auto me-2"
+                             style="cursor: pointer;"
+                             @click.stop="this.toggleFooter('tools')"
+                             :title="Localizer.get('chatbubble_tools')">
+                            <i class="fa fa-wrench" />
+                        </div>
+
+                        <!-- metrics -->
+                        <div v-show="this.getMetrics().length > 0"
+                             class="footer-item w-auto me-2"
+                             style="cursor: pointer;"
+                             @click.stop="this.toggleFooter('metrics')"
+                             :title="Localizer.get('chatbubble_metrics')">
+                            <i class="fa fa-chart-simple" />
+                        </div>
+
+                        <!-- error handling -->
+                        <div v-show="this.error !== null"
+                             class="footer-item w-auto me-2"
+                             @click.stop="this.toggleFooter('error')"
+                             :title="Localizer.get('chatbubble_error')">
+                            <i class="fa fa-exclamation-circle text-danger me-1" />
+                        </div>
+
                     </div>
+
+                    <!-- footer: debug messages -->
+                    <div v-show="this.isFooterExpanded('debug')">
+                        <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2" :id="'debug-message-' + this.elementId"
+                             style="max-height: 200px"
+                             @scroll="handleDebugScroll">
+                            <DebugMessage v-for="{ text, type } in this.debugMessages"
+                                          :text="text"
+                                          :type="type"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- footer: tool calls -->
+                    <div v-show="this.isFooterExpanded('tools')">
+                        <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                             style="max-height: 200px">
+                            <div v-for="text in this.getToolCalls()" class="text-wrap text-break">
+                                {{ text }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- footer: metrics -->
+                    <div v-show="this.isFooterExpanded('metrics')">
+                        <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                             style="max-height: 200px">
+                            <div v-for="text in this.getMetrics()" class="text-wrap text-break">
+                                {{ text }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- footer: errors -->
+                    <div v-show="this.isFooterExpanded('error')">
+                        <div class="bubble-debug-text overflow-y-auto p-2 mt-1 rounded-2"
+                             style="max-height: 200px">
+                            <div class="message-text w-auto text-danger"
+                                 v-html="this.error"
+                            />
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
-
         </div>
     </div>
-</div>
 </template>
 
 <script>

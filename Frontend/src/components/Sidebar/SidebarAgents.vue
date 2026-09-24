@@ -1,150 +1,144 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_agents') }}
-        <i v-if="conf.allowContainerManagement && this.isPlatformConnected"
-           class="fa fa-plus ms-auto sidebar-title-action"
-           @click.stop="addContainer()"
-           :title="Localizer.get('agents_deploy')" />
-        <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
-           :class="{
-               'ms-auto': !(conf.allowContainerManagement && this.isPlatformConnected),
-               disabled: this.isLoading || !this.platformContainers || this.platformContainers.length === 0,
-           }"
-           :aria-disabled="this.isLoading || !this.platformContainers || this.platformContainers.length === 0"
-           @click="toggleSearch"
-           :title="Localizer.get('agents_search')" />
-    </div>
-
-    <InputDialogue ref="input"/>
-
-    <div v-if="this.isLoading">
-        <i class="fa fa-circle-notch fa-spin me-1" />
-        {{ Localizer.get('agents_loading') }}
-    </div>
-    <div v-else-if="platformContainers === null"
-         class="sidebar-empty-state">
-        {{ Localizer.get('agents_disconnected') }}
-    </div>
-    <div v-else-if="platformContainers.length === 0"
-         class="sidebar-empty-state">
-        {{ Localizer.get('agents_missing') }}
-    </div>
-    <div v-else class="flex-row" >
-        <input v-if="isSearching"
-            type="search"
-            ref="searchBar"
-            class="form-control my-2"
-            :placeholder="Localizer.get('agents_search')"
-            v-model="this.searchQuery"
-        />
-        <div v-if="agentSearchContexts.length > 0" class="sidebar-search-results">
-            <div v-for="result in agentSearchContexts"
-                 :key="result.key"
-                 class="sidebar-search-result-group">
-                <div class="sidebar-search-result-heading">{{ result.path }}</div>
-                <div class="sidebar-search-result-context">{{ result.context }}</div>
-            </div>
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_agents') }}
+            <i v-if="conf.allowContainerManagement && this.isPlatformConnected"
+               class="fa fa-plus ms-auto sidebar-title-action"
+               @click.stop="addContainer()"
+               :title="Localizer.get('agents_deploy')" />
+            <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+               :class="{
+                   'ms-auto': !(conf.allowContainerManagement && this.isPlatformConnected),
+                   disabled: this.isLoading || !this.platformContainers || this.platformContainers.length === 0,
+               }"
+               :aria-disabled="this.isLoading || !this.platformContainers || this.platformContainers.length === 0"
+               @click="$refs.search.toggleSearch()"
+               :title="Localizer.get('agents_search')" />
         </div>
-        <AppAccordion
-            id="agents-accordion"
-            class="text-start"
-            :items="getContainers()"
-            :get-key="container => container.containerId"
-        >
-            <template #header="{ item: {containerId, image} }">
-                <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
-                <strong class="container-name">{{ (image?.name === "" ? null : image?.name) ?? image?.imageName ?? containerId }}</strong>
 
-                <span v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
-                      class="section-actions">
-                    <i class="fa fa-remove click-icon click-icon-danger"
-                       @click.stop.prevent="this.stopContainer(containerId)"
-                       :title="Localizer.get('agents_undeploy')" />
-                </span>
-            </template>
+        <InputDialogue ref="input"/>
 
-            <template #body="{ item: {containerId, agents, approvals}, index: containerIndex }">
-                <AppAccordion
-                    :id="`agents-accordion-${containerIndex}`"
-                    :items="agents"
-                    :get-key="agent => agent.agentId"
-                    variant="nested"
-                >
-                    <template #header="{ item: {agentId, actions} }">
-                        <i class="fa fa-user me-3"/>
-                        <strong>{{ agentId }}</strong>&nbsp;({{ actions?.length }})
-                    </template>
+        <div v-if="this.isLoading">
+            <i class="fa fa-circle-notch fa-spin me-1" />
+            {{ Localizer.get('agents_loading') }}
+        </div>
+        <div v-else-if="platformContainers === null"
+             class="sidebar-empty-state">
+            {{ Localizer.get('agents_disconnected') }}
+        </div>
+        <div v-else-if="platformContainers.length === 0"
+             class="sidebar-empty-state">
+            {{ Localizer.get('agents_missing') }}
+        </div>
+        <div v-else class="flex-row" >
+            <GenericSearch
+                ref="search"
+                :items="platformContainers"
+                :placeholder="Localizer.get('agents_search')"
+                :filter-items="filterContainers"
+            >
+                <template #default="{ filteredItems }">
+                    <AppAccordion
+                        id="agents-accordion"
+                        class="text-start"
+                        :items="filteredItems"
+                        :get-key="container => container.containerId"
+                    >
+                        <template #header="{ item: {containerId, image} }">
+                            <i :class="isInternalContainer(containerId) ? 'fa fa-cube me-3' : 'fa fa-box me-3'"/>
+                            <strong class="container-name">{{ (image?.name === "" ? null : image?.name) ?? image?.imageName ?? containerId }}</strong>
 
-                    <template #body="{ item: {agentId, actions}, index: agentIndex }">
-                        <AppAccordion
-                            :id="`actions-accordion-${containerIndex}-${agentIndex}`"
-                            :items="actions"
-                            :get-key="action => action.name"
-                            variant="nested"
-                        >
-                            <template #header="{ item: action }">
-                                <div class="position-relative d-inline-block me-3">
-                                    <i class="fa fa-wrench"/>
-                                    <span class="position-absolute top-100 start-100 p-1 rounded-circle"
-                                          :class="{
-                                              'bg-approval-ask': getEffectiveApproval(agentId, action, approvals) === 'ask',
-                                              'bg-approval-deny': getEffectiveApproval(agentId, action, approvals) === 'deny',
-                                              'bg-approval-allow': getEffectiveApproval(agentId, action, approvals) === 'allow'
-                                          }" style="outline: 2px solid var(--surface-color); transform: translate(-180%, -70%);">
-                                        <span class="visually-hidden">Approval State</span>
-                                    </span>
-                                </div>
-                                {{ action.name }}
-                            </template>
+                            <span v-if="conf.allowContainerManagement && !isInternalContainer(containerId)"
+                                  class="section-actions">
+                                <i class="fa fa-remove click-icon click-icon-danger"
+                                   @click.stop.prevent="this.stopContainer(containerId)"
+                                   :title="Localizer.get('agents_undeploy')" />
+                            </span>
+                        </template>
 
-                            <template #body="{ item: action, index: actionIndex }">
-                                <div class="action-body p-2">
-                                    <p class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
-                                        <strong>{{ Localizer.get('agents_invoke') }}</strong>
-                                        <i class="fa fa-circle-play mx-2"/>
-                                    </p>
-                                    <p v-if="action.description">
-                                        <strong>{{ Localizer.get('agents_description') }}:</strong>
-                                        {{ action.description }}
-                                    </p>
-                                    <!-- Action Permissions -->
-                                    <div class="d-flex align-items-baseline mb-3">
-                                        <strong class="me-2">Approval:</strong>
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-ask-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
-                                                @change="e => setApproval(containerId, agentId, action.name, 'ask')"
-                                                :checked="getEffectiveApproval(agentId, action, approvals) === 'ask'"
-                                                :disabled="isForbiddenApplied(agentId, action)">
-                                            <label class="btn btn-outline-secondary approval-ask" :for="`btn-ask-${containerId}-${agentIndex}-${actionIndex}`">Ask</label>
+                        <template #body="{ item: {containerId, agents, approvals}, index: containerIndex }">
+                            <AppAccordion
+                                :id="`agents-accordion-${containerIndex}`"
+                                :items="agents"
+                                :get-key="agent => agent.agentId"
+                                variant="nested"
+                            >
+                                <template #header="{ item: {agentId, actions} }">
+                                    <i class="fa fa-user me-3"/>
+                                    <strong>{{ agentId }}</strong>&nbsp;({{ actions?.length }})
+                                </template>
 
-                                            <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-deny-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
-                                                @change="e => setApproval(containerId, agentId, action.name, 'deny')"
-                                                :checked="getEffectiveApproval(agentId, action, approvals) === 'deny'"
-                                                :disabled="isForbiddenApplied(agentId, action)">
-                                            <label class="btn btn-outline-secondary approval-deny" :for="`btn-deny-${containerId}-${agentIndex}-${actionIndex}`">Deny</label>
+                                <template #body="{ item: {agentId, actions}, index: agentIndex }">
+                                    <AppAccordion
+                                        :id="`actions-accordion-${containerIndex}-${agentIndex}`"
+                                        :items="actions"
+                                        :get-key="action => action.name"
+                                        variant="nested"
+                                    >
+                                        <template #header="{ item: action }">
+                                            <div class="position-relative d-inline-block me-3">
+                                                <i class="fa fa-wrench"/>
+                                                <span class="position-absolute top-100 start-100 p-1 rounded-circle"
+                                                      :class="{
+                                                          'bg-approval-ask': getEffectiveApproval(agentId, action, approvals) === 'ask',
+                                                          'bg-approval-deny': getEffectiveApproval(agentId, action, approvals) === 'deny',
+                                                          'bg-approval-allow': getEffectiveApproval(agentId, action, approvals) === 'allow'
+                                                      }" style="outline: 2px solid var(--surface-color); transform: translate(-180%, -70%);">
+                                                    <span class="visually-hidden">Approval State</span>
+                                                </span>
+                                            </div>
+                                            {{ action.name }}
+                                        </template>
 
-                                            <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-allow-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
-                                                @change="e => setApproval(containerId, agentId, action.name, 'allow')"
-                                                :checked="getEffectiveApproval(agentId, action, approvals) === 'allow'"
-                                                :disabled="isForbiddenApplied(agentId, action) || isConfirmationApplied(agentId, action)">
-                                            <label class="btn btn-outline-secondary approval-allow" :for="`btn-allow-${containerId}-${agentIndex}-${actionIndex}`">Allow</label>
-                                        </div>
-                                    </div>
+                                        <template #body="{ item: action, index: actionIndex }">
+                                            <div class="action-body p-2">
+                                                <p class="invoke" @click.stop="invokeAction(agentId, action.name, action.parameters)">
+                                                    <strong>{{ Localizer.get('agents_invoke') }}</strong>
+                                                    <i class="fa fa-circle-play mx-2"/>
+                                                </p>
+                                                <p v-if="action.description">
+                                                    <strong>{{ Localizer.get('agents_description') }}:</strong>
+                                                    {{ action.description }}
+                                                </p>
+                                                <!-- Action Permissions -->
+                                                <div class="d-flex align-items-baseline mb-3">
+                                                    <strong class="me-2">Approval:</strong>
+                                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                                        <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-ask-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
+                                                               @change="e => setApproval(containerId, agentId, action.name, 'ask')"
+                                                               :checked="getEffectiveApproval(agentId, action, approvals) === 'ask'"
+                                                               :disabled="isForbiddenApplied(agentId, action)">
+                                                        <label class="btn btn-outline-secondary approval-ask" :for="`btn-ask-${containerId}-${agentIndex}-${actionIndex}`">Ask</label>
 
-                                    <strong>{{ Localizer.get('agents_parameters') }}:</strong>
-                                    <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
-                                    <strong>{{ Localizer.get('agents_result') }}:</strong>
-                                    <pre class="json-box">{{ formatJSON(action.result) }} </pre>
-                                </div>
-                            </template>
-                        </AppAccordion>
-                    </template>
-                </AppAccordion>
-            </template>
-        </AppAccordion>
+                                                        <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-deny-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
+                                                               @change="e => setApproval(containerId, agentId, action.name, 'deny')"
+                                                               :checked="getEffectiveApproval(agentId, action, approvals) === 'deny'"
+                                                               :disabled="isForbiddenApplied(agentId, action)">
+                                                        <label class="btn btn-outline-secondary approval-deny" :for="`btn-deny-${containerId}-${agentIndex}-${actionIndex}`">Deny</label>
+
+                                                        <input type="radio" class="btn-check" :name="`approval-${containerId}-${agentIndex}-${actionIndex}`" :id="`btn-allow-${containerId}-${agentIndex}-${actionIndex}`" autocomplete="off"
+                                                               @change="e => setApproval(containerId, agentId, action.name, 'allow')"
+                                                               :checked="getEffectiveApproval(agentId, action, approvals) === 'allow'"
+                                                               :disabled="isForbiddenApplied(agentId, action) || isConfirmationApplied(agentId, action)">
+                                                        <label class="btn btn-outline-secondary approval-allow" :for="`btn-allow-${containerId}-${agentIndex}-${actionIndex}`">Allow</label>
+                                                    </div>
+                                                </div>
+
+                                                <strong>{{ Localizer.get('agents_parameters') }}:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.parameters) }}</pre>
+                                                <strong>{{ Localizer.get('agents_result') }}:</strong>
+                                                <pre class="json-box">{{ formatJSON(action.result) }} </pre>
+                                            </div>
+                                        </template>
+                                    </AppAccordion>
+                                </template>
+                            </AppAccordion>
+                        </template>
+                    </AppAccordion>
+                </template>
+            </GenericSearch>
+        </div>
     </div>
-</div>
 
 </template>
 
@@ -156,12 +150,13 @@ import Localizer from "../../Localizer.js";
 import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import AppAccordion from '../AppAccordion.vue';
+import GenericSearch from '../GenericSearch.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
 
 export default {
     name: 'SidebarAgents',
-    components: {AppAccordion, InputDialogue},
+    components: {AppAccordion, GenericSearch, InputDialogue},
     props: {
         isPlatformConnected: Boolean,
     },
@@ -173,71 +168,10 @@ export default {
         return {
             platformContainers: null,
             isLoading: false,
-            isSearching: false,
-            searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
         };
     },
-    computed: {
-        agentSearchContexts() {
-            const query = this.searchQuery.trim().toLowerCase();
-            if (!query || !this.platformContainers) return [];
-
-            const results = [];
-            const matches = value => value?.toLowerCase().includes(query);
-            const excerpt = value => {
-                const text = value ?? '';
-                const index = text.toLowerCase().indexOf(query);
-                if (index < 0) return text;
-                const start = Math.max(0, index - 40);
-                const end = Math.min(text.length, index + query.length + 40);
-                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
-            };
-
-            this.platformContainers.forEach(container => {
-                const containerName = container.image?.imageName ?? container.containerId;
-                if (matches(containerName)) {
-                    results.push({
-                        key: `container-${container.containerId}`,
-                        path: containerName,
-                        context: excerpt(containerName),
-                    });
-                }
-
-                container.agents?.forEach(agent => {
-                    if (matches(agent.agentId)) {
-                        results.push({
-                            key: `agent-${container.containerId}-${agent.agentId}`,
-                            path: `${containerName} › ${agent.agentId}`,
-                            context: excerpt(agent.agentId),
-                        });
-                    }
-
-                    agent.actions?.forEach(action => {
-                        if (!matches(action.name) && !matches(action.description)) return;
-                        results.push({
-                            key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
-                            path: `${containerName} › ${agent.agentId} › ${action.name}`,
-                            context: excerpt(matches(action.description) ? action.description : action.name),
-                        });
-                    });
-                });
-            });
-
-            return results;
-        },
-    },
     methods: {
-        async toggleSearch() {
-            this.isSearching = !this.isSearching;
-            if (!this.isSearching) {
-                this.searchQuery = '';
-                return;
-            }
-            await nextTick();
-            this.$refs.searchBar?.focus();
-        },
-
         getEffectiveApproval(agentId, action, approvals) {
             return getEffectiveApproval(`${agentId}--${action.name}`, approvals?.[`${agentId}--${action.name}`], this.restrictedActions);
         },
@@ -255,7 +189,7 @@ export default {
 
                 const container = this.platformContainers.find(c => c.containerId === containerId);
                 if (container) {
-                    if (!container.approvals) container.approvals = {};
+                    container.approvals ??= {};
                     container.approvals[toolName] = approval;
                 }
             } catch (err) {
@@ -293,17 +227,47 @@ export default {
             return containerId === "__internal_tools__";
         },
 
-        getContainers() {
-            const matches = (s) => {
-                if (!this.searchQuery) return true;
-                return s?.toLowerCase().includes(this.searchQuery.toLowerCase());
+        filterContainers(platformContainers, query, {matches, getMatchExcerpt}) {
+            if (!platformContainers) return {filteredItems: [], contextPreviews: []};
+            const contextPreviews = [];
+            if (query.trim()) {
+                platformContainers.forEach(container => {
+                    const containerName = container.image?.imageName ?? container.containerId;
+                    if (matches(containerName)) {
+                        contextPreviews.push({
+                            key: `container-${container.containerId}`,
+                            path: containerName,
+                            context: getMatchExcerpt(containerName),
+                        });
+                    }
+                    container.agents?.forEach(agent => {
+                        if (matches(agent.agentId)) {
+                            contextPreviews.push({
+                                key: `agent-${container.containerId}-${agent.agentId}`,
+                                path: `${containerName} › ${agent.agentId}`,
+                                context: getMatchExcerpt(agent.agentId),
+                            });
+                        }
+                        agent.actions?.forEach(action => {
+                            if (!matches(action.name) && !matches(action.description)) return;
+                            contextPreviews.push({
+                                key: `action-${container.containerId}-${agent.agentId}-${action.name}`,
+                                path: `${containerName} › ${agent.agentId} › ${action.name}`,
+                                context: getMatchExcerpt(matches(action.description) ? action.description : action.name),
+                            });
+                        });
+                    });
+                });
             }
-            if (!this.platformContainers) return [];
 
-            // Create local deep-copy of the container data
-            let containers = JSON.parse(JSON.stringify(this.platformContainers));
-
-            // sort containers/agents/actions alphabetically
+            // Copy only the arrays changed by sorting/filtering; retain reactive item data.
+            let containers = platformContainers.map(container => ({
+                ...container,
+                agents: (container.agents ?? []).map(agent => ({
+                    ...agent,
+                    actions: [...(agent.actions ?? [])],
+                })),
+            }));
             containers.sort((a, b) => {
                 if (this.isInternalContainer(a.containerId) && !this.isInternalContainer(b.containerId)) return -1;
                 if (!this.isInternalContainer(a.containerId) && this.isInternalContainer(b.containerId)) return 1;
@@ -316,7 +280,7 @@ export default {
                 });
             });
 
-            // filter for search query
+            if (!query.trim()) return {filteredItems: containers, contextPreviews};
             containers = containers.filter(container => {
                 if (matches(container.image.imageName)) return true;
                 container.agents = container.agents.filter(agent => {
@@ -329,7 +293,7 @@ export default {
                 return container.agents.length > 0;
             });
 
-            return containers;
+            return {filteredItems: containers, contextPreviews};
         },
 
         // MULTI-PAGE "WIZARD" FOR STARTING CONTAINERS IN DIFFERENT WAYS, INCLUDING PARAMETERS

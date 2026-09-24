@@ -1,34 +1,34 @@
 <template>
-<div class="file-preview d-flex">
+    <div class="file-preview d-flex">
 
-    <div class="d-flex flex-row text-break"
-        @click="this.viewFile()">
-        <!-- Icon changes based on upload status -->
-        <div class="d-flex h-100 align-items-center me-1">
-            <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file'" />
+        <div class="d-flex flex-row text-break"
+             @click="this.viewFile()">
+            <!-- Icon changes based on upload status -->
+            <div class="d-flex h-100 align-items-center me-1">
+                <i :class="this.isUploading ? 'fa fa-spinner fa-spin' : 'fa fa-file'" />
+            </div>
+
+            <!-- File name -->
+            <span class="d-flex flex-wrap me-1 align-items-start" :title="this.file.name">
+                {{ this.getFilename() }}
+            </span>
+
+            <!-- Upload status text -->
+            <span v-if="this.isUploading">
+                {{ Localizer.get('files_uploading') }}
+            </span>
         </div>
 
-        <!-- File name -->
-        <span class="d-flex flex-wrap me-1 align-items-start" :title="this.file.name">
-            {{ this.getFilename() }}
-        </span>
-
-        <!-- Upload status text -->
-        <span v-if="this.isUploading">
-            {{ Localizer.get('files_uploading') }}
-        </span>
+        <!-- Remove file from preview (and also from server) -->
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-danger file-delete-button"
+            @click="this.removeFile()"
+            :disabled="this.isUploading"
+            :title="Localizer.get('files_delete')" >
+            <i class="fa fa-remove" />
+        </button>
     </div>
-
-    <!-- Remove file from preview (and also from server) -->
-    <button
-        type="button"
-        class="btn btn-sm btn-outline-danger file-delete-button"
-        @click="this.removeFile()"
-        :disabled="this.isUploading"
-        :title="Localizer.get('files_delete')" >
-        <i class="fa fa-remove" />
-    </button>
-</div>
 </template>
 
 <script>

@@ -48,7 +48,10 @@ class CodeTools:
 
         for attempt in range(1, max_code_retries + 2):
             # 1. Ask the LLM to write code
-            llm_response = await self.ctx.query(prompt, agent_prefix="InternalTool / SolveWithCode")
+            llm_response = await self.ctx.call_llm(
+                prompt, agent="InternalTool / SolveWithCode",
+                system_prompt="Generate Python code for the requested task. Follow the supplied sandbox instructions.",
+            )
             code = extract_code_block(llm_response.content)
 
             if not code:

@@ -1,34 +1,22 @@
 from __future__ import annotations
 
-import json
-import logging
-import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Type, Literal, Tuple
 import asyncio
-import jsonref
-from itertools import count
 from datetime import datetime as dt
 import os
 
-from openai.types.responses import ResponseFunctionToolCall
-from pydantic import BaseModel, ValidationError
-import litellm
-from litellm.types.responses.main import OutputFunctionToolCall
-from litellm.types.llms.openai import ResponsesAPIStreamEvents as event_type
+from pydantic import BaseModel
 
-from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, OpacaException, Chat,
-                     ToolCall, ToolType, ToolCallMessage, TextChunkMessage, MetricsMessage, StatusMessage, MethodConfig,
-                     MissingApiKeyNotification, MissingApiKeyResponse, LLMConfig)
-from ..services.file_utils import get_file_parts
+from ..models import (ToolApprovalState, SessionData, QueryResponse, AgentMessage, ChatMessage, Chat,
+                     ToolCall, MethodConfig, LLMConfig)
 from ..services.opaca_client import actions_blacklist
 from ..services.tool_calling import ToolCaller
+from ..services.llm_calling import LLMCaller
 
 if TYPE_CHECKING:
     from ..internal_tools import InternalTools
 
-
-logger = logging.getLogger(__name__)
 
 PLAY_BOOK_SYSTEM_NOTE = """
 Play books are user-defined task instructions exposed through the LoadPlayBook internal tool.
@@ -56,7 +44,6 @@ class AbstractMethod(ABC):
         self.chat = chat
         self.response = response
         self.streaming = streaming
-        self.tool_counter = count(0)
         self.internal_tools = internal_tools
         if self.internal_tools:
             self.internal_tools.set_chat(chat)
@@ -76,7 +63,7 @@ class AbstractMethod(ABC):
         pass
 
     def next_tool_id(self, agent_message: AgentMessage):
-        return f"{agent_message.id}/{next(self.tool_counter)}"
+        return self.tool_caller.next_tool_id(agent_message)
 
     async def call_llm(
             self,
@@ -95,7 +82,7 @@ class AbstractMethod(ABC):
         Calls an LLM with given parameters, including support for streaming, tools, file uploads, and response schema parsing.
 
         Args:
-            model_config (Dict[str, Any]): Individual model configuration settings.
+            model_config (LLMConfig): Individual model configuration settings.
             agent (str): The agent name (e.g. "simple-tools").
             system_prompt (str): The system prompt for model instructions.
             messages (List[ChatMessage]): The list of chat messages.
@@ -110,162 +97,19 @@ class AbstractMethod(ABC):
             AgentMessage: The final message returned by the LLM with metadata.
         """
 
-        if status_message:
-            await self.send_to_websocket(StatusMessage(agent=agent, status=status_message, chat_id=self.chat.chat_id))
-
-        # Extract model name and config
-        model = model_config.model
-
-        # Check if an additional API key is required for this model
-        if not self.session.get_api_key(model) and not litellm.validate_environment(model).get("keys_in_environment"):
-            await self.handle_invalid_api_key(model)
-
-        # Initialize variables
-        exec_time = time.time()
-        agent_message = AgentMessage(agent=agent, content='', tools=[])
-
-        # Full file contents are opt-in per LLM call. Only these explicitly requested
-        # files are uploaded to the provider and added to the model input.
-        if attached_file_ids:
-            file_message_parts = await get_file_parts(self.session, model, attached_file_ids)
-
-            if not file_message_parts:
-                file_list = ", ".join(
-                    file.file_name
-                    for file_id, file in self.session.uploaded_files.items()
-                    if file_id in attached_file_ids
-                ) or "the selected file"
-                raise OpacaException(
-                    user_message="The selected file could not be attached to the LLM.",
-                    error_message=(
-                        f"No supported file parts were produced for {file_list} using model {model}. "
-                        "PDFs require a model provider with file-upload support; images require a "
-                        "vision-capable OpenAI model in the current implementation."
-                    ),
-                )
-
-            # Modify the last user message to include file parts
-            last = messages[-1]
-
-            # Normalize last content to "content parts"
-            if isinstance(last.content, list):
-                parts = last.content
-            else:
-                # assume string (or None)
-                parts = [{"type": "input_text", "text": last.content or ""}]
-
-            # Prepend file parts
-            last.content = [*file_message_parts, *parts]
-
-        # Without full contents, preserve only which files belong to the current user request.
-        # This lets the model resolve references such as "this file" without sending their contents.
-        # current_file_ids originates from QueryRequest.
-        if not attached_file_ids and self.internal_tools and tools:
-            current_file_ids = self.internal_tools.context.current_file_ids
-            current_files = [
-                f"{file.file_name} (ID: {file_id})"
-                for file_id, file in self.session.uploaded_files.items()
-                if file_id in current_file_ids
-            ]
-            if current_files:
-                system_prompt = (
-                    f"{system_prompt.rstrip()}\n\nFiles attached to this request: "
-                    f"{', '.join(current_files)}."
-                )
-
-        # Set settings for model invocation
-        kwargs = {
-            'api_key': self.session.get_api_key(model),
-            'model': model,
-            'instructions': system_prompt,
-            'input': [m.model_dump() for m in messages],
-            'tools': tools or [],
-            'tool_choice': tool_choice if tools else 'none',
-            'text_format': response_format,
-            'stream': True
-        }
-
-        # Add individual model configs and exclude unsupported/unset values
-        kwargs |= model_config.parameters.model_dump(mode='json', exclude_unset=True)
-
-        # If tool_choice is set to "only", use "auto" for external API call
-        if tool_choice == "only":
-            kwargs['tool_choice'] = 'auto'
-
-        # Main stream logic
-        stream = await litellm.aresponses(**kwargs)
-        async for event in stream:
-
-            # Abort the response generation for a specific chat,
-            # or for all notifications and other anonymous queries at once.
-            if (self.chat.is_aborted
-                    or (self.chat.chat_id == '' and self.session.is_notifs_aborted)):
-                raise OpacaException(
-                    user_message="(The generation of the response has been stopped.)",
-                    error_message="Completion generation aborted by user. See Debug/Logging Tab to see what has been done so far."
-                )
-
-            elif event.type == event_type.RESPONSE_FAILED:
-                raise OpacaException(
-                    user_message="(The generation of the response has failed. See error message for details.)",
-                    error_message=f"{event.response.error['code']}: {event.response.error['message']}"
-                )
-
-            # Plain text chunk received
-            elif event.type == event_type.OUTPUT_TEXT_DELTA:
-                if tool_choice == "only":
-                    break
-                agent_message.content += event.delta
-                await self.send_to_websocket(TextChunkMessage(id=agent_message.id, agent=agent, chunk=event.delta, is_output=is_output, chat_id=self.chat.chat_id))
-                if event.delta and is_output:
-                    self.response.content += event.delta
-
-            # Final message received
-            elif event.type == event_type.RESPONSE_COMPLETED:
-                # If a response format was provided, try to cast the response to the provided schema
-                if response_format:
-                    try:
-                        agent_message.formatted_output = response_format.model_validate_json(agent_message.content)
-                    except (json.decoder.JSONDecodeError, ValidationError) as e:
-                        raise OpacaException(
-                            f"An error occurred while parsing a response JSON. Is model '{model}' supporting structured outputs?",
-                            error_message=str(e),
-                            status_code=500
-                        )
-
-                # Alternative tool output
-                for t in event.response.output:
-                    if isinstance(t, (OutputFunctionToolCall, ResponseFunctionToolCall)):
-                        if t.name is None:
-                            # Should not happen, exists just to get rid of pylance warnings
-                            logger.warning("Received tool call without a name, skipping.")
-                            continue
-
-                        tool_type = self.tool_caller.determine_tool_type(t.name)
-
-                        try:
-                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args=json.loads(t.arguments))
-                        except json.JSONDecodeError:
-                            logger.warning(f"Could not parse tool arguments: {t.arguments}")
-                            tool = ToolCall(name=t.name, type=tool_type, id=self.next_tool_id(agent_message), args={})
-                        agent_message.tools.append(tool)
-                        await self.send_to_websocket(ToolCallMessage(id=tool.id, name=tool.name, args=tool.args, agent=agent, chat_id=self.chat.chat_id))
-                # Capture token usage
-                agent_message.response_metadata = event.response.usage.model_dump()
-
-        agent_message.execution_time = time.time() - exec_time
-
-        # Final stream to transmit execution time and response metadata
-        await self.send_to_websocket(MetricsMessage(
-            agent=agent,
-            execution_time=agent_message.execution_time,
-            metrics=agent_message.response_metadata,
-            chat_id=self.chat.chat_id,
-        ))
-
-        logger.info(agent_message.content or agent_message.tools or agent_message.formatted_output, extra={"agent_name": agent})
-
-        return agent_message
+        return await LLMCaller(
+            session=self.session,
+            chat=self.chat,
+            response=self.response,
+            streaming=self.streaming,
+            internal_tools=self.internal_tools,
+            tool_caller=self.tool_caller,
+        ).call_llm(
+            model_config=model_config, agent=agent, system_prompt=system_prompt,
+            messages=messages, tools=tools, tool_choice=tool_choice,
+            response_format=response_format, status_message=status_message,
+            is_output=is_output, attached_file_ids=attached_file_ids,
+        )
 
     async def send_to_websocket(self, message: BaseModel):
         if self.session.has_websocket() and self.streaming:
@@ -282,7 +126,8 @@ class AbstractMethod(ABC):
         """
         Get list of available actions as OpenAI Functions. This primarily includes the OPACA actions, but can also include "internal" tools.
         """
-        tools, error = openapi_to_functions(await self.session.opaca_client.get_actions_openapi(inline_refs=True))
+        openapi_actions = await self.session.opaca_client.get_actions_openapi(inline_refs=False)
+        tools, error = openapi_to_functions(openapi_actions)
 
         if self.internal_tools and include_internal:
             tools.extend(self.internal_tools.get_internal_tools_openai())
@@ -311,19 +156,6 @@ class AbstractMethod(ABC):
             tools = tools[:max_tools]
         return tools, error
 
-    async def handle_invalid_api_key(self, model, is_invalid: bool = False):
-        if not self.session.has_websocket():
-            raise OpacaException(user_message=f"No API key is available for model {model}.")
-        msg_id = await self.session.websocket_send(MissingApiKeyNotification(is_invalid=is_invalid, model=model))
-        response = MissingApiKeyResponse(**await self.session.websocket_receive(msg_id))
-        if response.api_key:
-            if litellm.check_valid_key(model, response.api_key):
-                self.session.set_api_key(model, response.api_key)
-            else:
-                await self.handle_invalid_api_key(model, True)
-        else:
-            raise OpacaException(user_message=f"No valid API key was provided for model {model}!")
-
     def build_full_prompt(self, specific_prompt: str) -> str:
         """
         Provides a certain level of awareness of the LLM to (a) who it is, without repeating that
@@ -349,7 +181,11 @@ class AbstractMethod(ABC):
         else:
             return f"The current date and time is {now}."
 
-def openapi_to_functions(openapi_spec, agent: str | None = None):
+
+def openapi_to_functions(
+        openapi_spec: dict,
+        agent: str | None = None
+) -> Tuple[List, str]:
     """
     Convert OpenAPI REST specification (with inlined references) to OpenAI Function specification.
 
@@ -359,19 +195,13 @@ def openapi_to_functions(openapi_spec, agent: str | None = None):
     """
     functions = []
     error_msg = ""
+    component_schemas: dict = openapi_spec.get('components', {}).get('schemas', {})
 
     for path, methods in openapi_spec.get("paths", {}).items():
-        for method, spec_with_ref in methods.items():
-            # Resolve JSON references.
-            try:
-                spec = jsonref.replace_refs(spec_with_ref)
-            except Exception as e:
-                error_msg += f'Error while replacing references for unknown action. Cause: {e}\n'
-                continue
-
+        for method, spec in methods.items():
             # Extract a name for the functions
             try:
-                # The operation id is formatted as 'containerId-agentName-actionName'
+                # The operation id is formatted as 'containerId;agentName;actionName'
                 container_id, agent_name, function_name = spec.get("operationId").split(';')
                 # action relevant for selected agent?
                 if agent and agent_name != agent:
@@ -386,18 +216,74 @@ def openapi_to_functions(openapi_spec, agent: str | None = None):
             # assemble function block
             # structure of schema: type (str), required (list), properties (the actual parameters), additionalProperties (bool)
             schema = (spec.get("requestBody", {})
-                        .get("content", {})
-                        .get("application/json", {})
-                        .get("schema"))
-            schema.setdefault("properties", {})  # must be present even if no params
+                      .get("content", {})
+                      .get("application/json", {})
+                      .get("schema"))
 
-            functions.append(
-                {
-                    "type": "function",
-                    "name": agent_name + '--' + function_name,
-                    "description": desc,
-                    "parameters": schema,
-                }
-            )
+            if schema is None:
+                error_msg += f'No request body schema found for action {function_name}\n'
+                continue
+
+            try:
+                schema = _make_inlined_schema(schema, component_schemas)
+            except KeyError as e:
+                error_msg += f'Unresolvable reference in action {function_name}: {e}\n'
+                continue
+
+            # must be present even if no params
+            schema.setdefault("properties", {})
+
+            functions.append({
+                "type": "function",
+                "name": agent_name + '--' + function_name,
+                "description": desc,
+                "parameters": schema,
+            })
 
     return functions, error_msg
+
+
+def _make_inlined_schema(schema: dict, component_schemas: dict) -> dict:
+    """
+    Inline the definitions of types used in the schema into the schema's $defs.
+
+    This is needed since the tool schema passed to the LLM needs to be standalone
+    and contain the definitions for all types referenced in it.
+
+    :param schema: The tool schema where the definitions should be inlined.
+    :param component_schemas: The full OAS components.
+
+    :return: The schema with only the referenced sub-schemas inlined in $defs.
+    """
+    collected = {}
+    rewritten = _rewrite_refs_and_collect_schemas(schema, component_schemas, collected)
+    if collected:
+        rewritten["$defs"] = collected
+    return rewritten
+
+
+def _rewrite_refs_and_collect_schemas(node: Any, component_schemas: dict, collected: dict) -> Any:
+    """
+    Replace components/schemas refs with $defs, and collect all
+    schemas that were referenced at least once.
+    """
+    _COMPONENTS_PREFIX = "#/components/schemas/"
+    _DEFS_PREFIX = "#/$defs/"
+
+    if isinstance(node, dict):
+        result = {}
+        for key, value in node.items():
+            if key == "$ref" and isinstance(value, str) and value.startswith(_COMPONENTS_PREFIX):
+                name = value[len(_COMPONENTS_PREFIX):]
+                result[key] = _DEFS_PREFIX + name
+                if name not in collected:
+                    collected[name] = {}  # placeholder blocks re-entry on cycles
+                    collected[name] = _rewrite_refs_and_collect_schemas(component_schemas[name], component_schemas, collected)
+            else:
+                result[key] = _rewrite_refs_and_collect_schemas(value, component_schemas, collected)
+        return result
+
+    if isinstance(node, list):
+        return [_rewrite_refs_and_collect_schemas(item, component_schemas, collected) for item in node]
+
+    return node

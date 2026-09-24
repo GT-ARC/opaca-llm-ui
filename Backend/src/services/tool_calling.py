@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING, List
 import asyncio
+import logging
+from itertools import count
+from typing import TYPE_CHECKING, List
 
 import httpx
-from litellm.experimental_mcp_client.client import MCPClient
-from mcp.types import CallToolRequestParams
 from pydantic import BaseModel
 
 from ..models import (ToolApprovalState, SessionData,
-                     ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
+                     AgentMessage, ToolCall, ToolType, ContainerLoginNotification, ContainerLoginResponse,
                      ToolResultMessage, ConfirmActionNotification, ConfirmActionResponse)
 from .opaca_client import actions_blacklist
 
@@ -31,7 +30,11 @@ class ToolCaller:
         self.internal_tools = internal_tools
         self.streaming = streaming
         self.chat_id = chat_id
+        self.tool_counter = count(0)
 
+
+    def next_tool_id(self, agent_message: AgentMessage) -> str:
+        return f"{agent_message.id}/{next(self.tool_counter)}"
 
     def determine_tool_type(self, tool_name: str) -> ToolType:
         """Determine tool type and name based on presence of server label and matching MCP server/tools"""
@@ -42,7 +45,6 @@ class ToolCaller:
             return ToolType.MCP
         else:
             return ToolType.OPACA
-
 
     async def invoke_tool(self, tool: ToolCall, login_attempt_retry: bool = False, skip_approval: bool = False) -> ToolCall:
         """
@@ -72,9 +74,9 @@ class ToolCaller:
         if tool.type == ToolType.MCP:
             server = self.session.mcp_servers.get(provider)
             try:
-                client = MCPClient(server_url=server.server_url)
-                res = await client.call_tool(CallToolRequestParams(name=tool_name, arguments=tool.args))
-                if res.isError:
+                from ..mcp_auth import call_mcp_tool
+                res = await call_mcp_tool(self.session, server, tool_name, tool.args)
+                if res.is_error:
                     t_result = f"Failed to invoke MCP tool.\nError: {res.content}"
                 else:
                     t_result = res.content

@@ -10,16 +10,16 @@
                 <!-- grouped buttons -->
                 <div class="d-flex gap-1 align-items-center">
                     <i v-if="loading" class="fa fa-stop notification-button"
-                        @click.stop="this.stopNotifications()"
-                        title="Stop"
+                       @click.stop="this.stopNotifications()"
+                       title="Stop"
                     />
                     <i v-if="! loading" class="fa fa-comment-medical notification-button"
                        @click.stop="this.appendToChat(fullResponse)"
                        :title="Localizer.get('notification_append')"
                     />
                     <i v-if="! loading" class="fa fa-remove notification-button"
-                        @click.stop="this.dismissNotification(elementId)"
-                        :title="Localizer.get('notification_dismiss')"
+                       @click.stop="this.dismissNotification(elementId)"
+                       :title="Localizer.get('notification_dismiss')"
                     />
                 </div>
             </div>

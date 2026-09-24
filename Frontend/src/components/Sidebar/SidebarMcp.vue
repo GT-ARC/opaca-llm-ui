@@ -1,220 +1,222 @@
 <template>
-<div ref="scrollContainer" class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_mcp') }}
-        <i class="fa fa-plus ms-auto sidebar-title-action"
-           @click.stop="addMcp()"
-           :title="Localizer.get('mcp_add')" />
-        <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
-           @click="toggleSearch"
-           :title="Localizer.get('mcp_search')" />
-    </div>
-
-    <input v-if="isSearching"
-           type="search"
-           ref="searchBar"
-           class="form-control my-2"
-           :placeholder="Localizer.get('mcp_search')"
-           v-model="this.searchQuery" />
-    <div v-if="mcpSearchContexts.length > 0" class="sidebar-search-results">
-        <div v-for="result in mcpSearchContexts"
-             :key="result.key"
-             class="sidebar-search-result-group">
-            <div class="sidebar-search-result-heading">{{ result.path }}</div>
-            <div class="sidebar-search-result-context">{{ result.context }}</div>
-        </div>
-    </div>
-
-    <section class="mcp-section">
-        <div class="mcp-section-title">
-            {{ Localizer.get('mcp_installed') }}
+    <div ref="scrollContainer" class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_mcp') }}
+            <i class="fa fa-plus ms-auto sidebar-title-action"
+               @click.stop="addMcp()"
+               :title="Localizer.get('mcp_add')" />
+            <i class="fa fa-magnifying-glass sidebar-title-action sidebar-title-action-secondary"
+               @click="$refs.search.toggleSearch()"
+               :title="Localizer.get('mcp_search')" />
         </div>
 
-        <div v-if="this.isLoading">
-            <i class="fa fa-circle-notch fa-spin me-1" />
-            {{ Localizer.get('mcp_loading') }}
-        </div>
-        <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0"
-             class="sidebar-empty-state">
-            {{ Localizer.get('mcp_installedPlaceholder') }}
-        </div>
-        <div v-else class="flex-row" >
-            <AppAccordion
-                id="mcp-accordion"
-                class="text-start"
-                :items="getMcpServers()"
-                :get-key="server => server.name"
-            >
-                <template #header="{ item: server }">
-                    <i class="fa fa-server me-3"/>
-                    <strong class="flex-grow-1">{{ server.name }}</strong>
+        <GenericSearch
+            ref="search"
+            :items="mcpSearchItems"
+            :placeholder="Localizer.get('mcp_search')"
+            :filter-items="filterMcpItems"
+            @search-query-change="searchQuery = $event"
+        >
+            <template #default="{ filteredItems }">
 
-                    <span class="section-actions">
-                        <i class="fa fa-remove click-icon click-icon-danger"
-                           @click.stop="this.deleteMcp(server.name)"
-                           :title="Localizer.get('mcp_remove')" />
-                    </span>
-                </template>
+                <section class="mcp-section">
+                    <div class="mcp-section-title">
+                        {{ Localizer.get('mcp_installed') }}
+                    </div>
 
-                <template #body="{ item: server, index: mcpServerIndex }">
-                    <AppAccordion
-                        :id="`mcp-accordion-${mcpServerIndex}`"
-                        :items="server.tools"
-                        :get-key="mcp => mcp.name"
-                        variant="nested"
-                    >
-                        <template #header="{ item: mcp }">
-                            <div class="position-relative d-inline-block me-3">
-                                <i class="fa fa-wrench"/>
-                                <span class="position-absolute top-100 start-100 p-1 rounded-circle"
-                                      :class="{
-                                          'bg-approval-ask': getEffectiveApproval(mcp) === 'ask',
-                                          'bg-approval-deny': getEffectiveApproval(mcp) === 'deny',
-                                          'bg-approval-allow': getEffectiveApproval(mcp) === 'allow'
-                                      }" style="outline: 2px solid var(--surface-color); transform: translate(-30%, -90%);">
-                                    <span class="visually-hidden">Approval State</span>
+                    <div v-if="this.isLoading">
+                        <i class="fa fa-circle-notch fa-spin me-1" />
+                        {{ Localizer.get('mcp_loading') }}
+                    </div>
+                    <div v-else-if="!platformMcp || Object.keys(platformMcp).length === 0"
+                         class="sidebar-empty-state">
+                        {{ Localizer.get('mcp_installedPlaceholder') }}
+                    </div>
+                    <div v-else class="flex-row" >
+                        <AppAccordion
+                            id="mcp-accordion"
+                            class="text-start"
+                            :items="getMcpServers(filteredItems.installed)"
+                            :get-key="server => server.name"
+                        >
+                            <template #header="{ item: server }">
+                                <i class="fa fa-server me-3 flex-shrink-0"/>
+                                <strong class="mcp-server-title" :title="server.name">{{ server.name }}</strong>
+
+                                <span class="section-actions flex-shrink-0">
+                                    <i class="fa fa-remove click-icon click-icon-danger"
+                                       @click.stop="this.deleteMcp(server.name)"
+                                       :title="Localizer.get('mcp_remove')" />
                                 </span>
-                            </div>
-                            {{ mcp.name }}
-                        </template>
+                            </template>
 
-                        <template #body="{ item: mcp, index: mcpIndex }">
-                            <div class="mcp-body">
-                                <p class="invoke" @click.stop="invokeAction(mcp.server_label, mcp.name, mcpToOpacaSchema(mcp.inputSchema))">
-                                    <strong>{{ Localizer.get('agents_invoke') }}</strong>
-                                    <i class="fa fa-circle-play mx-2"/>
-                                </p>
-                                <p v-if="mcp.description" class="mb-2">
-                                    <strong>{{ Localizer.get('agents_description') }}:</strong>
-                                    {{ mcp.description }}
-                                </p>
-                                <div class="d-flex align-items-center">
-                                    <strong class="me-2">Approval:</strong>
-                                    <div class="btn-group btn-group-sm w-100" role="group">
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-ask-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'ask')"
-                                            :checked="getEffectiveApproval(mcp) === 'ask'"
-                                            :disabled="isForbiddenApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-ask" :for="'btn-ask-' + mcpServerIndex + '-' + mcpIndex">Ask</label>
+                            <template #body="{ item: server, index: mcpServerIndex }">
+                                <AppAccordion
+                                    :id="`mcp-accordion-${mcpServerIndex}`"
+                                    :items="server.tools"
+                                    :get-key="mcp => mcp.name"
+                                    variant="nested"
+                                >
+                                    <template #header="{ item: mcp }">
+                                        <div class="position-relative d-inline-block me-3">
+                                            <i class="fa fa-wrench"/>
+                                            <span class="position-absolute top-100 start-100 p-1 rounded-circle"
+                                                  :class="{
+                                                      'bg-approval-ask': getEffectiveApproval(mcp) === 'ask',
+                                                      'bg-approval-deny': getEffectiveApproval(mcp) === 'deny',
+                                                      'bg-approval-allow': getEffectiveApproval(mcp) === 'allow'
+                                                  }" style="outline: 2px solid var(--surface-color); transform: translate(-30%, -90%);">
+                                                <span class="visually-hidden">Approval State</span>
+                                            </span>
+                                        </div>
+                                        {{ mcp.name }}
+                                    </template>
 
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-deny-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'deny')"
-                                            :checked="getEffectiveApproval(mcp) === 'deny'"
-                                            :disabled="isForbiddenApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-deny" :for="'btn-deny-' + mcpServerIndex + '-' + mcpIndex">Deny</label>
+                                    <template #body="{ item: mcp, index: mcpIndex }">
+                                        <div class="mcp-body">
+                                            <p class="invoke" @click.stop="invokeAction(mcp.server_label, mcp.name, mcpToOpacaSchema(mcp.inputSchema))">
+                                                <strong>{{ Localizer.get('agents_invoke') }}</strong>
+                                                <i class="fa fa-circle-play mx-2"/>
+                                            </p>
+                                            <p v-if="mcp.description" class="mb-2">
+                                                <strong>{{ Localizer.get('agents_description') }}:</strong>
+                                                {{ mcp.description }}
+                                            </p>
+                                            <div class="d-flex align-items-center">
+                                                <strong class="me-2">Approval:</strong>
+                                                <div class="btn-group btn-group-sm w-100" role="group">
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-ask-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'ask')"
+                                                           :checked="getEffectiveApproval(mcp) === 'ask'"
+                                                           :disabled="isForbiddenApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-ask" :for="'btn-ask-' + mcpServerIndex + '-' + mcpIndex">Ask</label>
 
-                                        <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-allow-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
-                                            @change="e => setApproval(mcp.server_label, mcp.name, 'allow')"
-                                            :checked="getEffectiveApproval(mcp) === 'allow'"
-                                            :disabled="isForbiddenApplied(mcp) || isConfirmationApplied(mcp)">
-                                        <label class="btn btn-outline-secondary approval-allow" :for="'btn-allow-' + mcpServerIndex + '-' + mcpIndex">Allow</label>
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-deny-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'deny')"
+                                                           :checked="getEffectiveApproval(mcp) === 'deny'"
+                                                           :disabled="isForbiddenApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-deny" :for="'btn-deny-' + mcpServerIndex + '-' + mcpIndex">Deny</label>
+
+                                                    <input type="radio" class="btn-check" :name="'approval-' + mcpServerIndex + '-' + mcpIndex" :id="'btn-allow-' + mcpServerIndex + '-' + mcpIndex" autocomplete="off"
+                                                           @change="e => setApproval(mcp.server_label, mcp.name, 'allow')"
+                                                           :checked="getEffectiveApproval(mcp) === 'allow'"
+                                                           :disabled="isForbiddenApplied(mcp) || isConfirmationApplied(mcp)">
+                                                    <label class="btn btn-outline-secondary approval-allow" :for="'btn-allow-' + mcpServerIndex + '-' + mcpIndex">Allow</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </AppAccordion>
+                            </template>
+                        </AppAccordion>
+                    </div>
+                </section>
+
+                <section class="mcp-section">
+                    <div class="mcp-section-title">
+                        {{ Localizer.get('mcp_browse') }}
+                        <i class="fa fa-refresh ms-auto sidebar-title-action sidebar-title-action-secondary"
+                           :class="{ disabled: isRegistryLoading || isRegistryLoadingMore }"
+                           :aria-disabled="isRegistryLoading || isRegistryLoadingMore"
+                           @click.stop="updateRegistry(true)"
+                           :title="Localizer.get('mcp_registryRefresh')" />
+                        <i v-if="showRegistryHeaderActions"
+                           class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="[hideUnavailableRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideUnavailableRegistryMcp }]"
+                           :aria-pressed="hideUnavailableRegistryMcp"
+                           @click="hideUnavailableRegistryMcp = !hideUnavailableRegistryMcp"
+                           :title="Localizer.get('mcp_filterUnavailable')" />
+                        <i v-if="showRegistryHeaderActions"
+                           class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="[hideCredentialedRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideCredentialedRegistryMcp }]"
+                           :aria-pressed="hideCredentialedRegistryMcp"
+                           @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
+                           :title="Localizer.get('mcp_filterCredentials')" />
+                        <i v-if="showRegistryHeaderActions"
+                           class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="[prioritizeOfficialLookingRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: prioritizeOfficialLookingRegistryMcp }]"
+                           :aria-pressed="prioritizeOfficialLookingRegistryMcp"
+                           @click="prioritizeOfficialLookingRegistryMcp = !prioritizeOfficialLookingRegistryMcp"
+                           :title="Localizer.get('mcp_sortOfficialLooking')" />
+                        <i class="fa sidebar-title-action sidebar-title-action-secondary"
+                           :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
+                           @click="showRegistryHeaderActions = !showRegistryHeaderActions"
+                           :title="Localizer.get(showRegistryHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
+                    </div>
+
+                    <div v-if="isRegistryLoading">
+                        <i class="fa fa-circle-notch fa-spin me-1" />
+                        {{ Localizer.get('mcp_registryLoading') }}
+                    </div>
+                    <div v-else-if="registryUnavailable && (!registryMcp || registryMcp.length === 0)"
+                         class="sidebar-empty-state">
+                        {{ Localizer.get('mcp_registryUnavailable') }}
+                    </div>
+                    <div v-else-if="filteredItems.registry" class="flex-row">
+                        <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
+                            {{ Localizer.get('mcp_registryLoadMoreFailed') }}
+                        </div>
+                        <div v-if="filteredItems.registry.length === 0" class="sidebar-empty-state">
+                            {{ Localizer.get('mcp_registryEmpty') }}
+                        </div>
+                        <AppAccordion
+                            v-else
+                            id="mcp-registry-accordion"
+                            class="text-start"
+                            :items="filteredItems.registry"
+                            :get-key="server => server.name"
+                        >
+                            <template #header="{ item: server }">
+                                <i class="fa fa-server me-3 flex-shrink-0" />
+                                <strong class="mcp-server-title" :title="server.title || server.name">{{ server.title || server.name }}</strong>
+                                <span class="section-actions flex-shrink-0"
+                                      :title="server.compatibleRemoteUrls.length > 0
+                                          ? Localizer.get('mcp_add')
+                                          : Localizer.get('mcp_registryNoRemote')">
+                                    <i class="fa fa-plus click-icon"
+                                       :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
+                                       @click.stop="addMcp(server)" />
+                                </span>
+                            </template>
+
+                            <template #body="{ item: server }">
+                                <div class="mcp-registry-body">
+                                    <p v-if="server.description" class="mb-2">
+                                        {{ server.description }}
+                                    </p>
+                                    <p class="mb-1 small">
+                                        <strong>{{ server.name }}</strong>
+                                    </p>
+                                    <p class="mb-2 small">
+                                        {{ Localizer.get('mcp_registryVersion') }}: {{ server.version }}
+                                    </p>
+                                    <div v-if="server.remotes?.length" class="small">
+                                        <strong>{{ Localizer.get('mcp_registryEndpoints') }}:</strong>
+                                        <div v-for="remote in server.remotes"
+                                             :key="`${remote.type}-${remote.url}`"
+                                             class="mcp-registry-endpoint">
+                                            {{ remote.url }}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </template>
-                    </AppAccordion>
-                </template>
-            </AppAccordion>
-        </div>
-    </section>
+                            </template>
+                        </AppAccordion>
 
-    <section class="mcp-section">
-        <div class="mcp-section-title">
-            {{ Localizer.get('mcp_browse') }}
-            <i class="fa fa-refresh ms-auto sidebar-title-action sidebar-title-action-secondary"
-               :class="{ disabled: isRegistryLoading || isRegistryLoadingMore }"
-               :aria-disabled="isRegistryLoading || isRegistryLoadingMore"
-               @click.stop="updateRegistry(true)"
-               :title="Localizer.get('mcp_registryRefresh')" />
-            <i v-if="showRegistryHeaderActions"
-               class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="[hideUnavailableRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideUnavailableRegistryMcp }]"
-               :aria-pressed="hideUnavailableRegistryMcp"
-               @click="hideUnavailableRegistryMcp = !hideUnavailableRegistryMcp"
-               :title="Localizer.get('mcp_filterUnavailable')" />
-            <i v-if="showRegistryHeaderActions"
-               class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="[hideCredentialedRegistryMcp ? 'fa-toggle-on' : 'fa-toggle-off', { active: hideCredentialedRegistryMcp }]"
-               :aria-pressed="hideCredentialedRegistryMcp"
-               @click="hideCredentialedRegistryMcp = !hideCredentialedRegistryMcp"
-               :title="Localizer.get('mcp_filterCredentials')" />
-            <i class="fa sidebar-title-action sidebar-title-action-secondary"
-               :class="showRegistryHeaderActions ? 'fa-angle-right' : 'fa-ellipsis'"
-               @click="showRegistryHeaderActions = !showRegistryHeaderActions"
-               :title="Localizer.get(showRegistryHeaderActions ? 'sidebar_lessActions' : 'sidebar_moreActions')" />
-        </div>
-
-        <div v-if="isRegistryLoading">
-            <i class="fa fa-circle-notch fa-spin me-1" />
-            {{ Localizer.get('mcp_registryLoading') }}
-        </div>
-        <div v-else-if="registryUnavailable && (!registryMcp || registryMcp.length === 0)"
-             class="sidebar-empty-state">
-            {{ Localizer.get('mcp_registryUnavailable') }}
-        </div>
-        <div v-else-if="filteredRegistryMcp" class="flex-row">
-            <div v-if="registryLoadMoreFailed" class="mcp-registry-warning">
-                {{ Localizer.get('mcp_registryLoadMoreFailed') }}
-            </div>
-            <div v-if="filteredRegistryMcp.length === 0" class="sidebar-empty-state">
-                {{ Localizer.get('mcp_registryEmpty') }}
-            </div>
-            <AppAccordion
-                v-else
-                id="mcp-registry-accordion"
-                class="text-start"
-                :items="filteredRegistryMcp"
-                :get-key="server => server.name"
-            >
-                <template #header="{ item: server }">
-                    <i class="fa fa-server me-3" />
-                    <strong class="flex-grow-1">{{ server.title || server.name }}</strong>
-                    <span class="section-actions"
-                          :title="server.compatibleRemoteUrls.length > 0
-                              ? Localizer.get('mcp_add')
-                              : Localizer.get('mcp_registryNoRemote')">
-                        <i class="fa fa-plus click-icon"
-                           :class="{ disabled: server.compatibleRemoteUrls.length === 0 }"
-                           @click.stop="addMcp(server)" />
-                    </span>
-                </template>
-
-                <template #body="{ item: server }">
-                    <div class="mcp-registry-body">
-                        <p v-if="server.description" class="mb-2">
-                            {{ server.description }}
-                        </p>
-                        <p class="mb-1 small">
-                            <strong>{{ server.name }}</strong>
-                        </p>
-                        <p class="mb-2 small">
-                            {{ Localizer.get('mcp_registryVersion') }}: {{ server.version }}
-                        </p>
-                        <div v-if="server.remotes?.length" class="small">
-                            <strong>{{ Localizer.get('mcp_registryEndpoints') }}:</strong>
-                            <div v-for="remote in server.remotes"
-                                 :key="`${remote.type}-${remote.url}`"
-                                 class="mcp-registry-endpoint">
-                                {{ remote.url }}
-                            </div>
+                        <div v-if="registryNextCursor"
+                             ref="registryLoadMoreTrigger"
+                             class="mcp-registry-load-more-trigger">
+                            <span v-if="isRegistryLoadingMore">
+                                <i class="fa fa-circle-notch fa-spin me-1" />
+                                {{ Localizer.get('mcp_registryLoading') }}
+                            </span>
                         </div>
                     </div>
-                </template>
-            </AppAccordion>
+                </section>
+            </template>
+        </GenericSearch>
 
-            <div v-if="registryNextCursor"
-                 ref="registryLoadMoreTrigger"
-                 class="mcp-registry-load-more-trigger">
-                <span v-if="isRegistryLoadingMore">
-                    <i class="fa fa-circle-notch fa-spin me-1" />
-                    {{ Localizer.get('mcp_registryLoading') }}
-                </span>
-            </div>
-        </div>
-    </section>
-
-    <InputDialogue ref="input" />
-</div>
+        <InputDialogue ref="input" />
+    </div>
 
 </template>
 
@@ -226,14 +228,16 @@ import { useDevice } from "../../useIsMobile.js";
 import backendClient from "../../utils.js";
 import conf from "../../../config.js";
 import AppAccordion from '../AppAccordion.vue';
+import GenericSearch from '../GenericSearch.vue';
 import InputDialogue from '../InputDialogue.vue';
 import { getEffectiveApproval, isConfirmationTool, isForbiddenTool } from '../../approvalUtils.js';
+import {closeMcpOAuthWindow, prepareMcpOAuthWindow} from '../../mcpOAuth.ts';
 
 const MCP_REGISTRY_PAGE_SIZE = 20;
 
 export default {
     name: 'SidebarMcp',
-    components: {AppAccordion, InputDialogue},
+    components: {AppAccordion, GenericSearch, InputDialogue},
     props: {
         sidebarView: String,
     },
@@ -245,10 +249,10 @@ export default {
         return {
             platformMcp: null,
             isLoading: false,
-            isSearching: false,
             showRegistryHeaderActions: false,
             hideUnavailableRegistryMcp: false,
             hideCredentialedRegistryMcp: false,
+            prioritizeOfficialLookingRegistryMcp: true,
             searchQuery: '',
             restrictedActions: { forbidden: [], need_confirmation: [] },
             registryMcp: null,
@@ -264,53 +268,14 @@ export default {
         };
     },
     computed: {
-        mcpSearchContexts() {
-            const query = this.searchQuery.trim().toLowerCase();
-            if (!query) return [];
-
-            const results = [];
-            const matches = value => value?.toLowerCase().includes(query);
-            const excerpt = value => {
-                const text = value ?? '';
-                const index = text.toLowerCase().indexOf(query);
-                if (index < 0) return text;
-                const start = Math.max(0, index - 40);
-                const end = Math.min(text.length, index + query.length + 40);
-                return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+        mcpSearchItems() {
+            return {
+                installed: this.platformMcp ?? {},
+                registry: this.registryMcpCandidates,
             };
-
-            Object.entries(this.platformMcp ?? {}).forEach(([serverName, tools]) => {
-                if (matches(serverName)) {
-                    results.push({
-                        key: `installed-${serverName}`,
-                        path: `${Localizer.get('mcp_installed')} › ${serverName}`,
-                        context: excerpt(serverName),
-                    });
-                }
-
-                tools.forEach(tool => {
-                    if (!matches(tool.name) && !matches(tool.description)) return;
-                    results.push({
-                        key: `installed-${serverName}-${tool.name}`,
-                        path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
-                        context: excerpt(matches(tool.description) ? tool.description : tool.name),
-                    });
-                });
-            });
-
-            (this.filteredRegistryMcp ?? []).forEach(server => {
-                const serverTitle = server.title || server.name;
-                results.push({
-                    key: `registry-${server.name}`,
-                    path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
-                    context: excerpt(matches(server.description) ? server.description : serverTitle),
-                });
-            });
-
-            return results;
         },
 
-        filteredRegistryMcp() {
+        registryMcpCandidates() {
             if (!this.registryMcp) return this.registryMcp;
 
             // These filters are applied locally to loaded registry entries only
@@ -323,26 +288,65 @@ export default {
                 // This reflects declared secrets, not authentication discovered at runtime
                 servers = servers.filter(server => !this.registryServerHasDeclaredCredentials(server));
             }
-
             const query = this.searchQuery.trim().toLowerCase();
-            if (!query) return servers;
-
-            return servers.filter(server =>
-                server.name?.toLowerCase().includes(query)
-                || server.title?.toLowerCase().includes(query)
-                || server.description?.toLowerCase().includes(query)
-            );
+            if (this.prioritizeOfficialLookingRegistryMcp && query) {
+                const preferred = [];
+                const others = [];
+                for (const server of servers) {
+                    const separator = server.name.indexOf('/');
+                    const matchesPublisher = separator > 0
+                        && server.name.slice(0, separator).toLowerCase().includes(query);
+                    (matchesPublisher ? preferred : others).push(server);
+                }
+                // Preserve registry order within each group as more pages load.
+                servers = [...preferred, ...others];
+            }
+            return servers;
         },
     },
     methods: {
-        async toggleSearch() {
-            this.isSearching = !this.isSearching;
-            if (!this.isSearching) {
-                this.searchQuery = '';
-                return;
-            }
-            await nextTick();
-            this.$refs.searchBar?.focus();
+        filterMcpItems(items, query, {matches, getMatchExcerpt}) {
+            const installed = {};
+            const registry = items.registry === null ? null : [];
+            const contextPreviews = [];
+
+            Object.entries(items.installed ?? {}).forEach(([serverName, tools]) => {
+                const serverMatches = matches(serverName);
+                if (!query.trim() || serverMatches || tools.some(tool => matches(tool.name) || matches(tool.description))) {
+                    installed[serverName] = tools;
+                }
+                if (!query.trim()) return;
+
+                if (serverMatches) {
+                    contextPreviews.push({
+                        key: `installed-${serverName}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName}`,
+                        context: getMatchExcerpt(serverName),
+                    });
+                }
+                tools.forEach(tool => {
+                    if (!matches(tool.name) && !matches(tool.description)) return;
+                    contextPreviews.push({
+                        key: `installed-${serverName}-${tool.name}`,
+                        path: `${Localizer.get('mcp_installed')} › ${serverName} › ${tool.name}`,
+                        context: getMatchExcerpt(matches(tool.description) ? tool.description : tool.name),
+                    });
+                });
+            });
+
+            (items.registry ?? []).forEach(server => {
+                const serverTitle = server.title || server.name;
+                if (query.trim() && !matches(server.name) && !matches(serverTitle) && !matches(server.description)) return;
+                registry.push(server);
+                if (!query.trim()) return;
+                contextPreviews.push({
+                    key: `registry-${server.name}`,
+                    path: `${Localizer.get('mcp_browse')} › ${serverTitle}`,
+                    context: getMatchExcerpt(matches(server.description) ? server.description : serverTitle),
+                });
+            });
+
+            return {filteredItems: {installed, registry}, contextPreviews};
         },
 
         async updateMcp() {
@@ -437,7 +441,10 @@ export default {
                 if (requestVersion !== this.registryQueryVersion) return;
                 const nextServers = this.normalizeRegistryServers(result.servers);
                 const knownServers = new Set(this.registryMcp.map(server => server.name));
-                this.registryMcp.push(...nextServers.filter(server => !knownServers.has(server.name)));
+                this.registryMcp = [
+                    ...this.registryMcp,
+                    ...nextServers.filter(server => !knownServers.has(server.name)),
+                ];
                 this.registryNextCursor = result.metadata?.nextCursor ?? null;
                 loaded = true;
             } catch (error) {
@@ -466,6 +473,142 @@ export default {
             this.registryLoadMoreObserver.observe(trigger);
         },
 
+        registryInputField(input, label, visible) {
+            const choices = input?.choices;
+            return {
+                type: choices?.length ? "select" : (input?.isSecret ? "password" : "text"),
+                label,
+                placeholder: input?.description ?? "",
+                values: choices?.length ? Object.fromEntries(choices.map(choice => [choice, choice])) : undefined,
+                default: input?.default ?? null,
+                optional: input?.isRequired !== true,
+                visible,
+            };
+        },
+
+        registryConfigurationSchema(server) {
+            const schema = {};
+            const firstRemote = (server?.remotes ?? [])
+                .find(remote => remote.url === server.compatibleRemoteUrls?.[0]);
+            const hasRegistryHeaders = (server?.remotes ?? [])
+                .some(remote => server.compatibleRemoteUrls?.includes(remote.url) && remote.headers?.length);
+            const authModes = {auto: "Automatic / OAuth"};
+            if (hasRegistryHeaders) authModes.registry = "Registry credentials";
+            authModes.headers = "Advanced HTTP headers";
+            schema.mcpRegistryAuthMode = {
+                type: "select",
+                label: "Authentication",
+                default: firstRemote?.headers?.length ? "registry" : "auto",
+                values: authModes,
+            };
+            (server?.remotes ?? []).forEach((remote, remoteIndex) => {
+                const remoteVisible = values => values.mcpServerUrl === remote.url;
+                const credentialVisible = values => remoteVisible(values)
+                    && values.mcpRegistryAuthMode === "registry";
+                Object.entries(remote.variables ?? {}).forEach(([name, input], variableIndex) => {
+                    schema[`registry_${remoteIndex}_url_${variableIndex}`] = this.registryInputField(
+                        input, name, remoteVisible,
+                    );
+                });
+                (remote.headers ?? []).forEach((header, headerIndex) => {
+                    const variables = this.registryHeaderVariableEntries(header);
+                    if (variables.length) {
+                        variables.forEach(([name, input], variableIndex) => {
+                            schema[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`] =
+                                this.registryInputField(input, `${header.name}: ${name}`, credentialVisible);
+                        });
+                    } else if (header.value == null) {
+                        schema[`registry_${remoteIndex}_header_${headerIndex}`] = this.registryInputField(
+                            header, header.name, credentialVisible,
+                        );
+                        if (this.registrySuggestsBearerPrefix(header)) {
+                            schema[`registry_${remoteIndex}_header_${headerIndex}_format`] = {
+                                type: "select", label: "Value Format", default: "bearer", values: {
+                                    bearer: "Bearer <token>", raw: "Raw value",
+                                },
+                                visible: credentialVisible,
+                            };
+                        }
+                    }
+                });
+            });
+            schema.mcpRegistryAdvancedHeaders = {
+                type: "textarea", label: "Additional HTTP Headers (JSON, Optional)", monospace: true,
+                placeholder: '{"Header-Name":"value"}', optional: true,
+                visible: values => values.mcpRegistryAuthMode !== "auto",
+            };
+            return schema;
+        },
+
+        registryHeaderVariableEntries(header) {
+            const declared = Object.entries(header.variables ?? {});
+            if (declared.length || typeof header.value !== "string") return declared;
+
+            // Some registry entries use templates but omit the corresponding variable declarations.
+            // Infer a basic input so the unresolved placeholder is not sent as a credential.
+            const names = [...header.value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1]);
+            return [...new Set(names)].map(name => [name, {
+                description: header.description,
+                isRequired: header.isRequired,
+                isSecret: header.isSecret,
+            }]);
+        },
+
+        replaceRegistryVariables(template, variables) {
+            return template.replace(/\{([^}]+)\}/g, (match, name) =>
+                Object.hasOwn(variables, name) ? (variables[name] ?? "") : match
+            );
+        },
+
+        parseMcpHeaders(value) {
+            const headers = JSON.parse(value);
+            if (!headers || Array.isArray(headers) || typeof headers !== "object"
+                || Object.values(headers).some(headerValue => typeof headerValue !== "string")) {
+                throw new Error("Custom headers must be a JSON object containing string values.");
+            }
+            return headers;
+        },
+
+        registrySuggestsBearerPrefix(header) {
+            return header.name.toLowerCase() === "authorization"
+                && /\bbearer\b/i.test(header.description ?? "");
+        },
+
+        registryConnection(server, values) {
+            const remoteIndex = (server.remotes ?? []).findIndex(remote => remote.url === values.mcpServerUrl);
+            const remote = server.remotes[remoteIndex];
+            const urlVariables = {};
+            Object.keys(remote.variables ?? {}).forEach((name, variableIndex) => {
+                urlVariables[name] = values[`registry_${remoteIndex}_url_${variableIndex}`];
+            });
+            const headers = {};
+            if (values.mcpRegistryAuthMode === "registry") {
+                (remote.headers ?? []).forEach((header, headerIndex) => {
+                    const variableEntries = this.registryHeaderVariableEntries(header);
+                    let value;
+                    if (variableEntries.length) {
+                        const headerVariables = {};
+                        variableEntries.forEach(([name], variableIndex) => {
+                            headerVariables[name] = values[`registry_${remoteIndex}_header_${headerIndex}_${variableIndex}`];
+                        });
+                        value = this.replaceRegistryVariables(header.value ?? "", headerVariables);
+                    } else {
+                        value = header.value ?? values[`registry_${remoteIndex}_header_${headerIndex}`];
+                        const format = values[`registry_${remoteIndex}_header_${headerIndex}_format`];
+                        if (format === "bearer" && value != null && value !== "") value = `Bearer ${value}`;
+                    }
+                    if (value != null && value !== "") headers[header.name] = String(value);
+                });
+            }
+            if (values.mcpRegistryAuthMode !== "auto" && values.mcpRegistryAdvancedHeaders) {
+                Object.assign(headers, this.parseMcpHeaders(values.mcpRegistryAdvancedHeaders));
+            }
+            return {
+                serverUrl: this.replaceRegistryVariables(remote.url, urlVariables),
+                headers,
+            };
+        },
+
         async addMcp(registryServer = null) {
             const registryRemoteUrls = registryServer?.compatibleRemoteUrls ?? [];
             if (registryServer && registryRemoteUrls.length === 0) return;
@@ -480,8 +623,43 @@ export default {
                 : {
                     type: "text",
                     label: "Server URL",
-                    default: registryRemoteUrls[0] ?? null,
+                    default: null,
                 };
+            const authSchema = registryServer ? this.registryConfigurationSchema(registryServer) : {
+                mcpAuthType: {type: "select", label: "Authentication", default: "none", values: {
+                    none: "None",
+                    oauth2: "OAuth 2.1 (browser login)",
+                    credential: "API key or token",
+                    headers: "Advanced HTTP headers"
+                }},
+                mcpCredential: {
+                    type: "password", label: "API Key or Token",
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpCredentialHeader: {
+                    type: "text", label: "HTTP Header", default: "Authorization",
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpCredentialPrefix: {
+                    type: "select", label: "Value Format", default: "bearer", values: {
+                        bearer: "Bearer <token>", raw: "Raw value"
+                    },
+                    visible: values => values.mcpAuthType === "credential",
+                },
+                mcpHeaders: {
+                    type: "textarea", label: "Custom Headers (JSON)", monospace: true,
+                    placeholder: '{"Authorization":"Bearer token"}',
+                    visible: values => values.mcpAuthType === "headers",
+                },
+                mcpOAuthClientId: {
+                    type: "text", label: "OAuth Client ID (Optional)", optional: true,
+                    visible: values => values.mcpAuthType === "oauth2",
+                },
+                mcpOAuthClientSecret: {
+                    type: "password", label: "OAuth Client Secret (Optional)", optional: true,
+                    visible: values => values.mcpAuthType === "oauth2",
+                },
+            };
 
             await this.$refs.input.showDialogue(
                 Localizer.get('mcp_add'),
@@ -500,22 +678,58 @@ export default {
                         allow: "Auto Allow",
                         deny: "Auto Deny"
                     }},
+                    ...authSchema,
                 },
                 async (values) => {
+                    let serverUrl = values.mcpServerUrl;
+                    let auth;
+                    if (registryServer) {
+                        const connection = this.registryConnection(registryServer, values);
+                        serverUrl = connection.serverUrl;
+                        auth = {
+                            auth_type: values.mcpRegistryAuthMode === "auto" ? "auto" : "headers",
+                            headers: connection.headers,
+                        };
+                    } else if (values.mcpAuthType === "credential") {
+                        const prefix = values.mcpCredentialPrefix === "bearer" ? "Bearer " : "";
+                        auth = {
+                            auth_type: "headers",
+                            headers: {[values.mcpCredentialHeader]: `${prefix}${values.mcpCredential}`},
+                        };
+                    } else if (values.mcpAuthType === "headers") {
+                        auth = {auth_type: "headers", headers: this.parseMcpHeaders(values.mcpHeaders)};
+                    } else {
+                        auth = {
+                            auth_type: values.mcpAuthType,
+                            client_id: values.mcpOAuthClientId || null,
+                            client_secret: values.mcpOAuthClientSecret || null,
+                        };
+                    }
+
                     // Get values from submission dialogue
-                    const data = {type: "mcp", server_url: values.mcpServerUrl, server_label: values.mcpServerLabel, default_approval: values.mcpDefaultApproval}
+                    const data = {
+                        type: "mcp",
+                        server_url: serverUrl,
+                        server_label: values.mcpServerLabel,
+                        default_approval: values.mcpDefaultApproval,
+                        auth,
+                    };
 
                     // Validate input
-                    var mcpError = this.isValidInput(data.server_url, data.server_label);
+                    const mcpError = this.isValidInput(data.server_url, data.server_label);
                     if (mcpError !== "") {
                         throw new Error(mcpError);
                     }
 
-                    // Add MCP server to backend, retry on failure
+                    // Reserve the popup before the asynchronous request so browsers do not block it.
+                    const mayUseOAuth = auth.auth_type === "oauth2" || auth.auth_type === "auto";
                     try {
+                        if (mayUseOAuth) prepareMcpOAuthWindow();
                         await backendClient.addMcp(data);
                     } catch (err) {
-                        throw new Error(err.response.data.detail);
+                        throw new Error(err.response?.data?.detail ?? err.message ?? "Failed to add MCP server.");
+                    } finally {
+                        if (mayUseOAuth) closeMcpOAuthWindow();
                     }
                     await this.updateMcp(true);
                 }
@@ -525,14 +739,11 @@ export default {
 
         getRegistryRemoteUrls(server) {
             return [...new Set((server.remotes ?? [])
+                .filter(remote => remote.type === "streamable-http")
+                .filter(remote => !Object.values(remote.variables ?? {})
+                    .some(variable => this.registryInputDeclaresCredential(variable)))
                 .map(remote => remote.url)
-                .filter(url => {
-                    try {
-                        return new URL(url).protocol === 'https:';
-                    } catch (_) {
-                        return false;
-                    }
-                }))];
+                .filter(url => typeof url === 'string' && /^https:\/\//i.test(url)))];
         },
 
         registryInputDeclaresCredential(input) {
@@ -574,23 +785,9 @@ export default {
             );
         },
 
-        getMcp() {
-            return Object.keys(this.platformMcp)
-                .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-                .filter(mcp => {
-                    const matches = (s) => s?.toLowerCase().includes(this.searchQuery.toLowerCase());
-                    return matches(mcp) || this.platformMcp[mcp].some(mcp =>
-                            matches(mcp.name) || matches(mcp.description)
-                    );
-                })
-                .reduce((acc, mcp) => {
-                    acc[mcp] = this.platformMcp[mcp];
-                    return acc;
-                }, {});
-        },
-
-        getMcpServers() {
-            return Object.entries(this.getMcp())
+        getMcpServers(platformMcp = {}) {
+            return Object.entries(platformMcp)
+                .sort(([left], [right]) => left.toLowerCase().localeCompare(right.toLowerCase()))
                 .map(([name, tools]) => ({name, tools}));
         },
 
@@ -739,12 +936,21 @@ export default {
 </script>
 
 <style scoped>
+.mcp-server-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .mcp-body {
     padding: 0.5rem;
 }
 
 .mcp-registry-body {
     padding: 0.75rem;
+    overflow-wrap: anywhere;
 }
 
 .mcp-registry-endpoint {

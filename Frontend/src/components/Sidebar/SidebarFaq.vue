@@ -1,17 +1,17 @@
 <template>
-<div class="container flex-grow-1 overflow-hidden overflow-y-auto">
-    <div class="sidebar-title">
-        {{ Localizer.get('sidebar_faq') }}
-    </div>
+    <div class="container flex-grow-1 overflow-hidden overflow-y-auto">
+        <div class="sidebar-title">
+            {{ Localizer.get('sidebar_faq') }}
+        </div>
 
-    <div v-if="this.faqContent"
-         v-html="this.faqContent"
-         class="d-flex flex-column text-start faq-content">
+        <div v-if="this.faqContent"
+             v-html="this.faqContent"
+             class="d-flex flex-column text-start faq-content">
+        </div>
+        <div v-else class="sidebar-empty-state">
+            {{ Localizer.get('faq_missing') }}
+        </div>
     </div>
-    <div v-else class="sidebar-empty-state">
-        {{ Localizer.get('faq_missing') }}
-    </div>
-</div>
 </template>
 
 <script>

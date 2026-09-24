@@ -2,20 +2,29 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from functools import lru_cache
 
-import yake
-from pypdf import PdfReader
 from pydantic import BaseModel, Field
 
+from .llm_calling import LLMCaller, get_internal_llm_config
 from .file_utils import create_path, is_pdf
 from ..models import AgentMessage, Chat, ChatMessage, OpacaFile, QueryResponse, SessionData
 
 
 logger = logging.getLogger(__name__)
 
-KEYWORDS_MAX = 10
-KEYWORD_TEXT_MAX_CHARS = 250_000
+KEYWORDS_MAX = 15
+KEYWORD_TEXT_MAX_CHARS = 50_000
+KEYWORD_LANGUAGE_SAMPLE_CHARS = 10_000
+KEYWORD_MODELS = {
+    "de": "de_core_news_sm",
+    "en": "en_core_web_sm",
+}
+
+_WORD_PATTERN = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 SELECTION_SYSTEM_PROMPT = (
     "Select uploaded files relevant to the user's query using filenames and keywords "
@@ -38,49 +47,77 @@ class _RelevantFilesResponse(BaseModel):
     )
 
 
+@dataclass(frozen=True, slots=True)
+class File:
+    """File metadata exposed to file-selection tools."""
+
+    file_id: str
+    file_name: str
+    keywords: tuple[str, ...]
+    active: bool
+    attached_to_current_message: bool
+
+    def to_dict(self) -> dict:
+        return {
+            "file_id": self.file_id,
+            "file_name": self.file_name,
+            "keywords": list(self.keywords),
+            "active": self.active,
+            "attached_to_current_message": self.attached_to_current_message,
+        }
+
+
 def get_file_keyword_catalog(
         session: SessionData,
         file_ids: set[str] | None = None,
         current_file_ids: set[str] | None = None,
         active_file_ids: set[str] | None = None,
-) -> list[dict]:
+) -> list[File]:
     current_file_ids = current_file_ids or set()
     return [
-        {
-            "file_id": file_id,
-            "file_name": file.file_name,
-            "keywords": file.keywords,
-            "active": active_file_ids is None or file_id in active_file_ids,
-            "attached_to_current_message": file_id in current_file_ids,
-        }
+        File(
+            file_id=file_id,
+            file_name=file.file_name,
+            keywords=tuple(file.keywords),
+            active=active_file_ids is None or file_id in active_file_ids,
+            attached_to_current_message=file_id in current_file_ids,
+        )
         for file_id, file in session.uploaded_files.items()
         if file_ids is None or file_id in file_ids
     ]
 
 
-def _normalize_keywords(keywords: list[str]) -> list[str]:
-    normalized: list[str] = []
-    seen: set[str] = set()
+def _detect_keyword_language(text: str) -> str:
+    """Select the English or German pipeline using respective stop words."""
+    from spacy.lang.de.stop_words import STOP_WORDS as german_stop_words
+    from spacy.lang.en.stop_words import STOP_WORDS as english_stop_words
 
-    for keyword in keywords:
-        words = keyword.split()
-        if not words:
-            continue
+    words = _WORD_PATTERN.findall(text[:KEYWORD_LANGUAGE_SAMPLE_CHARS].casefold())
+    german_score = sum(word in german_stop_words for word in words)
+    english_score = sum(word in english_stop_words for word in words)
+    return "de" if german_score > english_score else "en"
 
-        keyword = " ".join(words[:5])[:60].rstrip(".,;:")
-        normalized_key = keyword.casefold()
-        if normalized_key in seen:
-            continue
 
-        seen.add(normalized_key)
-        normalized.append(keyword)
-        if len(normalized) == KEYWORDS_MAX:
-            break
+@lru_cache(maxsize=len(KEYWORD_MODELS))
+def _keyword_pipeline(language: str):
+    import spacy
+    from rapid_textrank.spacy_component import RustTextRank  # noqa
 
-    return normalized
+    nlp = spacy.load(KEYWORD_MODELS[language], exclude=["ner"])
+    nlp.add_pipe(
+        "rapid_textrank",
+        config={
+            "language": language,
+            "top_n": KEYWORDS_MAX * 2,
+            "variant": "topic_rank",
+        },
+    )
+    return nlp
 
 
 def _extract_pdf_text(session: SessionData, file_id: str) -> str:
+    from pypdf import PdfReader
+
     reader = PdfReader(str(create_path(session.session_id, file_id)))
     text_parts: list[str] = []
     extracted_chars = 0
@@ -107,13 +144,18 @@ def _extract_file_text(session: SessionData, file_id: str, file: OpacaFile) -> s
     return ""
 
 
-def _extract_yake_keywords(text: str) -> list[str]:
-    extractor = yake.KeywordExtractor(
-        n=3,
-        dedupLim=0.4,
-        top=KEYWORDS_MAX * 4,
-    )
-    return _normalize_keywords([keyword for keyword, _score in extractor.extract_keywords(text)])
+def _extract_keywords(text: str) -> list[str]:
+    """Extract diverse noun-phrase topics using linguistic parsing and TopicRank."""
+    language = _detect_keyword_language(text)
+    doc = _keyword_pipeline(language)(text[:KEYWORD_TEXT_MAX_CHARS])
+    keywords: dict[str, str] = {}
+    for phrase in doc._.phrases:
+        keyword = phrase.text.strip()
+        if keyword:
+            keywords.setdefault(keyword.casefold(), keyword)
+        if len(keywords) == KEYWORDS_MAX:
+            break
+    return list(keywords.values())
 
 
 async def _call_file_llm(
@@ -126,17 +168,9 @@ async def _call_file_llm(
         response_format: type[BaseModel] | None = None,
         record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
 ) -> AgentMessage:
-    # Lazy import avoids a startup cycle:
-    # abstract_method -> tool_calling -> internal_tools.files -> file_analysis -> simple_tools -> abstract_method
-    from ..strategies import DEFAULT_METHOD
-
-    method = DEFAULT_METHOD(
-        session=session,
-        chat=Chat(chat_id=""),
-        response=QueryResponse(),
-    )
-    result = await method.call_llm(
-        model_config=method.get_config().model,
+    caller = LLMCaller(session=session, chat=Chat(chat_id=""), response=QueryResponse())
+    result = await caller.call_llm(
+        model_config=get_internal_llm_config(session),
         agent=agent,
         system_prompt=system_prompt,
         messages=[ChatMessage(role="user", content=user_prompt)],
@@ -149,7 +183,7 @@ async def _call_file_llm(
 
 
 async def generate_file_metadata(session: SessionData, file_id: str) -> OpacaFile:
-    """Generate and store local YAKE keywords."""
+    """Generate and store local keywords for an uploaded file."""
     file = session.uploaded_files.get(file_id)
     if file is None:
         raise ValueError(f"Unknown file ID: {file_id}")
@@ -159,14 +193,14 @@ async def generate_file_metadata(session: SessionData, file_id: str) -> OpacaFil
     try:
         text = _extract_file_text(session, file_id, file)
         if not text.strip():
-            raise ValueError("No extractable text for YAKE keyword generation")
+            raise ValueError("No extractable text for keyword generation")
 
-        keywords = _extract_yake_keywords(text)
+        keywords = _extract_keywords(text)
         if not keywords:
-            raise ValueError("YAKE returned no keywords")
+            raise ValueError("Keyword extraction returned no keywords")
         file.keywords = keywords
         logger.info(
-            "[Files] Generated YAKE keywords file_id=%s name=%s keywords=%s",
+            "[Files] Generated keywords file_id=%s name=%s keywords=%s",
             file_id,
             file.file_name,
             keywords,
@@ -191,7 +225,7 @@ async def find_relevant_files(
         current_file_ids: set[str] | None = None,
         active_file_ids: set[str] | None = None,
         record_agent_message: Callable[[AgentMessage], Awaitable[None]] | None = None,
-) -> list[dict]:
+) -> list[File]:
     """Use uploaded-file metadata to select files relevant to a query."""
     catalog = get_file_keyword_catalog(session, file_ids, current_file_ids, active_file_ids)
     if not catalog:
@@ -203,23 +237,13 @@ async def find_relevant_files(
         system_prompt=SELECTION_SYSTEM_PROMPT,
         user_prompt=(
             f"Query:\n{query}\n\nAvailable file keyword metadata:\n"
-            f"{json.dumps(catalog, ensure_ascii=False, separators=(',', ':'))}"
+            f"{json.dumps([file.to_dict() for file in catalog], ensure_ascii=False, separators=(',', ':'))}"
         ),
         response_format=_RelevantFilesResponse,
         record_agent_message=record_agent_message,
     )
     relevant_ids = set(result.formatted_output.file_ids if result.formatted_output else ())
-    return [
-        {
-            "file_id": file["file_id"],
-            "file_name": file["file_name"],
-            "keywords": file["keywords"],
-            "active": file["active"],
-            "attached_to_current_message": file["attached_to_current_message"],
-        }
-        for file in catalog
-        if file["file_id"] in relevant_ids
-    ]
+    return [file for file in catalog if file.file_id in relevant_ids]
 
 
 async def answer_from_files(

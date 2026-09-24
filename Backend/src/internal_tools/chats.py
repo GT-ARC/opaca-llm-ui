@@ -43,7 +43,10 @@ class ChatTools:
             {search_query}
         """)
         try:
-            res = await self.ctx.query(query, agent_prefix="InternalTool / SearchChats")
+            res = await self.ctx.call_llm(
+                query, agent="InternalTool / SearchChats",
+                system_prompt="Answer the query using the supplied conversation transcripts.",
+            )
             return res.content
         except Exception as e:
             return f"Search failed: {e}"
